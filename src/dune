@@ -1,4 +1,8 @@
 (include_subdirs unqualified)
 
-(executable
- (name main))
+(library
+ (name main)
+ (wrapped false)
+ (inline_tests)
+ (preprocess
+  (ppx_expect ppx_inline_test)))
