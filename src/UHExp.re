@@ -8,9 +8,9 @@ and operand =
   | Paren(t)
 and preop =
   | If(t, t)
-  | Let(Var.t, t)
+  | Let(UHPat.t, t)
 and postop =
-  | Ann(HTyp.t) /* 1 + [2 : Int] -> Int */
+  | Ann(UHTyp.t) /* 1 + [2 : Int] -> Int */
 and binop =
   | OpHole
   | Plus
