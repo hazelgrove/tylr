@@ -5,4 +5,4 @@
  (wrapped false)
  (inline_tests)
  (preprocess
-  (ppx_expect ppx_inline_test)))
+  (pps ppx_expect ppx_inline_test)))
