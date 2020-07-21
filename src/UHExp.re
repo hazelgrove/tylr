@@ -1,62 +1,76 @@
 type t = (Skel.t, tiles)
-and tiles = Tiles.t(operand, preop, postop, binop)
-and tile = Tile.t(operand, preop, postop, binop)
-and operand =
+and tiles = list(tile)
+and tile =
   | Hole
   | Num(int)
   | Var(Var.t)
   | Paren(t)
-and preop =
   | If(t, t)
   | Let(UHPat.t, t)
-and postop =
   | Ann(UHTyp.t) /* 1 + [2 : Int] -> Int */
-and binop =
   | OpHole
   | Plus
   | Times
   | Eq;
 
-let precedence: tile => int =
-  fun
-  | Operand(_) => 0
-  | BinOp(OpHole) => 1
-  | BinOp(Times) => 2
-  | BinOp(Plus) => 3
-  | BinOp(Eq) => 5
-  | PostOp(Ann(_)) => 9
-  | PreOp(If(_)) => 10
-  | PreOp(Let(_)) => 10;
+module Tile = {
+  type t = tile;
 
-let mk = (tiles): t => (
-  Skel.mk(~precedence, ~operand_hole=Hole, ~operator_hole=OpHole, tiles),
-  tiles,
+  let operand_hole = Hole;
+  let operator_hole = OpHole;
+
+  let shape: t => Tile.shape =
+    fun
+    | Hole
+    | Num(_)
+    | Var(_)
+    | Paren(_) => Operand
+    | If(_)
+    | Let(_) => PreOp
+    | Ann(_) => PostOp
+    | OpHole
+    | Plus
+    | Times
+    | Eq => BinOp;
+
+  let precedence: t => int =
+    fun
+    | Hole
+    | Num(_)
+    | Var(_)
+    | Paren(_) => 0
+    | OpHole => 1
+    | Times => 2
+    | Plus => 3
+    | Eq => 5
+    | Ann(_) => 9
+    | If(_) => 10
+    | Let(_) => 10;
+
+  let associativity: t => option(Associativity.t) =
+    fun
+    | Hole
+    | Num(_)
+    | Var(_)
+    | Paren(_)
+    | Ann(_)
+    | If(_)
+    | Let(_) => None
+    | OpHole
+    | Times
+    | Plus
+    | Eq => Some(Left);
+};
+
+let mk = (tiles): t => (Skel.mk((module Tile), tiles), tiles);
+
+let one_two_three_four = (
+  Skel.(
+    BinOp(
+      BinOp(BinOp(Operand(0), 1, Operand(2)), 3, Operand(4)),
+      5,
+      Operand(6),
+    )
+  ),
+  [Num(1), Plus, Num(2), Plus, Num(3), Plus, Num(4)],
 );
-
-let one_two_three_four =
-  (
-    Skel.(
-      BinOp(
-        BinOp(
-          BinOp(
-            Operand(0),
-            1,
-            Operand(2),
-          ),
-          3,
-          Operand(4)
-        ),
-        5,
-        Operand(6),
-      )
-    ),
-    Tile.[
-      Operand(Num(1)),
-      BinOp(Plus),
-      Operand(Num(2)),
-      BinOp(Plus),
-      Operand(Num(3)),
-      BinOp(Plus),
-      Operand(Num(4)),
-    ]
-  );

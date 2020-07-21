@@ -33,3 +33,12 @@ let split_sublist =
     }
   };
 };
+
+let rec split_nth = (n, xs) =>
+  switch (n, xs) {
+  | (_, []) => failwith("out of bounds")
+  | (0, [x, ...suffix]) => ([], x, suffix)
+  | (_, [x, ...xs]) =>
+    let (prefix, subject, suffix) = split_nth(n - 1, xs);
+    ([x, ...prefix], subject, suffix);
+  };

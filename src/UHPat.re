@@ -1,2 +1,2 @@
 type t =
-  | Var(Var.t)
+  | Var(Var.t);

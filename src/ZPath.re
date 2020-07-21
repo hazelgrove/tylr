@@ -120,13 +120,13 @@ let cons' = (left_right, (steps, tile_index): tile_path) => (
  */
 
 let get_subexp_of_tile =
-    (right_step: int, tile: UHExp.tile)
-    : option((UHExp.t => UHExp.tile, UHExp.t)) =>
+    (right_step: int, tile: UHExp.Tile.t)
+    : option((UHExp.t => UHExp.Tile.t, UHExp.t)) =>
   switch (right_step, tile) {
-  | (1, Operand(Paren(e))) => Some(((e => Operand(Paren(e))), e))
-  | (1, PreOp(If(e1, e2))) => Some(((e1 => PreOp(If(e1, e2))), e1))
-  | (3, PreOp(If(e1, e2))) => Some(((e2 => PreOp(If(e1, e2))), e2))
-  | (3, PreOp(Let(x, def))) => Some(((def => PreOp(Let(x, def))), def))
+  | (1, Paren(e)) => Some(((e => Paren(e)), e))
+  | (1, If(e1, e2)) => Some(((e1 => If(e1, e2)), e1))
+  | (3, If(e1, e2)) => Some(((e2 => If(e1, e2)), e2))
+  | (3, Let(x, def)) => Some(((def => Let(x, def)), def))
   | _ => None
   };
 
@@ -135,7 +135,7 @@ let rec get_subexp =
   switch (steps, e) {
   | ([], _) => Some(((e => e), e))
   | ([(left_step, right_step), ...steps], (skel, tiles)) =>
-    let (prefix, tile, suffix) = Tiles.split_nth(left_step, tiles);
+    let (prefix, tile, suffix) = ListUtil.split_nth(left_step, tiles);
     switch (get_subexp_of_tile(right_step, tile)) {
     | None => None
     | Some((tile_wrapper, subexp)) =>

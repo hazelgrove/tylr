@@ -4,33 +4,22 @@ type t =
   | PostOp(t, int)
   | BinOp(t, int, t);
 
-let mk =
-    (
-      ~precedence: Tile.t('operand, 'preop, 'postop, 'binop) => int,
-      ~operand_hole: 'operand,
-      ~operator_hole: 'binop,
-      tiles: list(Tile.t('operand, 'preop, 'postop, 'binop)),
-    )
-    : t => {
+let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
   let push_output =
-      (
-        (i: int, tile: Tile.t('operand, 'preop, 'postop, 'binop)),
-        output_stack: list(t),
-      )
-      : list(t) =>
-    switch (tile) {
-    | Operand(_) => [Operand(i), ...output_stack]
-    | PreOp(_) =>
+      ((i: int, tile: Tile.t), output_stack: list(t)): list(t) =>
+    switch (Tile.shape(tile)) {
+    | Operand => [Operand(i), ...output_stack]
+    | PreOp =>
       switch (output_stack) {
       | [] => failwith("impossible: preop encountered empty stack")
       | [skel, ...skels] => [PreOp(i, skel), ...skels]
       }
-    | PostOp(_) =>
+    | PostOp =>
       switch (output_stack) {
       | [] => failwith("impossible: postop encountered empty stack")
       | [skel, ...skels] => [PostOp(skel, i), ...skels]
       }
-    | BinOp(_) =>
+    | BinOp =>
       switch (output_stack) {
       | []
       | [_] =>
@@ -47,51 +36,54 @@ let mk =
   let rec process_preop =
           (
             ~output_stack: list(t),
-            ~shunted_stack:
-               list((int, Tile.t('operand, 'preop, 'postop, 'binop))),
+            ~shunted_stack: list((int, Tile.t)),
             preop,
-          ) =>
+          ) => {
     switch (shunted_stack) {
-    | []
-    | [(_, PreOp(_) | BinOp(_)), ..._] => (
-        output_stack,
-        [preop, ...shunted_stack],
-      )
-    | [(_, Operand(_) | PostOp(_)) as hd, ...tl] =>
-      process_preop(
-        ~output_stack=push_output(hd, output_stack),
-        ~shunted_stack=tl,
-        preop,
-      )
+    | [] => (output_stack, [preop, ...shunted_stack])
+    | [(_, tile) as hd, ...tl] =>
+      switch (Tile.shape(tile)) {
+      | PreOp
+      | BinOp => (output_stack, [preop, ...shunted_stack])
+      | Operand
+      | PostOp =>
+        process_preop(
+          ~output_stack=push_output(hd, output_stack),
+          ~shunted_stack=tl,
+          preop,
+        )
+      }
     };
+  };
 
   // assumes postops lose ties with preops and binops
   let rec process_postop =
           (
             ~output_stack: list(t),
-            ~shunted_stack:
-               list((int, Tile.t('operand, 'preop, 'postop, 'binop))),
-            (_, op) as postop: (
-              int,
-              Tile.t('operand, 'preop, 'postop, 'binop),
-            ),
+            ~shunted_stack: list((int, Tile.t)),
+            (_, op) as postop: (int, Tile.t),
           ) =>
     switch (shunted_stack) {
     | [] => (output_stack, [postop, ...shunted_stack])
-    | [(_, Operand(_) | PostOp(_)) as hd, ...tl] =>
-      process_postop(
-        ~output_stack=push_output(hd, output_stack),
-        ~shunted_stack=tl,
-        postop,
-      )
-    | [(_, (PreOp(_) | BinOp(_)) as hd_op) as hd, ...tl] =>
-      precedence(hd_op) <= precedence(op)
-        ? process_postop(
-            ~output_stack=push_output(hd, output_stack),
-            ~shunted_stack=tl,
-            postop,
-          )
-        : (output_stack, [postop, ...shunted_stack])
+    | [(_, tile) as hd, ...tl] =>
+      switch (Tile.shape(tile)) {
+      | Operand
+      | PostOp =>
+        process_postop(
+          ~output_stack=push_output(hd, output_stack),
+          ~shunted_stack=tl,
+          postop,
+        )
+      | PreOp
+      | BinOp =>
+        Tile.precedence(tile) <= Tile.precedence(op)
+          ? process_postop(
+              ~output_stack=push_output(hd, output_stack),
+              ~shunted_stack=tl,
+              postop,
+            )
+          : (output_stack, [postop, ...shunted_stack])
+      }
     };
 
   // currently assumes all binops are left-associative
@@ -99,26 +91,30 @@ let mk =
   let rec process_binop =
           (
             ~output_stack: list(t),
-            ~shunted_stack:
-               list((int, Tile.t('operand, 'preop, 'postop, 'binop))),
+            ~shunted_stack: list((int, Tile.t)),
             (_, op) as binop,
           ) =>
     switch (shunted_stack) {
     | [] => (output_stack, [binop, ...shunted_stack])
-    | [(_, Operand(_) | PostOp(_)) as hd, ...tl] =>
-      process_binop(
-        ~output_stack=push_output(hd, output_stack),
-        ~shunted_stack=tl,
-        binop,
-      )
-    | [(_, (PreOp(_) | BinOp(_)) as hd_op) as hd, ...tl] =>
-      precedence(hd_op) <= precedence(op)
-        ? process_binop(
-            ~output_stack=push_output(hd, output_stack),
-            ~shunted_stack=tl,
-            binop,
-          )
-        : (output_stack, [binop, ...shunted_stack])
+    | [(_, tile) as hd, ...tl] =>
+      switch (Tile.shape(tile)) {
+      | Operand
+      | PostOp =>
+        process_binop(
+          ~output_stack=push_output(hd, output_stack),
+          ~shunted_stack=tl,
+          binop,
+        )
+      | PreOp
+      | BinOp =>
+        Tile.precedence(tile) <= Tile.precedence(op)
+          ? process_binop(
+              ~output_stack=push_output(hd, output_stack),
+              ~shunted_stack=tl,
+              binop,
+            )
+          : (output_stack, [binop, ...shunted_stack])
+      }
     };
 
   let rec go =
@@ -127,9 +123,8 @@ let mk =
             ~operator_count: int,
             ~new_hole_count: int,
             ~output_stack: list(t),
-            ~shunted_stack:
-               list((int, Tile.t('operand, 'preop, 'postop, 'binop))),
-            tiles: list((int, Tile.t('operand, 'preop, 'postop, 'binop))),
+            ~shunted_stack: list((int, Tile.t)),
+            tiles: list((int, Tile.t)),
           )
           : list(t) => {
     switch (tiles) {
@@ -139,12 +134,15 @@ let mk =
            (output_stack, itile) => push_output(itile, output_stack),
            output_stack,
          )
-    | [(i, PreOp(_) | Operand(_)), ..._] when operand_count > operator_count =>
+    | [(i, tile), ..._]
+        when
+          (Tile.shape(tile) == PreOp || Tile.shape(tile) == Operand)
+          && operand_count > operator_count =>
       let (output_stack, shunted_stack) =
         process_binop(
           ~output_stack,
           ~shunted_stack,
-          (i, BinOp(operator_hole)),
+          (i, Tile.operator_hole),
         );
       go(
         ~operand_count,
@@ -154,12 +152,15 @@ let mk =
         ~shunted_stack,
         tiles,
       );
-    | [(i, PostOp(_) | BinOp(_)), ..._] when operand_count <= operator_count =>
+    | [(i, tile), ..._]
+        when
+          (Tile.shape(tile) == PostOp || Tile.shape(tile) == BinOp)
+          && operand_count <= operator_count =>
       let (output_stack, shunted_stack) =
         process_operand(
           ~output_stack,
           ~shunted_stack,
-          (i, Operand(operand_hole)),
+          (i, Tile.operand_hole),
         );
       go(
         ~operand_count=operand_count + 1,
@@ -171,15 +172,11 @@ let mk =
       );
     | [t, ...ts] =>
       let (operand_count, operator_count, process) =
-        switch (t) {
-        | (_, Operand(_)) => (
-            operand_count + 1,
-            operator_count,
-            process_operand,
-          )
-        | (_, PreOp(_)) => (operand_count, operator_count, process_preop)
-        | (_, PostOp(_)) => (operand_count, operator_count, process_postop)
-        | (_, BinOp(_)) => (operand_count, operator_count + 1, process_binop)
+        switch (Tile.shape(snd(t))) {
+        | Operand => (operand_count + 1, operator_count, process_operand)
+        | PreOp => (operand_count, operator_count, process_preop)
+        | PostOp => (operand_count, operator_count, process_postop)
+        | BinOp => (operand_count, operator_count + 1, process_binop)
         };
       let (output_stack, shunted_stack) =
         process(~output_stack, ~shunted_stack, t);

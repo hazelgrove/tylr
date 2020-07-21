@@ -1,5 +1,14 @@
-type t('operand, 'preop, 'postop, 'binop) =
-  | Operand('operand)
-  | PreOp('preop)
-  | PostOp('postop)
-  | BinOp('binop);
+type shape =
+  | Operand
+  | PreOp
+  | PostOp
+  | BinOp;
+
+module type S = {
+  type t;
+  let operand_hole: t;
+  let operator_hole: t;
+  let shape: t => shape;
+  let precedence: t => int;
+  let associativity: t => option(Associativity.t);
+};
