@@ -1,8 +1,8 @@
 type t =
-  | Operand(int)
-  | PreOp(int, t)
-  | PostOp(t, int)
-  | BinOp(t, int, t);
+  | Operand(int) // Hole, Num, Var
+  | PreOp(int, t) // If, Let
+  | PostOp(t, int) // Ann
+  | BinOp(t, int, t); // OpHole, Plus, Times
 
 let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
   let push_output =
@@ -119,9 +119,6 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
 
   let rec go =
           (
-            ~operand_count: int,
-            ~operator_count: int,
-            ~new_hole_count: int,
             ~output_stack: list(t),
             ~shunted_stack: list((int, Tile.t)),
             tiles: list((int, Tile.t)),
@@ -134,56 +131,17 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
            (output_stack, itile) => push_output(itile, output_stack),
            output_stack,
          )
-    | [(i, tile), ..._]
-        when
-          (Tile.shape(tile) == PreOp || Tile.shape(tile) == Operand)
-          && operand_count > operator_count =>
-      let (output_stack, shunted_stack) =
-        process_binop(
-          ~output_stack,
-          ~shunted_stack,
-          (i, Tile.operator_hole),
-        );
-      go(
-        ~operand_count,
-        ~operator_count=operator_count + 1,
-        ~new_hole_count=new_hole_count + 1,
-        ~output_stack,
-        ~shunted_stack,
-        tiles,
-      );
-    | [(i, tile), ..._]
-        when
-          (Tile.shape(tile) == PostOp || Tile.shape(tile) == BinOp)
-          && operand_count <= operator_count =>
-      let (output_stack, shunted_stack) =
-        process_operand(
-          ~output_stack,
-          ~shunted_stack,
-          (i, Tile.operand_hole),
-        );
-      go(
-        ~operand_count=operand_count + 1,
-        ~operator_count,
-        ~new_hole_count=new_hole_count + 1,
-        ~output_stack,
-        ~shunted_stack,
-        tiles,
-      );
-    | [t, ...ts] =>
-      let (operand_count, operator_count, process) =
-        switch (Tile.shape(snd(t))) {
-        | Operand => (operand_count + 1, operator_count, process_operand)
-        | PreOp => (operand_count, operator_count, process_preop)
-        | PostOp => (operand_count, operator_count, process_postop)
-        | BinOp => (operand_count, operator_count + 1, process_binop)
+    | [(_, tile) as t, ...ts] =>
+      let process =
+        switch (Tile.shape(tile)) {
+        | Operand => process_operand
+        | PreOp => process_preop
+        | PostOp => process_postop
+        | BinOp => process_binop
         };
       let (output_stack, shunted_stack) =
         process(~output_stack, ~shunted_stack, t);
       go(
-        ~operand_count,
-        ~operator_count,
-        ~new_hole_count,
         ~output_stack,
         ~shunted_stack,
         ts,
@@ -194,9 +152,6 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
   tiles
   |> List.mapi((i, tile) => (i, tile))
   |> go(
-       ~operand_count=0,
-       ~operator_count=0,
-       ~new_hole_count=0,
        ~output_stack=[],
        ~shunted_stack=[],
      )

@@ -5,9 +5,9 @@ and tile =
   | Num(int)
   | Var(Var.t)
   | Paren(t)
-  | If(t, t)
+  | If(t, t) // 1 + 2 + [if e1 then e2 else] (3 + 4)
   | Let(UHPat.t, t)
-  | Ann(UHTyp.t) /* 1 + [2 : Int] -> Int */
+  | Ann(UHTyp.t) /* 1 + [2 : Int -> Int] */
   | OpHole
   | Plus
   | Times

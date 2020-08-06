@@ -17,6 +17,17 @@ let insert_tiles =
 };
 
 let remove_tiles =
+    (start_index: int, end_index: int, (_, tiles): UHExp.t)
+    : option((list(UHExp.tile), UHExp.t)) => {
+  tiles
+  |> ListUtil.split_sublist(start_index, end_index)
+  |> Option.map(((prefix, removed, suffix)) =>
+      (removed, UHExp.mk(prefix @ suffix))
+    );
+};
+
+/*
+let remove_tiles =
     (steps: ZPath.steps, (start_index, end_index): (int, int), e: UHExp.t)
     : option((list(UHExp.tile), UHExp.t)) => {
   switch (ZPath.get_subexp(steps, e)) {
@@ -29,6 +40,7 @@ let remove_tiles =
        )
   };
 };
+*/
 
 let move_tiles =
     // TODO create selection type
@@ -96,8 +108,10 @@ let restructure =
       )
     | (false, false) =>
       // TODO return None
-      failwith("cannot restructure")
+      failwith("invalid target")
     | (true, false) =>
+      // TODO think I'm not considering illegal cases here,
+      // where target is on other side in outer tile context
       let remove_range =
         anchor_before_focus
           ? (target_index, anchor_index) : (anchor_index, target_index);
@@ -109,4 +123,60 @@ let restructure =
       ((target_steps, remove_range), anchor_path);
     };
   e |> move_tiles(remove_range, insertion_path);
+};
+
+/**
+ * assumptions:
+ * - same erasure
+ * - anchor before focus
+ */
+let rec restructure = (
+  anchor: ZExp.t,
+  focus: ZExp.t,
+  target: ZExp.t,
+): option(ZExp.t) => {
+  let anchor_i = List.length(anchor.ztiles.prefix);
+  let focus_i = List.length(focus.ztiles.prefix);
+  let target_i = List.length(target.ztiles.prefix);
+  let same_ztile = anchor_i == focus_i && focus_i == target_i;
+  switch (
+    anchor.ztiles.z,
+    focus.ztiles.z,
+    target.ztiles.z,
+  ) {
+  | (Z, Z, Z) =>
+    // restructuring mode should only be entered when
+    // selection contains an unmatched delimiter
+    None
+
+  | (Z, _not_Z, Z) when target_i <= anchor_i =>
+
+
+  | (ParenZ(anchor), ParenZ(focus), ParenZ(target)) when same_ztile =>
+    restructure(anchor, focus, target)
+    |> Option.map(ze => ZExp.put_ztile(ParenZ(ze), target))
+  | (IfZ_if(anchor, then_clause), IfZ_if(focus, _), IfZ_if(target, _))
+      when same_ztile =>
+    restructure(anchor, focus, target)
+    |> Option.map(ze => ZExp.put_ztile(IfZ_if(ze, then_clause), target))
+
+
+
+    if (target_i <= anchor_i && anchor_i <= focus_i) {
+
+      // remove tiles between target and anchor
+      // insert them at focus
+    } else if (focus_i < anchor_i && anchor_i <= target_i) {
+
+    } else {
+      None
+    };
+  | (_not_Z, Z, Z) =>
+    if (target_i <= focus_i && focus_i <= anchor_i) {
+    } else if (anchor_i < focus_i && focus_i <= target_i) {
+
+    } else {
+      None
+    }
+  }
 };
