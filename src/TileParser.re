@@ -1,30 +1,67 @@
-type t =
-  | Operand(int) // Hole, Num, Var
-  | PreOp(int, t) // If, Let
-  | PostOp(t, int) // Ann
-  | BinOp(t, int, t); // OpHole, Plus, Times
+module type TILE = {
+  type t;
+  type s = list(t);
+  type term;
+  let operand_hole: t;
+  let operator_hole: t;
+  let shape: t => TileShape.t(term);
+};
 
-let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
+let fix_empty_holes =
+    (type a, module Tile: TILE with type t = a, tiles: Tile.s): Tile.s => {
+  let rec fix_operand = (tiles: Tile.s) =>
+    switch (tiles) {
+    | [] => [Tile.operand_hole]
+    | [t, ...ts] =>
+      switch (Tile.shape(t)) {
+      | PreOp(_) => [t, ...fix_operand(ts)]
+      | Operand(_) => [t, ...fix_operator(ts)]
+      | PostOp(_)
+      | BinOp(_) => [Tile.operand_hole, ...fix_operator(tiles)]
+      }
+    }
+  and fix_operator = (tiles: Tile.shape) =>
+    switch (tiles) {
+    | [] => []
+    | [t, ...ts] =>
+      switch (Tile.shape(t)) {
+      | PostOp(_) => [t, ...fix_operator(ts)]
+      | BinOp(_) => [t, ...fix_operand(ts)]
+      | PreOp(_)
+      | Operand(_) => [Tile.operator_hole, ...fix_operand(tiles)]
+      }
+    };
+  fix_operand(tiles);
+};
+
+let parse =
+    (
+      type a,
+      type b,
+      module Tile: TILE with type t = a and type term = b,
+      tiles: Tile.s,
+    )
+    : Tile.term => {
   let push_output =
-      ((i: int, tile: Tile.t), output_stack: list(t)): list(t) =>
+      ((i: int, tile: Tile.t), output_stack: list(Tile.term)): list(t) =>
     switch (Tile.shape(tile)) {
-    | Operand => [Operand(i), ...output_stack]
-    | PreOp =>
+    | Operand(tm) => [tm, ...output_stack]
+    | PreOp(pre, _) =>
       switch (output_stack) {
       | [] => failwith("impossible: preop encountered empty stack")
-      | [skel, ...skels] => [PreOp(i, skel), ...skels]
+      | [tm, ...tms] => [pre(tm), ...tms]
       }
-    | PostOp =>
+    | PostOp(post, _) =>
       switch (output_stack) {
       | [] => failwith("impossible: postop encountered empty stack")
-      | [skel, ...skels] => [PostOp(skel, i), ...skels]
+      | [tm, ...tms] => [post(tm), ...tms]
       }
-    | BinOp =>
+    | BinOp(bin, _, _) =>
       switch (output_stack) {
       | []
       | [_] =>
         failwith("impossible: binop encountered empty or singleton stack")
-      | [skel1, skel2, ...skels] => [BinOp(skel1, i, skel2), ...skels]
+      | [tm1, tm2, ...tms] => [bin(tm1, tm2), ...tms]
       }
     };
 
@@ -35,7 +72,7 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
 
   let rec process_preop =
           (
-            ~output_stack: list(t),
+            ~output_stack: list(Tile.term),
             ~shunted_stack: list((int, Tile.t)),
             preop,
           ) => {
@@ -43,10 +80,10 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
     | [] => (output_stack, [preop, ...shunted_stack])
     | [(_, tile) as hd, ...tl] =>
       switch (Tile.shape(tile)) {
-      | PreOp
-      | BinOp => (output_stack, [preop, ...shunted_stack])
-      | Operand
-      | PostOp =>
+      | PreOp(_)
+      | BinOp(_) => (output_stack, [preop, ...shunted_stack])
+      | Operand(_)
+      | PostOp(_) =>
         process_preop(
           ~output_stack=push_output(hd, output_stack),
           ~shunted_stack=tl,
@@ -59,7 +96,7 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
   // assumes postops lose ties with preops and binops
   let rec process_postop =
           (
-            ~output_stack: list(t),
+            ~output_stack: list(Tile.term),
             ~shunted_stack: list((int, Tile.t)),
             (_, op) as postop: (int, Tile.t),
           ) =>
@@ -67,16 +104,16 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
     | [] => (output_stack, [postop, ...shunted_stack])
     | [(_, tile) as hd, ...tl] =>
       switch (Tile.shape(tile)) {
-      | Operand
-      | PostOp =>
+      | Operand(_)
+      | PostOp(_) =>
         process_postop(
           ~output_stack=push_output(hd, output_stack),
           ~shunted_stack=tl,
           postop,
         )
-      | PreOp
-      | BinOp =>
-        Tile.precedence(tile) <= Tile.precedence(op)
+      | PreOp(_, precedence)
+      | BinOp(_, precedence, _) =>
+        precedence <= TileShape.precedence(Tile.shape(op))
           ? process_postop(
               ~output_stack=push_output(hd, output_stack),
               ~shunted_stack=tl,
@@ -90,7 +127,7 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
   // and binops lose ties with preops
   let rec process_binop =
           (
-            ~output_stack: list(t),
+            ~output_stack: list(Tile.term),
             ~shunted_stack: list((int, Tile.t)),
             (_, op) as binop,
           ) =>
@@ -98,16 +135,16 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
     | [] => (output_stack, [binop, ...shunted_stack])
     | [(_, tile) as hd, ...tl] =>
       switch (Tile.shape(tile)) {
-      | Operand
-      | PostOp =>
+      | Operand(_)
+      | PostOp(_) =>
         process_binop(
           ~output_stack=push_output(hd, output_stack),
           ~shunted_stack=tl,
           binop,
         )
-      | PreOp
-      | BinOp =>
-        Tile.precedence(tile) <= Tile.precedence(op)
+      | PreOp(_, precedence)
+      | BinOp(_, precedence, _) =>
+        precedence <= TileShape.precedence(Tile.shape(op))
           ? process_binop(
               ~output_stack=push_output(hd, output_stack),
               ~shunted_stack=tl,
@@ -119,7 +156,7 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
 
   let rec go =
           (
-            ~output_stack: list(t),
+            ~output_stack: list(Tile.term),
             ~shunted_stack: list((int, Tile.t)),
             tiles: list((int, Tile.t)),
           )
@@ -134,10 +171,10 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
     | [(_, tile) as t, ...ts] =>
       let process =
         switch (Tile.shape(tile)) {
-        | Operand => process_operand
-        | PreOp => process_preop
-        | PostOp => process_postop
-        | BinOp => process_binop
+        | Operand(_) => process_operand
+        | PreOp(_) => process_preop
+        | PostOp(_) => process_postop
+        | BinOp(_) => process_binop
         };
       let (output_stack, shunted_stack) =
         process(~output_stack, ~shunted_stack, t);
@@ -146,6 +183,7 @@ let mk = (type a, module Tile: Tile.S with type t = a, tiles: list(a)): t => {
   };
 
   tiles
+  |> fix_empty_holes((module Tile))
   |> List.mapi((i, tile) => (i, tile))
   |> go(~output_stack=[], ~shunted_stack=[])
   |> List.hd;
