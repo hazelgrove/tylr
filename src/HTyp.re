@@ -1,13 +1,13 @@
 module Term = {
   type t =
-    | Hole
+    | EHole
     | Num
     | Bool
     | Paren(t)
-    | OpHole(t, t);
+    | OHole(t, t);
 };
 
-module Tile: {
+module rec Tile: {
   type s = list(t)
   and t =
     | EHole
@@ -16,8 +16,10 @@ module Tile: {
     | Paren(s)
     | OHole;
 
-  let operand_hole: t;
-  let operator_hole: t;
+  type term = Term.t;
+
+  let operand_hole: unit => t;
+  let operator_hole: unit => t;
 
   let shape: t => TileShape.t(term);
 
@@ -32,11 +34,13 @@ module Tile: {
     | Paren(s)
     | OHole;
 
-  let operand_hole = EHole;
-  let operator_hole = OHole;
+  type term = Term.t;
+
+  let operand_hole = () => EHole;
+  let operator_hole = () => OHole;
 
   let roll = TileParser.parse((module Tile));
-  let unroll =
+  let rec unroll: term => s =
     fun
     | EHole => [EHole]
     | Num => [Num]
@@ -44,7 +48,7 @@ module Tile: {
     | Paren(body) => [Paren(unroll(body))]
     | OHole(t1, t2) => unroll(t1) @ [OHole, ...unroll(t2)];
 
-  let shape: t => Tile.shape =
+  let shape: t => TileShape.t(term) =
     fun
     | EHole => Operand(EHole)
     | Num => Operand(Num)

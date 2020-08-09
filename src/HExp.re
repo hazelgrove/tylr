@@ -6,8 +6,8 @@ module Term = {
     | Var(Var.t)
     | Paren(t)
     | If(t, t, t)
-    | Let(Pat.Term.t, t, t)
-    | Ann(t, Typ.Term.t)
+    | Let(HPat.Term.t, t, t)
+    | Ann(t, HTyp.Term.t)
     | Plus(t, t)
     | Times(t, t)
     | Eq(t, t)
@@ -31,8 +31,8 @@ module rec Tile: {
 
   type term = Term.t;
 
-  let operand_hole: t;
-  let operator_hole: t;
+  let operand_hole: unit => t;
+  let operator_hole: unit => t;
 
   let shape: t => TileShape.t(term);
 
@@ -53,8 +53,8 @@ module rec Tile: {
     | Times
     | Eq;
 
-  let operand_hole = EHole;
-  let operator_hole = OHole;
+  let operand_hole = () => EHole;
+  let operator_hole = () => OHole;
 
   let roll = TileParser.parse((module Tile));
   let rec unroll =
