@@ -1,6 +1,5 @@
 module type TILE = {
   type t;
-  type s = list(t);
   type term;
   let operand_hole: unit => t;
   let operator_hole: unit => t;
@@ -8,8 +7,9 @@ module type TILE = {
 };
 
 let fix_empty_holes =
-    (type a, module Tile: TILE with type t = a, tiles: Tile.s): Tile.s => {
-  let rec fix_operand = (tiles: Tile.s) =>
+    (type a, module Tile: TILE with type t = a, tiles: list(Tile.t))
+    : list(Tile.t) => {
+  let rec fix_operand = (tiles: list(Tile.t)) =>
     switch (tiles) {
     | [] => [Tile.operand_hole()]
     | [t, ...ts] =>
@@ -20,7 +20,7 @@ let fix_empty_holes =
       | BinOp(_) => [Tile.operand_hole(), ...fix_operator(tiles)]
       }
     }
-  and fix_operator = (tiles: Tile.s) =>
+  and fix_operator = (tiles: list(Tile.t)) =>
     switch (tiles) {
     | [] => []
     | [t, ...ts] =>
@@ -39,7 +39,7 @@ let parse =
       type a,
       type b,
       module Tile: TILE with type t = a and type term = b,
-      tiles: Tile.s,
+      tiles: list(Tile.t),
     )
     : Tile.term => {
   let push_output =
@@ -158,7 +158,7 @@ let parse =
           (
             ~output_stack: list(Tile.term),
             ~shunted_stack: list(Tile.t),
-            tiles: Tile.s,
+            tiles: list(Tile.t),
           )
           : list(Tile.term) => {
     switch (tiles) {
