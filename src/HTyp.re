@@ -16,8 +16,11 @@ module Tile = {
     | Paren(term)
     | OHole;
 
-  let operand_hole = () => EHole;
-  let operator_hole = () => OHole;
+  let mk_operand_hole = () => EHole;
+  let mk_operator_hole = () => OHole;
+
+  let is_operand_hole = (==)(EHole);
+  let is_operator_hole = (==)(OHole);
 
   let shape: t => TileShape.t(term) =
     fun

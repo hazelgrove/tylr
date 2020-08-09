@@ -1,8 +1,13 @@
 module type TILE = {
-  type t;
   type term;
-  let operand_hole: unit => t;
-  let operator_hole: unit => t;
+  type t;
+
+  let mk_operand_hole: unit => t;
+  let mk_operator_hole: unit => t;
+
+  let is_operand_hole: t => bool;
+  let is_operator_hole: t => bool;
+
   let shape: t => TileShape.t(term);
 };
 
@@ -11,24 +16,32 @@ let fix_empty_holes =
     : list(Tile.t) => {
   let rec fix_operand = (tiles: list(Tile.t)) =>
     switch (tiles) {
-    | [] => [Tile.operand_hole()]
+    | [] => [Tile.mk_operand_hole()]
+    | [t1, t2, ...ts]
+        when Tile.is_operand_hole(t1) && Tile.is_operator_hole(t2) =>
+      fix_operand(ts)
+    | [t, ...ts] when Tile.is_operator_hole(t) => fix_operand(ts)
     | [t, ...ts] =>
       switch (Tile.shape(t)) {
       | PreOp(_) => [t, ...fix_operand(ts)]
       | Operand(_) => [t, ...fix_operator(ts)]
       | PostOp(_)
-      | BinOp(_) => [Tile.operand_hole(), ...fix_operator(tiles)]
+      | BinOp(_) => [Tile.mk_operand_hole(), ...fix_operator(tiles)]
       }
     }
   and fix_operator = (tiles: list(Tile.t)) =>
     switch (tiles) {
     | [] => []
+    | [t1, t2, ...ts]
+        when Tile.is_operator_hole(t1) && Tile.is_operand_hole(t2) =>
+      fix_operator(ts)
+    | [t, ...ts] when Tile.is_operand_hole(t) => fix_operator(ts)
     | [t, ...ts] =>
       switch (Tile.shape(t)) {
       | PostOp(_) => [t, ...fix_operator(ts)]
       | BinOp(_) => [t, ...fix_operand(ts)]
       | PreOp(_)
-      | Operand(_) => [Tile.operator_hole(), ...fix_operand(tiles)]
+      | Operand(_) => [Tile.mk_operator_hole(), ...fix_operand(tiles)]
       }
     };
   fix_operand(tiles);
