@@ -29,6 +29,7 @@ module Tile = {
     | OHole => BinOp((p1, p2) => OHole(p1, p2), 1, Left);
 };
 
+let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
 let parse = TileParser.parse((module Tile));
 let rec unparse: Term.t => list(Tile.t) =
   fun

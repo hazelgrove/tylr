@@ -1,19 +1,21 @@
 /**
  * Splits the first n elements from xs.
  */
-let rec split_at = (n: int, xs: list('x)): option((list('x), list('x))) =>
-  if (n < 0) {
-    None;
-  } else if (n == 0) {
-    Some(([], xs));
-  } else {
-    switch (xs) {
-    | [] => None
-    | [x, ...xs] =>
-      split_at(n - 1, xs)
-      |> Option.map(((left, right)) => ([x, ...left], right))
+let split_n = (n: int, xs: list('x)): (list('x), list('x)) => {
+  let rec go = (~prefix: list('x)=[], n: int, xs: list('x)) => {
+    if (n < 0) {
+      raise(Invalid_argument("split_n"));
+    } else if (n == 0) {
+      (prefix, xs);
+    } else {
+      switch (xs) {
+      | [] => raise(Invalid_argument("split_n"))
+      | [x, ...xs] => go(~prefix=[x, ...prefix], n - 1, xs)
+      };
     };
   };
+  go(n, xs);
+};
 
 /**
  * Returns sublist from index i (inclusive)

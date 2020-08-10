@@ -50,6 +50,7 @@ module Tile = {
     | OHole => BinOp((e1, e2) => Term.Eq(e1, e2), 1, Left);
 };
 
+let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
 let parse = TileParser.parse((module Tile));
 let rec unparse: Term.t => list(Tile.t) =
   fun

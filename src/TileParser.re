@@ -12,39 +12,75 @@ module type TILE = {
 };
 
 let fix_empty_holes =
-    (type a, module Tile: TILE with type t = a, tiles: list(Tile.t))
-    : list(Tile.t) => {
-  let rec fix_operand = (tiles: list(Tile.t)) =>
-    switch (tiles) {
-    | [] => [Tile.mk_operand_hole()]
-    | [t1, t2, ...ts]
-        when Tile.is_operand_hole(t1) && Tile.is_operator_hole(t2) =>
-      fix_operand(ts)
-    | [t, ...ts] when Tile.is_operator_hole(t) => fix_operand(ts)
-    | [t, ...ts] =>
-      switch (Tile.shape(t)) {
-      | PreOp(_) => [t, ...fix_operand(ts)]
-      | Operand(_) => [t, ...fix_operator(ts)]
-      | PostOp(_)
-      | BinOp(_) => [Tile.mk_operand_hole(), ...fix_operator(tiles)]
-      }
+    (
+      type a,
+      module Tile: TILE with type t = a,
+      prefix: list(Tile.t),
+      suffix: list(Tile.t),
+    )
+    : (list(Tile.t), list(Tile.t)) => {
+  let go = (~flipped: bool, tiles: list(Tile.t)) => {
+    let rec go_operand = (tiles: list(Tile.t)) => {
+      switch (tiles) {
+      | [] => []
+      | [t1, t2, ...ts]
+          when Tile.is_operand_hole(t1) && Tile.is_operator_hole(t2) =>
+        go_operand(ts)
+      | [t, ...ts] when Tile.is_operator_hole(t) => go_operand(ts)
+      | [t, ...ts] =>
+        let shape = {
+          let s = Tile.shape(t);
+          flipped ? TileShape.flip(s) : s;
+        };
+        switch (shape) {
+        | PreOp(_) => [t, ...go_operand(ts)]
+        | Operand(_) => [t, ...go_operator(ts)]
+        | PostOp(_)
+        | BinOp(_) => [Tile.mk_operand_hole(), ...go_operator(tiles)]
+        };
+      };
     }
-  and fix_operator = (tiles: list(Tile.t)) =>
-    switch (tiles) {
-    | [] => []
-    | [t1, t2, ...ts]
-        when Tile.is_operator_hole(t1) && Tile.is_operand_hole(t2) =>
-      fix_operator(ts)
-    | [t, ...ts] when Tile.is_operand_hole(t) => fix_operator(ts)
-    | [t, ...ts] =>
-      switch (Tile.shape(t)) {
-      | PostOp(_) => [t, ...fix_operator(ts)]
-      | BinOp(_) => [t, ...fix_operand(ts)]
-      | PreOp(_)
-      | Operand(_) => [Tile.mk_operator_hole(), ...fix_operand(tiles)]
-      }
+    and go_operator = (tiles: list(Tile.t)) => {
+      switch (tiles) {
+      | [] => []
+      | [t1, t2, ...ts]
+          when Tile.is_operator_hole(t1) && Tile.is_operand_hole(t2) =>
+        go_operator(ts)
+      | [t, ...ts] when Tile.is_operand_hole(t) => go_operator(ts)
+      | [t, ...ts] =>
+        let shape = {
+          let s = Tile.shape(t);
+          flipped ? TileShape.flip(s) : s;
+        };
+        switch (shape) {
+        | PostOp(_) => [t, ...go_operator(ts)]
+        | BinOp(_) => [t, ...go_operand(ts)]
+        | PreOp(_)
+        | Operand(_) => [Tile.mk_operator_hole(), ...go_operand(tiles)]
+        };
+      };
     };
-  fix_operand(tiles);
+    go_operand(tiles);
+  };
+
+  let fixed_prefix = List.rev(go(~flipped=false, List.rev(prefix)));
+  let fixed_suffix = List.rev(go(~flipped=true, List.rev(suffix)));
+  switch (
+    TileShape.keystone_shape(
+      Option.map(Tile.shape, List.hd_opt(fixed_prefix)),
+      Option.map(Tile.shape, List.hd_opt(fixed_suffix)),
+    )
+  ) {
+  | None => (fixed_prefix, fixed_suffix)
+  | Some(Operand) => (
+      fixed_prefix,
+      [Tile.mk_operand_hole(), ...fixed_suffix],
+    )
+  | Some(Operator) => (
+      fixed_prefix,
+      [Tile.mk_operator_hole(), ...fixed_prefix],
+    )
+  };
 };
 
 let parse =
@@ -169,8 +205,8 @@ let parse =
 
   let rec go =
           (
-            ~output_stack: list(Tile.term),
-            ~shunted_stack: list(Tile.t),
+            ~output_stack: list(Tile.term)=[],
+            ~shunted_stack: list(Tile.t)=[],
             tiles: list(Tile.t),
           )
           : list(Tile.term) => {
@@ -195,8 +231,5 @@ let parse =
     };
   };
 
-  tiles
-  |> fix_empty_holes((module Tile))
-  |> go(~output_stack=[], ~shunted_stack=[])
-  |> List.hd;
+  List.hd(go(tiles));
 };
