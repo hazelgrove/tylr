@@ -67,8 +67,8 @@ let fix_empty_holes =
   let fixed_suffix = List.rev(go(~flipped=true, List.rev(suffix)));
   switch (
     TileShape.keystone_shape(
-      Option.map(Tile.shape, List.hd_opt(fixed_prefix)),
-      Option.map(Tile.shape, List.hd_opt(fixed_suffix)),
+      Option.map(Tile.shape, ListUtil.hd_opt(fixed_prefix)),
+      Option.map(Tile.shape, ListUtil.hd_opt(fixed_suffix)),
     )
   ) {
   | None => (fixed_prefix, fixed_suffix)

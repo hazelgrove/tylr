@@ -1,4 +1,4 @@
-type term = HPat.Term.t;
+type term = HPat.t;
 type tile = HPat.Tile.t;
 
 type t =

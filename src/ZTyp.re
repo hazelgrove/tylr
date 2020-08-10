@@ -1,4 +1,4 @@
-type term = HTyp.Term.t;
+type term = HTyp.t;
 type tile = HTyp.Tile.t;
 
 type t =

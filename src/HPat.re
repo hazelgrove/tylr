@@ -1,14 +1,12 @@
-module Term = {
-  type t =
-    | EHole
-    | NHole(t)
-    | Var(Var.t)
-    | Paren(t)
-    | OHole(t, t);
-};
+type t =
+  | EHole
+  | NHole(t)
+  | Var(Var.t)
+  | Paren(t)
+  | OHole(t, t);
 
 module Tile = {
-  type term = Term.t;
+  type term = t;
   type t =
     | EHole
     | Var(Var.t)
@@ -31,7 +29,7 @@ module Tile = {
 
 let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
 let parse = TileParser.parse((module Tile));
-let rec unparse: Term.t => list(Tile.t) =
+let rec unparse: t => list(Tile.t) =
   fun
   | EHole => [EHole]
   | NHole(p) =>

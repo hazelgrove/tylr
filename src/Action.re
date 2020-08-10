@@ -18,16 +18,16 @@ module Exp = {
     fun
     | Num(n) => Num(n)
     | Var(x) => Var(x)
-    | Paren => Paren(HExp.Term.EHole)
-    | If => If(HExp.Term.EHole, HExp.Term.EHole)
-    | Let => Let(HPat.Term.EHole, HExp.Term.EHole)
-    | Ann => Ann(HTyp.Term.EHole)
+    | Paren => Paren(HExp.EHole)
+    | If => If(HExp.EHole, HExp.EHole)
+    | Let => Let(HPat.EHole, HExp.EHole)
+    | Ann => Ann(HTyp.EHole)
     | Plus => Plus
     | Times => Times
     | Eq => Eq;
 
   let rec syn_perform =
-          (ctx: Ctx.t, a: t, ze: ZExp.t): option((ZExp.t, HTyp.Term.t)) =>
+          (ctx: Ctx.t, a: t, ze: ZExp.t): option((ZExp.t, HTyp.t)) =>
     switch (ze) {
     | Z(prefix, suffix) =>
       switch (a) {

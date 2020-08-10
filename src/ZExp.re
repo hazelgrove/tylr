@@ -1,4 +1,4 @@
-type term = HExp.Term.t;
+type term = HExp.t;
 type tile = HExp.Tile.t;
 
 type t =
@@ -7,7 +7,7 @@ type t =
   | IfZ_cond(t, term, term)
   | IfZ_then(term, t, term)
   | LetZ_pat(ZPat.t, term, term)
-  | LetZ_def(HPat.Term.t, t, term)
+  | LetZ_def(HPat.t, t, term)
   | AnnZ(term, ZTyp.t);
 
 let rec erase: t => term =
