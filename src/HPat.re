@@ -1,5 +1,6 @@
 type t =
   | OperandHole
+  | NonemptyHole(t)
   | Var(Var.t)
   | Paren(t)
   | Ann(t, HTyp.t)
@@ -34,6 +35,9 @@ let parse = TileParser.parse((module Tile));
 let rec unparse: t => list(Tile.t) =
   fun
   | OperandHole => [OperandHole]
+  | NonemptyHole(p) =>
+    // TODO add err status to tiles
+    unparse(p)
   | Var(x) => [Var(x)]
   | Paren(body) => [Paren(body)]
   | Ann(subj, ann) => unparse(subj) @ [Ann(ann)]

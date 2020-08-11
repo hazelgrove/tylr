@@ -16,6 +16,14 @@ let rec consistent = (ty1, ty2) =>
   | _ => ty1 == ty2
   };
 
+let rec matched_arrow =
+  fun
+  | OperandHole
+  | OperatorHole(_) => Some((OperandHole, OperandHole))
+  | Arrow(ty1, ty2) => Some((ty1, ty2))
+  | Paren(ty) => matched_arrow(ty)
+  | _ => None;
+
 module Tile = {
   type term = t;
   type t =
