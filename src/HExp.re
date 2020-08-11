@@ -37,6 +37,17 @@ module Tile = {
     | Ap(arg) => PostOp(fn => Ap(fn, arg), 1)
     | Plus => BinOp((e1, e2) => Plus(e1, e2), 3, Left)
     | OperatorHole => BinOp((e1, e2) => OperatorHole(e1, e2), 2, Left);
+
+  let get_open_children =
+    fun
+    | OperandHole
+    | Num(_)
+    | Var(_)
+    | Lam(_)
+    | Plus
+    | OperatorHole => []
+    | Paren(body) => [body]
+    | Ap(arg) => [arg];
 };
 
 let fix_empty_holes = TileParser.fix_empty_holes((module Tile));

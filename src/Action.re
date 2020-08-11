@@ -2,29 +2,27 @@ type tile_shape =
   | Num(int)
   | Var(Var.t)
   | Paren
-  | If
-  | Let
+  | Lam
+  | Ap
   | Ann
   | Plus
-  | Times
-  | Eq;
+  | Arrow;
 
 type t =
   | Delete
   | Construct(tile_shape);
 
 module Exp = {
-  let tile_of_shape: tile_shape => HExp.Tile.t =
+  let tile_of_shape: tile_shape => option(HExp.Tile.t) =
     fun
-    | Num(n) => Num(n)
-    | Var(x) => Var(x)
-    | Paren => Paren(HExp.EHole)
-    | If => If(HExp.EHole, HExp.EHole)
-    | Let => Let(HPat.EHole, HExp.EHole)
-    | Ann => Ann(HTyp.EHole)
-    | Plus => Plus
-    | Times => Times
-    | Eq => Eq;
+    | Num(n) => Some(Num(n))
+    | Var(x) => Some(Var(x))
+    | Paren => Some(Paren(HExp.OperandHole))
+    | Lam => Some(Lam(HPat.OperandHole))
+    | Ap => Some(Ap(HExp.OperandHole))
+    | Ann => None
+    | Plus => Some(Plus)
+    | Arrow => None;
 
   let rec syn_perform =
           (ctx: Ctx.t, a: t, ze: ZExp.t): option((ZExp.t, HTyp.t)) =>
@@ -53,20 +51,106 @@ module Exp = {
           Some((Z(new_prefix, new_suffix), ty));
         }
       | Construct(s) =>
+        switch (tile_of_shape(s)) {
+        | None => None
+        | Some(tile) =>
+          let (tiles, n) = {
+            let (fixed_prefix, fixed_suffix) =
+              HExp.fix_empty_holes([tile, ...prefix], suffix);
+            (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
+          };
+          let ((new_prefix, new_suffix), ty) = {
+            let (new_e, ty) =
+              Statics.Exp.syn_fix_holes(ctx, HExp.parse(tiles));
+            (ListUtil.split_n(n, HExp.unparse(new_e)), ty);
+          };
+          Some((Z(new_prefix, new_suffix), ty));
+        }
+      }
+
+    | ParenZ(zbody) =>
+      syn_perform(ctx, a, zbody)
+      |> Option.map(((zbody, ty)) => (ZExp.ParenZ(zbody), ty))
+
+    | LamZ(zp, body) =>
+      switch (Pat.syn_perform(ctx, a, zp)) {
+      | None => None
+      | Some((zp, ty1, ctx)) =>
+        let (body, ty2) = Statics.Exp.syn_fix_holes(ctx, body);
+        Some((LamZ(zp, body), HTyp.Arrow(ty1, ty2)));
+      }
+
+    | ApZ(fn, zarg) =>
+      switch (Statics.Exp.syn(ctx, fn)) {
+      | None => None
+      | Some(fn_ty) =>
+        switch (HTyp.matched_arrow(fn_ty)) {
+        | None => None
+        | Some((ty1, ty2)) =>
+          ana_perform(ctx, a, zarg, ty1)
+          |> Option.map(zarg => (ApZ(fn, zarg), ty2))
+        }
+      }
+    }
+  and ana_perform =
+      (ctx: Ctx.t, a: t, ze: ZExp.t, ty: HTyp.t): option(ZExp.t) =>
+    switch (ze) {
+    | Z(prefix, suffix) =>
+      switch (a) {
+      | Delete =>
+        switch (prefix) {
+        | [] => None
+        | [t, ...prefix] =>
+          let open_children_tiles =
+            t
+            |> HExp.Tile.get_open_children
+            |> List.map(HExp.unparse)
+            |> List.flatten;
+          let (tiles, n) = {
+            let (fixed_prefix, fixed_suffix) =
+              HExp.fix_empty_holes(prefix @ open_children_tiles, suffix);
+            (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
+          };
+          let (new_prefix, new_suffix) = {
+            let new_e =
+              Statics.Exp.ana_fix_holes(ctx, HExp.parse(tiles), ty);
+            ListUtil.split_n(n, HExp.unparse(new_e));
+          };
+          Some(Z(new_prefix, new_suffix));
+        }
+      | Construct(s) =>
         let (tiles, n) = {
           let (fixed_prefix, fixed_suffix) =
             HExp.fix_empty_holes([tile_of_shape(s), ...prefix], suffix);
           (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
         };
-        let ((new_prefix, new_suffix), ty) = {
-          let (new_e, ty) =
-            Statics.Exp.syn_fix_holes(ctx, HExp.parse(tiles));
-          (ListUtil.split_n(n, HExp.unparse(new_e)), ty);
+        let (new_prefix, new_suffix) = {
+          let new_e = Statics.Exp.ana_fix_holes(ctx, HExp.parse(tiles), ty);
+          ListUtil.split_n(n, HExp.unparse(new_e));
         };
-        Some((Z(new_prefix, new_suffix), ty));
+        Some(Z(new_prefix, new_suffix));
       }
+
     | ParenZ(zbody) =>
-      syn_perform(ctx, a, zbody)
-      |> Option.map(((zbody, ty)) => (ParenZ(zbody), ty))
+      ana_perform(ctx, a, zbody, ty) |> Option.map(zbody => ParenZ(zbody))
+
+    | LamZ(zp, body) =>
+      switch (HTyp.matched_arrow(ty)) {
+      | None =>
+        syn_perform(ctx, a, ze)
+        |> Option.map(((ze, _)) => NonemptyHole(ze))
+      | Some((ty1, ty2)) =>
+        Pat.ana_perform(ctx, a, zp, ty1)
+        |> Option.map(((zp, ctx)) => {
+             let body = Statics.Exp.ana_fix_holes(ctx, body, ty2);
+             LamZ(zp, body);
+           })
+      }
+
+    | ApZ(_) =>
+      syn_perform(ctx, a, ze)
+      |> Option.map(((ze, ty')) =>
+           HTyp.consistent(ty, ty') ? ze : NonemptyHole(ze)
+         )
     };
 };
