@@ -1,6 +1,6 @@
 type t =
   | OperandHole
-  | TypeErr(t)
+  | NonemptyHole(t)
   | Num(int)
   | Var(Var.t)
   | Paren(t)
@@ -36,7 +36,7 @@ module Tile = {
     | Lam(p) => PreOp(body => Lam(p, body), 10)
     | Ap(arg) => PostOp(fn => Ap(fn, arg), 1)
     | Plus => BinOp((e1, e2) => Plus(e1, e2), 3, Left)
-    | OperatorHole => BinOp((e1, e2) => Eq(e1, e2), 2, Left);
+    | OperatorHole => BinOp((e1, e2) => OperatorHole(e1, e2), 2, Left);
 };
 
 let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
@@ -44,7 +44,7 @@ let parse = TileParser.parse((module Tile));
 let rec unparse: t => list(Tile.t) =
   fun
   | OperandHole => [OperandHole]
-  | TypeErr(e) =>
+  | NonemptyHole(e) =>
     // TODO add err status to tiles
     unparse(e)
   | Num(n) => [Num(n)]

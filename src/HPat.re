@@ -34,10 +34,7 @@ let parse = TileParser.parse((module Tile));
 let rec unparse: t => list(Tile.t) =
   fun
   | OperandHole => [OperandHole]
-  | TypeErr(p) =>
-    // TODO add err status to tiles
-    unparse(p)
   | Var(x) => [Var(x)]
   | Paren(body) => [Paren(body)]
-  | Ann(subj, ann) => unparse(subject) @ [Ann(ann)]
+  | Ann(subj, ann) => unparse(subj) @ [Ann(ann)]
   | OperatorHole(p1, p2) => unparse(p1) @ [OperatorHole, ...unparse(p2)];
