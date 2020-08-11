@@ -1,40 +1,51 @@
 type t =
-  | EHole
+  | OperandHole
   | Num
-  | Bool
   | Paren(t)
-  | OHole(t, t);
+  | OperatorHole(t, t)
+  | Arrow(t, t);
+
+let rec consistent = (ty1, ty2) =>
+  switch (ty1, ty2) {
+  | (OperandHole | OperatorHole(_), _)
+  | (_, OperandHole | OperatorHole(_)) => true
+  | (Paren(ty1), _) => consistent(ty1, ty2)
+  | (_, Paren(ty2)) => consistent(ty1, ty2)
+  | (Arrow(ty1, ty2), Arrow(ty1', ty2')) =>
+    consistent(ty1, ty1') && consistent(ty2, ty2')
+  | _ => ty1 == ty2
+  };
 
 module Tile = {
   type term = t;
   type t =
-    | EHole
+    | OperandHole
     | Num
-    | Bool
     | Paren(term)
-    | OHole;
+    | OperatorHole
+    | Arrow;
 
-  let mk_operand_hole = () => EHole;
-  let mk_operator_hole = () => OHole;
+  let mk_operand_hole = () => OperandHole;
+  let mk_operator_hole = () => OperatorHole;
 
-  let is_operand_hole = (==)(EHole);
-  let is_operator_hole = (==)(OHole);
+  let is_operand_hole = (==)(OperandHole);
+  let is_operator_hole = (==)(OperatorHole);
 
   let shape: t => TileShape.t(term) =
     fun
-    | EHole => Operand(EHole)
+    | OperandHole => Operand(OperandHole)
     | Num => Operand(Num)
-    | Bool => Operand(Bool)
     | Paren(body) => Operand(Paren(body))
-    | OHole => BinOp((t1, t2) => OHole(t1, t2), 1, Left);
+    | OperatorHole => BinOp((t1, t2) => OperatorHole(t1, t2), 1, Left)
+    | Arrow => BinOp((t1, t2) => Arrow(t1, t2), 2, Right);
 };
 
 let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
 let parse = TileParser.parse((module Tile));
 let rec unparse: t => list(Tile.t) =
   fun
-  | EHole => [EHole]
+  | OperandHole => [OperandHole]
   | Num => [Num]
-  | Bool => [Bool]
   | Paren(body) => [Paren(body)]
-  | OHole(t1, t2) => unparse(t1) @ [OHole, ...unparse(t2)];
+  | OperatorHole(t1, t2) => unparse(t1) @ [OperatorHole, ...unparse(t2)]
+  | Arrow(t1, t2) => unparse(t1) @ [Arrow, ...unparse(t2)];

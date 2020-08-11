@@ -1,40 +1,43 @@
 type t =
-  | EHole
-  | NHole(t)
+  | OperandHole
   | Var(Var.t)
   | Paren(t)
-  | OHole(t, t);
+  | Ann(t, HTyp.t)
+  | OperatorHole(t, t);
 
 module Tile = {
   type term = t;
   type t =
-    | EHole
+    | OperandHole
     | Var(Var.t)
     | Paren(term)
-    | OHole;
+    | Ann(HTyp.t)
+    | OperatorHole;
 
-  let mk_operand_hole = () => EHole;
-  let mk_operator_hole = () => OHole;
+  let mk_operand_hole = () => OperandHole;
+  let mk_operator_hole = () => OperatorHole;
 
-  let is_operand_hole = (==)(EHole);
-  let is_operator_hole = (==)(OHole);
+  let is_operand_hole = (==)(OperandHole);
+  let is_operator_hole = (==)(OperatorHole);
 
   let shape: t => TileShape.t(term) =
     fun
-    | EHole => Operand(EHole)
+    | OperandHole => Operand(OperandHole)
     | Var(x) => Operand(Var(x))
     | Paren(body) => Operand(Paren(body))
-    | OHole => BinOp((p1, p2) => OHole(p1, p2), 1, Left);
+    | Ann(ann) => PostOp(subj => Ann(subj, ann), 2)
+    | OperatorHole => BinOp((p1, p2) => OperatorHole(p1, p2), 1, Left);
 };
 
 let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
 let parse = TileParser.parse((module Tile));
 let rec unparse: t => list(Tile.t) =
   fun
-  | EHole => [EHole]
-  | NHole(p) =>
+  | OperandHole => [OperandHole]
+  | TypeErr(p) =>
     // TODO add err status to tiles
     unparse(p)
   | Var(x) => [Var(x)]
   | Paren(body) => [Paren(body)]
-  | OHole(p1, p2) => unparse(p1) @ [OHole, ...unparse(p2)];
+  | Ann(subj, ann) => unparse(subject) @ [Ann(ann)]
+  | OperatorHole(p1, p2) => unparse(p1) @ [OperatorHole, ...unparse(p2)];

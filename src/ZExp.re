@@ -1,24 +1,15 @@
-type term = HExp.t;
-type tile = HExp.Tile.t;
-
 type t =
-  | Z(list(tile), list(tile))
+  | Z(list(HExp.Tile.t), list(HExp.Tile.t))
   | ParenZ(t)
-  | IfZ_cond(t, term, term)
-  | IfZ_then(term, t, term)
-  | LetZ_pat(ZPat.t, term, term)
-  | LetZ_def(HPat.t, t, term)
-  | AnnZ(term, ZTyp.t);
+  | LamZ(ZPat.t, HExp.t)
+  | ApZ(HExp.t, t);
 
-let rec erase: t => term =
+let rec erase: t => HExp.t =
   fun
   | Z(prefix, suffix) => HExp.parse(List.rev(prefix) @ suffix)
   | ParenZ(zbody) => Paren(erase(zbody))
-  | IfZ_cond(zcond, then_, else_) => If(erase(zcond), then_, else_)
-  | IfZ_then(cond, zthen, else_) => If(cond, erase(zthen), else_)
-  | LetZ_pat(zp, def, body) => Let(ZPat.erase(zp), def, body)
-  | LetZ_def(p, zdef, body) => Let(p, erase(zdef), body)
-  | AnnZ(subj, zann) => Ann(subj, ZTyp.erase(zann));
+  | LamZ(zp, body) => Lam(ZPat.erase(zp), body)
+  | ApZ(fn, zarg) => Ap(fn, erase(zarg));
 
 /*
  let rec insert_tiles =
