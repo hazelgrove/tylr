@@ -6,18 +6,22 @@ type t =
   | Paren(t)
   | Lam(HPat.t, t)
   | Plus(t, t)
-  | Ap(t, t)
+  | Ap(t, t) // f(x)
   | OperatorHole(t, t);
 
 module Tile = {
   type term = t;
   type t =
+    // operand
     | OperandHole
     | Num(int)
     | Var(Var.t)
     | Paren(term)
+    // pre
     | Lam(HPat.t)
+    // post
     | Ap(term)
+    // bin
     | OperatorHole
     | Plus;
 

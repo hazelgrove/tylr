@@ -9,26 +9,30 @@ type tile_shape =
   | Arrow;
 
 type t =
+  // Move(direction)
+  // Mark
   | Delete
   | Construct(tile_shape);
 
 module Exp = {
   let tile_of_shape: tile_shape => option(HExp.Tile.t) =
     fun
+    | Ann
+    | Arrow => None
     | Num(n) => Some(Num(n))
     | Var(x) => Some(Var(x))
     | Paren => Some(Paren(HExp.OperandHole))
     | Lam => Some(Lam(HPat.OperandHole))
     | Ap => Some(Ap(HExp.OperandHole))
-    | Ann => None
-    | Plus => Some(Plus)
-    | Arrow => None;
+    | Plus => Some(Plus);
 
   let rec syn_perform =
           (ctx: Ctx.t, a: t, ze: ZExp.t): option((ZExp.t, HTyp.t)) =>
     switch (ze) {
     | Z(prefix, suffix) =>
       switch (a) {
+      // z + ( x + y )|
+      // --> z + x + y |
       | Delete =>
         switch (prefix) {
         | [] => None
