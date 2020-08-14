@@ -46,14 +46,21 @@ module Tile = {
     | Paren(body) => Operand(Paren(body))
     | OperatorHole => BinOp((t1, t2) => OperatorHole(t1, t2), 1, Left)
     | Arrow => BinOp((t1, t2) => Arrow(t1, t2), 2, Right);
-};
 
-let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
-let parse = TileParser.parse((module Tile));
-let rec unparse: t => list(Tile.t) =
-  fun
-  | OperandHole => [OperandHole]
-  | Num => [Num]
-  | Paren(body) => [Paren(body)]
-  | OperatorHole(t1, t2) => unparse(t1) @ [OperatorHole, ...unparse(t2)]
-  | Arrow(t1, t2) => unparse(t1) @ [Arrow, ...unparse(t2)];
+  let get_open_children =
+    fun
+    | OperandHole
+    | Num
+    | OperatorHole
+    | Arrow => []
+    | Paren(body) => [body];
+
+  let rec unparse: term => list(t) =
+    fun
+    | OperandHole => [OperandHole]
+    | Num => [Num]
+    | Paren(body) => [Paren(body)]
+    | OperatorHole(t1, t2) => unparse(t1) @ [OperatorHole, ...unparse(t2)]
+    | Arrow(t1, t2) => unparse(t1) @ [Arrow, ...unparse(t2)];
+};
+include TileUtil.Make(Tile);

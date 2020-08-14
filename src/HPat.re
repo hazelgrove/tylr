@@ -36,17 +36,16 @@ module Tile = {
     | Ann(_)
     | OperatorHole => []
     | Paren(body) => [body];
-};
 
-let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
-let parse = TileParser.parse((module Tile));
-let rec unparse: t => list(Tile.t) =
-  fun
-  | OperandHole => [OperandHole]
-  | NonemptyHole(p) =>
-    // TODO add err status to tiles
-    unparse(p)
-  | Var(x) => [Var(x)]
-  | Paren(body) => [Paren(body)]
-  | Ann(subj, ann) => unparse(subj) @ [Ann(ann)]
-  | OperatorHole(p1, p2) => unparse(p1) @ [OperatorHole, ...unparse(p2)];
+  let rec unparse: term => list(t) =
+    fun
+    | OperandHole => [OperandHole]
+    | NonemptyHole(p) =>
+      // TODO add err status to tiles
+      unparse(p)
+    | Var(x) => [Var(x)]
+    | Paren(body) => [Paren(body)]
+    | Ann(subj, ann) => unparse(subj) @ [Ann(ann)]
+    | OperatorHole(p1, p2) => unparse(p1) @ [OperatorHole, ...unparse(p2)];
+};
+include TileUtil.Make(Tile);
