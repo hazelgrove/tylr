@@ -28,6 +28,14 @@ module Tile = {
     | Paren(body) => Operand(Paren(body))
     | Ann(ann) => PostOp(subj => Ann(subj, ann), 2)
     | OperatorHole => BinOp((p1, p2) => OperatorHole(p1, p2), 1, Left);
+
+  let get_open_children =
+    fun
+    | OperandHole
+    | Var(_)
+    | Ann(_)
+    | OperatorHole => []
+    | Paren(body) => [body];
 };
 
 let fix_empty_holes = TileParser.fix_empty_holes((module Tile));
