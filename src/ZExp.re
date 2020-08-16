@@ -1,15 +1,15 @@
 type t =
   | Z(list(HExp.Tile.t), list(HExp.Tile.t))
   | ParenZ(t)
-  | LamZ(ZPat.t, HExp.t)
-  | ApZ(HExp.t, t);
+  | LamZ(HoleStatus.t, ZPat.t, HExp.t)
+  | ApZ(HoleStatus.t, HExp.t, t);
 
 let rec erase: t => HExp.t =
   fun
   | Z(prefix, suffix) => HExp.parse(List.rev(prefix) @ suffix)
   | ParenZ(zbody) => Paren(erase(zbody))
-  | LamZ(zp, body) => Lam(ZPat.erase(zp), body)
-  | ApZ(fn, zarg) => Ap(fn, erase(zarg));
+  | LamZ(status, zp, body) => Lam(status, ZPat.erase(zp), body)
+  | ApZ(status, fn, zarg) => Ap(status, fn, erase(zarg));
 
 /*
  let rec insert_tiles =

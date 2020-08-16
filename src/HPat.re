@@ -1,10 +1,18 @@
 type t =
   | OperandHole
-  | NonemptyHole(t)
   | Var(Var.t)
   | Paren(t)
-  | Ann(t, HTyp.t)
+  | Ann(HoleStatus.t, t, HTyp.t)
   | OperatorHole(t, t);
+
+let rec set_hole_status = (status, p) =>
+  switch (p) {
+  | OperandHole
+  | OperatorHole(_)
+  | Var(_) => p
+  | Paren(body) => Paren(set_hole_status(status, body))
+  | Ann(_, subj, ann) => Ann(status, subj, ann)
+  };
 
 module Tile = {
   type term = t;
@@ -12,7 +20,7 @@ module Tile = {
     | OperandHole
     | Var(Var.t)
     | Paren(term)
-    | Ann(HTyp.t)
+    | Ann(HoleStatus.t, HTyp.t)
     | OperatorHole;
 
   let mk_operand_hole = () => OperandHole;
@@ -26,7 +34,7 @@ module Tile = {
     | OperandHole => Operand(OperandHole)
     | Var(x) => Operand(Var(x))
     | Paren(body) => Operand(Paren(body))
-    | Ann(ann) => PostOp(subj => Ann(subj, ann), 2)
+    | Ann(status, ann) => PostOp(subj => Ann(status, subj, ann), 2)
     | OperatorHole => BinOp((p1, p2) => OperatorHole(p1, p2), 1, Left);
 
   let get_open_children =
@@ -40,12 +48,9 @@ module Tile = {
   let rec unparse: term => list(t) =
     fun
     | OperandHole => [OperandHole]
-    | NonemptyHole(p) =>
-      // TODO add err status to tiles
-      unparse(p)
     | Var(x) => [Var(x)]
     | Paren(body) => [Paren(body)]
-    | Ann(subj, ann) => unparse(subj) @ [Ann(ann)]
+    | Ann(status, subj, ann) => unparse(subj) @ [Ann(status, ann)]
     | OperatorHole(p1, p2) => unparse(p1) @ [OperatorHole, ...unparse(p2)];
 };
 include TileUtil.Make(Tile);

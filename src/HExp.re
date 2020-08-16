@@ -1,29 +1,40 @@
 type t =
   | OperandHole
-  | NonemptyHole(t)
-  | Num(int)
-  | Var(Var.t)
+  | Num(HoleStatus.t, int)
+  | Var(HoleStatus.t, Var.t)
   | Paren(t)
-  | Lam(HPat.t, t)
-  | Plus(t, t)
-  | Ap(t, t) // f(x)
+  | Lam(HoleStatus.t, HPat.t, t)
+  | Plus(HoleStatus.t, t, t)
+  | Ap(HoleStatus.t, t, t) // f(x)
   | OperatorHole(t, t);
+
+let rec set_hole_status = (status, e) =>
+  switch (e) {
+  | OperandHole
+  | OperatorHole(_) => e
+  | Num(_, n) => Num(status, n)
+  | Var(_, x) => Var(status, x)
+  | Paren(body) => Paren(set_hole_status(status, body))
+  | Lam(_, p, body) => Lam(status, p, body)
+  | Plus(_, e1, e2) => Plus(status, e1, e2)
+  | Ap(_, e1, e2) => Ap(status, e1, e2)
+  };
 
 module Tile = {
   type term = t;
   type t =
     // operand
     | OperandHole
-    | Num(int)
-    | Var(Var.t)
+    | Num(HoleStatus.t, int)
+    | Var(HoleStatus.t, Var.t)
     | Paren(term)
     // pre
-    | Lam(HPat.t)
+    | Lam(HoleStatus.t, HPat.t)
     // post
-    | Ap(term)
+    | Ap(HoleStatus.t, term)
     // bin
     | OperatorHole
-    | Plus;
+    | Plus(HoleStatus.t);
 
   let mk_operand_hole = () => OperandHole;
   let mk_operator_hole = () => OperatorHole;
@@ -34,12 +45,12 @@ module Tile = {
   let shape: t => TileShape.t(term) =
     fun
     | OperandHole => Operand(OperandHole)
-    | Num(n) => Operand(Num(n))
-    | Var(x) => Operand(Var(x))
+    | Num(status, n) => Operand(Num(status, n))
+    | Var(status, x) => Operand(Var(status, x))
     | Paren(body) => Operand(Paren(body))
-    | Lam(p) => PreOp(body => Lam(p, body), 10)
-    | Ap(arg) => PostOp(fn => Ap(fn, arg), 1)
-    | Plus => BinOp((e1, e2) => Plus(e1, e2), 3, Left)
+    | Lam(status, p) => PreOp(body => Lam(status, p, body), 10)
+    | Ap(status, arg) => PostOp(fn => Ap(status, fn, arg), 1)
+    | Plus(status) => BinOp((e1, e2) => Plus(status, e1, e2), 3, Left)
     | OperatorHole => BinOp((e1, e2) => OperatorHole(e1, e2), 2, Left);
 
   let get_open_children =
@@ -48,23 +59,20 @@ module Tile = {
     | Num(_)
     | Var(_)
     | Lam(_)
-    | Plus
+    | Plus(_)
     | OperatorHole => []
     | Paren(body) => [body]
-    | Ap(arg) => [arg];
+    | Ap(_, arg) => [arg];
 
   let rec unparse: term => list(t) =
     fun
     | OperandHole => [OperandHole]
-    | NonemptyHole(e) =>
-      // TODO add err status to tiles
-      unparse(e)
-    | Num(n) => [Num(n)]
-    | Var(x) => [Var(x)]
+    | Num(status, n) => [Num(status, n)]
+    | Var(status, x) => [Var(status, x)]
     | Paren(body) => [Paren(body)]
-    | Lam(p, body) => [Lam(p), ...unparse(body)]
-    | Ap(fn, arg) => unparse(fn) @ [Ap(arg)]
-    | Plus(e1, e2) => unparse(e1) @ [Plus, ...unparse(e2)]
+    | Lam(status, p, body) => [Lam(status, p), ...unparse(body)]
+    | Ap(status, fn, arg) => unparse(fn) @ [Ap(status, arg)]
+    | Plus(status, e1, e2) => unparse(e1) @ [Plus(status), ...unparse(e2)]
     | OperatorHole(e1, e2) => unparse(e1) @ [OperatorHole, ...unparse(e2)];
 };
 include TileUtil.Make(Tile);
