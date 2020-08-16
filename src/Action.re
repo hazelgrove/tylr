@@ -37,20 +37,12 @@ module Exp = {
         switch (prefix) {
         | [] => None
         | [t, ...prefix] =>
-          let open_children_tiles =
-            t
-            |> HExp.Tile.get_open_children
-            |> List.map(HExp.unparse)
-            |> List.flatten;
-          let (tiles, n) = {
-            let (fixed_prefix, fixed_suffix) =
-              HExp.fix_empty_holes(prefix @ open_children_tiles, suffix);
-            (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
-          };
+          let (tiles, n) =
+            HExp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let ((new_prefix, new_suffix), ty) = {
             let (new_e, ty) =
               Statics.Exp.syn_fix_holes(ctx, HExp.parse(tiles));
-            (ListUtil.split_n(n, HExp.unparse(new_e)), ty);
+            (ListUtil.split_n(n, HExp.Tile.unparse(new_e)), ty);
           };
           Some((Z(new_prefix, new_suffix), ty));
         }
@@ -58,15 +50,12 @@ module Exp = {
         switch (tile_of_shape(s)) {
         | None => None
         | Some(tile) =>
-          let (tiles, n) = {
-            let (fixed_prefix, fixed_suffix) =
-              HExp.fix_empty_holes([tile, ...prefix], suffix);
-            (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
-          };
+          let (tiles, n) =
+            HExp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let ((new_prefix, new_suffix), ty) = {
             let (new_e, ty) =
               Statics.Exp.syn_fix_holes(ctx, HExp.parse(tiles));
-            (ListUtil.split_n(n, HExp.unparse(new_e)), ty);
+            (ListUtil.split_n(n, HExp.Tile.unparse(new_e)), ty);
           };
           Some((Z(new_prefix, new_suffix), ty));
         }
@@ -92,7 +81,7 @@ module Exp = {
         | None => None
         | Some((ty1, ty2)) =>
           ana_perform(ctx, a, zarg, ty1)
-          |> Option.map(zarg => (ApZ(fn, zarg), ty2))
+          |> Option.map(zarg => (ZExp.ApZ(fn, zarg), ty2))
         }
       }
     }
@@ -105,38 +94,33 @@ module Exp = {
         switch (prefix) {
         | [] => None
         | [t, ...prefix] =>
-          let open_children_tiles =
-            t
-            |> HExp.Tile.get_open_children
-            |> List.map(HExp.unparse)
-            |> List.flatten;
-          let (tiles, n) = {
-            let (fixed_prefix, fixed_suffix) =
-              HExp.fix_empty_holes(prefix @ open_children_tiles, suffix);
-            (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
-          };
+          let (tiles, n) =
+            HExp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let (new_prefix, new_suffix) = {
             let new_e =
               Statics.Exp.ana_fix_holes(ctx, HExp.parse(tiles), ty);
-            ListUtil.split_n(n, HExp.unparse(new_e));
+            ListUtil.split_n(n, HExp.Tile.unparse(new_e));
           };
           Some(Z(new_prefix, new_suffix));
         }
       | Construct(s) =>
-        let (tiles, n) = {
-          let (fixed_prefix, fixed_suffix) =
-            HExp.fix_empty_holes([tile_of_shape(s), ...prefix], suffix);
-          (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
-        };
-        let (new_prefix, new_suffix) = {
-          let new_e = Statics.Exp.ana_fix_holes(ctx, HExp.parse(tiles), ty);
-          ListUtil.split_n(n, HExp.unparse(new_e));
-        };
-        Some(Z(new_prefix, new_suffix));
+        switch (tile_of_shape(s)) {
+        | None => None
+        | Some(tile) =>
+          let (tiles, n) =
+            HExp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
+          let (new_prefix, new_suffix) = {
+            let new_e =
+              Statics.Exp.ana_fix_holes(ctx, HExp.parse(tiles), ty);
+            ListUtil.split_n(n, HExp.Tile.unparse(new_e));
+          };
+          Some(Z(new_prefix, new_suffix));
+        }
       }
 
     | ParenZ(zbody) =>
-      ana_perform(ctx, a, zbody, ty) |> Option.map(zbody => ParenZ(zbody))
+      ana_perform(ctx, a, zbody, ty)
+      |> Option.map(zbody => ZExp.ParenZ(zbody))
 
     | LamZ(zp, body) =>
       switch (HTyp.matched_arrow(ty)) {

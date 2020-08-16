@@ -226,4 +226,22 @@ module Make = (Tile: TILE) => {
 
     List.hd(go(tiles));
   };
+
+  let delete_tile_and_fix_empty_holes =
+      (prefix: list(Tile.t), tile: Tile.t, suffix: list(Tile.t))
+      : (list(Tile.t), int) => {
+    let open_children_tiles =
+      tile |> Tile.get_open_children |> List.map(Tile.unparse) |> List.flatten;
+    let (fixed_prefix, fixed_suffix) =
+      fix_empty_holes(prefix @ open_children_tiles, suffix);
+    (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
+  };
+
+  let insert_tile_and_fix_empty_holes =
+      (prefix: list(Tile.t), tile: Tile.t, suffix: list(Tile.t))
+      : (list(Tile.t), int) => {
+    let (fixed_prefix, fixed_suffix) =
+      fix_empty_holes([tile, ...prefix], suffix);
+    (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
+  };
 };
