@@ -4,6 +4,23 @@ type t =
   | LamZ(HoleStatus.t, ZPat.t, HExp.t)
   | ApZ(HoleStatus.t, HExp.t, t);
 
+let rec set_hole_status = (status, ze) =>
+  switch (ze) {
+  | Z(prefix, suffix) =>
+    let n = List.length(prefix);
+    let (prefix, suffix) =
+      List.rev(prefix)
+      @ suffix
+      |> HExp.parse
+      |> HExp.set_hole_status(status)
+      |> HExp.Tile.unparse
+      |> ListUtil.split_n(n);
+    Z(prefix, suffix);
+  | ParenZ(zbody) => ParenZ(set_hole_status(status, zbody))
+  | LamZ(_, zp, body) => LamZ(status, zp, body)
+  | ApZ(_, fn, zarg) => ApZ(status, fn, zarg)
+  };
+
 let rec erase: t => HExp.t =
   fun
   | Z(prefix, suffix) => HExp.parse(List.rev(prefix) @ suffix)

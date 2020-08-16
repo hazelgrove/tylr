@@ -183,10 +183,7 @@ module Exp = {
     | Paren(body) =>
       let body = ana_fix_holes(ctx, body, ty);
       Paren(body);
-    | Lam(InHole, p, body) =>
-      let (e, _) = syn_fix_holes(ctx, Lam(NotInHole, p, body));
-      HExp.set_hole_status(InHole, e);
-    | Lam(NotInHole, p, body) =>
+    | Lam(_, p, body) =>
       switch (HTyp.matched_arrow(ty)) {
       | None =>
         let (e, _) = syn_fix_holes(ctx, e);

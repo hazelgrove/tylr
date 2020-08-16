@@ -19,12 +19,12 @@ module Exp = {
     fun
     | Ann
     | Arrow => None
-    | Num(n) => Some(Num(n))
-    | Var(x) => Some(Var(x))
+    | Num(n) => Some(Num(NotInHole, n))
+    | Var(x) => Some(Var(NotInHole, x))
     | Paren => Some(Paren(HExp.OperandHole))
-    | Lam => Some(Lam(HPat.OperandHole))
-    | Ap => Some(Ap(HExp.OperandHole))
-    | Plus => Some(Plus);
+    | Lam => Some(Lam(NotInHole, HPat.OperandHole))
+    | Ap => Some(Ap(NotInHole, HExp.OperandHole))
+    | Plus => Some(Plus(NotInHole));
 
   let rec syn_perform =
           (ctx: Ctx.t, a: t, ze: ZExp.t): option((ZExp.t, HTyp.t)) =>
@@ -65,15 +65,15 @@ module Exp = {
       syn_perform(ctx, a, zbody)
       |> Option.map(((zbody, ty)) => (ZExp.ParenZ(zbody), ty))
 
-    | LamZ(zp, body) =>
+    | LamZ(_, zp, body) =>
       switch (Pat.syn_perform(ctx, a, zp)) {
       | None => None
       | Some((zp, ty1, ctx)) =>
         let (body, ty2) = Statics.Exp.syn_fix_holes(ctx, body);
-        Some((LamZ(zp, body), HTyp.Arrow(ty1, ty2)));
+        Some((LamZ(NotInHole, zp, body), HTyp.Arrow(ty1, ty2)));
       }
 
-    | ApZ(fn, zarg) =>
+    | ApZ(_, fn, zarg) =>
       switch (Statics.Exp.syn(ctx, fn)) {
       | None => None
       | Some(fn_ty) =>
@@ -81,7 +81,7 @@ module Exp = {
         | None => None
         | Some((ty1, ty2)) =>
           ana_perform(ctx, a, zarg, ty1)
-          |> Option.map(zarg => (ZExp.ApZ(fn, zarg), ty2))
+          |> Option.map(zarg => (ZExp.ApZ(NotInHole, fn, zarg), ty2))
         }
       }
     }
@@ -122,23 +122,23 @@ module Exp = {
       ana_perform(ctx, a, zbody, ty)
       |> Option.map(zbody => ZExp.ParenZ(zbody))
 
-    | LamZ(zp, body) =>
+    | LamZ(_, zp, body) =>
       switch (HTyp.matched_arrow(ty)) {
       | None =>
         syn_perform(ctx, a, ze)
-        |> Option.map(((ze, _)) => NonemptyHole(ze))
+        |> Option.map(((ze, _)) => ZExp.set_hole_status(InHole, ze))
       | Some((ty1, ty2)) =>
         Pat.ana_perform(ctx, a, zp, ty1)
         |> Option.map(((zp, ctx)) => {
              let body = Statics.Exp.ana_fix_holes(ctx, body, ty2);
-             LamZ(zp, body);
+             ZExp.LamZ(NotInHole, zp, body);
            })
       }
 
     | ApZ(_) =>
       syn_perform(ctx, a, ze)
       |> Option.map(((ze, ty')) =>
-           HTyp.consistent(ty, ty') ? ze : NonemptyHole(ze)
+           HTyp.consistent(ty, ty') ? ze : ZExp.set_hole_status(InHole, ze)
          )
     };
 };
