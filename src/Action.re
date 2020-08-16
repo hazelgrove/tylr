@@ -15,7 +15,43 @@ type t =
   | Construct(tile_shape);
 
 module Typ = {
-  let perform = failwith("unimplemented");
+  let tile_of_shape: tile_shape => option(HTyp.Tile.t) =
+    fun
+    | Num(_)
+    | Lam
+    | Ap
+    | Plus
+    | Var(_)
+    | Ann => None
+    | Paren => Some(Paren(HTyp.OperandHole))
+    | Arrow => Some(Arrow);
+
+  let rec perform = (a: t, zty: ZTyp.t): option(ZTyp.t) =>
+    switch (zty) {
+    | Z(prefix, suffix) =>
+      switch (a) {
+      | Delete =>
+        switch (prefix) {
+        | [] => None
+        | [t, ...prefix] =>
+          let (tiles, n) =
+            HTyp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
+          let (new_prefix, new_suffix) = ListUtil.split_n(n, tiles);
+          Some(Z(new_prefix, new_suffix));
+        }
+      | Construct(s) =>
+        switch (tile_of_shape(s)) {
+        | None => None
+        | Some(tile) =>
+          let (tiles, n) =
+            HTyp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
+          let (new_prefix, new_suffix) = ListUtil.split_n(n, tiles);
+          Some(Z(new_prefix, new_suffix));
+        }
+      }
+    | ParenZ(zbody) =>
+      perform(a, zbody) |> Option.map(zbody => ZTyp.ParenZ(zbody))
+    };
 };
 
 module Pat = {
