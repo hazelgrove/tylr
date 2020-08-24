@@ -1,12 +1,20 @@
 type t =
-  | Z(list(HExp.Tile.t), list(HExp.Tile.t))
+  | Y(list(HExp.Tile.t), list(HExp.Tile.t))
+  | Z(unzipped)
+and unzipped =
   | ParenZ(t)
-  | LamZ(HoleStatus.t, ZPat.t, HExp.t)
-  | ApZ(HoleStatus.t, HExp.t, t);
+  | LamZ_pat(HoleStatus.t, ZPat.t, HExp.t)
+  | LamZ_body(HoleStatus.t, HPat.t, unzipped)
+  | PlusZ_l(HoleStatus.t, unzipped, HExp.t)
+  | PlusZ_r(HoleStatus.t, HExp.t, unzipped)
+  | ApZ_fn(HoleStatus.t, unzipped, HExp.t)
+  | ApZ_arg(HoleStatus.t, HExp.t, t)
+  | OperatorHoleZ_l(unzipped, HExp.t)
+  | OperatorHoleZ_r(HExp.t, unzipped);
 
 let rec set_hole_status = (status, ze) =>
   switch (ze) {
-  | Z(prefix, suffix) =>
+  | Y(prefix, suffix) =>
     let n = List.length(prefix);
     let (prefix, suffix) =
       List.rev(prefix)
@@ -15,18 +23,37 @@ let rec set_hole_status = (status, ze) =>
       |> HExp.set_hole_status(status)
       |> HExp.Tile.unparse
       |> ListUtil.split_n(n);
-    Z(prefix, suffix);
+    Y(prefix, suffix);
+  | Z(z) => Z(set_hole_status_unzipped(status, z))
+  }
+and set_hole_status_unzipped = (status, z) =>
+  switch (z) {
   | ParenZ(zbody) => ParenZ(set_hole_status(status, zbody))
-  | LamZ(_, zp, body) => LamZ(status, zp, body)
-  | ApZ(_, fn, zarg) => ApZ(status, fn, zarg)
+  | LamZ_pat(_, zp, body) => LamZ_pat(status, zp, body)
+  | LamZ_body(_, p, zbody) => LamZ_body(status, p, zbody)
+  | PlusZ_l(_, zl, r) => PlusZ_l(status, zl, r)
+  | PlusZ_r(_, l, zr) => PlusZ_r(status, l, zr)
+  | ApZ_fn(_, zfn, arg) => ApZ_fn(status, zfn, arg)
+  | ApZ_arg(_, fn, zarg) => ApZ_arg(status, fn, zarg)
+  | OperatorHoleZ_l(_)
+  | OperatorHoleZ_r(_) => z
   };
 
 let rec erase: t => HExp.t =
   fun
-  | Z(prefix, suffix) => HExp.parse(List.rev(prefix) @ suffix)
+  | Y(prefix, suffix) => HExp.parse(List.rev(prefix) @ suffix)
+  | Z(z) => erase_unzipped(z)
+and erase_unzipped: unzipped => HExp.t =
+  fun
   | ParenZ(zbody) => Paren(erase(zbody))
-  | LamZ(status, zp, body) => Lam(status, ZPat.erase(zp), body)
-  | ApZ(status, fn, zarg) => Ap(status, fn, erase(zarg));
+  | LamZ_pat(status, zp, body) => Lam(status, ZPat.erase(zp), body)
+  | LamZ_body(status, p, zbody) => Lam(status, p, erase_unzipped(zbody))
+  | ApZ_fn(status, zfn, arg) => Ap(status, erase_unzipped(zfn), arg)
+  | ApZ_arg(status, fn, zarg) => Ap(status, fn, erase(zarg))
+  | PlusZ_l(status, zl, r) => Plus(status, erase_unzipped(zl), r)
+  | PlusZ_r(status, l, zr) => Plus(status, l, erase_unzipped(zr))
+  | OperatorHoleZ_l(zl, r) => OperatorHole(erase_unzipped(zl), r)
+  | OperatorHoleZ_r(l, zr) => OperatorHole(l, erase_unzipped(zr));
 
 /*
  let rec insert_tiles =

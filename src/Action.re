@@ -1,3 +1,7 @@
+type direction =
+  | Left
+  | Right;
+
 type tile_shape =
   | Num(int)
   | Var(Var.t)
@@ -9,7 +13,7 @@ type tile_shape =
   | Arrow;
 
 type t =
-  // Move(direction)
+  // | Move(direction)
   // Mark
   | Delete
   | Construct(tile_shape);
@@ -28,7 +32,7 @@ module Typ = {
 
   let rec perform = (a: t, zty: ZTyp.t): option(ZTyp.t) =>
     switch (zty) {
-    | Z(prefix, suffix) =>
+    | Y(prefix, suffix) =>
       switch (a) {
       | Delete =>
         switch (prefix) {
@@ -37,7 +41,7 @@ module Typ = {
           let (tiles, n) =
             HTyp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let (new_prefix, new_suffix) = ListUtil.split_n(n, tiles);
-          Some(Z(new_prefix, new_suffix));
+          Some(Y(new_prefix, new_suffix));
         }
       | Construct(s) =>
         switch (tile_of_shape(s)) {
@@ -46,11 +50,25 @@ module Typ = {
           let (tiles, n) =
             HTyp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let (new_prefix, new_suffix) = ListUtil.split_n(n, tiles);
-          Some(Z(new_prefix, new_suffix));
+          Some(Y(new_prefix, new_suffix));
         }
       }
+    | Z(z) => perform_unzipped(a, z) |> Option.map(z => ZTyp.Z(z))
+    }
+  and perform_unzipped = (a: t, z: ZTyp.unzipped): option(ZTyp.unzipped) =>
+    switch (z) {
     | ParenZ(zbody) =>
       perform(a, zbody) |> Option.map(zbody => ZTyp.ParenZ(zbody))
+    | ArrowZ_l(zl, r) =>
+      perform_unzipped(a, zl) |> Option.map(zl => ZTyp.ArrowZ_l(zl, r))
+    | ArrowZ_r(l, zr) =>
+      perform_unzipped(a, zr) |> Option.map(zr => ZTyp.ArrowZ_r(l, zr))
+    | OperatorHoleZ_l(zl, r) =>
+      perform_unzipped(a, zl)
+      |> Option.map(zl => ZTyp.OperatorHoleZ_l(zl, r))
+    | OperatorHoleZ_r(l, zr) =>
+      perform_unzipped(a, zr)
+      |> Option.map(zr => ZTyp.OperatorHoleZ_r(l, zr))
     };
 };
 
@@ -80,7 +98,7 @@ module Pat = {
   let rec syn_perform =
           (ctx: Ctx.t, a: t, zp: ZPat.t): option((ZPat.t, HTyp.t, Ctx.t)) =>
     switch (zp) {
-    | Z(prefix, suffix) =>
+    | Y(prefix, suffix) =>
       switch (a) {
       | Delete =>
         switch (prefix) {
@@ -90,7 +108,7 @@ module Pat = {
             HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let ((new_prefix, new_suffix), ty, ctx) =
             syn_fix_and_split(ctx, n, tiles);
-          Some((Z(new_prefix, new_suffix), ty, ctx));
+          Some((Y(new_prefix, new_suffix), ty, ctx));
         }
       | Construct(s) =>
         switch (tile_of_shape(s)) {
@@ -100,26 +118,51 @@ module Pat = {
             HPat.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let ((new_prefix, new_suffix), ty, ctx) =
             syn_fix_and_split(ctx, n, tiles);
-          Some((Z(new_prefix, new_suffix), ty, ctx));
+          Some((Y(new_prefix, new_suffix), ty, ctx));
         }
       }
-
+    | Z(z) =>
+      syn_perform_unzipped(ctx, a, z)
+      |> Option.map(((z, ty, ctx)) => (ZPat.Z(z), ty, ctx))
+    }
+  and syn_perform_unzipped =
+      (ctx: Ctx.t, a: t, z: ZPat.unzipped)
+      : option((ZPat.unzipped, HTyp.t, Ctx.t)) =>
+    switch (z) {
     | ParenZ(zbody) =>
       syn_perform(ctx, a, zbody)
       |> Option.map(((zbody, ty, ctx)) => (ZPat.ParenZ(zbody), ty, ctx))
-
-    | AnnZ(_, subj, zann) =>
+    | AnnZ_subj(_, zsubj, ann) =>
+      ana_perform_unzipped(ctx, a, zsubj, ann)
+      |> Option.map(((zsubj, ctx)) =>
+           (ZPat.AnnZ_subj(NotInHole, zsubj, ann), ann, ctx)
+         )
+    | AnnZ_ann(_, subj, zann) =>
       Typ.perform(a, zann)
       |> Option.map(zann => {
            let ann = ZTyp.erase(zann);
            let (subj, ctx) = Statics.Pat.ana_fix_holes(ctx, subj, ann);
-           (ZPat.AnnZ(NotInHole, subj, zann), ann, ctx);
+           (ZPat.AnnZ_ann(NotInHole, subj, zann), ann, ctx);
          })
+    | OperatorHoleZ_l(zl, r) =>
+      Option.bind(syn_perform_unzipped(ctx, a, zl), ((zl, _, ctx)) =>
+        Statics.Pat.syn(ctx, r)
+        |> Option.map(((_, ctx)) =>
+             (ZPat.OperatorHoleZ_l(zl, r), HTyp.OperandHole, ctx)
+           )
+      )
+    | OperatorHoleZ_r(l, zr) =>
+      Option.bind(Statics.Pat.syn(ctx, l), ((_, ctx)) =>
+        syn_perform_unzipped(ctx, a, zr)
+        |> Option.map(((zr, _, ctx)) =>
+             (ZPat.OperatorHoleZ_r(l, zr), HTyp.OperandHole, ctx)
+           )
+      )
     }
   and ana_perform =
       (ctx: Ctx.t, a: t, zp: ZPat.t, ty: HTyp.t): option((ZPat.t, Ctx.t)) =>
     switch (zp) {
-    | Z(prefix, suffix) =>
+    | Y(prefix, suffix) =>
       switch (a) {
       | Delete =>
         switch (prefix) {
@@ -129,7 +172,7 @@ module Pat = {
             HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let ((new_prefix, new_suffix), ctx) =
             ana_fix_and_split(ctx, n, tiles, ty);
-          Some((Z(new_prefix, new_suffix), ctx));
+          Some((Y(new_prefix, new_suffix), ctx));
         }
       | Construct(s) =>
         switch (tile_of_shape(s)) {
@@ -139,22 +182,30 @@ module Pat = {
             HPat.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let ((new_prefix, new_suffix), ctx) =
             ana_fix_and_split(ctx, n, tiles, ty);
-          Some((Z(new_prefix, new_suffix), ctx));
+          Some((Y(new_prefix, new_suffix), ctx));
         }
       }
-
+    | Z(z) =>
+      ana_perform_unzipped(ctx, a, z, ty)
+      |> Option.map(((z, ctx)) => (ZPat.Z(z), ctx))
+    }
+  and ana_perform_unzipped =
+      (ctx: Ctx.t, a: t, z: ZPat.unzipped, ty: HTyp.t)
+      : option((ZPat.unzipped, Ctx.t)) =>
+    switch (z) {
     | ParenZ(zbody) =>
       ana_perform(ctx, a, zbody, ty)
       |> Option.map(((zbody, ctx)) => (ZPat.ParenZ(zbody), ctx))
-
-    | AnnZ(_, subj, zann) =>
-      Typ.perform(a, zann)
-      |> Option.map(zann => {
-           let ann = ZTyp.erase(zann);
-           let (subj, ctx) = Statics.Pat.ana_fix_holes(ctx, subj, ann);
-           let status =
-             HTyp.consistent(ty, ann) ? HoleStatus.NotInHole : InHole;
-           (ZPat.AnnZ(status, subj, zann), ctx);
+    | AnnZ_subj(_)
+    | AnnZ_ann(_)
+    | OperatorHoleZ_l(_)
+    | OperatorHoleZ_r(_) =>
+      syn_perform_unzipped(ctx, a, z)
+      |> Option.map(((z, ty', ctx)) => {
+           let z =
+             HTyp.consistent(ty, ty')
+               ? z : ZPat.set_hole_status_unzipped(InHole, z);
+           (z, ctx);
          })
     };
 };
@@ -183,7 +234,7 @@ module Exp = {
   let rec syn_perform =
           (ctx: Ctx.t, a: t, ze: ZExp.t): option((ZExp.t, HTyp.t)) =>
     switch (ze) {
-    | Z(prefix, suffix) =>
+    | Y(prefix, suffix) =>
       switch (a) {
       // z + ( x + y )|
       // --> z + x + y |
@@ -195,7 +246,7 @@ module Exp = {
             HExp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let ((new_prefix, new_suffix), ty) =
             syn_fix_and_split(ctx, n, tiles);
-          Some((Z(new_prefix, new_suffix), ty));
+          Some((Y(new_prefix, new_suffix), ty));
         }
       | Construct(s) =>
         switch (tile_of_shape(s)) {
@@ -205,7 +256,7 @@ module Exp = {
             HExp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let ((new_prefix, new_suffix), ty) =
             syn_fix_and_split(ctx, n, tiles);
-          Some((Z(new_prefix, new_suffix), ty));
+          Some((Y(new_prefix, new_suffix), ty));
         }
       }
 
@@ -236,7 +287,7 @@ module Exp = {
   and ana_perform =
       (ctx: Ctx.t, a: t, ze: ZExp.t, ty: HTyp.t): option(ZExp.t) =>
     switch (ze) {
-    | Z(prefix, suffix) =>
+    | Y(prefix, suffix) =>
       switch (a) {
       | Delete =>
         switch (prefix) {
@@ -246,7 +297,7 @@ module Exp = {
             HExp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let (new_prefix, new_suffix) =
             ana_fix_and_split(ctx, n, tiles, ty);
-          Some(Z(new_prefix, new_suffix));
+          Some(Y(new_prefix, new_suffix));
         }
       | Construct(s) =>
         switch (tile_of_shape(s)) {
@@ -256,7 +307,7 @@ module Exp = {
             HExp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let (new_prefix, new_suffix) =
             ana_fix_and_split(ctx, n, tiles, ty);
-          Some(Z(new_prefix, new_suffix));
+          Some(Y(new_prefix, new_suffix));
         }
       }
 
