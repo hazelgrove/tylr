@@ -259,20 +259,40 @@ module Exp = {
           Some((Y(new_prefix, new_suffix), ty));
         }
       }
-
+    | Z(z) =>
+      syn_perform_unzipped(ctx, a, z)
+      |> Option.map(((z, ty)) => (ZExp.Z(z), ty))
+    }
+  and syn_perform_unzipped =
+      (ctx: Ctx.t, a: t, z: ZExp.unzipped): option((ZExp.unzipped, HTyp.t)) =>
+    switch (z) {
     | ParenZ(zbody) =>
       syn_perform(ctx, a, zbody)
       |> Option.map(((zbody, ty)) => (ZExp.ParenZ(zbody), ty))
-
-    | LamZ(_, zp, body) =>
-      switch (Pat.syn_perform(ctx, a, zp)) {
-      | None => None
-      | Some((zp, ty1, ctx)) =>
-        let (body, ty2) = Statics.Exp.syn_fix_holes(ctx, body);
-        Some((LamZ(NotInHole, zp, body), HTyp.Arrow(ty1, ty2)));
-      }
-
-    | ApZ(_, fn, zarg) =>
+    | LamZ_pat(_, zp, body) =>
+      Option.bind(
+        Pat.syn_perform(ctx, a, zp),
+        ((zp, ty1, ctx)) => {
+          let (body, ty2) = Statics.Exp.syn_fix_holes(ctx, body);
+          Some((ZExp.LamZ_pat(NotInHole, zp, body), HTyp.Arrow(ty1, ty2)));
+        },
+      )
+    | LamZ_body(_, p, zbody) =>
+      Option.bind(Statics.Pat.syn(ctx, p), ((_, ctx)) =>
+        syn_perform_unzipped(ctx, a, zbody)
+        |> Option.map(((zbody, ty)) =>
+             (ZExp.LamZ_body(NotInHole, p, zbody), ty)
+           )
+      )
+    | ApZ_fn(_, zfn, arg) =>
+      Option.bind(syn_perform_unzipped(ctx, a, zfn), ((zfn, fn_ty)) =>
+        HTyp.matched_arrow(fn_ty)
+        |> Option.map(((ty1, ty2)) => {
+             let arg = Statics.Exp.ana_fix_holes(ctx, arg, ty1);
+             (ZExp.ApZ_fn(NotInHole, zfn, arg), ty2);
+           })
+      )
+    | ApZ_arg(_, fn, zarg) =>
       switch (Statics.Exp.syn(ctx, fn)) {
       | None => None
       | Some(fn_ty) =>
@@ -280,9 +300,25 @@ module Exp = {
         | None => None
         | Some((ty1, ty2)) =>
           ana_perform(ctx, a, zarg, ty1)
-          |> Option.map(zarg => (ZExp.ApZ(NotInHole, fn, zarg), ty2))
+          |> Option.map(zarg => (ZExp.ApZ_arg(NotInHole, fn, zarg), ty2))
         }
       }
+    | PlusZ_l(_, zl, r) =>
+      ana_perform_unzipped(ctx, a, zl, HTyp.Num)
+      |> Option.map(zl => (ZExp.PlusZ_l(NotInHole, zl, r), HTyp.Num))
+    | PlusZ_r(_, l, zr) =>
+      ana_perform_unzipped(ctx, a, zr, HTyp.Num)
+      |> Option.map(zr => (ZExp.PlusZ_r(NotInHole, l, zr), HTyp.Num))
+    | OperatorHoleZ_l(zl, r) =>
+      syn_perform_unzipped(ctx, a, zl)
+      |> Option.map(((zl, _)) =>
+           (ZExp.OperatorHoleZ_l(zl, r), HTyp.OperandHole)
+         )
+    | OperatorHoleZ_r(l, zr) =>
+      syn_perform_unzipped(ctx, a, zr)
+      |> Option.map(((zr, _)) =>
+           (ZExp.OperatorHoleZ_r(l, zr), HTyp.OperandHole)
+         )
     }
   and ana_perform =
       (ctx: Ctx.t, a: t, ze: ZExp.t, ty: HTyp.t): option(ZExp.t) =>
@@ -310,28 +346,50 @@ module Exp = {
           Some(Y(new_prefix, new_suffix));
         }
       }
-
+    | Z(z) =>
+      ana_perform_unzipped(ctx, a, z, ty) |> Option.map(z => ZExp.Z(z))
+    }
+  and ana_perform_unzipped =
+      (ctx: Ctx.t, a: t, z: ZExp.unzipped, ty: HTyp.t): option(ZExp.unzipped) =>
+    switch (z) {
     | ParenZ(zbody) =>
       ana_perform(ctx, a, zbody, ty)
       |> Option.map(zbody => ZExp.ParenZ(zbody))
-
-    | LamZ(_, zp, body) =>
+    | LamZ_pat(_, zp, body) =>
       switch (HTyp.matched_arrow(ty)) {
       | None =>
-        syn_perform(ctx, a, ze)
-        |> Option.map(((ze, _)) => ZExp.set_hole_status(InHole, ze))
+        syn_perform_unzipped(ctx, a, z)
+        |> Option.map(((z, _)) => ZExp.set_hole_status_unzipped(InHole, z))
       | Some((ty1, ty2)) =>
         Pat.ana_perform(ctx, a, zp, ty1)
         |> Option.map(((zp, ctx)) => {
              let body = Statics.Exp.ana_fix_holes(ctx, body, ty2);
-             ZExp.LamZ(NotInHole, zp, body);
+             ZExp.LamZ_pat(NotInHole, zp, body);
            })
       }
-
-    | ApZ(_) =>
-      syn_perform(ctx, a, ze)
-      |> Option.map(((ze, ty')) =>
-           HTyp.consistent(ty, ty') ? ze : ZExp.set_hole_status(InHole, ze)
+    | LamZ_body(_, p, zbody) =>
+      switch (HTyp.matched_arrow(ty)) {
+      | None =>
+        Option.bind(Statics.Pat.syn(ctx, p), ((_, ctx)) =>
+          syn_perform_unzipped(ctx, a, zbody)
+          |> Option.map(((zbody, _)) => ZExp.LamZ_body(InHole, p, zbody))
+        )
+      | Some((ty1, ty2)) =>
+        Option.bind(Statics.Pat.ana(ctx, p, ty1), ctx =>
+          ana_perform_unzipped(ctx, a, zbody, ty2)
+          |> Option.map(zbody => ZExp.LamZ_body(NotInHole, p, zbody))
+        )
+      }
+    | ApZ_fn(_)
+    | ApZ_arg(_)
+    | PlusZ_l(_)
+    | PlusZ_r(_)
+    | OperatorHoleZ_l(_)
+    | OperatorHoleZ_r(_) =>
+      syn_perform_unzipped(ctx, a, z)
+      |> Option.map(((z, ty')) =>
+           HTyp.consistent(ty, ty')
+             ? z : ZExp.set_hole_status_unzipped(InHole, z)
          )
     };
 };
