@@ -13,7 +13,7 @@ type tile_shape =
   | Arrow;
 
 type t =
-  // | Move(direction)
+  | Move(direction)
   // Mark
   | Delete
   | Construct(tile_shape);
@@ -34,6 +34,8 @@ module Typ = {
     switch (zty) {
     | Y(prefix, suffix) =>
       switch (a) {
+      | Move(Left) => ZTyp.move_left(prefix, suffix)
+      | Move(Right) => ZTyp.move_right(prefix, suffix)
       | Delete =>
         switch (prefix) {
         | [] => None
@@ -73,6 +75,11 @@ module Typ = {
 };
 
 module Pat = {
+  let move =
+    fun
+    | Left => ZPat.move_left
+    | Right => ZPat.move_right;
+
   let tile_of_shape: tile_shape => option(HPat.Tile.t) =
     fun
     | Num(_)
@@ -100,6 +107,16 @@ module Pat = {
     switch (zp) {
     | Y(prefix, suffix) =>
       switch (a) {
+      | Move(direction) =>
+        move(direction, prefix, suffix)
+        |> Option.map(zp => {
+             let (_, ty, ctx) =
+               Statics.Pat.syn_fix_holes(
+                 ctx,
+                 HPat.parse(List.rev(prefix) @ suffix),
+               );
+             (zp, ty, ctx);
+           })
       | Delete =>
         switch (prefix) {
         | [] => None
@@ -164,6 +181,17 @@ module Pat = {
     switch (zp) {
     | Y(prefix, suffix) =>
       switch (a) {
+      | Move(direction) =>
+        move(direction, prefix, suffix)
+        |> Option.map(zp => {
+             let (_, ctx) =
+               Statics.Pat.ana_fix_holes(
+                 ctx,
+                 HPat.parse(List.rev(prefix) @ suffix),
+                 ty,
+               );
+             (zp, ctx);
+           })
       | Delete =>
         switch (prefix) {
         | [] => None
@@ -211,6 +239,11 @@ module Pat = {
 };
 
 module Exp = {
+  let move =
+    fun
+    | Left => ZExp.move_left
+    | Right => ZExp.move_right;
+
   let tile_of_shape: tile_shape => option(HExp.Tile.t) =
     fun
     | Ann
@@ -236,6 +269,16 @@ module Exp = {
     switch (ze) {
     | Y(prefix, suffix) =>
       switch (a) {
+      | Move(direction) =>
+        move(direction, prefix, suffix)
+        |> Option.map(ze => {
+             let (_, ty) =
+               Statics.Exp.syn_fix_holes(
+                 ctx,
+                 HExp.parse(List.rev(prefix) @ suffix),
+               );
+             (ze, ty);
+           })
       // z + ( x + y )|
       // --> z + x + y |
       | Delete =>
@@ -325,6 +368,7 @@ module Exp = {
     switch (ze) {
     | Y(prefix, suffix) =>
       switch (a) {
+      | Move(direction) => move(direction, prefix, suffix)
       | Delete =>
         switch (prefix) {
         | [] => None
