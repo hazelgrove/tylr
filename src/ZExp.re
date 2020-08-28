@@ -231,6 +231,64 @@ let move_right =
 };
 
 /*
+ // assume anchor before focus
+ let restructure = (
+   anchor: t,
+   focus: t,
+   target: t,
+ ): option(ZExp.t) => {
+   switch (anchor, focus, target) {
+   | (
+       Y(anchor_prefix, anchor_suffix),
+       Y(focus_prefix, focus_suffix),
+       Y(target_prefix, target_suffix),
+     ) =>
+     let anchor_n = List.length(anchor_prefix);
+     let focus_n = List.length(focus_prefix);
+     let target_n = List.length(target_prefix);
+     if (anchor_n < target_n && target_n < focus_n) {
+       None
+     } else {
+       // TODO fix prefix suffix order
+       let tiles = List.rev(target_prefix) @ target_suffix;
+       let (prefix, selected, suffix) =
+         ListUtil.split_sublist(anchor_n, focus_n, tiles);
+       if (target_n <= anchor_n) {
+         let (p1, p2) = ListUtil.split_n(target_n, prefix);
+         Some(Y(p1, selected @ p2 @ suffix));
+       } else {
+         // target_n >= focus_n
+         let (s1, s2) = ListUtil.split_n(target_n - focus_n, suffix);
+         Some(Y(prefix @ s1, selected @ s2));
+       };
+     };
+   | (
+       Y(anchor_prefix, anchor_suffix),
+       Y(focus_prefix, focus_suffix),
+       Z(target_z),
+     ) =>
+
+   | (
+       Y(anchor_prefix, anchor_suffix),
+       Z(focus_z),
+       Y(target_prefix, target_suffix),
+     ) =>
+     let anchor_n = List.length(anchor_prefix);
+     let target_n = List.length(target_prefix);
+     if (target_n > anchor_n) {
+       None
+     } else {
+       // target_n <= anchor_n
+       let ()
+     }
+     if (List.length(target_pre) < List.length(anchor_pre)) {
+
+     }
+   }
+ };
+ */
+
+/*
  let rec insert_tiles =
          (tiles: HExp.Tile.s, {prefix, z, suffix}: t): option(t) => {
    let wrap_z = z => {prefix, z: ztile, suffix};
