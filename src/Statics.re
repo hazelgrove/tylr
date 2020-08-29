@@ -1,3 +1,7 @@
+type type_mode =
+  | Syn
+  | Ana(HTyp.t);
+
 module Pat = {
   let rec syn = (ctx: Ctx.t, p: HPat.t): option((HTyp.t, Ctx.t)) =>
     switch (p) {
@@ -193,5 +197,76 @@ module Exp = {
         let body = ana_fix_holes(ctx, body, ty2);
         Lam(NotInHole, p, body);
       }
+    };
+
+  /**
+   * Given an expression `e` in synthetic position under context
+   * `ctx`, `syn_nth_type_mode(ctx, n, e)` returns the type mode of
+   * the subexpression rooted at the `n`th tile in the unparsed
+   * representation of `e`
+   */
+  let rec syn_nth_type_mode =
+          (ctx: Ctx.t, n: int, e: HExp.t): option(type_mode) =>
+    switch (e) {
+    | OperandHole
+    | Num(_)
+    | Var(_)
+    | Paren(_) => n == 0 ? Some(Syn) : None
+    | Lam(_, p, body) =>
+      n == 0
+        ? Some(Syn)
+        : Option.bind(Pat.syn(ctx, p), ((_, ctx)) =>
+            syn_nth_type_mode(ctx, n - 1, body)
+          )
+    | Ap(_, fn, _) =>
+      let m = List.length(HExp.Tile.unparse(fn));
+      n < m
+        ? syn_nth_type_mode(ctx, n, fn)
+        : Option.bind(syn(ctx, fn), ty =>
+            HTyp.matched_arrow(ty) |> Option.map(((ty1, _)) => Ana(ty1))
+          );
+    | Plus(_, l, r) =>
+      let m = List.length(HExp.Tile.unparse(l));
+      if (n < m) {
+        ana_nth_type_mode(ctx, n, l, HTyp.Num);
+      } else if (n > m) {
+        ana_nth_type_mode(ctx, n - (m + 1), r, Num);
+      } else {
+        Some(Syn);
+      };
+    | OperatorHole(l, r) =>
+      let m = List.length(HExp.Tile.unparse(l));
+      if (n < m) {
+        syn_nth_type_mode(ctx, n, l);
+      } else if (n > m) {
+        syn_nth_type_mode(ctx, n - (m + 1), r);
+      } else {
+        Some(Syn);
+      };
+    }
+  /**
+   * Given an expression `e` in analytic position against type
+   * `ty` under context `ctx`, `ana_nth_type_mode(ctx, n, e, ty)`
+   * returns the type mode of the subexpression rooted at the
+   * `n`th tile in the unparsed representation of `e`
+   */
+  and ana_nth_type_mode =
+      (ctx: Ctx.t, n: int, e: HExp.t, ty: HTyp.t): option(type_mode) =>
+    switch (e) {
+    | OperandHole
+    | Num(_)
+    | Var(_)
+    | Paren(_) => n == 0 ? Some(Ana(ty)) : None
+    | Lam(_, p, body) =>
+      n == 0
+        ? Some(Ana(ty))
+        : Option.bind(HTyp.matched_arrow(ty), ((ty1, ty2)) =>
+            Option.bind(Pat.ana(ctx, p, ty1), ctx =>
+              ana_nth_type_mode(ctx, n - 1, body, ty2)
+            )
+          )
+    | Ap(_)
+    | Plus(_)
+    | OperatorHole(_) => syn_nth_type_mode(ctx, n, e)
     };
 };
