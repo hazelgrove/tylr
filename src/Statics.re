@@ -63,6 +63,37 @@ module Pat = {
       let (body, ctx) = ana_fix_holes(ctx, body, ty);
       (Paren(body), ctx);
     };
+
+  let rec syn_nth_type_mode =
+          (ctx: Ctx.t, n: int, p: HPat.t): option(type_mode) =>
+    switch (p) {
+    | OperandHole
+    | Var(_)
+    | Paren(_) => n == 0 ? Some(Syn) : None
+    | Ann(_, subj, ann) =>
+      let m = List.length(HPat.Tile.unparse(subj));
+      n < m ? ana_nth_type_mode(ctx, n, subj, ann) : Some(Syn);
+    | OperatorHole(l, r) =>
+      let m = List.length(HPat.Tile.unparse(l));
+      if (n < m) {
+        syn_nth_type_mode(ctx, n, l);
+      } else if (n > m) {
+        syn_nth_type_mode(ctx, n - (m + 1), r);
+      } else {
+        Some(Syn);
+      };
+    }
+  and ana_nth_type_mode =
+      (ctx: Ctx.t, n: int, p: HPat.t, ty: HTyp.t): option(type_mode) =>
+    switch (p) {
+    | OperandHole
+    | Var(_)
+    | Paren(_) => n == 0 ? Some(Ana(ty)) : None
+    | Ann(_)
+    | OperatorHole(_) =>
+      // subsumption
+      syn_nth_type_mode(ctx, n, p)
+    };
 };
 
 module Exp = {
@@ -220,11 +251,7 @@ module Exp = {
           )
     | Ap(_, fn, _) =>
       let m = List.length(HExp.Tile.unparse(fn));
-      n < m
-        ? syn_nth_type_mode(ctx, n, fn)
-        : Option.bind(syn(ctx, fn), ty =>
-            HTyp.matched_arrow(ty) |> Option.map(((ty1, _)) => Ana(ty1))
-          );
+      n < m ? syn_nth_type_mode(ctx, n, fn) : Some(Syn);
     | Plus(_, l, r) =>
       let m = List.length(HExp.Tile.unparse(l));
       if (n < m) {
