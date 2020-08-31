@@ -71,10 +71,10 @@ module Pat = {
     | Var(_)
     | Paren(_) => n == 0 ? Some(Syn) : None
     | Ann(_, subj, ann) =>
-      let m = List.length(HPat.Tile.unparse(subj));
+      let m = List.length(HPat.unparse(subj));
       n < m ? ana_nth_type_mode(ctx, n, subj, ann) : Some(Syn);
     | OperatorHole(l, r) =>
-      let m = List.length(HPat.Tile.unparse(l));
+      let m = List.length(HPat.unparse(l));
       if (n < m) {
         syn_nth_type_mode(ctx, n, l);
       } else if (n > m) {
@@ -250,10 +250,10 @@ module Exp = {
             syn_nth_type_mode(ctx, n - 1, body)
           )
     | Ap(_, fn, _) =>
-      let m = List.length(HExp.Tile.unparse(fn));
+      let m = List.length(HExp.unparse(fn));
       n < m ? syn_nth_type_mode(ctx, n, fn) : Some(Syn);
     | Plus(_, l, r) =>
-      let m = List.length(HExp.Tile.unparse(l));
+      let m = List.length(HExp.unparse(l));
       if (n < m) {
         ana_nth_type_mode(ctx, n, l, HTyp.Num);
       } else if (n > m) {
@@ -262,7 +262,7 @@ module Exp = {
         Some(Syn);
       };
     | OperatorHole(l, r) =>
-      let m = List.length(HExp.Tile.unparse(l));
+      let m = List.length(HExp.unparse(l));
       if (n < m) {
         syn_nth_type_mode(ctx, n, l);
       } else if (n > m) {

@@ -4,7 +4,8 @@ let hd_opt =
   | [hd, ..._] => Some(hd);
 
 /**
- * Splits the first n elements from xs.
+ * `split_n_opt(n, xs)` splits the first `n` elements from `xs`
+ * if `xs` has `n` or more elements
  */
 let split_n_opt = (n: int, xs: list('x)): option((list('x), list('x))) => {
   let rec go = (~prefix: list('x)=[], n: int, xs: list('x)) =>
@@ -53,4 +54,27 @@ let rec split_nth = (n, xs) =>
   | (_, [x, ...xs]) =>
     let (prefix, subject, suffix) = split_nth(n - 1, xs);
     ([x, ...prefix], subject, suffix);
+  };
+
+let rec map_nth_opt = (n: int, f: 'x => 'x, xs: list('x)): option(list('x)) =>
+  switch (n, xs) {
+  | (_, []) => None
+  | (0, [x, ...xs]) => Some([f(x), ...xs])
+  | (_, [x, ...xs]) =>
+    map_nth_opt(n - 1, f, xs) |> Option.map(List.cons(x))
+  };
+
+let map_nth = (n, f, xs) =>
+  switch (map_nth_opt(n, f, xs)) {
+  | None => raise(Invalid_argument("ListUtil.map_nth: index out of bounds"))
+  | Some(xs) => xs
+  };
+
+let rec split_last_opt = (xs: list('x)): option((list('x), 'x)) =>
+  switch (xs) {
+  | [] => None
+  | [x] => Some(([], x))
+  | [x, ...xs] =>
+    split_last_opt(xs)
+    |> Option.map(((leading, last)) => ([x, ...leading], last))
   };

@@ -74,5 +74,30 @@ module Tile = {
     | Ap(status, fn, arg) => unparse(fn) @ [Ap(status, arg)]
     | Plus(status, e1, e2) => unparse(e1) @ [Plus(status), ...unparse(e2)]
     | OperatorHole(e1, e2) => unparse(e1) @ [OperatorHole, ...unparse(e2)];
+
+  let index_of_root: term => int =
+    fun
+    | OperandHole
+    | Num(_)
+    | Var(_)
+    | Paren(_)
+    | Lam(_) => 0
+    | Ap(_, e, _)
+    | Plus(_, e, _)
+    | OperatorHole(e, _) => List.length(unparse(e));
+
+  let set_hole_status = (status, tile) =>
+    switch (tile) {
+    | OperandHole
+    | OperatorHole => tile
+    | Num(_, n) => Num(status, n)
+    | Var(_, x) => Var(status, x)
+    | Paren(body) => Paren(set_hole_status(status, body))
+    | Lam(_, p) => Lam(status, p)
+    | Ap(_, arg) => Ap(status, arg)
+    | Plus(_) => Plus(status)
+    };
 };
 include TileUtil.Make(Tile);
+
+let unparse = Tile.unparse;

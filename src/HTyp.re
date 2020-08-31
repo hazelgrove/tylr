@@ -64,3 +64,4 @@ module Tile = {
     | Arrow(t1, t2) => unparse(t1) @ [Arrow, ...unparse(t2)];
 };
 include TileUtil.Make(Tile);
+let unparse = Tile.unparse;

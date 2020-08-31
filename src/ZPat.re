@@ -1,149 +1,65 @@
-type t =
-  | Y(list(HPat.Tile.t), list(HPat.Tile.t))
-  | Z(unzipped)
-and unzipped =
-  | ParenZ(t)
-  | AnnZ_subj(HoleStatus.t, unzipped, HTyp.t)
-  | AnnZ_ann(HoleStatus.t, HPat.t, ZTyp.t)
-  | OperatorHoleZ_l(unzipped, HPat.t)
-  | OperatorHoleZ_r(HPat.t, unzipped);
+type t = ZTiles.t(ztile, HPat.Tile.t)
+and ztile =
+  | ParenZ_body(t)
+  | AnnZ_ann(HoleStatus.t, ZTyp.t);
 
-let rec set_hole_status = (status, zp) =>
-  switch (zp) {
-  | Y(prefix, suffix) =>
-    let n = List.length(prefix);
-    let (prefix, suffix) =
-      List.rev(prefix)
-      @ suffix
-      |> HPat.parse
-      |> HPat.set_hole_status(status)
-      |> HPat.Tile.unparse
-      |> ListUtil.split_n(n);
-    Y(prefix, suffix);
-  | Z(z) => Z(set_hole_status_unzipped(status, z))
+let rec erase = (zp: t): HPat.t =>
+  switch (zp.z) {
+  | None => HPat.parse(zp.prefix @ zp.suffix)
+  | Some(ztile) =>
+    HPat.parse(zp.prefix @ [erase_ztile(ztile), ...zp.suffix])
   }
-and set_hole_status_unzipped = (status, z) =>
-  switch (z) {
-  | ParenZ(zbody) => ParenZ(set_hole_status(status, zbody))
-  | AnnZ_subj(_, zsubj, ann) => AnnZ_subj(status, zsubj, ann)
-  | AnnZ_ann(_, subj, zann) => AnnZ_ann(status, subj, zann)
-  | OperatorHoleZ_l(_)
-  | OperatorHoleZ_r(_) => z
-  };
-
-let rec erase: t => HPat.t =
+and erase_ztile: ztile => HPat.Tile.t =
   fun
-  | Y(prefix, suffix) => HPat.parse(List.rev(prefix) @ suffix)
-  | Z(z) => erase_unzipped(z)
-and erase_unzipped: unzipped => HPat.t =
-  fun
-  | ParenZ(zbody) => Paren(erase(zbody))
-  | AnnZ_subj(status, zsubj, ann) => Ann(status, erase_unzipped(zsubj), ann)
-  | AnnZ_ann(status, subj, zann) => Ann(status, subj, ZTyp.erase(zann))
-  | OperatorHoleZ_l(zl, r) => OperatorHole(erase_unzipped(zl), r)
-  | OperatorHoleZ_r(l, zr) => OperatorHole(l, erase_unzipped(zr));
+  | ParenZ_body(zbody) => Paren(erase(zbody))
+  | AnnZ_ann(status, zann) => Ann(status, ZTyp.erase(zann));
 
-let place_before = (p: HPat.t): t => Y([], HPat.Tile.unparse(p));
-let place_after = (p: HPat.t): t => Y(HPat.Tile.unparse(p), []);
-
-let move_left =
-    (prefix: list(HPat.Tile.t), suffix: list(HPat.Tile.t)): option(t) => {
-  let rec go = (n: int, p: HPat.t) =>
-    switch (p) {
-    | _ when n <= 0 => None
-    | OperandHole
-    | Var(_) => Some(place_before(p))
-    | Paren(body) =>
-      let zbody = place_after(body);
-      Some(Z(ParenZ(zbody)));
-    | Ann(status, subj, ann) =>
-      let subj_tiles = HPat.Tile.unparse(subj);
-      let m = List.length(subj_tiles);
-      if (n <= m) {
-        go(n, subj)
-        |> Option.map(
-             fun
-             | Y(pre, suf) => Y(pre, suf @ [Ann(status, ann)])
-             | Z(zsubj) => Z(AnnZ_subj(status, zsubj, ann)),
-           );
+let rec set_hole_status = (status, zp) => {
+  let (n, _) = HPat.Tile.root(erase(zp));
+  let m = List.length(zp.prefix);
+  let set_tile = HPat.Tile.set_hole_status(status);
+  if (n < m) {
+    let prefix = zp.prefix |> ListUtil.map_nth(n, set_tile);
+    {...zp, prefix};
+  } else {
+    switch (zp.z) {
+    | None =>
+      let suffix = zp.suffix |> ListUtil.map_nth(n - m, set_tile);
+      {...zp, suffix};
+    | Some(ztile) =>
+      if (n == m) {
+        let z = Some(set_hole_status_ztile(status, ztile));
+        {...zp, z};
       } else {
-        let zann = ZTyp.place_after(ann);
-        Some(Z(AnnZ_ann(status, subj, zann)));
-      };
-    | OperatorHole(l, r) =>
-      let l_tiles = HPat.Tile.unparse(l);
-      let r_tiles = HPat.Tile.unparse(r);
-      let m = List.length(l_tiles);
-      if (n <= m) {
-        go(n, l)
-        |> Option.map(
-             fun
-             | Y(pre, suf) => Y(pre, suf @ [OperatorHole, ...r_tiles])
-             | Z(zl) => Z(OperatorHoleZ_l(zl, r)),
-           );
-      } else if (n == m + 1) {
-        Some(Y(l_tiles, [OperatorHole, ...r_tiles]));
-      } else {
-        go(n - (m + 1), r)
-        |> Option.map(
-             fun
-             | Y(pre, suf) =>
-               Y(pre @ [OperatorHole, ...List.rev(l_tiles)], suf)
-             | Z(zr) => Z(OperatorHoleZ_r(l, zr)),
-           );
-      };
-    };
-  go(List.length(prefix), HPat.parse(List.rev(prefix) @ suffix));
-};
-
-let move_right =
-    (prefix: list(HPat.Tile.t), suffix: list(HPat.Tile.t)): option(t) => {
-  let rec go = (n: int, p: HPat.t) => {
-    let len = List.length(HPat.Tile.unparse(p));
-    switch (p) {
-    | _ when n >= len => None
-    | OperandHole
-    | Var(_) => Some(place_after(p))
-    | Paren(body) =>
-      let zbody = place_before(body);
-      Some(Z(ParenZ(zbody)));
-    | Ann(status, subj, ann) =>
-      let subj_tiles = HPat.Tile.unparse(subj);
-      let m = List.length(subj_tiles);
-      if (n < m) {
-        go(n, subj)
-        |> Option.map(
-             fun
-             | Y(pre, suf) => Y(pre, suf @ [Ann(status, ann)])
-             | Z(zsubj) => Z(AnnZ_subj(status, zsubj, ann)),
-           );
-      } else {
-        let zann = ZTyp.place_after(ann);
-        Some(Z(AnnZ_ann(status, subj, zann)));
-      };
-    | OperatorHole(l, r) =>
-      let l_tiles = HPat.Tile.unparse(l);
-      let r_tiles = HPat.Tile.unparse(r);
-      let m = List.length(l_tiles);
-      if (n < m) {
-        go(n, l)
-        |> Option.map(
-             fun
-             | Y(pre, suf) => Y(pre, suf @ [OperatorHole, ...r_tiles])
-             | Z(zl) => Z(OperatorHoleZ_l(zl, r)),
-           );
-      } else if (n == m) {
-        Some(Y([OperatorHole, ...l_tiles], r_tiles));
-      } else {
-        go(n - (m + 1), r)
-        |> Option.map(
-             fun
-             | Y(pre, suf) =>
-               Y(pre @ [OperatorHole, ...List.rev(l_tiles)], suf)
-             | Z(zr) => Z(OperatorHoleZ_r(l, zr)),
-           );
-      };
+        let suffix = zp.suffix |> ListUtil.map_nth(n - (m + 1), set_tile);
+        {...zp, suffix};
+      }
     };
   };
-  go(List.length(prefix), HPat.parse(List.rev(prefix) @ suffix));
-};
+}
+and set_hole_status_ztile = (status, ztile) =>
+  switch (ztile) {
+  | ParenZ_body(zp) => ParenZ_body(set_hole_status(status, zp))
+  | AnnZ_ann(_, ann) => AnnZ_ann(status, ann)
+  };
+
+let place_before = (p: HPat.t): t => ZTiles.place_before(HPat.unparse(p));
+let place_after = (p: HPat.t): t => ZTiles.place_after(HPat.unparse(p));
+
+let enter_from_left: HPat.Tile.t => option(ztile) =
+  fun
+  | OperandHole
+  | OperatorHole
+  | Var(_) => None
+  | Paren(body) => Some(ParenZ_body(place_before(body)))
+  | Ann(status, ann) => Some(AnnZ_ann(status, ZTyp.place_before(ann)));
+let enter_from_right: HPat.Tile.t => option(ztile) =
+  fun
+  | OperandHole
+  | OperatorHole
+  | Var(_) => None
+  | Paren(body) => Some(ParenZ_body(place_after(body)))
+  | Ann(status, ann) => Some(AnnZ_ann(status, ZTyp.place_after(ann)));
+
+let move_left = ZTiles.move_left(~enter_from_right);
+let move_right = ZTiles.move_right(~enter_from_left);

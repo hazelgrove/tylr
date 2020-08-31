@@ -52,5 +52,26 @@ module Tile = {
     | Paren(body) => [Paren(body)]
     | Ann(status, subj, ann) => unparse(subj) @ [Ann(status, ann)]
     | OperatorHole(p1, p2) => unparse(p1) @ [OperatorHole, ...unparse(p2)];
+
+  let root: term => (int, t) =
+    fun
+    | OperandHole => (0, OperandHole)
+    | Var(x) => (0, Var(x))
+    | Paren(body) => (0, Paren(body))
+    | Ann(status, subj, ann) => (
+        List.length(unparse(subj)),
+        Ann(status, ann),
+      )
+    | OperatorHole(l, _) => (List.length(unparse(l)), OperatorHole);
+
+  let set_hole_status = (status, tile) =>
+    switch (tile) {
+    | OperandHole
+    | OperatorHole
+    | Var(_) => tile
+    | Paren(body) => Paren(set_hole_status(status, body))
+    | Ann(_, ann) => Ann(status, ann)
+    };
 };
 include TileUtil.Make(Tile);
+let unparse = Tile.unparse;

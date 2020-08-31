@@ -30,12 +30,13 @@ module Typ = {
     | Paren => Some(Paren(HTyp.OperandHole))
     | Arrow => Some(Arrow);
 
-  let rec perform = (a: t, zty: ZTyp.t): option(ZTyp.t) =>
-    switch (zty) {
-    | Y(prefix, suffix) =>
+  let rec perform = (a: t, {prefix, z, suffix}: ZTyp.t): option(ZTyp.t) => {
+    let rewrap = z => ZList.{prefix, z, suffix};
+    switch (z) {
+    | Z =>
       switch (a) {
       | Move(Left) => ZTyp.move_left(prefix, suffix)
-      | Move(Right) => ZTyp.move_right(prefix, suffix)
+      | Move(Right) => ZTyp.move_left(prefix, suffix)
       | Delete =>
         switch (prefix) {
         | [] => None
@@ -43,7 +44,7 @@ module Typ = {
           let (tiles, n) =
             HTyp.delete_tile_and_fix_empty_holes(prefix, t, suffix);
           let (new_prefix, new_suffix) = ListUtil.split_n(n, tiles);
-          Some(Y(new_prefix, new_suffix));
+          Some({prefix: new_prefix, z: Z, suffix: new_suffix});
         }
       | Construct(s) =>
         switch (tile_of_shape(s)) {
@@ -52,26 +53,14 @@ module Typ = {
           let (tiles, n) =
             HTyp.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
           let (new_prefix, new_suffix) = ListUtil.split_n(n, tiles);
-          Some(Y(new_prefix, new_suffix));
+          Some({prefix: new_prefix, z: Z, suffix: new_suffix});
         }
       }
-    | Z(z) => perform_unzipped(a, z) |> Option.map(z => ZTyp.Z(z))
-    }
-  and perform_unzipped = (a: t, z: ZTyp.unzipped): option(ZTyp.unzipped) =>
-    switch (z) {
-    | ParenZ(zbody) =>
-      perform(a, zbody) |> Option.map(zbody => ZTyp.ParenZ(zbody))
-    | ArrowZ_l(zl, r) =>
-      perform_unzipped(a, zl) |> Option.map(zl => ZTyp.ArrowZ_l(zl, r))
-    | ArrowZ_r(l, zr) =>
-      perform_unzipped(a, zr) |> Option.map(zr => ZTyp.ArrowZ_r(l, zr))
-    | OperatorHoleZ_l(zl, r) =>
-      perform_unzipped(a, zl)
-      |> Option.map(zl => ZTyp.OperatorHoleZ_l(zl, r))
-    | OperatorHoleZ_r(l, zr) =>
-      perform_unzipped(a, zr)
-      |> Option.map(zr => ZTyp.OperatorHoleZ_r(l, zr))
+    | ParenZ_body(zbody) =>
+      perform(a, zbody)
+      |> Option.map(zbody => rewrap(ZTyp.ParenZ_body(zbody)))
     };
+  };
 };
 
 module Pat = {
@@ -94,92 +83,157 @@ module Pat = {
   let syn_fix_and_split = (ctx, n, tiles) => {
     let (new_p, ty, ctx) =
       Statics.Pat.syn_fix_holes(ctx, HPat.parse(tiles));
-    (ListUtil.split_n(n, HPat.Tile.unparse(new_p)), ty, ctx);
+    (ListUtil.split_n(n, HPat.unparse(new_p)), ty, ctx);
   };
   let ana_fix_and_split = (ctx, n, tiles, ty) => {
     let (new_p, ctx) =
       Statics.Pat.ana_fix_holes(ctx, HPat.parse(tiles), ty);
-    (ListUtil.split_n(n, HPat.Tile.unparse(new_p)), ctx);
+    (ListUtil.split_n(n, HPat.unparse(new_p)), ctx);
   };
 
   let rec syn_perform =
-          (ctx: Ctx.t, a: t, zp: ZPat.t): option((ZPat.t, HTyp.t, Ctx.t)) =>
-    switch (zp) {
-    | Y(prefix, suffix) =>
+          (ctx: Ctx.t, a: t, {prefix, z, suffix} as zp: ZPat.t)
+          : option((ZPat.t, HTyp.t, Ctx.t)) => {
+    switch (z) {
+    | None =>
       switch (a) {
       | Move(direction) =>
         move(direction, prefix, suffix)
         |> Option.map(zp => {
              let (_, ty, ctx) =
-               Statics.Pat.syn_fix_holes(
-                 ctx,
-                 HPat.parse(List.rev(prefix) @ suffix),
-               );
+               Statics.Pat.syn_fix_holes(ctx, HPat.parse(prefix @ suffix));
              (zp, ty, ctx);
            })
       | Delete =>
-        switch (prefix) {
-        | [] => None
-        | [t, ...prefix] =>
-          let (tiles, n) =
-            HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
-          let ((new_prefix, new_suffix), ty, ctx) =
-            syn_fix_and_split(ctx, n, tiles);
-          Some((Y(new_prefix, new_suffix), ty, ctx));
-        }
+        ListUtil.split_last_opt(prefix)
+        |> Option.map(((prefix, t)) => {
+             let (tiles, n) =
+               HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
+             let ((new_prefix, new_suffix), ty, ctx) =
+               syn_fix_and_split(ctx, n, tiles);
+             let new_zp: ZPat.t = {
+               prefix: new_prefix,
+               z: Z,
+               suffix: new_suffix,
+             };
+             (new_zp, ty, ctx);
+           })
       | Construct(s) =>
-        switch (tile_of_shape(s)) {
-        | None => None
-        | Some(tile) =>
-          let (tiles, n) =
-            HPat.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
-          let ((new_prefix, new_suffix), ty, ctx) =
-            syn_fix_and_split(ctx, n, tiles);
-          Some((Y(new_prefix, new_suffix), ty, ctx));
-        }
+        tile_of_shape(s)
+        |> Option.map(tile => {
+             let (tiles, n) =
+               HPat.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
+             let ((new_prefix, new_suffix), ty, ctx) =
+               syn_fix_and_split(ctx, n, tiles);
+             let new_zp: ZPat.t = {
+               prefix: new_prefix,
+               z: Z,
+               suffix: new_suffix,
+             };
+             (new_zp, ty, ctx);
+           })
       }
-    | Z(z) =>
-      syn_perform_unzipped(ctx, a, z)
-      |> Option.map(((z, ty, ctx)) => (ZPat.Z(z), ty, ctx))
-    }
-  and syn_perform_unzipped =
-      (ctx: Ctx.t, a: t, z: ZPat.unzipped)
-      : option((ZPat.unzipped, HTyp.t, Ctx.t)) =>
+    | Some(ztile) =>
+      let (root_index, root_tile) = HPat.Tile.root(ZPat.erase(zp));
+      let z_index = List.length(prefix);
+      if (z_index == root_index) {
+        switch (ztile) {
+        | ParenZ_body(zbody) =>
+          syn_perform(ctx, a, zbody)
+          |> Option.map(((zbody, ty, ctx)) =>
+               (ZTiles.wrap(ZPat.ParenZ_body(zbody)), ty, ctx)
+             )
+        | AnnZ_ann(_, zann) =>
+          Typ.perform(a, zann)
+          |> Option.map(zann => {
+               let (subj, ctx) =
+                 Statics.Pat.ana_fix_holes(ctx, HPat.parse(prefix));
+               let new_prefix = HPat.unparse(subj);
+               let ann = ZTyp.erase(zann);
+               (
+                 ZList.{prefix: new_prefix, z: Some(zann), suffix},
+                 ann,
+                 ctx,
+               );
+             })
+        };
+      } else {
+        switch (root_tile) {
+        | OperandHole
+        | Var(_)
+        | Paren(_) => assert(false)
+        };
+      };
+    };
+  };
+
+  let rec syn_perform =
+          (ctx: Ctx.t, a: t, {prefix, z, suffix} as zp: ZPat.t)
+          : option((ZPat.t, HTyp.t, Ctx.t)) => {
+    let rewrap = z => ZList.{prefix, z, suffix};
+    let zroot = List.length(prefix);
+    let (zstart, zend) = HPat.Tile.subterm_range(zroot, p);
     switch (z) {
-    | ParenZ(zbody) =>
+    | Z =>
+      switch (a) {
+      | Move(direction) =>
+        move(direction, prefix, suffix)
+        |> Option.map(zp => {
+             let (_, ty, ctx) =
+               Statics.Pat.syn_fix_holes(- ctx, HPat.parse(prefix @ suffix));
+             (zp, ty, ctx);
+           })
+      | Delete =>
+        ListUtil.split_last_opt(prefix)
+        |> Option.map(((prefix, t)) => {
+             let (tiles, n) =
+               HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
+             let ((new_prefix, new_suffix), ty, ctx) =
+               syn_fix_and_split(ctx, n, tiles);
+             let new_zp: ZPat.t = {
+               prefix: new_prefix,
+               z: Z,
+               suffix: new_suffix,
+             };
+             (new_zp, ty, ctx);
+           })
+      | Construct(s) =>
+        tile_of_shape(s)
+        |> Option.map(tile => {
+             let (tiles, n) =
+               HPat.insert_tile_and_fix_empty_holes(prefix, tile, suffix);
+             let ((new_prefix, new_suffix), ty, ctx) =
+               syn_fix_and_split(ctx, n, tiles);
+             let new_zp: ZPat.t = {
+               prefix: new_prefix,
+               z: Z,
+               suffix: new_suffix,
+             };
+             (new_zp, ty, ctx);
+           })
+      }
+    | ParenZ_body(zbody) =>
       syn_perform(ctx, a, zbody)
-      |> Option.map(((zbody, ty, ctx)) => (ZPat.ParenZ(zbody), ty, ctx))
-    | AnnZ_subj(_, zsubj, ann) =>
-      ana_perform_unzipped(ctx, a, zsubj, ann)
-      |> Option.map(((zsubj, ctx)) =>
-           (ZPat.AnnZ_subj(NotInHole, zsubj, ann), ann, ctx)
+      |> Option.map(((zbody, ty, ctx)) =>
+           ({prefix, z: ZPat.ParenZ_body(zbody), suffix}, ty, ctx)
          )
-    | AnnZ_ann(_, subj, zann) =>
+    | AnnZ_ann(_, zann) =>
       Typ.perform(a, zann)
       |> Option.map(zann => {
            let ann = ZTyp.erase(zann);
+           let new_prefix =
+             prefix |> ListUtil.map_sublist(zstart, zend, tiles => {});
+
            let (subj, ctx) = Statics.Pat.ana_fix_holes(ctx, subj, ann);
-           (ZPat.AnnZ_ann(NotInHole, subj, zann), ann, ctx);
+           (rewrap(ZPat.AnnZ_ann(NotInHole, subj, zann)), ann, ctx);
          })
-    | OperatorHoleZ_l(zl, r) =>
-      Option.bind(syn_perform_unzipped(ctx, a, zl), ((zl, _, ctx)) =>
-        Statics.Pat.syn(ctx, r)
-        |> Option.map(((_, ctx)) =>
-             (ZPat.OperatorHoleZ_l(zl, r), HTyp.OperandHole, ctx)
-           )
-      )
-    | OperatorHoleZ_r(l, zr) =>
-      Option.bind(Statics.Pat.syn(ctx, l), ((_, ctx)) =>
-        syn_perform_unzipped(ctx, a, zr)
-        |> Option.map(((zr, _, ctx)) =>
-             (ZPat.OperatorHoleZ_r(l, zr), HTyp.OperandHole, ctx)
-           )
-      )
-    }
+    };
+  }
   and ana_perform =
-      (ctx: Ctx.t, a: t, zp: ZPat.t, ty: HTyp.t): option((ZPat.t, Ctx.t)) =>
-    switch (zp) {
-    | Y(prefix, suffix) =>
+      (ctx: Ctx.t, a: t, {prefix, z, suffix}: ZPat.t, ty: HTyp.t)
+      : option((ZPat.t, Ctx.t)) =>
+    switch (z) {
+    | Z =>
       switch (a) {
       | Move(direction) =>
         move(direction, prefix, suffix)
@@ -193,15 +247,19 @@ module Pat = {
              (zp, ctx);
            })
       | Delete =>
-        switch (prefix) {
-        | [] => None
-        | [t, ...prefix] =>
-          let (tiles, n) =
-            HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
-          let ((new_prefix, new_suffix), ctx) =
-            ana_fix_and_split(ctx, n, tiles, ty);
-          Some((Y(new_prefix, new_suffix), ctx));
-        }
+        ListUtil.split_last_opt(prefix)
+        |> Option.map(((prefix, t)) => {
+             let (tiles, n) =
+               HPat.delete_tile_and_fix_empty_holes(prefix, t, suffix);
+             let ((new_prefix, new_suffix), ctx) =
+               ana_fix_and_split(ctx, n, tiles, ty);
+             let new_zp: ZPat.t = {
+               prefix: new_prefix,
+               z: Z,
+               suffix: new_suffix,
+             };
+             (new_zp, ctx);
+           })
       | Construct(s) =>
         switch (tile_of_shape(s)) {
         | None => None
@@ -257,11 +315,11 @@ module Exp = {
 
   let syn_fix_and_split = (ctx, n, tiles) => {
     let (new_e, ty) = Statics.Exp.syn_fix_holes(ctx, HExp.parse(tiles));
-    (ListUtil.split_n(n, HExp.Tile.unparse(new_e)), ty);
+    (ListUtil.split_n(n, HExp.unparse(new_e)), ty);
   };
   let ana_fix_and_split = (ctx, n, tiles, ty) => {
     let new_e = Statics.Exp.ana_fix_holes(ctx, HExp.parse(tiles), ty);
-    ListUtil.split_n(n, HExp.Tile.unparse(new_e));
+    ListUtil.split_n(n, HExp.unparse(new_e));
   };
 
   let rec syn_perform =
