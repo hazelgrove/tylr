@@ -1,74 +1,42 @@
-type t = ZTiles.t(ztile, HExp.Tile.t)
+type t = ZTerm.t(ztile, HExp.Tile.t)
 and ztile =
   | ParenZ_body(t)
   | LamZ_pat(HoleStatus.t, ZPat.t)
   | ApZ_arg(HoleStatus.t, t);
 
-let rec erase = (ze: t) =>
-  switch (ze.z) {
-  | None => HExp.parse(ze.prefix @ ze.suffix)
-  | Some(ztile) =>
-    HExp.parse(ze.prefix @ [erase_ztile(ztile), ...ze.suffix])
-  }
+let rec erase = (ze: t): HExp.t => ZTerm.erase(~erase_ztile, ze)
 and erase_ztile: ztile => HExp.Tile.t =
   fun
-  | ParenZ_body(zbody) => Paren(erase(zbody))
-  | LamZ_pat(status, zp) => Lam(status, ZPat.erase(zp))
-  | ApZ_arg(status, zarg) => Ap(status, erase(zarg));
+  | ParenZ_body(zbody) => Operand(Paren(erase(zbody)))
+  | LamZ_pat(status, zp) => PreOp(Lam(status, ZPat.erase(zp)))
+  | ApZ_arg(status, zarg) => PostOp(Ap(status, erase(zarg)));
 
-let rec set_hole_status = (status, ze) => {
-  let n = HExp.Tile.index_of_root(erase(ze));
-  let m = List.length(ze.prefix);
-  let set_tile = HExp.Tile.set_hole_status(status);
-  if (n < m) {
-    let prefix = ze.prefix |> ListUtil.map_nth(n, set_tile);
-    {...ze, prefix};
-  } else {
-    switch (ze.z) {
-    | None =>
-      let suffix = ze.suffix |> ListUtil.map_nth(n - m, set_tile);
-      {...ze, suffix};
-    | Some(ztile) =>
-      if (n == m) {
-        let z = Some(set_hole_status_ztile(status, ztile));
-        {...ze, z};
-      } else {
-        let suffix = ze.suffix |> ListUtil.map_nth(n - (m + 1), set_tile);
-        {...ze, suffix};
-      }
-    };
-  };
-}
-and set_hole_status_ztile = (status, ztile) =>
+let rec set_hole_status = (status, ze) =>
+  ZTerm.set_hole_status(~set_tile=HExp.set_tile, ~set_ztile, status, ze)
+and set_ztile = (status, ztile) =>
   switch (ztile) {
   | ParenZ_body(ze) => ParenZ_body(set_hole_status(status, ze))
   | LamZ_pat(_, zp) => LamZ_pat(status, zp)
   | ApZ_arg(_, arg) => ApZ_arg(status, arg)
   };
 
-let place_before = (e: HExp.t): t => ZTiles.place_before(HExp.unparse(e));
-let place_after = (e: HExp.t): t => ZTiles.place_after(HExp.unparse(e));
+let place_before: HExp.t => t = ZTerm.place_before;
+let place_after: HExp.t => t = ZTerm.place_after;
 
 let enter_from_left: HExp.Tile.t => option(ztile) =
   fun
-  | OperandHole
-  | Num(_)
-  | Var(_)
-  | Plus(_)
-  | OperatorHole => None
-  | Paren(body) => Some(ParenZ_body(place_before(body)))
-  | Lam(status, p) => Some(LamZ_pat(status, ZPat.place_before(p)))
-  | Ap(status, arg) => Some(ApZ_arg(status, place_before(arg)));
+  | Operand(OperandHole | Num(_) | Var(_)) => None
+  | Operand(Paren(body)) => Some(ParenZ_body(place_before(body)))
+  | PreOp(Lam(status, p)) => Some(LamZ_pat(status, ZPat.place_before(p)))
+  | PostOp(Ap(status, arg)) => Some(ApZ_arg(status, place_before(arg)))
+  | BinOp(OperatorHole | Plus(_)) => None;
 let enter_from_right: HExp.Tile.t => option(ztile) =
   fun
-  | OperandHole
-  | Num(_)
-  | Var(_)
-  | Plus(_)
-  | OperatorHole => None
-  | Paren(body) => Some(ParenZ_body(place_after(body)))
-  | Lam(status, p) => Some(LamZ_pat(status, ZPat.place_after(p)))
-  | Ap(status, arg) => Some(ApZ_arg(status, place_after(arg)));
+  | Operand(OperandHole | Num(_) | Var(_)) => None
+  | Operand(Paren(body)) => Some(ParenZ_body(place_after(body)))
+  | PreOp(Lam(status, p)) => Some(LamZ_pat(status, ZPat.place_after(p)))
+  | PostOp(Ap(status, arg)) => Some(ApZ_arg(status, place_after(arg)))
+  | BinOp(OperatorHole | Plus(_)) => None;
 
 let move_left = ZTiles.move_left(~enter_from_right);
 let move_right = ZTiles.move_right(~enter_from_left);

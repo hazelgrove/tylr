@@ -1,103 +1,70 @@
-type t =
+type t = HTerm.t(operand, preop, postop, binop)
+and operand =
   | OperandHole
   | Num(HoleStatus.t, int)
   | Var(HoleStatus.t, Var.t)
   | Paren(t)
-  | Lam(HoleStatus.t, HPat.t, t)
-  | Plus(HoleStatus.t, t, t)
-  | Ap(HoleStatus.t, t, t) // f(x)
-  | OperatorHole(t, t);
+and preop =
+  | Lam(HoleStatus.t, HPat.t)
+and postop =
+  | Ap(HoleStatus.t, t)
+and binop =
+  | Plus(HoleStatus.t)
+  | OperatorHole;
 
-let rec set_hole_status = (status, e) =>
-  switch (e) {
-  | OperandHole
-  | OperatorHole(_) => e
-  | Num(_, n) => Num(status, n)
-  | Var(_, x) => Var(status, x)
-  | Paren(body) => Paren(set_hole_status(status, body))
-  | Lam(_, p, body) => Lam(status, p, body)
-  | Plus(_, e1, e2) => Plus(status, e1, e2)
-  | Ap(_, e1, e2) => Ap(status, e1, e2)
-  };
+let rec set_hole_status = (status: HoleStatus.t, e: t): t =>
+  HTerm.set_hole_status(~set_tile, status, e)
+and set_tile = (status, tile) =>
+  tile
+  |> Tile.map(
+       ~operand=
+         fun
+         | OperandHole => OperandHole
+         | Num(_, n) => Num(status, n)
+         | Var(_, x) => Var(status, x)
+         | Paren(body) => Paren(set_hole_status(status, body)),
+       ~preop=
+         fun
+         | Lam(_, p) => Lam(status, p),
+       ~postop=
+         fun
+         | Ap(_, arg) => Ap(status, arg),
+       ~binop=
+         fun
+         | Plus(_) => Plus(status)
+         | OperatorHole => OperatorHole,
+     );
 
 module Tile = {
-  type term = t;
-  type t =
-    // operand
-    | OperandHole
-    | Num(HoleStatus.t, int)
-    | Var(HoleStatus.t, Var.t)
-    | Paren(term)
-    // pre
-    | Lam(HoleStatus.t, HPat.t)
-    // post
-    | Ap(HoleStatus.t, term)
-    // bin
-    | OperatorHole
-    | Plus(HoleStatus.t);
+  type nonrec operand = operand;
+  type nonrec preop = preop;
+  type nonrec postop = postop;
+  type nonrec binop = binop;
+  type t = Tile.t(operand, preop, postop, binop);
 
-  let mk_operand_hole = () => OperandHole;
-  let mk_operator_hole = () => OperatorHole;
+  let mk_operand_hole = (): t => Operand(OperandHole);
+  let mk_operator_hole = (): t => BinOp(OperatorHole);
 
-  let is_operand_hole = (==)(OperandHole);
-  let is_operator_hole = (==)(OperatorHole);
+  let is_operand_hole = (==)(Tile.Operand(OperandHole));
+  let is_operator_hole = (==)(Tile.BinOp(OperatorHole));
 
-  let shape: t => TileShape.t(term) =
+  let precedence: t => int =
     fun
-    | OperandHole => Operand(OperandHole)
-    | Num(status, n) => Operand(Num(status, n))
-    | Var(status, x) => Operand(Var(status, x))
-    | Paren(body) => Operand(Paren(body))
-    | Lam(status, p) => PreOp(body => Lam(status, p, body), 10)
-    | Ap(status, arg) => PostOp(fn => Ap(status, fn, arg), 1)
-    | Plus(status) => BinOp((e1, e2) => Plus(status, e1, e2), 3, Left)
-    | OperatorHole => BinOp((e1, e2) => OperatorHole(e1, e2), 2, Left);
+    | Operand(_) => 0
+    | PreOp(Lam(_)) => 10
+    | PostOp(Ap(_)) => 1
+    | BinOp(Plus(_)) => 3
+    | BinOp(OperatorHole) => 2;
 
-  let get_open_children =
+  let associativity =
+    [(2, Associativity.Left), (3, Left)] |> List.to_seq |> IntMap.of_seq;
+
+  let get_open_children: t => list(list(t)) =
     fun
-    | OperandHole
-    | Num(_)
-    | Var(_)
-    | Lam(_)
-    | Plus(_)
-    | OperatorHole => []
-    | Paren(body) => [body]
-    | Ap(_, arg) => [arg];
-
-  let rec unparse: term => list(t) =
-    fun
-    | OperandHole => [OperandHole]
-    | Num(status, n) => [Num(status, n)]
-    | Var(status, x) => [Var(status, x)]
-    | Paren(body) => [Paren(body)]
-    | Lam(status, p, body) => [Lam(status, p), ...unparse(body)]
-    | Ap(status, fn, arg) => unparse(fn) @ [Ap(status, arg)]
-    | Plus(status, e1, e2) => unparse(e1) @ [Plus(status), ...unparse(e2)]
-    | OperatorHole(e1, e2) => unparse(e1) @ [OperatorHole, ...unparse(e2)];
-
-  let index_of_root: term => int =
-    fun
-    | OperandHole
-    | Num(_)
-    | Var(_)
-    | Paren(_)
-    | Lam(_) => 0
-    | Ap(_, e, _)
-    | Plus(_, e, _)
-    | OperatorHole(e, _) => List.length(unparse(e));
-
-  let set_hole_status = (status, tile) =>
-    switch (tile) {
-    | OperandHole
-    | OperatorHole => tile
-    | Num(_, n) => Num(status, n)
-    | Var(_, x) => Var(status, x)
-    | Paren(body) => Paren(set_hole_status(status, body))
-    | Lam(_, p) => Lam(status, p)
-    | Ap(_, arg) => Ap(status, arg)
-    | Plus(_) => Plus(status)
-    };
+    | Operand(OperandHole | Num(_) | Var(_)) => []
+    | Operand(Paren((_, body_tiles))) => [body_tiles]
+    | PreOp(Lam(_)) => []
+    | PostOp(Ap(_, (_, arg_tiles))) => [arg_tiles]
+    | BinOp(OperatorHole | Plus(_)) => [];
 };
 include TileUtil.Make(Tile);
-
-let unparse = Tile.unparse;

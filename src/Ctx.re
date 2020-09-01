@@ -1,3 +1,3 @@
 include VarMap;
 
-type t = VarMap.t(HTyp.t);
+type t = VarMap.t(Typ.t);

@@ -1,67 +1,64 @@
-type t =
+type t = HTerm.t(operand, preop, postop, binop)
+and operand =
   | OperandHole
   | Num
   | Paren(t)
-  | OperatorHole(t, t)
-  | Arrow(t, t);
+and preop = unit // empty
+and postop = unit // empty
+and binop =
+  | OperatorHole
+  | Arrow;
 
-let rec consistent = (ty1, ty2) =>
-  switch (ty1, ty2) {
-  | (OperandHole | OperatorHole(_), _)
-  | (_, OperandHole | OperatorHole(_)) => true
-  | (Paren(ty1), _) => consistent(ty1, ty2)
-  | (_, Paren(ty2)) => consistent(ty1, ty2)
-  | (Arrow(ty1, ty2), Arrow(ty1', ty2')) =>
-    consistent(ty1, ty1') && consistent(ty2, ty2')
-  | _ => ty1 == ty2
+exception Void_PreOp;
+exception Void_PostOp;
+
+let rec contract = ((skel, tiles): t): Typ.t =>
+  switch (skel) {
+  | Operand(n) =>
+    switch (Tiles.get_operand(n, tiles)) {
+    | OperandHole => Hole
+    | Num => Num
+    | Paren(body) => contract(body)
+    }
+  | PreOp(_) => raise(Void_PreOp)
+  | PostOp(_) => raise(Void_PostOp)
+  | BinOp(skel1, n, skel2) =>
+    switch (Tiles.get_binop(n, tiles)) {
+    | OperatorHole => Hole
+    | Arrow => Arrow(contract((skel1, tiles)), contract((skel2, tiles)))
+    }
   };
 
-let rec matched_arrow =
-  fun
-  | OperandHole
-  | OperatorHole(_) => Some((OperandHole, OperandHole))
-  | Arrow(ty1, ty2) => Some((ty1, ty2))
-  | Paren(ty) => matched_arrow(ty)
-  | _ => None;
-
 module Tile = {
-  type term = t;
-  type t =
-    | OperandHole
-    | Num
-    | Paren(term)
-    | OperatorHole
-    | Arrow;
+  type nonrec operand = operand;
+  type nonrec preop = preop;
+  type nonrec postop = postop;
+  type nonrec binop = binop;
+  type t = Tile.t(operand, preop, postop, binop);
 
-  let mk_operand_hole = () => OperandHole;
-  let mk_operator_hole = () => OperatorHole;
+  let mk_operand_hole = (): t => Operand(OperandHole);
+  let mk_operator_hole = (): t => BinOp(OperatorHole);
 
-  let is_operand_hole = (==)(OperandHole);
-  let is_operator_hole = (==)(OperatorHole);
+  let is_operand_hole = (==)(Tile.Operand(OperandHole));
+  let is_operator_hole = (==)(Tile.BinOp(OperatorHole));
 
-  let shape: t => TileShape.t(term) =
+  let precedence: t => int =
     fun
-    | OperandHole => Operand(OperandHole)
-    | Num => Operand(Num)
-    | Paren(body) => Operand(Paren(body))
-    | OperatorHole => BinOp((t1, t2) => OperatorHole(t1, t2), 1, Left)
-    | Arrow => BinOp((t1, t2) => Arrow(t1, t2), 2, Right);
+    | Operand(_) => 0
+    | PreOp(_) => raise(Void_PreOp)
+    | PostOp(_) => raise(Void_PostOp)
+    | BinOp(OperatorHole) => 1
+    | BinOp(Arrow) => 2;
 
-  let get_open_children =
-    fun
-    | OperandHole
-    | Num
-    | OperatorHole
-    | Arrow => []
-    | Paren(body) => [body];
+  let associativity =
+    [(1, Associativity.Left), (2, Right)] |> List.to_seq |> IntMap.of_seq;
 
-  let rec unparse: term => list(t) =
+  let get_open_children: t => list(list(t)) =
     fun
-    | OperandHole => [OperandHole]
-    | Num => [Num]
-    | Paren(body) => [Paren(body)]
-    | OperatorHole(t1, t2) => unparse(t1) @ [OperatorHole, ...unparse(t2)]
-    | Arrow(t1, t2) => unparse(t1) @ [Arrow, ...unparse(t2)];
+    | Operand(OperandHole | Num) => []
+    | Operand(Paren((_, body_tiles))) => [body_tiles]
+    | PreOp(_) => raise(Void_PreOp)
+    | PostOp(_) => raise(Void_PostOp)
+    | BinOp(OperatorHole | Arrow) => [];
 };
 include TileUtil.Make(Tile);
-let unparse = Tile.unparse;

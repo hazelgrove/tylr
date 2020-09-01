@@ -1,5 +1,14 @@
 type t('ztile, 'tile) = ZList.t(option('ztile), 'tile);
 
+let z_index = (ztiles: t(_)): int => List.length(ztiles.prefix);
+
+let erase =
+    (~erase_ztile: 'ztile => 'tile, ztiles: t('ztile, 'tile)): list('tile) =>
+  switch (ztiles.z) {
+  | None => ztiles.prefix @ ztiles.suffix
+  | Some(ztile) => ztiles.prefix @ [erase_ztile(ztile), ...ztiles.suffix]
+  };
+
 let wrap = ztile => ZList.{prefix: [], z: Some(ztile), suffix: []};
 
 let place_before = tiles => ZList.{prefix: [], z: None, suffix: tiles};
