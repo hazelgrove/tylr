@@ -1,7 +1,45 @@
-type t('ztile, 'tile) = (Skel.t, ZTiles.t('ztile, 'tile));
+type t('zoperand, 'zpreop, 'zpostop, 'zbinop, 'tile) = (
+  Skel.t,
+  ZTiles.t(ZTile.t('zoperand, 'zpreop, 'zpostop, 'zbinop), 'tile),
+);
+
+type zroot('zoperand, 'zpreop, 'zpostop, 'zbinop) =
+  | ZOperand('zoperand)
+  | ZPreOp('zpreop, Skel.t)
+  | ZPostOp(Skel.t, 'zpostop)
+  | ZBinOp(Skel.t, 'zbinop, Skel.t);
+
+let get_zroot = ((skel, {prefix, z, suffix: _}): t(_)): option(zroot(_)) => {
+  switch (z) {
+  | None => None
+  | Some(ztile) =>
+    let n = List.length(prefix);
+    let rec go = (skel: Skel.t) =>
+      switch (skel) {
+      | Operand(m) =>
+        assert(n == m);
+        ZOperand(ZTile.get_zoperand(ztile));
+      | PreOp(m, skel) =>
+        assert(n >= m);
+        n == m ? ZPreOp(ZTile.get_zpreop(ztile), skel) : go(skel);
+      | PostOp(skel, m) =>
+        assert(n <= m);
+        n == m ? ZPostOp(skel, ZTile.get_zpostop(ztile)) : go(skel);
+      | BinOp(skel1, m, skel2) =>
+        if (n < m) {
+          go(skel1);
+        } else if (n > m) {
+          go(skel2);
+        } else {
+          ZBinOp(skel1, ZTile.get_zbinop(ztile), skel2);
+        }
+      };
+    Some(go(skel));
+  };
+};
 
 let erase =
-    (~erase_ztile, (skel, ztiles): t('ztile, 'tile))
+    (~erase_ztile, (skel, ztiles): t(_, _, _, _, 'tile))
     : (Skel.t, list('tile)) => (
   skel,
   ZTiles.erase(~erase_ztile, ztiles),
@@ -19,11 +57,11 @@ let place_after = ((skel, tiles)): t(_) => (
 let set_hole_status =
     (
       ~set_tile: (HoleStatus.t, 'tile) => 'tile,
-      ~set_ztile: (HoleStatus.t, 'ztile) => 'ztile,
+      ~set_ztile: (HoleStatus.t, ZTile.t(_)) => ZTile.t(_),
       status: HoleStatus.t,
-      (skel, ztiles): t('ztile, 'tile),
+      (skel, ztiles): t(_, _, _, _, 'tile),
     )
-    : t('ztile, 'tile) => {
+    : t(_, _, _, _, 'tile) => {
   let root_index = Skel.root_index(skel);
   let z_index = ZTiles.z_index(ztiles);
   let ztiles =

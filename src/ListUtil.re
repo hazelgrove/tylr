@@ -8,15 +8,17 @@ let hd_opt =
  * if `xs` has `n` or more elements
  */
 let split_n_opt = (n: int, xs: list('x)): option((list('x), list('x))) => {
-  let rec go = (~prefix: list('x)=[], n: int, xs: list('x)) =>
+  let rec go = (n: int, xs: list('x)) =>
     if (n < 0) {
       None;
     } else if (n == 0) {
-      Some((prefix, xs));
+      Some(([], xs));
     } else {
       switch (xs) {
       | [] => None
-      | [x, ...xs] => go(~prefix=[x, ...prefix], n - 1, xs)
+      | [x, ...xs] =>
+        go(n - 1, xs)
+        |> Option.map(((prefix, suffix)) => ([x, ...prefix], suffix))
       };
     };
   go(n, xs);

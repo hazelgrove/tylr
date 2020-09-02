@@ -1,6 +1,6 @@
 type t('operand, 'preop, 'postop, 'binop) = (
   Skel.t,
-  Tiles.t('operand, 'preop, 'postop, 'binop),
+  list(Tile.t('operand, 'preop, 'postop, 'binop)),
 );
 
 type root('operand, 'preop, 'postop, 'binop) =
@@ -15,33 +15,30 @@ let wrap = (operand: 'operand): t('operand, _, _, _) => (
 );
 
 let get_nth_root = (n: int, (skel, tiles): t(_)): root(_) => {
-  let rec go = (skel: Skel.t) =>
+  let tile = List.nth(tiles, n);
+  let rec go = (skel: Skel.t) => {
     switch (skel) {
     | Operand(m) =>
       assert(n == m);
-      Operand(Tiles.get_operand(n, tiles));
+      Operand(Tile.get_operand(tile));
     | PreOp(m, skel) =>
       assert(n >= m);
-      n == m ? PreOp(Tiles.get_preop(n, tiles), skel) : go(skel);
+      n == m ? PreOp(Tile.get_preop(tile), skel) : go(skel);
     | PostOp(skel, m) =>
       assert(n <= m);
-      n == m ? PostOp(skel, Tiles.get_postop(n, tiles)) : go(skel);
+      n == m ? PostOp(skel, Tile.get_postop(tile)) : go(skel);
     | BinOp(skel1, m, skel2) =>
       if (n < m) {
         go(skel1);
       } else if (n > m) {
         go(skel2);
       } else {
-        BinOp(skel1, Tiles.get_binop(n, tiles), skel2);
+        BinOp(skel1, Tile.get_binop(tile), skel2);
       }
     };
+  };
   go(skel);
 };
-
-let put_nth = (n: int, tile: Tile.t(_), (skel, tiles): t(_)): t(_) => (
-  skel,
-  Tiles.put_nth(n, tile, tiles),
-);
 
 let set_hole_status =
     (
@@ -55,7 +52,7 @@ let set_hole_status =
     | Operand(n)
     | PreOp(n, _)
     | PostOp(_, n)
-    | BinOp(_, n, _) => Tiles.map_nth(n, set_tile(status))
+    | BinOp(_, n, _) => ListUtil.map_nth(n, set_tile(status))
     };
   (skel, set_root(tiles));
 };

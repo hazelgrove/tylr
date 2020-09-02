@@ -1,4 +1,6 @@
-type t = HTerm.t(operand, preop, postop, binop)
+type t = (Skel.t, tiles)
+and tiles = list(tile)
+and tile = Tile.t(operand, preop, postop, binop)
 and operand =
   | OperandHole
   | Var(Var.t)
@@ -37,7 +39,7 @@ module Tile = {
   type nonrec preop = preop;
   type nonrec postop = postop;
   type nonrec binop = binop;
-  type t = Tile.t(operand, preop, postop, binop);
+  type t = tile;
 
   let mk_operand_hole = (): t => Operand(OperandHole);
   let mk_operator_hole = (): t => BinOp(OperatorHole);

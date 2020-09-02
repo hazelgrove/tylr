@@ -1,4 +1,6 @@
-type t = HTerm.t(operand, preop, postop, binop)
+type t = (Skel.t, tiles)
+and tiles = list(tile)
+and tile = Tile.t(operand, preop, postop, binop)
 and operand =
   | OperandHole
   | Num
@@ -15,7 +17,7 @@ exception Void_PostOp;
 let rec contract = ((skel, tiles): t): Typ.t =>
   switch (skel) {
   | Operand(n) =>
-    switch (Tiles.get_operand(n, tiles)) {
+    switch (Tile.get_operand(List.nth(tiles, n))) {
     | OperandHole => Hole
     | Num => Num
     | Paren(body) => contract(body)
@@ -23,7 +25,7 @@ let rec contract = ((skel, tiles): t): Typ.t =>
   | PreOp(_) => raise(Void_PreOp)
   | PostOp(_) => raise(Void_PostOp)
   | BinOp(skel1, n, skel2) =>
-    switch (Tiles.get_binop(n, tiles)) {
+    switch (Tile.get_binop(List.nth(tiles, n))) {
     | OperatorHole => Hole
     | Arrow => Arrow(contract((skel1, tiles)), contract((skel2, tiles)))
     }
@@ -34,7 +36,7 @@ module Tile = {
   type nonrec preop = preop;
   type nonrec postop = postop;
   type nonrec binop = binop;
-  type t = Tile.t(operand, preop, postop, binop);
+  type t = tile;
 
   let mk_operand_hole = (): t => Operand(OperandHole);
   let mk_operator_hole = (): t => BinOp(OperatorHole);
@@ -62,3 +64,5 @@ module Tile = {
     | BinOp(OperatorHole | Arrow) => [];
 };
 include TileUtil.Make(Tile);
+
+let mk = (tiles: tiles): t => (parse(tiles), tiles);

@@ -1,4 +1,6 @@
-type t = HTerm.t(operand, preop, postop, binop)
+type t = (Skel.t, tiles)
+and tiles = list(tile)
+and tile = Tile.t(operand, preop, postop, binop)
 and operand =
   | OperandHole
   | Num(HoleStatus.t, int)
