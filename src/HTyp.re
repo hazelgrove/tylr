@@ -14,7 +14,7 @@ and binop =
 exception Void_PreOp;
 exception Void_PostOp;
 
-let rec contract = ((skel, tiles): t): Typ.t =>
+let rec contract = ((skel, tiles): t): Type.t =>
   switch (skel) {
   | Operand(n) =>
     switch (Tile.get_operand(List.nth(tiles, n))) {
