@@ -22,6 +22,8 @@ module type TILE = {
 module Util =
        (T: TILE)
        : {
+         let mk_hole: unit => T.s;
+
          let fix_empty_holes: (T.s, T.s) => (T.s, T.s);
 
          let parse: T.s => Skel.t;
@@ -78,6 +80,8 @@ module Util =
       | _ => None
       }
     };
+
+  let mk_hole = (): T.s => [T.mk_operand_hole()];
 
   let fix_empty_holes = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
     let go_prefix = (tiles: T.s) => {

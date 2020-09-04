@@ -46,6 +46,16 @@ include ZTiles.Util(HExp.Tile, ZTile);
 
 type t = ZTile.s;
 
+let mk =
+    (
+      ~prefix: list(HExp.Tile.t)=[],
+      ~z: option(ZTile.t)=?,
+      ~suffix: list(HExp.Tile.t)=[],
+      (),
+    )
+    : t =>
+  ZList.{prefix, z, suffix};
+
 let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
   map_root(
     ~operand=HExp.set_hole_status_operand(status),

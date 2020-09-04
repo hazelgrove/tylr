@@ -28,18 +28,17 @@ module Util =
          let move_left: (T.s, T.s) => option(Z.s);
          let move_right: (T.s, T.s) => option(Z.s);
 
-         type unzipped = ZList.t(Z.t, T.t);
          type root =
            | OperandZ(Z.zoperand)
            | PreOpZ_op(Z.zpreop, T.s)
-           | PreOpZ_arg(T.preop, unzipped)
+           | PreOpZ_arg(T.preop, Z.s)
            | PostOpZ_op(T.s, Z.zpostop)
-           | PostOpZ_arg(unzipped, T.postop)
+           | PostOpZ_arg(Z.s, T.postop)
            | BinOpZ_op(T.s, Z.zbinop, T.s)
-           | BinOpZ_larg(unzipped, T.binop, T.s)
-           | BinOpZ_rarg(T.s, T.binop, unzipped);
+           | BinOpZ_larg(Z.s, T.binop, T.s)
+           | BinOpZ_rarg(T.s, T.binop, Z.s);
 
-         let root: (T.s, Z.t, T.s) => root;
+         let root: Z.s => option(root);
 
          let map_root:
            (
@@ -83,48 +82,55 @@ module Util =
       )
     };
 
-  type unzipped = ZList.t(Z.t, T.t);
   type root =
     | OperandZ(Z.zoperand)
     | PreOpZ_op(Z.zpreop, T.s)
-    | PreOpZ_arg(T.preop, unzipped)
+    | PreOpZ_arg(T.preop, Z.s)
     | PostOpZ_op(T.s, Z.zpostop)
-    | PostOpZ_arg(unzipped, T.postop)
+    | PostOpZ_arg(Z.s, T.postop)
     | BinOpZ_op(T.s, Z.zbinop, T.s)
-    | BinOpZ_larg(unzipped, T.binop, T.s)
-    | BinOpZ_rarg(T.s, T.binop, unzipped);
+    | BinOpZ_larg(Z.s, T.binop, T.s)
+    | BinOpZ_rarg(T.s, T.binop, Z.s);
 
   module TUtil = Tiles.Util(T);
 
-  let root = (prefix: T.s, z: Z.t, suffix: T.s): root => {
-    let tiles = erase({prefix, z: Some(z), suffix});
-    let z_index = List.length(prefix);
-    switch (TUtil.root(tiles)) {
-    | Operand(_) => OperandZ(ZTile.get_zoperand(z))
-    | PreOp(preop, ts) =>
-      let op_index = 0;
-      z_index == op_index
-        ? PreOpZ_op(ZTile.get_zpreop(z), ts)
-        : PreOpZ_arg(preop, {prefix: List.tl(prefix), z, suffix});
-    | PostOp(ts, postop) =>
-      let op_index = List.length(ts);
-      z_index == op_index
-        ? PostOpZ_op(ts, ZTile.get_zpostop(z))
-        : PostOpZ_arg({prefix, z, suffix: ListUtil.leading(suffix)}, postop);
-    | BinOp(tsl, binop, tsr) =>
-      let op_index = List.length(tsl);
-      if (z_index < op_index) {
-        let (prefix, _, suffix) = ListUtil.split_nth(z_index, tsl);
-        BinOpZ_larg({prefix, z, suffix}, binop, tsr);
-      } else if (z_index > op_index) {
-        let (prefix, _, suffix) =
-          ListUtil.split_nth(z_index - (op_index + 1), tsr);
-        BinOpZ_rarg(tsl, binop, {prefix, z, suffix});
-      } else {
-        BinOpZ_op(tsl, ZTile.get_zbinop(z), tsr);
-      };
-    };
-  };
+  let root = ({prefix, z, suffix}: Z.s): option(root) =>
+    z
+    |> Option.map(z => {
+         let tiles = erase({prefix, z: Some(z), suffix});
+         let z_index = List.length(prefix);
+         switch (TUtil.root(tiles)) {
+         | Operand(_) => OperandZ(ZTile.get_zoperand(z))
+         | PreOp(preop, ts) =>
+           let op_index = 0;
+           z_index == op_index
+             ? PreOpZ_op(ZTile.get_zpreop(z), ts)
+             : PreOpZ_arg(
+                 preop,
+                 {prefix: List.tl(prefix), z: Some(z), suffix},
+               );
+         | PostOp(ts, postop) =>
+           let op_index = List.length(ts);
+           z_index == op_index
+             ? PostOpZ_op(ts, ZTile.get_zpostop(z))
+             : PostOpZ_arg(
+                 {prefix, z: Some(z), suffix: ListUtil.leading(suffix)},
+                 postop,
+               );
+         | BinOp(tsl, binop, tsr) =>
+           let op_index = List.length(tsl);
+           if (z_index < op_index) {
+             let (prefix, _, suffix) = ListUtil.split_nth(z_index, tsl);
+             BinOpZ_larg({prefix, z: Some(z), suffix}, binop, tsr);
+           } else if (z_index > op_index) {
+             let (prefix, _, suffix) =
+               ListUtil.split_nth(z_index - (op_index + 1), tsr);
+             BinOpZ_rarg(tsl, binop, {prefix, z: Some(z), suffix});
+           } else {
+             BinOpZ_op(tsl, ZTile.get_zbinop(z), tsr);
+           };
+         };
+       });
 
   let map_root =
       (
@@ -136,10 +142,10 @@ module Util =
         ~zpreop: Z.zpreop => Z.zpreop,
         ~zpostop: Z.zpostop => Z.zpostop,
         ~zbinop: Z.zbinop => Z.zbinop,
-        {prefix, z, suffix}: Z.s,
+        {prefix, suffix, _} as ztiles: Z.s,
       )
       : Z.s => {
-    switch (z) {
+    switch (root(ztiles)) {
     | None =>
       let n = List.length(prefix);
       let (prefix, suffix) =
@@ -148,8 +154,8 @@ module Util =
         |> TUtil.map_root(~operand, ~preop, ~postop, ~binop)
         |> ListUtil.split_n(n);
       {prefix, z: None, suffix};
-    | Some(z) =>
-      switch (root(prefix, z, suffix)) {
+    | Some(root) =>
+      switch (root) {
       | OperandZ(z) => {
           prefix: [],
           z: Some(ZOperand(zoperand(z))),
@@ -162,7 +168,7 @@ module Util =
         }
       | PreOpZ_arg(t, {prefix, z, suffix}) => {
           prefix: [PreOp(preop(t)), ...prefix],
-          z: Some(z),
+          z,
           suffix,
         }
       | PostOpZ_op(ts, z) => {
@@ -172,7 +178,7 @@ module Util =
         }
       | PostOpZ_arg({prefix, z, suffix}, t) => {
           prefix,
-          z: Some(z),
+          z,
           suffix: suffix @ [PostOp(postop(t))],
         }
       | BinOpZ_op(tsl, z, tsr) => {
@@ -182,12 +188,12 @@ module Util =
         }
       | BinOpZ_larg({prefix, z, suffix}, t, ts) => {
           prefix,
-          z: Some(z),
+          z,
           suffix: suffix @ [BinOp(binop(t)), ...ts],
         }
       | BinOpZ_rarg(ts, t, {prefix, z, suffix}) => {
           prefix: ts @ [BinOp(binop(t)), ...prefix],
-          z: Some(z),
+          z,
           suffix,
         }
       }

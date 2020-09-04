@@ -45,6 +45,16 @@ include ZTiles.Util(HPat.Tile, ZTile);
 
 type t = ZTile.s;
 
+let mk =
+    (
+      ~prefix: list(HPat.Tile.t)=[],
+      ~z: option(ZTile.t)=?,
+      ~suffix: list(HPat.Tile.t)=[],
+      (),
+    )
+    : t =>
+  ZList.{prefix, z, suffix};
+
 let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
   map_root(
     ~operand=HPat.set_hole_status_operand(status),

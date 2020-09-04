@@ -166,79 +166,77 @@ module Pat = {
 };
 
 module Exp = {
-  /*
-   let rec syn = (ctx: Ctx.t, e: HExp.t): option(HTyp.t) =>
-     switch (e) {
-     | OperandHole
-     | Var(InHole, _)
-     | Num(InHole, _) => Some(OperandHole)
-     | Var(NotInHole, x) => Ctx.find_opt(x, ctx)
-     | Num(NotInHole, _) => Some(Num)
-     | Paren(body) => syn(ctx, body)
-     | Lam(status, p, body) =>
-       switch (status) {
-       | InHole =>
-         syn(ctx, Lam(NotInHole, p, body))
-         |> Option.map(_ => HTyp.OperandHole)
-       | NotInHole =>
-         switch (Pat.syn(ctx, p)) {
-         | None => None
-         | Some((ty1, ctx)) =>
-           syn(ctx, body) |> Option.map(ty2 => HTyp.Arrow(ty1, ty2))
-         }
-       }
-     | Plus(status, e1, e2) =>
-       switch (status) {
-       | InHole =>
-         syn(ctx, Plus(NotInHole, e1, e2))
-         |> Option.map(_ => HTyp.OperandHole)
-       | NotInHole =>
-         ana(ctx, e1, HTyp.Num) && ana(ctx, e2, HTyp.Num)
-           ? Some(HTyp.Num) : None
-       }
-     | Ap(status, fn, arg) =>
-       switch (status) {
-       | InHole =>
-         syn(ctx, Ap(NotInHole, fn, arg)) |> Option.map(_ => HTyp.OperandHole)
-       | NotInHole =>
-         switch (syn(ctx, fn)) {
-         | None => None
-         | Some(fn_ty) =>
-           switch (HTyp.matched_arrow(fn_ty)) {
-           | None => None
-           | Some((ty1, ty2)) => ana(ctx, arg, ty1) ? Some(ty2) : None
-           }
-         }
-       }
-     | OperatorHole(e1, e2) =>
-       OptUtil.map2((_, _) => HTyp.OperandHole, syn(ctx, e1), syn(ctx, e2))
-     }
-   and ana = (ctx: Ctx.t, e: HExp.t, ty: HTyp.t): bool =>
-     switch (e) {
-     | OperandHole
-     | Num(_)
-     | Var(_)
-     | Plus(_)
-     | Ap(_)
-     | OperatorHole(_) =>
-       switch (syn(ctx, e)) {
-       | None => false
-       | Some(ty') => HTyp.consistent(ty, ty')
-       }
-     | Paren(e) => ana(ctx, e, ty)
-     | Lam(InHole, p, body) =>
-       Option.is_some(syn(ctx, Lam(NotInHole, p, body)))
-     | Lam(NotInHole, p, body) =>
-       switch (HTyp.matched_arrow(ty)) {
-       | None => false
-       | Some((ty1, ty2)) =>
-         switch (Pat.ana(ctx, p, ty1)) {
-         | None => false
-         | Some(ctx) => ana(ctx, body, ty2)
-         }
-       }
-     };
-   */
+  let rec syn = (ctx: Ctx.t, e: HExp.t): option(Type.t) => {
+    let in_hole = () =>
+      syn(ctx, HExp.set_hole_status(NotInHole, e))
+      |> Option.map(_ => Type.Hole);
+    switch (HExp.root(e)) {
+    | Operand(operand) =>
+      switch (operand) {
+      | OperandHole
+      | Var(InHole, _)
+      | Num(InHole, _) => Some(Hole)
+      | Var(NotInHole, x) => Ctx.find_opt(x, ctx)
+      | Num(NotInHole, _) => Some(Num)
+      | Paren(body) => syn(ctx, body)
+      }
+    | PreOp(Lam(status, p), body) =>
+      switch (status) {
+      | InHole => in_hole()
+      | NotInHole =>
+        Option.bind(Pat.syn(ctx, p), ((ty1, ctx)) =>
+          syn(ctx, body) |> Option.map(ty2 => Type.Arrow(ty1, ty2))
+        )
+      }
+    | PostOp(fn, Ap(status, arg)) =>
+      switch (status) {
+      | InHole => in_hole()
+      | NotInHole =>
+        Option.bind(syn(ctx, fn), fn_ty =>
+          Option.bind(Type.matched_arrow(fn_ty), ((ty1, ty2)) =>
+            ana(ctx, arg, ty1) ? Some(ty2) : None
+          )
+        )
+      }
+    | BinOp(l, Plus(status), r) =>
+      switch (status) {
+      | InHole => in_hole()
+      | NotInHole =>
+        ana(ctx, l, Type.Num) && ana(ctx, r, Type.Num) ? Some(Num) : None
+      }
+    | BinOp(l, OperatorHole, r) =>
+      OptUtil.map2((_, _) => Type.Hole, syn(ctx, l), syn(ctx, r))
+    };
+  }
+  and ana = (ctx: Ctx.t, e: HExp.t, ty: Type.t): bool => {
+    let subsume = () =>
+      switch (syn(ctx, e)) {
+      | None => false
+      | Some(ty') => Type.consistent(ty, ty')
+      };
+    switch (HExp.root(e)) {
+    | Operand(operand) =>
+      switch (operand) {
+      | OperandHole
+      | Num(_)
+      | Var(_) => subsume()
+      | Paren(body) => ana(ctx, body, ty)
+      }
+    | PreOp(Lam(InHole, _), _) =>
+      Option.is_some(syn(ctx, HExp.set_hole_status(NotInHole, e)))
+    | PreOp(Lam(NotInHole, p), body) =>
+      switch (Type.matched_arrow(ty)) {
+      | None => false
+      | Some((ty1, ty2)) =>
+        switch (Pat.ana(ctx, p, ty1)) {
+        | None => false
+        | Some(ctx) => ana(ctx, body, ty2)
+        }
+      }
+    | PostOp(_, Ap(_))
+    | BinOp(_, OperatorHole | Plus(_), _) => subsume()
+    };
+  };
 
   let rec syn_fix_holes = (ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) =>
     switch (HExp.root(e)) {
