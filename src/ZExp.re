@@ -1,69 +1,74 @@
-type t = (Skel.t, ztiles)
-and ztiles = ZTiles.t(ztile, HExp.Tile.t)
-and ztile = ZTile.t(zoperand, zpreop, zpostop, zbinop)
-and zoperand =
-  | ParenZ_body(t)
-and zpreop =
-  | LamZ_pat(HoleStatus.t, ZPat.t)
-and zpostop =
-  | ApZ_arg(HoleStatus.t, t)
-and zbinop = unit; // empty
+module ZTile = {
+  type tile = HExp.Tile.t;
 
-exception Void_ZBinOp;
+  type s = ZList.t(option(t), tile)
+  and t = ZTile.t(zoperand, zpreop, zpostop, zbinop)
+  and zoperand =
+    | ParenZ_body(s)
+  and zpreop =
+    | LamZ_pat(HoleStatus.t, ZPat.t)
+  and zpostop =
+    | ApZ_arg(HoleStatus.t, s)
+  and zbinop = unit; // empty
 
-let rec erase = (ze: t): HExp.t => ZTerm.erase(~erase_ztile, ze)
-and erase_ztile: ztile => HExp.Tile.t =
+  exception Void_ZBinOp;
+
+  let erase = (~erase_s: s => list(tile), ztile: t): tile =>
+    switch (ztile) {
+    | ZOperand(ParenZ_body(zbody)) => Operand(Paren(erase_s(zbody)))
+    | ZPreOp(LamZ_pat(status, zp)) => PreOp(Lam(status, ZPat.erase(zp)))
+    | ZPostOp(ApZ_arg(status, zarg)) => PostOp(Ap(status, erase_s(zarg)))
+    | ZBinOp(_) => raise(Void_ZBinOp)
+    };
+
+  let enter_from_left: tile => option(t) =
+    fun
+    | Operand(OperandHole | Num(_) | Var(_)) => None
+    | Operand(Paren(body)) =>
+      Some(ZOperand(ParenZ_body(ZTiles.place_before(body))))
+    | PreOp(Lam(status, p)) =>
+      Some(ZPreOp(LamZ_pat(status, ZTiles.place_before(p))))
+    | PostOp(Ap(status, arg)) =>
+      Some(ZPostOp(ApZ_arg(status, ZTiles.place_before(arg))))
+    | BinOp(OperatorHole | Plus(_)) => None;
+  let enter_from_right: tile => option(t) =
+    fun
+    | Operand(OperandHole | Num(_) | Var(_)) => None
+    | Operand(Paren(body)) =>
+      Some(ZOperand(ParenZ_body(ZTiles.place_after(body))))
+    | PreOp(Lam(status, p)) =>
+      Some(ZPreOp(LamZ_pat(status, ZTiles.place_after(p))))
+    | PostOp(Ap(status, arg)) =>
+      Some(ZPostOp(ApZ_arg(status, ZTiles.place_after(arg))))
+    | BinOp(OperatorHole | Plus(_)) => None;
+};
+include ZTiles.Util(HExp.Tile, ZTile);
+
+type t = ZTile.s;
+
+let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
+  map_root(
+    ~operand=HExp.set_hole_status_operand(status),
+    ~preop=HExp.set_hole_status_preop(status),
+    ~postop=HExp.set_hole_status_postop(status),
+    ~binop=HExp.set_hole_status_binop(status),
+    ~zoperand=set_hole_status_zoperand(status),
+    ~zpreop=set_hole_status_zpreop(status),
+    ~zpostop=set_hole_status_zpostop(status),
+    ~zbinop=set_hole_status_zbinop(status),
+  )
+and set_hole_status_zoperand = status =>
   fun
-  | ZOperand(ParenZ_body(zbody)) => Operand(Paren(erase(zbody)))
-  | ZPreOp(LamZ_pat(status, zp)) => PreOp(Lam(status, ZPat.erase(zp)))
-  | ZPostOp(ApZ_arg(status, zarg)) => PostOp(Ap(status, erase(zarg)))
-  | ZBinOp(_) => raise(Void_ZBinOp);
-
-let rec set_hole_status = (status, ze) =>
-  ZTerm.set_hole_status(~set_tile=HExp.set_tile, ~set_ztile, status, ze)
-and set_ztile = (status, ztile) =>
-  ztile
-  |> ZTile.map(
-       ~zoperand=
-         fun
-         | ParenZ_body(ze) => ParenZ_body(set_hole_status(status, ze)),
-       ~zpreop=
-         fun
-         | LamZ_pat(_, zp) => LamZ_pat(status, zp),
-       ~zpostop=
-         fun
-         | ApZ_arg(_, arg) => ApZ_arg(status, arg),
-       ~zbinop=
-         fun
-         | _ => raise(Void_ZBinOp),
-     );
-
-let place_before: HExp.t => t = ZTerm.place_before;
-let place_after: HExp.t => t = ZTerm.place_after;
-
-let enter_from_left: HExp.Tile.t => option(ztile) =
+  | ParenZ_body(ze) => ParenZ_body(set_hole_status(status, ze))
+and set_hole_status_zpreop = status =>
   fun
-  | Operand(OperandHole | Num(_) | Var(_)) => None
-  | Operand(Paren(body)) =>
-    Some(ZOperand(ParenZ_body(place_before(body))))
-  | PreOp(Lam(status, p)) =>
-    Some(ZPreOp(LamZ_pat(status, ZPat.place_before(p))))
-  | PostOp(Ap(status, arg)) =>
-    Some(ZPostOp(ApZ_arg(status, place_before(arg))))
-  | BinOp(OperatorHole | Plus(_)) => None;
-let enter_from_right: HExp.Tile.t => option(ztile) =
+  | LamZ_pat(_, zp) => LamZ_pat(status, zp)
+and set_hole_status_zpostop = status =>
   fun
-  | Operand(OperandHole | Num(_) | Var(_)) => None
-  | Operand(Paren(body)) =>
-    Some(ZOperand(ParenZ_body(place_after(body))))
-  | PreOp(Lam(status, p)) =>
-    Some(ZPreOp(LamZ_pat(status, ZPat.place_after(p))))
-  | PostOp(Ap(status, arg)) =>
-    Some(ZPostOp(ApZ_arg(status, place_after(arg))))
-  | BinOp(OperatorHole | Plus(_)) => None;
-
-let move_left = ZTiles.move_left(~enter_from_right);
-let move_right = ZTiles.move_right(~enter_from_left);
+  | ApZ_arg(_, arg) => ApZ_arg(status, arg)
+and set_hole_status_zbinop = _ =>
+  fun
+  | _ => raise(ZTile.Void_ZBinOp);
 
 /*
  // assume anchor before focus

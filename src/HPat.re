@@ -1,51 +1,23 @@
-type t = (Skel.t, tiles)
-and tiles = list(tile)
-and tile = Tile.t(operand, preop, postop, binop)
-and operand =
-  | OperandHole
-  | Var(Var.t)
-  | Paren(t)
-and preop = unit // empty
-and postop =
-  | Ann(HoleStatus.t, HTyp.t)
-and binop =
-  | OperatorHole;
-
-exception Void_PreOp;
-
-let rec set_hole_status = (status, p: t): t =>
-  HTerm.set_hole_status(~set_tile, status, p)
-and set_tile = (status, tile) =>
-  tile
-  |> Tile.map(
-       ~operand=
-         fun
-         | OperandHole => OperandHole
-         | Var(x) => Var(x)
-         | Paren(body) => Paren(set_hole_status(status, body)),
-       ~preop=
-         fun
-         | _ => raise(Void_PreOp),
-       ~postop=
-         fun
-         | Ann(_, ann) => Ann(status, ann),
-       ~binop=
-         fun
-         | OperatorHole => OperatorHole,
-     );
-
 module Tile = {
-  type nonrec operand = operand;
-  type nonrec preop = preop;
-  type nonrec postop = postop;
-  type nonrec binop = binop;
-  type t = tile;
+  type s = list(t)
+  and t = Tile.t(operand, preop, postop, binop)
+  and operand =
+    | OperandHole
+    | Var(Var.t)
+    | Paren(s)
+  and preop = unit // empty
+  and postop =
+    | Ann(HoleStatus.t, HTyp.t)
+  and binop =
+    | OperatorHole;
+
+  exception Void_PreOp;
 
   let mk_operand_hole = (): t => Operand(OperandHole);
   let mk_operator_hole = (): t => BinOp(OperatorHole);
 
-  let is_operand_hole = (==)(Tile.Operand(OperandHole));
-  let is_operator_hole = (==)(Tile.BinOp(OperatorHole));
+  let is_operand_hole: t => bool = (==)(Tile.Operand(OperandHole));
+  let is_operator_hole: t => bool = (==)(Tile.BinOp(OperatorHole));
 
   let precedence: t => int =
     fun
@@ -57,12 +29,36 @@ module Tile = {
   let associativity =
     [(1, Associativity.Left)] |> List.to_seq |> IntMap.of_seq;
 
-  let get_open_children: t => list(list(t)) =
+  let get_open_children: t => list(s) =
     fun
     | Operand(OperandHole | Var(_)) => []
-    | Operand(Paren((_, body_tiles))) => [body_tiles]
+    | Operand(Paren(body)) => [body]
     | PreOp(_) => raise(Void_PreOp)
     | PostOp(Ann(_)) => []
     | BinOp(OperatorHole) => [];
 };
-include TileUtil.Make(Tile);
+include Tiles.Util(Tile);
+
+type t = Tile.s;
+
+let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
+  map_root(
+    ~operand=set_hole_status_operand(status),
+    ~preop=set_hole_status_preop(status),
+    ~postop=set_hole_status_postop(status),
+    ~binop=set_hole_status_binop(status),
+  )
+and set_hole_status_operand = status =>
+  fun
+  | OperandHole => OperandHole
+  | Var(x) => Var(x)
+  | Paren(body) => Paren(set_hole_status(status, body))
+and set_hole_status_preop = _ =>
+  fun
+  | _ => raise(Tile.Void_PreOp)
+and set_hole_status_postop = status =>
+  fun
+  | Ann(_, ann) => Ann(status, ann)
+and set_hole_status_binop = _ =>
+  fun
+  | OperatorHole => OperatorHole;

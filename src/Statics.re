@@ -4,8 +4,8 @@ type type_mode =
 
 module Pat = {
   let rec syn =
-          (ctx: Ctx.t, (skel, tiles) as p: HPat.t): option((Type.t, Ctx.t)) =>
-    switch (HTerm.get_nth_root(Skel.root_index(skel), p)) {
+          (ctx: Ctx.t, p: HPat.t): option((Type.t, Ctx.t)) =>
+    switch (HPat.get_root(p)) {
     | Operand(operand) =>
       switch (operand) {
       | OperandHole => Some((Type.Hole, ctx))
@@ -13,10 +13,10 @@ module Pat = {
       | Paren(body) => syn(ctx, body)
       }
     | PreOp(_) => raise(HPat.Void_PreOp)
-    | PostOp(skel, postop) =>
+    | PostOp(tiles, postop) =>
       switch (postop) {
       | Ann(status, ann) =>
-        let subj = (skel, tiles);
+        let subj = tiles;
         switch (status) {
         | NotInHole =>
           let ty = HTyp.contract(ann);
@@ -26,15 +26,13 @@ module Pat = {
           |> Option.map(((_, ctx)) => (Type.Hole, ctx))
         };
       }
-    | BinOp(skel1, binop, skel2) =>
+    | BinOp(tiles1, binop, tiles2) =>
       switch (binop) {
       | OperatorHole =>
-        let p1 = (skel1, tiles);
-        let p2 = (skel2, tiles);
-        switch (syn(ctx, p1)) {
+        switch (syn(ctx, tiles1)) {
         | None => None
         | Some((_, ctx)) =>
-          syn(ctx, p2) |> Option.map(((_, ctx)) => (Type.Hole, ctx))
+          syn(ctx, tiles2) |> Option.map(((_, ctx)) => (Type.Hole, ctx))
         };
       }
     }
@@ -44,7 +42,7 @@ module Pat = {
       | None => None
       | Some((ty', ctx)) => Type.consistent(ty, ty') ? Some(ctx) : None
       };
-    switch (HTerm.get_nth_root(Skel.root_index(skel), p)) {
+    switch (HPat.get_root(p)) {
     | Operand(operand) =>
       switch (operand) {
       | OperandHole => subsume()
@@ -64,83 +62,70 @@ module Pat = {
   };
 
   let rec syn_fix_holes =
-          (ctx: Ctx.t, (skel, tiles) as p: HPat.t): (HPat.t, Type.t, Ctx.t) => {
-    let n = Skel.root_index(skel);
-    let (tiles, ty, ctx) =
-      switch (HTerm.get_nth_root(n, p)) {
-      | Operand(operand) =>
-        switch (operand) {
-        | OperandHole => (tiles, Type.Hole, ctx)
-        | Var(x) =>
-          let ctx = Ctx.add(x, Type.Hole, ctx);
-          (tiles, Hole, ctx);
-        | Paren(body) =>
-          let (body, ty, ctx) = syn_fix_holes(ctx, body);
-          let tiles =
-            ListUtil.put_nth(n, Tile.Operand(HPat.Paren(body)), tiles);
-          (tiles, ty, ctx);
-        }
-      | PreOp(_) => raise(HPat.Void_PreOp)
-      | PostOp(skel, postop) =>
-        switch (postop) {
-        | Ann(_, ann) =>
-          let ty = HTyp.contract(ann);
-          let ((_, tiles), ctx) = {
-            let subj = (skel, tiles);
-            ana_fix_holes(ctx, subj, ty);
-          };
-          let tiles =
-            ListUtil.put_nth(
-              n,
-              Tile.PostOp(HPat.Ann(NotInHole, ann)),
-              tiles,
-            );
-          (tiles, ty, ctx);
-        }
-      | BinOp(skel1, binop, skel2) =>
-        switch (binop) {
-        | OperatorHole =>
-          let ((_, tiles), _, ctx) = syn_fix_holes(ctx, (skel1, tiles));
-          let ((_, tiles), _, ctx) = syn_fix_holes(ctx, (skel2, tiles));
-          (tiles, Type.Hole, ctx);
-        }
+          (ctx: Ctx.t, p: HPat.t): (HPat.t, Type.t, Ctx.t) =>
+    switch (HTerm.get_nth_root(n, p)) {
+    | Operand(operand) =>
+      switch (operand) {
+      | OperandHole => ([Tile.Operand(operand)], Type.Hole, ctx)
+      | Var(x) =>
+        let ctx = Ctx.add(x, Type.Hole, ctx);
+        ([Tile.Operand(operand)], Hole, ctx);
+      | Paren(body) =>
+        let (body, ty, ctx) = syn_fix_holes(ctx, body);
+        ([Tile.Operand(HPat.Paren(body))], ty, ctx);
       };
-    ((skel, tiles), ty, ctx);
-  }
+    | PreOp(_) => raise(HPat.Void_PreOp)
+    | PostOp(p, postop) =>
+      switch (postop) {
+      | Ann(_, ann) =>
+        let ty = HTyp.contract(ann);
+        let (subj, ctx) = ana_fix_holes(ctx, p, ty);
+        let tiles =
+          ListUtil.put_nth(
+            n,
+            Tile.PostOp(HPat.Ann(NotInHole, ann)),
+            tiles,
+          );
+        (subj @ [Tile.PostOp(postop)], ty, ctx);
+      }
+    | BinOp(p1, binop, p2) =>
+      switch (binop) {
+      | OperatorHole =>
+        let (p1, _, ctx) = syn_fix_holes(ctx, p1);
+        let (p2, _, ctx) = syn_fix_holes(ctx, p2);
+        (p1 @ [Tile.BinOp(OperatorHole), ...p2], Type.Hole, ctx);
+      }
+    }
   and ana_fix_holes =
-      (ctx: Ctx.t, (skel, tiles) as p: HPat.t, ty: Type.t): (HPat.t, Ctx.t) => {
-    let n = Skel.root_index(skel);
+      (ctx: Ctx.t, p: HPat.t, ty: Type.t): (HPat.t, Ctx.t) => {
     let subsume = () => {
       let (p, ty', ctx) = syn_fix_holes(ctx, p);
-      let (_, tiles) =
+      let p =
         Type.consistent(ty, ty') ? p : HPat.set_hole_status(InHole, p);
-      (tiles, ctx);
+      (p, ctx);
     };
-    let (tiles, ctx) =
-      switch (HTerm.get_nth_root(n, p)) {
-      | Operand(operand) =>
-        switch (operand) {
-        | OperandHole => subsume()
-        | Var(x) => (tiles, Ctx.add(x, ty, ctx))
-        | Paren(body) =>
-          let (body, ctx) = ana_fix_holes(ctx, body, ty);
-          let tiles =
-            ListUtil.put_nth(n, Tile.Operand(HPat.Paren(body)), tiles);
-          (tiles, ctx);
-        }
-      | PreOp(_) => raise(HPat.Void_PreOp)
-      | PostOp(_, postop) =>
-        switch (postop) {
-        | Ann(_) => subsume()
-        }
-      | BinOp(_, binop, _) =>
-        switch (binop) {
-        | OperatorHole => subsume()
-        }
-      };
-    ((skel, tiles), ctx);
+    switch (HPat.get_root(p)) {
+    | Operand(operand) =>
+      switch (operand) {
+      | OperandHole => subsume()
+      | Var(x) => (p, Ctx.add(x, ty, ctx))
+      | Paren(body) =>
+        let (body, ctx) = ana_fix_holes(ctx, body, ty);
+        ([Tile.Operand(HPat.Paren(body))], ctx);
+      }
+    | PreOp(_) => raise(HPat.Void_PreOp)
+    | PostOp(_, postop) =>
+      switch (postop) {
+      | Ann(_) => subsume()
+      }
+    | BinOp(_, binop, _) =>
+      switch (binop) {
+      | OperatorHole => subsume()
+      }
+    };
   };
 
+  /*
   let rec syn_nth_type_mode = (n: int, (skel, tiles) as p: HPat.t): type_mode => {
     let m = Skel.root_index(skel);
     switch (HTerm.get_nth_root(m, p)) {
@@ -188,6 +173,7 @@ module Pat = {
       }
     };
   };
+  */
 };
 
 module Exp = {
@@ -266,143 +252,96 @@ module Exp = {
    */
 
   let rec syn_fix_holes =
-          (ctx: Ctx.t, (skel, tiles) as e: HExp.t): (HExp.t, Type.t) => {
-    let n = Skel.root_index(skel);
-    let (tiles, ty) =
-      switch (HTerm.get_nth_root(n, e)) {
-      | Operand(operand) =>
-        switch (operand) {
-        | OperandHole => (tiles, Type.Hole)
-        | Num(_, m) =>
-          let tiles =
-            ListUtil.put_nth(
-              n,
-              Tile.Operand(HExp.Num(NotInHole, m)),
-              tiles,
-            );
-          (tiles, Type.Num);
-        | Var(_, x) =>
-          let (tile, ty) =
-            switch (Ctx.find_opt(x, ctx)) {
-            | None => (Tile.Operand(HExp.Var(InHole, x)), Type.Hole)
-            | Some(ty) => (Tile.Operand(HExp.Var(NotInHole, x)), ty)
-            };
-          let tiles = ListUtil.put_nth(n, tile, tiles);
-          (tiles, ty);
-        | Paren(body) =>
-          let (body, ty) = syn_fix_holes(ctx, body);
-          let tiles =
-            ListUtil.put_nth(n, Tile.Operand(HExp.Paren(body)), tiles);
-          (tiles, ty);
-        }
-      | PreOp(preop, skel) =>
-        switch (preop) {
-        | Lam(_, p) =>
-          let (p, ty1, ctx) = Pat.syn_fix_holes(ctx, p);
-          let ((_, tiles), ty2) = {
-            let body = (skel, tiles);
-            syn_fix_holes(ctx, body);
-          };
-          let tiles =
-            ListUtil.put_nth(n, Tile.PreOp(HExp.Lam(NotInHole, p)), tiles);
-          (tiles, Arrow(ty1, ty2));
-        }
-      | PostOp(skel, postop) =>
-        switch (postop) {
-        | Ap(_, arg) =>
-          let ((_, tiles) as fn, fn_ty) = {
-            let fn = (skel, tiles);
-            syn_fix_holes(ctx, fn);
-          };
-          switch (Type.matched_arrow(fn_ty)) {
-          | None =>
-            let (_, tiles) = HExp.set_hole_status(InHole, fn);
-            let arg = ana_fix_holes(ctx, arg, Type.Hole);
-            let tiles =
-              ListUtil.put_nth(
-                n,
-                Tile.PostOp(HExp.Ap(NotInHole, arg)),
-                tiles,
-              );
-            (tiles, Type.Hole);
-          | Some((ty1, ty2)) =>
-            let arg = ana_fix_holes(ctx, arg, ty1);
-            let tiles =
-              ListUtil.put_nth(
-                n,
-                Tile.PostOp(HExp.Ap(NotInHole, arg)),
-                tiles,
-              );
-            (tiles, ty2);
-          };
-        }
-      | BinOp(skel1, binop, skel2) =>
-        switch (binop) {
-        | Plus(_) =>
-          let (_, tiles) = ana_fix_holes(ctx, (skel1, tiles), Type.Num);
-          let (_, tiles) = ana_fix_holes(ctx, (skel2, tiles), Type.Num);
-          let tiles =
-            ListUtil.put_nth(n, Tile.BinOp(HExp.Plus(NotInHole)), tiles);
-          (tiles, Type.Num);
-        | OperatorHole =>
-          let ((_, tiles), _) = syn_fix_holes(ctx, (skel1, tiles));
-          let ((_, tiles), _) = syn_fix_holes(ctx, (skel2, tiles));
-          (tiles, Type.Hole);
-        }
-      };
-    ((skel, tiles), ty);
-  }
+          (ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) =>
+    switch (HExp.get_root(e)) {
+    | Operand(operand) =>
+      switch (operand) {
+      | OperandHole => ([Tile.Operand(operand)], Type.Hole)
+      | Num(_, m) =>
+        ([Tile.Operand(HExp.Num(NotInHole, m))], Type.Num);
+      | Var(_, x) =>
+        switch (Ctx.find_opt(x, ctx)) {
+        | None => ([Tile.Operand(HExp.Var(InHole, x))], Type.Hole)
+        | Some(ty) => ([Tile.Operand(HExp.Var(NotInHole, x))], ty)
+        };
+      | Paren(body) =>
+        let (body, ty) = syn_fix_holes(ctx, body);
+        ([Tile.Operand(HExp.Paren(body))], ty);
+      }
+    | PreOp(preop, e) =>
+      switch (preop) {
+      | Lam(_, p) =>
+        let (p, ty1, ctx) = Pat.syn_fix_holes(ctx, p);
+        let (body, ty2) = syn_fix_holes(ctx, e);
+        ([Tile.PreOp(HExp.Lam(NotInHole, p)), ...body], Arrow(ty1, ty2));
+      }
+    | PostOp(e, postop) =>
+      switch (postop) {
+      | Ap(_, arg) =>
+        let (fn, fn_ty) = syn_fix_holes(ctx, e);
+        switch (Type.matched_arrow(fn_ty)) {
+        | None =>
+          let fn = HExp.set_hole_status(InHole, fn);
+          let arg = ana_fix_holes(ctx, arg, Type.Hole);
+          (fn @ [Tile.PostOp(HExp.Ap(NotInHole, arg))], Type.Hole);
+        | Some((ty1, ty2)) =>
+          let arg = ana_fix_holes(ctx, arg, ty1);
+          (e @ [Tile.PostOp(HExp.Ap(NotInHole, arg))], ty2);
+        };
+      }
+    | BinOp(e1, binop, e2) =>
+      switch (binop) {
+      | Plus(_) =>
+        let e1 = ana_fix_holes(ctx, e1, Type.Num);
+        let e2 = ana_fix_holes(ctx, e2, Type.Num);
+        (e1 @ [Tile.BinOp(HExp.Plus(NotInHole)), ...e2], Type.Num);
+      | OperatorHole =>
+        let (e1, _) = syn_fix_holes(ctx, e1);
+        let (e2, _) = syn_fix_holes(ctx, e2);
+        (e1 @ [Tile.BinOp(OperatorHole), ...e2], Type.Hole);
+      }
+    }
   and ana_fix_holes =
-      (ctx: Ctx.t, (skel, tiles) as e: HExp.t, ty: Type.t): HExp.t => {
-    let n = Skel.root_index(skel);
+      (ctx: Ctx.t, e: HExp.t, ty: Type.t): HExp.t => {
     let subsume = () => {
       let (e, ty') = syn_fix_holes(ctx, e);
-      let (_, tiles) =
-        Type.consistent(ty, ty') ? e : HExp.set_hole_status(InHole, e);
-      tiles;
+      Type.consistent(ty, ty') ? e : HExp.set_hole_status(InHole, e);
     };
-    let tiles =
-      switch (HTerm.get_nth_root(n, e)) {
-      | Operand(operand) =>
-        switch (operand) {
-        | OperandHole
-        | Num(_)
-        | Var(_) => subsume()
-        | Paren(body) =>
-          let body = ana_fix_holes(ctx, body, ty);
-          ListUtil.put_nth(n, Tile.Operand(HExp.Paren(body)), tiles);
+    switch (HTerm.get_nth_root(n, e)) {
+    | Operand(operand) =>
+      switch (operand) {
+      | OperandHole
+      | Num(_)
+      | Var(_) => subsume()
+      | Paren(body) =>
+        let body = ana_fix_holes(ctx, body, ty);
+        ListUtil.put_nth(n, Tile.Operand(HExp.Paren(body)), tiles);
+      }
+    | PreOp(preop, e) =>
+      switch (preop) {
+      | Lam(_, p) =>
+        switch (Type.matched_arrow(ty)) {
+        | None =>
+          let (p, _, ctx) = Pat.syn_fix_holes(ctx, p);
+          let (body, _) = syn_fix_holes(ctx, e);
+          [Tile.PreOp(HExp.Lam(InHole, p)), ...body];
+          ListUtil.put_nth(n, , tiles);
+        | Some((ty1, ty2)) =>
+          let (p, ctx) = Pat.ana_fix_holes(ctx, p, ty1);
+          let body = ana_fix_holes(ctx, e, ty2);
+          [Tile.PreOp(HExp.Lam(NotInHole, p)), ...body];
         }
-      | PreOp(preop, skel) =>
-        switch (preop) {
-        | Lam(_, p) =>
-          switch (Type.matched_arrow(ty)) {
-          | None =>
-            let (p, _, ctx) = Pat.syn_fix_holes(ctx, p);
-            let ((_, tiles), _) = {
-              let body = (skel, tiles);
-              syn_fix_holes(ctx, body);
-            };
-            ListUtil.put_nth(n, Tile.PreOp(HExp.Lam(InHole, p)), tiles);
-          | Some((ty1, ty2)) =>
-            let (p, ctx) = Pat.ana_fix_holes(ctx, p, ty1);
-            let (_, tiles) = {
-              let body = (skel, tiles);
-              ana_fix_holes(ctx, body, ty2);
-            };
-            ListUtil.put_nth(n, Tile.PreOp(HExp.Lam(NotInHole, p)), tiles);
-          }
-        }
-      | PostOp(_, postop) =>
-        switch (postop) {
-        | Ap(_) => subsume()
-        }
-      | BinOp(_, binop, _) =>
-        switch (binop) {
-        | OperatorHole
-        | Plus(_) => subsume()
-        }
-      };
-    (skel, tiles);
+      }
+    | PostOp(_, postop) =>
+      switch (postop) {
+      | Ap(_) => subsume()
+      }
+    | BinOp(_, binop, _) =>
+      switch (binop) {
+      | OperatorHole
+      | Plus(_) => subsume()
+      }
+    };
   };
 
   /**
@@ -411,6 +350,7 @@ module Exp = {
    * the subexpression rooted at the `n`th tile of `e`, returning
    * `None` if `e` does not synthesize a type
    */
+  /*
   let rec syn_nth_type_mode =
           (ctx: Ctx.t, n: int, (skel, tiles) as e: HExp.t)
           : option(type_mode) => {
@@ -450,12 +390,14 @@ module Exp = {
       }
     };
   }
+  */
   /**
    * Given an expression `e` in analytic position against type
    * `ty` under context `ctx`, `ana_nth_type_mode(ctx, n, e, ty)`
    * returns the type mode of the subexpression rooted at the
    * `n`th tile of `e`, returning `None` if `e` fails to analyze
    */
+  /*
   and ana_nth_type_mode =
       (ctx: Ctx.t, n: int, (skel, tiles) as e: HExp.t, ty: Type.t)
       : option(type_mode) => {
@@ -489,4 +431,5 @@ module Exp = {
       }
     };
   };
+  */
 };

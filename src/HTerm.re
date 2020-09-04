@@ -39,20 +39,3 @@ let get_nth_root = (n: int, (skel, tiles): t(_)): root(_) => {
   };
   go(skel);
 };
-
-let set_hole_status =
-    (
-      ~set_tile: (HoleStatus.t, Tile.t(_)) => Tile.t(_),
-      status: HoleStatus.t,
-      (skel, tiles): t(_),
-    )
-    : t(_) => {
-  let set_root =
-    switch (skel) {
-    | Operand(n)
-    | PreOp(n, _)
-    | PostOp(_, n)
-    | BinOp(_, n, _) => ListUtil.map_nth(n, set_tile(status))
-    };
-  (skel, set_root(tiles));
-};
