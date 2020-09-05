@@ -13,6 +13,18 @@ module ZTile = {
 
   exception Void_ZBinOp;
 
+  let compare = (~compare_s: (s, s) => int, ztile1: t, ztile2: t): int =>
+    switch (ztile1, ztile2) {
+    | (ZOperand(ParenZ_body(zbody1)), ZOperand(ParenZ_body(zbody2))) =>
+      compare_s(zbody1, zbody2)
+    | (ZPreOp(LamZ_pat(_, zp1)), ZPreOp(LamZ_pat(_, zp2))) =>
+      ZPat.compare(zp1, zp2)
+    | (ZPostOp(ApZ_arg(_, zarg1)), ZPostOp(ApZ_arg(_, zarg2))) =>
+      compare_s(zarg1, zarg2)
+    | (ZBinOp(_), ZBinOp(_)) => raise(Void_ZBinOp)
+    | _ => raise(Invalid_argument("ZExp.ZTile.compare"))
+    };
+
   let erase = (~erase_s: s => list(tile), ztile: t): tile =>
     switch (ztile) {
     | ZOperand(ParenZ_body(zbody)) => Operand(Paren(erase_s(zbody)))
@@ -41,20 +53,89 @@ module ZTile = {
     | PostOp(Ap(status, arg)) =>
       Some(ZPostOp(ApZ_arg(status, ZTiles.place_after(arg))))
     | BinOp(OperatorHole | Plus(_)) => None;
+
+  let insert =
+      (
+        ~insert_s: (list(tile), s) => option(s),
+        tiles: list(tile),
+        ztile: t,
+      )
+      : option(t) =>
+    switch (ztile) {
+    | ZOperand(ParenZ_body(zbody)) =>
+      insert_s(tiles, zbody)
+      |> Option.map(zbody => ZTile.ZOperand(ParenZ_body(zbody)))
+    | ZPreOp(LamZ_pat(_)) => None
+    | ZPostOp(ApZ_arg(status, zarg)) =>
+      insert_s(tiles, zarg)
+      |> Option.map(zarg => ZTile.ZPostOp(ApZ_arg(status, zarg)))
+    | ZBinOp(_) => raise(Void_ZBinOp)
+    };
+
+  let remove =
+      (~remove_s: (s, s) => option((list(tile), list(tile))), l: t, r: t)
+      : option((list(tile), tile)) =>
+    switch (l, r) {
+    | (ZOperand(ParenZ_body(zbody_l)), ZOperand(ParenZ_body(zbody_r))) =>
+      remove_s(zbody_l, zbody_r)
+      |> Option.map(((removed, body)) =>
+           (removed, Tile.Operand(HExp.Tile.Paren(body)))
+         )
+    | (ZPreOp(LamZ_pat(_)), ZPreOp(LamZ_pat(_))) => None
+    | (ZPostOp(ApZ_arg(status, zarg_l)), ZPostOp(ApZ_arg(_, zarg_r))) =>
+      remove_s(zarg_l, zarg_r)
+      |> Option.map(((removed, arg)) =>
+           (removed, Tile.PostOp(HExp.Tile.Ap(status, arg)))
+         )
+    | (ZBinOp(_), _)
+    | (_, ZBinOp(_)) => raise(Void_ZBinOp)
+    | _ =>
+      raise(
+        Invalid_argument(
+          "ZExp.ZTile.remove: expected arguments to have same erasure",
+        ),
+      )
+    };
+
+  let restructure =
+      (~restructure_s: (s, s, s) => option(s), l: t, r: t, target: t)
+      : option(t) =>
+    switch (l, r, target) {
+    | (
+        ZOperand(ParenZ_body(zbody_l)),
+        ZOperand(ParenZ_body(zbody_r)),
+        ZOperand(ParenZ_body(zbody_target)),
+      ) =>
+      restructure_s(zbody_l, zbody_r, zbody_target)
+      |> Option.map(zbody => ZTile.ZOperand(ParenZ_body(zbody)))
+    | (
+        ZPreOp(LamZ_pat(status, zp_l)),
+        ZPreOp(LamZ_pat(_, zp_r)),
+        ZPreOp(LamZ_pat(_, zp_target)),
+      ) =>
+      ZPat.restructure(zp_l, zp_r, zp_target)
+      |> Option.map(zp => ZTile.ZPreOp(LamZ_pat(status, zp)))
+    | (
+        ZPostOp(ApZ_arg(status, zarg_l)),
+        ZPostOp(ApZ_arg(_, zarg_r)),
+        ZPostOp(ApZ_arg(_, zarg_target)),
+      ) =>
+      restructure_s(zarg_l, zarg_r, zarg_target)
+      |> Option.map(zarg => ZTile.ZPostOp(ApZ_arg(status, zarg)))
+    | (ZBinOp(_), _, _)
+    | (_, ZBinOp(_), _)
+    | (_, _, ZBinOp(_)) => raise(Void_ZBinOp)
+    | _ =>
+      raise(
+        Invalid_argument(
+          "ZExp.ZTile.restructure: expected arguments to have same erasure",
+        ),
+      )
+    };
 };
 include ZTiles.Util(HExp.Tile, ZTile);
 
 type t = ZTile.s;
-
-let mk =
-    (
-      ~prefix: list(HExp.Tile.t)=[],
-      ~z: option(ZTile.t)=?,
-      ~suffix: list(HExp.Tile.t)=[],
-      (),
-    )
-    : t =>
-  ZList.{prefix, z, suffix};
 
 let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
   map_root(
@@ -79,85 +160,3 @@ and set_hole_status_zpostop = status =>
 and set_hole_status_zbinop = _ =>
   fun
   | _ => raise(ZTile.Void_ZBinOp);
-
-/*
- // assume anchor before focus
- let restructure = (
-   anchor: t,
-   focus: t,
-   target: t,
- ): option(ZExp.t) => {
-   switch (anchor, focus, target) {
-   | (
-       Y(anchor_prefix, anchor_suffix),
-       Y(focus_prefix, focus_suffix),
-       Y(target_prefix, target_suffix),
-     ) =>
-     let anchor_n = List.length(anchor_prefix);
-     let focus_n = List.length(focus_prefix);
-     let target_n = List.length(target_prefix);
-     if (anchor_n < target_n && target_n < focus_n) {
-       None
-     } else {
-       // TODO fix prefix suffix order
-       let tiles = List.rev(target_prefix) @ target_suffix;
-       let (prefix, selected, suffix) =
-         ListUtil.split_sublist(anchor_n, focus_n, tiles);
-       if (target_n <= anchor_n) {
-         let (p1, p2) = ListUtil.split_n(target_n, prefix);
-         Some(Y(p1, selected @ p2 @ suffix));
-       } else {
-         // target_n >= focus_n
-         let (s1, s2) = ListUtil.split_n(target_n - focus_n, suffix);
-         Some(Y(prefix @ s1, selected @ s2));
-       };
-     };
-   | (
-       Y(anchor_prefix, anchor_suffix),
-       Y(focus_prefix, focus_suffix),
-       Z(target_z),
-     ) =>
-
-   | (
-       Y(anchor_prefix, anchor_suffix),
-       Z(focus_z),
-       Y(target_prefix, target_suffix),
-     ) =>
-     let anchor_n = List.length(anchor_prefix);
-     let target_n = List.length(target_prefix);
-     if (target_n > anchor_n) {
-       None
-     } else {
-       // target_n <= anchor_n
-       let ()
-     }
-     if (List.length(target_pre) < List.length(anchor_pre)) {
-
-     }
-   }
- };
- */
-
-/*
- let rec insert_tiles =
-         (tiles: HExp.Tile.s, {prefix, z, suffix}: t): option(t) => {
-   let wrap_z = z => {prefix, z: ztile, suffix};
-   switch (z) {
-   | Z => Some(mk((prefix, Z, tiles @ suffix)))
-   | ParenZ(zbody) =>
-     insert_tiles(tiles, zbody)
-     |> Option.map(zbody => wrap_ztile(ParenZ(zbody)))
-   | IfZ_if(zcond, then_clause) =>
-     insert_tiles(tiles, zcond)
-     |> Option.map(zcond => wrap_ztile(IfZ_if(zcond, then_clause)))
-   | IfZ_then(cond, zthen) =>
-     insert_tiles(tiles, zthen)
-     |> Option.map(zthen => wrap_ztile(IfZ_then(cond, zthen)))
-   | LetZ_pat(_) => None
-   | LetZ_def(p, zdef) =>
-     insert_tiles(tiles, zdef)
-     |> Option.map(zdef => wrap_ztile(LetZ_def(p, zdef)))
-   | AnnZ(_) => None
-   };
- };
- */

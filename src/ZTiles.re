@@ -9,10 +9,21 @@ module type ZTILE = {
   type t = ZTile.t(zoperand, zpreop, zpostop, zbinop);
   type s = ZList.t(option(t), tile);
 
+  let compare: (~compare_s: (s, s) => int, t, t) => int;
+
   let erase: (~erase_s: s => list(tile), t) => tile;
 
   let enter_from_left: tile => option(t);
   let enter_from_right: tile => option(t);
+
+  let insert:
+    (~insert_s: (list(tile), s) => option(s), list(tile), t) => option(t);
+  let remove:
+    (~remove_s: (s, s) => option((list(tile), list(tile))), t, t) =>
+    option((list(tile), tile));
+
+  let restructure:
+    (~restructure_s: (s, s, s) => option(s), t, t, t) => option(t);
 };
 
 let wrap = ztile => ZList.{prefix: [], z: Some(ztile), suffix: []};
@@ -23,6 +34,12 @@ let place_after = tiles => ZList.{prefix: tiles, z: None, suffix: []};
 module Util =
        (T: Tiles.TILE, Z: ZTILE with type tile = T.t)
        : {
+         let mk: (~prefix: T.s=?, ~z: Z.t=?, ~suffix: T.s=?, unit) => Z.s;
+
+         let z_index: Z.s => int;
+
+         let compare: (Z.s, Z.s) => int;
+
          let erase: Z.s => T.s;
 
          let move_left: (T.s, T.s) => option(Z.s);
@@ -53,7 +70,17 @@ module Util =
              Z.s
            ) =>
            Z.s;
+
+         let insert: (T.s, Z.s) => option(Z.s);
+         let remove: (Z.s, Z.s) => option((T.s, T.s));
+
+         let restructure: (Z.s, Z.s, Z.s) => option(Z.s);
        } => {
+  let mk = (~prefix: T.s=[], ~z: option(Z.t)=?, ~suffix: T.s=[], ()): Z.s =>
+    ZList.{prefix, z, suffix};
+
+  let z_index = (ztiles: Z.s) => List.length(ztiles.prefix);
+
   let rec erase = (ztiles: Z.s) =>
     switch (ztiles.z) {
     | None => ztiles.prefix @ ztiles.suffix
@@ -199,4 +226,173 @@ module Util =
       }
     };
   };
+
+  let rec compare = (ztiles1: Z.s, ztiles2: Z.s): int => {
+    assert(erase(ztiles1) == erase(ztiles2));
+    let n1 = z_index(ztiles1);
+    let n2 = z_index(ztiles2);
+    switch (ztiles1.z, ztiles2.z) {
+    | (None, None) => Int.compare(n1, n2)
+    | (None, Some(_)) => n1 <= n2 ? (-1) : 1
+    | (Some(_), None) => n1 < n2 ? (-1) : 1
+    | (Some(ztile1), Some(ztile2)) =>
+      if (n1 < n2) {
+        (-1);
+      } else if (n1 > n2) {
+        1;
+      } else {
+        Z.compare(~compare_s=compare, ztile1, ztile2);
+      }
+    };
+  };
+
+  let rec insert =
+          (tiles: T.s, {prefix, z, suffix} as ztiles: Z.s): option(Z.s) =>
+    switch (z) {
+    | None => Some({...ztiles, suffix: tiles @ suffix})
+    | Some(ztile) =>
+      Z.insert(~insert_s=insert, tiles, ztile)
+      |> Option.map(ztile => ZList.{prefix, z: Some(ztile), suffix})
+    };
+
+  let rec remove = (l: Z.s, r: Z.s): option((T.s, T.s)) => {
+    assert(erase(l) == erase(r));
+    if (compare(l, r) > 0) {
+      remove(r, l);
+    } else {
+      let n_l = z_index(l);
+      let n_r = z_index(r);
+      let tiles = erase(l);
+      switch (l.z, r.z) {
+      | (None, None) =>
+        let (prefix, removed, suffix) =
+          ListUtil.split_sublist(n_l, n_r, tiles);
+        Some((removed, prefix @ suffix));
+      | (Some(_), None)
+      | (None, Some(_)) => None
+      | (Some(ztile_l), Some(ztile_r)) =>
+        n_l != n_r
+          ? None
+          : Z.remove(~remove_s=remove, ztile_l, ztile_r)
+            |> Option.map(((removed, tile)) =>
+                 (removed, l.prefix @ [tile, ...l.suffix])
+               )
+      };
+    };
+  };
+
+  let rec restructure = (l: Z.s, r: Z.s, target: Z.s): option(Z.s) =>
+    if (compare(l, r) > 0) {
+      restructure(r, l, target);
+    } else if (compare(l, target) < 0 && compare(target, r) < 0) {
+      None;
+    } else {
+      let n_l = z_index(l);
+      let n_r = z_index(r);
+      let n_target = z_index(target);
+      switch (l.z, r.z, target.z) {
+      | (None, None, None) =>
+        if (compare(target, l) <= 0) {
+          let (s1, selected, s2) =
+            ListUtil.split_sublist(
+              n_l - n_target,
+              n_r - n_target,
+              target.suffix,
+            );
+          Some(mk(~prefix=target.prefix, ~suffix=selected @ s1 @ s2, ()));
+        } else {
+          // compare(r, target) <= 0
+          let (p1, removed, p2) =
+            ListUtil.split_sublist(n_l, n_r, target.prefix);
+          Some(mk(~prefix=p1 @ p2, ~suffix=removed @ target.suffix, ()));
+        }
+      | (Some(_), None, None) => restructure(r, target, l)
+      | (None, Some(_), None) => restructure(target, l, r)
+      | (None, None, Some(_)) =>
+        if (compare(target, l) < 0) {
+          let (s1, selected, s2) =
+            ListUtil.split_sublist(
+              n_l - (n_target + 1),
+              n_r - (n_target + 1),
+              target.suffix,
+            );
+          insert(selected, target)
+          |> Option.map(inserted => ZList.{...inserted, suffix: s1 @ s2});
+        } else {
+          let (p1, selected, p2) =
+            ListUtil.split_sublist(n_l, n_r, target.prefix);
+          insert(selected, target)
+          |> Option.map(inserted => ZList.{...inserted, prefix: p1 @ p2});
+        }
+      | (Some(ztile_l), Some(ztile_r), None) =>
+        if (n_l != n_r) {
+          None;
+        } else {
+          Z.remove(~remove_s=remove, ztile_l, ztile_r)
+          |> Option.map(((removed, remainder)) =>
+               compare(target, l) < 0
+                 ? mk(
+                     ~prefix=target.prefix,
+                     ~suffix=
+                       removed
+                       @ ListUtil.put_nth(
+                           n_l - n_target,
+                           remainder,
+                           target.suffix,
+                         ),
+                     (),
+                   )
+                 : mk(
+                     ~prefix=ListUtil.put_nth(n_l, remainder, target.prefix),
+                     ~suffix=removed @ target.suffix,
+                     (),
+                   )
+             );
+        }
+      | (Some(_), None, Some(_)) => restructure(target, l, r)
+      | (None, Some(_), Some(_)) => restructure(r, target, l)
+      | (Some(ztile_l), Some(ztile_r), Some(ztile_target)) =>
+        if (n_l == n_r && n_r == n_target) {
+          Z.restructure(
+            ~restructure_s=restructure,
+            ztile_l,
+            ztile_r,
+            ztile_target,
+          )
+          |> Option.map(ztile => {...target, z: Some(ztile)});
+        } else if (n_l == n_r) {
+          Option.bind(
+            Z.remove(~remove_s=remove, ztile_l, ztile_r),
+            ((removed, remainder)) =>
+            compare(target, l) < 0
+              ? insert(removed, target)
+                |> Option.map(inserted =>
+                     ZList.{
+                       ...inserted,
+                       suffix:
+                         ListUtil.put_nth(
+                           n_l - (n_target + 1),
+                           remainder,
+                           target.suffix,
+                         ),
+                     }
+                   )
+              : insert(removed, target)
+                |> Option.map(inserted =>
+                     ZList.{
+                       ...inserted,
+                       prefix:
+                         ListUtil.put_nth(n_l, remainder, target.prefix),
+                     }
+                   )
+          );
+        } else if (n_r == n_target) {
+          restructure(r, target, l);
+        } else if (n_target == n_l) {
+          restructure(target, l, r);
+        } else {
+          None;
+        }
+      };
+    };
 };

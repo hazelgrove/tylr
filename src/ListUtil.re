@@ -36,7 +36,7 @@ let split_n = (n: int, xs: list('x)): (list('x), list('x)) =>
  * surrounding prefix/suffix sublists.
  * Returns None if i > j.
  */
-let split_sublist =
+let split_sublist_opt =
     (i: int, j: int, xs: list('x))
     : option((list('x), list('x), list('x))) => {
   switch (split_n_opt(j, xs)) {
@@ -48,6 +48,12 @@ let split_sublist =
     }
   };
 };
+let split_sublist =
+    (i: int, j: int, xs: list('x)): (list('x), list('x), list('x)) =>
+  switch (split_sublist_opt(i, j, xs)) {
+  | None => raise(Invalid_argument("ListUtil.split_sublist"))
+  | Some(r) => r
+  };
 
 let rec split_nth = (n, xs) =>
   switch (n, xs) {
