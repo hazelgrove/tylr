@@ -14,7 +14,6 @@ type tile_shape =
 
 type t =
   | Move(direction)
-  // Mark
   | Delete
   | Construct(tile_shape);
 

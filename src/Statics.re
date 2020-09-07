@@ -114,6 +114,99 @@ module Pat = {
       }
     };
   };
+
+  let rec syn_fix_holes_z = (ctx: Ctx.t, zp: ZPat.t): (ZPat.t, Type.t, Ctx.t) =>
+    switch (ZPat.root(zp)) {
+    | None =>
+      let n = ZPat.z_index(zp);
+      let (p, ty, ctx) = syn_fix_holes(ctx, ZPat.erase(zp));
+      let zp = {
+        let (prefix, suffix) = ListUtil.split_n(n, p);
+        ZPat.mk(~prefix, ~suffix, ());
+      };
+      (zp, ty, ctx);
+    | Some(root) =>
+      switch (root) {
+      | OperandZ(ParenZ_body(zbody)) =>
+        let (zbody, ty, ctx) = syn_fix_holes_z(ctx, zbody);
+        let zp = ZPat.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        (zp, ty, ctx);
+      | PreOpZ_op(_)
+      | PreOpZ_arg(_) => raise(HPat.Tile.Void_PreOp)
+      | PostOpZ_op(subj, AnnZ_ann(_, zann)) =>
+        let ty = HTyp.contract(ZTyp.erase(zann));
+        let (subj, ctx) = ana_fix_holes(ctx, subj, ty);
+        let zp =
+          ZPat.mk(~prefix=subj, ~z=ZPostOp(AnnZ_ann(NotInHole, zann)), ());
+        (zp, ty, ctx);
+      | PostOpZ_arg(zsubj, Ann(_, ann)) =>
+        let ty = HTyp.contract(ann);
+        let (zsubj, ctx) = ana_fix_holes_z(ctx, zsubj, ty);
+        let zp =
+          ZPat.mk(
+            ~prefix=zsubj.prefix,
+            ~z=?zsubj.z,
+            ~suffix=zsubj.suffix @ [PostOp(Ann(NotInHole, ann))],
+            (),
+          );
+        (zp, ty, ctx);
+      | BinOpZ_op(_) => raise(ZPat.ZTile.Void_ZBinOp)
+      | BinOpZ_larg(zl, OperatorHole, r) =>
+        let (zl, _, ctx) = syn_fix_holes_z(ctx, zl);
+        let (r, _, ctx) = syn_fix_holes(ctx, r);
+        let zp =
+          ZPat.mk(
+            ~prefix=zl.prefix,
+            ~z=?zl.z,
+            ~suffix=zl.suffix @ [BinOp(OperatorHole), ...r],
+            (),
+          );
+        (zp, Type.Hole, ctx);
+      | BinOpZ_rarg(l, OperatorHole, zr) =>
+        let (l, _, ctx) = syn_fix_holes(ctx, l);
+        let (zr, _, ctx) = syn_fix_holes_z(ctx, zr);
+        let zp =
+          ZPat.mk(
+            ~prefix=l @ [BinOp(OperatorHole), ...zr.prefix],
+            ~z=?zr.z,
+            ~suffix=zr.suffix,
+            (),
+          );
+        (zp, Type.Hole, ctx);
+      }
+    }
+  and ana_fix_holes_z = (ctx: Ctx.t, zp: ZPat.t, ty: Type.t): (ZPat.t, Ctx.t) => {
+    let subsume = () => {
+      let (zp, ty', ctx) = syn_fix_holes_z(ctx, zp);
+      let zp =
+        Type.consistent(ty, ty') ? zp : ZPat.set_hole_status(InHole, zp);
+      (zp, ctx);
+    };
+    switch (ZPat.root(zp)) {
+    | None =>
+      let n = ZPat.z_index(zp);
+      let (p, ctx) = ana_fix_holes(ctx, ZPat.erase(zp), ty);
+      let zp = {
+        let (prefix, suffix) = ListUtil.split_n(n, p);
+        ZPat.mk(~prefix, ~suffix, ());
+      };
+      (zp, ctx);
+    | Some(root) =>
+      switch (root) {
+      | OperandZ(ParenZ_body(zbody)) =>
+        let (zbody, ctx) = ana_fix_holes_z(ctx, zbody, ty);
+        let zp = ZPat.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        (zp, ctx);
+      | PreOpZ_op(_)
+      | PreOpZ_arg(_) => raise(HPat.Tile.Void_PreOp)
+      | PostOpZ_op(_, AnnZ_ann(_))
+      | PostOpZ_arg(_, Ann(_)) => subsume()
+      | BinOpZ_op(_) => raise(ZPat.ZTile.Void_ZBinOp)
+      | BinOpZ_larg(_, OperatorHole, _)
+      | BinOpZ_rarg(_, OperatorHole, _) => subsume()
+      }
+    };
+  };
   /*
    let rec syn_nth_type_mode = (n: int, (skel, tiles) as p: HPat.t): type_mode => {
      let m = Skel.root_index(skel);
@@ -329,6 +422,164 @@ module Exp = {
       switch (binop) {
       | OperatorHole
       | Plus(_) => subsume()
+      }
+    };
+  };
+
+  let rec syn_fix_holes_z = (ctx: Ctx.t, ze: ZExp.t): (ZExp.t, Type.t) =>
+    switch (ZExp.root(ze)) {
+    | None =>
+      let n = ZExp.z_index(ze);
+      let (e, ty) = syn_fix_holes(ctx, ZExp.erase(ze));
+      let ze = {
+        let (prefix, suffix) = ListUtil.split_n(n, e);
+        ZExp.mk(~prefix, ~suffix, ());
+      };
+      (ze, ty);
+    | Some(root) =>
+      switch (root) {
+      | OperandZ(ParenZ_body(zbody)) =>
+        let (zbody, ty) = syn_fix_holes_z(ctx, zbody);
+        let ze = ZExp.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        (ze, ty);
+      | PreOpZ_op(LamZ_pat(_, zp), body) =>
+        let (zp, ty1, ctx) = Pat.syn_fix_holes_z(ctx, zp);
+        let (body, ty2) = syn_fix_holes(ctx, body);
+        let ze =
+          ZExp.mk(~z=ZPreOp(LamZ_pat(NotInHole, zp)), ~suffix=body, ());
+        (ze, Type.Arrow(ty1, ty2));
+      | PreOpZ_arg(Lam(_, p), zbody) =>
+        let (_, ctx) = Option.get(Pat.syn(ctx, p));
+        let (zbody, ty) = syn_fix_holes_z(ctx, zbody);
+        let ze =
+          ZExp.mk(
+            ~prefix=[PreOp(Lam(NotInHole, p)), ...zbody.prefix],
+            ~z=?zbody.z,
+            ~suffix=zbody.suffix,
+            (),
+          );
+        (ze, ty);
+      | PostOpZ_op(fn, ApZ_arg(_, zarg)) =>
+        let (ty_in, ty_out) = {
+          let fn_ty = Option.get(syn(ctx, fn));
+          Option.get(Type.matched_arrow(fn_ty));
+        };
+        let zarg = ana_fix_holes_z(ctx, zarg, ty_in);
+        let ze =
+          ZExp.mk(~prefix=fn, ~z=ZPostOp(ApZ_arg(NotInHole, zarg)), ());
+        (ze, ty_out);
+      | PostOpZ_arg(zfn, Ap(_, arg)) =>
+        let (zfn, (ty_in, ty_out)) = {
+          let (zfn, fn_ty) = syn_fix_holes_z(ctx, zfn);
+          (zfn, Option.get(Type.matched_arrow(fn_ty)));
+        };
+        let arg = ana_fix_holes(ctx, arg, ty_in);
+        let ze =
+          ZExp.mk(
+            ~prefix=zfn.prefix,
+            ~z=?zfn.z,
+            ~suffix=zfn.suffix @ [PostOp(Ap(NotInHole, arg))],
+            (),
+          );
+        (ze, ty_out);
+      | BinOpZ_op(_) => raise(ZExp.ZTile.Void_ZBinOp)
+      | BinOpZ_larg(zl, Plus(_), r) =>
+        let zl = ana_fix_holes_z(ctx, zl, Type.Num);
+        let ze =
+          ZExp.mk(
+            ~prefix=zl.prefix,
+            ~z=?zl.z,
+            ~suffix=zl.suffix @ [BinOp(Plus(NotInHole)), ...r],
+            (),
+          );
+        (ze, Type.Num);
+      | BinOpZ_rarg(l, Plus(_), zr) =>
+        let zr = ana_fix_holes_z(ctx, zr, Type.Num);
+        let ze =
+          ZExp.mk(
+            ~prefix=l @ [BinOp(Plus(NotInHole)), ...zr.prefix],
+            ~z=?zr.z,
+            ~suffix=zr.suffix,
+            (),
+          );
+        (ze, Type.Num);
+      | BinOpZ_larg(zl, OperatorHole, r) =>
+        let (zl, _) = syn_fix_holes_z(ctx, zl);
+        let ze =
+          ZExp.mk(
+            ~prefix=zl.prefix,
+            ~z=?zl.z,
+            ~suffix=zl.suffix @ [BinOp(OperatorHole), ...r],
+            (),
+          );
+        (ze, Type.Hole);
+      | BinOpZ_rarg(l, OperatorHole, zr) =>
+        let (zr, _) = syn_fix_holes_z(ctx, zr);
+        let ze =
+          ZExp.mk(
+            ~prefix=l @ [BinOp(OperatorHole), ...zr.prefix],
+            ~z=?zr.z,
+            ~suffix=zr.suffix,
+            (),
+          );
+        (ze, Type.Hole);
+      }
+    }
+  and ana_fix_holes_z = (ctx: Ctx.t, ze: ZExp.t, ty: Type.t): ZExp.t => {
+    let subsume = () => {
+      let (ze, ty') = syn_fix_holes_z(ctx, ze);
+      Type.consistent(ty, ty') ? ze : ZExp.set_hole_status(InHole, ze);
+    };
+    switch (ZExp.root(ze)) {
+    | None =>
+      let n = ZExp.z_index(ze);
+      let e = ana_fix_holes(ctx, ZExp.erase(ze), ty);
+      let ze = {
+        let (prefix, suffix) = ListUtil.split_n(n, e);
+        ZExp.mk(~prefix, ~suffix, ());
+      };
+      ze;
+    | Some(root) =>
+      switch (root) {
+      | OperandZ(ParenZ_body(zbody)) =>
+        let zbody = ana_fix_holes_z(ctx, zbody, ty);
+        ZExp.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+      | PreOpZ_op(LamZ_pat(_, zp), body) =>
+        switch (Type.matched_arrow(ty)) {
+        | None =>
+          let (ze, _) = syn_fix_holes_z(ctx, ze);
+          ZExp.set_hole_status(InHole, ze);
+        | Some((ty_in, ty_out)) =>
+          let (zp, ctx) = Pat.ana_fix_holes_z(ctx, zp, ty_in);
+          let body = ana_fix_holes(ctx, body, ty_out);
+          ZExp.mk(~z=ZPreOp(LamZ_pat(NotInHole, zp)), ~suffix=body, ());
+        }
+      | PreOpZ_arg(Lam(_, p), zbody) =>
+        switch (Type.matched_arrow(ty)) {
+        | None =>
+          let (_, ctx) = Option.get(Pat.syn(ctx, p));
+          let (zbody, _) = syn_fix_holes_z(ctx, zbody);
+          ZExp.mk(
+            ~prefix=[PreOp(Lam(InHole, p)), ...zbody.prefix],
+            ~z=?zbody.z,
+            ~suffix=zbody.suffix,
+            (),
+          );
+        | Some((ty_in, ty_out)) =>
+          let ctx = Option.get(Pat.ana(ctx, p, ty_in));
+          let zbody = ana_fix_holes_z(ctx, zbody, ty_out);
+          ZExp.mk(
+            ~prefix=[PreOp(Lam(NotInHole, p)), ...zbody.prefix],
+            ~z=?zbody.z,
+            ~suffix=zbody.suffix,
+            (),
+          );
+        }
+      | PostOpZ_op(_, ApZ_arg(_))
+      | PostOpZ_arg(_, Ap(_)) => subsume()
+      | BinOpZ_op(_) => raise(ZExp.ZTile.Void_ZBinOp)
+      | BinOpZ_larg(_, Plus(_) | OperatorHole, _)
+      | BinOpZ_rarg(_, Plus(_) | OperatorHole, _) => subsume()
       }
     };
   };

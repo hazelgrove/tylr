@@ -291,6 +291,10 @@ module Util =
       let n_r = z_index(r);
       let n_target = z_index(target);
       switch (l.z, r.z, target.z) {
+      | (Some(_), None, None)
+      | (None, Some(_), Some(_)) => restructure(r, target, l)
+      | (None, Some(_), None)
+      | (Some(_), None, Some(_)) => restructure(target, l, r)
       | (None, None, None) =>
         if (compare(target, l) <= 0) {
           let (s1, selected, s2) =
@@ -306,8 +310,6 @@ module Util =
             ListUtil.split_sublist(n_l, n_r, target.prefix);
           Some(mk(~prefix=p1 @ p2, ~suffix=removed @ target.suffix, ()));
         }
-      | (Some(_), None, None) => restructure(r, target, l)
-      | (None, Some(_), None) => restructure(target, l, r)
       | (None, None, Some(_)) =>
         if (compare(target, l) < 0) {
           let (s1, selected, s2) =
@@ -349,8 +351,6 @@ module Util =
                    )
              );
         }
-      | (Some(_), None, Some(_)) => restructure(target, l, r)
-      | (None, Some(_), Some(_)) => restructure(r, target, l)
       | (Some(ztile_l), Some(ztile_r), Some(ztile_target)) =>
         if (n_l == n_r && n_r == n_target) {
           Z.restructure(
