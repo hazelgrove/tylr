@@ -93,30 +93,31 @@ module Util =
     | Left => ZUtil.move_left
     | Right => ZUtil.move_right;
 
-  let perform_edit = (edit: edit, ztiles: Z.s): option(Z.s) =>
-    switch (edit) {
-    | Delete =>
-      ztiles
-      |> ZUtil.opt_map((prefix, suffix) =>
-           ListUtil.split_last_opt(prefix)
-           |> Option.map(((prefix, tile)) => {
-                let open_children = List.flatten(T.get_open_children(tile));
-                let (prefix, suffix) =
-                  TUtil.fix_empty_holes(prefix @ open_children, suffix);
-                ZUtil.mk(~prefix, ~suffix, ());
-              })
-         )
-    | Construct(shape) =>
-      ztiles
-      |> ZUtil.opt_map((prefix, suffix) =>
-           S.tile_of_shape(shape)
-           |> Option.map(tile => {
-                let (prefix, suffix) =
-                  TUtil.fix_empty_holes(prefix @ [tile], suffix);
-                ZUtil.mk(~prefix, ~suffix, ());
-              })
-         )
-    };
+  let perform_edit = (edit: edit, ztiles: Z.s): option(Z.s) => {
+    let perform =
+      switch (edit) {
+      | Delete =>
+        ZUtil.opt_map((prefix, suffix) =>
+          ListUtil.split_last_opt(prefix)
+          |> Option.map(((prefix, tile)) => {
+               let open_children = List.flatten(T.get_open_children(tile));
+               let (prefix, suffix) =
+                 TUtil.fix_empty_holes(prefix @ open_children, suffix);
+               ZUtil.mk(~prefix, ~suffix, ());
+             })
+        )
+      | Construct(shape) =>
+        ZUtil.opt_map((prefix, suffix) =>
+          S.tile_of_shape(shape)
+          |> Option.map(tile => {
+               let (prefix, suffix) =
+                 TUtil.fix_empty_holes(prefix @ [tile], suffix);
+               ZUtil.mk(~prefix, ~suffix, ());
+             })
+        )
+      };
+    perform(ztiles);
+  };
 
   let perform = (a: t, edit_state: edit_state): option(edit_state) =>
     switch (a) {

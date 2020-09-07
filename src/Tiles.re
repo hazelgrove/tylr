@@ -1,11 +1,10 @@
 module type TILE = {
-  type operand;
-  type preop;
-  type postop;
-  type binop;
-
-  type t = Tile.t(operand, preop, postop, binop);
-  type s = list(t);
+  type s = list(t)
+  and t = Tile.t(operand, preop, postop, binop)
+  and operand
+  and preop
+  and postop
+  and binop;
 
   let mk_operand_hole: unit => t;
   let mk_operator_hole: unit => t;
@@ -25,11 +24,6 @@ module Util =
          let mk_hole: unit => T.s;
 
          let fix_empty_holes: (T.s, T.s) => (T.s, T.s);
-
-         let parse: T.s => Skel.t;
-
-         let delete_tile_and_fix_empty_holes: (T.s, T.t, T.s) => (T.s, int);
-         let insert_tile_and_fix_empty_holes: (T.s, T.t, T.s) => (T.s, int);
 
          type root =
            | Operand(T.operand)
@@ -318,21 +312,6 @@ module Util =
     };
 
     tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
-  };
-
-  let delete_tile_and_fix_empty_holes =
-      (prefix: T.s, tile: T.t, suffix: T.s): (T.s, int) => {
-    let open_children_tiles = tile |> T.get_open_children |> List.flatten;
-    let (fixed_prefix, fixed_suffix) =
-      fix_empty_holes(prefix @ open_children_tiles, suffix);
-    (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
-  };
-
-  let insert_tile_and_fix_empty_holes =
-      (prefix: T.s, tile: T.t, suffix: T.s): (T.s, int) => {
-    let (fixed_prefix, fixed_suffix) =
-      fix_empty_holes([tile, ...prefix], suffix);
-    (fixed_prefix @ fixed_suffix, List.length(fixed_prefix));
   };
 
   type root =
