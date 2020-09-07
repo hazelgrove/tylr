@@ -1,13 +1,12 @@
 module type ZTILE = {
   type tile;
 
-  type zoperand;
-  type zpreop;
-  type zpostop;
-  type zbinop;
-
-  type t = ZTile.t(zoperand, zpreop, zpostop, zbinop);
-  type s = ZList.t(option(t), tile);
+  type s = ZList.t(option(t), tile)
+  and t = ZTile.t(zoperand, zpreop, zpostop, zbinop)
+  and zoperand
+  and zpreop
+  and zpostop
+  and zbinop;
 
   let compare: (~compare_s: (s, s) => int, t, t) => int;
 
@@ -16,8 +15,14 @@ module type ZTILE = {
   let enter_from_left: tile => option(t);
   let enter_from_right: tile => option(t);
 
-  let insert:
-    (~insert_s: (list(tile), s) => option(s), list(tile), t) => option(t);
+  let opt_map:
+    (
+      ~opt_map_s: ((list(tile), list(tile)) => option(s), s) => option(s),
+      (list(tile), list(tile)) => option(s),
+      t
+    ) =>
+    option(t);
+
   let remove:
     (~remove_s: (s, s) => option((list(tile), list(tile))), t, t) =>
     option((list(tile), tile));
@@ -71,8 +76,7 @@ module Util =
            ) =>
            Z.s;
 
-         let insert: (T.s, Z.s) => option(Z.s);
-         let remove: (Z.s, Z.s) => option((T.s, T.s));
+         let opt_map: ((T.s, T.s) => option(Z.s), Z.s) => option(Z.s);
 
          let restructure: (Z.s, Z.s, Z.s) => option(Z.s);
        } => {
@@ -246,14 +250,20 @@ module Util =
     };
   };
 
-  let rec insert =
-          (tiles: T.s, {prefix, z, suffix} as ztiles: Z.s): option(Z.s) =>
+  let rec opt_map =
+          (f: (T.s, T.s) => option(Z.s), {prefix, z, suffix}: Z.s)
+          : option(Z.s) =>
     switch (z) {
-    | None => Some({...ztiles, suffix: tiles @ suffix})
+    | None => f(prefix, suffix)
     | Some(ztile) =>
-      Z.insert(~insert_s=insert, tiles, ztile)
+      Z.opt_map(~opt_map_s=opt_map, f, ztile)
       |> Option.map(ztile => ZList.{prefix, z: Some(ztile), suffix})
     };
+
+  let insert = (tiles: T.s): (Z.s => option(Z.s)) =>
+    opt_map((prefix, suffix) =>
+      Some(mk(~prefix, ~suffix=tiles @ suffix, ()))
+    );
 
   let rec remove = (l: Z.s, r: Z.s): option((T.s, T.s)) => {
     assert(erase(l) == erase(r));

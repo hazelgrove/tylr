@@ -54,6 +54,24 @@ module ZTile = {
       Some(ZPostOp(ApZ_arg(status, ZTiles.place_after(arg))))
     | BinOp(OperatorHole | Plus(_)) => None;
 
+  let opt_map =
+      (
+        ~opt_map_s: ((list(tile), list(tile)) => option(s), s) => option(s),
+        f: (list(tile), list(tile)) => option(s),
+        ztile: t,
+      )
+      : option(t) =>
+    switch (ztile) {
+    | ZOperand(ParenZ_body(zbody)) =>
+      opt_map_s(f, zbody)
+      |> Option.map(zbody => ZTile.ZOperand(ParenZ_body(zbody)))
+    | ZPreOp(LamZ_pat(_)) => None
+    | ZPostOp(ApZ_arg(status, zarg)) =>
+      opt_map_s(f, zarg)
+      |> Option.map(zarg => ZTile.ZPostOp(ApZ_arg(status, zarg)))
+    | ZBinOp(_) => raise(Void_ZBinOp)
+    };
+
   let insert =
       (
         ~insert_s: (list(tile), s) => option(s),

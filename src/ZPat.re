@@ -52,16 +52,16 @@ module ZTile = {
       Some(ZPostOp(AnnZ_ann(status, ZTiles.place_after(ann))))
     | BinOp(OperatorHole) => None;
 
-  let insert =
+  let opt_map =
       (
-        ~insert_s: (list(tile), s) => option(s),
-        tiles: list(tile),
+        ~opt_map_s: ((list(tile), list(tile)) => option(s), s) => option(s),
+        f: (list(tile), list(tile)) => option(s),
         ztile: t,
       )
       : option(t) =>
     switch (ztile) {
     | ZOperand(ParenZ_body(zbody)) =>
-      insert_s(tiles, zbody)
+      opt_map_s(f, zbody)
       |> Option.map(zbody => ZTile.ZOperand(ParenZ_body(zbody)))
     | ZPreOp(_) => raise(Void_ZPreOp)
     | ZPostOp(AnnZ_ann(_)) => None
