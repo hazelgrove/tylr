@@ -132,33 +132,33 @@ module Util =
          let z_index = List.length(prefix);
          switch (TUtil.root(tiles)) {
          | Operand(_) => OperandZ(ZTile.get_zoperand(z))
-         | PreOp(preop, ts) =>
+         | PreOp(preop, tiles) =>
            let op_index = 0;
            z_index == op_index
-             ? PreOpZ_op(ZTile.get_zpreop(z), ts)
+             ? PreOpZ_op(ZTile.get_zpreop(z), tiles)
              : PreOpZ_arg(
                  preop,
                  {prefix: List.tl(prefix), z: Some(z), suffix},
                );
-         | PostOp(ts, postop) =>
-           let op_index = List.length(ts);
+         | PostOp(tiles, postop) =>
+           let op_index = List.length(tiles);
            z_index == op_index
-             ? PostOpZ_op(ts, ZTile.get_zpostop(z))
+             ? PostOpZ_op(tiles, ZTile.get_zpostop(z))
              : PostOpZ_arg(
                  {prefix, z: Some(z), suffix: ListUtil.leading(suffix)},
                  postop,
                );
-         | BinOp(tsl, binop, tsr) =>
-           let op_index = List.length(tsl);
+         | BinOp(tiles_l, binop, tiles_r) =>
+           let op_index = List.length(tiles_l);
            if (z_index < op_index) {
-             let (prefix, _, suffix) = ListUtil.split_nth(z_index, tsl);
-             BinOpZ_larg({prefix, z: Some(z), suffix}, binop, tsr);
+             let (prefix, _, suffix) = ListUtil.split_nth(z_index, tiles_l);
+             BinOpZ_larg({prefix, z: Some(z), suffix}, binop, tiles_r);
            } else if (z_index > op_index) {
              let (prefix, _, suffix) =
-               ListUtil.split_nth(z_index - (op_index + 1), tsr);
-             BinOpZ_rarg(tsl, binop, {prefix, z: Some(z), suffix});
+               ListUtil.split_nth(z_index - (op_index + 1), tiles_r);
+             BinOpZ_rarg(tiles_l, binop, {prefix, z: Some(z), suffix});
            } else {
-             BinOpZ_op(tsl, ZTile.get_zbinop(z), tsr);
+             BinOpZ_op(tiles_l, ZTile.get_zbinop(z), tiles_r);
            };
          };
        });
@@ -374,27 +374,23 @@ module Util =
           Option.bind(
             Z.remove(~remove_s=remove, ztile_l, ztile_r),
             ((removed, remainder)) =>
-            compare(target, l) < 0
-              ? insert(removed, target)
-                |> Option.map(inserted =>
-                     ZList.{
-                       ...inserted,
-                       suffix:
-                         ListUtil.put_nth(
-                           n_l - (n_target + 1),
-                           remainder,
-                           target.suffix,
-                         ),
-                     }
-                   )
-              : insert(removed, target)
-                |> Option.map(inserted =>
-                     ZList.{
-                       ...inserted,
-                       prefix:
-                         ListUtil.put_nth(n_l, remainder, target.prefix),
-                     }
-                   )
+            insert(removed, target)
+            |> Option.map((inserted: Z.s) =>
+                 compare(target, l) < 0
+                   ? {
+                     ...inserted,
+                     suffix:
+                       ListUtil.put_nth(
+                         n_l - (n_target + 1),
+                         remainder,
+                         target.suffix,
+                       ),
+                   }
+                   : {
+                     ...inserted,
+                     prefix: ListUtil.put_nth(n_l, remainder, target.prefix),
+                   }
+               )
           );
         } else if (n_r == n_target) {
           restructure(r, target, l);

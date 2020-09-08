@@ -15,6 +15,7 @@ module TileShape = {
 
   module type S = {
     type tile;
+    // TODO refactor to support passing in selected tiles as args
     let tile_of_shape: t => option(tile);
   };
 };

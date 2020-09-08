@@ -74,20 +74,6 @@ let rec put_nth = (n: int, x: 'x, xs: list('x)): list('x) =>
     [hd, ...tl];
   };
 
-let rec map_nth_opt = (n: int, f: 'x => 'x, xs: list('x)): option(list('x)) =>
-  switch (n, xs) {
-  | (_, []) => None
-  | (0, [x, ...xs]) => Some([f(x), ...xs])
-  | (_, [x, ...xs]) =>
-    map_nth_opt(n - 1, f, xs) |> Option.map(List.cons(x))
-  };
-
-let map_nth = (n, f, xs) =>
-  switch (map_nth_opt(n, f, xs)) {
-  | None => raise(Invalid_argument("ListUtil.map_nth: index out of bounds"))
-  | Some(xs) => xs
-  };
-
 let rec split_last_opt = (xs: list('x)): option((list('x), 'x)) =>
   switch (xs) {
   | [] => None
