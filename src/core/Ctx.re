@@ -1,3 +1,2 @@
-include VarMap;
-
-type t = VarMap.t(Type.t);
+include Map.Make(Var);
+type nonrec t = t(Type.t);
