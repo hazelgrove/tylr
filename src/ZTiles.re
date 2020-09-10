@@ -290,16 +290,31 @@ module Util =
       };
     };
   };
+  // l    r t
+  // t    l r
+  // ^1 + [(]2 + 3)
+  // --> (1 + 2 + 3)
+  //
+  // l = {prefix: [1, +], z: None, suffix: [(2 + 3)]}
+  // r = {prefix: [1, +], z: Some(ParenZ({prefix: [], z: None, suffix: [2, +, 3]})), suffix: []}
+  // target = {prefix: [], z: None, suffix: [1, +, (2 + 3)]}
 
+  //       t      l    r
+  //       l      r    t
+  // (1 + 2[) + (3] + 4^)
+
+  // make comment about target not being between l and r
   let rec restructure = (l: Z.s, r: Z.s, target: Z.s): option(Z.s) =>
     if (compare(l, r) > 0) {
       restructure(r, l, target);
     } else if (compare(l, target) < 0 && compare(target, r) < 0) {
       None;
     } else {
-      let n_l = z_index(l);
-      let n_r = z_index(r);
-      let n_target = z_index(target);
+      // l before r
+      // target before l or r before target
+      let n_l = z_index(l); // 0
+      let n_r = z_index(r); // 2
+      let n_target = z_index(target); // 2
       switch (l.z, r.z, target.z) {
       | (Some(_), None, None)
       | (None, Some(_), Some(_)) => restructure(r, target, l)
@@ -307,6 +322,8 @@ module Util =
       | (Some(_), None, Some(_)) => restructure(target, l, r)
       | (None, None, None) =>
         if (compare(target, l) <= 0) {
+          // t    l   r
+          // ^1 + [2 +] 3
           let (s1, selected, s2) =
             ListUtil.split_sublist(
               n_l - n_target,
@@ -331,7 +348,7 @@ module Util =
           insert(selected, target)
           |> Option.map(inserted => ZList.{...inserted, suffix: s1 @ s2});
         } else {
-          let (p1, selected, p2) =
+          let (p1, selected, p2) = // ([], [1, +], [])
             ListUtil.split_sublist(n_l, n_r, target.prefix);
           insert(selected, target)
           |> Option.map(inserted => ZList.{...inserted, prefix: p1 @ p2});
