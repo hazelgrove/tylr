@@ -348,7 +348,8 @@ module Util =
           insert(selected, target)
           |> Option.map(inserted => ZList.{...inserted, suffix: s1 @ s2});
         } else {
-          let (p1, selected, p2) = // ([], [1, +], [])
+          let (p1, selected, p2) =
+            // ([], [1, +], [])
             ListUtil.split_sublist(n_l, n_r, target.prefix);
           insert(selected, target)
           |> Option.map(inserted => ZList.{...inserted, prefix: p1 @ p2});
