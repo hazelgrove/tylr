@@ -41,6 +41,8 @@ module Util =
        : {
          let mk: (~prefix: T.s=?, ~z: Z.t=?, ~suffix: T.s=?, unit) => Z.s;
 
+         let mk_hole: unit => Z.s;
+
          let z_index: Z.s => int;
 
          let compare: (Z.s, Z.s) => int;
@@ -83,6 +85,13 @@ module Util =
   let mk = (~prefix: T.s=[], ~z: option(Z.t)=?, ~suffix: T.s=[], ()): Z.s =>
     ZList.{prefix, z, suffix};
 
+  module TUtil = Tiles.Util(T);
+
+  let mk_hole = () => {
+    let hole = TUtil.mk_hole();
+    mk(~suffix=hole, ());
+  };
+
   let z_index = (ztiles: Z.s) => List.length(ztiles.prefix);
 
   let rec erase = (ztiles: Z.s) =>
@@ -122,8 +131,6 @@ module Util =
     | BinOpZ_op(T.s, Z.zbinop, T.s)
     | BinOpZ_larg(Z.s, T.binop, T.s)
     | BinOpZ_rarg(T.s, T.binop, Z.s);
-
-  module TUtil = Tiles.Util(T);
 
   let root = ({prefix, z, suffix}: Z.s): option(root) =>
     z
