@@ -103,6 +103,6 @@ module ZTile = {
     | (_, _, ZBinOp(_)) => raise(Void_ZBinOp)
     };
 };
-include ZTiles.Util(HTyp.Tile, ZTile);
+include ZTiles.Make(HTyp.Tile, ZTile);
 
 type t = ZTile.s;

@@ -1,43 +1,10 @@
-module type ZTILE = {
-  type tile;
-
-  type s = ZList.t(option(t), tile)
-  and t = ZTile.t(zoperand, zpreop, zpostop, zbinop)
-  and zoperand
-  and zpreop
-  and zpostop
-  and zbinop;
-
-  let compare: (~compare_s: (s, s) => int, t, t) => int;
-
-  let erase: (~erase_s: s => list(tile), t) => tile;
-
-  let enter_from_left: tile => option(t);
-  let enter_from_right: tile => option(t);
-
-  let opt_map:
-    (
-      ~opt_map_s: ((list(tile), list(tile)) => option(s), s) => option(s),
-      (list(tile), list(tile)) => option(s),
-      t
-    ) =>
-    option(t);
-
-  let remove:
-    (~remove_s: (s, s) => option((list(tile), list(tile))), t, t) =>
-    option((list(tile), tile));
-
-  let restructure:
-    (~restructure_s: (s, s, s) => option(s), t, t, t) => option(t);
-};
-
 let wrap = ztile => ZList.{prefix: [], z: Some(ztile), suffix: []};
 
 let place_before = tiles => ZList.{prefix: [], z: None, suffix: tiles};
 let place_after = tiles => ZList.{prefix: tiles, z: None, suffix: []};
 
-module Util =
-       (T: Tiles.TILE, Z: ZTILE with type tile = T.t)
+module Make =
+       (T: Tile.S, Z: ZTile.S with type tile = T.t)
        : {
          let mk: (~prefix: T.s=?, ~z: Z.t=?, ~suffix: T.s=?, unit) => Z.s;
 
@@ -85,7 +52,7 @@ module Util =
   let mk = (~prefix: T.s=[], ~z: option(Z.t)=?, ~suffix: T.s=[], ()): Z.s =>
     ZList.{prefix, z, suffix};
 
-  module TUtil = Tiles.Util(T);
+  module TUtil = Tiles.Make(T);
 
   let mk_hole = () => {
     let hole = TUtil.mk_hole();

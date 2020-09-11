@@ -39,7 +39,7 @@ module Tile = {
     | PostOp(Ap(_, arg)) => [arg]
     | BinOp(OperatorHole | Plus(_)) => [];
 };
-include Tiles.Util(Tile);
+include Tiles.Make(Tile);
 
 type t = Tile.s;
 

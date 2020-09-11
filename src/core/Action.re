@@ -30,8 +30,8 @@ and edit =
 
 module Util =
        (
-         T: Tiles.TILE,
-         Z: ZTiles.ZTILE with type tile = T.t,
+         T: Tile.S,
+         Z: ZTile.S with type tile = T.t,
          S: TileShape.S with type tile = T.t,
        )
        : {
@@ -52,8 +52,8 @@ module Util =
          let perform: (t, edit_state) => option(edit_state);
          let perform_edit: (edit, Z.s) => option(Z.s);
        } => {
-  module TUtil = Tiles.Util(T);
-  module ZUtil = ZTiles.Util(T, Z);
+  module TUtil = Tiles.Make(T);
+  module ZUtil = ZTiles.Make(T, Z);
 
   type edit_state =
     | Normal({focus: Z.s})

@@ -151,7 +151,7 @@ module ZTile = {
       )
     };
 };
-include ZTiles.Util(HExp.Tile, ZTile);
+include ZTiles.Make(HExp.Tile, ZTile);
 
 type t = ZTile.s;
 

@@ -34,3 +34,23 @@ let map =
   | PreOp(preop) => f_preop(preop)
   | PostOp(postop) => f_postop(postop)
   | BinOp(binop) => f_binop(binop);
+
+module type S = {
+  type operand;
+  type preop;
+  type postop;
+  type binop;
+  type nonrec t = t(operand, preop, postop, binop);
+  type s = list(t);
+
+  let mk_operand_hole: unit => t;
+  let mk_operator_hole: unit => t;
+
+  let is_operand_hole: t => bool;
+  let is_operator_hole: t => bool;
+
+  let precedence: t => int;
+  let associativity: IntMap.t(Associativity.t);
+
+  let get_open_children: t => list(s);
+};

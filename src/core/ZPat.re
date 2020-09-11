@@ -122,7 +122,7 @@ module ZTile = {
       )
     };
 };
-include ZTiles.Util(HPat.Tile, ZTile);
+include ZTiles.Make(HPat.Tile, ZTile);
 
 type t = ZTile.s;
 
