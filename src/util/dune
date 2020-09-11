@@ -1,8 +1,7 @@
 (include_subdirs unqualified)
 
 (library
- (name core)
- (libraries sexplib util)
+ (name util)
  (wrapped false)
  (preprocess
   (pps ppx_let ppx_sexp_conv)))

@@ -20,3 +20,17 @@ let get_binop: t(_, _, _, 'binop) => 'binop =
   fun
   | BinOp(binop) => binop
   | _ => raise(Invalid_argument("Tile.get_binop"));
+
+let map =
+    (
+      f_operand: 'operand => 'a,
+      f_preop: 'preop => 'a,
+      f_postop: 'postop => 'a,
+      f_binop: 'binop => 'a,
+    )
+    : (t('operand, 'preop, 'postop, 'binop) => 'a) =>
+  fun
+  | Operand(operand) => f_operand(operand)
+  | PreOp(preop) => f_preop(preop)
+  | PostOp(postop) => f_postop(postop)
+  | BinOp(binop) => f_binop(binop);
