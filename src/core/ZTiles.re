@@ -31,7 +31,7 @@ module Make =
 
          let root: Z.s => option(root);
 
-         let map_root:
+         let update_root:
            (
              ~operand: T.operand => T.operand,
              ~preop: T.preop => T.preop,
@@ -137,7 +137,7 @@ module Make =
          };
        });
 
-  let map_root =
+  let update_root =
       (
         ~operand: T.operand => T.operand,
         ~preop: T.preop => T.preop,
@@ -156,7 +156,7 @@ module Make =
       let (prefix, suffix) =
         prefix
         @ suffix
-        |> TUtil.map_root(~operand, ~preop, ~postop, ~binop)
+        |> TUtil.update_root(~operand, ~preop, ~postop, ~binop)
         |> ListUtil.split_n(n);
       {prefix, z: None, suffix};
     | Some(root) =>

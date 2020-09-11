@@ -43,26 +43,26 @@ include Tiles.Make(Tile);
 
 type t = Tile.s;
 
-let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
-  map_root(
-    ~operand=set_hole_status_operand(status),
-    ~preop=set_hole_status_preop(status),
-    ~postop=set_hole_status_postop(status),
-    ~binop=set_hole_status_binop(status),
+let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
+  update_root(
+    ~operand=put_hole_status_operand(status),
+    ~preop=put_hole_status_preop(status),
+    ~postop=put_hole_status_postop(status),
+    ~binop=put_hole_status_binop(status),
   )
-and set_hole_status_operand = status =>
+and put_hole_status_operand = status =>
   fun
   | OperandHole => OperandHole
   | Num(_, n) => Num(status, n)
   | Var(_, x) => Var(status, x)
-  | Paren(body) => Paren(set_hole_status(status, body))
-and set_hole_status_preop = status =>
+  | Paren(body) => Paren(put_hole_status(status, body))
+and put_hole_status_preop = status =>
   fun
   | Lam(_, p) => Lam(status, p)
-and set_hole_status_postop = status =>
+and put_hole_status_postop = status =>
   fun
   | Ap(_, arg) => Ap(status, arg)
-and set_hole_status_binop = status =>
+and put_hole_status_binop = status =>
   fun
   | Plus(_) => Plus(status)
   | OperatorHole => OperatorHole;

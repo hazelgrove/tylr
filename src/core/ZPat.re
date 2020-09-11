@@ -136,26 +136,26 @@ let mk =
     : t =>
   ZList.{prefix, z, suffix};
 
-let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
-  map_root(
-    ~operand=HPat.set_hole_status_operand(status),
-    ~preop=HPat.set_hole_status_preop(status),
-    ~postop=HPat.set_hole_status_postop(status),
-    ~binop=HPat.set_hole_status_binop(status),
-    ~zoperand=set_hole_status_zoperand(status),
-    ~zpreop=set_hole_status_zpreop(status),
-    ~zpostop=set_hole_status_zpostop(status),
-    ~zbinop=set_hole_status_zbinop(status),
+let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
+  update_root(
+    ~operand=HPat.put_hole_status_operand(status),
+    ~preop=HPat.put_hole_status_preop(status),
+    ~postop=HPat.put_hole_status_postop(status),
+    ~binop=HPat.put_hole_status_binop(status),
+    ~zoperand=put_hole_status_zoperand(status),
+    ~zpreop=put_hole_status_zpreop(status),
+    ~zpostop=put_hole_status_zpostop(status),
+    ~zbinop=put_hole_status_zbinop(status),
   )
-and set_hole_status_zoperand = status =>
+and put_hole_status_zoperand = status =>
   fun
-  | ParenZ_body(zp) => ParenZ_body(set_hole_status(status, zp))
-and set_hole_status_zpreop = _ =>
+  | ParenZ_body(zp) => ParenZ_body(put_hole_status(status, zp))
+and put_hole_status_zpreop = _ =>
   fun
   | _ => raise(ZTile.Void_ZPreOp)
-and set_hole_status_zpostop = status =>
+and put_hole_status_zpostop = status =>
   fun
   | AnnZ_ann(_, ann) => AnnZ_ann(status, ann)
-and set_hole_status_zbinop = _ =>
+and put_hole_status_zbinop = _ =>
   fun
   | _ => raise(ZTile.Void_ZBinOp);

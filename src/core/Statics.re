@@ -21,7 +21,7 @@ module Pat = {
           let ty = HTyp.contract(ann);
           ana(ctx, subj, ty) |> Option.map(ctx => (ty, ctx));
         | InHole =>
-          syn(ctx, HPat.set_hole_status(NotInHole, p))
+          syn(ctx, HPat.put_hole_status(NotInHole, p))
           |> Option.map(((_, ctx)) => (Type.Hole, ctx))
         };
       }
@@ -91,7 +91,7 @@ module Pat = {
   and ana_fix_holes = (ctx: Ctx.t, p: HPat.t, ty: Type.t): (HPat.t, Ctx.t) => {
     let subsume = () => {
       let (p, ty', ctx) = syn_fix_holes(ctx, p);
-      let p = Type.consistent(ty, ty') ? p : HPat.set_hole_status(InHole, p);
+      let p = Type.consistent(ty, ty') ? p : HPat.put_hole_status(InHole, p);
       (p, ctx);
     };
     switch (HPat.root(p)) {
@@ -179,7 +179,7 @@ module Pat = {
     let subsume = () => {
       let (zp, ty', ctx) = syn_fix_holes_z(ctx, zp);
       let zp =
-        Type.consistent(ty, ty') ? zp : ZPat.set_hole_status(InHole, zp);
+        Type.consistent(ty, ty') ? zp : ZPat.put_hole_status(InHole, zp);
       (zp, ctx);
     };
     switch (ZPat.root(zp)) {
@@ -212,7 +212,7 @@ module Pat = {
 module Exp = {
   let rec syn = (ctx: Ctx.t, e: HExp.t): option(Type.t) => {
     let in_hole = () =>
-      syn(ctx, HExp.set_hole_status(NotInHole, e))
+      syn(ctx, HExp.put_hole_status(NotInHole, e))
       |> Option.map(_ => Type.Hole);
     switch (HExp.root(e)) {
     | Operand(operand) =>
@@ -267,7 +267,7 @@ module Exp = {
       | Paren(body) => ana(ctx, body, ty)
       }
     | PreOp(Lam(InHole, _), _) =>
-      Option.is_some(syn(ctx, HExp.set_hole_status(NotInHole, e)))
+      Option.is_some(syn(ctx, HExp.put_hole_status(NotInHole, e)))
     | PreOp(Lam(NotInHole, p), body) =>
       switch (Type.matched_arrow(ty)) {
       | None => false
@@ -316,7 +316,7 @@ module Exp = {
         let (fn, fn_ty) = syn_fix_holes(ctx, e);
         switch (Type.matched_arrow(fn_ty)) {
         | None =>
-          let fn = HExp.set_hole_status(InHole, fn);
+          let fn = HExp.put_hole_status(InHole, fn);
           let arg = ana_fix_holes(ctx, arg, Type.Hole);
           (fn @ [Tile.PostOp(HExp.Tile.Ap(NotInHole, arg))], Type.Hole);
         | Some((ty1, ty2)) =>
@@ -339,7 +339,7 @@ module Exp = {
   and ana_fix_holes = (ctx: Ctx.t, e: HExp.t, ty: Type.t): HExp.t => {
     let subsume = () => {
       let (e, ty') = syn_fix_holes(ctx, e);
-      Type.consistent(ty, ty') ? e : HExp.set_hole_status(InHole, e);
+      Type.consistent(ty, ty') ? e : HExp.put_hole_status(InHole, e);
     };
     switch (HExp.root(e)) {
     | Operand(operand) =>
@@ -479,7 +479,7 @@ module Exp = {
   and ana_fix_holes_z = (ctx: Ctx.t, ze: ZExp.t, ty: Type.t): ZExp.t => {
     let subsume = () => {
       let (ze, ty') = syn_fix_holes_z(ctx, ze);
-      Type.consistent(ty, ty') ? ze : ZExp.set_hole_status(InHole, ze);
+      Type.consistent(ty, ty') ? ze : ZExp.put_hole_status(InHole, ze);
     };
     switch (ZExp.root(ze)) {
     | None =>
@@ -499,7 +499,7 @@ module Exp = {
         switch (Type.matched_arrow(ty)) {
         | None =>
           let (ze, _) = syn_fix_holes_z(ctx, ze);
-          ZExp.set_hole_status(InHole, ze);
+          ZExp.put_hole_status(InHole, ze);
         | Some((ty_in, ty_out)) =>
           let (zp, ctx) = Pat.ana_fix_holes_z(ctx, zp, ty_in);
           let body = ana_fix_holes(ctx, body, ty_out);

@@ -155,26 +155,26 @@ include ZTiles.Make(HExp.Tile, ZTile);
 
 type t = ZTile.s;
 
-let rec set_hole_status = (status: HoleStatus.t): (t => t) =>
-  map_root(
-    ~operand=HExp.set_hole_status_operand(status),
-    ~preop=HExp.set_hole_status_preop(status),
-    ~postop=HExp.set_hole_status_postop(status),
-    ~binop=HExp.set_hole_status_binop(status),
-    ~zoperand=set_hole_status_zoperand(status),
-    ~zpreop=set_hole_status_zpreop(status),
-    ~zpostop=set_hole_status_zpostop(status),
-    ~zbinop=set_hole_status_zbinop(status),
+let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
+  update_root(
+    ~operand=HExp.put_hole_status_operand(status),
+    ~preop=HExp.put_hole_status_preop(status),
+    ~postop=HExp.put_hole_status_postop(status),
+    ~binop=HExp.put_hole_status_binop(status),
+    ~zoperand=put_hole_status_zoperand(status),
+    ~zpreop=put_hole_status_zpreop(status),
+    ~zpostop=put_hole_status_zpostop(status),
+    ~zbinop=put_hole_status_zbinop(status),
   )
-and set_hole_status_zoperand = status =>
+and put_hole_status_zoperand = status =>
   fun
-  | ParenZ_body(ze) => ParenZ_body(set_hole_status(status, ze))
-and set_hole_status_zpreop = status =>
+  | ParenZ_body(ze) => ParenZ_body(put_hole_status(status, ze))
+and put_hole_status_zpreop = status =>
   fun
   | LamZ_pat(_, zp) => LamZ_pat(status, zp)
-and set_hole_status_zpostop = status =>
+and put_hole_status_zpostop = status =>
   fun
   | ApZ_arg(_, arg) => ApZ_arg(status, arg)
-and set_hole_status_zbinop = _ =>
+and put_hole_status_zbinop = _ =>
   fun
   | _ => raise(ZTile.Void_ZBinOp);

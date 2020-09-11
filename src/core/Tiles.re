@@ -13,7 +13,7 @@ module Make =
 
          let root: T.s => root;
 
-         let map_root:
+         let update_root:
            (
              ~operand: T.operand => T.operand,
              ~preop: T.preop => T.preop,
@@ -168,7 +168,7 @@ module Make =
       BinOp(prefix, Tile.get_binop(nth), suffix);
     };
 
-  let map_root =
+  let update_root =
       (
         ~operand: T.operand => T.operand,
         ~preop: T.preop => T.preop,
