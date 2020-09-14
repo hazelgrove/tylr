@@ -1,0 +1,18 @@
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: normal;
+  src: url('fonts/FiraCode-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: bold;
+  src: url('fonts/FiraCode-SemiBold.woff2') format('woff2');
+}
+
+.page {
+  font-family: "Fira Code", monospace;
+  font-size: 14pt;
+}
