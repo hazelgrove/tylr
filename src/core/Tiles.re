@@ -13,6 +13,16 @@ module Make =
 
          let root: T.s => root;
 
+         let get_root:
+           (
+             ~operand: T.operand => 'a,
+             ~preop: T.preop => 'a,
+             ~postop: T.postop => 'a,
+             ~binop: T.binop => 'a,
+             T.s
+           ) =>
+           'a;
+
          let update_root:
            (
              ~operand: T.operand => T.operand,
@@ -166,6 +176,22 @@ module Make =
     | BinOp(_, n, _) =>
       let (prefix, nth, suffix) = ListUtil.split_nth(n, tiles);
       BinOp(prefix, Tile.get_binop(nth), suffix);
+    };
+
+  let get_root =
+      (
+        ~operand: T.operand => 'a,
+        ~preop: T.preop => 'a,
+        ~postop: T.postop => 'a,
+        ~binop: T.binop => 'a,
+        tiles: T.s,
+      )
+      : 'a =>
+    switch (root(tiles)) {
+    | Operand(t) => operand(t)
+    | PreOp(t, _) => preop(t)
+    | PostOp(_, t) => postop(t)
+    | BinOp(_, t, _) => binop(t)
     };
 
   let update_root =

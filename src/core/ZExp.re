@@ -155,6 +155,7 @@ include ZTiles.Make(HExp.Tile, ZTile);
 
 type t = ZTile.s;
 
+// recurses into parentheses
 let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
   update_root(
     ~operand=HExp.put_hole_status_operand(status),

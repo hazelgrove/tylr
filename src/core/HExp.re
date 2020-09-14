@@ -43,6 +43,28 @@ include Tiles.Make(Tile);
 
 type t = Tile.s;
 
+// does not recurse into parentheses
+let get_hole_status =
+  get_root(
+    ~operand=
+      fun
+      | OperandHole
+      | Paren(_) => HoleStatus.NotInHole
+      | Num(status, _)
+      | Var(status, _) => status,
+    ~preop=
+      fun
+      | Lam(status, _) => status,
+    ~postop=
+      fun
+      | Ap(status, _) => status,
+    ~binop=
+      fun
+      | OperatorHole => HoleStatus.NotInHole
+      | Plus(status) => status,
+  );
+
+// recurses into parentheses
 let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
   update_root(
     ~operand=put_hole_status_operand(status),
