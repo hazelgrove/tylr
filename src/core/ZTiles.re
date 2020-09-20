@@ -105,11 +105,11 @@ module Make =
          let tiles = erase({prefix, z: Some(z), suffix});
          let z_index = List.length(prefix);
          switch (TUtil.root(tiles)) {
-         | Operand(_) => OperandZ(ZTile.get_zoperand(z))
+         | Operand(_) => OperandZ(Tile.get_operand(z))
          | PreOp(preop, tiles) =>
            let op_index = 0;
            z_index == op_index
-             ? PreOpZ_op(ZTile.get_zpreop(z), tiles)
+             ? PreOpZ_op(Tile.get_preop(z), tiles)
              : PreOpZ_arg(
                  preop,
                  {prefix: List.tl(prefix), z: Some(z), suffix},
@@ -117,7 +117,7 @@ module Make =
          | PostOp(tiles, postop) =>
            let op_index = List.length(tiles);
            z_index == op_index
-             ? PostOpZ_op(tiles, ZTile.get_zpostop(z))
+             ? PostOpZ_op(tiles, Tile.get_postop(z))
              : PostOpZ_arg(
                  {prefix, z: Some(z), suffix: ListUtil.leading(suffix)},
                  postop,
@@ -132,7 +132,7 @@ module Make =
                ListUtil.split_nth(z_index - (op_index + 1), tiles_r);
              BinOpZ_rarg(tiles_l, binop, {prefix, z: Some(z), suffix});
            } else {
-             BinOpZ_op(tiles_l, ZTile.get_zbinop(z), tiles_r);
+             BinOpZ_op(tiles_l, Tile.get_binop(z), tiles_r);
            };
          };
        });
@@ -163,12 +163,12 @@ module Make =
       switch (root) {
       | OperandZ(z) => {
           prefix: [],
-          z: Some(ZOperand(zoperand(z))),
+          z: Some(Operand(zoperand(z))),
           suffix: [],
         }
       | PreOpZ_op(z, ts) => {
           prefix: [],
-          z: Some(ZPreOp(zpreop(z))),
+          z: Some(PreOp(zpreop(z))),
           suffix: ts,
         }
       | PreOpZ_arg(t, {prefix, z, suffix}) => {
@@ -178,7 +178,7 @@ module Make =
         }
       | PostOpZ_op(ts, z) => {
           prefix: ts,
-          z: Some(ZPostOp(zpostop(z))),
+          z: Some(PostOp(zpostop(z))),
           suffix: [],
         }
       | PostOpZ_arg({prefix, z, suffix}, t) => {
@@ -188,7 +188,7 @@ module Make =
         }
       | BinOpZ_op(tsl, z, tsr) => {
           prefix: tsl,
-          z: Some(ZBinOp(zbinop(z))),
+          z: Some(BinOp(zbinop(z))),
           suffix: tsr,
         }
       | BinOpZ_larg({prefix, z, suffix}, t, ts) => {
