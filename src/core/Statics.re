@@ -596,10 +596,9 @@ module ZExp = {
   let rec type_info =
           (ztile: ZExp'.ztile, info: TypeInfo.t): option(TypeInfo.t) => {
     open OptUtil.Syntax;
-    let (ztile, tl) = ZExp'.split_hd(ztile);
-    let e = ZExp'.zip_ztile(HExp.mk_hole(), ztile);
+    let Exp(e, rest) = ZExp'.zip_ztile(HExp.mk_hole(), ztile);
     let* info =
-      switch (tl) {
+      switch (rest) {
       | None => Some(info)
       | Some(ztile) => type_info(ztile, info)
       };

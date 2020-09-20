@@ -30,25 +30,27 @@ let split_hd: ztile => (ztile, option(ztile)) =
     )
   | BinOp(_) => raise(Void_ZBinOp);
 
-type zipped = HExp.t;
+type zipped =
+  | Exp(HExp.t, option(ztile));
 
-let rec zip = (~subject: option(HExp.Tile.t)=?, ze: t): zipped => {
+let zip = (~subject: option(HExp.Tile.t)=?, ze: t): (HExp.t, option(ztile)) => {
   let subject =
     switch (subject) {
     | None => ze.prefix @ ze.suffix
     | Some(tile) => ze.prefix @ [tile, ...ze.suffix]
     };
-  switch (ze.z) {
-  | None => subject
-  | Some(ztile) => zip_ztile(subject, ztile)
-  };
-}
-and zip_ztile = (subject: HExp.t, ztile: ztile): zipped =>
+  (subject, ze.z);
+};
+let zip_ztile = (subject: HExp.t, ztile: ztile): zipped =>
   switch (ztile) {
   | Operand(ParenZ_body(ze)) =>
-    zip(~subject=Tile.Operand(HExp.Tile.Paren(subject)), ze)
+    let (e, rest) =
+      zip(~subject=Tile.Operand(HExp.Tile.Paren(subject)), ze);
+    Exp(e, rest);
   | PreOp(_) => raise(Void_ZPreOp)
   | PostOp(ApZ_arg(status, ze)) =>
-    zip(~subject=Tile.PostOp(HExp.Tile.Ap(status, subject)), ze)
+    let (e, rest) =
+      zip(~subject=Tile.PostOp(HExp.Tile.Ap(status, subject)), ze);
+    Exp(e, rest);
   | BinOp(_) => raise(Void_ZBinOp)
   };

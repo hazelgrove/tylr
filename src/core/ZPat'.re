@@ -11,8 +11,8 @@ exception Void_ZPostOp;
 exception Void_ZBinOp;
 
 type zipped =
-  | Exp(HExp.t)
-  | Pat(HPat.t);
+  | Exp(HExp.t, option(ZExp'.ztile))
+  | Pat(HPat.t, option(ztile));
 
 let index: ztile => int =
   fun
@@ -21,23 +21,24 @@ let index: ztile => int =
   | PostOp(_) => raise(Void_ZPostOp)
   | BinOp(_) => raise(Void_ZBinOp);
 
-let rec zip = (~subject: option(HPat.Tile.t)=?, zp: t): zipped => {
+let zip = (~subject: option(HPat.Tile.t)=?, zp: t): (HPat.t, option(ztile)) => {
   let subject =
     switch (subject) {
     | None => zp.prefix @ zp.suffix
     | Some(tile) => zp.prefix @ [tile, ...zp.suffix]
     };
-  switch (zp.z) {
-  | None => Pat(subject)
-  | Some(ztile) => zip_ztile(subject, ztile)
-  };
-}
-and zip_ztile = (subject: HPat.t, ztile: ztile): zipped =>
+  (subject, zp.z);
+};
+let zip_ztile = (subject: HPat.t, ztile: ztile): zipped =>
   switch (ztile) {
   | Operand(ParenZ_body(zp)) =>
-    zip(~subject=Tile.Operand(HPat.Tile.Paren(subject)), zp)
+    let (p, rest) =
+      zip(~subject=Tile.Operand(HPat.Tile.Paren(subject)), zp);
+    Pat(p, rest);
   | PreOp(LamZ_pat(status, ze)) =>
-    Exp(ZExp'.zip(~subject=Tile.PreOp(HExp.Tile.Lam(status, subject)), ze))
+    let (e, rest) =
+      ZExp'.zip(~subject=Tile.PreOp(HExp.Tile.Lam(status, subject)), ze);
+    Exp(e, rest);
   | PostOp(_) => raise(Void_ZPostOp)
   | BinOp(_) => raise(Void_ZBinOp)
   };
