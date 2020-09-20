@@ -1,7 +1,3 @@
-type type_mode =
-  | Syn
-  | Ana(Type.t);
-
 module Pat = {
   let rec syn = (ctx: Ctx.t, p: HPat.t): option((Type.t, Ctx.t)) => {
     OptUtil.Syntax.(
@@ -285,6 +281,63 @@ module Exp = {
     };
   };
 
+  let rec nth_type_info =
+          (n: int, e: HExp.t, info: TypeInfo.t)
+          : option((HExp.t, TypeInfo.t)) => {
+    OptUtil.Syntax.(
+      switch (HExp.root(e)) {
+      | Operand(_) =>
+        n == 0
+          ? Some((e, info))
+          : raise(Invalid_argument("Statics.Exp.nth_typ_info"))
+      | PreOp(preop, e) =>
+        n == 0
+          ? Some((e, info))
+          : (
+            switch (info.mode, preop) {
+            | (Syn, Lam(_, p))
+            | (Ana(_), Lam(InHole, p)) =>
+              let* (_, ctx) = Pat.syn(info.ctx, p);
+              let body_info = TypeInfo.{ctx, mode: Syn};
+              nth_type_info(n - 1, e, body_info);
+            | (Ana(ty), Lam(NotInHole, p)) =>
+              let* (ty_in, ty_out) = Type.matched_arrow(ty);
+              let* ctx = Pat.ana(info.ctx, p, ty_in);
+              let body_info = TypeInfo.{ctx, mode: Ana(ty_out)};
+              nth_type_info(n - 1, e, body_info);
+            }
+          )
+      | PostOp(e, postop) =>
+        n == List.length(e)
+          ? Some((e, info))
+          : (
+            switch (postop) {
+            | Ap(_) =>
+              let fn_info = {...info, mode: Syn};
+              nth_type_info(n, e, fn_info);
+            }
+          )
+      | BinOp(l, binop, r) =>
+        let m = List.length(l);
+        if (n < m) {
+          switch (binop) {
+          | Plus(_) => nth_type_info(n, l, {...info, mode: Ana(Num)})
+          | OperatorHole => nth_type_info(n, r, {...info, mode: Syn})
+          };
+        } else if (n > m) {
+          switch (binop) {
+          | Plus(_) =>
+            nth_type_info(n - (m + 1), r, {...info, mode: Ana(Num)})
+          | OperatorHole =>
+            nth_type_info(n - (m + 1), r, {...info, mode: Syn})
+          };
+        } else {
+          Some((e, info));
+        };
+      }
+    );
+  };
+
   let rec syn_fix_holes = (ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) =>
     switch (HExp.root(e)) {
     | Operand(operand) =>
@@ -535,6 +588,40 @@ module Exp = {
       | BinOpZ_larg(_, Plus(_) | OperatorHole, _)
       | BinOpZ_rarg(_, Plus(_) | OperatorHole, _) => subsume()
       }
+    };
+  };
+};
+
+module ZExp = {
+  let rec type_info =
+          (ztile: ZExp'.ztile, info: TypeInfo.t): option(TypeInfo.t) => {
+    open OptUtil.Syntax;
+    let (ztile, tl) = ZExp'.split_hd(ztile);
+    let e = ZExp'.zip_ztile(HExp.mk_hole(), ztile);
+    let* info =
+      switch (tl) {
+      | None => Some(info)
+      | Some(ztile) => type_info(ztile, info)
+      };
+    let* (e, info) = Exp.nth_type_info(ZExp'.index(ztile), e, info);
+    switch (HExp.root(e)) {
+    | Operand(_) =>
+      switch (Tile.get_operand(ztile)) {
+      | ParenZ_body(_) => Some(info)
+      }
+    | PreOp(_) => raise(ZExp'.Void_ZPreOp)
+    | PostOp(e, _) =>
+      switch (Tile.get_postop(ztile)) {
+      | ApZ_arg(status, _) =>
+        let* fn_ty = Exp.syn(info.ctx, e);
+        switch (status) {
+        | InHole => Some({...info, mode: Syn})
+        | NotInHole =>
+          let+ (ty_in, _) = Type.matched_arrow(fn_ty);
+          {...info, mode: Ana(ty_in)};
+        };
+      }
+    | BinOp(_) => raise(ZExp'.Void_ZBinOp)
     };
   };
 };
