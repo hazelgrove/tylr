@@ -131,7 +131,7 @@ module Pat = {
       switch (root) {
       | OperandZ(ParenZ_body(zbody)) =>
         let (zbody, ty, ctx) = syn_fix_holes_z(ctx, zbody);
-        let zp = ZPat.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        let zp = ZPat.mk(~z=Operand(ParenZ_body(zbody)), ());
         (zp, ty, ctx);
       | PreOpZ_op(_)
       | PreOpZ_arg(_) => raise(HPat.Tile.Void_PreOp)
@@ -139,7 +139,7 @@ module Pat = {
         let ty = HTyp.contract(ZTyp.erase(zann));
         let (subj, ctx) = ana_fix_holes(ctx, subj, ty);
         let zp =
-          ZPat.mk(~prefix=subj, ~z=ZPostOp(AnnZ_ann(NotInHole, zann)), ());
+          ZPat.mk(~prefix=subj, ~z=PostOp(AnnZ_ann(NotInHole, zann)), ());
         (zp, ty, ctx);
       | PostOpZ_arg(zsubj, Ann(_, ann)) =>
         let ty = HTyp.contract(ann);
@@ -197,7 +197,7 @@ module Pat = {
       switch (root) {
       | OperandZ(ParenZ_body(zbody)) =>
         let (zbody, ctx) = ana_fix_holes_z(ctx, zbody, ty);
-        let zp = ZPat.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        let zp = ZPat.mk(~z=Operand(ParenZ_body(zbody)), ());
         (zp, ctx);
       | PreOpZ_op(_)
       | PreOpZ_arg(_) => raise(HPat.Tile.Void_PreOp)
@@ -394,13 +394,13 @@ module Exp = {
       switch (root) {
       | OperandZ(ParenZ_body(zbody)) =>
         let (zbody, ty) = syn_fix_holes_z(ctx, zbody);
-        let ze = ZExp.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        let ze = ZExp.mk(~z=Operand(ParenZ_body(zbody)), ());
         (ze, ty);
       | PreOpZ_op(LamZ_pat(_, zp), body) =>
         let (zp, ty1, ctx) = Pat.syn_fix_holes_z(ctx, zp);
         let (body, ty2) = syn_fix_holes(ctx, body);
         let ze =
-          ZExp.mk(~z=ZPreOp(LamZ_pat(NotInHole, zp)), ~suffix=body, ());
+          ZExp.mk(~z=PreOp(LamZ_pat(NotInHole, zp)), ~suffix=body, ());
         (ze, Type.Arrow(ty1, ty2));
       | PreOpZ_arg(Lam(_, p), zbody) =>
         let (_, ctx) = Option.get(Pat.syn(ctx, p));
@@ -420,7 +420,7 @@ module Exp = {
         };
         let zarg = ana_fix_holes_z(ctx, zarg, ty_in);
         let ze =
-          ZExp.mk(~prefix=fn, ~z=ZPostOp(ApZ_arg(NotInHole, zarg)), ());
+          ZExp.mk(~prefix=fn, ~z=PostOp(ApZ_arg(NotInHole, zarg)), ());
         (ze, ty_out);
       | PostOpZ_arg(zfn, Ap(_, arg)) =>
         let (zfn, (ty_in, ty_out)) = {
@@ -497,7 +497,7 @@ module Exp = {
       switch (root) {
       | OperandZ(ParenZ_body(zbody)) =>
         let zbody = ana_fix_holes_z(ctx, zbody, ty);
-        ZExp.mk(~z=ZOperand(ParenZ_body(zbody)), ());
+        ZExp.mk(~z=Operand(ParenZ_body(zbody)), ());
       | PreOpZ_op(LamZ_pat(_, zp), body) =>
         switch (Type.matched_arrow(ty)) {
         | None =>
@@ -506,7 +506,7 @@ module Exp = {
         | Some((ty_in, ty_out)) =>
           let (zp, ctx) = Pat.ana_fix_holes_z(ctx, zp, ty_in);
           let body = ana_fix_holes(ctx, body, ty_out);
-          ZExp.mk(~z=ZPreOp(LamZ_pat(NotInHole, zp)), ~suffix=body, ());
+          ZExp.mk(~z=PreOp(LamZ_pat(NotInHole, zp)), ~suffix=body, ());
         }
       | PreOpZ_arg(Lam(_, p), zbody) =>
         switch (Type.matched_arrow(ty)) {
