@@ -58,6 +58,46 @@ module Pat = {
     };
   };
 
+  let rec nth_type_info =
+          (n: int, p: HPat.t, info: TypeInfo.t)
+          : option((HPat.t, TypeInfo.t)) => {
+    OptUtil.Syntax.(
+      switch (HPat.root(p)) {
+      | Operand(_) =>
+        n == 0
+          ? Some((p, info))
+          : raise(Invalid_argument("Statics_H.Pat.nth_typ_info"))
+      | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+      | PostOp(p, postop) =>
+        n == List.length(p)
+          ? Some((p, info))
+          : (
+            switch (postop) {
+            | Ann(_, ty) =>
+              let subj_info = {...info, mode: Ana(HTyp.contract(ty))};
+              nth_type_info(n, p, subj_info);
+            }
+          )
+      | BinOp(l, binop, r) =>
+        let m = List.length(l);
+        if (n < m) {
+          switch (binop) {
+          | OperatorHole => nth_type_info(n, r, {...info, mode: Syn})
+          };
+        } else if (n > m) {
+          let* (_, ctx) = syn(info.ctx, p);
+          let info_r = {...info, ctx};
+          switch (binop) {
+          | OperatorHole =>
+            nth_type_info(n - (m + 1), r, {...info_r, mode: Syn})
+          };
+        } else {
+          Some((p, info));
+        };
+      }
+    );
+  };
+
   let rec syn_fix_holes = (ctx: Ctx.t, p: HPat.t): (HPat.t, Type.t, Ctx.t) =>
     switch (HPat.root(p)) {
     | Operand(operand) =>
@@ -588,39 +628,6 @@ module Exp = {
       | BinOpZ_larg(_, Plus(_) | OperatorHole, _)
       | BinOpZ_rarg(_, Plus(_) | OperatorHole, _) => subsume()
       }
-    };
-  };
-};
-
-module ZExp = {
-  let rec type_info =
-          (ztile: ZExp'.ztile, info: TypeInfo.t): option(TypeInfo.t) => {
-    open OptUtil.Syntax;
-    let Exp(e, rest) = ZExp'.zip_ztile(HExp.mk_hole(), ztile);
-    let* info =
-      switch (rest) {
-      | None => Some(info)
-      | Some(ztile) => type_info(ztile, info)
-      };
-    let* (e, info) = Exp.nth_type_info(ZExp'.index(ztile), e, info);
-    switch (HExp.root(e)) {
-    | Operand(_) =>
-      switch (Tile.get_operand(ztile)) {
-      | ParenZ_body(_) => Some(info)
-      }
-    | PreOp(_) => raise(ZExp'.Void_ZPreOp)
-    | PostOp(e, _) =>
-      switch (Tile.get_postop(ztile)) {
-      | ApZ_arg(status, _) =>
-        let* fn_ty = Exp.syn(info.ctx, e);
-        switch (status) {
-        | InHole => Some({...info, mode: Syn})
-        | NotInHole =>
-          let+ (ty_in, _) = Type.matched_arrow(fn_ty);
-          {...info, mode: Ana(ty_in)};
-        };
-      }
-    | BinOp(_) => raise(ZExp'.Void_ZBinOp)
     };
   };
 };
