@@ -1,3 +1,9 @@
+let get = (if_none, o) =>
+  switch (o) {
+  | None => if_none()
+  | Some(a) => a
+  };
+
 let map2 = (f, o1, o2) =>
   switch (o1, o2) {
   | (None, _)

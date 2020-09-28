@@ -4,6 +4,13 @@ type t =
   | PostOp(t, int)
   | BinOp(t, int, t);
 
+let rec size =
+  fun
+  | Operand(_) => 1
+  | PreOp(_, r) => 1 + size(r)
+  | PostOp(l, _) => size(l) + 1
+  | BinOp(l, _, r) => size(l) + 1 + size(r);
+
 let root_index =
   fun
   | Operand(n)

@@ -53,7 +53,7 @@ let rec contract = (ty: t): Type.t =>
     }
   | PreOp(_) => raise(Tile.Void_PreOp)
   | PostOp(_) => raise(Tile.Void_PostOp)
-  | BinOp(ty1, binop, ty2) =>
+  | BinOp((ty1, binop, ty2)) =>
     switch (binop) {
     | OperatorHole => Hole
     | Arrow => Arrow(contract(ty1), contract(ty2))

@@ -55,14 +55,21 @@ let split_sublist =
   | Some(r) => r
   };
 
-let rec split_nth = (n, xs) =>
+let rec split_nth_opt = (n, xs) =>
   switch (n, xs) {
-  | (_, []) =>
-    raise(Invalid_argument("ListUtil.split_nth: index out of bounds"))
-  | (0, [x, ...suffix]) => ([], x, suffix)
+  | _ when n < 0 => None
+  | (_, []) => None
+  | (0, [x, ...suffix]) => Some(([], x, suffix))
   | (_, [x, ...xs]) =>
-    let (prefix, subject, suffix) = split_nth(n - 1, xs);
-    ([x, ...prefix], subject, suffix);
+    split_nth_opt(n - 1, xs)
+    |> Option.map(((prefix, subject, suffix)) =>
+         ([x, ...prefix], subject, suffix)
+       )
+  };
+let split_nth = (n, xs) =>
+  switch (split_nth_opt(n, xs)) {
+  | None => raise(Invalid_argument("ListUtil.split_nth"))
+  | Some(r) => r
   };
 
 let rec put_nth = (n: int, x: 'x, xs: list('x)): list('x) =>

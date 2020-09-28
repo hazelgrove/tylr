@@ -4,6 +4,8 @@ type t('z, 'a) = {
   suffix: list('a),
 };
 
+let mk = (~prefix=[], ~z, ~suffix=[], ()) => {prefix, z, suffix};
+
 let get_z = ({z, _}) => z;
 let put_z = (z, {prefix, suffix, _}) => {prefix, z, suffix};
 
