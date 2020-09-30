@@ -3,7 +3,7 @@
  */
 type t = ZList.t(option(ztile), HPat.Tile.t)
 /**
- * Bottom-up one-hole context filled by either `HExp.t` or `t`
+ * Bottom-up bidelimited one-hole context filled by either `HExp.t` or `t`
  */
 and ztile = Tile.t(zoperand, zpreop, zpostop, zbinop)
 and zoperand =
@@ -15,6 +15,8 @@ and zbinop = unit; // empty
 
 exception Void_ZPostOp;
 exception Void_ZBinOp;
+
+type zipper = (HPat.t, option(ztile));
 
 let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
   ZList.mk(~prefix, ~z, ~suffix, ());

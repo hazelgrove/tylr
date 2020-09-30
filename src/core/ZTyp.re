@@ -1,9 +1,9 @@
 /**
- * Bottom-up one-hole context, hole-shape `HTyp.Tile.t`
+ * Bottom-up one-hole context filled by either `HTyp.t` or `ztile`
  */
 type t = ZList.t(option(ztile), HTyp.Tile.t)
 /**
- * Bottom-up one-hole context, hole shape `HTyp.t`
+ * Bottom-up bidelimited one-hole context filled by either `HTyp.t` or `t`
  */
 and ztile = Tile.t(zoperand, zpreop, zpostop, zbinop)
 and zoperand =
@@ -15,6 +15,8 @@ and zbinop = unit; // empty
 
 exception Void_ZPreOp;
 exception Void_ZBinOp;
+
+type zipper = (HTyp.t, option(ztile));
 
 let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
   ZList.mk(~prefix, ~z, ~suffix, ());
