@@ -172,7 +172,7 @@ module Exp = {
   and mk_ztile = (ztile: ZExp.ztile): option(t(ZExp.ztile)) => {
     open OptUtil.Syntax;
     let (zroot, ze) = {
-      let ((tile_step, _), Zipped_exp((e, zrest))) =
+      let ((tile_step, _), `Exp(e, zrest)) =
         ZPath.Exp.zip_ztile(HExp.dummy_hole, ztile);
       let ZList.{prefix, z, suffix} = HExp.nth_root(tile_step, e);
       (z, ZExp.mk(~prefix, ~z=?zrest, ~suffix, ()));
@@ -333,7 +333,7 @@ module Pat = {
     let ((tile_step, _), zipped) =
       ZPath.Pat.zip_ztile(HPat.dummy_hole, ztile);
     switch (zipped) {
-    | Zipped_exp((e, zrest)) =>
+    | `Exp(e, zrest) =>
       let (zroot, ze) = {
         let ZList.{prefix, z, suffix} = HExp.nth_root(tile_step, e);
         (z, ZExp.mk(~prefix, ~z=?zrest, ~suffix, ()));
@@ -396,7 +396,7 @@ module Pat = {
       | PostOp(_) => raise(ZPat.Void_ZPostOp)
       | BinOp(_) => raise(ZPat.Void_ZBinOp)
       };
-    | Zipped_pat((p, zrest)) =>
+    | `Pat(p, zrest) =>
       let (zroot, zp) = {
         let ZList.{prefix, z, suffix} = HPat.nth_root(tile_step, p);
         (z, ZPat.mk(~prefix, ~z=?zrest, ~suffix, ()));
