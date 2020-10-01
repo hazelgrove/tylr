@@ -27,7 +27,9 @@ module rec Typ: {
    * the focused term), then it attempts to zip `zipper` and try once
    * more.
    */
-  let move: (Direction.t, ZTyp.zipper, t) => option((t, zipped));
+  let move:
+    (Direction.t, ZTyp.zipper, t) =>
+    option((t, option((two_step, zipped))));
 } = {
   type zipped =
     | Zipped_typ(ZTyp.zipper)
@@ -75,7 +77,7 @@ module rec Typ: {
             (ty, zrest) as zipper: ZTyp.zipper,
             (steps, k): t,
           )
-          : option((t, zipped)) => {
+          : option((t, option((two_step, zipped)))) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
@@ -94,17 +96,17 @@ module rec Typ: {
           | PreOp(_) => raise(HTyp.Tile.Void_PreOp)
           | PostOp(_) => raise(HTyp.Tile.Void_PostOp)
           };
-        Some((path, Zipped_typ(zipper)));
+        Some((path, None));
       | (_, Some(ztile)) =>
-        let ((tile_step, _), zipped) = zip_ztile(ty, ztile);
+        let ((tile_step, _) as two_step, zipped) = zip_ztile(ty, ztile);
         let path = ([], if_left(tile_step, tile_step + 1));
-        Some((path, zipped));
+        Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
       open OptUtil.Syntax;
       let Unzipped_typ(unzipped) = unzip(two_step, zipper);
       let+ (path, _) = move(d, unzipped, (steps, k));
-      (cons(two_step, path), Zipped_typ(zipper));
+      (cons(two_step, path), None);
     };
   };
 }
@@ -123,7 +125,9 @@ and Pat: {
   let unzip_tile: (child_step, HPat.Tile.t, ZPat.t) => unzipped;
   let unzip: (two_step, ZPat.zipper) => unzipped;
 
-  let move: (Direction.t, ZPat.zipper, t) => option((t, zipped));
+  let move:
+    (Direction.t, ZPat.zipper, t) =>
+    option((t, option((two_step, zipped))));
 } = {
   type zipped =
     | Zipped_pat(ZPat.zipper)
@@ -170,7 +174,7 @@ and Pat: {
 
   let rec move =
           (d: Direction.t, (p, zrest) as zipper: ZPat.zipper, (steps, k): t)
-          : option((t, zipped)) => {
+          : option((t, option((two_step, zipped)))) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
@@ -192,11 +196,11 @@ and Pat: {
             )
           | PreOp(_) => raise(HPat.Tile.Void_PreOp)
           };
-        Some((path, Zipped_pat(zipper)));
+        Some((path, None));
       | (_, Some(ztile)) =>
-        let ((tile_step, _), zipped) = zip_ztile(p, ztile);
+        let ((tile_step, _) as two_step, zipped) = zip_ztile(p, ztile);
         let path = ([], if_left(tile_step, tile_step + 1));
-        Some((path, zipped));
+        Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
       open OptUtil.Syntax;
@@ -207,7 +211,7 @@ and Pat: {
         | Unzipped_typ(unzipped) =>
           Option.map(fst, Typ.move(d, unzipped, (steps, k)))
         };
-      (cons(two_step, path), Zipped_pat(zipper));
+      (cons(two_step, path), None);
     };
   };
 }
@@ -225,7 +229,9 @@ and Exp: {
   let unzip_tile: (child_step, HExp.Tile.t, ZExp.t) => unzipped;
   let unzip: (two_step, ZExp.zipper) => unzipped;
 
-  let move: (Direction.t, ZExp.zipper, t) => option((t, zipped));
+  let move:
+    (Direction.t, ZExp.zipper, t) =>
+    option((t, option((two_step, zipped))));
 } = {
   type zipped =
     | Zipped_exp(ZExp.zipper);
@@ -273,7 +279,7 @@ and Exp: {
 
   let rec move =
           (d: Direction.t, (e, zrest) as zipper: ZExp.zipper, (steps, k): t)
-          : option((t, zipped)) => {
+          : option((t, option((two_step, zipped)))) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
@@ -295,11 +301,11 @@ and Exp: {
               if_left(List.length(p), 0),
             )
           };
-        Some((path, Zipped_exp(zipper)));
+        Some((path, None));
       | (_, Some(ztile)) =>
-        let ((tile_step, _), zipped) = zip_ztile(e, ztile);
+        let ((tile_step, _) as two_step, zipped) = zip_ztile(e, ztile);
         let path = ([], if_left(tile_step, tile_step + 1));
-        Some((path, zipped));
+        Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
       open OptUtil.Syntax;
@@ -310,7 +316,7 @@ and Exp: {
         | Unzipped_pat(unzipped) =>
           Option.map(fst, Pat.move(d, unzipped, (steps, k)))
         };
-      (cons(two_step, path), Zipped_exp(zipper));
+      (cons(two_step, path), None);
     };
   };
 };
