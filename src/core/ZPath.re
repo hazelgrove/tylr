@@ -20,7 +20,14 @@ module rec Typ: {
   let unzip_tile: (child_step, HTyp.Tile.t, ZTyp.t) => unzipped;
   let unzip: (two_step, ZTyp.zipper) => unzipped;
 
-  let move: (Direction.t, HTyp.t, t) => option(t);
+  /**
+   * `move(d, zipper, path)` first attempts to returns the next path
+   * from `path` in direction `d` within the focused term of `zipper`.
+   * If no such path exists (i.e. the cursor is at one of the ends of
+   * the focused term), then it attempts to zip `zipper` and try once
+   * more.
+   */
+  let move: (Direction.t, ZTyp.zipper, t) => option((t, zipped));
 } = {
   type zipped =
     | Zipped_typ(ZTyp.zipper)
@@ -62,7 +69,44 @@ module rec Typ: {
     unzip_tile(r, tile, ze);
   };
 
-  let move = (_: Direction.t, _: HTyp.t, _: t) => failwith("unimplemented");
+  let rec move =
+          (
+            d: Direction.t,
+            (ty, zrest) as zipper: ZTyp.zipper,
+            (steps, k): t,
+          )
+          : option((t, zipped)) => {
+    let if_left = (then_, else_) => d == Left ? then_ : else_;
+    switch (steps) {
+    | [] =>
+      let next = if_left(k - 1, k);
+      switch (List.nth_opt(ty, next), zrest) {
+      | (None, None) => None
+      | (Some(tile), _) =>
+        let path =
+          switch (tile) {
+          | Operand(OperandHole | Num)
+          | BinOp(OperatorHole | Arrow) => (steps, if_left(k - 1, k + 1))
+          | Operand(Paren(ty)) => (
+              [(next, 0)],
+              if_left(List.length(ty), 0),
+            )
+          | PreOp(_) => raise(HTyp.Tile.Void_PreOp)
+          | PostOp(_) => raise(HTyp.Tile.Void_PostOp)
+          };
+        Some((path, Zipped_typ(zipper)));
+      | (_, Some(ztile)) =>
+        let ((tile_step, _), zipped) = zip_ztile(ty, ztile);
+        let path = ([], if_left(tile_step, tile_step + 1));
+        Some((path, zipped));
+      };
+    | [two_step, ...steps] =>
+      open OptUtil.Syntax;
+      let Unzipped_typ(unzipped) = unzip(two_step, zipper);
+      let+ (path, _) = move(d, unzipped, (steps, k));
+      (cons(two_step, path), Zipped_typ(zipper));
+    };
+  };
 }
 and Pat: {
   type zipped =
@@ -79,7 +123,7 @@ and Pat: {
   let unzip_tile: (child_step, HPat.Tile.t, ZPat.t) => unzipped;
   let unzip: (two_step, ZPat.zipper) => unzipped;
 
-  let move: (Direction.t, HPat.t, t) => option(t);
+  let move: (Direction.t, ZPat.zipper, t) => option((t, zipped));
 } = {
   type zipped =
     | Zipped_pat(ZPat.zipper)
@@ -124,7 +168,48 @@ and Pat: {
     unzip_tile(r, tile, zp);
   };
 
-  let move = (_: Direction.t, _: HPat.t, _: t) => failwith("unimplemented");
+  let rec move =
+          (d: Direction.t, (p, zrest) as zipper: ZPat.zipper, (steps, k): t)
+          : option((t, zipped)) => {
+    let if_left = (then_, else_) => d == Left ? then_ : else_;
+    switch (steps) {
+    | [] =>
+      let next = if_left(k - 1, k);
+      switch (List.nth_opt(p, next), zrest) {
+      | (None, None) => None
+      | (Some(tile), _) =>
+        let path =
+          switch (tile) {
+          | Operand(OperandHole | Var(_))
+          | BinOp(OperatorHole) => (steps, if_left(k - 1, k + 1))
+          | Operand(Paren(p)) => (
+              [(next, 0)],
+              if_left(List.length(p), 0),
+            )
+          | PostOp(Ann(_, ty)) => (
+              [(next, 0)],
+              if_left(List.length(ty), 0),
+            )
+          | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+          };
+        Some((path, Zipped_pat(zipper)));
+      | (_, Some(ztile)) =>
+        let ((tile_step, _), zipped) = zip_ztile(p, ztile);
+        let path = ([], if_left(tile_step, tile_step + 1));
+        Some((path, zipped));
+      };
+    | [two_step, ...steps] =>
+      open OptUtil.Syntax;
+      let+ path =
+        switch (unzip(two_step, zipper)) {
+        | Unzipped_pat(unzipped) =>
+          Option.map(fst, move(d, unzipped, (steps, k)))
+        | Unzipped_typ(unzipped) =>
+          Option.map(fst, Typ.move(d, unzipped, (steps, k)))
+        };
+      (cons(two_step, path), Zipped_pat(zipper));
+    };
+  };
 }
 and Exp: {
   type zipped =
@@ -140,7 +225,7 @@ and Exp: {
   let unzip_tile: (child_step, HExp.Tile.t, ZExp.t) => unzipped;
   let unzip: (two_step, ZExp.zipper) => unzipped;
 
-  let move: (Direction.t, HExp.t, t) => option(t);
+  let move: (Direction.t, ZExp.zipper, t) => option((t, zipped));
 } = {
   type zipped =
     | Zipped_exp(ZExp.zipper);
@@ -186,51 +271,46 @@ and Exp: {
     unzip_tile(r, tile, ze);
   };
 
-  let rec move = (d: Direction.t, e: HExp.t, (steps, k): t): option(t) => {
-    open OptUtil.Syntax;
+  let rec move =
+          (d: Direction.t, (e, zrest) as zipper: ZExp.zipper, (steps, k): t)
+          : option((t, zipped)) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
-      let n = d == Left ? k - 1 : k;
-      let+ (_, tile, _) = ListUtil.split_nth_opt(n, e);
-      switch (tile) {
-      | Operand(OperandHole | Num(_) | Var(_))
-      | BinOp(Plus(_) | OperatorHole) => (steps, if_left(k - 1, k + 1))
-      | Operand(Paren(e))
-      | PostOp(Ap(_, e)) => (
-          [(n, 0), ...steps],
-          if_left(List.length(e), 0),
-        )
-      | PreOp(Lam(_, p)) => (
-          [(n, 0), ...steps],
-          if_left(List.length(p), 0),
-        )
-      };
-    | [(l, r) as two_step, ...steps] =>
-      let* tile = List.nth_opt(e, l);
-      switch (tile) {
-      | Operand(OperandHole | Num(_) | Var(_))
-      | BinOp(Plus(_) | OperatorHole) => None
-      | Operand(Paren(e))
-      | PostOp(Ap(_, e)) =>
-        r == 0
-          ? Some(
-              switch (move(d, e, (steps, k))) {
-              | None => ([], if_left(l, l + 1))
-              | Some((steps, k)) => ([two_step, ...steps], k)
-              },
+      let next = if_left(k - 1, k);
+      switch (List.nth_opt(e, next), zrest) {
+      | (None, None) => None
+      | (Some(tile), _) =>
+        let path =
+          switch (tile) {
+          | Operand(OperandHole | Num(_) | Var(_))
+          | BinOp(Plus(_) | OperatorHole) => (steps, if_left(k - 1, k + 1))
+          | Operand(Paren(e))
+          | PostOp(Ap(_, e)) => (
+              [(next, 0), ...steps],
+              if_left(List.length(e), 0),
             )
-          : None
-      | PreOp(Lam(_, p)) =>
-        r == 0
-          ? Some(
-              switch (Pat.move(d, p, (steps, k))) {
-              | None => ([], if_left(l, l + 1))
-              | Some((steps, k)) => ([two_step, ...steps], k)
-              },
+          | PreOp(Lam(_, p)) => (
+              [(next, 0), ...steps],
+              if_left(List.length(p), 0),
             )
-          : None
+          };
+        Some((path, Zipped_exp(zipper)));
+      | (_, Some(ztile)) =>
+        let ((tile_step, _), zipped) = zip_ztile(e, ztile);
+        let path = ([], if_left(tile_step, tile_step + 1));
+        Some((path, zipped));
       };
+    | [two_step, ...steps] =>
+      open OptUtil.Syntax;
+      let+ path =
+        switch (unzip(two_step, zipper)) {
+        | Unzipped_exp(unzipped) =>
+          Option.map(fst, move(d, unzipped, (steps, k)))
+        | Unzipped_pat(unzipped) =>
+          Option.map(fst, Pat.move(d, unzipped, (steps, k)))
+        };
+      (cons(two_step, path), Zipped_exp(zipper));
     };
   };
 };
