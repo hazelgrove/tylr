@@ -1,232 +1,127 @@
-type direction =
-  | Left
-  | Right;
-
-module TileShape = {
-  type t =
-    | Num(int)
-    | Var(Var.t)
-    | Paren
-    | Lam
-    | Ap
-    | Ann
-    | Plus
-    | Arrow;
-
-  module type S = {
-    type tile;
-    // TODO refactor to support passing in selected tiles as args
-    let tile_of_shape: t => option(tile);
-  };
-};
+type tile_shape =
+  | Num(int)
+  | Var(Var.t)
+  | Paren
+  | Lam
+  | Ap
+  | Ann
+  | Plus
+  | Arrow;
 
 type t =
   | Mark
-  | Move(direction)
-  | Edit(edit)
-and edit =
+  | Move(Direction.t)
   | Delete
-  | Construct(TileShape.t);
+  | Construct(tile_shape);
 
-module Util =
-       (
-         T: Tile.S,
-         Z: ZTile.S with type tile = T.t,
-         S: TileShape.S with type tile = T.t,
-       )
-       : {
-         type edit_state =
-           | Normal({focus: Z.s})
-           | Selecting({
-               anchor: Z.s,
-               focus: Z.s,
-             })
-           | Restructuring({
-               selection: (Z.s, Z.s),
-               focus: Z.s,
-             });
+module EditMode = {
+  type t('htm, 'ztile) =
+    | Normal(ZPath.t)
+    | Selecting(ZPath.t, ZPath.t)
+    | Restructuring(ZPath.t, ZPath.t, ZPath.t);
 
-         let get_focus: edit_state => Z.s;
-         let put_focus: (Z.s, edit_state) => edit_state;
+  let cons = two_step =>
+    fun
+    | Normal(focus) => Normal(ZPath.cons(two_step, focus))
+    | Selecting(anchor, focus) =>
+      Selecting(ZPath.cons(two_step, anchor), ZPath.cons(two_step, focus))
+    | Restructuring(((l, r), target)) =>
+      Restructuring(
+        ZPath.cons(two_step, l),
+        ZPath.cons(two_step, r),
+        ZPath.cons(two_step, target),
+      );
 
-         let perform: (t, edit_state) => option(edit_state);
-         let perform_edit: (edit, Z.s) => option(Z.s);
-       } => {
-  module TUtil = Tiles.Make(T);
-  module ZUtil = ZTiles.Make(T, Z);
-
-  type edit_state =
-    | Normal({focus: Z.s})
-    | Selecting({
-        anchor: Z.s,
-        focus: Z.s,
-      })
-    | Restructuring({
-        selection: (Z.s, Z.s),
-        focus: Z.s,
-      });
+  let mark =
+    fun
+    | Normal(focus) => Selecting(focus, focus)
+    | Selecting(anchor, focus) => Restructuring(anchor, focus, focus)
+    | Restructuring(_, _, focus) => Normal(focus);
 
   let get_focus =
     fun
-    | Normal({focus})
-    | Selecting({focus, _})
-    | Restructuring({focus, _}) => focus;
+    | Normal(focus)
+    | Selecting(_, focus)
+    | Restructuring(_, _, focus) => focus;
 
-  let put_focus = (focus: Z.s, edit_state) =>
-    switch (edit_state) {
-    | Normal(_) => Normal({focus: focus})
-    | Selecting({anchor, _}) => Selecting({anchor, focus})
-    | Restructuring({selection, _}) => Restructuring({selection, focus})
-    };
-
-  let opt_map_focus = (f: Z.s => option(Z.s), edit_state) =>
-    switch (edit_state) {
-    | Normal({focus}) =>
-      f(focus) |> Option.map(focus => Normal({focus: focus}))
-    | Selecting({anchor, focus}) =>
-      f(focus) |> Option.map(focus => Selecting({anchor, focus}))
-    | Restructuring({selection, focus}) =>
-      f(focus) |> Option.map(focus => Restructuring({selection, focus}))
-    };
-
-  let move =
+  let put_focus = focus =>
     fun
-    | Left => ZUtil.move_left
-    | Right => ZUtil.move_right;
+    | Normal(_) => Normal(focus)
+    | Selecting(anchor, _) => Selecting(anchor, focus)
+    | Restructuring(l, r, _) => Restructuring(l, r, focus);
 
-  let perform_edit = (edit: edit, ztiles: Z.s): option(Z.s) => {
-    let perform =
-      switch (edit) {
-      | Delete =>
-        ZUtil.opt_map((prefix, suffix) =>
-          ListUtil.split_last_opt(prefix)
-          |> Option.map(((prefix, tile)) => {
-               let open_children = List.flatten(T.get_open_children(tile));
-               let (prefix, suffix) =
-                 TUtil.fix_empty_holes(prefix @ open_children, suffix);
-               ZUtil.mk(~prefix, ~suffix, ());
-             })
-        )
-      | Construct(shape) =>
-        ZUtil.opt_map((prefix, suffix) =>
-          S.tile_of_shape(shape)
-          |> Option.map(tile => {
-               let (prefix, suffix) =
-                 TUtil.fix_empty_holes(prefix @ [tile], suffix);
-               ZUtil.mk(~prefix, ~suffix, ());
-             })
-        )
-      };
-    perform(ztiles);
-  };
+  let update_anchors = (f: ZPath.t => ZPath.t) =>
+    fun
+    | Normal(_) as mode => mode
+    | Selecting(anchor, focus) => Selecting(f(anchor), focus)
+    | Restructuring(l, r, focus) => Restructuring(f(l), f(r), focus);
+};
 
-  let perform = (a: t, edit_state: edit_state): option(edit_state) =>
-    switch (a) {
-    | Mark =>
-      switch (edit_state) {
-      | Normal({focus}) => Some(Selecting({anchor: focus, focus}))
-      | Selecting({anchor, focus}) =>
-        Some(Restructuring({selection: (anchor, focus), focus}))
-      | Restructuring({selection: (l, r), focus}) =>
-        ZUtil.restructure(l, r, focus)
-        |> Option.map(restructured => Normal({focus: restructured}))
-      }
-    | Move(direction) =>
-      edit_state |> opt_map_focus(ZUtil.opt_map(move(direction)))
-    | Edit(edit) =>
-      switch (edit_state) {
-      | Normal({focus}) =>
-        perform_edit(edit, focus)
-        |> Option.map(result => Normal({focus: result}))
-      | Selecting(_)
-      | Restructuring(_) => None
-      }
+module EditState = {
+  type zipper = [
+    | `Exp(ZExp.zipper)
+    | `Pat(ZPat.zipper)
+    | `Typ(ZTyp.zipper)
+  ];
+  type t = (EditMode.t, zipper);
+};
+
+open OptUtil.Syntax;
+
+let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
+  switch (a) {
+  | Move(d) =>
+    let+ (focus, zipped: option((ZPath.two_step, zipper))) = {
+      let move =
+        switch (zipper) {
+        | `Exp(zipper) => ZPath.Exp.move(d, zipper)
+        | `Pat(zipper) => ZPath.Pat.move(d, zipper)
+        | `Typ(zipper) => ZPath.Typ.move(d, zipper)
+        };
+      move(EditMode.get_focus(mode));
     };
-};
+    let mode = EditMode.put_focus(focus, mode);
+    switch (zipped) {
+    | None => (mode, zipper)
+    | Some((two_step, zipper)) => (
+        EditMode.update_anchors(ZPath.cons(two_step), mode),
+        zipper,
+      )
+    };
 
-module Typ = {
-  module TileShape = {
-    type tile = HTyp.Tile.t;
-    let tile_of_shape: TileShape.t => option(tile) =
-      fun
-      | Num(_)
-      | Lam
-      | Ap
-      | Plus
-      | Var(_)
-      | Ann => None
-      | Paren => Some(Operand(Paren(HTyp.mk_hole())))
-      | Arrow => Some(BinOp(Arrow));
+  | (Delete, Exp(Normal((steps, k), e, zrest))) =>
+    switch (steps) {
+    | [] =>
+      let (prefix, suffix) = ListUtil.split_n(k, e);
+      switch (ListUtil.split_last_opt(prefix)) {
+      | None =>
+        // TODO enter restructuring mode if possible
+        None
+      | Some((prefix, tile)) =>
+        let open_children_tiles =
+          List.flatten(HExp.Tile.get_open_children(tile));
+        let (e, k) = {
+          let (prefix, suffix) =
+            HExp.fix_empty_holes(prefix @ open_children_tiles, suffix);
+          (prefix @ suffix, List.length(prefix));
+        };
+        let+ {ctx, mode} = ZInfo.Exp.mk(ztile);
+        switch (mode) {
+        | Syn({fn_pos, fix}) =>
+          let (e, ty) = Statics.Exp.syn_fix_holes(ctx, e);
+          let ze = fix(ty);
+          // TODO resolve zexp ambiguity
+          Exp(Normal(([], k), e, Option.get(ze.z)));
+        | Ana({expected, fixed}) =>
+          let e = Statics.Exp.syn_fix_holes(ctx, e, expected);
+          Exp(Normal(([], k), e, Option.get(fixed.z)));
+        };
+      };
+    | [two_step, ...steps] =>
+      let* unzipped = ZPath.Exp.unzip(~init=ztile, two_step, e);
+      switch (unzipped) {
+      | Pat(p, ztile) => perform(a, Pat(Normal((steps, k), p, ztile)))
+      | Exp(e, ztile) => perform(a, Exp(Normal((steps, k), e, ztile)))
+      };
+    }
   };
-
-  include Util(HTyp.Tile, ZTyp.ZTile, TileShape);
-};
-
-module Pat = {
-  module TileShape = {
-    type tile = HPat.Tile.t;
-    let tile_of_shape: TileShape.t => option(tile) =
-      fun
-      | Num(_)
-      | Lam
-      | Ap
-      | Plus
-      | Arrow => None
-      | Var(x) => Some(Operand(Var(x)))
-      | Paren => Some(Operand(Paren(HPat.mk_hole())))
-      | Ann => Some(PostOp(Ann(NotInHole, HTyp.mk_hole())));
-  };
-
-  include Util(HPat.Tile, ZPat.ZTile, TileShape);
-
-  let syn_perform =
-      (ctx: Ctx.t, a: t, edit_state): option((edit_state, Type.t, Ctx.t)) =>
-    perform(a, edit_state)
-    |> Option.map(result => {
-         let (zp, ty, ctx) =
-           Statics.Pat.syn_fix_holes_z(ctx, get_focus(result));
-         (put_focus(zp, edit_state), ty, ctx);
-       });
-  let ana_perform =
-      (ctx: Ctx.t, a: t, edit_state, ty: Type.t)
-      : option((edit_state, Ctx.t)) =>
-    perform(a, edit_state)
-    |> Option.map(result => {
-         let (zp, ctx) =
-           Statics.Pat.ana_fix_holes_z(ctx, get_focus(result), ty);
-         (put_focus(zp, edit_state), ctx);
-       });
-};
-
-module Exp = {
-  module TileShape = {
-    type tile = HExp.Tile.t;
-    let tile_of_shape: TileShape.t => option(tile) =
-      fun
-      | Ann
-      | Arrow => None
-      | Num(n) => Some(Operand(Num(NotInHole, n)))
-      | Var(x) => Some(Operand(Var(NotInHole, x)))
-      | Paren => Some(Operand(Paren(HExp.mk_hole())))
-      | Lam => Some(PreOp(Lam(NotInHole, HPat.mk_hole())))
-      | Ap => Some(PostOp(Ap(NotInHole, HExp.mk_hole())))
-      | Plus => Some(BinOp(Plus(NotInHole)));
-  };
-
-  include Util(HExp.Tile, ZExp.ZTile, TileShape);
-
-  let syn_perform =
-      (ctx: Ctx.t, a: t, edit_state): option((edit_state, Type.t)) =>
-    perform(a, edit_state)
-    |> Option.map(result => {
-         let (ze, ty) = Statics.Exp.syn_fix_holes_z(ctx, get_focus(result));
-         (put_focus(ze, edit_state), ty);
-       });
-  let ana_perform =
-      (ctx: Ctx.t, a: t, edit_state, ty: Type.t): option(edit_state) =>
-    perform(a, edit_state)
-    |> Option.map(result => {
-         let ze = Statics.Exp.ana_fix_holes_z(ctx, get_focus(result), ty);
-         put_focus(ze, edit_state);
-       });
-};
