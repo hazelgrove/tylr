@@ -41,6 +41,10 @@ include Tiles.Make(Tile);
 
 type t = Tile.s;
 
+type inner_tiles =
+  | Pat(Tile.s)
+  | Other(HTyp.inner_tiles);
+
 let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
   update_root(
     ~operand=put_hole_status_operand(status),

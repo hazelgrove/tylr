@@ -43,6 +43,9 @@ include Tiles.Make(Tile);
 
 type t = Tile.s;
 
+type inner_tiles =
+  | Typ(Tile.s);
+
 let rec contract = (ty: t): Type.t =>
   switch (root(ty)) {
   | Operand(operand) =>

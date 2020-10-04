@@ -43,6 +43,10 @@ include Tiles.Make(Tile);
 
 type t = Tile.s;
 
+type inner_tiles =
+  | Exp(Tile.s)
+  | Other(HPat.inner_tiles);
+
 // does not recurse into parentheses
 let get_hole_status =
   get_root(
