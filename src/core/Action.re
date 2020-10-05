@@ -11,50 +11,49 @@ type tile_shape =
 type t =
   | Mark
   | Move(Direction.t)
-  | Delete
+  | Delete(Direction.t)
   | Construct(tile_shape);
 
 module EditMode = {
-  type t('htm, 'ztile) =
+  type t =
     | Normal(ZPath.t)
-    | Selecting(ZPath.t, ZPath.t)
-    | Restructuring(ZPath.t, ZPath.t, ZPath.t);
+    | Selecting(ZPath.selection)
+    | Restructuring(ZPath.selection, ZPath.t);
 
   let cons = two_step =>
     fun
     | Normal(focus) => Normal(ZPath.cons(two_step, focus))
-    | Selecting(anchor, focus) =>
-      Selecting(ZPath.cons(two_step, anchor), ZPath.cons(two_step, focus))
-    | Restructuring(((l, r), target)) =>
+    | Selecting(selection) =>
+      Selecting(ZPath.cons_selection(two_step, selection))
+    | Restructuring(selection, focus) =>
       Restructuring(
-        ZPath.cons(two_step, l),
-        ZPath.cons(two_step, r),
-        ZPath.cons(two_step, target),
+        ZPath.cons_selection(two_step, selection),
+        ZPath.cons(two_step, focus),
       );
 
   let mark =
     fun
-    | Normal(focus) => Selecting(focus, focus)
-    | Selecting(anchor, focus) => Restructuring(anchor, focus, focus)
-    | Restructuring(_, _, focus) => Normal(focus);
+    | Normal(focus) => Selecting((focus, focus))
+    | Selecting((l, _) as selection) => Restructuring(selection, l)
+    | Restructuring(_, focus) => Normal(focus);
 
   let get_focus =
     fun
     | Normal(focus)
-    | Selecting(_, focus)
-    | Restructuring(_, _, focus) => focus;
+    | Selecting((_, focus))
+    | Restructuring(_, focus) => focus;
 
   let put_focus = focus =>
     fun
     | Normal(_) => Normal(focus)
-    | Selecting(anchor, _) => Selecting(anchor, focus)
-    | Restructuring(l, r, _) => Restructuring(l, r, focus);
+    | Selecting((anchor, _)) => Selecting((anchor, focus))
+    | Restructuring(selection, _) => Restructuring(selection, focus);
 
   let update_anchors = (f: ZPath.t => ZPath.t) =>
     fun
     | Normal(_) as mode => mode
-    | Selecting(anchor, focus) => Selecting(f(anchor), focus)
-    | Restructuring(l, r, focus) => Restructuring(f(l), f(r), focus);
+    | Selecting((anchor, focus)) => Selecting((f(anchor), focus))
+    | Restructuring((l, r), focus) => Restructuring((f(l), f(r)), focus);
 };
 
 module EditState = {
@@ -63,65 +62,116 @@ module EditState = {
     | `Pat(ZPat.zipper)
     | `Typ(ZTyp.zipper)
   ];
+  type did_it_zip = option((ZPath.two_step, zipper));
+
   type t = (EditMode.t, zipper);
 };
 
 open OptUtil.Syntax;
 
 let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
-  switch (a) {
-  | Move(d) =>
-    let+ (focus, zipped: option((ZPath.two_step, zipper))) = {
-      let move =
+  switch (a, edit_state) {
+  | (Move(d), (mode, zipper)) =>
+    let+ (focus, did_it_zip) = {
+      let move = path =>
         switch (zipper) {
-        | `Exp(zipper) => ZPath.Exp.move(d, zipper)
-        | `Pat(zipper) => ZPath.Pat.move(d, zipper)
-        | `Typ(zipper) => ZPath.Typ.move(d, zipper)
+        | `Exp(zipper) => (
+            ZPath.Exp.move(d, path, zipper) :>
+              option((ZPath.t, EditState.did_it_zip))
+          )
+        | `Pat(zipper) => (
+            ZPath.Pat.move(d, path, zipper) :>
+              option((ZPath.t, EditState.did_it_zip))
+          )
+        | `Typ(zipper) => (
+            ZPath.Typ.move(d, path, zipper) :>
+              option((ZPath.t, EditState.did_it_zip))
+          )
         };
       move(EditMode.get_focus(mode));
     };
     let mode = EditMode.put_focus(focus, mode);
-    switch (zipped) {
+    switch (did_it_zip) {
     | None => (mode, zipper)
-    | Some((two_step, zipper)) => (
+    | Some((two_step, zipped)) => (
         EditMode.update_anchors(ZPath.cons(two_step), mode),
-        zipper,
+        zipped,
       )
     };
 
-  | (Delete, Exp(Normal((steps, k), e, zrest))) =>
-    switch (steps) {
-    | [] =>
-      let (prefix, suffix) = ListUtil.split_n(k, e);
-      switch (ListUtil.split_last_opt(prefix)) {
-      | None =>
-        // TODO enter restructuring mode if possible
-        None
-      | Some((prefix, tile)) =>
-        let open_children_tiles =
-          List.flatten(HExp.Tile.get_open_children(tile));
-        let (e, k) = {
-          let (prefix, suffix) =
-            HExp.fix_empty_holes(prefix @ open_children_tiles, suffix);
-          (prefix @ suffix, List.length(prefix));
+  | (Delete(d), (Normal(focus), zipper)) =>
+    switch (zipper) {
+    | `Typ(z) =>
+      let+ (selection, did_it_zip) = ZPath.Typ.select(d, focus, z);
+      let zipper =
+        switch (did_it_zip) {
+        | None => zipper
+        | Some((_, zipped)) => (zipped :> EditState.zipper)
         };
-        let+ {ctx, mode} = ZInfo.Exp.mk(ztile);
-        switch (mode) {
-        | Syn({fn_pos, fix}) =>
-          let (e, ty) = Statics.Exp.syn_fix_holes(ctx, e);
-          let ze = fix(ty);
-          // TODO resolve zexp ambiguity
-          Exp(Normal(([], k), e, Option.get(ze.z)));
-        | Ana({expected, fixed}) =>
-          let e = Statics.Exp.syn_fix_holes(ctx, e, expected);
-          Exp(Normal(([], k), e, Option.get(fixed.z)));
+      (EditMode.Selecting(selection), zipper);
+    | `Pat(z) =>
+      let+ (selection, did_it_zip) = ZPath.Pat.select(d, focus, z);
+      let zipper =
+        switch (did_it_zip) {
+        | None => zipper
+        | Some((_, zipped)) => (zipped :> EditState.zipper)
         };
-      };
-    | [two_step, ...steps] =>
-      let* unzipped = ZPath.Exp.unzip(~init=ztile, two_step, e);
-      switch (unzipped) {
-      | Pat(p, ztile) => perform(a, Pat(Normal((steps, k), p, ztile)))
-      | Exp(e, ztile) => perform(a, Exp(Normal((steps, k), e, ztile)))
-      };
+      (EditMode.Selecting(selection), zipper);
+    | `Exp(z) =>
+      let+ (selection, did_it_zip) = ZPath.Exp.select(d, focus, z);
+      let zipper =
+        switch (did_it_zip) {
+        | None => zipper
+        | Some((_, zipped)) => (zipped :> EditState.zipper)
+        };
+      (EditMode.Selecting(selection), zipper);
     }
+
+  | (
+      Delete(_) | Construct(_),
+      (
+        Selecting((
+          ([two_step_l, ...steps_l], j_l),
+          ([two_step_r, ...steps_r], j_r),
+        )),
+        zipper,
+      ),
+    )
+      when two_step_l == two_step_r =>
+    let mode = EditMode.Selecting(((steps_l, j_l), (steps_r, j_r)));
+    let zipper =
+      switch (zipper) {
+      | `Typ(zipper) => (
+          ZPath.Typ.unzip(two_step_l, zipper) :> EditState.zipper
+        )
+      | `Pat(zipper) => (
+          ZPath.Pat.unzip(two_step_l, zipper) :> EditState.zipper
+        )
+      | `Exp(zipper) => (
+          ZPath.Exp.unzip(two_step_l, zipper) :> EditState.zipper
+        )
+      };
+    perform(a, (mode, zipper));
+
+  | (Delete(d), (Selecting((l, r)), zipper)) =>
+    let c = ZPath.compare(l, r);
+    if (c == 0) {
+      Some((Normal(r), zipper));
+    } else if (c > 0) {
+      perform(a, Selecting((r, l), zipper));
+    } else {
+      switch (zipper) {
+      | `Typ(zipper) =>
+        let+ (selection_l, did_it_zip_l) = ZPath.Typ.select(Right, l, zipper)
+        and+ (selection_r, did_it_zip_r) = ZPath.Typ.select(Left, r, zipper);
+        let min_l = ZPath.min(fst(selection_l), fst(selection_r));
+        let max_r = ZPath.max(snd(selection_l), snd(selection_r));
+        switch (did_it_zip_l, did_it_zip_r) {
+        | (None, None) => (
+            Restructuring((min_l, max_r), min_l),
+            `Typ(zipper),
+          )
+        };
+      };
+    };
   };

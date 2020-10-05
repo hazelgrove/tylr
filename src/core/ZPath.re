@@ -11,7 +11,12 @@ let select_while_moving = (start: t, end_: t): (Direction.t => selection) =>
   | Left => (end_, start)
   | Right => (start, end_);
 
-let cons = (two_step, (steps, k)) => ([two_step, ...steps], k);
+let cons = (two_step, (steps, j)) => ([two_step, ...steps], j);
+
+let cons_selection = (two_step, (l, r)) => (
+  cons(two_step, l),
+  cons(two_step, r),
+);
 
 module rec Typ: {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
