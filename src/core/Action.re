@@ -174,4 +174,32 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         };
       };
     };
+
+  | (Construct(_), (Restructuring(_), _)) => None
+
+  | (Delete(_), (Restructuring(selection, _), zipper)) =>
+    switch (zipper) {
+    | `Typ(ty, unzipped) =>
+      let+ (path, ty) = ZPath.Typ.remove_selection(selection, ty);
+      (Normal(path), `Typ((ty, unzipped)));
+    | `Pat(p, unzipped) =>
+      let+ (path, p) = ZPath.Pat.remove_selection(selection, p);
+      (Normal(path), `Pat((p, unzipped)));
+    | `Exp(e, unzipped) =>
+      let+ (path, e) = ZPath.Exp.remove_selection(selection, p);
+      (Normal(path), `Exp((e, unzipped)));
+    }
+
+  | (Mark, (Restructuring(selection, target), zipper)) =>
+    switch (zipper) {
+    | `Typ(ty, unzipped) =>
+      let+ (path, ty) = ZPath.Typ.restructure(selection, target, ty);
+      (Normal(path), `Typ((ty, unzipped)));
+    | `Pat(p, unzipped) =>
+      let+ (path, p) = ZPath.Pat.restructure(selection, target, p);
+      (Normal(path), `Pat((p, unzipped)));
+    | `Exp(e, unzipped) =>
+      let+ (path, e) = ZPath.Exp.restructure(selection, target, e);
+      (Normal(path), `Exp((e, unzipped)));
+    }
   };
