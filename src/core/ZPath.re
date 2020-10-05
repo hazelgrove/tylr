@@ -1,3 +1,5 @@
+open OptUtil.Syntax;
+
 type tile_step = int;
 type child_step = int;
 type caret_step = int;
@@ -124,7 +126,6 @@ module rec Typ: {
         Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
-      open OptUtil.Syntax;
       let `Typ(unzipped) = unzip(two_step, zipper);
       let+ (path, _) = move(d, (steps, k), unzipped);
       (cons(two_step, path), None);
@@ -136,7 +137,6 @@ module rec Typ: {
   let select =
       (d: Direction.t, start: t, zipper: ZTyp.zipper)
       : option((selection, did_it_zip)) => {
-    open OptUtil.Syntax;
     let* (next, did_it_zip) = move(d, start, zipper);
     switch (did_it_zip) {
     | None => Some((select_while_moving(start, next, d), did_it_zip))
@@ -258,7 +258,6 @@ and Pat: {
         Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
-      open OptUtil.Syntax;
       let+ path =
         switch (unzip(two_step, zipper)) {
         | `Pat(unzipped) => Option.map(fst, move(d, (steps, k), unzipped))
@@ -285,7 +284,6 @@ and Pat: {
       (d: Direction.t, start: t, (p, _) as zipper: ZPat.zipper)
       : option((selection, did_it_zip)) => {
     let rec go = (current: t): option((selection, did_it_zip)) => {
-      open OptUtil.Syntax;
       let* (next, did_it_zip) = move(d, current, zipper);
       switch (did_it_zip) {
       | None =>
@@ -415,7 +413,6 @@ and Exp: {
         Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
-      open OptUtil.Syntax;
       let+ path =
         switch (unzip(two_step, zipper)) {
         | `Exp(unzipped) => Option.map(fst, move(d, (steps, k), unzipped))
@@ -445,7 +442,6 @@ and Exp: {
       (d: Direction.t, start: t, (e, _) as zipper: ZExp.zipper)
       : option((selection, did_it_zip)) => {
     let rec go = (current: t): option((selection, did_it_zip)) => {
-      open OptUtil.Syntax;
       let* (next, did_it_zip) = move(d, current, zipper);
       switch (did_it_zip) {
       | None =>
@@ -475,137 +471,128 @@ and Exp: {
       if (two_step_l != two_step_r) {
         None;
       } else {
-        OptUtil.Syntax.(
-          switch (unzip(two_step_l, (e, None))) {
-          | `Exp(e, zrest) =>
-            let+ (removed, e) =
-              remove_tiles(((steps_l, j_l), (steps_r, j_r)), e);
-            let ztile = OptUtil.get(() => assert(false), zrest);
-            let (_, `Exp(e, _)) = zip_ztile(e, ztile);
-            (removed, e);
-          | `Pat(p, zrest) =>
-            let+ (removed, p) =
-              Pat.remove_tiles(((steps_l, j_l), (steps_r, j_r)), p);
-            let (_, rezipped) = Pat.zip_ztile(p, Option.get(zrest));
-            switch (rezipped) {
-            | `Pat(_) => failwith("unzipping and rezipping changed sort")
-            | `Exp(e, _none) => (HExp.Other(removed), e)
-            };
-          }
-        );
+        switch (unzip(two_step_l, (e, None))) {
+        | `Exp(e, zrest) =>
+          let+ (removed, e) =
+            remove_tiles(((steps_l, j_l), (steps_r, j_r)), e);
+          let ztile = OptUtil.get(() => assert(false), zrest);
+          let (_, `Exp(e, _)) = zip_ztile(e, ztile);
+          (removed, e);
+        | `Pat(p, zrest) =>
+          let+ (removed, p) =
+            Pat.remove_tiles(((steps_l, j_l), (steps_r, j_r)), p);
+          let (_, rezipped) = Pat.zip_ztile(p, Option.get(zrest));
+          switch (rezipped) {
+          | `Pat(_) => failwith("unzipping and rezipping changed sort")
+          | `Exp(e, _none) => (HExp.Other(removed), e)
+          };
+        };
       }
     };
 
   let rec remove_selection =
           ((l, r): selection, e: HExp.t): option((t, HExp.t)) =>
-    OptUtil.Syntax.(
-      switch (l, r) {
-      | (([], j_l), ([], j_r)) =>
-        let (prefix, _, suffix) = ListUtil.split_sublist(j_l, j_r, e);
-        Some((l, prefix @ suffix));
-      | (([], j_l), ([two_step_r, ...steps_r], j_r)) =>
-        switch (unzip(two_step_r, (e, None))) {
-        | `Pat(_) => None
-        | `Exp(e, unzipped) =>
-          let+ (path, e) = remove_selection((([], 0), (steps_r, j_r)), e);
-          switch (Option.get(unzipped)) {
-          | Operand(ParenZ_body({prefix, suffix, _}))
-          | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-            let (prefix, _removed) = ListUtil.split_n(j_l, prefix);
-            let path = {
-              let n = List.length(prefix);
-              switch (path) {
-              | ([], j) => ([], j + n)
-              | ([(tile_step, child_step), ...steps], j) => (
-                  [(tile_step + n, child_step), ...steps],
-                  j,
-                )
-              };
+    switch (l, r) {
+    | (([], j_l), ([], j_r)) =>
+      let (prefix, _, suffix) = ListUtil.split_sublist(j_l, j_r, e);
+      Some((l, prefix @ suffix));
+    | (([], j_l), ([two_step_r, ...steps_r], j_r)) =>
+      switch (unzip(two_step_r, (e, None))) {
+      | `Pat(_) => None
+      | `Exp(e, unzipped) =>
+        let+ (path, e) = remove_selection((([], 0), (steps_r, j_r)), e);
+        switch (Option.get(unzipped)) {
+        | Operand(ParenZ_body({prefix, suffix, _}))
+        | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+          let (prefix, _removed) = ListUtil.split_n(j_l, prefix);
+          let path = {
+            let n = List.length(prefix);
+            switch (path) {
+            | ([], j) => ([], j + n)
+            | ([(tile_step, child_step), ...steps], j) => (
+                [(tile_step + n, child_step), ...steps],
+                j,
+              )
             };
-            (path, prefix @ e @ suffix);
-          | PreOp(_) => raise(ZExp.Void_ZPreOp)
-          | BinOp(_) => raise(ZExp.Void_ZBinOp)
           };
-        }
-      | (([(tile_step, _) as two_step_l, ...steps_l], j_l), ([], j_r)) =>
+          (path, prefix @ e @ suffix);
+        | PreOp(_) => raise(ZExp.Void_ZPreOp)
+        | BinOp(_) => raise(ZExp.Void_ZBinOp)
+        };
+      }
+    | (([(tile_step, _) as two_step_l, ...steps_l], j_l), ([], j_r)) =>
+      switch (unzip(two_step_l, (e, None))) {
+      | `Pat(_) => None
+      | `Exp(e, unzipped) =>
+        let+ (path, e) =
+          remove_selection(((steps_l, j_l), ([], List.length(e))), e);
+        switch (Option.get(unzipped)) {
+        | Operand(ParenZ_body({prefix, suffix, _}))
+        | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+          let (_removed, suffix) =
+            ListUtil.split_n(j_r - (tile_step + 1), suffix);
+          let path = {
+            let n = List.length(prefix) + List.length(e);
+            switch (path) {
+            | ([], j) => ([], j + n)
+            | ([(tile_step, child_step), ...steps], j) => (
+                [(tile_step + n, child_step), ...steps],
+                j,
+              )
+            };
+          };
+          (path, prefix @ e @ suffix);
+        | PreOp(_) => raise(ZExp.Void_ZPreOp)
+        | BinOp(_) => raise(ZExp.Void_ZBinOp)
+        };
+      }
+    | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
+      if (two_step_l == two_step_r) {
         switch (unzip(two_step_l, (e, None))) {
-        | `Pat(_) => None
+        | `Pat(p, unzipped) =>
+          let+ (path, p) =
+            Pat.remove_selection(((steps_l, j_l), (steps_r, j_r)), p);
+          switch (Pat.zip_ztile(p, Option.get(unzipped))) {
+          | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+          | (_, `Exp(e, _)) => (cons(two_step_l, path), e)
+          };
         | `Exp(e, unzipped) =>
           let+ (path, e) =
-            remove_selection(((steps_l, j_l), ([], List.length(e))), e);
-          switch (Option.get(unzipped)) {
-          | Operand(ParenZ_body({prefix, suffix, _}))
-          | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-            let (_removed, suffix) =
-              ListUtil.split_n(j_r - (tile_step + 1), suffix);
-            let path = {
-              let n = List.length(prefix) + List.length(e);
-              switch (path) {
-              | ([], j) => ([], j + n)
-              | ([(tile_step, child_step), ...steps], j) => (
-                  [(tile_step + n, child_step), ...steps],
-                  j,
-                )
-              };
-            };
-            (path, prefix @ e @ suffix);
-          | PreOp(_) => raise(ZExp.Void_ZPreOp)
-          | BinOp(_) => raise(ZExp.Void_ZBinOp)
-          };
-        }
-      | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
-        if (two_step_l == two_step_r) {
-          switch (unzip(two_step_l, (e, None))) {
-          | `Pat(p, unzipped) =>
-            let+ (path, p) =
-              Pat.remove_selection(((steps_l, j_l), (steps_r, j_r)), p);
-            switch (Pat.zip_ztile(p, Option.get(unzipped))) {
-            | (_, `Pat(_)) =>
-              failwith("unzipping and rezipping changed sort")
-            | (_, `Exp(e, _)) => (cons(two_step_l, path), e)
-            };
-          | `Exp(e, unzipped) =>
-            let+ (path, e) =
-              remove_selection(((steps_l, j_l), (steps_r, j_r)), e);
-            let (_, `Exp(e, _)) = zip_ztile(e, Option.get(unzipped));
-            (cons(two_step_l, path), e);
-          };
-        } else {
-          switch (
-            unzip(two_step_l, (e, None)),
-            unzip(two_step_r, (e, None)),
-          ) {
-          | (`Pat(_), _)
-          | (_, `Pat(_)) => None
-          | (`Exp(e_l, _), `Exp(e_r, _)) =>
-            let+ (path, e_l) =
-              remove_selection(
-                ((steps_l, j_l), ([], List.length(e_l))),
-                e_l,
+            remove_selection(((steps_l, j_l), (steps_r, j_r)), e);
+          let (_, `Exp(e, _)) = zip_ztile(e, Option.get(unzipped));
+          (cons(two_step_l, path), e);
+        };
+      } else {
+        switch (
+          unzip(two_step_l, (e, None)),
+          unzip(two_step_r, (e, None)),
+        ) {
+        | (`Pat(_), _)
+        | (_, `Pat(_)) => None
+        | (`Exp(e_l, _), `Exp(e_r, _)) =>
+          let+ (path, e_l) =
+            remove_selection(
+              ((steps_l, j_l), ([], List.length(e_l))),
+              e_l,
+            )
+          and+ (_, e_r) =
+            remove_selection((([], 0), (steps_r, j_r)), e_r);
+          let (prefix, _, suffix) =
+            ListUtil.split_sublist(fst(two_step_l), fst(two_step_r) + 1, e);
+          let path = {
+            let n = List.length(prefix);
+            switch (path) {
+            | ([], j) => ([], j + n)
+            | ([(tile_step, child_step), ...steps], j) => (
+                [(tile_step + n, child_step), ...steps],
+                j,
               )
-            and+ (_, e_r) =
-              remove_selection((([], 0), (steps_r, j_r)), e_r);
-            let (prefix, _, suffix) =
-              ListUtil.split_sublist(
-                fst(two_step_l),
-                fst(two_step_r) + 1,
-                e,
-              );
-            let path = {
-              let n = List.length(prefix);
-              switch (path) {
-              | ([], j) => ([], j + n)
-              | ([(tile_step, child_step), ...steps], j) => (
-                  [(tile_step + n, child_step), ...steps],
-                  j,
-                )
-              };
             };
-            (path, prefix @ e_l @ e_r @ suffix);
           };
-        }
+          (path, prefix @ e_l @ e_r @ suffix);
+        };
       }
-    );
+    };
 
   [@warning "-27"]
   let insert_tiles =
