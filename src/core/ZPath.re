@@ -46,6 +46,8 @@ module rec Typ: {
 
   let remove_selection: (selection, HTyp.t) => option((t, HTyp.t));
 
+  let round_selection: (selection, HTyp.t) => selection;
+
   let remove_tiles: (selection, HTyp.t) => (HTyp.inner_tiles, HTyp.t);
   let insert_tiles: (t, HTyp.inner_tiles, HPat.t) => HTyp.t;
   let restructure:
@@ -175,6 +177,8 @@ and Pat: {
     (Direction.t, t, ZPat.zipper) => option((selection, did_it_zip));
 
   let remove_selection: (selection, HPat.t) => option((t, HPat.t));
+
+  let round_selection: (selection, HPat.t) => selection;
 
   let remove_tiles:
     (selection, HPat.t) => option((HPat.inner_tiles, HPat.t));
@@ -328,6 +332,8 @@ and Exp: {
     (Direction.t, t, ZExp.zipper) => option((selection, did_it_zip));
 
   let remove_selection: (selection, HExp.t) => option((t, HExp.t));
+
+  let round_selection: (selection, HExp.t) => selection;
 
   let remove_tiles:
     (selection, HExp.t) => option((HExp.inner_tiles, HExp.t));

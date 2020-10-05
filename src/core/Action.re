@@ -153,26 +153,20 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       };
     perform(a, (mode, zipper));
 
-  | (Delete(d), (Selecting((l, r)), zipper)) =>
+  | (Delete(d), (Selecting((l, r) as selected), zipper)) =>
     let c = ZPath.compare(l, r);
     if (c == 0) {
       Some((Normal(r), zipper));
     } else if (c > 0) {
       perform(a, Selecting((r, l), zipper));
     } else {
-      switch (zipper) {
-      | `Typ(zipper) =>
-        let+ (selection_l, did_it_zip_l) = ZPath.Typ.select(Right, l, zipper)
-        and+ (selection_r, did_it_zip_r) = ZPath.Typ.select(Left, r, zipper);
-        let min_l = ZPath.min(fst(selection_l), fst(selection_r));
-        let max_r = ZPath.max(snd(selection_l), snd(selection_r));
-        switch (did_it_zip_l, did_it_zip_r) {
-        | (None, None) => (
-            Restructuring((min_l, max_r), min_l),
-            `Typ(zipper),
-          )
+      let rounded =
+        switch (zipper) {
+        | `Typ(ty, _) => ZPath.Typ.round_selection(selected, ty)
+        | `Pat(p, _) => ZPath.Pat.round_selection(selected, p)
+        | `Exp(e, _) => ZPath.Exp.round_selection(selected, e)
         };
-      };
+      (Restructuring(rounded, fst(rounded)), zipper);
     };
 
   | (Construct(_), (Restructuring(_), _)) => None
