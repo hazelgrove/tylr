@@ -4,10 +4,18 @@ type caret_step = int;
 type two_step = (tile_step, child_step);
 type t = (list(two_step), caret_step);
 
+type selection = (t, t);
+
+let select_while_moving = (start: t, end_: t): (Direction.t => selection) =>
+  fun
+  | Left => (end_, start)
+  | Right => (start, end_);
+
 let cons = (two_step, (steps, k)) => ([two_step, ...steps], k);
 
 module rec Typ: {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
+  type did_it_zip = option((two_step, zipped));
 
   let zip: (HTyp.t, ZTyp.t) => (tile_step, ZTyp.zipper);
   let zip_ztile: (HTyp.t, ZTyp.ztile) => (two_step, zipped);
@@ -17,6 +25,8 @@ module rec Typ: {
   let unzip_tile: (child_step, HTyp.Tile.t, ZTyp.t) => unzipped;
   let unzip: (two_step, ZTyp.zipper) => unzipped;
 
+  let sort: (t, HTyp.t) => [ | `Typ];
+
   /**
    * `move(d, zipper, path)` first attempts to returns the next path
    * from `path` in direction `d` within the focused term of `zipper`.
@@ -24,17 +34,19 @@ module rec Typ: {
    * the focused term), then it attempts to zip `zipper` and try once
    * more.
    */
-  let move:
-    (Direction.t, ZTyp.zipper, t) =>
-    option((t, option((two_step, zipped))));
+  let move: (Direction.t, t, ZTyp.zipper) => option((t, did_it_zip));
 
-  let remove_tiles: (t, t, HTyp.t) => (HTyp.inner_tiles, HTyp.t);
+  let select:
+    (Direction.t, t, ZTyp.zipper) => option((selection, did_it_zip));
+
+  let remove_tiles: (selection, HTyp.t) => (HTyp.inner_tiles, HTyp.t);
   let insert_tiles: (t, HTyp.inner_tiles, HPat.t) => HTyp.t;
   let restructure:
     (~place_cursor: [ | `Left | `Right]=?, t, t, t, HTyp.t) =>
     option((t, HTyp.t));
 } = {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
+  type did_it_zip = option((two_step, zipped));
 
   let zip = (ty: HTyp.t, zty: ZTyp.t): (tile_step, ZTyp.zipper) => (
     List.length(zty.prefix),
@@ -74,10 +86,10 @@ module rec Typ: {
   let rec move =
           (
             d: Direction.t,
-            (ty, zrest) as zipper: ZTyp.zipper,
             (steps, k): t,
+            (ty, zrest) as zipper: ZTyp.zipper,
           )
-          : option((t, option((two_step, zipped)))) => {
+          : option((t, did_it_zip)) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
@@ -105,12 +117,30 @@ module rec Typ: {
     | [two_step, ...steps] =>
       open OptUtil.Syntax;
       let `Typ(unzipped) = unzip(two_step, zipper);
-      let+ (path, _) = move(d, unzipped, (steps, k));
+      let+ (path, _) = move(d, (steps, k), unzipped);
       (cons(two_step, path), None);
     };
   };
 
-  let remove_tiles = (_, _, _) => failwith("unimplemented");
+  let sort = (_, _) => `Typ;
+
+  let select =
+      (d: Direction.t, start: t, zipper: ZTyp.zipper)
+      : option((selection, did_it_zip)) => {
+    open OptUtil.Syntax;
+    let* (next, did_it_zip) = move(d, start, zipper);
+    switch (did_it_zip) {
+    | None => Some((select_while_moving(start, next, d), did_it_zip))
+    | Some((two_step, `Typ(_))) =>
+      let start = cons(two_step, start);
+      Some((select_while_moving(start, next, d), did_it_zip));
+    | Some((_, `Pat(zipper))) =>
+      let+ (selection, _) = Pat.select(Direction.toggle(d), next, zipper);
+      (selection, did_it_zip);
+    };
+  };
+
+  let remove_tiles = (_, _) => failwith("unimplemented");
   let insert_tiles = (_, _, _) => failwith("unimplemented");
   [@warning "-27"]
   let restructure = (~place_cursor=`Left, _, _, _, _) =>
@@ -118,6 +148,7 @@ module rec Typ: {
 }
 and Pat: {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
+  type did_it_zip = option((two_step, zipped));
 
   let zip: (HPat.t, ZPat.t) => (tile_step, ZPat.zipper);
   let zip_ztile: (HPat.t, ZPat.ztile) => (two_step, zipped);
@@ -127,17 +158,22 @@ and Pat: {
   let unzip_tile: (child_step, HPat.Tile.t, ZPat.t) => unzipped;
   let unzip: (two_step, ZPat.zipper) => unzipped;
 
-  let move:
-    (Direction.t, ZPat.zipper, t) =>
-    option((t, option((two_step, zipped))));
+  let sort: (t, HPat.t) => [ | `Pat | `Typ];
 
-  let remove_tiles: (t, t, HPat.t) => option((HPat.inner_tiles, HPat.t));
+  let move: (Direction.t, t, ZPat.zipper) => option((t, did_it_zip));
+
+  let select:
+    (Direction.t, t, ZPat.zipper) => option((selection, did_it_zip));
+
+  let remove_tiles:
+    (selection, HPat.t) => option((HPat.inner_tiles, HPat.t));
   let insert_tiles: (t, HPat.inner_tiles, HPat.t) => option(HPat.t);
   let restructure:
     (~place_cursor: [ | `Left | `Right]=?, t, t, t, HPat.t) =>
     option((t, HPat.t));
 } = {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
+  type did_it_zip = option((two_step, zipped));
 
   let zip = (p: HPat.t, zp: ZPat.t): (tile_step, ZPat.zipper) => (
     List.length(zp.prefix),
@@ -177,8 +213,8 @@ and Pat: {
   };
 
   let rec move =
-          (d: Direction.t, (p, zrest) as zipper: ZPat.zipper, (steps, k): t)
-          : option((t, option((two_step, zipped)))) => {
+          (d: Direction.t, (steps, k): t, (p, zrest) as zipper: ZPat.zipper)
+          : option((t, did_it_zip)) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
@@ -210,15 +246,50 @@ and Pat: {
       open OptUtil.Syntax;
       let+ path =
         switch (unzip(two_step, zipper)) {
-        | `Pat(unzipped) => Option.map(fst, move(d, unzipped, (steps, k)))
+        | `Pat(unzipped) => Option.map(fst, move(d, (steps, k), unzipped))
         | `Typ(unzipped) =>
-          Option.map(fst, Typ.move(d, unzipped, (steps, k)))
+          Option.map(fst, Typ.move(d, (steps, k), unzipped))
         };
       (cons(two_step, path), None);
     };
   };
 
-  let remove_tiles = (_, _, _) => failwith("unimplemented");
+  // TODO fix output type
+  let rec sort = ((steps, j): t, p: HPat.t): [ | `Typ | `Pat] =>
+    switch (steps) {
+    | [] => `Pat
+    | [two_step, ...steps] =>
+      let path = (steps, j);
+      switch (unzip(two_step, (p, None))) {
+      | `Typ(_) => `Typ
+      | `Pat(p, _) => sort(path, p)
+      };
+    };
+
+  let select =
+      (d: Direction.t, start: t, (p, _) as zipper: ZPat.zipper)
+      : option((selection, did_it_zip)) => {
+    let rec go = (current: t): option((selection, did_it_zip)) => {
+      open OptUtil.Syntax;
+      let* (next, did_it_zip) = move(d, current, zipper);
+      switch (did_it_zip) {
+      | None =>
+        switch (sort(next, p)) {
+        | `Typ => go(next)
+        | `Pat => Some((select_while_moving(start, next, d), did_it_zip))
+        }
+      | Some((two_step, `Pat(_))) =>
+        let start = cons(two_step, start);
+        Some((select_while_moving(start, next, d), did_it_zip));
+      | Some((_, `Exp(zipper))) =>
+        let+ (selection, _) = Exp.select(Direction.toggle(d), next, zipper);
+        (selection, did_it_zip);
+      };
+    };
+    go(start);
+  };
+
+  let remove_tiles = (_, _) => failwith("unimplemented");
   let insert_tiles = (_, _, _) => failwith("unimplemented");
   [@warning "-27"]
   let restructure = (~place_cursor=`Left, _, _, _, _) =>
@@ -226,6 +297,7 @@ and Pat: {
 }
 and Exp: {
   type zipped = [ | `Exp(ZExp.zipper)];
+  type did_it_zip = option((two_step, zipped));
 
   let zip: (HExp.t, ZExp.t) => (tile_step, ZExp.zipper);
   let zip_ztile: (HExp.t, ZExp.ztile) => (two_step, zipped);
@@ -235,17 +307,22 @@ and Exp: {
   let unzip_tile: (child_step, HExp.Tile.t, ZExp.t) => unzipped;
   let unzip: (two_step, ZExp.zipper) => unzipped;
 
-  let move:
-    (Direction.t, ZExp.zipper, t) =>
-    option((t, option((two_step, zipped))));
+  let sort: (t, HExp.t) => [ | `Exp | `Pat | `Typ];
 
-  let remove_tiles: (t, t, HExp.t) => option((HExp.inner_tiles, HExp.t));
+  let move: (Direction.t, t, ZExp.zipper) => option((t, did_it_zip));
+
+  let select:
+    (Direction.t, t, ZExp.zipper) => option((selection, did_it_zip));
+
+  let remove_tiles:
+    (selection, HExp.t) => option((HExp.inner_tiles, HExp.t));
   let insert_tiles: (t, HExp.inner_tiles, HExp.t) => option(HExp.t);
   let restructure:
     (~place_cursor: [ | `Left | `Right]=?, t, t, t, HExp.t) =>
     option((t, HExp.t));
 } = {
   type zipped = [ | `Exp(ZExp.zipper)];
+  type did_it_zip = option((two_step, zipped));
 
   let zip = (e: HExp.t, ze: ZExp.t): (tile_step, ZExp.zipper) => (
     List.length(ze.prefix),
@@ -287,8 +364,8 @@ and Exp: {
   };
 
   let rec move =
-          (d: Direction.t, (e, zrest) as zipper: ZExp.zipper, (steps, k): t)
-          : option((t, option((two_step, zipped)))) => {
+          (d: Direction.t, (steps, k): t, (e, zrest) as zipper: ZExp.zipper)
+          : option((t, did_it_zip)) => {
     let if_left = (then_, else_) => d == Left ? then_ : else_;
     switch (steps) {
     | [] =>
@@ -320,16 +397,53 @@ and Exp: {
       open OptUtil.Syntax;
       let+ path =
         switch (unzip(two_step, zipper)) {
-        | `Exp(unzipped) => Option.map(fst, move(d, unzipped, (steps, k)))
+        | `Exp(unzipped) => Option.map(fst, move(d, (steps, k), unzipped))
         | `Pat(unzipped) =>
-          Option.map(fst, Pat.move(d, unzipped, (steps, k)))
+          Option.map(fst, Pat.move(d, (steps, k), unzipped))
         };
       (cons(two_step, path), None);
     };
   };
 
+  let rec sort = ((steps, j): t, e: HExp.t): [ | `Typ | `Pat | `Exp] =>
+    switch (steps) {
+    | [] => `Exp
+    | [two_step, ...steps] =>
+      let path = (steps, j);
+      switch (unzip(two_step, (e, None))) {
+      | `Pat(p, _) =>
+        switch (Pat.sort(path, p)) {
+        | `Typ => `Typ
+        | `Pat => `Pat
+        }
+      | `Exp(e, _) => sort(path, e)
+      };
+    };
+
+  let select =
+      (d: Direction.t, start: t, (e, _) as zipper: ZExp.zipper)
+      : option((selection, did_it_zip)) => {
+    let rec go = (current: t): option((selection, did_it_zip)) => {
+      open OptUtil.Syntax;
+      let* (next, did_it_zip) = move(d, current, zipper);
+      switch (did_it_zip) {
+      | None =>
+        switch (sort(next, e)) {
+        | `Typ
+        | `Pat => go(next)
+        | `Exp => Some((select_while_moving(start, next, d), did_it_zip))
+        }
+      | Some((two_step, `Exp(_))) =>
+        let start = cons(two_step, start);
+        Some((select_while_moving(start, next, d), did_it_zip));
+      };
+    };
+    go(start);
+  };
+
   let rec remove_tiles =
-          (l: t, r: t, e: HExp.t): option((HExp.inner_tiles, HExp.t)) =>
+          ((l, r): selection, e: HExp.t)
+          : option((HExp.inner_tiles, HExp.t)) =>
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
       let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, e);
@@ -344,13 +458,13 @@ and Exp: {
           switch (unzip(two_step_l, (e, None))) {
           | `Exp(e, zrest) =>
             let+ (removed, e) =
-              remove_tiles((steps_l, j_l), (steps_r, j_r), e);
+              remove_tiles(((steps_l, j_l), (steps_r, j_r)), e);
             let ztile = OptUtil.get(() => assert(false), zrest);
             let (_, `Exp(e, _)) = zip_ztile(e, ztile);
             (removed, e);
           | `Pat(p, zrest) =>
             let+ (removed, p) =
-              Pat.remove_tiles((steps_l, j_l), (steps_r, j_r), p);
+              Pat.remove_tiles(((steps_l, j_l), (steps_r, j_r)), p);
             let (_, rezipped) = Pat.zip_ztile(p, Option.get(zrest));
             switch (rezipped) {
             | `Pat(_) => failwith("unzipping and rezipping changed sort")
@@ -391,7 +505,7 @@ and Exp: {
         | (([_, ..._], _), ([], _), ([_, ..._], _)) =>
           restructure(~place_cursor=`Right, target, l, r, e)
         | (([], j_l), ([], j_r), ([], j_target)) =>
-          let* (removed, e) = remove_tiles(l, r, e);
+          let* (removed, e) = remove_tiles((l, r), e);
           let j_insert = j_target <= j_l ? j_target : j_target - (j_r - j_l);
           let+ e = insert_tiles(([], j_insert), removed, e);
           let j =
@@ -405,7 +519,7 @@ and Exp: {
             ([], j_r),
             ([(tile_step, child_step), ...steps], j_target),
           ) =>
-          let* (removed, e) = remove_tiles(l, r, e);
+          let* (removed, e) = remove_tiles((l, r), e);
           let insert_steps = {
             let tile_step =
               tile_step < j_l ? tile_step : tile_step - (j_r - j_l);
@@ -426,7 +540,7 @@ and Exp: {
           if (two_step_l != two_step_r) {
             None;
           } else {
-            let* (removed, e) = remove_tiles(l, r, e);
+            let* (removed, e) = remove_tiles((l, r), e);
             let+ e = insert_tiles(target, removed, e);
             let j =
               switch (place_cursor) {
@@ -459,7 +573,7 @@ and Exp: {
               };
             };
           } else if (two_step_l == two_step_r) {
-            let* (removed, e) = remove_tiles(l, r, e);
+            let* (removed, e) = remove_tiles((l, r), e);
             let+ e = insert_tiles(target, removed, e);
             let j =
               switch (place_cursor) {
