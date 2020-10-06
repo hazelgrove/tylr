@@ -289,7 +289,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       };
     perform(a, (mode, zipper));
 
-  | (Delete(_), (Selecting((l, r) as selected), zipper)) =>
+  | (Mark | Delete(_), (Selecting((l, r) as selected), zipper)) =>
     let c = ZPath.compare(l, r);
     if (c == 0) {
       Some((Normal(r), zipper));
