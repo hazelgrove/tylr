@@ -81,7 +81,7 @@ module Typ = {
     | Ann => None
     | Num => Some(Operand(Num))
     | Paren =>
-      Some(Operand(Paren(selection == [] ? HTyp.mk_hole() : selected)))
+      Some(Operand(Paren(selection == [] ? HTyp.mk_hole() : selection)))
     | Arrow => Some(BinOp(Arrow));
 };
 module Pat = {
@@ -150,7 +150,8 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       )
     };
 
-  | (Mark, (Normal(focus), zipper)) => (Selecting((focus, focus)), zipper)
+  | (Mark, (Normal(focus), zipper)) =>
+    Some((Selecting((focus, focus)), zipper))
 
   | (Delete(d), (Normal(focus), zipper)) =>
     switch (zipper) {
@@ -205,7 +206,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
           HTyp.fix_empty_holes(prefix @ [tile], suffix);
         (List.length(prefix), prefix @ suffix);
       };
-      (Normal(([], j)), `Typ((ty, unzipped)));
+      (EditMode.Normal(([], j)), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
       let* tile = Pat.tile_of_shape(s);
       let (j, p) = {
@@ -214,13 +215,13 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
           HPat.fix_empty_holes(prefix @ [tile], suffix);
         (List.length(prefix), prefix @ suffix);
       };
-      let zipper =
+      let+ zipper =
         switch (unzipped) {
         | None =>
           let (p, _, _) = Statics.Pat.syn_fix_holes(Ctx.empty, p);
           Some(`Pat((p, None)));
         | Some(ztile) =>
-          let+ ZInfo.Pat.{ctx, mode} = ZInfo.Pat.mk(ztile);
+          let+ ZInfo.Pat.{ctx, mode} = ZInfo.Pat.mk_ztile(ztile);
           let (p, ztile) =
             switch (mode) {
             | Syn({fix}) =>
@@ -232,27 +233,22 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
             };
           `Pat((p, Some(ztile)));
         };
-      (Normal(([], j)), zipper);
+      (EditMode.Normal(([], j)), zipper);
     | `Exp(e, unzipped) =>
       let* tile = Exp.tile_of_shape(s);
       let (j, e) = {
         let (prefix, suffix) = ListUtil.split_n(j, e);
         let (prefix, suffix) =
-          HExp.fix_empty_holes(
-            prefix @ [tile],
-            suffix,
-            List.length(prefix),
-            prefix @ suffix,
-          );
-        ();
+          HExp.fix_empty_holes(prefix @ [tile], suffix);
+        (List.length(prefix), prefix @ suffix);
       };
-      let zipper =
+      let+ zipper =
         switch (unzipped) {
         | None =>
           let (e, _) = Statics.Exp.syn_fix_holes(Ctx.empty, e);
           Some(`Exp((e, None)));
         | Some(ztile) =>
-          let+ ZInfo.Exp.{ctx, mode} = ZInfo.Exp.mk(ztile);
+          let+ ZInfo.Exp.{ctx, mode} = ZInfo.Exp.mk_ztile(ztile);
           let (e, ztile) =
             switch (mode) {
             | Syn({fn_pos, fix}) =>
@@ -264,7 +260,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
             };
           `Exp((e, Some(ztile)));
         };
-      (Normal(([], j)), zipper);
+      (EditMode.Normal(([], j)), zipper);
     }
 
   | (
@@ -293,12 +289,12 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       };
     perform(a, (mode, zipper));
 
-  | (Delete(d), (Selecting((l, r) as selected), zipper)) =>
+  | (Delete(_), (Selecting((l, r) as selected), zipper)) =>
     let c = ZPath.compare(l, r);
     if (c == 0) {
       Some((Normal(r), zipper));
     } else if (c > 0) {
-      perform(a, Selecting((r, l), zipper));
+      perform(a, (Selecting((r, l)), zipper));
     } else {
       let rounded =
         switch (zipper) {
@@ -306,7 +302,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         | `Pat(p, _) => ZPath.Pat.round_selection(selected, p)
         | `Exp(e, _) => ZPath.Exp.round_selection(selected, e)
         };
-      (Restructuring(rounded, fst(rounded)), zipper);
+      Some((Restructuring(rounded, fst(rounded)), zipper));
     };
 
   | (Construct(_), (Restructuring(_), _)) => None
@@ -315,25 +311,25 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
     switch (zipper) {
     | `Typ(ty, unzipped) =>
       let+ (path, ty) = ZPath.Typ.remove_selection(selection, ty);
-      (Normal(path), `Typ((ty, unzipped)));
+      (EditMode.Normal(path), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
       let+ (path, p) = ZPath.Pat.remove_selection(selection, p);
-      (Normal(path), `Pat((p, unzipped)));
+      (EditMode.Normal(path), `Pat((p, unzipped)));
     | `Exp(e, unzipped) =>
-      let+ (path, e) = ZPath.Exp.remove_selection(selection, p);
-      (Normal(path), `Exp((e, unzipped)));
+      let+ (path, e) = ZPath.Exp.remove_selection(selection, e);
+      (EditMode.Normal(path), `Exp((e, unzipped)));
     }
 
   | (Mark, (Restructuring(selection, target), zipper)) =>
     switch (zipper) {
     | `Typ(ty, unzipped) =>
       let+ (path, ty) = ZPath.Typ.restructure(selection, target, ty);
-      (Normal(path), `Typ((ty, unzipped)));
+      (EditMode.Normal(path), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
       let+ (path, p) = ZPath.Pat.restructure(selection, target, p);
-      (Normal(path), `Pat((p, unzipped)));
+      (EditMode.Normal(path), `Pat((p, unzipped)));
     | `Exp(e, unzipped) =>
       let+ (path, e) = ZPath.Exp.restructure(selection, target, e);
-      (Normal(path), `Exp((e, unzipped)));
+      (EditMode.Normal(path), `Exp((e, unzipped)));
     }
   };

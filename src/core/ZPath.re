@@ -20,6 +20,21 @@ let cons_selection = (two_step, (l, r)) => (
   cons(two_step, r),
 );
 
+let compare_two_step = ((tile_step, child_step), (tile_step', child_step')) => {
+  let c = Int.compare(tile_step, tile_step');
+  c == 0 ? Int.compare(child_step, child_step') : c;
+};
+
+let rec compare = ((steps, j), (steps', j')) =>
+  switch (steps, steps') {
+  | ([], []) => Int.compare(j, j')
+  | ([], [(tile_step, _), ..._]) => j <= tile_step ? (-1) : 1
+  | ([(tile_step, _), ..._], []) => j' <= tile_step ? 1 : (-1)
+  | ([two_step, ...steps], [two_step', ...steps']) =>
+    let c = compare_two_step(two_step, two_step');
+    c == 0 ? compare((steps, j), (steps', j')) : c;
+  };
+
 module rec Typ: {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
   type did_it_zip = option((two_step, zipped));
@@ -148,6 +163,9 @@ module rec Typ: {
       (selection, did_it_zip);
     };
   };
+
+  /* assumes l, r are maximally unzipped */
+  let round_selection = (selection, _) => selection;
 
   let remove_selection = (_, _) => failwith("unimplemented");
 
@@ -300,6 +318,28 @@ and Pat: {
       };
     };
     go(start);
+  };
+
+  /* assumes l, r are maximally unzipped */
+  let round_selection = ((l, r): selection, p: HPat.t): selection => {
+    let rec next_pat_path = (d: Direction.t, current: t): t => {
+      let (next, _) = Option.get(move(d, current, (p, None)));
+      switch (sort(next, p)) {
+      | `Typ => next_pat_path(d, next)
+      | `Pat => current
+      };
+    };
+    let l =
+      switch (sort(l, p)) {
+      | `Pat => l
+      | _ => next_pat_path(Left, l)
+      };
+    let r =
+      switch (sort(r, p)) {
+      | `Pat => r
+      | _ => next_pat_path(Right, r)
+      };
+    (l, r);
   };
 
   let remove_selection = (_, _) => failwith("unimplemented");
