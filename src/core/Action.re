@@ -305,6 +305,10 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       Some((Restructuring(rounded, fst(rounded)), zipper));
     };
 
+  | (Construct(_), (Selecting(_), _)) =>
+    // TODO
+    None
+
   | (Construct(_), (Restructuring(_), _)) => None
 
   | (Delete(_), (Restructuring(selection, _), zipper)) =>
