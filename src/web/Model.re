@@ -1,5 +1,5 @@
-type t = Action.Exp.edit_state;
+type t = Action.EditState.t;
 
 let cutoff = (===);
 
-let init = () => Action.Exp.Normal({focus: ZExp.mk_hole()});
+let init = () => (Action.EditMode.Normal(([], 0)), (HExp.mk_hole(), None));
