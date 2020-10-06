@@ -594,6 +594,29 @@ and Exp: {
       }
     };
 
+  /* assumes l, r are maximally unzipped */
+  let round_selection = ((l, r): selection, e: HExp.t): selection => {
+    let rec next_exp_path = (d: Direction.t, current: t): t => {
+      let (next, _) = Option.get(move(d, current, (e, None)));
+      switch (sort(next, e)) {
+      | `Typ
+      | `Pat => next_exp_path(d, next)
+      | `Exp => current
+      };
+    };
+    let l =
+      switch (sort(l, e)) {
+      | `Exp => l
+      | _ => next_exp_path(Left, l)
+      };
+    let r =
+      switch (sort(r, e)) {
+      | `Exp => r
+      | _ => next_exp_path(Right, r)
+      };
+    (l, r);
+  };
+
   [@warning "-27"]
   let insert_tiles =
       (target: t, tiles: HExp.inner_tiles, e: HExp.t): option(HExp.t) =>
