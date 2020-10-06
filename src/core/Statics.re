@@ -163,7 +163,9 @@ module Exp = {
     };
   };
 
-  let rec syn_fix_holes = (ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) =>
+  // TODO use fn_pos flag
+  let rec syn_fix_holes =
+          (~fn_pos as _=false, ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) =>
     switch (HExp.root(e)) {
     | Operand(operand) =>
       switch (operand) {

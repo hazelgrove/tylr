@@ -1,5 +1,8 @@
+open OptUtil.Syntax;
+
 type tile_shape =
-  | Num(int)
+  | Num
+  | NumLit(int)
   | Var(Var.t)
   | Paren
   | Lam
@@ -67,7 +70,55 @@ module EditState = {
   type t = (EditMode.t, zipper);
 };
 
-open OptUtil.Syntax;
+module Typ = {
+  let tile_of_shape = (~selection=[]): (tile_shape => option(HTyp.Tile.t)) =>
+    fun
+    | NumLit(_)
+    | Lam
+    | Ap
+    | Plus
+    | Var(_)
+    | Ann => None
+    | Num => Some(Operand(Num))
+    | Paren =>
+      Some(Operand(Paren(selection == [] ? HTyp.mk_hole() : selected)))
+    | Arrow => Some(BinOp(Arrow));
+};
+module Pat = {
+  let tile_of_shape = (~selection=[]): (tile_shape => option(HPat.Tile.t)) =>
+    fun
+    | Num
+    | NumLit(_)
+    | Lam
+    | Ap
+    | Plus
+    | Arrow => None
+    | Var(x) => Some(Operand(Var(x)))
+    | Paren =>
+      Some(Operand(Paren(selection == [] ? HPat.mk_hole() : selection)))
+    // TODO come back to Ann, consider generalizing output to list of tiles
+    // so that bidelimited wrapping is not the only possible outcome on a selection
+    | Ann => Some(PostOp(Ann(NotInHole, HTyp.mk_hole())));
+};
+module Exp = {
+  let tile_of_shape = (~selection=[]): (tile_shape => option(HExp.Tile.t)) =>
+    fun
+    | Num
+    | Ann
+    | Arrow => None
+    | NumLit(n) => Some(Operand(Num(NotInHole, n)))
+    | Var(x) => Some(Operand(Var(NotInHole, x)))
+    | Paren =>
+      Some(Operand(Paren(selection == [] ? HExp.mk_hole() : selection)))
+    // TODO come back to Lam, consider generalizing output to list of tiles
+    // so that bidelimited wrapping is not the only possible outcome on a selection
+    | Lam => Some(PreOp(Lam(NotInHole, HPat.mk_hole())))
+    | Ap =>
+      Some(
+        PostOp(Ap(NotInHole, selection == [] ? HExp.mk_hole() : selection)),
+      )
+    | Plus => Some(BinOp(Plus(NotInHole)));
+};
 
 let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
   switch (a, edit_state) {
@@ -125,6 +176,93 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         | Some((_, zipped)) => (zipped :> EditState.zipper)
         };
       (EditMode.Selecting(selection), zipper);
+    }
+
+  | (Construct(_), (Normal(([two_step, ...steps], j)), zipper)) =>
+    let mode = EditMode.Normal((steps, j));
+    let zipper =
+      switch (zipper) {
+      | `Typ(zipper) => (
+          ZPath.Typ.unzip(two_step, zipper) :> EditState.zipper
+        )
+      | `Pat(zipper) => (
+          ZPath.Pat.unzip(two_step, zipper) :> EditState.zipper
+        )
+      | `Exp(zipper) => (
+          ZPath.Exp.unzip(two_step, zipper) :> EditState.zipper
+        )
+      };
+    perform(a, (mode, zipper));
+  | (Construct(s), (Normal(([], j)), zipper)) =>
+    switch (zipper) {
+    | `Typ(ty, unzipped) =>
+      let+ tile = Typ.tile_of_shape(s);
+      let (j, ty) = {
+        let (prefix, suffix) = ListUtil.split_n(j, ty);
+        let (prefix, suffix) =
+          HTyp.fix_empty_holes(prefix @ [tile], suffix);
+        (List.length(prefix), prefix @ suffix);
+      };
+      (Normal(([], j)), `Typ((ty, unzipped)));
+    | `Pat(p, unzipped) =>
+      let* tile = Pat.tile_of_shape(s);
+      let (j, p) = {
+        let (prefix, suffix) = ListUtil.split_n(j, p);
+        let (prefix, suffix) =
+          HPat.fix_empty_holes(prefix @ [tile], suffix);
+        (List.length(prefix), prefix @ suffix);
+      };
+      let zipper =
+        switch (unzipped) {
+        | None =>
+          let (p, _, _) = Statics.Pat.syn_fix_holes(Ctx.empty, p);
+          Some(`Pat((p, None)));
+        | Some(ztile) =>
+          let+ ZInfo.Pat.{ctx, mode} = ZInfo.Pat.mk(ztile);
+          let (p, ztile) =
+            switch (mode) {
+            | Syn({fix}) =>
+              let (p, ty, ctx) = Statics.Pat.syn_fix_holes(ctx, p);
+              (p, fix(ty, ctx));
+            | Ana({expected, fix}) =>
+              let (p, ctx) = Statics.Pat.ana_fix_holes(ctx, p, expected);
+              (p, fix(ctx));
+            };
+          `Pat((p, Some(ztile)));
+        };
+      (Normal(([], j)), zipper);
+    | `Exp(e, unzipped) =>
+      let* tile = Exp.tile_of_shape(s);
+      let (j, e) = {
+        let (prefix, suffix) = ListUtil.split_n(j, e);
+        let (prefix, suffix) =
+          HExp.fix_empty_holes(
+            prefix @ [tile],
+            suffix,
+            List.length(prefix),
+            prefix @ suffix,
+          );
+        ();
+      };
+      let zipper =
+        switch (unzipped) {
+        | None =>
+          let (e, _) = Statics.Exp.syn_fix_holes(Ctx.empty, e);
+          Some(`Exp((e, None)));
+        | Some(ztile) =>
+          let+ ZInfo.Exp.{ctx, mode} = ZInfo.Exp.mk(ztile);
+          let (e, ztile) =
+            switch (mode) {
+            | Syn({fn_pos, fix}) =>
+              let (e, ty) = Statics.Exp.syn_fix_holes(~fn_pos, ctx, e);
+              (e, fix(ty));
+            | Ana({expected, fix}) =>
+              let e = Statics.Exp.ana_fix_holes(ctx, e, expected);
+              (e, fix());
+            };
+          `Exp((e, Some(ztile)));
+        };
+      (Normal(([], j)), zipper);
     }
 
   | (
