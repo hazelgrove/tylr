@@ -150,6 +150,8 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       )
     };
 
+  | (Mark, (Normal(focus), zipper)) => (Selecting((focus, focus)), zipper)
+
   | (Delete(d), (Normal(focus), zipper)) =>
     switch (zipper) {
     | `Typ(z) =>
