@@ -17,59 +17,6 @@ type t =
   | Delete(Direction.t)
   | Construct(tile_shape);
 
-module EditMode = {
-  type t =
-    | Normal(ZPath.t)
-    | Selecting(ZPath.selection)
-    | Restructuring(ZPath.selection, ZPath.t);
-
-  let cons = two_step =>
-    fun
-    | Normal(focus) => Normal(ZPath.cons(two_step, focus))
-    | Selecting(selection) =>
-      Selecting(ZPath.cons_selection(two_step, selection))
-    | Restructuring(selection, focus) =>
-      Restructuring(
-        ZPath.cons_selection(two_step, selection),
-        ZPath.cons(two_step, focus),
-      );
-
-  let mark =
-    fun
-    | Normal(focus) => Selecting((focus, focus))
-    | Selecting((l, _) as selection) => Restructuring(selection, l)
-    | Restructuring(_, focus) => Normal(focus);
-
-  let get_focus =
-    fun
-    | Normal(focus)
-    | Selecting((_, focus))
-    | Restructuring(_, focus) => focus;
-
-  let put_focus = focus =>
-    fun
-    | Normal(_) => Normal(focus)
-    | Selecting((anchor, _)) => Selecting((anchor, focus))
-    | Restructuring(selection, _) => Restructuring(selection, focus);
-
-  let update_anchors = (f: ZPath.t => ZPath.t) =>
-    fun
-    | Normal(_) as mode => mode
-    | Selecting((anchor, focus)) => Selecting((f(anchor), focus))
-    | Restructuring((l, r), focus) => Restructuring((f(l), f(r)), focus);
-};
-
-module EditState = {
-  type zipper = [
-    | `Exp(ZExp.zipper)
-    | `Pat(ZPat.zipper)
-    | `Typ(ZTyp.zipper)
-  ];
-  type did_it_zip = option((ZPath.two_step, zipper));
-
-  type t = (EditMode.t, zipper);
-};
-
 module Typ = {
   let tile_of_shape = (~selection=[]): (tile_shape => option(HTyp.Tile.t)) =>
     fun
@@ -128,24 +75,24 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         switch (zipper) {
         | `Exp(zipper) => (
             ZPath.Exp.move(d, path, zipper) :>
-              option((ZPath.t, EditState.did_it_zip))
+              option((ZPath.t, EditState.Zipper.did_it_zip))
           )
         | `Pat(zipper) => (
             ZPath.Pat.move(d, path, zipper) :>
-              option((ZPath.t, EditState.did_it_zip))
+              option((ZPath.t, EditState.Zipper.did_it_zip))
           )
         | `Typ(zipper) => (
             ZPath.Typ.move(d, path, zipper) :>
-              option((ZPath.t, EditState.did_it_zip))
+              option((ZPath.t, EditState.Zipper.did_it_zip))
           )
         };
-      move(EditMode.get_focus(mode));
+      move(EditState.Mode.get_focus(mode));
     };
-    let mode = EditMode.put_focus(focus, mode);
+    let mode = EditState.Mode.put_focus(focus, mode);
     switch (did_it_zip) {
     | None => (mode, zipper)
     | Some((two_step, zipped)) => (
-        EditMode.update_anchors(ZPath.cons(two_step), mode),
+        EditState.Mode.update_anchors(ZPath.cons(two_step), mode),
         zipped,
       )
     };
@@ -160,39 +107,39 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       let zipper =
         switch (did_it_zip) {
         | None => zipper
-        | Some((_, zipped)) => (zipped :> EditState.zipper)
+        | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
         };
-      (EditMode.Selecting(selection), zipper);
+      (EditState.Mode.Selecting(selection), zipper);
     | `Pat(z) =>
       let+ (selection, did_it_zip) = ZPath.Pat.select(d, focus, z);
       let zipper =
         switch (did_it_zip) {
         | None => zipper
-        | Some((_, zipped)) => (zipped :> EditState.zipper)
+        | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
         };
-      (EditMode.Selecting(selection), zipper);
+      (EditState.Mode.Selecting(selection), zipper);
     | `Exp(z) =>
       let+ (selection, did_it_zip) = ZPath.Exp.select(d, focus, z);
       let zipper =
         switch (did_it_zip) {
         | None => zipper
-        | Some((_, zipped)) => (zipped :> EditState.zipper)
+        | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
         };
-      (EditMode.Selecting(selection), zipper);
+      (EditState.Mode.Selecting(selection), zipper);
     }
 
   | (Construct(_), (Normal(([two_step, ...steps], j)), zipper)) =>
-    let mode = EditMode.Normal((steps, j));
+    let mode = EditState.Mode.Normal((steps, j));
     let zipper =
       switch (zipper) {
       | `Typ(zipper) => (
-          ZPath.Typ.unzip(two_step, zipper) :> EditState.zipper
+          ZPath.Typ.unzip(two_step, zipper) :> EditState.Zipper.t
         )
       | `Pat(zipper) => (
-          ZPath.Pat.unzip(two_step, zipper) :> EditState.zipper
+          ZPath.Pat.unzip(two_step, zipper) :> EditState.Zipper.t
         )
       | `Exp(zipper) => (
-          ZPath.Exp.unzip(two_step, zipper) :> EditState.zipper
+          ZPath.Exp.unzip(two_step, zipper) :> EditState.Zipper.t
         )
       };
     perform(a, (mode, zipper));
@@ -206,7 +153,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
           HTyp.fix_empty_holes(prefix @ [tile], suffix);
         (List.length(prefix), prefix @ suffix);
       };
-      (EditMode.Normal(([], j)), `Typ((ty, unzipped)));
+      (EditState.Mode.Normal(([], j)), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
       let* tile = Pat.tile_of_shape(s);
       let (j, p) = {
@@ -233,7 +180,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
             };
           `Pat((p, Some(ztile)));
         };
-      (EditMode.Normal(([], j)), zipper);
+      (EditState.Mode.Normal(([], j)), zipper);
     | `Exp(e, unzipped) =>
       let* tile = Exp.tile_of_shape(s);
       let (j, e) = {
@@ -260,7 +207,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
             };
           `Exp((e, Some(ztile)));
         };
-      (EditMode.Normal(([], j)), zipper);
+      (EditState.Mode.Normal(([], j)), zipper);
     }
 
   | (
@@ -274,17 +221,17 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       ),
     )
       when two_step_l == two_step_r =>
-    let mode = EditMode.Selecting(((steps_l, j_l), (steps_r, j_r)));
+    let mode = EditState.Mode.Selecting(((steps_l, j_l), (steps_r, j_r)));
     let zipper =
       switch (zipper) {
       | `Typ(zipper) => (
-          ZPath.Typ.unzip(two_step_l, zipper) :> EditState.zipper
+          ZPath.Typ.unzip(two_step_l, zipper) :> EditState.Zipper.t
         )
       | `Pat(zipper) => (
-          ZPath.Pat.unzip(two_step_l, zipper) :> EditState.zipper
+          ZPath.Pat.unzip(two_step_l, zipper) :> EditState.Zipper.t
         )
       | `Exp(zipper) => (
-          ZPath.Exp.unzip(two_step_l, zipper) :> EditState.zipper
+          ZPath.Exp.unzip(two_step_l, zipper) :> EditState.Zipper.t
         )
       };
     perform(a, (mode, zipper));
@@ -315,25 +262,25 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
     switch (zipper) {
     | `Typ(ty, unzipped) =>
       let+ (path, ty) = ZPath.Typ.remove_selection(selection, ty);
-      (EditMode.Normal(path), `Typ((ty, unzipped)));
+      (EditState.Mode.Normal(path), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
       let+ (path, p) = ZPath.Pat.remove_selection(selection, p);
-      (EditMode.Normal(path), `Pat((p, unzipped)));
+      (EditState.Mode.Normal(path), `Pat((p, unzipped)));
     | `Exp(e, unzipped) =>
       let+ (path, e) = ZPath.Exp.remove_selection(selection, e);
-      (EditMode.Normal(path), `Exp((e, unzipped)));
+      (EditState.Mode.Normal(path), `Exp((e, unzipped)));
     }
 
   | (Mark, (Restructuring(selection, target), zipper)) =>
     switch (zipper) {
     | `Typ(ty, unzipped) =>
       let+ (path, ty) = ZPath.Typ.restructure(selection, target, ty);
-      (EditMode.Normal(path), `Typ((ty, unzipped)));
+      (EditState.Mode.Normal(path), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
       let+ (path, p) = ZPath.Pat.restructure(selection, target, p);
-      (EditMode.Normal(path), `Pat((p, unzipped)));
+      (EditState.Mode.Normal(path), `Pat((p, unzipped)));
     | `Exp(e, unzipped) =>
       let+ (path, e) = ZPath.Exp.restructure(selection, target, e);
-      (EditMode.Normal(path), `Exp((e, unzipped)));
+      (EditState.Mode.Normal(path), `Exp((e, unzipped)));
     }
   };

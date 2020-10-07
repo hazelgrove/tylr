@@ -1,5 +1,8 @@
-type t = Action.EditState.t;
+type t = EditState.t;
 
 let cutoff = (===);
 
-let init = () => (Action.EditMode.Normal(([], 0)), (HExp.mk_hole(), None));
+let init = () => (
+  EditState.Mode.Normal(([], 0)),
+  `Exp((HExp.mk_hole(), None)),
+);
