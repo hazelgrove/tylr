@@ -53,7 +53,7 @@ module Path = {
     | V({y}) => Printf.sprintf("V %f", y)
     | V_({dy}) => Printf.sprintf("v %f", dy);
 
-  let view = (~attrs: list(Attr.t), path: t): Node.t => {
+  let view = (~attrs: Attrs.t, path: t): Node.t => {
     let buffer = Buffer.create(List.length(path) * 20);
     path
     |> List.iter(cmd => {

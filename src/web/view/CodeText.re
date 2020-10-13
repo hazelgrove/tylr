@@ -27,31 +27,10 @@ let view_of_Arrow = [Node.text(Unicode.arrow)];
 let view_of_Plus = [Node.text("+")];
 let view_of_OperatorHole = [Node.text(Unicode.nbsp)];
 
-let length =
-    (
-      length_of_operand,
-      length_of_preop,
-      length_of_postop,
-      length_of_binop,
-      tiles,
-    )
-    : int =>
-  tiles
-  |> List.map(
-       Tile.map(
-         length_of_operand,
-         length_of_preop,
-         length_of_postop,
-         length_of_binop,
-       ),
-     )
-  |> List.map((+)(1))
-  |> List.fold_left((+), -1);
-
 module Exp = {
-  let rec view = (~attrs: list(Attr.t)=[], e: HExp.t): Node.t =>
+  let rec view = (~attrs: Attrs.t=[], e: HExp.t): Node.t =>
     Node.span(attrs, List.map(view_of_tile, e))
-  and view_of_tile = (~attrs: list(Attr.t)=[], tile: HExp.Tile.t): Node.t => {
+  and view_of_tile = (~attrs: Attrs.t=[], tile: HExp.Tile.t): Node.t => {
     let cls =
       switch (tile) {
       | Operand(_) => "Operand"
@@ -84,11 +63,14 @@ module Exp = {
       };
     Node.span(Attrs.add_class(attrs, cls), vs);
   };
-
   let view_of_faded_tile = view_of_tile(~attrs=[Attr.classes(["faded"])]);
 
-  let rec view_of_faded =
-          (side: [ | `Left | `Right], (steps, j): ZPath.t, e: HExp.t)
+  let rec view_with_faded_affix =
+          (
+            faded_affix: [ | `Prefix | `Suffix],
+            (steps, j): ZPath.t,
+            e: HExp.t,
+          )
           : ZList.t(Node.t, Node.t) =>
     switch (steps) {
     | [] => view(e)
@@ -100,40 +82,42 @@ module Exp = {
           switch (Option.get(unzipped)) {
           | Operand(ParenZ_body({prefix, suffix, _})) => (
               prefix,
-              view_of_Paren(view_of_faded(side, (steps, j), e)),
+              view_of_Paren(view_with_faded_affix(side, (steps, j), e)),
               suffix,
             )
           | PreOp(_) => raise(ZExp.Void_ZPreOp)
-          | PostOp(ApZ_arg(_, {prefix, suffix})) => (
+          | PostOp(ApZ_arg(_, {prefix, suffix, _})) => (
               prefix,
-              view_of_Ap(view_of_faded(side, (steps, j), e)),
+              view_of_Ap(view_with_faded_affix(side, (steps, j), e)),
               suffix,
             )
           | BinOp(_) => raise(ZExp.Void_ZBinOp)
           }
         };
       let (view_of_pre, view_of_suf) =
-        switch (side) {
-        | `Left => (view_of_faded_tile, view_of_tile)
-        | `Right => (view_of_tile, view_of_faded_tile)
+        switch (faded_affix) {
+        | `Prefix => (view_of_faded_tile, view_of_tile)
+        | `Suffix => (view_of_tile, view_of_faded_tile)
         };
       let prefix = List.map(view_of_pre, prefix);
       let suffix = List.map(view_of_suf, suffix);
       {prefix, z: tile, suffix};
     };
+  let view_with_faded_prefix = view_with_faded_affix(`Prefix);
+  let view_with_faded_suffix = view_with_faded_affix(`Suffix);
 
   let view_of_restructuring = ((l, r): ZPath.selection, e: HExp.t): Node.t =>
     switch (l, r) {
     | (([], _), ([], _)) => view(e)
     | (([], _), ([_, ..._], _)) =>
-      let {prefix, z, suffix} = view_of_faded(`Right, r, e);
+      let {prefix, z, suffix} = view_with_faded_suffix(r, e);
       Node.span([], prefix @ [z, ...suffix]);
     | (([_, ..._], _), ([], _)) =>
-      let {prefix, z, suffix} = view_of_faded(`Left, l, e);
+      let {prefix, z, suffix} = view_with_faded_prefix(l, e);
       Node.span([], prefix @ [z, ...suffix]);
     | (([_, ..._], _), ([_, ..._], _)) =>
-      let {prefix, z: z_l, suffix: suffix_l} = view_of_faded(`Left, l, e);
-      let {prefix: prefix_r, z: z_r, suffix} = view_of_faded(`Right, r, e);
+      let {prefix, z: z_l, suffix: suffix_l} = view_with_faded_prefix(l, e);
+      let {prefix: prefix_r, z: z_r, suffix} = view_with_faded_suffix(r, e);
       let mid =
         ListUtil.split_n(
           List.length(prefix_r) - (List.length(prefix) + 1),

@@ -38,7 +38,7 @@ module Exp: {
     let if_show = l => show_children ? l : [];
     switch (tile) {
     | Operand(operand) =>
-      let (open_children, closed_chilren, len) =
+      let (open_children, closed_children, len) =
         switch (operand) {
         | OperandHole
         | Var(_)
