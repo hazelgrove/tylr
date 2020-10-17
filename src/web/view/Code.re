@@ -1,6 +1,58 @@
 open Virtual_dom.Vdom;
 
+module Typ = {
+  let rec length = (ty: HTyp.t) =>
+    Code.length(
+      length_of_operand,
+      length_of_preop,
+      length_of_postop,
+      length_of_binop,
+      ty,
+    )
+  and length_of_operand =
+    fun
+    | OperandHole => 1
+    | Num => 3
+    | Paren(body) => 4 + length(body)
+  and length_of_preop =
+    fun
+    | _ => raise(HTyp.Tile.Void_PreOp)
+  and length_of_postop =
+    fun
+    | _ => raise(HTyp.Tile.Void_PostOp)
+  and length_of_binop =
+    fun
+    | OperatorHole
+    | Arrow => 1;
+};
+
 module Pat = {
+  let rec length = (p: HPat.t) =>
+    p
+    |> List.map(
+         Tile.map(
+           length_of_operand,
+           length_of_preop,
+           length_of_postop,
+           length_of_binop,
+         ),
+       )
+    |> List.map((+)(1))
+    |> List.fold_left((+), -1)
+  and length_of_operand: HPat.Tile.operand => int =
+    fun
+    | OperandHole => 1
+    | Var(x) => String.length(x)
+    | Paren(body) => 2 + length(body) + 2
+  and length_of_preop: HPat.Tile.preop => int =
+    fun
+    | _ => raise(HPat.Tile.Void_PreOp)
+  and length_of_postop: HPat.Tile.postop => int =
+    fun
+    | Ann(_, ann) => 2 + Code_Typ.length(ann)
+  and length_of_binop: HPat.Tile.binop => int =
+    fun
+    | OperatorHole => 1;
   let length = _ => failwith("unimplemented");
   let view_of_unzipped = (_, _) => failwith("unimplemented");
   let view_of_zipped = (~font_metrics as _, _, _) =>
@@ -80,7 +132,7 @@ module Exp = {
 
   let rec view_of_term = (~font_metrics: FontMetrics.t, e: HExp.t) =>
     List.map(view_of_tile(~font_metrics), e)
-  and view_of_tile = (~font_metrics: FontMetrics.t, tile: HExp.Tile.t) => {
+  and view_of_tile = (~font_metrics as _: FontMetrics.t, tile: HExp.Tile.t) => {
     let text = CodeText.Exp.view_of_tile(tile);
     let decoration =
       CodeDecoration.Tile.view(
@@ -172,7 +224,7 @@ module Exp = {
         ) {
         | (`Pat(_), _)
         | (_, `Pat(_)) => failwith("unconsidered")
-        | (`Exp(e_l, unzipped_l), `Exp(e_r, unzipped_r)) =>
+        | (`Exp(e_l, _unzipped_l), `Exp(e_r, _unzipped_r)) =>
           let mid_tiles =
             e
             |> ListUtil.sublist(fst(two_step_l), fst(two_step_r) + 1)
@@ -200,7 +252,7 @@ module Exp = {
           : Node.t =>
     switch (mode) {
     | Normal(([], j)) =>
-      let ZList.{prefix, z: root, suffix} = HExp.nth_root(j, e);
+      let ZList.{prefix: _, z: _root, suffix: _} = HExp.nth_root(j, e);
       // compute length of root to draw cursor inspector
       // compute length of prefix prior to jth tile to draw caret
       failwith("unimplemented");
@@ -212,20 +264,24 @@ module Exp = {
       | `Exp(e, unzipped) =>
         view_of_unzipped(unzipped, view_of_zipped(mode, e))
       };
-    | Selecting((anchor, focus)) =>
-      let caret =
-        view_of_selecting_caret(offset(anchor, e), offset(focus, e));
-      let term = view_of_term(e);
-      Node.span([], [caret, term]);
-    | Restructuring((l, r) as selection, focus) =>
-      let placeholder =
-        view_of_restructuring_placeholder(offset(l, e), offset(r, e));
-      let caret =
-        view_of_restructuring_caret(
-          offset(focus, e),
-          text_of_selection(selection, e),
-        );
-      let term = view_of_term(e);
-      Node.span([], [placeholder, caret, term]);
+    | Selecting(selection) =>
+      let selection = view_of_selection(~font_metrics, selection, e);
+      let text = CodeText.Exp.view(e);
+      Node.span([], [selection, text]);
+    | Restructuring(selection, _focus) =>
+      let selection = view_of_selection(~font_metrics, selection, e);
+      let text = CodeText.Exp.view(e);
+      Node.span([], [selection, text]);
+    /*
+     let placeholder =
+       view_of_restructuring_placeholder(offset(l, e), offset(r, e));
+     let caret =
+       view_of_restructuring_caret(
+         offset(focus, e),
+         text_of_selection(selection, e),
+       );
+     let term = view_of_term(e);
+     Node.span([], [placeholder, caret, term]);
+     */
     };
 };
