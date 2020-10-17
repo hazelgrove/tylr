@@ -1,15 +1,20 @@
 open Virtual_dom.Vdom;
 
+module Delim = {
+  let open_Paren = Node.text("(");
+  let close_Paren = Node.text(")");
+};
+
 let pad = Node.text(Unicode.nbsp);
 
 let view_of_OperandHole = [Node.text(Unicode.nbsp)];
 let view_of_Var = x => [Node.text(x)];
 let view_of_Paren = body => [
-  Node.text("("),
+  Delim.open_Paren,
   pad,
   body,
   pad,
-  Node.text(")"),
+  Delim.close_Paren,
 ];
 
 let view_of_Lam = p => [

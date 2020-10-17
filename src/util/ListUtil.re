@@ -54,6 +54,10 @@ let split_sublist =
   | None => raise(Invalid_argument("ListUtil.split_sublist"))
   | Some(r) => r
   };
+let sublist = (i: int, j: int, xs: list('x)): list('x) => {
+  let (_, sublist, _) = split_sublist(i, j, xs);
+  sublist;
+};
 
 let rec split_nth_opt = (n, xs) =>
   switch (n, xs) {
