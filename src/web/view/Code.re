@@ -33,9 +33,7 @@ module Exp: {
     | OperatorHole
     | Plus(_) => 1;
 
-  let profile_of_tile =
-      (~show_children: bool, tile: HExp.Tile.t): Decoration.Tile.profile => {
-    let if_show = l => show_children ? l : [];
+  let profile_of_tile = (tile: HExp.Tile.t): CodeDecoration.Tile.profile => {
     switch (tile) {
     | Operand(operand) =>
       let (open_children, closed_children, len) =
@@ -45,16 +43,15 @@ module Exp: {
         | Num(_) => ([], [], length_of_operand(operand))
         | Paren(body) =>
           let body_len = length(body);
-          (if_show([(2, body_len)]), [], 2 + body_len + 2);
+          ([(2, body_len)], [], 2 + body_len + 2);
         };
       {shape: `Operand, len, open_children, closed_children};
     | PreOp(preop) =>
       let (open_children, closed_children, len) =
         switch (preop) {
         | Lam(_, p) =>
-          let p_len =
-            Pat.length(p, [], if_show([(2, p_len)]), 2 + p_len + 2);
-          ();
+          let p_len = Pat.length(p);
+          ([], [(2, p_len)], 2 + p_len + 2);
         };
       {shape: `PreOp, len, open_children, closed_children};
     | PostOp(postop) =>
@@ -62,7 +59,7 @@ module Exp: {
         switch (postop) {
         | Ap(_, arg) =>
           let arg_len = length(arg);
-          ([], if_show([(2, arg_len)]), 2 + arg_len + 2);
+          ([], [(2, arg_len)], 2 + arg_len + 2);
         };
       {shape: `PostOp, len, open_children, closed_children};
     | BinOp(binop) =>
