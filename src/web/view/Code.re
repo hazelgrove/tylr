@@ -1,9 +1,13 @@
 open Virtual_dom.Vdom;
 
-module Exp: {
-  let view_of_unzipped: (option(ZExp.ztile), Node.t) => Node.t;
-  let view_of_zipped: (EditState.Mode.t, HExp.t) => Node.t;
-} = {
+module Pat = {
+  let length = _ => failwith("unimplemented");
+  let view_of_unzipped = (_, _) => failwith("unimplemented");
+  let view_of_zipped = (~font_metrics as _, _, _) =>
+    failwith("unimplemented");
+};
+
+module Exp = {
   let rec length = (e: HExp.t) =>
     e
     |> List.map(
@@ -79,13 +83,13 @@ module Exp: {
           : Node.t =>
     switch (mode) {
     | Normal(([], j)) =>
-      let {prefix, z: root, suffix} = HExp.nth_root(j, e);
+      let ZList.{prefix, z: root, suffix} = HExp.nth_root(j, e);
       // compute length of root to draw cursor inspector
       // compute length of prefix prior to jth tile to draw caret
       failwith("unimplemented");
     | Normal(([two_step, ...steps], j)) =>
       let mode = EditState.Mode.Normal((steps, j));
-      switch (Exp.unzip(two_step, (e, None))) {
+      switch (ZPath.Exp.unzip(two_step, (e, None))) {
       | `Pat(p, unzipped) =>
         Pat.view_of_unzipped(unzipped, Pat.view_of_zipped(mode, p))
       | `Exp(e, unzipped) =>
