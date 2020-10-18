@@ -22,3 +22,10 @@
   top: 0;
   left: 100%;
 }
+
+.tile {
+  position: relative;
+}
+.decoration-container {
+  position: absolute;
+}

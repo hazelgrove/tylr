@@ -30,7 +30,7 @@ let decoration_container =
       Attr.create(
         "style",
         Printf.sprintf(
-          "top: calc %fpx; left: %fpx;",
+          "top: %fpx; left: %fpx;",
           container_origin_x,
           container_origin_y,
         ),
