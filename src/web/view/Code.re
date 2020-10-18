@@ -1,14 +1,77 @@
 open Virtual_dom.Vdom;
 
+let decoration_container =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~origin: int,
+      ~length: int,
+      ~cls: string,
+      svgs: list(Node.t),
+    )
+    : Node.t => {
+  let buffered_height = 2;
+  let buffered_width = length + 1;
+
+  let buffered_height_px =
+    Float.of_int(buffered_height) *. font_metrics.row_height;
+  let buffered_width_px =
+    Float.of_int(buffered_width) *. font_metrics.col_width;
+
+  let container_origin_x = (-0.5) *. font_metrics.row_height;
+  let container_origin_y =
+    (Float.of_int(origin) -. 0.5) *. font_metrics.col_width;
+
+  Node.div(
+    [
+      Attr.classes([
+        "decoration-container",
+        Printf.sprintf("%s-container", cls),
+      ]),
+      Attr.create(
+        "style",
+        Printf.sprintf(
+          "top: calc %fpx; left: %fpx;",
+          container_origin_x,
+          container_origin_y,
+        ),
+      ),
+    ],
+    [
+      Node.create_svg(
+        "svg",
+        [
+          Attr.classes([cls]),
+          Attr.create(
+            "viewBox",
+            Printf.sprintf(
+              "-0.5 -0.5 %d %d",
+              buffered_width,
+              buffered_height,
+            ),
+          ),
+          Attr.create("width", Printf.sprintf("%fpx", buffered_width_px)),
+          Attr.create("height", Printf.sprintf("%fpx", buffered_height_px)),
+          Attr.create("preserveAspectRatio", "none"),
+        ],
+        svgs,
+      ),
+    ],
+  );
+};
+
 module Typ = {
   let rec length = (ty: HTyp.t) =>
-    Code.length(
-      length_of_operand,
-      length_of_preop,
-      length_of_postop,
-      length_of_binop,
-      ty,
-    )
+    ty
+    |> List.map(
+         Tile.map(
+           length_of_operand,
+           length_of_preop,
+           length_of_postop,
+           length_of_binop,
+         ),
+       )
+    |> List.map((+)(1))
+    |> List.fold_left((+), -1)
   and length_of_operand =
     fun
     | OperandHole => 1
@@ -49,7 +112,7 @@ module Pat = {
     | _ => raise(HPat.Tile.Void_PreOp)
   and length_of_postop: HPat.Tile.postop => int =
     fun
-    | Ann(_, ann) => 2 + Code_Typ.length(ann)
+    | Ann(_, ann) => 2 + Typ.length(ann)
   and length_of_binop: HPat.Tile.binop => int =
     fun
     | OperatorHole => 1;
@@ -132,12 +195,20 @@ module Exp = {
 
   let rec view_of_term = (~font_metrics: FontMetrics.t, e: HExp.t) =>
     List.map(view_of_tile(~font_metrics), e)
-  and view_of_tile = (~font_metrics as _: FontMetrics.t, tile: HExp.Tile.t) => {
+  and view_of_tile = (~font_metrics: FontMetrics.t, tile: HExp.Tile.t) => {
     let text = CodeText.Exp.view_of_tile(tile);
     let decoration =
-      CodeDecoration.Tile.view(
-        ~attrs=[Attr.classes(["exp"])],
-        profile_of_tile(tile),
+      decoration_container(
+        ~font_metrics,
+        ~origin=0,
+        ~length=length([tile]),
+        ~cls="exp-tile-container",
+        [
+          CodeDecoration.Tile.view(
+            ~attrs=[Attr.classes(["exp"])],
+            profile_of_tile(tile),
+          ),
+        ],
       );
     Node.span([Attr.classes(["tile"])], [text, decoration]);
   };
@@ -255,7 +326,8 @@ module Exp = {
       let ZList.{prefix: _, z: _root, suffix: _} = HExp.nth_root(j, e);
       // compute length of root to draw cursor inspector
       // compute length of prefix prior to jth tile to draw caret
-      failwith("unimplemented");
+
+      Node.span([], view_of_term(~font_metrics, e));
     | Normal(([two_step, ...steps], j)) =>
       let mode = EditState.Mode.Normal((steps, j));
       switch (ZPath.Exp.unzip(two_step, (e, None))) {
@@ -284,4 +356,13 @@ module Exp = {
      Node.span([], [placeholder, caret, term]);
      */
     };
+};
+
+let view = (~font_metrics: FontMetrics.t, (mode, zipper): EditState.t) => {
+  switch (zipper) {
+  | `Typ(_)
+  | `Pat(_) => failwith("unimplemented0")
+  | `Exp(zipped, _todo_unzipped) =>
+    Exp.view_of_zipped(~font_metrics, mode, zipped)
+  };
 };

@@ -8,7 +8,7 @@ let cutoff = (===);
 let init = () => {
   edit_state: (
     EditState.Mode.Normal(([], 0)),
-    `Exp((HExp.mk_hole(), None)),
+    `Exp(([Tile.Operand(HExp.Tile.Num(NotInHole, 1))], None)),
   ),
   font_metrics: FontMetrics.init,
 };

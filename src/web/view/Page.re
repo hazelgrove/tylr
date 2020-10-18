@@ -1,7 +1,10 @@
 open Virtual_dom.Vdom;
 
-let view = (~inject as _, _: Model.t) =>
+let view = (~inject as _, model: Model.t) =>
   Node.div(
     [Attr.classes(["page"])],
-    [Node.span([Attr.id("font-specimen")], [Node.text("X")])],
+    [
+      FontSpecimen.view(),
+      Code.view(~font_metrics=model.font_metrics, model.edit_state),
+    ],
   );
