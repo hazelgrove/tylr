@@ -1,5 +1,10 @@
 (include_subdirs unqualified)
 
+(env
+ (dev
+  (flags
+   (:standard -w -33))))
+
 (executable
  (name main)
  (modules :standard)

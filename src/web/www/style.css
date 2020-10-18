@@ -16,3 +16,9 @@
   font-family: "Fira Code", monospace;
   font-size: 14pt;
 }
+
+#font-specimen {
+  position: fixed;
+  top: 0;
+  left: 100%;
+}

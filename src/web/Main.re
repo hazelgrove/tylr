@@ -1,3 +1,4 @@
+open Js_of_ocaml;
 open Incr_dom;
 
 module App = {
@@ -5,7 +6,23 @@ module App = {
   module Action = Update;
   module State = State;
 
-  let on_startup = (~schedule_action as _, _) => {
+  let on_startup = (~schedule_action, _) => {
+    let _ =
+      ResizeObserver.observe(
+        ~node=JsUtil.get_elem_by_id("font-specimen"),
+        ~f=
+          (entries, _) => {
+            let specimen = Js_of_ocaml.Js.to_array(entries)[0];
+            let rect = specimen##.contentRect;
+            schedule_action(
+              Update.SetFontMetrics({
+                row_height: rect##.bottom -. rect##.top,
+                col_width: rect##.right -. rect##.left,
+              }),
+            );
+          },
+        (),
+      );
     Async_kernel.Deferred.return();
   };
 
