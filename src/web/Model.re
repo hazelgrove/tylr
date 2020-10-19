@@ -8,7 +8,14 @@ let cutoff = (===);
 let init = () => {
   edit_state: (
     EditState.Mode.Normal(([], 0)),
-    `Exp(([Tile.Operand(HExp.Tile.Num(NotInHole, 1))], None)),
+    `Exp((
+      Tile.[
+        Operand(HExp.Tile.Num(NotInHole, 1)),
+        BinOp(HExp.Tile.Plus(NotInHole)),
+        Operand(HExp.Tile.Num(NotInHole, 2)),
+      ],
+      None,
+    )),
   ),
   font_metrics: FontMetrics.init,
 };

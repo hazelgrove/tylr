@@ -194,7 +194,9 @@ module Exp = {
   let view_of_unzipped = (_, _) => failwith("unimplemented");
 
   let rec view_of_term = (~font_metrics: FontMetrics.t, e: HExp.t) =>
-    List.map(view_of_tile(~font_metrics), e)
+    e
+    |> List.map(view_of_tile(~font_metrics))
+    |> ListUtil.join(Node.text(Unicode.nbsp))
   and view_of_tile = (~font_metrics: FontMetrics.t, tile: HExp.Tile.t) => {
     let text =
       CodeText.Exp.view_of_tile(~attrs=[Attr.classes(["code-text"])], tile);
@@ -324,12 +326,12 @@ module Exp = {
           (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, e: HExp.t)
           : Node.t =>
     switch (mode) {
-    | Normal(([], j)) =>
-      let ZList.{prefix: _, z: _root, suffix: _} = HExp.nth_root(j, e);
+    | Normal(([], _j)) =>
+      // let ZList.{prefix: _, z: _root, suffix: _} = HExp.nth_root(j, e);
       // compute length of root to draw cursor inspector
       // compute length of prefix prior to jth tile to draw caret
 
-      Node.span([], view_of_term(~font_metrics, e));
+      Node.span([], view_of_term(~font_metrics, e))
     | Normal(([two_step, ...steps], j)) =>
       let mode = EditState.Mode.Normal((steps, j));
       switch (ZPath.Exp.unzip(two_step, (e, None))) {

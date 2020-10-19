@@ -1,3 +1,10 @@
+let rec join = (sep: 'x, xs: list('x)): list('x) =>
+  switch (xs) {
+  | [] => []
+  | [x] => [x]
+  | [x, ...xs] => [x, sep, ...join(sep, xs)]
+  };
+
 let hd_opt =
   fun
   | [] => None
