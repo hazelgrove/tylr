@@ -325,12 +325,16 @@ module Exp = {
           (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, e: HExp.t)
           : Node.t =>
     switch (mode) {
-    | Normal(([], _j)) =>
+    | Normal(([], j)) =>
       // let ZList.{prefix: _, z: _root, suffix: _} = HExp.nth_root(j, e);
       // compute length of root to draw cursor inspector
       // compute length of prefix prior to jth tile to draw caret
-
-      Node.span([], view_of_term(~font_metrics, e))
+      let caret = {
+        let (prefix, _) = ListUtil.split_n(j, e);
+        let len = length(prefix);
+        CodeDecoration.Caret.view(~font_metrics, len, []);
+      };
+      Node.span([], [caret, ...view_of_term(~font_metrics, e)]);
     | Normal(([two_step, ...steps], j)) =>
       let mode = EditState.Mode.Normal((steps, j));
       switch (ZPath.Exp.unzip(two_step, (e, None))) {

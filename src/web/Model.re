@@ -7,7 +7,7 @@ let cutoff = (===);
 
 let init = () => {
   edit_state: (
-    EditState.Mode.Normal(([], 0)),
+    EditState.Mode.Normal(([], 1)),
     `Exp((
       Tile.[
         Operand(HExp.Tile.Num(NotInHole, 1)),

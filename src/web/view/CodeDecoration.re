@@ -8,7 +8,7 @@ module Tile = {
     closed_children: list((int, int)),
   };
 
-  let tip = 0.4;
+  let tip = 0.3;
   let child_border_thickness = 0.1;
 
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
@@ -129,6 +129,62 @@ module Tile = {
             Attr.create("stdDeviation", "0"),
           ],
           [],
+        ),
+      ],
+    );
+};
+
+module Caret = {
+  let view = (~font_metrics: FontMetrics.t, offset: int, _) =>
+    Node.div(
+      [
+        Attr.id("caret"),
+        Attr.create(
+          "style",
+          Printf.sprintf(
+            "left: %fpx",
+            (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
+          ),
+        ),
+      ],
+      [
+        Node.table(
+          [
+            Attr.id("action-table"),
+            Attr.create(
+              "style",
+              Printf.sprintf("top: %fpx", font_metrics.row_height),
+            ),
+          ],
+          [
+            Node.tr(
+              [],
+              [
+                Node.td(
+                  [Attr.create("colspan", "2")],
+                  [Node.text("Move")],
+                ),
+              ],
+            ),
+            Node.tr(
+              [],
+              [
+                Node.td(
+                  [Attr.create("colspan", "2")],
+                  [Node.text("Construct")],
+                ),
+              ],
+            ),
+            Node.tr(
+              [],
+              [
+                Node.td(
+                  [Attr.create("colspan", "2")],
+                  [Node.text("Delete")],
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );
