@@ -259,23 +259,29 @@ module Exp = {
     switch (ztile) {
     | Operand(ParenZ_body({prefix, suffix, _})) => (
         body => {
-          let prefix = view_of_tiles(prefix);
-          let suffix = view_of_tiles(suffix);
-          Node.span(
-            [],
-            prefix @ [pad, ...view_of_Paren(body)] @ [pad, ...suffix],
-          );
+          let prefix = {
+            let tiles = view_of_tiles(prefix);
+            ListUtil.is_empty(tiles) ? [] : tiles @ [pad];
+          };
+          let suffix = {
+            let tiles = view_of_tiles(suffix);
+            ListUtil.is_empty(tiles) ? [] : [pad, ...tiles];
+          };
+          Node.span([], prefix @ view_of_Paren(body) @ suffix);
         }
       )
     | PreOp(_) => raise(ZExp.Void_ZPreOp)
     | PostOp(ApZ_arg(_, {prefix, suffix, _})) => (
         arg => {
-          let prefix = view_of_tiles(prefix);
-          let suffix = view_of_tiles(suffix);
-          Node.span(
-            [],
-            prefix @ [pad, ...view_of_Ap(arg)] @ [pad, ...suffix],
-          );
+          let prefix = {
+            let tiles = view_of_tiles(prefix);
+            ListUtil.is_empty(tiles) ? [] : tiles @ [pad];
+          };
+          let suffix = {
+            let tiles = view_of_tiles(suffix);
+            ListUtil.is_empty(tiles) ? [] : [pad, ...tiles];
+          };
+          Node.span([], prefix @ view_of_Ap(arg) @ suffix);
         }
       )
     | BinOp(_) => raise(ZExp.Void_ZBinOp)

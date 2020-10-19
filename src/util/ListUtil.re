@@ -1,3 +1,8 @@
+let is_empty =
+  fun
+  | [] => true
+  | _ => false;
+
 let rec join = (sep: 'x, xs: list('x)): list('x) =>
   switch (xs) {
   | [] => []
