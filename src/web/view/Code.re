@@ -116,7 +116,6 @@ module Pat = {
   and length_of_binop: HPat.Tile.binop => int =
     fun
     | OperatorHole => 1;
-  let length = _ => failwith("unimplemented");
   let view_of_unzipped = (_, _) => failwith("unimplemented");
   let view_of_zipped = (~font_metrics as _, _, _) =>
     failwith("unimplemented");
