@@ -120,7 +120,7 @@ module rec Typ: {
     switch (steps) {
     | [] =>
       let next = if_left(k - 1, k);
-      switch (List.nth_opt(ty, next), zrest) {
+      switch (ListUtil.nth_opt(next, ty), zrest) {
       | (None, None) => None
       | (Some(tile), _) =>
         let path =
@@ -252,7 +252,7 @@ and Pat: {
     switch (steps) {
     | [] =>
       let next = if_left(k - 1, k);
-      switch (List.nth_opt(p, next), zrest) {
+      switch (ListUtil.nth_opt(next, p), zrest) {
       | (None, None) => None
       | (Some(tile), _) =>
         let path =
@@ -429,7 +429,7 @@ and Exp: {
     switch (steps) {
     | [] =>
       let next = if_left(k - 1, k);
-      switch (List.nth_opt(e, next), zrest) {
+      switch (ListUtil.nth_opt(next, e), zrest) {
       | (None, None) => None
       | (Some(tile), _) =>
         let path =

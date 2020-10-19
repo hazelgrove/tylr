@@ -15,6 +15,16 @@ let hd_opt =
   | [] => None
   | [hd, ..._] => Some(hd);
 
+let rec nth_opt = (n, xs) =>
+  n < 0
+    ? None
+    : (
+      switch (xs) {
+      | [] => None
+      | [hd, ...tl] => n == 0 ? Some(hd) : nth_opt(n - 1, tl)
+      }
+    );
+
 /**
  * `split_n_opt(n, xs)` splits the first `n` elements from `xs`
  * if `xs` has `n` or more elements
@@ -38,7 +48,7 @@ let split_n_opt = (n: int, xs: list('x)): option((list('x), list('x))) => {
 
 let split_n = (n: int, xs: list('x)): (list('x), list('x)) =>
   switch (split_n_opt(n, xs)) {
-  | None => raise(Invalid_argument("split_n"))
+  | None => raise(Invalid_argument("ListUtil.split_n"))
   | Some(r) => r
   };
 
