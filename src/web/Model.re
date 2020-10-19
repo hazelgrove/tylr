@@ -10,9 +10,15 @@ let init = () => {
     EditState.Mode.Normal(([], 1)),
     `Exp((
       Tile.[
-        Operand(HExp.Tile.Num(NotInHole, 1)),
+        Operand(HExp.Tile.Num(NotInHole, 0)),
         BinOp(HExp.Tile.Plus(NotInHole)),
-        Operand(HExp.Tile.Num(NotInHole, 2)),
+        Operand(
+          Paren([
+            Operand(HExp.Tile.Num(NotInHole, 1)),
+            BinOp(HExp.Tile.Plus(NotInHole)),
+            Operand(HExp.Tile.Num(NotInHole, 2)),
+          ]),
+        ),
       ],
       None,
     )),

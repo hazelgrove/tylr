@@ -190,7 +190,11 @@ module Exp = {
     };
   };
 
-  let view_of_unzipped = (_, _) => failwith("unimplemented");
+  let view_of_unzipped = (unzipped: ZExp.unzipped, zipped: Node.t): Node.t =>
+    switch (unzipped) {
+    | None => zipped
+    | Some(ztile) => CodeText.Exp.view_of_ztile(ztile, zipped)
+    };
 
   let rec view_of_term = (~font_metrics: FontMetrics.t, e: HExp.t) =>
     e
@@ -334,14 +338,20 @@ module Exp = {
         let len = length(prefix);
         CodeDecoration.Caret.view(~font_metrics, len, []);
       };
-      Node.span([], [caret, ...view_of_term(~font_metrics, e)]);
+      Node.span(
+        [Attr.classes(["term"])],
+        [caret, ...view_of_term(~font_metrics, e)],
+      );
     | Normal(([two_step, ...steps], j)) =>
       let mode = EditState.Mode.Normal((steps, j));
       switch (ZPath.Exp.unzip(two_step, (e, None))) {
       | `Pat(p, unzipped) =>
-        Pat.view_of_unzipped(unzipped, Pat.view_of_zipped(mode, p))
+        Pat.view_of_unzipped(
+          unzipped,
+          Pat.view_of_zipped(~font_metrics, mode, p),
+        )
       | `Exp(e, unzipped) =>
-        view_of_unzipped(unzipped, view_of_zipped(mode, e))
+        view_of_unzipped(unzipped, view_of_zipped(~font_metrics, mode, e))
       };
     | Selecting(selection) =>
       let selection = view_of_selection(~font_metrics, selection, e);

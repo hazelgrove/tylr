@@ -62,6 +62,10 @@
   z-index: var(--code-text-z);
 }
 
+.term {
+  position: relative;
+}
+
 .tile {
   position: relative;
 }

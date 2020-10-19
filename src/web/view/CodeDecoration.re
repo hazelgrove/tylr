@@ -142,7 +142,7 @@ module Caret = {
         Attr.create(
           "style",
           Printf.sprintf(
-            "left: %fpx",
+            "top: 0; left: %fpx",
             (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
           ),
         ),

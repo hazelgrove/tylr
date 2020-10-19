@@ -224,7 +224,9 @@ module Pat = {
 
 module Exp = {
   let rec view = (~attrs: Attrs.t=[], e: HExp.t): Node.t =>
-    Node.span(attrs, List.map(view_of_tile, e))
+    Node.span(attrs, view_of_tiles(e))
+  and view_of_tiles = (tiles: HExp.Tile.s): list(Node.t) =>
+    tiles |> List.map(view_of_tile) |> ListUtil.join(pad)
   and view_of_tile = (~attrs: Attrs.t=[], tile: HExp.Tile.t): Node.t => {
     let vs =
       switch (tile) {
@@ -252,6 +254,32 @@ module Exp = {
     Node.span(Attrs.add_class(attrs, tile_cls(tile)), vs);
   };
   let view_of_faded_tile = view_of_tile(~attrs=[Attr.classes(["faded"])]);
+
+  let view_of_ztile = (ztile: ZExp.ztile): (Node.t => Node.t) =>
+    switch (ztile) {
+    | Operand(ParenZ_body({prefix, suffix, _})) => (
+        body => {
+          let prefix = view_of_tiles(prefix);
+          let suffix = view_of_tiles(suffix);
+          Node.span(
+            [],
+            prefix @ [pad, ...view_of_Paren(body)] @ [pad, ...suffix],
+          );
+        }
+      )
+    | PreOp(_) => raise(ZExp.Void_ZPreOp)
+    | PostOp(ApZ_arg(_, {prefix, suffix, _})) => (
+        arg => {
+          let prefix = view_of_tiles(prefix);
+          let suffix = view_of_tiles(suffix);
+          Node.span(
+            [],
+            prefix @ [pad, ...view_of_Ap(arg)] @ [pad, ...suffix],
+          );
+        }
+      )
+    | BinOp(_) => raise(ZExp.Void_ZBinOp)
+    };
 
   let rec view_with_faded_affix =
           (
