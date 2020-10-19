@@ -23,6 +23,15 @@ module App = {
           },
         (),
       );
+
+    // preserve editor focus across window focus/blur
+    Dom_html.window##.onfocus :=
+      Dom_html.handler(_ => {
+        Page.focus_code();
+        Js._true;
+      });
+    Page.focus_code();
+
     Async_kernel.Deferred.return();
   };
 

@@ -17,6 +17,10 @@ let key_handlers = (~inject: Update.t => Event.t) => {
   ];
 };
 
+let focus_code = () => {
+  JsUtil.get_elem_by_id("code-container")##focus;
+};
+
 let view = (~inject, model: Model.t) =>
   Node.div(
     [Attr.id("page")],
@@ -27,6 +31,10 @@ let view = (~inject, model: Model.t) =>
           Attr.id("code-container"),
           // necessary to make cell focusable
           Attr.create("tabindex", "0"),
+          Attr.on_blur(_ => {
+            focus_code();
+            Event.Prevent_default;
+          }),
           ...key_handlers(~inject),
         ],
         [Code.view(~font_metrics=model.font_metrics, model.edit_state)],
