@@ -196,18 +196,20 @@ module Exp = {
   let rec view_of_term = (~font_metrics: FontMetrics.t, e: HExp.t) =>
     List.map(view_of_tile(~font_metrics), e)
   and view_of_tile = (~font_metrics: FontMetrics.t, tile: HExp.Tile.t) => {
-    let text = CodeText.Exp.view_of_tile(tile);
+    let text =
+      CodeText.Exp.view_of_tile(~attrs=[Attr.classes(["code-text"])], tile);
     let decoration =
       decoration_container(
         ~font_metrics,
         ~origin=0,
         ~length=length([tile]),
-        ~cls="exp-tile-container",
+        ~cls="tile-decoration-container",
         [
           CodeDecoration.Tile.view(
-            ~attrs=[Attr.classes(["exp"])],
+            ~attrs=[Attr.classes(["exp", "tile-decoration"])],
             profile_of_tile(tile),
           ),
+          CodeDecoration.Tile.shadow_filter(["exp"]),
         ],
       );
     Node.span([Attr.classes(["tile"])], [text, decoration]);

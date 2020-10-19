@@ -12,6 +12,20 @@
   src: url('fonts/FiraCode-SemiBold.woff2') format('woff2');
 }
 
+:root {
+  --exp-bg-color: rgb(197, 253, 197);
+  --exp-shadow-color: rgb(135, 204, 135);
+
+  --pat-bg-color: #baf1fe;
+  --pat-shadow-color: rgb(130, 176, 202);
+
+  --typ-bg-color: rgb(233, 221, 253);
+  --typ-shadow-color: rgb(173, 154, 202);
+
+  --tile-decoration-z: 0;
+  --code-text-z: 1;
+}
+
 .page {
   font-family: "Fira Code", monospace;
   font-size: 14pt;
@@ -23,9 +37,26 @@
   left: 100%;
 }
 
+.code-text {
+  position: relative;
+  z-index: var(--code-text-z);
+}
+
 .tile {
   position: relative;
 }
 .decoration-container {
   position: absolute;
+}
+.tile-decoration-container {
+  z-index: var(--tile-decoration-z);
+}
+.tile-decoration {
+  filter: url(#outer-drop-shadow);
+}
+.exp.tile-decoration {
+  fill: var(--exp-bg-color);
+}
+.exp.tile-decoration-drop-shadow {
+  flood-color: var(--exp-shadow-color);
 }

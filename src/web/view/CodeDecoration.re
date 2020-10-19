@@ -1,4 +1,4 @@
-module Vdom = Virtual_dom.Vdom;
+open Virtual_dom.Vdom;
 
 module Tile = {
   type profile = {
@@ -51,7 +51,7 @@ module Tile = {
   let br_tl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.reverse(tl_br(~child_border?, ()));
 
-  let view = (~attrs: list(Vdom.Attr.t)=[], profile: profile): Vdom.Node.t => {
+  let view = (~attrs: list(Attr.t)=[], profile: profile): Node.t => {
     open SvgUtil.Path;
     let closed_child_paths =
       profile.closed_children
@@ -97,4 +97,22 @@ module Tile = {
     let path = outer_path @ List.concat(closed_child_paths);
     SvgUtil.Path.view(~attrs, path);
   };
+
+  let shadow_filter = clss =>
+    Node.create_svg(
+      "filter",
+      [Attr.id("outer-drop-shadow")],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tile-decoration-drop-shadow", ...clss]),
+            Attr.create("dx", "0.1"),
+            Attr.create("dy", "0.04"),
+            Attr.create("stdDeviation", "0"),
+          ],
+          [],
+        ),
+      ],
+    );
 };
