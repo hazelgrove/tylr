@@ -26,9 +26,16 @@
   --code-text-z: 1;
 }
 
-.page {
+#page {
   font-family: "Fira Code", monospace;
   font-size: 14pt;
+}
+
+#code-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 #font-specimen {
