@@ -1,5 +1,7 @@
+open Sexplib.Std;
 open OptUtil.Syntax;
 
+[@deriving sexp]
 type tile_shape =
   | Num
   | NumLit(int)
@@ -11,6 +13,7 @@ type tile_shape =
   | Plus
   | Arrow;
 
+[@deriving sexp]
 type t =
   | Mark
   | Move(Direction.t)
