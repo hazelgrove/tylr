@@ -70,9 +70,26 @@ module Tile = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
         | `Operand => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
-        | `PreOp => (br_tl() @ bl_tr(), tr_bl() @ tl_br())
-        | `PostOp => (bl_tr() @ br_tl(), tl_br() @ tr_bl())
-        | `BinOp => (bl_tr() @ br_tl(), tr_bl() @ tl_br())
+        | `PreOp => (
+            br_tl() @ bl_tr(),
+            [H_({dx: tip}), ...tr_bl()]
+            @ tl_br()
+            @ [H_({dx: Float.neg(tip)})],
+          )
+        | `PostOp => (
+            [H_({dx: Float.neg(tip)}), ...bl_tr()]
+            @ br_tl()
+            @ [H_({dx: tip})],
+            tl_br() @ tr_bl(),
+          )
+        | `BinOp => (
+            [H_({dx: Float.neg(tip)}), ...bl_tr()]
+            @ br_tl()
+            @ [H_({dx: tip})],
+            [H_({dx: tip}), ...tr_bl()]
+            @ tl_br()
+            @ [H_({dx: Float.neg(tip)})],
+          )
         };
       let left_and_top_sides =
         profile.open_children
