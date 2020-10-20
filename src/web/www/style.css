@@ -78,9 +78,10 @@
 .tile-decoration {
   filter: url(#outer-drop-shadow);
 }
-.exp.tile-decoration {
+.Exp.tile-decoration {
   fill: var(--exp-bg-color);
+  fill-rule: evenodd;
 }
-.exp.tile-decoration-drop-shadow {
+.Exp.tile-decoration-drop-shadow {
   flood-color: var(--exp-shadow-color);
 }

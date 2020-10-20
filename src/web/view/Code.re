@@ -124,16 +124,17 @@ module Pat = {
 module Exp = {
   let rec length = (e: HExp.t) =>
     e
-    |> List.map(
-         Tile.map(
-           length_of_operand,
-           length_of_preop,
-           length_of_postop,
-           length_of_binop,
-         ),
-       )
+    |> List.map(length_of_tile)
     |> List.map((+)(1))
     |> List.fold_left((+), -1)
+  and length_of_tile = tile =>
+    Tile.map(
+      length_of_operand,
+      length_of_preop,
+      length_of_postop,
+      length_of_binop,
+      tile,
+    )
   and length_of_operand =
     fun
     | OperandHole => 1
@@ -154,16 +155,16 @@ module Exp = {
   let profile_of_tile = (tile: HExp.Tile.t): CodeDecoration.Tile.profile => {
     switch (tile) {
     | Operand(operand) =>
-      let (open_children, closed_children, len) =
+      let (open_children, closed_children, len, is_hole) =
         switch (operand) {
-        | OperandHole
+        | OperandHole => ([], [], 1, true)
         | Var(_)
-        | Num(_) => ([], [], length_of_operand(operand))
+        | Num(_) => ([], [], length_of_operand(operand), false)
         | Paren(body) =>
           let body_len = length(body);
-          ([(2, body_len)], [], 2 + body_len + 2);
+          ([(2, body_len)], [], 2 + body_len + 2, false);
         };
-      {shape: `Operand, len, open_children, closed_children};
+      {shape: `Operand(is_hole), len, open_children, closed_children};
     | PreOp(preop) =>
       let (open_children, closed_children, len) =
         switch (preop) {
@@ -181,12 +182,12 @@ module Exp = {
         };
       {shape: `PostOp, len, open_children, closed_children};
     | BinOp(binop) =>
-      let (open_children, closed_children, len) =
+      let (open_children, closed_children, len, is_hole) =
         switch (binop) {
-        | Plus(_)
-        | OperatorHole => ([], [], 1)
+        | Plus(_) => ([], [], 1, false)
+        | OperatorHole => ([], [], 1, true)
         };
-      {shape: `BinOp, len, open_children, closed_children};
+      {shape: `BinOp(is_hole), len, open_children, closed_children};
     };
   };
 
@@ -203,20 +204,21 @@ module Exp = {
   and view_of_tile = (~font_metrics: FontMetrics.t, tile: HExp.Tile.t) => {
     let text =
       CodeText.Exp.view_of_tile(~attrs=[Attr.classes(["code-text"])], tile);
-    let decoration =
+    let decoration = {
+      let hole_radius = 3.5;
+      let hole_radii = (
+        hole_radius /. font_metrics.col_width,
+        hole_radius /. font_metrics.row_height,
+      );
+      let profile = profile_of_tile(tile);
       decoration_container(
         ~font_metrics,
         ~origin=0,
-        ~length=length([tile]),
+        ~length=length_of_tile(tile),
         ~cls="tile-decoration-container",
-        [
-          CodeDecoration.Tile.view(
-            ~attrs=[Attr.classes(["exp", "tile-decoration"])],
-            profile_of_tile(tile),
-          ),
-          CodeDecoration.Tile.shadow_filter(["exp"]),
-        ],
+        CodeDecoration.Tile.view(~sort=Exp, ~hole_radii, profile),
       );
+    };
     Node.span([Attr.classes(["tile"])], [text, decoration]);
   };
 

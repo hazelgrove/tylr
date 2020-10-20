@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 
 module Tile = {
   type profile = {
-    shape: [ | `Operand | `PreOp | `PostOp | `BinOp],
+    shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
@@ -51,8 +51,41 @@ module Tile = {
   let br_tl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.reverse(tl_br(~child_border?, ()));
 
-  let view = (~attrs: list(Attr.t)=[], profile: profile): Node.t => {
+  let contour_path =
+      (
+        ~sort: Sort.t,
+        ~hole_radii as (rx, ry): (float, float),
+        ~attrs: list(Attr.t),
+        profile: profile,
+      )
+      : Node.t => {
     open SvgUtil.Path;
+    let hole_path =
+      switch (profile.shape) {
+      | `Operand(true)
+      | `BinOp(true) => [
+          M({x: 0.5 -. rx, y: 0.5}),
+          A_({
+            rx,
+            ry,
+            x_axis_rotation: 0.,
+            large_arc_flag: false,
+            sweep_flag: false,
+            dx: 2. *. rx,
+            dy: 0.,
+          }),
+          A_({
+            rx,
+            ry,
+            x_axis_rotation: 0.,
+            large_arc_flag: false,
+            sweep_flag: false,
+            dx: Float.neg(2. *. rx),
+            dy: 0.,
+          }),
+        ]
+      | _ => []
+      };
     let closed_child_paths =
       profile.closed_children
       |> List.map(((start, len)) =>
@@ -69,7 +102,7 @@ module Tile = {
     let outer_path = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
-        | `Operand => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+        | `Operand(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
         | `PreOp => (
             br_tl() @ bl_tr(),
             [H_({dx: tip}), ...tr_bl()]
@@ -82,7 +115,7 @@ module Tile = {
             @ [H_({dx: tip})],
             tl_br() @ tr_bl(),
           )
-        | `BinOp => (
+        | `BinOp(_) => (
             [H_({dx: Float.neg(tip)}), ...bl_tr()]
             @ br_tl()
             @ [H_({dx: tip})],
@@ -111,11 +144,17 @@ module Tile = {
         [Z],
       ]);
     };
-    let path = outer_path @ List.concat(closed_child_paths);
-    SvgUtil.Path.view(~attrs, path);
+    let path = outer_path @ List.concat(closed_child_paths) @ hole_path;
+    SvgUtil.Path.view(
+      ~attrs=[
+        Attr.classes([Sort.to_string(sort), "tile-decoration"]),
+        ...attrs,
+      ],
+      path,
+    );
   };
 
-  let shadow_filter = clss =>
+  let shadow_filter = (~sort: Sort.t) =>
     Node.create_svg(
       "filter",
       [Attr.id("outer-drop-shadow")],
@@ -123,7 +162,10 @@ module Tile = {
         Node.create_svg(
           "feDropShadow",
           [
-            Attr.classes(["tile-decoration-drop-shadow", ...clss]),
+            Attr.classes([
+              "tile-decoration-drop-shadow",
+              Sort.to_string(sort),
+            ]),
             Attr.create("dx", "0.1"),
             Attr.create("dy", "0.04"),
             Attr.create("stdDeviation", "0"),
@@ -132,6 +174,18 @@ module Tile = {
         ),
       ],
     );
+
+  let view =
+      (
+        ~sort: Sort.t,
+        ~attrs: list(Attr.t)=[],
+        ~hole_radii: (float, float),
+        profile: profile,
+      )
+      : list(Node.t) => [
+    contour_path(~sort, ~attrs, ~hole_radii, profile),
+    shadow_filter(~sort),
+  ];
 };
 
 module Caret = {

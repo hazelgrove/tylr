@@ -24,11 +24,20 @@ module Path = {
     | H({x: float})
     | H_({dx: float})
     | V({y: float})
-    | V_({dy: float});
+    | V_({dy: float})
+    | A_({
+        rx: float,
+        ry: float,
+        x_axis_rotation: float,
+        large_arc_flag: bool,
+        sweep_flag: bool,
+        dx: float,
+        dy: float,
+      });
 
   let scale_cmd = (s: float) =>
     fun
-    | (Z | M(_) | L(_) | H(_) | V(_)) as cmd => cmd
+    | (Z | M(_) | L(_) | H(_) | V(_) | A_(_)) as cmd => cmd
     | M_({dx, dy}) => M_({dx: s *. dx, dy: s *. dy})
     | L_({dx, dy}) => L_({dx: s *. dx, dy: s *. dy})
     | H_({dx}) => H_({dx: s *. dx})
@@ -51,7 +60,18 @@ module Path = {
     | H({x}) => Printf.sprintf("H %f", x)
     | H_({dx}) => Printf.sprintf("h %f", dx)
     | V({y}) => Printf.sprintf("V %f", y)
-    | V_({dy}) => Printf.sprintf("v %f", dy);
+    | V_({dy}) => Printf.sprintf("v %f", dy)
+    | A_({rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, dx, dy}) =>
+      Printf.sprintf(
+        "a %f %f %f %s %s %f %f",
+        rx,
+        ry,
+        x_axis_rotation,
+        string_of_flag(large_arc_flag),
+        string_of_flag(sweep_flag),
+        dx,
+        dy,
+      );
 
   let view = (~attrs: Attrs.t, path: t): Node.t => {
     let buffer = Buffer.create(List.length(path) * 20);
