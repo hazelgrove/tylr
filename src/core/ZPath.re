@@ -1,11 +1,18 @@
+open Sexplib.Std;
 open OptUtil.Syntax;
 
+[@deriving sexp]
 type tile_step = int;
+[@deriving sexp]
 type child_step = int;
+[@deriving sexp]
 type caret_step = int;
+[@deriving sexp]
 type two_step = (tile_step, child_step);
+[@deriving sexp]
 type t = (list(two_step), caret_step);
 
+[@deriving sexp]
 type selection = (t, t);
 
 let select_while_moving = (start: t, end_: t): (Direction.t => selection) =>
@@ -142,8 +149,11 @@ module rec Typ: {
       };
     | [two_step, ...steps] =>
       let `Typ(unzipped) = unzip(two_step, zipper);
-      let+ (path, _) = move(d, (steps, k), unzipped);
-      (cons(two_step, path), None);
+      let+ (moved, did_it_zip) = move(d, (steps, k), unzipped);
+      switch (did_it_zip) {
+      | None => (cons(two_step, moved), None)
+      | Some(_) => (moved, None)
+      };
     };
   };
 
@@ -276,13 +286,20 @@ and Pat: {
         Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
-      let+ path =
-        switch (unzip(two_step, zipper)) {
-        | `Pat(unzipped) => Option.map(fst, move(d, (steps, k), unzipped))
-        | `Typ(unzipped) =>
-          Option.map(fst, Typ.move(d, (steps, k), unzipped))
+      switch (unzip(two_step, zipper)) {
+      | `Pat(unzipped) =>
+        let+ (moved, did_it_zip) = move(d, (steps, k), unzipped);
+        switch (did_it_zip) {
+        | None => (cons(two_step, moved), None)
+        | Some(_) => (moved, None)
         };
-      (cons(two_step, path), None);
+      | `Typ(unzipped) =>
+        let+ (moved, did_it_zip) = Typ.move(d, (steps, k), unzipped);
+        switch (did_it_zip) {
+        | None => (cons(two_step, moved), None)
+        | Some(_) => (moved, None)
+        };
+      }
     };
   };
 
@@ -453,13 +470,20 @@ and Exp: {
         Some((path, Some((two_step, zipped))));
       };
     | [two_step, ...steps] =>
-      let+ path =
-        switch (unzip(two_step, zipper)) {
-        | `Exp(unzipped) => Option.map(fst, move(d, (steps, k), unzipped))
-        | `Pat(unzipped) =>
-          Option.map(fst, Pat.move(d, (steps, k), unzipped))
+      switch (unzip(two_step, zipper)) {
+      | `Exp(unzipped) =>
+        let+ (moved, did_it_zip) = move(d, (steps, k), unzipped);
+        switch (did_it_zip) {
+        | None => (cons(two_step, moved), None)
+        | Some(_) => (moved, None)
         };
-      (cons(two_step, path), None);
+      | `Pat(unzipped) =>
+        let+ (moved, did_it_zip) = Pat.move(d, (steps, k), unzipped);
+        switch (did_it_zip) {
+        | None => (cons(two_step, moved), None)
+        | Some(_) => (moved, None)
+        };
+      }
     };
   };
 
