@@ -2,16 +2,29 @@ open Js_of_ocaml;
 open Virtual_dom.Vdom;
 
 let key_handlers = (~inject: Update.t => Event.t) => {
-  let prevent_stop_inject = (u: Update.t) =>
-    Event.Many([Event.Prevent_default, Event.Stop_propagation, inject(u)]);
   [
     Attr.on_keypress(_ => Event.Prevent_default),
     Attr.on_keydown(evt => {
       let key = Js.to_string(Js.Optdef.get(evt##.key, () => assert(false)));
-      switch (key) {
-      | "ArrowLeft" => prevent_stop_inject(PerformAction(Move(Left)))
-      | "ArrowRight" => prevent_stop_inject(PerformAction(Move(Right)))
-      | _ => Event.Prevent_default
+      let action: option(Action.t) =
+        switch (key) {
+        | "ArrowLeft" => Some(Move(Left))
+        | "ArrowRight" => Some(Move(Right))
+        | "(" => Some(Construct(Paren))
+        | "Backspace" => Some(Delete(Left))
+        | "Delete" => Some(Delete(Right))
+        | _ => None
+        };
+      switch (action) {
+      | None => Event.Many([])
+      | Some(a) =>
+        Event.(
+          Many([
+            Prevent_default,
+            Stop_propagation,
+            inject(PerformAction(a)),
+          ])
+        )
       };
     }),
   ];
