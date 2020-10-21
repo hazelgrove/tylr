@@ -81,6 +81,8 @@
 .Exp.tile-decoration {
   fill: var(--exp-bg-color);
   fill-rule: evenodd;
+  stroke: var(--exp-shadow-color);
+  stroke-width: 0.1;
 }
 .Exp.tile-decoration-drop-shadow {
   flood-color: var(--exp-shadow-color);

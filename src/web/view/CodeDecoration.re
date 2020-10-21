@@ -146,10 +146,12 @@ module Tile = {
     };
     let path = outer_path @ List.concat(closed_child_paths) @ hole_path;
     SvgUtil.Path.view(
-      ~attrs=[
-        Attr.classes([Sort.to_string(sort), "tile-decoration"]),
-        ...attrs,
-      ],
+      ~attrs=
+        Attr.[
+          classes([Sort.to_string(sort), "tile-decoration"]),
+          create("vector-effect", "non-scaling-stroke"),
+          ...attrs,
+        ],
       path,
     );
   };
