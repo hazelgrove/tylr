@@ -1,7 +1,7 @@
 /**
  * Bottom-up one-hole context filled by either `HTyp.t` or `ztile`
  */
-type t = ZList.t(option(ztile), HTyp.Tile.t)
+type t = Util.ZList.t(option(ztile), HTyp.Tile.t)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HTyp.t` or `t`
  */
@@ -19,7 +19,7 @@ exception Void_ZBinOp;
 type zipper = (HTyp.t, option(ztile));
 
 let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
-  ZList.mk(~prefix, ~z, ~suffix, ());
+  Util.ZList.mk(~prefix, ~z, ~suffix, ());
 
 let index: ztile => int =
   fun

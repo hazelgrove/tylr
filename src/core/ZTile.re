@@ -7,7 +7,7 @@ module type S = {
   type zbinop;
 
   type nonrec t = Tile.t(zoperand, zpreop, zpostop, zbinop);
-  type s = ZList.t(option(t), tile);
+  type s = Util.ZList.t(option(t), tile);
 
   let compare: (~compare_s: (s, s) => int, t, t) => int;
 

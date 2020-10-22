@@ -1,7 +1,7 @@
 /**
  * Bottom-up one-hole context filled by either `HExp.t` or `ztile`
  */
-type t = ZList.t(option(ztile), HExp.Tile.t)
+type t = Util.ZList.t(option(ztile), HExp.Tile.t)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HExp.t` or `t`
  */
@@ -21,7 +21,7 @@ type zipped = HExp.t;
 type zipper = (zipped, unzipped);
 
 let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
-  ZList.mk(~prefix, ~z, ~suffix, ());
+  Util.ZList.mk(~prefix, ~z, ~suffix, ());
 
 let index: ztile => int =
   fun

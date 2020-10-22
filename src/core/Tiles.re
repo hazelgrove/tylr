@@ -16,7 +16,7 @@ module Make =
 
          let root: T.s => root;
 
-         let nth_root: (int, T.s) => ZList.t(root, T.t);
+         let nth_root: (int, T.s) => Util.ZList.t(root, T.t);
 
          let get_root:
            (
