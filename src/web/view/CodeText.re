@@ -1,4 +1,6 @@
 open Virtual_dom.Vdom;
+open Util;
+open Core;
 
 module Delim = {
   let open_Paren = Node.text("(");

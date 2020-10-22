@@ -1,4 +1,6 @@
 open Virtual_dom.Vdom;
+open Util;
+open Core;
 
 let decoration_container =
     (

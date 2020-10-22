@@ -1,7 +1,4 @@
-(include_subdirs unqualified)
-
 (library
  (name util)
- (wrapped false)
  (preprocess
   (pps ppx_let ppx_sexp_conv)))

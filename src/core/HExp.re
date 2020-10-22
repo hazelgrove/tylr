@@ -1,3 +1,5 @@
+open Util;
+
 module Tile = {
   type s = list(t)
   and t = Tile.t(operand, preop, postop, binop)

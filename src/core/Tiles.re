@@ -38,6 +38,8 @@ module Make =
            ) =>
            T.s;
        } => {
+  open Util;
+
   type hole_shape =
     | Operand
     | Operator;

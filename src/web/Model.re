@@ -1,3 +1,5 @@
+open Core;
+
 type t = {
   edit_state: EditState.t,
   font_metrics: FontMetrics.t,

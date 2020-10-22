@@ -1,5 +1,7 @@
 open Virtual_dom.Vdom;
 
+module Sort = Core.Sort;
+
 module Tile = {
   type profile = {
     shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],

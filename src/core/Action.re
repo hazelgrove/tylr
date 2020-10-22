@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Util;
 open OptUtil.Syntax;
 
 [@deriving sexp]

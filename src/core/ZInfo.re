@@ -1,3 +1,5 @@
+open Util;
+
 module Exp = {
   type t('z) = {
     ctx: Ctx.t,

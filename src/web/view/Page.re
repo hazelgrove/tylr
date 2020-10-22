@@ -6,7 +6,7 @@ let key_handlers = (~inject: Update.t => Event.t) => {
     Attr.on_keypress(_ => Event.Prevent_default),
     Attr.on_keydown(evt => {
       let key = Js.to_string(Js.Optdef.get(evt##.key, () => assert(false)));
-      let action: option(Action.t) =
+      let action: option(Core.Action.t) =
         switch (key) {
         | "ArrowLeft" => Some(Move(Left))
         | "ArrowRight" => Some(Move(Right))

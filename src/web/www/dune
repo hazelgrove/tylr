@@ -1,4 +1,2 @@
-(include_subdirs no)
-
 (rule
  (copy ../main.bc.js tiles.js))

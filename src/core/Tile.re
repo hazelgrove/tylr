@@ -50,7 +50,7 @@ module type S = {
   let is_operator_hole: t => bool;
 
   let precedence: t => int;
-  let associativity: IntMap.t(Associativity.t);
+  let associativity: Util.IntMap.t(Associativity.t);
 
   let get_open_children: t => list(s);
 };

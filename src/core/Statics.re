@@ -1,3 +1,5 @@
+open Util;
+
 module Pat = {
   let rec syn = (ctx: Ctx.t, p: HPat.t): option((Type.t, Ctx.t)) => {
     OptUtil.Syntax.(
