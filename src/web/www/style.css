@@ -13,14 +13,17 @@
 }
 
 :root {
-  --exp-bg-color: rgb(197, 253, 197);
-  --exp-shadow-color: rgb(135, 204, 135);
+  --light-page-color: #fdf6e3;
+  --light-text-color: #586e75;
 
-  --pat-bg-color: #baf1fe;
-  --pat-shadow-color: rgb(130, 176, 202);
+  --exp-bg-color: #d7e95d;
+  --exp-shadow-color: #859900;
 
-  --typ-bg-color: rgb(233, 221, 253);
-  --typ-shadow-color: rgb(173, 154, 202);
+  --pat-bg-color: #9fd7fe;
+  --pat-shadow-color: #268bd2;
+
+  --typ-bg-color: #caccf4;
+  --typ-shadow-color: #6c71c4;
 
   --tile-decoration-z: 0;
   --code-text-z: 1;
@@ -34,11 +37,13 @@
   position: fixed;
   top: 0%;
   left: 0%;
+  background-color: var(--light-page-color);
+  color: var(--light-text-color);
 }
 
 #caret {
   position: absolute;
-  border-left: 1px solid black;
+  border-left: 1.5px solid var(--light-text-color);
   height: 60vh;
 }
 
@@ -82,13 +87,27 @@
 }
 .tile-decoration {
   filter: url(#outer-drop-shadow);
+  stroke-width: 0.2;
+  fill-rule: evenodd;
 }
 .Exp.tile-decoration {
   fill: var(--exp-bg-color);
-  fill-rule: evenodd;
   stroke: var(--exp-shadow-color);
-  stroke-width: 0.1;
 }
 .Exp.tile-decoration-drop-shadow {
   flood-color: var(--exp-shadow-color);
+}
+.Pat.tile-decoration {
+  fill: var(--pat-bg-color);
+  stroke: var(--pat-shadow-color);
+}
+.Pat.tile-decoration-drop-shadow {
+  flood-color: var(--pat-shadow-color);
+}
+.Typ.tile-decoration {
+  fill: var(--typ-bg-color);
+  stroke: var(--typ-shadow-color);
+}
+.Typ.tile-decoration-drop-shadow {
+  flood-color: var(--typ-shadow-color);
 }
