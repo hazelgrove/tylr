@@ -161,7 +161,7 @@ module Make =
       )
     | Some(Operator) => (
         fixed_prefix,
-        [T.mk_operator_hole(), ...fixed_prefix],
+        [T.mk_operator_hole(), ...fixed_suffix],
       )
     };
   };
