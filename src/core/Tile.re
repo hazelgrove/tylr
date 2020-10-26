@@ -1,3 +1,4 @@
+[@deriving sexp]
 type t('operand, 'preop, 'postop, 'binop) =
   | Operand('operand)
   | PreOp('preop)
@@ -36,11 +37,17 @@ let map =
   | BinOp(binop) => f_binop(binop);
 
 module type S = {
+  [@deriving sexp]
   type operand;
+  [@deriving sexp]
   type preop;
+  [@deriving sexp]
   type postop;
+  [@deriving sexp]
   type binop;
+  [@deriving sexp]
   type nonrec t = t(operand, preop, postop, binop);
+  [@deriving sexp]
   type s = list(t);
 
   let mk_operand_hole: unit => t;

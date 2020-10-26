@@ -1,14 +1,21 @@
+open Sexplib.Std;
 open Util;
 
 module Tile = {
+  [@deriving sexp]
   type s = list(t)
+  [@deriving sexp]
   and t = Tile.t(operand, preop, postop, binop)
+  [@deriving sexp]
   and operand =
     | OperandHole
     | Num
     | Paren(s)
+  [@deriving sexp]
   and preop = unit // empty
+  [@deriving sexp]
   and postop = unit // empty
+  [@deriving sexp]
   and binop =
     | OperatorHole
     | Arrow;
@@ -43,6 +50,7 @@ module Tile = {
 };
 include Tiles.Make(Tile);
 
+[@deriving sexp]
 type t = Tile.s;
 
 type inner_tiles =
