@@ -124,7 +124,7 @@ module Pat = {
   let err_holes_z = (_, _) => failwith("todo");
 
   let normal_tiles = (_, _) => failwith("todo");
-  let offset = _ => failwith("todo");
+  let offset_of_ztile = _ => failwith("todo");
 };
 
 module Exp = {
@@ -333,7 +333,7 @@ module Exp = {
     };
   };
 
-  let offset = (ztile: ZExp.ztile): int =>
+  let offset_of_ztile = (ztile: ZExp.ztile): int =>
     switch (ztile) {
     | Operand(ParenZ_body({prefix, _})) => length(prefix) + 3
     | PreOp(_) => raise(ZExp.Void_ZPreOp)
@@ -343,32 +343,42 @@ module Exp = {
 
   let rec normal_tiles =
           ((steps, j): ZPath.t, e: HExp.t)
-          : list((int, CodeDecoration.Tile.profile)) =>
+          : (int, list((int, CodeDecoration.Tile.profile))) =>
     switch (steps) {
     | [] =>
-      e
-      |> ListUtil.fold_left_map(
-           (start, tile) =>
-             (
-               start + length_of_tile(tile) + 1,
-               (start, profile_of_tile(tile)),
-             ),
-           0,
-         )
-      |> snd
+      let tile_profiles =
+        e
+        |> ListUtil.fold_left_map(
+             (start, tile) =>
+               (
+                 start + length_of_tile(tile) + 1,
+                 (start, profile_of_tile(tile)),
+               ),
+             0,
+           )
+        |> snd;
+      let caret = {
+        let (prefix, _) = ListUtil.split_n(j, e);
+        length(prefix);
+      };
+      (caret, tile_profiles);
     | [two_step, ...steps] =>
-      let (profiles, offset) =
+      let ((caret, profiles), offset) =
         switch (ZPath.Exp.unzip(two_step, (e, None))) {
         | `Exp(e, unzipped) => (
             normal_tiles((steps, j), e),
-            offset(Option.get(unzipped)),
+            offset_of_ztile(Option.get(unzipped)),
           )
         | `Pat(p, unzipped) => (
             Pat.normal_tiles((steps, j), p),
-            Pat.offset(Option.get(unzipped)),
+            Pat.offset_of_ztile(Option.get(unzipped)),
           )
         };
-      profiles |> List.map(((start, profile)) => (offset + start, profile));
+      let caret = offset + caret;
+      let profiles =
+        profiles
+        |> List.map(((start, profile)) => (offset + start, profile));
+      (caret, profiles);
     };
 };
 
@@ -425,24 +435,27 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
          )
        );
   };
-  let tiles = {
-    let tiles =
+  let (caret, tiles) = {
+    let (caret, tiles) =
       switch (mode) {
       | Normal(focus) => Exp.normal_tiles(focus, e)
       | _ => failwith("todo")
       };
-    tiles
-    |> List.map(((origin, profile: CodeDecoration.Tile.profile)) =>
-         decoration_container(
-           ~origin,
-           ~length=profile.len,
-           ~cls="tile",
-           CodeDecoration.Tile.view(~sort=Exp, ~hole_radii, profile),
-         )
-       );
+    let caret = CodeDecoration.Caret.view(~font_metrics, caret, []);
+    let tiles =
+      tiles
+      |> List.map(((origin, profile: CodeDecoration.Tile.profile)) =>
+           decoration_container(
+             ~origin,
+             ~length=profile.len,
+             ~cls="tile",
+             CodeDecoration.Tile.view(~sort=Exp, ~hole_radii, profile),
+           )
+         );
+    (caret, tiles);
   };
   Node.span(
     [Attr.id("code")],
-    List.concat([[text], tiles, empty_holes, err_holes]),
+    List.concat([[text, caret], tiles, empty_holes, err_holes]),
   );
 };
