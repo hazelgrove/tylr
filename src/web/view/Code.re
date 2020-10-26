@@ -164,7 +164,7 @@ module Exp = {
       |> ListUtil.fold_left_map(
            (start, tile) => {
              let holes = empty_holes_tile(tile) |> List.map((+)(start));
-             (start + length_of_tile(tile), holes);
+             (start + length_of_tile(tile) + 1, holes);
            },
            0,
          );
