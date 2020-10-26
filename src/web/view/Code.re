@@ -118,9 +118,13 @@ module Pat = {
   and length_of_binop: HPat.Tile.binop => int =
     fun
     | OperatorHole => 1;
-  let view_of_unzipped = (_, _) => failwith("unimplemented");
-  let view_of_zipped = (~font_metrics as _, _, _) =>
-    failwith("unimplemented");
+
+  let empty_holes = _ => failwith("todo");
+  let err_holes = _ => failwith("todo");
+  let err_holes_z = (_, _) => failwith("todo");
+
+  let normal_tiles = (_, _) => failwith("todo");
+  let offset = _ => failwith("todo");
 };
 
 module Exp = {
@@ -153,6 +157,142 @@ module Exp = {
     fun
     | OperatorHole
     | Plus(_) => 1;
+
+  let rec empty_holes = (e: HExp.t): list(int) => {
+    let (_, holes) =
+      e
+      |> ListUtil.fold_left_map(
+           (start, tile) => {
+             let holes = empty_holes_tile(tile) |> List.map((+)(start));
+             (start + length_of_tile(tile), holes);
+           },
+           0,
+         );
+    List.concat(holes);
+  }
+  and empty_holes_tile = (tile: HExp.Tile.t): list(int) => {
+    let shift = List.map((+)(2));
+    switch (tile) {
+    | Operand(OperandHole) => [0]
+    | Operand(Num(_) | Var(_)) => []
+    | Operand(Paren(body)) => shift(empty_holes(body))
+    | PreOp(Lam(_, p)) => shift(Pat.empty_holes(p))
+    | PostOp(Ap(_, arg)) => shift(empty_holes(arg))
+    | BinOp(OperatorHole) => [0]
+    | BinOp(Plus(_)) => []
+    };
+  };
+
+  let rec err_holes =
+          (~expanded=false, e: HExp.t)
+          : list((int, CodeDecoration.ErrHole.profile)) => {
+    let shift = n => List.map(PairUtil.map_fst((+)(n)));
+    switch (HExp.root(e)) {
+    | Operand(operand) =>
+      switch (HExp.get_hole_status_operand(operand)) {
+      | NotInHole => []
+      | InHole =>
+        // TODO missing inner holes
+        let len = length_of_operand(operand);
+        [(0, {expanded, len})];
+      }
+    | PreOp((preop, r)) =>
+      let holes_preop =
+        switch (preop) {
+        | Lam(status, p) =>
+          let outer_hole =
+            switch (status) {
+            | NotInHole => []
+            | InHole =>
+              let len = length_of_preop(preop) + length(r);
+              [(0, CodeDecoration.ErrHole.{expanded, len})];
+            };
+          let inner_holes = Pat.err_holes(p) |> shift(2);
+          outer_hole @ inner_holes;
+        };
+      let holes_r =
+        err_holes(~expanded, r) |> shift(length_of_preop(preop));
+      holes_preop @ holes_r;
+    | PostOp((l, postop)) =>
+      let holes_l = err_holes(~expanded, l);
+      let holes_postop =
+        switch (postop) {
+        | Ap(status, arg) =>
+          let outer_hole =
+            switch (status) {
+            | NotInHole => []
+            | InHole =>
+              let len = length(l) + length_of_postop(postop);
+              [(0, CodeDecoration.ErrHole.{expanded, len})];
+            };
+          let inner_holes = shift(2, err_holes(arg));
+          outer_hole @ inner_holes;
+        };
+      holes_l @ holes_postop;
+    | BinOp((l, binop, r)) =>
+      let holes_l = err_holes(~expanded, l);
+      let holes_binop =
+        switch (binop) {
+        | OperatorHole
+        | Plus(NotInHole) => []
+        | Plus(InHole) =>
+          let len = length(l) + length_of_binop(binop);
+          [(0, CodeDecoration.ErrHole.{expanded, len})];
+        };
+      let holes_r = err_holes(~expanded, r);
+      holes_l @ holes_binop @ holes_r;
+    };
+  };
+
+  let rec err_holes_z =
+          ((steps, j): ZPath.t, e: HExp.t)
+          : list((int, CodeDecoration.ErrHole.profile)) =>
+    switch (steps) {
+    | [] => err_holes(~expanded=true, e)
+    // assuming steps are in sync
+    | [(tile_step, _child_step) as two_step, ...steps] =>
+      let outer_hole =
+        switch (HExp.get_hole_status(e)) {
+        | NotInHole => []
+        | InHole => [
+            (0, CodeDecoration.ErrHole.{expanded: true, len: length(e)}),
+          ]
+        };
+      let inner_holes = {
+        let shift = n => List.map(PairUtil.map_fst((+)(n)));
+        switch (HExp.root(e)) {
+        | Operand(Paren(body)) =>
+          err_holes_z((steps, j), body) |> shift(2)
+        | PreOp((Lam(_, p) as preop, body)) =>
+          let holes_p =
+            tile_step == 0
+              ? Pat.err_holes_z((steps, j), p) : Pat.err_holes(p);
+          let holes_body =
+            tile_step == 0
+              ? err_holes(body)
+              : {
+                let two_step = PairUtil.map_fst((-)(1), two_step);
+                err_holes_z(([two_step, ...steps], j), body);
+              };
+          let holes_p = shift(2, holes_p);
+          let holes_body = shift(length_of_preop(preop) + 1, holes_body);
+          holes_p @ holes_body;
+        | PostOp((fn, Ap(_, arg))) =>
+          let fn_len = List.length(fn);
+          let holes_fn =
+            tile_step == fn_len
+              ? err_holes(fn) : err_holes_z(([two_step, ...steps], j), fn);
+          let holes_arg =
+            tile_step == fn_len
+              ? err_holes_z((steps, j), arg) : err_holes(arg);
+          let holes_arg = shift(fn_len + 1, holes_arg);
+          holes_fn @ holes_arg;
+        | Operand(OperandHole | Num(_) | Var(_))
+        | BinOp((_, OperatorHole | Plus(_), _)) => raise(ZPath.Out_of_sync)
+        };
+      };
+      outer_hole @ inner_holes;
+    };
 
   let profile_of_tile = (tile: HExp.Tile.t): CodeDecoration.Tile.profile => {
     switch (tile) {
@@ -193,197 +333,95 @@ module Exp = {
     };
   };
 
-  let view_of_unzipped = (unzipped: ZExp.unzipped, zipped: Node.t): Node.t =>
-    switch (unzipped) {
-    | None => zipped
-    | Some(ztile) => CodeText.Exp.view_of_ztile(ztile, zipped)
+  let offset = (ztile: ZExp.ztile): int =>
+    switch (ztile) {
+    | Operand(ParenZ_body({prefix, _})) => length(prefix) + 3
+    | PreOp(_) => raise(ZExp.Void_ZPreOp)
+    | PostOp(ApZ_arg(_, {prefix, _})) => length(prefix) + 3
+    | BinOp(_) => raise(ZExp.Void_ZBinOp)
     };
 
-  let rec view_of_term = (~font_metrics: FontMetrics.t, e: HExp.t) =>
-    e
-    |> List.map(view_of_tile(~font_metrics))
-    |> ListUtil.join(Node.text(Unicode.nbsp))
-  and view_of_tile = (~font_metrics: FontMetrics.t, tile: HExp.Tile.t) => {
-    let text =
-      CodeText.Exp.view_of_tile(~attrs=[Attr.classes(["code-text"])], tile);
-    let decoration = {
-      let hole_radius = 3.5;
-      let hole_radii = (
-        hole_radius /. font_metrics.col_width,
-        hole_radius /. font_metrics.row_height,
-      );
-      let profile = profile_of_tile(tile);
-      decoration_container(
-        ~font_metrics,
-        ~origin=0,
-        ~length=length_of_tile(tile),
-        ~cls="tile-decoration-container",
-        CodeDecoration.Tile.view(~sort=Exp, ~hole_radii, profile),
-      );
-    };
-    Node.span([Attr.classes(["tile"])], [text, decoration]);
-  };
-
-  /*
-   let view_of_ztile =
-       (ztile: ZExp.ztile): ZList.t(ZList.t(unit, Node.t), Node.t) => {
-     let (prefix, suffix) =
-       switch (ztile) {
-       | Operand(ParenZ_body({prefix, suffix, _})) =>
-         let prefix = List.map(view_of_tile, prefix);
-         ();
-       | PostOp(ApZ_arg(_, {prefix, suffix, _})) => (prefix, suffix)
-       | PreOp(_) => raise(Void_ZPreOp)
-       | BinOp(_) => raise(Void_ZBinOp)
-       };
-     ();
-   };
-   */
-
-  // render this either directly covering selection or above it
-  let view_of_selection =
-      (~font_metrics: FontMetrics.t, selection: ZPath.selection, e: HExp.t)
-      : Node.t => {
-    let rec go = ((l, r), e) =>
-      switch (l, r) {
-      | (([], j_l), ([], j_r)) =>
-        let (_, tiles, _) = ListUtil.split_sublist(j_l, j_r, e);
-        List.map(view_of_tile(~font_metrics), tiles);
-      | (([], j_l), ([two_step_r, ...steps_r], j_r)) =>
-        switch (ZPath.Exp.unzip(two_step_r, (e, None))) {
-        | `Exp(e, unzipped) =>
-          let (prefix, partial_tile) =
-            switch (Option.get(unzipped)) {
-            | Operand(ParenZ_body({prefix, _})) => (
-                prefix,
-                CodeText.[pad, Delim.open_Paren, pad],
-              )
-            | PreOp(_) => raise(ZExp.Void_ZPreOp)
-            | PostOp(ApZ_arg(_, {prefix, _})) => (
-                prefix,
-                CodeText.[pad, Delim.open_Paren, pad],
-              )
-            | BinOp(_) => raise(ZExp.Void_ZBinOp)
-            };
-          let prefix_tiles =
-            prefix
-            |> ListUtil.split_n(j_l)
-            |> snd
-            |> List.map(view_of_tile(~font_metrics));
-          let rest = go((([], 0), (steps_r, j_r)), e);
-          List.concat([prefix_tiles, partial_tile, rest]);
-        | `Pat(_) => failwith("unconsidered")
-        }
-      | (([two_step_l, ...steps_l], j_l), ([], j_r)) =>
-        switch (ZPath.Exp.unzip(two_step_l, (e, None))) {
-        | `Pat(_) => failwith("unconsidered")
-        | `Exp(e, unzipped) =>
-          let (partial_tile, suffix) =
-            switch (Option.get(unzipped)) {
-            | Operand(ParenZ_body({suffix, _})) => (
-                CodeText.[pad, Delim.close_Paren, pad],
-                suffix,
-              )
-            | PreOp(_) => raise(ZExp.Void_ZPreOp)
-            | PostOp(ApZ_arg(_, {suffix, _})) => (
-                CodeText.[pad, Delim.close_Paren, pad],
-                suffix,
-              )
-            | BinOp(_) => raise(ZExp.Void_ZBinOp)
-            };
-          let suffix_tiles =
-            suffix
-            |> ListUtil.split_n(j_r - fst(two_step_l) - 1)
-            |> fst
-            |> List.map(view_of_tile(~font_metrics));
-          let rest = go(((steps_l, j_l), ([], List.length(e))), e);
-          List.concat([suffix_tiles, partial_tile, rest]);
-        }
-      | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
-        switch (
-          ZPath.Exp.unzip(two_step_l, (e, None)),
-          ZPath.Exp.unzip(two_step_r, (e, None)),
-        ) {
-        | (`Pat(_), _)
-        | (_, `Pat(_)) => failwith("unconsidered")
-        | (`Exp(e_l, _unzipped_l), `Exp(e_r, _unzipped_r)) =>
-          let mid_tiles =
-            e
-            |> ListUtil.sublist(fst(two_step_l), fst(two_step_r) + 1)
-            |> List.map(view_of_tile(~font_metrics));
-          let (partial_l, partial_r) = {
-            // TODO
-            CodeText.(
-              [pad, Delim.close_Paren, pad],
-              [pad, Delim.open_Paren, pad],
-            );
-          };
-          let (rest_l, rest_r) = (
-            go(((steps_l, j_l), ([], List.length(e_l))), e_l),
-            go((([], 0), (steps_r, j_r)), e_r),
-          );
-          List.concat([rest_l, partial_l, mid_tiles, partial_r, rest_r]);
-        }
-      };
-    // TODO add selection highlight
-    Node.span([], go(selection, e));
-  };
-
-  let rec view_of_zipped =
-          (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, e: HExp.t)
-          : Node.t =>
-    switch (mode) {
-    | Normal(([], j)) =>
-      // let ZList.{prefix: _, z: _root, suffix: _} = HExp.nth_root(j, e);
-      // compute length of root to draw cursor inspector
-      // compute length of prefix prior to jth tile to draw caret
-      let caret = {
-        let (prefix, _) = ListUtil.split_n(j, e);
-        let len = length(prefix);
-        CodeDecoration.Caret.view(~font_metrics, len, []);
-      };
-      Node.span(
-        [Attr.classes(["term"])],
-        [caret, ...view_of_term(~font_metrics, e)],
-      );
-    | Normal(([two_step, ...steps], j)) =>
-      let mode = EditState.Mode.Normal((steps, j));
-      switch (ZPath.Exp.unzip(two_step, (e, None))) {
-      | `Pat(p, unzipped) =>
-        Pat.view_of_unzipped(
-          unzipped,
-          Pat.view_of_zipped(~font_metrics, mode, p),
-        )
-      | `Exp(e, unzipped) =>
-        view_of_unzipped(unzipped, view_of_zipped(~font_metrics, mode, e))
-      };
-    | Selecting(selection) =>
-      let selection = view_of_selection(~font_metrics, selection, e);
-      let text = CodeText.Exp.view(e);
-      Node.span([], [selection, text]);
-    | Restructuring(selection, _focus) =>
-      let selection = view_of_selection(~font_metrics, selection, e);
-      let text = CodeText.Exp.view(e);
-      Node.span([], [selection, text]);
-    /*
-     let placeholder =
-       view_of_restructuring_placeholder(offset(l, e), offset(r, e));
-     let caret =
-       view_of_restructuring_caret(
-         offset(focus, e),
-         text_of_selection(selection, e),
-       );
-     let term = view_of_term(e);
-     Node.span([], [placeholder, caret, term]);
-     */
+  let rec normal_tiles =
+          ((steps, j): ZPath.t, e: HExp.t)
+          : list((int, CodeDecoration.Tile.profile)) =>
+    switch (steps) {
+    | [] =>
+      e
+      |> ListUtil.fold_left_map(
+           (start, tile) =>
+             (
+               start + length_of_tile(tile),
+               (start, profile_of_tile(tile)),
+             ),
+           0,
+         )
+      |> snd
+    | [two_step, ...steps] =>
+      let (profiles, offset) =
+        switch (ZPath.Exp.unzip(two_step, (e, None))) {
+        | `Exp(e, unzipped) => (
+            normal_tiles((steps, j), e),
+            offset(Option.get(unzipped)),
+          )
+        | `Pat(p, unzipped) => (
+            Pat.normal_tiles((steps, j), p),
+            Pat.offset(Option.get(unzipped)),
+          )
+        };
+      profiles |> List.map(((start, profile)) => (offset + start, profile));
     };
 };
 
-let view = (~font_metrics: FontMetrics.t, (mode, zipper): EditState.t) => {
-  switch (zipper) {
-  | `Typ(_)
-  | `Pat(_) => failwith("unimplemented0")
-  | `Exp(zipped, _todo_unzipped) =>
-    Exp.view_of_zipped(~font_metrics, mode, zipped)
+let empty_hole = ((r_x, r_y): (float, float)) =>
+  Node.create_svg(
+    "ellipse",
+    AttrUtil.[
+      cx(0.5),
+      cy(0.5),
+      rx(r_x),
+      ry(r_y),
+      Attr.classes(["empty-hole-ellipse"]),
+    ],
+    [],
+  );
+
+let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
+  let decoration_container = decoration_container(~font_metrics);
+  let hole_radii = {
+    let r = 3.5;
+    (r /. font_metrics.col_width, r /. font_metrics.row_height);
   };
+  let (mode, e) =
+    switch (EditState.zip_up(edit_state)) {
+    | (_, `Typ(_) | `Pat(_)) => failwith("expected expression at top level")
+    | (mode, `Exp(e, _)) => (mode, e)
+    };
+  let empty_holes =
+    Exp.empty_holes(e)
+    |> List.map(origin =>
+         decoration_container(
+           ~origin,
+           ~length=1,
+           ~cls="empty-hole",
+           [empty_hole(hole_radii)],
+         )
+       );
+  let err_holes = {
+    let holes =
+      switch (mode) {
+      | Normal(focus) => Exp.err_holes_z(focus, e)
+      | Selecting(_) => Exp.err_holes(e)
+      | Restructuring(_) => []
+      };
+    holes
+    |> List.map(((origin, profile: CodeDecoration.ErrHole.profile)) =>
+         decoration_container(
+           ~origin,
+           ~length=profile.len,
+           ~cls="err-hole",
+           CodeDecoration.ErrHole.view(profile),
+         )
+       );
+  };
+  Node.span([], empty_holes @ err_holes);
 };

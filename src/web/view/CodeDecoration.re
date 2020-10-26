@@ -2,17 +2,10 @@ open Virtual_dom.Vdom;
 
 module Sort = Core.Sort;
 
-module Tile = {
-  type profile = {
-    shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],
-    len: int,
-    open_children: list((int, int)),
-    closed_children: list((int, int)),
-  };
+let tip = 0.3;
+let child_border_thickness = 0.1;
 
-  let tip = 0.3;
-  let child_border_thickness = 0.1;
-
+module Diag = {
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.(
       switch (child_border) {
@@ -52,6 +45,51 @@ module Tile = {
     );
   let br_tl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.reverse(tl_br(~child_border?, ()));
+};
+
+module ErrHole = {
+  type profile = {
+    expanded: bool,
+    len: int,
+  };
+
+  let view = ({expanded, len}: profile): list(Node.t) => {
+    open SvgUtil.Path;
+    open Diag;
+    let len = Float.of_int(len);
+    let tl_br = expanded ? tl_br() : tl_br(~child_border=`North, ());
+    let tr_bl = expanded ? tr_bl() : tr_bl(~child_border=`South, ());
+    let br_tl = expanded ? br_tl() : br_tl(~child_border=`South, ());
+    let bl_tr = expanded ? bl_tr() : bl_tr(~child_border=`North, ());
+    let path =
+      List.concat([
+        [
+          M({x: 0., y: expanded ? child_border_thickness : 0.}),
+          H_({dx: len}),
+        ],
+        tl_br,
+        tr_bl,
+        [H_({dx: Float.neg(len)})],
+        br_tl,
+        bl_tr,
+        [Z],
+      ]);
+    let attrs =
+      Attr.[
+        classes(["err-hole-decoration"]),
+        create("vector-effect", "non-scaling-stroke"),
+      ];
+    [view(~attrs, path)];
+  };
+};
+
+module Tile = {
+  type profile = {
+    shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],
+    len: int,
+    open_children: list((int, int)),
+    closed_children: list((int, int)),
+  };
 
   let contour_path =
       (
@@ -62,6 +100,7 @@ module Tile = {
       )
       : Node.t => {
     open SvgUtil.Path;
+    open Diag;
     let hole_path =
       switch (profile.shape) {
       | `Operand(true)

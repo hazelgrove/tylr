@@ -16,6 +16,8 @@ type t = (list(two_step), caret_step);
 [@deriving sexp]
 type selection = (t, t);
 
+exception Out_of_sync;
+
 let select_while_moving = (start: t, end_: t): (Direction.t => selection) =>
   fun
   | Left => (end_, start)

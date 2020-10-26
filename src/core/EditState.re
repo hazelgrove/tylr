@@ -40,3 +40,22 @@ module Zipper = {
 };
 
 type t = (Mode.t, Zipper.t);
+
+let zip_up = ((mode, zipper) as edit_state: t): t =>
+  switch (zipper) {
+  | `Typ(_, None)
+  | `Pat(_, None)
+  | `Exp(_, None) => edit_state
+  | `Typ(ty, Some(ztile)) =>
+    let (two_step, zipped) = ZPath.Typ.zip_ztile(ty, ztile);
+    let mode = Mode.cons(two_step, mode);
+    (mode, (zipped :> Zipper.t));
+  | `Pat(p, Some(ztile)) =>
+    let (two_step, zipped) = ZPath.Pat.zip_ztile(p, ztile);
+    let mode = Mode.cons(two_step, mode);
+    (mode, (zipped :> Zipper.t));
+  | `Exp(e, Some(ztile)) =>
+    let (two_step, zipped) = ZPath.Exp.zip_ztile(e, ztile);
+    let mode = Mode.cons(two_step, mode);
+    (mode, (zipped :> Zipper.t));
+  };

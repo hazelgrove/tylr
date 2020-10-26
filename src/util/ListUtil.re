@@ -123,3 +123,14 @@ let split_last = (xs: list('x)): (list('x), 'x) =>
   | Some(r) => r
   };
 let leading = xs => fst(split_last(xs));
+
+let rec fold_left_map =
+        (f: ('acc, 'x) => ('acc, 'y), start: 'acc, xs: list('x))
+        : ('acc, list('y)) =>
+  switch (xs) {
+  | [] => (start, [])
+  | [x, ...xs] =>
+    let (new_acc, y) = f(start, x);
+    let (final, ys) = fold_left_map(f, new_acc, xs);
+    (final, [y, ...ys]);
+  };

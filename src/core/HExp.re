@@ -50,24 +50,28 @@ type inner_tiles =
   | Other(HPat.inner_tiles);
 
 // does not recurse into parentheses
+let get_hole_status_operand: Tile.operand => _ =
+  fun
+  | OperandHole
+  | Paren(_) => HoleStatus.NotInHole
+  | Num(status, _)
+  | Var(status, _) => status;
+let get_hole_status_preop: Tile.preop => _ =
+  fun
+  | Lam(status, _) => status;
+let get_hole_status_postop: Tile.postop => _ =
+  fun
+  | Ap(status, _) => status;
+let get_hole_status_binop: Tile.binop => _ =
+  fun
+  | OperatorHole => HoleStatus.NotInHole
+  | Plus(status) => status;
 let get_hole_status =
   get_root(
-    ~operand=
-      fun
-      | OperandHole
-      | Paren(_) => HoleStatus.NotInHole
-      | Num(status, _)
-      | Var(status, _) => status,
-    ~preop=
-      fun
-      | Lam(status, _) => status,
-    ~postop=
-      fun
-      | Ap(status, _) => status,
-    ~binop=
-      fun
-      | OperatorHole => HoleStatus.NotInHole
-      | Plus(status) => status,
+    ~operand=get_hole_status_operand,
+    ~preop=get_hole_status_preop,
+    ~postop=get_hole_status_postop,
+    ~binop=get_hole_status_binop,
   );
 
 // recurses into parentheses
