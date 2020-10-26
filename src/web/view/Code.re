@@ -261,14 +261,15 @@ module Exp = {
       let inner_holes = {
         let shift = n => List.map(PairUtil.map_fst((+)(n)));
         switch (HExp.root(e)) {
+        | Operand(OperandHole | Num(_) | Var(_)) => raise(ZPath.Out_of_sync)
         | Operand(Paren(body)) =>
           err_holes_z((steps, j), body) |> shift(2)
         | PreOp((Lam(_, p) as preop, body)) =>
+          let in_preop = tile_step == 0;
           let holes_p =
-            tile_step == 0
-              ? Pat.err_holes_z((steps, j), p) : Pat.err_holes(p);
+            in_preop ? Pat.err_holes_z((steps, j), p) : Pat.err_holes(p);
           let holes_body =
-            tile_step == 0
+            in_preop
               ? err_holes(body)
               : {
                 let two_step = PairUtil.map_fst((-)(1), two_step);
@@ -278,17 +279,30 @@ module Exp = {
           let holes_body = shift(length_of_preop(preop) + 1, holes_body);
           holes_p @ holes_body;
         | PostOp((fn, Ap(_, arg))) =>
-          let fn_len = List.length(fn);
+          let in_postop = tile_step == List.length(fn);
           let holes_fn =
-            tile_step == fn_len
+            in_postop
               ? err_holes(fn) : err_holes_z(([two_step, ...steps], j), fn);
           let holes_arg =
-            tile_step == fn_len
-              ? err_holes_z((steps, j), arg) : err_holes(arg);
-          let holes_arg = shift(fn_len + 1, holes_arg);
+            in_postop ? err_holes_z((steps, j), arg) : err_holes(arg);
+          let holes_arg = shift(length(fn) + 1, holes_arg);
           holes_fn @ holes_arg;
-        | Operand(OperandHole | Num(_) | Var(_))
-        | BinOp((_, OperatorHole | Plus(_), _)) => raise(ZPath.Out_of_sync)
+        | BinOp((l, binop, r)) =>
+          let len_l = List.length(l);
+          let in_l = tile_step < len_l;
+          let holes_l =
+            in_l
+              ? err_holes_z(([two_step, ...steps], j), l) : err_holes(l);
+          let holes_r =
+            in_l
+              ? err_holes(r)
+              : {
+                let two_step = PairUtil.map_fst((-)(len_l + 1), two_step);
+                err_holes_z(([two_step, ...steps], j), r);
+              };
+          let holes_r =
+            shift(length(l) + 1 + length_of_binop(binop) + 1, holes_r);
+          holes_l @ holes_r;
         };
       };
       outer_hole @ inner_holes;
