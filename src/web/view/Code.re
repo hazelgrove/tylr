@@ -396,6 +396,7 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
     | (_, `Typ(_) | `Pat(_)) => failwith("expected expression at top level")
     | (mode, `Exp(e, _)) => (mode, e)
     };
+  let text = CodeText.Exp.view(~attrs=[Attr.classes(["code-text"])], e);
   let empty_holes =
     Exp.empty_holes(e)
     |> List.map(origin =>
@@ -423,5 +424,5 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
          )
        );
   };
-  Node.span([], empty_holes @ err_holes);
+  Node.span([], List.concat([[text], empty_holes, err_holes]));
 };
