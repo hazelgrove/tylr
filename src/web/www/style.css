@@ -16,6 +16,9 @@
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
 
+  --hole-stroke-color: #dc322f;
+  --empty-hole-fill-color: #ffef00;
+
   --exp-bg-color: #d7e95d;
   --exp-shadow-color: #859900;
 
@@ -74,6 +77,12 @@
 
 .term {
   position: relative;
+}
+
+.empty-hole-ellipse {
+  stroke-width: 0.75;
+  stroke: var(--hole-stroke-color);
+  fill: var(--empty-hole-fill-color);
 }
 
 .tile {

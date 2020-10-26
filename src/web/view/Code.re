@@ -381,6 +381,7 @@ let empty_hole = ((r_x, r_y): (float, float)) =>
       rx(r_x),
       ry(r_y),
       Attr.classes(["empty-hole-ellipse"]),
+      Attr.create("vector-effect", "non-scaling-stroke"),
     ],
     [],
   );
