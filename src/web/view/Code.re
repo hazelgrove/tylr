@@ -19,9 +19,9 @@ let decoration_container =
   let buffered_width_px =
     Float.of_int(buffered_width) *. font_metrics.col_width;
 
-  let container_origin_x = (-0.5) *. font_metrics.row_height;
-  let container_origin_y =
+  let container_origin_x =
     (Float.of_int(origin) -. 0.5) *. font_metrics.col_width;
+  let container_origin_y = (-0.5) *. font_metrics.row_height;
 
   Node.div(
     [
@@ -33,8 +33,8 @@ let decoration_container =
         "style",
         Printf.sprintf(
           "top: %fpx; left: %fpx;",
-          container_origin_x,
           container_origin_y,
+          container_origin_x,
         ),
       ),
     ],
@@ -350,7 +350,7 @@ module Exp = {
       |> ListUtil.fold_left_map(
            (start, tile) =>
              (
-               start + length_of_tile(tile),
+               start + length_of_tile(tile) + 1,
                (start, profile_of_tile(tile)),
              ),
            0,
@@ -425,5 +425,24 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
          )
        );
   };
-  Node.span([], List.concat([[text], empty_holes, err_holes]));
+  let tiles = {
+    let tiles =
+      switch (mode) {
+      | Normal(focus) => Exp.normal_tiles(focus, e)
+      | _ => failwith("todo")
+      };
+    tiles
+    |> List.map(((origin, profile: CodeDecoration.Tile.profile)) =>
+         decoration_container(
+           ~origin,
+           ~length=profile.len,
+           ~cls="tile",
+           CodeDecoration.Tile.view(~sort=Exp, ~hole_radii, profile),
+         )
+       );
+  };
+  Node.span(
+    [Attr.id("code")],
+    List.concat([[text], tiles, empty_holes, err_holes]),
+  );
 };

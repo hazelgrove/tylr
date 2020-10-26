@@ -28,8 +28,10 @@
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6c71c4;
 
-  --tile-decoration-z: 0;
-  --code-text-z: 1;
+  --err-hole-z: 0;
+  --tile-z: 1;
+  --code-text-z: 2;
+
 }
 
 #page {
@@ -85,38 +87,46 @@
   fill: var(--empty-hole-fill-color);
 }
 
-.tile {
+#code {
   position: relative;
 }
+
 .decoration-container {
   position: absolute;
 }
-.tile-decoration-container {
-  z-index: var(--tile-decoration-z);
+.empty-hole-container {
+  z-index: var(--empty-hole-z);
 }
-.tile-decoration {
+.err-hole-container {
+  z-index: var(--err-hole-z);
+}
+.tile-container {
+  z-index: var(--tile-z);
+}
+
+.tile-path {
   filter: url(#outer-drop-shadow);
   stroke-width: 0.2;
   fill-rule: evenodd;
 }
-.Exp.tile-decoration {
+.Exp.tile-path {
   fill: var(--exp-bg-color);
   stroke: var(--exp-shadow-color);
 }
-.Exp.tile-decoration-drop-shadow {
+.Exp.tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
 }
-.Pat.tile-decoration {
+.Pat.tile-path {
   fill: var(--pat-bg-color);
   stroke: var(--pat-shadow-color);
 }
-.Pat.tile-decoration-drop-shadow {
+.Pat.tile-drop-shadow {
   flood-color: var(--pat-shadow-color);
 }
-.Typ.tile-decoration {
+.Typ.tile-path {
   fill: var(--typ-bg-color);
   stroke: var(--typ-shadow-color);
 }
-.Typ.tile-decoration-drop-shadow {
+.Typ.tile-drop-shadow {
   flood-color: var(--typ-shadow-color);
 }

@@ -189,7 +189,7 @@ module Tile = {
     SvgUtil.Path.view(
       ~attrs=
         Attr.[
-          classes([Sort.to_string(sort), "tile-decoration"]),
+          classes([Sort.to_string(sort), "tile-path"]),
           create("vector-effect", "non-scaling-stroke"),
           ...attrs,
         ],
@@ -205,10 +205,7 @@ module Tile = {
         Node.create_svg(
           "feDropShadow",
           [
-            Attr.classes([
-              "tile-decoration-drop-shadow",
-              Sort.to_string(sort),
-            ]),
+            Attr.classes(["tile-drop-shadow", Sort.to_string(sort)]),
             Attr.create("dx", "0.1"),
             Attr.create("dy", "0.04"),
             Attr.create("stdDeviation", "0"),
