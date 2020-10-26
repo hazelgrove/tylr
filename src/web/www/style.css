@@ -31,7 +31,6 @@
   --err-hole-z: 0;
   --tile-z: 1;
   --code-text-z: 2;
-
 }
 
 #page {
@@ -102,6 +101,16 @@
 }
 .tile-container {
   z-index: var(--tile-z);
+}
+
+.tile-hole-path {
+  filter: url(#tile-hole-drop-shadow);
+  fill: var(--empty-hole-fill-color);
+  stroke: var(--hole-stroke-color);
+  stroke-width: 0.2;
+}
+.tile-hole-inset-shadow {
+  flood-color: var(--hole-stroke-color);
 }
 
 .tile-path {
