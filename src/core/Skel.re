@@ -40,7 +40,7 @@ module Make = (T: Tile.S) : {let mk: T.s => t;} => {
         | []
         | [_] =>
           failwith("impossible: binop encountered empty or singleton stack")
-        | [skel1, skel2, ...skels] => [BinOp(skel1, i, skel2), ...skels]
+        | [skel1, skel2, ...skels] => [BinOp(skel2, i, skel1), ...skels]
         }
       };
 
