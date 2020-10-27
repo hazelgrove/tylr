@@ -297,7 +297,11 @@ module Exp = {
             in_l
               ? err_holes(r)
               : {
-                let two_step = PairUtil.map_fst((-)(len_l + 1), two_step);
+                let two_step =
+                  PairUtil.map_fst(
+                    tile_step => tile_step - (len_l + 1),
+                    two_step,
+                  );
                 err_holes_z(([two_step, ...steps], j), r);
               };
           let holes_r =
