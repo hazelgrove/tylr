@@ -107,7 +107,7 @@
   filter: url(#tile-hole-drop-shadow);
   fill: var(--empty-hole-fill-color);
   stroke: var(--hole-stroke-color);
-  stroke-width: 0.2;
+  stroke-width: 0.3;
 }
 .tile-hole-inset-shadow {
   flood-color: var(--hole-stroke-color);
