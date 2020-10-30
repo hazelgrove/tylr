@@ -28,9 +28,11 @@
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6c71c4;
 
-  --err-hole-z: 0;
-  --tile-z: 1;
-  --code-text-z: 2;
+  --open-child-z: 0;
+  --empty-hole-z: 1;
+  --err-hole-z: 1;
+  --tile-z: 2;
+  --code-text-z: 3;
 }
 
 #page {
@@ -90,6 +92,12 @@
   position: relative;
 }
 
+.decorated-tile,
+.decorated-open-child,
+.decorated-term {
+  position: relative;
+}
+
 .decoration-container {
   position: absolute;
 }
@@ -101,6 +109,24 @@
 }
 .tile-container {
   z-index: var(--tile-z);
+}
+.open-child-container {
+  z-index: var(--open-child-z);
+}
+
+.open-child-path {
+  stroke-width: 0.3;
+  fill: var(--light-page-color);
+  filter: url(#outer-drop-shadow);
+}
+.open-child-path.Exp {
+  stroke: var(--exp-shadow-color);
+}
+.open-child-path.Pat {
+  stroke: var(--pat-shadow-color);
+}
+.open-child-path.Typ {
+  stroke: var(--typ-shadow-color);
 }
 
 .tile-hole-path {

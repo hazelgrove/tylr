@@ -47,6 +47,30 @@ module Diag = {
     SvgUtil.Path.reverse(tl_br(~child_border?, ()));
 };
 
+module OpenChild = {
+  let view = (~sort: Sort.t, len: int): list(Node.t) => {
+    open SvgUtil.Path;
+    open Diag;
+    let len = Float.of_int(len);
+    let path =
+      List.concat([
+        [M({x: 0., y: 0.}), H_({dx: len})],
+        tl_br(),
+        tr_bl(),
+        [H_({dx: Float.neg(len)})],
+        br_tl(),
+        bl_tr(),
+        [Z],
+      ]);
+    let attrs =
+      Attr.[
+        classes(["open-child-path", Sort.to_string(sort)]),
+        create("vector-effect", "non-scaling-stroke"),
+      ];
+    [view(~attrs, path)];
+  };
+};
+
 module ErrHole = {
   type profile = {
     expanded: bool,
@@ -64,7 +88,7 @@ module ErrHole = {
     let path =
       List.concat([
         [
-          M({x: 0., y: expanded ? child_border_thickness : 0.}),
+          M({x: 0., y: expanded ? 0. : child_border_thickness}),
           H_({dx: len}),
         ],
         tl_br,
@@ -76,7 +100,7 @@ module ErrHole = {
       ]);
     let attrs =
       Attr.[
-        classes(["err-hole-decoration"]),
+        classes(["err-hole-path"]),
         create("vector-effect", "non-scaling-stroke"),
       ];
     [view(~attrs, path)];

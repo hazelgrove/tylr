@@ -6,6 +6,7 @@ module Make =
 
          let fix_empty_holes: (T.s, T.s) => (T.s, T.s);
 
+         [@deriving sexp]
          type root =
            Tile.t(
              T.operand,
@@ -168,6 +169,7 @@ module Make =
 
   module Sk = Skel.Make(T);
 
+  [@deriving sexp]
   type root =
     Tile.t(
       T.operand,
@@ -225,10 +227,16 @@ module Make =
             ListUtil.split_sublist(m + 1, m + 1 + Skel.size(r), tiles);
           if (n < m) {
             let zroot = go(l);
-            {...zroot, suffix: [tile, ...tiles_r] @ zroot.suffix};
+            {
+              ...zroot,
+              suffix: zroot.suffix @ [List.nth(tiles, m), ...tiles_r],
+            };
           } else if (n > m) {
             let zroot = go(r);
-            {...zroot, prefix: zroot.prefix @ tiles_l @ [tile]};
+            {
+              ...zroot,
+              prefix: tiles_l @ [List.nth(tiles, m), ...zroot.prefix],
+            };
           } else {
             ZList.mk(
               ~z=Tile.BinOp((tiles_l, Tile.get_binop(tile), tiles_r)),
