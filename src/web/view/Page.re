@@ -10,9 +10,10 @@ let key_handlers = (~inject: Update.t => Event.t) => {
         switch (key) {
         | "ArrowLeft" => Some(Move(Left))
         | "ArrowRight" => Some(Move(Right))
-        | "(" => Some(Construct(Paren))
         | "Backspace" => Some(Delete(Left))
         | "Delete" => Some(Delete(Right))
+        | "+" => Some(Construct(Plus))
+        | "(" => Some(Construct(Paren))
         | _ => None
         };
       switch (action) {
