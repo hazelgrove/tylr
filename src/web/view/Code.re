@@ -474,16 +474,14 @@ module Exp = {
           let len = length(prefix);
           CodeDecoration.Caret.view(~font_metrics, len, []);
         };
-        let code =
-          if (j == List.length(e)) {
-            [CodeText.Exp.view(e)];
-          } else {
-            let ZList.{prefix, z, suffix} = HExp.nth_root(j, e);
-            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-            let zroot = view_of_decorated_term(z);
-            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-            CodeText.space(prefix @ [zroot, ...suffix]);
-          };
+        let code = {
+          let k = j == List.length(e) ? j - 1 : j;
+          let ZList.{prefix, z, suffix} = HExp.nth_root(k, e);
+          let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+          let zroot = view_of_decorated_term(z);
+          let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+          CodeText.space(prefix @ [zroot, ...suffix]);
+        };
         Node.span([Attr.classes(["zipped"])], [caret, ...code]);
       | [two_step, ...steps] =>
         switch (ZPath.Exp.unzip(two_step, (e, None))) {
