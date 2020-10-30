@@ -47,30 +47,6 @@ module Diag = {
     SvgUtil.Path.reverse(tl_br(~child_border?, ()));
 };
 
-module OpenChild = {
-  let view = (~sort: Sort.t, len: int): list(Node.t) => {
-    open SvgUtil.Path;
-    open Diag;
-    let len = Float.of_int(len);
-    let path =
-      List.concat([
-        [M({x: 0., y: 0.}), H_({dx: len})],
-        tl_br(),
-        tr_bl(),
-        [H_({dx: Float.neg(len)})],
-        br_tl(),
-        bl_tr(),
-        [Z],
-      ]);
-    let attrs =
-      Attr.[
-        classes(["open-child-path", Sort.to_string(sort)]),
-        create("vector-effect", "non-scaling-stroke"),
-      ];
-    [view(~attrs, path)];
-  };
-};
-
 module ErrHole = {
   type profile = {
     expanded: bool,
@@ -107,6 +83,114 @@ module ErrHole = {
   };
 };
 
+module EmptyHole = {
+  let inset_shadow_filter =
+    Node.create_svg(
+      "filter",
+      [Attr.id("empty-hole-inset-shadow")],
+      [
+        Node.create_svg(
+          "feOffset",
+          Attr.[
+            create("in", "SourceAlpha"),
+            create("dx", "0.1"),
+            create("dy", "0.04"),
+            create("result", "offset-alpha"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feFlood",
+          Attr.[
+            classes(["empty-hole-inset-shadow-flood"]),
+            create("flood-opacity", "1"),
+            create("result", "color"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feComposite",
+          Attr.[
+            create("operator", "out"),
+            create("in", "SourceAlpha"),
+            create("in2", "offset-alpha"),
+            create("result", "shadow-shape"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feComposite",
+          Attr.[
+            create("operator", "in"),
+            create("in", "color"),
+            create("in2", "shadow-shape"),
+            create("result", "drop-shadow"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feMerge",
+          [],
+          [
+            Node.create_svg(
+              "feMergeNode",
+              [Attr.create("in", "SourceGraphic")],
+              [],
+            ),
+            Node.create_svg(
+              "feMergeNode",
+              [Attr.create("in", "drop-shadow")],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
+
+  let view =
+      (~inset: bool, ~radii as (r_x, r_y): (float, float)): list(Node.t) => [
+    inset_shadow_filter,
+    Node.create_svg(
+      "ellipse",
+      AttrUtil.[
+        cx(0.5),
+        cy(0.5),
+        rx(r_x),
+        ry(r_y),
+        vector_effect("non-scaling-stroke"),
+        stroke_width(inset ? 0.3 : 0.75),
+        filter(inset ? "url(#empty-hole-inset-shadow)" : "none"),
+        Attr.classes(["empty-hole-path"]),
+      ],
+      [],
+    ),
+  ];
+};
+
+module OpenChild = {
+  let view = (~sort: Sort.t, len: int): list(Node.t) => {
+    open SvgUtil.Path;
+    open Diag;
+    let len = Float.of_int(len);
+    let path =
+      List.concat([
+        [M({x: 0., y: 0.}), H_({dx: len})],
+        tl_br(),
+        tr_bl(),
+        [H_({dx: Float.neg(len)})],
+        br_tl(),
+        bl_tr(),
+        [Z],
+      ]);
+    let attrs =
+      Attr.[
+        classes(["open-child-path", Sort.to_string(sort)]),
+        create("vector-effect", "non-scaling-stroke"),
+      ];
+    [view(~attrs, path)];
+  };
+};
+
 module Tile = {
   type profile = {
     shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],
@@ -115,42 +199,10 @@ module Tile = {
     closed_children: list((int, int)),
   };
 
-  let contour_paths =
-      (
-        ~sort: Sort.t,
-        ~hole_radii as (rx, ry): (float, float),
-        ~attrs: list(Attr.t),
-        profile: profile,
-      )
-      : list(Node.t) => {
+  let contour_path =
+      (~sort: Sort.t, ~attrs: list(Attr.t), profile: profile): Node.t => {
     open SvgUtil.Path;
     open Diag;
-    let hole_path =
-      switch (profile.shape) {
-      | `Operand(true)
-      | `BinOp(true) => [
-          M({x: 0.5 -. rx, y: 0.5}),
-          A_({
-            rx,
-            ry,
-            x_axis_rotation: 0.,
-            large_arc_flag: false,
-            sweep_flag: false,
-            dx: 2. *. rx,
-            dy: 0.,
-          }),
-          A_({
-            rx,
-            ry,
-            x_axis_rotation: 0.,
-            large_arc_flag: false,
-            sweep_flag: false,
-            dx: Float.neg(2. *. rx),
-            dy: 0.,
-          }),
-        ]
-      | _ => []
-      };
     let closed_child_paths =
       profile.closed_children
       |> List.map(((start, len)) =>
@@ -209,91 +261,16 @@ module Tile = {
         [Z],
       ]);
     };
-    let hole_path =
-      SvgUtil.Path.view(
-        ~attrs=
-          Attr.[
-            classes(["tile-hole-path"]),
-            create("vector-effect", "non-scaling-stroke"),
-          ],
-        hole_path,
-      );
-    let tile_path =
-      SvgUtil.Path.view(
-        ~attrs=
-          Attr.[
-            classes([Sort.to_string(sort), "tile-path"]),
-            create("vector-effect", "non-scaling-stroke"),
-            ...attrs,
-          ],
-        outer_path @ List.concat(closed_child_paths),
-      );
-    [tile_path, hole_path];
-  };
-
-  let hole_filter =
-    Node.create_svg(
-      "filter",
-      [Attr.id("tile-hole-drop-shadow")],
-      [
-        Node.create_svg(
-          "feOffset",
-          Attr.[
-            create("in", "SourceAlpha"),
-            create("dx", "0.1"),
-            create("dy", "0.04"),
-            create("result", "offset-alpha"),
-          ],
-          [],
-        ),
-        Node.create_svg(
-          "feFlood",
-          Attr.[
-            classes(["tile-hole-inset-shadow"]),
-            create("flood-opacity", "1"),
-            create("result", "color"),
-          ],
-          [],
-        ),
-        Node.create_svg(
-          "feComposite",
-          Attr.[
-            // Attr.classes(["closed-child-drop-shadow"]),
-            create("operator", "out"),
-            create("in", "SourceAlpha"),
-            create("in2", "offset-alpha"),
-            create("result", "shadow-shape"),
-          ],
-          [],
-        ),
-        Node.create_svg(
-          "feComposite",
-          Attr.[
-            create("operator", "in"),
-            create("in", "color"),
-            create("in2", "shadow-shape"),
-            create("result", "drop-shadow"),
-          ],
-          [],
-        ),
-        Node.create_svg(
-          "feMerge",
-          [],
-          [
-            Node.create_svg(
-              "feMergeNode",
-              [Attr.create("in", "SourceGraphic")],
-              [],
-            ),
-            Node.create_svg(
-              "feMergeNode",
-              [Attr.create("in", "drop-shadow")],
-              [],
-            ),
-          ],
-        ),
-      ],
+    SvgUtil.Path.view(
+      ~attrs=
+        Attr.[
+          classes([Sort.to_string(sort), "tile-path"]),
+          create("vector-effect", "non-scaling-stroke"),
+          ...attrs,
+        ],
+      outer_path @ List.concat(closed_child_paths),
     );
+  };
 
   let shadow_filter = (~sort: Sort.t) =>
     Node.create_svg(
@@ -320,11 +297,19 @@ module Tile = {
         ~hole_radii: (float, float),
         profile: profile,
       )
-      : list(Node.t) => [
-    shadow_filter(~sort),
-    hole_filter,
-    ...contour_paths(~sort, ~attrs, ~hole_radii, profile),
-  ];
+      : list(Node.t) => {
+    let empty_hole =
+      switch (profile.shape) {
+      | `Operand(true)
+      | `BinOp(true) => EmptyHole.view(~radii=hole_radii, ~inset=true)
+      | _ => []
+      };
+    [
+      shadow_filter(~sort),
+      contour_path(~sort, ~attrs, profile),
+      ...empty_hole,
+    ];
+  };
 };
 
 module Caret = {

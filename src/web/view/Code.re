@@ -387,7 +387,7 @@ module Exp = {
   let view_of_decorated_open_child =
       (~font_metrics: FontMetrics.t, e: HExp.t): Node.t => {
     let text = CodeText.Exp.view(e);
-    let decoration = {
+    let contour = {
       let length = length(e);
       decoration_container(
         ~font_metrics,
@@ -396,9 +396,22 @@ module Exp = {
         CodeDecoration.OpenChild.view(~sort=Exp, length),
       );
     };
+    let inset_empty_holes = {
+      let radii = hole_radii(~font_metrics);
+      empty_holes(e)
+      |> List.map(origin =>
+           decoration_container(
+             ~font_metrics,
+             ~origin,
+             ~length=1,
+             ~cls="inset-empty-hole",
+             CodeDecoration.EmptyHole.view(~radii, ~inset=true),
+           )
+         );
+    };
     Node.span(
       [Attr.classes(["decorated-open-child"])],
-      [text, decoration],
+      [text, contour, ...inset_empty_holes],
     );
   };
 
@@ -542,20 +555,7 @@ module Exp = {
 };
 
 let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
-  let (r_x, r_y) = hole_radii(~font_metrics);
-  let empty_hole =
-    Node.create_svg(
-      "ellipse",
-      AttrUtil.[
-        cx(0.5),
-        cy(0.5),
-        rx(r_x),
-        ry(r_y),
-        Attr.classes(["empty-hole-ellipse"]),
-        Attr.create("vector-effect", "non-scaling-stroke"),
-      ],
-      [],
-    );
+  let radii = hole_radii(~font_metrics);
   Exp.empty_holes(e)
   |> List.map(origin =>
        decoration_container(
@@ -563,7 +563,7 @@ let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
          ~origin,
          ~length=1,
          ~cls="empty-hole",
-         [empty_hole],
+         CodeDecoration.EmptyHole.view(~radii, ~inset=false),
        )
      );
 };

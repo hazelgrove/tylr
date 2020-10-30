@@ -32,7 +32,8 @@
   --empty-hole-z: 1;
   --err-hole-z: 1;
   --tile-z: 2;
-  --code-text-z: 3;
+  --inset-empty-hole-z: 3;
+  --code-text-z: 4;
 }
 
 #page {
@@ -82,10 +83,12 @@
   position: relative;
 }
 
-.empty-hole-ellipse {
-  stroke-width: 0.75;
-  stroke: var(--hole-stroke-color);
+.empty-hole-path {
   fill: var(--empty-hole-fill-color);
+  stroke: var(--hole-stroke-color);
+}
+.empty-hole-inset-shadow-flood {
+  flood-color: var(--hole-stroke-color);
 }
 
 #code {
@@ -113,6 +116,9 @@
 .open-child-container {
   z-index: var(--open-child-z);
 }
+.inset-empty-hole-container {
+  z-index: var(--inset-empty-hole-z);
+}
 
 .open-child-path {
   stroke-width: 0.3;
@@ -127,16 +133,6 @@
 }
 .open-child-path.Typ {
   stroke: var(--typ-shadow-color);
-}
-
-.tile-hole-path {
-  filter: url(#tile-hole-drop-shadow);
-  fill: var(--empty-hole-fill-color);
-  stroke: var(--hole-stroke-color);
-  stroke-width: 0.3;
-}
-.tile-hole-inset-shadow {
-  flood-color: var(--hole-stroke-color);
 }
 
 .tile-path {
