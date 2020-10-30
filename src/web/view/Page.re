@@ -1,29 +1,37 @@
 open Js_of_ocaml;
 open Virtual_dom.Vdom;
+open Core;
 
-let key_handlers = (~inject: Update.t => Event.t) => {
+let key_handlers = (~inject: Update.t => Event.t, ~mode: EditState.Mode.t) => {
   [
     Attr.on_keypress(_ => Event.Prevent_default),
     Attr.on_keydown(evt => {
       let key = Js.to_string(Js.Optdef.get(evt##.key, () => assert(false)));
-      let action: option(Core.Action.t) =
+      let held_shift = Js.to_bool(evt##.shiftKey);
+      let actions: list(Core.Action.t) =
         switch (key) {
-        | "ArrowLeft" => Some(Move(Left))
-        | "ArrowRight" => Some(Move(Right))
-        | "Backspace" => Some(Delete(Left))
-        | "Delete" => Some(Delete(Right))
-        | "+" => Some(Construct(Plus))
-        | "(" => Some(Construct(Paren))
-        | _ => None
+        | "ArrowLeft"
+        | "ArrowRight" =>
+          let d: Direction.t = key == "ArrowLeft" ? Left : Right;
+          switch (mode) {
+          | Normal(_) => held_shift ? [Mark, Move(d)] : [Move(d)]
+          | Selecting(_) => held_shift ? [Move(d)] : [Mark, Mark, Move(d)]
+          | Restructuring(_) => [Move(d)]
+          };
+        | "Backspace" => [Delete(Left)]
+        | "Delete" => [Delete(Right)]
+        | "+" => [Construct(Plus)]
+        | "(" => [Construct(Paren)]
+        | _ => []
         };
-      switch (action) {
-      | None => Event.Many([])
-      | Some(a) =>
+      switch (actions) {
+      | [] => Event.Many([])
+      | [_, ..._] =>
         Event.(
           Many([
             Prevent_default,
             Stop_propagation,
-            inject(PerformAction(a)),
+            ...List.map(a => inject(PerformAction(a)), actions),
           ])
         )
       };
@@ -49,7 +57,7 @@ let view = (~inject, model: Model.t) =>
             focus_code();
             Event.Prevent_default;
           }),
-          ...key_handlers(~inject),
+          ...key_handlers(~inject, ~mode=fst(model.edit_state)),
         ],
         [Code.view(~font_metrics=model.font_metrics, model.edit_state)],
       ),

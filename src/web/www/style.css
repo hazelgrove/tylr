@@ -105,6 +105,10 @@
   position: relative;
 }
 
+.selection {
+  filter: hue-rotate(90deg);
+}
+
 .decoration-container {
   position: absolute;
 }

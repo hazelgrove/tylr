@@ -498,12 +498,38 @@ module Exp = {
     go(steps, e);
   };
 
+  let view_of_selecting =
+      (~font_metrics: FontMetrics.t, selection: ZPath.selection, e: HExp.t)
+      : Node.t => {
+    let ((steps_l, j_l), (steps_r, j_r)) = selection;
+    let go = ((steps_l, steps_r), e) =>
+      switch (steps_l, steps_r) {
+      | ([], []) =>
+        let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, e);
+        let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+        let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+        let selection =
+          Node.span(
+            [Attr.classes(["selection"])],
+            CodeText.space(
+              List.map(view_of_decorated_tile(~font_metrics), selected),
+            ),
+          );
+        Node.span(
+          [Attr.classes(["zipped"])],
+          CodeText.space(prefix @ [selection, ...suffix]),
+        );
+      | (_, _) => failwith("todo")
+      };
+    go((steps_l, steps_r), e);
+  };
+
   let view =
       (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, e: HExp.t)
       : Node.t =>
     switch (mode) {
     | Normal(focus) => view_of_normal(~font_metrics, focus, e)
-    | Selecting(_)
+    | Selecting(selection) => view_of_selecting(~font_metrics, selection, e)
     | Restructuring(_) => failwith("todo")
     };
 
