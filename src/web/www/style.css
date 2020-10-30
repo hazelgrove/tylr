@@ -101,6 +101,10 @@
   position: relative;
 }
 
+.zipped {
+  position: relative;
+}
+
 .decoration-container {
   position: absolute;
 }
