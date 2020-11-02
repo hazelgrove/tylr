@@ -13,22 +13,9 @@ type two_step = (tile_step, child_step);
 [@deriving sexp]
 type t = (list(two_step), caret_step);
 
-[@deriving sexp]
-type selection = (t, t);
-
 exception Out_of_sync;
 
-let select_while_moving = (start: t, end_: t): (Direction.t => selection) =>
-  fun
-  | Left => (end_, start)
-  | Right => (start, end_);
-
 let cons = (two_step, (steps, j)) => ([two_step, ...steps], j);
-
-let cons_selection = (two_step, (l, r)) => (
-  cons(two_step, l),
-  cons(two_step, r),
-);
 
 let compare_two_step = ((tile_step, child_step), (tile_step', child_step')) => {
   let c = Int.compare(tile_step, tile_step');
@@ -44,6 +31,29 @@ let rec compare = ((steps, j), (steps', j')) =>
     let c = compare_two_step(two_step, two_step');
     c == 0 ? compare((steps, j), (steps', j')) : c;
   };
+
+[@deriving sexp]
+type anchored_selection = {
+  anchor: t,
+  focus: t,
+};
+[@deriving sexp]
+type ordered_selection = (t, t);
+
+let mk_ordered_selection =
+    ({anchor, focus}: anchored_selection): (ordered_selection, Direction.t) =>
+  compare(anchor, focus) <= 0
+    ? ((anchor, focus), Right) : ((focus, anchor), Left);
+
+let cons_anchored_selection = (two_step, {anchor, focus}) => {
+  anchor: cons(two_step, anchor),
+  focus: cons(two_step, focus),
+};
+
+let cons_ordered_selection = (two_step, (l, r)) => (
+  cons(two_step, l),
+  cons(two_step, r),
+);
 
 module rec Typ: {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
@@ -69,13 +79,13 @@ module rec Typ: {
   let move: (Direction.t, t, ZTyp.zipper) => option((t, did_it_zip));
 
   let select:
-    (Direction.t, t, ZTyp.zipper) => option((selection, did_it_zip));
+    (Direction.t, t, ZTyp.zipper) => option((anchored_selection, did_it_zip));
 
-  let remove_selection: (selection, HTyp.t) => option((t, HTyp.t));
+  let remove_selection: (ordered_selection, HTyp.t) => option((t, HTyp.t));
 
-  let round_selection: (selection, HTyp.t) => selection;
+  let round_selection: (ordered_selection, HTyp.t) => ordered_selection;
 
-  let remove_tiles: (selection, HTyp.t) => (HTyp.inner_tiles, HTyp.t);
+  let remove_tiles: (ordered_selection, HTyp.t) => (HTyp.inner_tiles, HTyp.t);
   let insert_tiles: (t, HTyp.inner_tiles, HPat.t) => HTyp.t;
   let restructure:
     (~place_cursor: [ | `Left | `Right]=?, (t, t), t, HTyp.t) =>
@@ -163,14 +173,14 @@ module rec Typ: {
   let sort = (_, _) => `Typ;
 
   let select =
-      (d: Direction.t, start: t, zipper: ZTyp.zipper)
-      : option((selection, did_it_zip)) => {
-    let* (next, did_it_zip) = move(d, start, zipper);
+      (d: Direction.t, anchor: t, zipper: ZTyp.zipper)
+      : option((anchored_selection, did_it_zip)) => {
+    let* (next, did_it_zip) = move(d, anchor, zipper);
     switch (did_it_zip) {
-    | None => Some((select_while_moving(start, next, d), did_it_zip))
+    | None => Some(({anchor, focus: next}, did_it_zip))
     | Some((two_step, `Typ(_))) =>
-      let start = cons(two_step, start);
-      Some((select_while_moving(start, next, d), did_it_zip));
+      let anchor = cons(two_step, anchor);
+      Some(({anchor, focus: next}, did_it_zip));
     | Some((_, `Pat(zipper))) =>
       let+ (selection, _) = Pat.select(Direction.toggle(d), next, zipper);
       (selection, did_it_zip);
@@ -205,17 +215,17 @@ and Pat: {
   let move: (Direction.t, t, ZPat.zipper) => option((t, did_it_zip));
 
   let select:
-    (Direction.t, t, ZPat.zipper) => option((selection, did_it_zip));
+    (Direction.t, t, ZPat.zipper) => option((anchored_selection, did_it_zip));
 
-  let remove_selection: (selection, HPat.t) => option((t, HPat.t));
+  let remove_selection: (ordered_selection, HPat.t) => option((t, HPat.t));
 
-  let round_selection: (selection, HPat.t) => selection;
+  let round_selection: (ordered_selection, HPat.t) => ordered_selection;
 
   let remove_tiles:
-    (selection, HPat.t) => option((HPat.inner_tiles, HPat.t));
+    (ordered_selection, HPat.t) => option((HPat.inner_tiles, HPat.t));
   let insert_tiles: (t, HPat.inner_tiles, HPat.t) => option(HPat.t);
   let restructure:
-    (~place_cursor: [ | `Left | `Right]=?, selection, t, HPat.t) =>
+    (~place_cursor: [ | `Left | `Right]=?, ordered_selection, t, HPat.t) =>
     option((t, HPat.t));
 } = {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
@@ -319,29 +329,30 @@ and Pat: {
     };
 
   let select =
-      (d: Direction.t, start: t, (p, _) as zipper: ZPat.zipper)
-      : option((selection, did_it_zip)) => {
-    let rec go = (current: t): option((selection, did_it_zip)) => {
+      (d: Direction.t, anchor: t, (p, _) as zipper: ZPat.zipper)
+      : option((anchored_selection, did_it_zip)) => {
+    let rec go = (current: t): option((anchored_selection, did_it_zip)) => {
       let* (next, did_it_zip) = move(d, current, zipper);
       switch (did_it_zip) {
       | None =>
         switch (sort(next, p)) {
         | `Typ => go(next)
-        | `Pat => Some((select_while_moving(start, next, d), did_it_zip))
+        | `Pat => Some(({anchor, focus: next}, did_it_zip))
         }
       | Some((two_step, `Pat(_))) =>
-        let start = cons(two_step, start);
-        Some((select_while_moving(start, next, d), did_it_zip));
+        let anchor = cons(two_step, anchor);
+        Some(({anchor, focus: next}, did_it_zip));
       | Some((_, `Exp(zipper))) =>
         let+ (selection, _) = Exp.select(Direction.toggle(d), next, zipper);
         (selection, did_it_zip);
       };
     };
-    go(start);
+    go(anchor);
   };
 
   /* assumes l, r are maximally unzipped */
-  let round_selection = ((l, r): selection, p: HPat.t): selection => {
+  let round_selection =
+      ((l, r): ordered_selection, p: HPat.t): ordered_selection => {
     let rec next_pat_path = (d: Direction.t, current: t): t => {
       let (next, _) = Option.get(move(d, current, (p, None)));
       switch (sort(next, p)) {
@@ -387,17 +398,17 @@ and Exp: {
   let move: (Direction.t, t, ZExp.zipper) => option((t, did_it_zip));
 
   let select:
-    (Direction.t, t, ZExp.zipper) => option((selection, did_it_zip));
+    (Direction.t, t, ZExp.zipper) => option((anchored_selection, did_it_zip));
 
-  let remove_selection: (selection, HExp.t) => option((t, HExp.t));
+  let remove_selection: (ordered_selection, HExp.t) => option((t, HExp.t));
 
-  let round_selection: (selection, HExp.t) => selection;
+  let round_selection: (ordered_selection, HExp.t) => ordered_selection;
 
   let remove_tiles:
-    (selection, HExp.t) => option((HExp.inner_tiles, HExp.t));
+    (ordered_selection, HExp.t) => option((HExp.inner_tiles, HExp.t));
   let insert_tiles: (t, HExp.inner_tiles, HExp.t) => option(HExp.t);
   let restructure:
-    (~place_cursor: [ | `Left | `Right]=?, selection, t, HExp.t) =>
+    (~place_cursor: [ | `Left | `Right]=?, ordered_selection, t, HExp.t) =>
     option((t, HExp.t));
 } = {
   type zipped = [ | `Exp(ZExp.zipper)];
@@ -506,27 +517,27 @@ and Exp: {
     };
 
   let select =
-      (d: Direction.t, start: t, (e, _) as zipper: ZExp.zipper)
-      : option((selection, did_it_zip)) => {
-    let rec go = (current: t): option((selection, did_it_zip)) => {
+      (d: Direction.t, anchor: t, (e, _) as zipper: ZExp.zipper)
+      : option((anchored_selection, did_it_zip)) => {
+    let rec go = (current: t): option((anchored_selection, did_it_zip)) => {
       let* (next, did_it_zip) = move(d, current, zipper);
       switch (did_it_zip) {
       | None =>
         switch (sort(next, e)) {
         | `Typ
         | `Pat => go(next)
-        | `Exp => Some((select_while_moving(start, next, d), did_it_zip))
+        | `Exp => Some(({anchor, focus: next}, did_it_zip))
         }
       | Some((two_step, `Exp(_))) =>
-        let start = cons(two_step, start);
-        Some((select_while_moving(start, next, d), did_it_zip));
+        let anchor = cons(two_step, anchor);
+        Some(({anchor, focus: next}, did_it_zip));
       };
     };
-    go(start);
+    go(anchor);
   };
 
   let rec remove_tiles =
-          ((l, r): selection, e: HExp.t)
+          ((l, r): ordered_selection, e: HExp.t)
           : option((HExp.inner_tiles, HExp.t)) =>
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
@@ -558,7 +569,7 @@ and Exp: {
     };
 
   let rec remove_selection =
-          ((l, r): selection, e: HExp.t): option((t, HExp.t)) =>
+          ((l, r): ordered_selection, e: HExp.t): option((t, HExp.t)) =>
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
       let (prefix, _, suffix) = ListUtil.split_sublist(j_l, j_r, e);
@@ -662,7 +673,8 @@ and Exp: {
     };
 
   /* assumes l, r are maximally unzipped */
-  let round_selection = ((l, r): selection, e: HExp.t): selection => {
+  let round_selection =
+      ((l, r): ordered_selection, e: HExp.t): ordered_selection => {
     let rec next_exp_path = (d: Direction.t, current: t): t => {
       let (next, _) = Option.get(move(d, current, (e, None)));
       switch (sort(next, e)) {
@@ -692,7 +704,7 @@ and Exp: {
   let rec restructure =
           (
             ~place_cursor: [ | `Left | `Right]=`Left,
-            (l, r): selection,
+            (l, r): ordered_selection,
             target: t,
             e: HExp.t,
           )

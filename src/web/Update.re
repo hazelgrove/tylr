@@ -19,7 +19,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | Escape =>
     switch (model.edit_state) {
     | (Normal(_), _) => model
-    | (Selecting((_, focus)), zipper)
+    | (Selecting({focus, _}), zipper)
     | (Restructuring(_, focus), zipper) => {
         ...model,
         edit_state: (Normal(focus), zipper),

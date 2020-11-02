@@ -102,7 +102,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
     };
 
   | (Mark, (Normal(focus), zipper)) =>
-    Some((Selecting((focus, focus)), zipper))
+    Some((Selecting({anchor: focus, focus}), zipper))
 
   | (Delete(d), (Normal(focus), zipper)) =>
     switch (zipper) {
@@ -217,15 +217,19 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
   | (
       Delete(_) | Construct(_),
       (
-        Selecting((
-          ([two_step_l, ...steps_l], j_l),
-          ([two_step_r, ...steps_r], j_r),
-        )),
+        Selecting({
+          anchor: ([two_step_l, ...steps_l], j_l),
+          focus: ([two_step_r, ...steps_r], j_r),
+        }),
         zipper,
       ),
     )
       when two_step_l == two_step_r =>
-    let mode = EditState.Mode.Selecting(((steps_l, j_l), (steps_r, j_r)));
+    let mode =
+      EditState.Mode.Selecting({
+        anchor: (steps_l, j_l),
+        focus: (steps_r, j_r),
+      });
     let zipper =
       switch (zipper) {
       | `Typ(zipper) => (
@@ -240,21 +244,19 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       };
     perform(a, (mode, zipper));
 
-  | (Mark | Delete(_), (Selecting((l, r) as selected), zipper)) =>
-    let c = ZPath.compare(l, r);
-    if (c == 0) {
-      Some((Normal(r), zipper));
-    } else if (c > 0) {
-      perform(a, (Selecting((r, l)), zipper));
+  | (Mark | Delete(_), (Selecting({anchor, focus} as selected), zipper)) =>
+    if (ZPath.compare(anchor, focus) == 0) {
+      Some((Normal(focus), zipper));
     } else {
+      let (ordered, _) = ZPath.mk_ordered_selection(selected);
       let rounded =
         switch (zipper) {
-        | `Typ(ty, _) => ZPath.Typ.round_selection(selected, ty)
-        | `Pat(p, _) => ZPath.Pat.round_selection(selected, p)
-        | `Exp(e, _) => ZPath.Exp.round_selection(selected, e)
+        | `Typ(ty, _) => ZPath.Typ.round_selection(ordered, ty)
+        | `Pat(p, _) => ZPath.Pat.round_selection(ordered, p)
+        | `Exp(e, _) => ZPath.Exp.round_selection(ordered, e)
         };
       Some((Restructuring(rounded, fst(rounded)), zipper));
-    };
+    }
 
   | (Construct(_), (Selecting(_), _)) =>
     // TODO

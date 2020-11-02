@@ -499,9 +499,14 @@ module Exp = {
   };
 
   let view_of_selecting =
-      (~font_metrics: FontMetrics.t, selection: ZPath.selection, e: HExp.t)
+      (
+        ~font_metrics: FontMetrics.t,
+        selection: ZPath.anchored_selection,
+        e: HExp.t,
+      )
       : Node.t => {
-    let ((steps_l, j_l), (steps_r, j_r)) = selection;
+    let (((steps_l, j_l), (steps_r, j_r)), focus_side) =
+      ZPath.mk_ordered_selection(selection);
     let go = ((steps_l, steps_r), e) =>
       switch (steps_l, steps_r) {
       | ([], []) =>

@@ -1,36 +1,36 @@
 module Mode = {
   type t =
     | Normal(ZPath.t)
-    | Selecting(ZPath.selection)
-    | Restructuring(ZPath.selection, ZPath.t);
+    | Selecting(ZPath.anchored_selection)
+    | Restructuring(ZPath.ordered_selection, ZPath.t);
 
   let cons = two_step =>
     fun
     | Normal(focus) => Normal(ZPath.cons(two_step, focus))
     | Selecting(selection) =>
-      Selecting(ZPath.cons_selection(two_step, selection))
+      Selecting(ZPath.cons_anchored_selection(two_step, selection))
     | Restructuring(selection, focus) =>
       Restructuring(
-        ZPath.cons_selection(two_step, selection),
+        ZPath.cons_ordered_selection(two_step, selection),
         ZPath.cons(two_step, focus),
       );
 
   let get_focus =
     fun
     | Normal(focus)
-    | Selecting((_, focus))
+    | Selecting({focus, _})
     | Restructuring(_, focus) => focus;
 
   let put_focus = focus =>
     fun
     | Normal(_) => Normal(focus)
-    | Selecting((anchor, _)) => Selecting((anchor, focus))
+    | Selecting({anchor, _}) => Selecting({anchor, focus})
     | Restructuring(selection, _) => Restructuring(selection, focus);
 
   let update_anchors = (f: ZPath.t => ZPath.t) =>
     fun
     | Normal(_) as mode => mode
-    | Selecting((anchor, focus)) => Selecting((f(anchor), focus))
+    | Selecting({anchor, focus}) => Selecting({anchor: f(anchor), focus})
     | Restructuring((l, r), focus) => Restructuring((f(l), f(r)), focus);
 };
 
