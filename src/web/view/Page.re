@@ -8,30 +8,34 @@ let key_handlers = (~inject: Update.t => Event.t, ~mode: EditState.Mode.t) => {
     Attr.on_keydown(evt => {
       let key = Js.to_string(Js.Optdef.get(evt##.key, () => assert(false)));
       let held_shift = Js.to_bool(evt##.shiftKey);
-      let actions: list(Core.Action.t) =
+      let p = a => Update.PerformAction(a);
+      let updates: list(Update.t) =
         switch (key) {
         | "ArrowLeft"
         | "ArrowRight" =>
           let d: Direction.t = key == "ArrowLeft" ? Left : Right;
           switch (mode) {
-          | Normal(_) => held_shift ? [Mark, Move(d)] : [Move(d)]
-          | Selecting(_) => held_shift ? [Move(d)] : [Mark, Mark, Move(d)]
-          | Restructuring(_) => [Move(d)]
+          | Normal(_) =>
+            held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))]
+          | Selecting(_) =>
+            held_shift ? [p(Move(d))] : [Escape, p(Move(d))]
+          | Restructuring(_) => [Escape, p(Move(d))]
           };
-        | "Backspace" => [Delete(Left)]
-        | "Delete" => [Delete(Right)]
-        | "+" => [Construct(Plus)]
-        | "(" => [Construct(Paren)]
+        | "Backspace" => [p(Delete(Left))]
+        | "Delete" => [p(Delete(Right))]
+        | "+" => [p(Construct(Plus))]
+        | "(" => [p(Construct(Paren))]
+        | "Escape" => [Escape]
         | _ => []
         };
-      switch (actions) {
+      switch (updates) {
       | [] => Event.Many([])
       | [_, ..._] =>
         Event.(
           Many([
             Prevent_default,
             Stop_propagation,
-            ...List.map(a => inject(PerformAction(a)), actions),
+            ...List.map(inject, updates),
           ])
         )
       };
