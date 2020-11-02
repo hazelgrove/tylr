@@ -167,6 +167,29 @@ module Exp = {
     | OperatorHole
     | Plus(_) => 1;
 
+  let offset = ((steps, j): ZPath.t, e: HExp.t) => {
+    let rec go = (steps, e) =>
+      switch (steps) {
+      | [] =>
+        let (prefix, _) = ListUtil.split_n(j, e);
+        length(prefix);
+      | [two_step, ...steps] =>
+        switch (ZPath.Exp.unzip(two_step, (e, None))) {
+        | `Pat(_) => failwith("Code.Exp.offset")
+        | `Exp(e, unzipped) =>
+          switch (Option.get(unzipped)) {
+          | Operand(ParenZ_body({prefix, _})) =>
+            length(prefix) + 3 + go(steps, e)
+          | PreOp(_) => raise(ZExp.Void_ZPreOp)
+          | PostOp(ApZ_arg(_, {prefix, _})) =>
+            length(prefix) + 3 + go(steps, e)
+          | BinOp(_) => raise(ZExp.Void_ZBinOp)
+          }
+        }
+      };
+    go(steps, e);
+  };
+
   let rec empty_holes = (e: HExp.t): list(int) => {
     let of_tile = (tile: HExp.Tile.t): list(int) => {
       let shift = List.map((+)(2));
@@ -502,62 +525,92 @@ module Exp = {
         e: HExp.t,
       )
       : Node.t => {
-    let (((steps_l, j_l), (steps_r, j_r)), focus_side) =
+    let (((steps_l, j_l) as l, (steps_r, j_r) as r), caret_side) =
       ZPath.mk_ordered_selection(selection);
-    let go = ((steps_l, steps_r), e) =>
+
+    let (caret, selection_box) = {
+      let offset_l = offset(l, e);
+      let offset_r = offset(r, e);
+      let caret =
+        CodeDecoration.Caret.view(
+          ~font_metrics,
+          caret_side == Left ? offset_l : offset_r,
+          [],
+        );
+      let selection_box =
+        Node.div(
+          [
+            Attr.classes(["selection-box"]),
+            Attr.create(
+              "style",
+              Printf.sprintf(
+                "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+                (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
+                (-0.15) *. font_metrics.row_height,
+                font_metrics.col_width *. Float.of_int(offset_r - offset_l),
+                font_metrics.row_height *. 1.2,
+              ),
+            ),
+          ],
+          [],
+        );
+      (caret, selection_box);
+    };
+
+    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
+    let rec decorated_text = ((steps_l, steps_r), e: HExp.t) =>
       switch (steps_l, steps_r) {
       | ([], []) =>
         let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, e);
-        let caret = {
-          let offset =
-            switch (focus_side) {
-            | Left => length(prefix)
-            | Right => length(prefix) + 1 + length(selected)
-            };
-          CodeDecoration.Caret.view(~font_metrics, offset, []);
-        };
         let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+        let selected = List.map(view_of_decorated_tile, selected);
         let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-        let selected =
-          selected == []
-            ? []
-            : [
-              Node.span(
-                [Attr.classes(["selection"])],
-                [
-                  Node.div(
-                    [
-                      Attr.classes(["selection-box"]),
-                      Attr.create(
-                        "style",
-                        Printf.sprintf(
-                          "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-                          (-0.5) *. font_metrics.col_width,
-                          (-0.15) *. font_metrics.row_height,
-                          font_metrics.col_width
-                          *. Float.of_int(length(selected) + 1),
-                          font_metrics.row_height *. 1.2,
-                        ),
-                      ),
-                    ],
-                    [],
-                  ),
-                  ...CodeText.space(
-                       List.map(
-                         view_of_decorated_tile(~font_metrics),
-                         selected,
-                       ),
-                     ),
-                ],
-              ),
-            ];
-        Node.span(
-          [Attr.classes(["zipped"])],
-          [caret, ...CodeText.space(prefix @ selected @ suffix)],
-        );
+        CodeText.space(prefix @ selected @ suffix);
+      | ([], [two_step_r, ...steps_r]) =>
+        switch (ZPath.Exp.unzip(two_step_r, (e, None))) {
+        | `Pat(_) => failwith("todo")
+        | `Exp(e, unzipped) =>
+          switch (Option.get(unzipped)) {
+          | Operand(ParenZ_body({prefix, suffix, _})) =>
+            let (prefix, selected) = ListUtil.split_n(j_l, prefix);
+            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+            let selected = List.map(view_of_decorated_tile, selected);
+            let (open_paren, close_paren) = CodeText.of_Paren;
+            let body = Node.span([], decorated_text(([], steps_r), e));
+            CodeText.space(
+              List.concat([
+                prefix,
+                selected,
+                [open_paren, body, close_paren],
+                suffix,
+              ]),
+            );
+          | PreOp(_) => raise(ZExp.Void_ZPreOp)
+          | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+            let (prefix, selected) = ListUtil.split_n(j_l, prefix);
+            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+            let selected = List.map(view_of_decorated_tile, selected);
+            let (open_ap, close_ap) = CodeText.of_Paren;
+            let arg = Node.span([], decorated_text(([], steps_r), e));
+            CodeText.space(
+              List.concat([
+                prefix,
+                selected,
+                [open_ap, arg, close_ap],
+                suffix,
+              ]),
+            );
+          | BinOp(_) => raise(ZExp.Void_ZBinOp)
+          }
+        }
       | (_, _) => failwith("todo")
       };
-    go((steps_l, steps_r), e);
+    Node.span(
+      [Attr.classes(["zipped"])],
+      [caret, selection_box, ...decorated_text((steps_l, steps_r), e)],
+    );
   };
 
   let view =
