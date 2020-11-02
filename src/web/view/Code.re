@@ -134,9 +134,6 @@ module Pat = {
   let view_of_ztile = _ => failwith("todo");
   let view_of_normal = (~font_metrics as _, _, _) => failwith("todo");
   let view = (~font_metrics as _, _, _) => failwith("todo");
-
-  let normal_tiles = (_, _) => failwith("todo");
-  let offset_of_ztile = _ => failwith("todo");
 };
 
 module Exp = {
@@ -570,54 +567,6 @@ module Exp = {
     | Normal(focus) => view_of_normal(~font_metrics, focus, e)
     | Selecting(selection) => view_of_selecting(~font_metrics, selection, e)
     | Restructuring(_) => failwith("todo")
-    };
-
-  let offset_of_ztile = (ztile: ZExp.ztile): int =>
-    switch (ztile) {
-    | Operand(ParenZ_body({prefix, _})) => length(prefix) + 3
-    | PreOp(_) => raise(ZExp.Void_ZPreOp)
-    | PostOp(ApZ_arg(_, {prefix, _})) => length(prefix) + 3
-    | BinOp(_) => raise(ZExp.Void_ZBinOp)
-    };
-
-  let rec normal_tiles =
-          ((steps, j): ZPath.t, e: HExp.t)
-          : (int, list((int, CodeDecoration.Tile.profile))) =>
-    switch (steps) {
-    | [] =>
-      let tile_profiles =
-        e
-        |> ListUtil.fold_left_map(
-             (start, tile) =>
-               (
-                 start + length_of_tile(tile) + 1,
-                 (start, profile_of_tile(tile)),
-               ),
-             0,
-           )
-        |> snd;
-      let caret = {
-        let (prefix, _) = ListUtil.split_n(j, e);
-        length(prefix);
-      };
-      (caret, tile_profiles);
-    | [two_step, ...steps] =>
-      let ((caret, profiles), offset) =
-        switch (ZPath.Exp.unzip(two_step, (e, None))) {
-        | `Exp(e, unzipped) => (
-            normal_tiles((steps, j), e),
-            offset_of_ztile(Option.get(unzipped)),
-          )
-        | `Pat(p, unzipped) => (
-            Pat.normal_tiles((steps, j), p),
-            Pat.offset_of_ztile(Option.get(unzipped)),
-          )
-        };
-      let caret = offset + caret;
-      let profiles =
-        profiles
-        |> List.map(((start, profile)) => (offset + start, profile));
-      (caret, profiles);
     };
 };
 
