@@ -34,6 +34,7 @@
   --tile-z: 2;
   --inset-empty-hole-z: 3;
   --code-text-z: 4;
+  --selection-box-z: 5;
 }
 
 #page {
@@ -106,7 +107,12 @@
 }
 
 .selection {
-  filter: hue-rotate(90deg);
+  position: relative;
+}
+.selection-box {
+  border: 1.5px solid #e85d22;
+  position: absolute;
+  z-index: var(--selection-box-z);
 }
 
 .decoration-container {

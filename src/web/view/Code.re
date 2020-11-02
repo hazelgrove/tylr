@@ -508,16 +508,42 @@ module Exp = {
         let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, e);
         let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
         let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-        let selection =
-          Node.span(
-            [Attr.classes(["selection"])],
-            CodeText.space(
-              List.map(view_of_decorated_tile(~font_metrics), selected),
-            ),
-          );
+        let selected =
+          selected == []
+            ? []
+            : [
+              Node.span(
+                [Attr.classes(["selection"])],
+                [
+                  Node.div(
+                    [
+                      Attr.classes(["selection-box"]),
+                      Attr.create(
+                        "style",
+                        Printf.sprintf(
+                          "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+                          (-0.5) *. font_metrics.col_width,
+                          (-0.15) *. font_metrics.row_height,
+                          font_metrics.col_width
+                          *. Float.of_int(length(selected) + 1),
+                          font_metrics.row_height *. 1.2,
+                        ),
+                      ),
+                    ],
+                    [],
+                  ),
+                  ...CodeText.space(
+                       List.map(
+                         view_of_decorated_tile(~font_metrics),
+                         selected,
+                       ),
+                     ),
+                ],
+              ),
+            ];
         Node.span(
           [Attr.classes(["zipped"])],
-          CodeText.space(prefix @ [selection, ...suffix]),
+          CodeText.space(prefix @ selected @ suffix),
         );
       | (_, _) => failwith("todo")
       };
