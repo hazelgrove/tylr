@@ -511,6 +511,14 @@ module Exp = {
       switch (steps_l, steps_r) {
       | ([], []) =>
         let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, e);
+        let caret = {
+          let offset =
+            switch (focus_side) {
+            | Left => length(prefix)
+            | Right => length(prefix) + 1 + length(selected)
+            };
+          CodeDecoration.Caret.view(~font_metrics, offset, []);
+        };
         let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
         let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
         let selected =
@@ -548,7 +556,7 @@ module Exp = {
             ];
         Node.span(
           [Attr.classes(["zipped"])],
-          CodeText.space(prefix @ selected @ suffix),
+          [caret, ...CodeText.space(prefix @ selected @ suffix)],
         );
       | (_, _) => failwith("todo")
       };
