@@ -48,7 +48,8 @@ let split_n_opt = (n: int, xs: list('x)): option((list('x), list('x))) => {
 
 let split_n = (n: int, xs: list('x)): (list('x), list('x)) =>
   switch (split_n_opt(n, xs)) {
-  | None => raise(Invalid_argument("ListUtil.split_n"))
+  | None =>
+    raise(Invalid_argument("ListUtil.split_n: " ++ string_of_int(n)))
   | Some(r) => r
   };
 

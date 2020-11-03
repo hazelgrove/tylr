@@ -655,7 +655,68 @@ module Exp = {
           | BinOp(_) => raise(ZExp.Void_ZBinOp)
           }
         }
-      | (_, _) => failwith("todo")
+      | ([two_step, ...steps_l], [two_step', ...steps_r])
+          when two_step == two_step' =>
+        switch (ZPath.Exp.unzip(two_step, (e, None))) {
+        | `Pat(_) => failwith("Code.Exp.view_of_selecting")
+        | `Exp(e, unzipped) =>
+          let (l, r) = view_of_ztile(Option.get(unzipped));
+          let e =
+            Node.span(
+              [],
+              decorated_text(((steps_l, j_l), (steps_r, j_r)), e),
+            );
+          CodeText.space([l, e, r]);
+        }
+      | ([two_step_l, ...steps_l], [two_step_r, ...steps_r]) =>
+        switch (
+          ZPath.Exp.unzip(two_step_l, (e, None)),
+          ZPath.Exp.unzip(two_step_r, (e, None)),
+        ) {
+        | (`Pat(_), _)
+        | (_, `Pat(_)) => failwith("Code.Exp.view_of_selecting")
+        | (`Exp(e_l, unzipped_l), `Exp(e_r, unzipped_r)) =>
+          let (prefix, tile_l, mid) =
+            switch (Option.get(unzipped_l)) {
+            | Operand(ParenZ_body({prefix, suffix, _}))
+            | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+              let (mid, _) =
+                ListUtil.split_n(
+                  fst(two_step_r) - List.length(prefix) - 1,
+                  suffix,
+                );
+              let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+              let mid = List.map(view_of_decorated_tile, mid);
+              let (open_paren, close_paren) = CodeText.of_Paren;
+              let body =
+                Node.span(
+                  [],
+                  decorated_text(
+                    ((steps_l, j_l), ([], List.length(e_l))),
+                    e_l,
+                  ),
+                );
+              (prefix, [open_paren, body, close_paren], mid);
+            | PreOp(_) => raise(ZExp.Void_ZPreOp)
+            | BinOp(_) => raise(ZExp.Void_ZBinOp)
+            };
+          let (tile_r, suffix) =
+            switch (Option.get(unzipped_r)) {
+            | Operand(ParenZ_body({suffix, _}))
+            | PostOp(ApZ_arg(_, {suffix, _})) =>
+              let (open_paren, close_paren) = CodeText.of_Paren;
+              let body =
+                Node.span(
+                  [],
+                  decorated_text((([], 0), (steps_r, j_r)), e_r),
+                );
+              let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+              ([open_paren, body, close_paren], suffix);
+            | PreOp(_) => raise(ZExp.Void_ZPreOp)
+            | BinOp(_) => raise(ZExp.Void_ZBinOp)
+            };
+          CodeText.space(List.concat([prefix, tile_l, mid, tile_r, suffix]));
+        }
       };
     Node.span(
       [Attr.classes(["zipped"])],
