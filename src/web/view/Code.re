@@ -606,6 +606,55 @@ module Exp = {
           | BinOp(_) => raise(ZExp.Void_ZBinOp)
           }
         }
+      | ([two_step_l, ...steps_l], []) =>
+        switch (ZPath.Exp.unzip(two_step_l, (e, None))) {
+        | `Pat(_) => failwith("todo")
+        | `Exp(e, unzipped) =>
+          switch (Option.get(unzipped)) {
+          | Operand(ParenZ_body({prefix, suffix, _})) =>
+            let (selected, suffix) =
+              ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
+            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+            let selected = List.map(view_of_decorated_tile, selected);
+            let (open_paren, close_paren) = CodeText.of_Paren;
+            let body =
+              Node.span(
+                [],
+                decorated_text(((steps_l, j_l), ([], List.length(e))), e),
+              );
+            CodeText.space(
+              List.concat([
+                prefix,
+                [open_paren, body, close_paren],
+                selected,
+                suffix,
+              ]),
+            );
+          | PreOp(_) => raise(ZExp.Void_ZPreOp)
+          | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+            let (selected, suffix) =
+              ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
+            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
+            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
+            let selected = List.map(view_of_decorated_tile, selected);
+            let (open_ap, close_ap) = CodeText.of_Paren;
+            let arg =
+              Node.span(
+                [],
+                decorated_text(((steps_l, j_l), ([], List.length(e))), e),
+              );
+            CodeText.space(
+              List.concat([
+                prefix,
+                [open_ap, arg, close_ap],
+                selected,
+                suffix,
+              ]),
+            );
+          | BinOp(_) => raise(ZExp.Void_ZBinOp)
+          }
+        }
       | (_, _) => failwith("todo")
       };
     Node.span(
