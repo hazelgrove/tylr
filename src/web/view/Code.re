@@ -525,8 +525,7 @@ module Exp = {
         e: HExp.t,
       )
       : Node.t => {
-    let (((steps_l, j_l) as l, (steps_r, j_r) as r), caret_side) =
-      ZPath.mk_ordered_selection(selection);
+    let ((l, r), caret_side) = ZPath.mk_ordered_selection(selection);
 
     let (caret, selection_box) = {
       let offset_l = offset(l, e);
@@ -558,7 +557,7 @@ module Exp = {
     };
 
     let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
-    let rec decorated_text = ((steps_l, steps_r), e: HExp.t) =>
+    let rec decorated_text = (((steps_l, j_l), (steps_r, j_r)), e: HExp.t) =>
       switch (steps_l, steps_r) {
       | ([], []) =>
         let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, e);
@@ -577,7 +576,8 @@ module Exp = {
             let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
             let selected = List.map(view_of_decorated_tile, selected);
             let (open_paren, close_paren) = CodeText.of_Paren;
-            let body = Node.span([], decorated_text(([], steps_r), e));
+            let body =
+              Node.span([], decorated_text((([], 0), (steps_r, j_r)), e));
             CodeText.space(
               List.concat([
                 prefix,
@@ -593,7 +593,8 @@ module Exp = {
             let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
             let selected = List.map(view_of_decorated_tile, selected);
             let (open_ap, close_ap) = CodeText.of_Paren;
-            let arg = Node.span([], decorated_text(([], steps_r), e));
+            let arg =
+              Node.span([], decorated_text((([], 0), (steps_r, j_r)), e));
             CodeText.space(
               List.concat([
                 prefix,
@@ -609,7 +610,7 @@ module Exp = {
       };
     Node.span(
       [Attr.classes(["zipped"])],
-      [caret, selection_box, ...decorated_text((steps_l, steps_r), e)],
+      [caret, selection_box, ...decorated_text((l, r), e)],
     );
   };
 
