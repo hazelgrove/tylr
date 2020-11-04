@@ -34,7 +34,9 @@
   --tile-z: 2;
   --inset-empty-hole-z: 3;
   --code-text-z: 4;
-  --selection-box-z: 5;
+  --placeholder-z: 5;
+  --selection-box-z: 6;
+  --caret-z: 7;
 }
 
 #page {
@@ -53,6 +55,7 @@
   position: absolute;
   border-left: 1.5px solid var(--light-text-color);
   height: 60vh;
+  z-index: var(--caret-z);
 }
 
 #action-table {
@@ -113,6 +116,20 @@
   border: 1.5px solid #e85d22;
   position: absolute;
   z-index: var(--selection-box-z);
+}
+.restructuring {
+  position: relative;
+}
+.flag {
+  position: absolute;
+}
+.placeholder {
+  position: relative;
+}
+.placeholder-mask {
+  position: absolute;
+  z-index: var(--placeholder-z);
+  background-color: lightgray;
 }
 
 .decoration-container {

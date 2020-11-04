@@ -105,32 +105,35 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
     Some((Selecting({anchor: focus, focus}), zipper))
 
   | (Delete(d), (Normal(focus), zipper)) =>
-    switch (zipper) {
-    | `Typ(z) =>
-      let+ (selection, did_it_zip) = ZPath.Typ.select(d, focus, z);
-      let zipper =
-        switch (did_it_zip) {
-        | None => zipper
-        | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
-        };
-      (EditState.Mode.Selecting(selection), zipper);
-    | `Pat(z) =>
-      let+ (selection, did_it_zip) = ZPath.Pat.select(d, focus, z);
-      let zipper =
-        switch (did_it_zip) {
-        | None => zipper
-        | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
-        };
-      (EditState.Mode.Selecting(selection), zipper);
-    | `Exp(z) =>
-      let+ (selection, did_it_zip) = ZPath.Exp.select(d, focus, z);
-      let zipper =
-        switch (did_it_zip) {
-        | None => zipper
-        | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
-        };
-      (EditState.Mode.Selecting(selection), zipper);
-    }
+    let+ (selection, zipper) =
+      switch (zipper) {
+      | `Typ(z) =>
+        let+ (selection, did_it_zip) = ZPath.Typ.select(d, focus, z);
+        let zipper =
+          switch (did_it_zip) {
+          | None => zipper
+          | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
+          };
+        (selection, zipper);
+      | `Pat(z) =>
+        let+ (selection, did_it_zip) = ZPath.Pat.select(d, focus, z);
+        let zipper =
+          switch (did_it_zip) {
+          | None => zipper
+          | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
+          };
+        (selection, zipper);
+      | `Exp(z) =>
+        let+ (selection, did_it_zip) = ZPath.Exp.select(d, focus, z);
+        let zipper =
+          switch (did_it_zip) {
+          | None => zipper
+          | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
+          };
+        (selection, zipper);
+      };
+    let ((l, _) as selection, _) = ZPath.mk_ordered_selection(selection);
+    (EditState.Mode.Restructuring(selection, l), zipper);
 
   | (Construct(_), (Normal(([two_step, ...steps], j)), zipper)) =>
     let mode = EditState.Mode.Normal((steps, j));

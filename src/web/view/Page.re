@@ -19,7 +19,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~mode: EditState.Mode.t) => {
             held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))]
           | Selecting(_) =>
             held_shift ? [p(Move(d))] : [Escape, p(Move(d))]
-          | Restructuring(_) => [Escape, p(Move(d))]
+          | Restructuring(_) => [p(Move(d))]
           };
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
