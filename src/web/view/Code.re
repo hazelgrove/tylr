@@ -648,16 +648,16 @@ module Exp = {
         selection: ZPath.anchored_selection,
         e: HExp.t,
       )
-      : list(Node.t) => {
+      : Node.t => {
     let ((l, r), caret_side) = ZPath.mk_ordered_selection(selection);
     let (prefix, selection, suffix) =
       view_of_decorated_selection(~font_metrics, (l, r), e);
-    let selection = {
-      let len = offset(r, e) - offset(l, e);
+    let (caret, selection_box) = {
+      let (offset_l, offset_r) = (offset(l, e), offset(r, e));
       let caret =
         CodeDecoration.Caret.view(
           ~font_metrics,
-          caret_side == Left ? 0 : len,
+          caret_side == Left ? offset_l : offset_r,
           [],
         );
       let selection_box =
@@ -668,18 +668,21 @@ module Exp = {
               "style",
               Printf.sprintf(
                 "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-                (-0.5) *. font_metrics.col_width,
+                (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
                 (-0.15) *. font_metrics.row_height,
-                font_metrics.col_width *. Float.of_int(len + 1),
+                font_metrics.col_width *. Float.of_int(offset_r - offset_l),
                 font_metrics.row_height *. 1.2,
               ),
             ),
           ],
           [],
         );
-      Node.span([], [caret, selection_box, ...selection]);
+      (caret, selection_box);
     };
-    prefix @ [selection, ...suffix];
+    Node.span(
+      [Attr.classes(["selection-container"])],
+      [caret, selection_box, ...CodeText.space(prefix @ selection @ suffix)],
+    );
   };
 
   let view_of_restructuring =
@@ -768,10 +771,7 @@ module Exp = {
       Node.span([], CodeText.space(view_of_normal(~font_metrics, focus, e)))
     | Selecting(selection) =>
       print_endline("hey");
-      Node.span(
-        [],
-        CodeText.space(view_of_selecting(~font_metrics, selection, e)),
-      );
+      view_of_selecting(~font_metrics, selection, e);
     | Restructuring(selection, target) =>
       view_of_restructuring(~font_metrics, selection, target, e)
     };

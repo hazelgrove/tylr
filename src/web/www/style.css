@@ -109,6 +109,9 @@
   position: relative;
 }
 
+.selection-container {
+  position: relative;
+}
 .selection {
   position: relative;
 }
