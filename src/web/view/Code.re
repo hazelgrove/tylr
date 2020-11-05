@@ -405,33 +405,41 @@ module Exp = {
   };
 
   let view_of_decorated_open_child =
-      (~font_metrics: FontMetrics.t, e: HExp.t): Node.t => {
+      (~font_metrics: FontMetrics.t, ~side: Direction.t, e: HExp.t): Node.t => {
     let text = CodeText.Exp.view(e);
     let contour = {
       let length = length(e);
       decoration_container(
         ~font_metrics,
-        ~length,
+        ~length=length + 1,
+        ~origin=
+          switch (side) {
+          | Left => 0
+          | Right => (-1)
+          },
         ~cls="open-child",
-        CodeDecoration.OpenChild.view(~sort=Exp, length),
+        CodeDecoration.OpenChild.view(~sort=Exp, ~side, length),
       );
     };
-    let inset_empty_holes = {
-      let radii = hole_radii(~font_metrics);
-      empty_holes(e)
-      |> List.map(origin =>
-           decoration_container(
-             ~font_metrics,
-             ~origin,
-             ~length=1,
-             ~cls="inset-empty-hole",
-             CodeDecoration.EmptyHole.view(~radii, ~inset=true),
-           )
-         );
-    };
+    /*
+     let inset_empty_holes = {
+       let radii = hole_radii(~font_metrics);
+       empty_holes(e)
+       |> List.map(origin =>
+            decoration_container(
+              ~font_metrics,
+              ~origin,
+              ~length=1,
+              ~cls="inset-empty-hole",
+              CodeDecoration.EmptyHole.view(~radii, ~inset=true),
+            )
+          );
+     };
+     */
     Node.span(
       [Attr.classes(["decorated-open-child"])],
-      [text, contour, ...inset_empty_holes],
+      // [text, contour, ...inset_empty_holes],
+      [text, contour],
     );
   };
 
@@ -445,16 +453,16 @@ module Exp = {
       | Operand(operand) => [view_of_decorated_tile(Operand(operand))]
       | PreOp((preop, r)) => [
           view_of_decorated_tile(PreOp(preop)),
-          view_of_decorated_open_child(r),
+          view_of_decorated_open_child(~side=Right, r),
         ]
       | PostOp((l, postop)) => [
-          view_of_decorated_open_child(l),
+          view_of_decorated_open_child(~side=Left, l),
           view_of_decorated_tile(PostOp(postop)),
         ]
       | BinOp((l, binop, r)) => [
-          view_of_decorated_open_child(l),
+          view_of_decorated_open_child(~side=Left, l),
           view_of_decorated_tile(BinOp(binop)),
-          view_of_decorated_open_child(r),
+          view_of_decorated_open_child(~side=Right, r),
         ]
       };
     Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));

@@ -152,10 +152,13 @@
 }
 
 .open-child-path {
-  stroke-width: 0.3;
+  stroke-width: 0.5;
   fill: var(--light-page-color);
-  filter: url(#outer-drop-shadow);
+  /*filter: url(#outer-drop-shadow);*/
+  /*filter: url(#open-child-gradient);*/
+  /*stroke: url(#open-child-gradient);*/
 }
+/*
 .open-child-path.Exp {
   stroke: var(--exp-shadow-color);
 }
@@ -165,6 +168,7 @@
 .open-child-path.Typ {
   stroke: var(--typ-shadow-color);
 }
+*/
 
 .tile-path {
   filter: url(#outer-drop-shadow);

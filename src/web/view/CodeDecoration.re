@@ -1,6 +1,7 @@
 open Virtual_dom.Vdom;
 
 module Sort = Core.Sort;
+module Direction = Core.Direction;
 
 let tip = 0.3;
 let child_border_thickness = 0.1;
@@ -168,26 +169,113 @@ module EmptyHole = {
 };
 
 module OpenChild = {
-  let view = (~sort: Sort.t, len: int): list(Node.t) => {
+  let view = (~sort: Sort.t, ~side: Direction.t, len: int): list(Node.t) => {
     open SvgUtil.Path;
     open Diag;
-    let len = Float.of_int(len);
+    let len = Float.of_int(len + 1);
+    /* old raised tile path
+       let path =
+         List.concat([
+           [M({x: 0., y: 0.}), H_({dx: len})],
+           tl_br(),
+           tr_bl(),
+           [H_({dx: Float.neg(len)})],
+           br_tl(),
+           bl_tr(),
+           [Z],
+         ]);
+       */
+    let (gradient_id, gradient) = {
+      let id =
+        switch (side) {
+        | Left => "open-child-gradient-left"
+        | Right => "open-child-gradient-right"
+        };
+      let (x1, x2) =
+        switch (side) {
+        | Left => ("0", Printf.sprintf("%f", len))
+        | Right => (Printf.sprintf("%f", len), "0")
+        };
+      let color =
+        switch (sort) {
+        | Typ => "#6c71c4"
+        | Pat => "#268bd2"
+        | Exp => "#859900"
+        };
+      let gradient =
+        Node.create_svg(
+          "linearGradient",
+          [
+            Attr.id(id),
+            Attr.create("gradientUnits", "userSpaceOnUse"),
+            Attr.create("x1", x1),
+            Attr.create("x2", x2),
+          ],
+          [
+            Node.create_svg(
+              "stop",
+              [
+                Attr.create("offset", "0%"),
+                Attr.create("stop-color", color),
+              ],
+              [],
+            ),
+            Node.create_svg(
+              "stop",
+              [
+                Attr.create(
+                  "offset",
+                  Printf.sprintf("%f%%", 100. *. (len -. 1.25) /. len),
+                ),
+                Attr.create("stop-color", color),
+              ],
+              [],
+            ),
+            Node.create_svg(
+              "stop",
+              [
+                Attr.create(
+                  "offset",
+                  Printf.sprintf("%f%%", 100. *. (len -. 0.6) /. len),
+                ),
+                Attr.create("stop-color", "#fdf6e3"),
+              ],
+              [],
+            ),
+          ],
+        );
+      (id, gradient);
+    };
     let path =
-      List.concat([
-        [M({x: 0., y: 0.}), H_({dx: len})],
-        tl_br(),
-        tr_bl(),
-        [H_({dx: Float.neg(len)})],
-        br_tl(),
-        bl_tr(),
-        [Z],
-      ]);
+      switch (side) {
+      | Left =>
+        List.concat([
+          [M({x: len, y: 0.}), H_({dx: Float.neg(len)})],
+          // [M({x: 0., y: 0.})],
+          tr_bl(),
+          tl_br(),
+          [H_({dx: len})],
+          [M_({dx: 0., dy: 0.02}), H_({dx: Float.neg(len)})],
+        ])
+      | Right =>
+        List.concat([
+          [M({x: 0., y: 0.}), H_({dx: len})],
+          // [M({x: len, y: 0.})],
+          tl_br(),
+          tr_bl(),
+          [H_({dx: Float.neg(len)})],
+          [M_({dx: 0., dy: 0.02}), H_({dx: len +. 0.04})],
+          bl_tr(),
+          br_tl(),
+        ])
+      };
     let attrs =
       Attr.[
         classes(["open-child-path", Sort.to_string(sort)]),
         create("vector-effect", "non-scaling-stroke"),
+        create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
       ];
-    [view(~attrs, path)];
+    [gradient, view(~attrs, path)];
   };
 };
 
