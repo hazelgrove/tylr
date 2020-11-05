@@ -15,3 +15,6 @@ let height = f => create("height", fstr(f));
 let stroke_width = f => create("stroke-width", fstr(f));
 let vector_effect = s => create("vector-effect", s);
 let filter = s => create("filter", s);
+
+let offset = f => create("offset", Printf.sprintf("%f%%", 100. *. f));
+let stop_color = s => create("stop-color", s);

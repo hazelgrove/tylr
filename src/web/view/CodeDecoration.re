@@ -287,6 +287,81 @@ module Tile = {
     closed_children: list((int, int)),
   };
 
+  let open_child_paths =
+      (~sort: Sort.t, open_children: list((int, int))): list(Node.t) => {
+    open SvgUtil.Path;
+    let color =
+      switch (sort) {
+      | Typ => "#6c71c4"
+      | Pat => "#268bd2"
+      | Exp => "#859900"
+      };
+    let gradient = (id, start, len) =>
+      Node.create_svg(
+        "linearGradient",
+        [
+          Attr.id(id),
+          Attr.create("gradientUnits", "userSpaceOnUse"),
+          Attr.create("x1", string_of_int(start - 1)),
+          Attr.create("x2", string_of_int(start + len + 1)),
+        ],
+        NodeUtil.[
+          stop(
+            AttrUtil.[
+              offset(0.4 /. Float.of_int(len + 2)),
+              stop_color("#fdf6e3"),
+            ],
+          ),
+          stop(
+            AttrUtil.[
+              offset(1.1 /. Float.of_int(len + 2)),
+              stop_color(color),
+            ],
+          ),
+          stop(
+            AttrUtil.[
+              offset(
+                (Float.of_int(len + 2) -. 1.1) /. Float.of_int(len + 2),
+              ),
+              stop_color(color),
+            ],
+          ),
+          stop(
+            AttrUtil.[
+              offset(
+                (Float.of_int(len + 2) -. 0.4) /. Float.of_int(len + 2),
+              ),
+              stop_color("#fdf6e3"),
+            ],
+          ),
+        ],
+      );
+    open_children
+    |> List.map(((start, len)) => {
+         let gradient_id =
+           Printf.sprintf("bidelimited-open-child-gradient-%d", start);
+         [
+           gradient(gradient_id, start, len),
+           view(
+             ~attrs=
+               Attr.[
+                 classes([
+                   Sort.to_string(sort),
+                   "bidelimited-open-child-path",
+                 ]),
+                 AttrUtil.vector_effect("non-scaling-stroke"),
+                 create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
+               ],
+             [
+               M({x: Float.of_int(start - 1), y: 0.}),
+               H_({dx: Float.of_int(len + 2)}),
+             ],
+           ),
+         ];
+       })
+    |> List.flatten;
+  };
+
   let contour_path =
       (~sort: Sort.t, ~attrs: list(Attr.t), profile: profile): Node.t => {
     open SvgUtil.Path;
@@ -392,7 +467,8 @@ module Tile = {
       | `BinOp(true) => EmptyHole.view(~radii=hole_radii, ~inset=true)
       | _ => []
       };
-    [
+    open_child_paths(~sort, profile.open_children)
+    @ [
       shadow_filter(~sort),
       contour_path(~sort, ~attrs, profile),
       ...empty_hole,

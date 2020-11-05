@@ -163,6 +163,9 @@
   /*filter: url(#open-child-gradient);*/
   /*stroke: url(#open-child-gradient);*/
 }
+.bidelimited-open-child-path {
+  stroke-width: 0.4;
+}
 /*
 .open-child-path.Exp {
   stroke: var(--exp-shadow-color);
