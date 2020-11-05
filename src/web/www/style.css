@@ -119,6 +119,7 @@
   border: 1.5px solid #e85d22;
   position: absolute;
   z-index: var(--selection-box-z);
+  box-sizing: border-box;
 }
 .restructuring {
   position: relative;
@@ -133,6 +134,7 @@
   position: absolute;
   z-index: var(--placeholder-z);
   background-color: lightgray;
+  box-sizing: border-box;
 }
 
 .decoration-container {

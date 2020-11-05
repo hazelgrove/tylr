@@ -716,7 +716,7 @@ module Exp = {
             ],
             [],
           ),
-          ...selected,
+          ...CodeText.space(selected),
         ],
       );
     let (caret, flag) = {
@@ -743,7 +743,7 @@ module Exp = {
                 Attr.create(
                   "style",
                   Printf.sprintf(
-                    "top: %fpx; width: %fpx; height: %fpx;",
+                    "left: 0; top: %fpx; width: %fpx; height: %fpx;",
                     (-0.15) *. font_metrics.row_height,
                     font_metrics.col_width *. Float.of_int(selection_len),
                     font_metrics.row_height *. 1.2,
@@ -752,7 +752,7 @@ module Exp = {
               ],
               [],
             ),
-            ...selected,
+            ...CodeText.space(selected),
           ],
         );
       (caret, flag);
