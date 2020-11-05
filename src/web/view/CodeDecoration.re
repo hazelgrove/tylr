@@ -264,7 +264,7 @@ module OpenChild = {
           tl_br(),
           tr_bl(),
           [H_({dx: Float.neg(len)})],
-          [M_({dx: 0., dy: 0.02}), H_({dx: len +. 0.04})],
+          [M_({dx: 0., dy: 0.02}), H_({dx: len +. 0.03})],
           bl_tr(),
           br_tl(),
         ])
