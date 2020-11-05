@@ -172,7 +172,7 @@
 
 .tile-path {
   filter: url(#outer-drop-shadow);
-  stroke-width: 0.2;
+  stroke-width: 0.3;
   fill-rule: evenodd;
 }
 .Exp.tile-path {
