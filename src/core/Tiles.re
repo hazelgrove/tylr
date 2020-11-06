@@ -41,36 +41,6 @@ module Make =
        } => {
   open Util;
 
-  type hole_shape =
-    | Operand
-    | Operator;
-
-  let keystone_shape =
-      (t1: option(T.t), t2: option(T.t)): option(hole_shape) =>
-    switch (t1, t2) {
-    | (None, None) => Some(Operand)
-    | (Some(t), None) =>
-      switch (t) {
-      | Operand(_)
-      | PostOp(_) => None
-      | PreOp(_)
-      | BinOp(_) => Some(Operand)
-      }
-    | (None, Some(t)) =>
-      switch (t) {
-      | Operand(_)
-      | PreOp(_) => None
-      | PostOp(_)
-      | BinOp(_) => Some(Operand)
-      }
-    | (Some(t1), Some(t2)) =>
-      switch (t1, t2) {
-      | (Operand(_) | PostOp(_), Operand(_) | PreOp(_)) => Some(Operator)
-      | (PreOp(_) | BinOp(_), PostOp(_) | BinOp(_)) => Some(Operand)
-      | _ => None
-      }
-    };
-
   let mk_hole = (): T.s => [T.mk_operand_hole()];
   let dummy_hole = mk_hole();
 
@@ -147,23 +117,49 @@ module Make =
       go_operand(tiles);
     };
 
-    let fixed_prefix = go_prefix(prefix);
-    let fixed_suffix = List.rev(go_suffix(List.rev(suffix)));
-    switch (
-      keystone_shape(
-        ListUtil.last_opt(fixed_prefix),
-        ListUtil.hd_opt(fixed_suffix),
+    let prefix = go_prefix(prefix);
+    let suffix = List.rev(go_suffix(List.rev(suffix)));
+    switch (ListUtil.last_opt(prefix), ListUtil.hd_opt(suffix)) {
+    | (None, None) => ([], [T.mk_operand_hole()])
+    | (None, Some(Operand(_) | PreOp(_)))
+    | (Some(Operand(_) | PostOp(_)), None) => (prefix, suffix)
+    | (None, Some(PostOp(_) | BinOp(_)))
+    | (Some(PreOp(_) | BinOp(_)), None) => (
+        prefix,
+        [T.mk_operand_hole(), ...suffix],
       )
-    ) {
-    | None => (fixed_prefix, fixed_suffix)
-    | Some(Operand) => (
-        fixed_prefix,
-        [T.mk_operand_hole(), ...fixed_suffix],
-      )
-    | Some(Operator) => (
-        fixed_prefix,
-        [T.mk_operator_hole(), ...fixed_suffix],
-      )
+    | (Some(t1), Some(t2)) =>
+      if (T.is_operand_hole(t1)
+          && T.is_operator_hole(t2)
+          || T.is_operator_hole(t1)
+          && T.is_operand_hole(t2)) {
+        let (prefix, _) = ListUtil.split_last(prefix);
+        let suffix = List.tl(suffix);
+        (prefix, suffix);
+      } else if (T.is_operand_hole(t1)
+                 && Tile.is_operand(t2)
+                 || T.is_operator_hole(t1)
+                 && Tile.is_binop(t2)) {
+        let (prefix, _) = ListUtil.split_last(prefix);
+        (prefix, suffix);
+      } else if (Tile.is_operand(t1)
+                 && T.is_operand_hole(t2)
+                 || Tile.is_binop(t2)
+                 && T.is_operator_hole(t2)) {
+        (prefix, List.tl(suffix));
+      } else {
+        switch (t1, t2) {
+        | (Operand(_) | PostOp(_), Operand(_) | PreOp(_)) => (
+            prefix,
+            [T.mk_operator_hole(), ...suffix],
+          )
+        | (PreOp(_) | BinOp(_), PostOp(_) | BinOp(_)) => (
+            prefix,
+            [T.mk_operand_hole(), ...suffix],
+          )
+        | _ => (prefix, suffix)
+        };
+      }
     };
   };
 

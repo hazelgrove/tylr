@@ -22,6 +22,15 @@ let get_binop: t(_, _, _, 'binop) => 'binop =
   | BinOp(binop) => binop
   | _ => raise(Invalid_argument("Tile.get_binop"));
 
+let is_operand =
+  fun
+  | Operand(_) => true
+  | _ => false;
+let is_binop =
+  fun
+  | BinOp(_) => true
+  | _ => false;
+
 let map =
     (
       f_operand: 'operand => 'a,
