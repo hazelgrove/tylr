@@ -696,120 +696,207 @@ and Exp: {
     (l, r);
   };
 
-  [@warning "-27"]
   let insert_tiles =
-      (target: t, tiles: HExp.inner_tiles, e: HExp.t): option(HExp.t) =>
-    failwith("unimplemented");
+      (tiles: HExp.inner_tiles, (steps, j): t, e: HExp.t): option((ordered_selection, HExp.t)) => {
+    open OptUtil.Syntax;
+    let rec go = (steps, e) =>
+      switch (steps) {
+      | [] =>
+        switch (tiles) {
+        | Other(_) => None
+        | Exp(tiles) =>
+          let (prefix, suffix) = ListUtil.split_n(j, e);
+          let suffix_len = {
+            let (_, suffix) = HExp.fix_empty_holes(prefix @ tiles, suffix);
+            List.length(suffix);
+          };
+          let (prefix_len, e) = {
+            let (prefix, suffix) =
+              HExp.fix_empty_holes(prefix, tiles @ suffix);
+            (List.length(prefix), e);
+          };
+          let inserted =
+            (([], prefix_len),
+            ([], List.length(e) - suffix_len));
+          Some((
+            inserted,
+            e,
+          ));
+        }
+      | [two_step, ...steps] =>
+        switch (unzip(two_step, (e, None))) {
+        | `Pat(p, unzipped) =>
+          switch (tiles) {
+          | Exp(_) => None
+          | Other(tiles) =>
+            let+ (selection, inserted) = Pat.insert_tiles(tiles, (steps, j), p);
+            switch (Pat.zip_ztile(inserted, Option.get(unzipped))) {
+            | (_, `Pat(_)) =>
+              failwith("unzipping and rezipping changed sorts")
+            | (two_step, `Exp(rezipped, _)) => (cons_ordered_selection(two_step, selection), rezipped)
+            };
+          }
+        | `Exp(e, unzipped) =>
+          let+ (selection, inserted) = go(steps, e);
+          let (two_step, `Exp(rezipped, _)) =
+            zip_ztile(inserted, Option.get(unzipped));
+          (cons_ordered_selection(two_step, selection), rezipped);
+        }
+      };
+    go(steps, e);
+  };
 
   let rec restructure =
           (
-            ~place_cursor: [ | `Left | `Right]=`Left,
+            ~place_cursor: [ | `Selection | `Other]=`Selection,
             (l, r): ordered_selection,
             target: t,
             e: HExp.t,
           )
           : option((t, HExp.t)) =>
     OptUtil.Syntax.(
-      if (compare(l, r) > 0) {
-        restructure(~place_cursor, (r, l), target, e);
-      } else if (compare(l, target) < 0 && compare(target, r) < 0) {
+      if (compare(l, target) < 0 && compare(target, r) < 0) {
         None;
       } else {
-        // l before r
         // target before l or r before target
-        switch (l, r, target) {
-        | (([_, ..._], _), ([], _), ([], _))
-        | (([], _), ([_, ..._], _), ([_, ..._], _)) =>
-          restructure(~place_cursor=`Right, (r, target), l, e)
-        | (([], _), ([_, ..._], _), ([], _))
-        | (([_, ..._], _), ([], _), ([_, ..._], _)) =>
-          restructure(~place_cursor=`Right, (target, l), r, e)
-        | (([], j_l), ([], j_r), ([], j_target)) =>
-          let* (removed, e) = remove_tiles((l, r), e);
-          let j_insert = j_target <= j_l ? j_target : j_target - (j_r - j_l);
-          let+ e = insert_tiles(([], j_insert), removed, e);
-          let j =
-            switch (place_cursor) {
-            | `Left => j_insert
-            | `Right => j_insert + j_r - j_l
+        let+ ((inserted_l, inserted_r), removed, e) = {
+          let (steps_l, j_l) = l;
+          let (steps_r, j_r) = r;
+          let (steps_target, j_target) = target;
+          switch (steps_l, steps_r, steps_target) {
+          | ([_, ..._], [], [])
+          | ([], [_, ..._], [_, ..._]) =>
+            restructure(~place_cursor=`Other, (r, target), l, e)
+          | ([], [_, ..._], [])
+          | ([_, ..._], [], [_, ..._]) =>
+            restructure(~place_cursor=`Other, (target, l), r, e)
+          | ([], [], []) =>
+            let (prefix, removed, suffix) =
+              ListUtil.split_sublist(j_l, j_r, e);
+            let (prefix, suffix) =
+              if (j_target <= j_l) {
+                let (prefix_l, prefix_r) = ListUtil.split_n(j_target, prefix);
+                switch (place_cursor) {
+                | `Selection => (prefix_l, removed @ prefix_r @ suffix)
+                | `Other => (prefix_l @ removed, prefix_r @ suffix)
+                };
+              } else {
+                let (suffix_l, suffix_r) =
+                  ListUtil.split_n(
+                    j_target - List.length(prefix) + List.length(removed),
+                    suffix,
+                  );
+                switch (place_cursor) {
+                | `Selection => (prefix @ suffix_l, removed @ suffix_r)
+                | `Other => (prefix, suffix_l @ removed @ suffix_r)
+                };
+              };
+            let (prefix, suffix) = HExp.fix_empty_holes(prefix, suffix);
+            Some((([], List.length(prefix)), prefix @ suffix));
+          | ([], [], [(tile_step, child_step), ...steps]) =>
+            let (prefix, removed, suffix) =
+              ListUtil.split_sublist(j_l, j_r, e);
+            let (fixed_prefix, fixed_suffix) =
+              HExp.fix_empty_holes(prefix, suffix);
+            let e = fixed_prefix @ fixed_prefix;
+            if (tile_step < j_l) {
+              let+ ((inserted_l, inserted_r), e) = insert_tiles(Exp(removed), target, e);
+              switch (place_cursor) {
+              | `Selection => (inserted_l, e)
+              | `Other => (inserted_r, e)
+              };
+            } else {
+              // tile_step >= j_r
+              let insert_path = {
+                let tile_step =
+                  tile_step
+                  - List.length(removed)
+                  + (List.length(fixed_prefix) - List.length(prefix))
+                  + (List.length(fixed_suffix) - List.length(suffix));
+                ([(tile_step, child_step), ...steps], j_target);
+              };
+              let+ ((inserted_l, _), e) =
+                insert_tiles(Exp(removed), insert_path, e);
+              switch (place_cursor) {
+              | `Selection => (inserted_l, e)
+              | `Other => (([], List.length(fixed_prefix)), e)
+              }
             };
-          (([], j), e);
-        | (
-            ([], j_l),
-            ([], j_r),
-            ([(tile_step, child_step), ...steps], j_target),
-          ) =>
-          let* (removed, e) = remove_tiles((l, r), e);
-          let insert_steps = {
-            let tile_step =
-              tile_step < j_l ? tile_step : tile_step - (j_r - j_l);
-            [(tile_step, child_step), ...steps];
+          | ([two_step_l, ..._], [two_step_r, ..._], []) =>
+            print_endline("202");
+            if (two_step_l != two_step_r) {
+              None;
+            } else {
+              let* (removed, removed_path, e) = remove_tiles((l, r), e);
+              let+ ((inserted_l, inserted_r), e) =
+                insert_tiles(removed, target, e);
+              let cursor =
+                switch (place_cursor) {
+                | `Selection => inserted_l
+                | `Other =>
+                  j_target <= fst(two_step_l)
+                  ? inserted_r
+                  : removed_path
+                };
+              (cursor, e);
+            };
+          | (
+              [two_step_l, ...steps_l],
+              [two_step_r, ...steps_r],
+              [two_step_t, ...steps_t],
+            ) =>
+            if (two_step_l == two_step_r && two_step_r == two_step_t) {
+              let l = (steps_l, j_l);
+              let r = (steps_r, j_r);
+              let target = (steps_t, j_target);
+              switch (unzip(two_step_l, (e, None))) {
+              | `Exp(e, zrest) =>
+                let+ (path, e) =
+                  restructure(~place_cursor, (l, r), target, e);
+                let (_, `Exp(e, _)) = zip_ztile(e, Option.get(zrest));
+                (cons(two_step_l, path), e);
+              | `Pat(p, zrest) =>
+                let+ (path, p) =
+                  Pat.restructure(~place_cursor, (l, r), target, p);
+                switch (Pat.zip_ztile(p, Option.get(zrest))) {
+                | (_, `Pat(_)) =>
+                  failwith("unzipping and rezipping changed sort")
+                | (_, `Exp(e, _)) => (cons(two_step_l, path), e)
+                };
+              };
+            } else if (two_step_l == two_step_r) {
+              let* (removed, _, e) = remove_tiles((l, r), e);
+              let+ ((inserted_l, _), e) = insert_tiles(target, removed, e);
+              let cursor =
+                switch (place_cursor) {
+                | `Selection => inserted_l
+                | `Other =>
+
+                }
+              let j =
+                switch (place_cursor) {
+                | `Left => j_target
+                | `Right => j_target + (j_r - j_l)
+                };
+              ((steps_target, j), e);
+            } else if (two_step_t == two_step_l) {
+              restructure(~place_cursor=`Right, (r, target), l, e);
+            } else if (two_step_r == two_step_t) {
+              restructure(~place_cursor=`Right, (target, l), r, e);
+            } else {
+              None;
+            };
           };
-          let+ e = insert_tiles((insert_steps, j_target), removed, e);
-          let j =
-            switch (place_cursor) {
-            | `Left => j_target
-            | `Right => j_target + (j_r - j_l)
-            };
-          ((insert_steps, j), e);
-        | (
-            ([two_step_l, ..._], j_l),
-            ([two_step_r, ..._], j_r),
-            ([], j_target),
-          ) =>
-          if (two_step_l != two_step_r) {
-            None;
-          } else {
-            let* (removed, e) = remove_tiles((l, r), e);
-            let+ e = insert_tiles(target, removed, e);
-            let j =
-              switch (place_cursor) {
-              | `Left => j_target
-              | `Right => j_target + (j_r - j_l)
-              };
-            (([], j), e);
-          }
-        | (
-            ([two_step_l, ...steps_l], j_l),
-            ([two_step_r, ...steps_r], j_r),
-            ([two_step_t, ...steps_t] as steps_target, j_target),
-          ) =>
-          if (two_step_l == two_step_r && two_step_r == two_step_t) {
-            let l = (steps_l, j_l);
-            let r = (steps_r, j_r);
-            let target = (steps_t, j_target);
-            switch (unzip(two_step_l, (e, None))) {
-            | `Exp(e, zrest) =>
-              let+ (path, e) =
-                restructure(~place_cursor, (l, r), target, e);
-              let (_, `Exp(e, _)) = zip_ztile(e, Option.get(zrest));
-              (cons(two_step_l, path), e);
-            | `Pat(p, zrest) =>
-              let+ (path, p) =
-                Pat.restructure(~place_cursor, (l, r), target, p);
-              switch (Pat.zip_ztile(p, Option.get(zrest))) {
-              | (_, `Pat(_)) =>
-                failwith("unzipping and rezipping changed sort")
-              | (_, `Exp(e, _)) => (cons(two_step_l, path), e)
-              };
-            };
-          } else if (two_step_l == two_step_r) {
-            let* (removed, e) = remove_tiles((l, r), e);
-            let+ e = insert_tiles(target, removed, e);
-            let j =
-              switch (place_cursor) {
-              | `Left => j_target
-              | `Right => j_target + (j_r - j_l)
-              };
-            ((steps_target, j), e);
-          } else if (two_step_t == two_step_l) {
-            restructure(~place_cursor=`Right, (r, target), l, e);
-          } else if (two_step_r == two_step_t) {
-            restructure(~place_cursor=`Right, (target, l), r, e);
-          } else {
-            None;
-          }
         };
+        let cursor_path =
+          switch (place_cursor) {
+          | `Selection => inserted_l
+          | `Other =>
+            compare(target, l) <= 0
+            ? inserted_r
+            : removed
+          };
+        (cursor_path, e);
       }
     );
 };
