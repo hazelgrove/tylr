@@ -4,7 +4,7 @@ module Sort = Core.Sort;
 module Direction = Core.Direction;
 
 let tip = 0.3;
-let child_border_thickness = 0.1;
+let child_border_thickness = 0.12;
 
 module Diag = {
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
@@ -308,20 +308,20 @@ module Tile = {
         NodeUtil.[
           stop(
             AttrUtil.[
-              offset(0.4 /. Float.of_int(len + 2)),
+              offset(0.6 /. Float.of_int(len + 2)),
               stop_color("#fdf6e3"),
             ],
           ),
           stop(
             AttrUtil.[
-              offset(1.1 /. Float.of_int(len + 2)),
+              offset(1.25 /. Float.of_int(len + 2)),
               stop_color(color),
             ],
           ),
           stop(
             AttrUtil.[
               offset(
-                (Float.of_int(len + 2) -. 1.1) /. Float.of_int(len + 2),
+                (Float.of_int(len + 2) -. 1.25) /. Float.of_int(len + 2),
               ),
               stop_color(color),
             ],
@@ -329,7 +329,7 @@ module Tile = {
           stop(
             AttrUtil.[
               offset(
-                (Float.of_int(len + 2) -. 0.4) /. Float.of_int(len + 2),
+                (Float.of_int(len + 2) -. 0.6) /. Float.of_int(len + 2),
               ),
               stop_color("#fdf6e3"),
             ],
