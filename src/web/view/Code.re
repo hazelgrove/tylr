@@ -769,9 +769,7 @@ module Exp = {
     switch (mode) {
     | Normal(focus) =>
       Node.span([], CodeText.space(view_of_normal(~font_metrics, focus, e)))
-    | Selecting(selection) =>
-      print_endline("hey");
-      view_of_selecting(~font_metrics, selection, e);
+    | Selecting(selection) => view_of_selecting(~font_metrics, selection, e)
     | Restructuring(selection, target) =>
       view_of_restructuring(~font_metrics, selection, target, e)
     };

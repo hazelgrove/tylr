@@ -26,6 +26,12 @@ let key_handlers = (~inject: Update.t => Event.t, ~mode: EditState.Mode.t) => {
         | "+" => [p(Construct(Plus))]
         | "(" => [p(Construct(Paren))]
         | "Escape" => [Escape]
+        | "Enter" =>
+          switch (mode) {
+          | Normal(_) => []
+          | Selecting(_) => [Escape]
+          | Restructuring(_) => [p(Mark)]
+          }
         | _ => []
         };
       switch (updates) {
