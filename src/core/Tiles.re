@@ -52,6 +52,8 @@ module Make =
         | [t1, t2, ...ts]
             when T.is_operand_hole(t1) && T.is_operator_hole(t2) =>
           go_operand(ts)
+        | [t1, t2, ...ts] when T.is_operand_hole(t1) && Tile.is_operand(t2) =>
+          go_operand([t2, ...ts])
         | [t, ...ts] when T.is_operator_hole(t) => go_operand(ts)
         | [t, ...ts] =>
           switch (t) {
@@ -68,6 +70,8 @@ module Make =
         | [t1, t2, ...ts]
             when T.is_operator_hole(t1) && T.is_operand_hole(t2) =>
           go_operator(ts)
+        | [t1, t2, ...ts] when T.is_operator_hole(t1) && Tile.is_binop(t2) =>
+          go_operator([t2, ...ts])
         | [t, ...ts] when T.is_operand_hole(t) => go_operator(ts)
         | [t, ...ts] =>
           switch (t) {
