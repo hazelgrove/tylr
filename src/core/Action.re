@@ -73,6 +73,11 @@ module Exp = {
 
 let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
   switch (a, edit_state) {
+  | (Move(Left), (Restructuring((l, r), target), zipper)) when target == r =>
+    Some((Restructuring((l, r), l), zipper))
+  | (Move(Right), (Restructuring((l, r), target), zipper))
+      when target == l =>
+    Some((Restructuring((l, r), r), zipper))
   | (Move(d), (mode, zipper)) =>
     let+ (focus, did_it_zip) = {
       let move = path =>
