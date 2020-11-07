@@ -809,7 +809,7 @@ and Exp: {
             } else {
               let (suffix_l, suffix_r) =
                 ListUtil.split_n(
-                  j_target - List.length(prefix) + List.length(removed),
+                  j_target - (List.length(prefix) + List.length(removed)),
                   suffix,
                 );
               switch (place_cursor) {
