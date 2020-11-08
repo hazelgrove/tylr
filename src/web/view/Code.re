@@ -739,7 +739,7 @@ module Exp = {
           [
             Node.div(
               [
-                Attr.classes(["selection-box"]),
+                Attr.classes(["selection-box", "moving"]),
                 Attr.create(
                   "style",
                   Printf.sprintf(
