@@ -37,6 +37,13 @@ module Mode = {
 module Zipper = {
   type t = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
   type did_it_zip = option((ZPath.two_step, t));
+
+  let unzip = (two_step, zipper: t) =>
+    switch (zipper) {
+    | `Typ(zipper) => (ZPath.Typ.unzip(two_step, zipper) :> t)
+    | `Pat(zipper) => (ZPath.Pat.unzip(two_step, zipper) :> t)
+    | `Exp(zipper) => (ZPath.Exp.unzip(two_step, zipper) :> t)
+    };
 };
 
 type t = (Mode.t, Zipper.t);

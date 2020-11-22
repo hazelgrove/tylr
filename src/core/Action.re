@@ -142,18 +142,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
 
   | (Construct(_), (Normal(([two_step, ...steps], j)), zipper)) =>
     let mode = EditState.Mode.Normal((steps, j));
-    let zipper =
-      switch (zipper) {
-      | `Typ(zipper) => (
-          ZPath.Typ.unzip(two_step, zipper) :> EditState.Zipper.t
-        )
-      | `Pat(zipper) => (
-          ZPath.Pat.unzip(two_step, zipper) :> EditState.Zipper.t
-        )
-      | `Exp(zipper) => (
-          ZPath.Exp.unzip(two_step, zipper) :> EditState.Zipper.t
-        )
-      };
+    let zipper = EditState.Zipper.unzip(two_step, zipper);
     perform(a, (mode, zipper));
   | (Construct(s), (Normal(([], j)), zipper)) =>
     switch (zipper) {
@@ -238,18 +227,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         anchor: (steps_l, j_l),
         focus: (steps_r, j_r),
       });
-    let zipper =
-      switch (zipper) {
-      | `Typ(zipper) => (
-          ZPath.Typ.unzip(two_step_l, zipper) :> EditState.Zipper.t
-        )
-      | `Pat(zipper) => (
-          ZPath.Pat.unzip(two_step_l, zipper) :> EditState.Zipper.t
-        )
-      | `Exp(zipper) => (
-          ZPath.Exp.unzip(two_step_l, zipper) :> EditState.Zipper.t
-        )
-      };
+    let zipper = EditState.Zipper.unzip(two_step_l, zipper);
     perform(a, (mode, zipper));
 
   | (Mark | Delete(_), (Selecting({anchor, focus} as selected), zipper)) =>
