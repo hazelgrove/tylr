@@ -48,14 +48,22 @@ module Tile = {
     | PostOp(Ap(_, arg)) => [arg]
     | BinOp(OperatorHole | Plus(_)) => [];
 };
-include Tiles.Make(Tile);
 
 [@deriving sexp]
 type t = Tile.s;
+include Tiles.Make(Tile);
 
-type inner_tiles =
-  | Exp(Tile.s)
-  | Other(HPat.inner_tiles);
+module Inner = {
+  type t =
+    | Exp(Tile.s)
+    | Other(HPat.Inner.t);
+
+  let wrap = (ts: Tile.s) => Exp(ts);
+  let unwrap =
+    fun
+    | Other(_) => None
+    | Exp(ts) => Some(ts);
+};
 
 // does not recurse into parentheses
 let get_hole_status_operand: Tile.operand => _ =

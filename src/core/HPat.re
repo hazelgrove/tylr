@@ -46,14 +46,21 @@ module Tile = {
     | PostOp(Ann(_)) => []
     | BinOp(OperatorHole) => [];
 };
-include Tiles.Make(Tile);
-
 [@deriving sexp]
 type t = Tile.s;
+include Tiles.Make(Tile);
 
-type inner_tiles =
-  | Pat(Tile.s)
-  | Other(HTyp.inner_tiles);
+module Inner = {
+  type t =
+    | Pat(Tile.s)
+    | Other(HTyp.Inner.t);
+
+  let wrap = (ts: Tile.s) => Pat(ts);
+  let unwrap =
+    fun
+    | Other(_) => None
+    | Pat(ts) => Some(ts);
+};
 
 let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
   update_root(

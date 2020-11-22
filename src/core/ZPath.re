@@ -58,14 +58,15 @@ let cons_ordered_selection = (two_step, (l, r)) => (
 module Common =
        (
          T: Tile.S,
+         I: {
+           type t;
+           let wrap: T.s => t;
+           let unwrap: t => option(T.s);
+         },
          P: {
-           type inner_tiles;
-           let wrap_inner: T.s => inner_tiles;
-           let unwrap_inner: inner_tiles => option(T.s);
-
            let insert_tiles:
              (
-               ~insert_tiles: (inner_tiles as 'inner, t as 't, T.s as 'ts) =>
+               ~insert_tiles: (I.t as 'inner, t as 't, T.s as 'ts) =>
                               (option((ordered_selection, T.s)) as 'r),
                'inner,
                (two_step, 't),
@@ -75,7 +76,7 @@ module Common =
            let remove_tiles:
              (
                ~remove_tiles: (ordered_selection as 'os, T.s as 'ts) =>
-                              (option((inner_tiles, t, T.s)) as 'r),
+                              (option((I.t, t, T.s)) as 'r),
                (two_step, 'os),
                'ts
              ) =>
@@ -99,11 +100,11 @@ module Common =
   module Ts = Tiles.Make(T);
 
   let rec insert_tiles =
-          (tiles: P.inner_tiles, (steps, j): t, ts: T.s)
+          (tiles: I.t, (steps, j): t, ts: T.s)
           : option((ordered_selection, T.s)) =>
     switch (steps) {
     | [] =>
-      let+ tiles = P.unwrap_inner(tiles);
+      let+ tiles = I.unwrap(tiles);
       let (prefix, suffix) = ListUtil.split_n(j, ts);
       let suffix_len = {
         let (_, suffix) = Ts.fix_empty_holes(prefix @ tiles, suffix);
@@ -123,17 +124,12 @@ module Common =
     };
 
   let rec remove_tiles =
-          ((l, r): ordered_selection, ts: T.s)
-          : option((P.inner_tiles, t, T.s)) =>
+          ((l, r): ordered_selection, ts: T.s): option((I.t, t, T.s)) =>
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
       let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
       let (prefix, suffix) = Ts.fix_empty_holes(prefix, suffix);
-      Some((
-        P.wrap_inner(removed),
-        ([], List.length(prefix)),
-        prefix @ suffix,
-      ));
+      Some((I.wrap(removed), ([], List.length(prefix)), prefix @ suffix));
     | (([], _), ([_, ..._], _))
     | (([_, ..._], _), ([], _)) => None
     | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
@@ -201,7 +197,7 @@ module Common =
         let ts = fixed_prefix @ fixed_suffix;
         if (tile_step < j_l) {
           let+ ((inserted_l, inserted_r), ts) =
-            insert_tiles(P.wrap_inner(removed), target, ts);
+            insert_tiles(I.wrap(removed), target, ts);
           switch (place_cursor) {
           | `Selection => (inserted_l, ts)
           | `Other => (inserted_r, ts)
@@ -217,7 +213,7 @@ module Common =
             ([(tile_step, child_step), ...steps], j_target);
           };
           let+ ((inserted_l, _), ts) =
-            insert_tiles(P.wrap_inner(removed), insert_path, ts);
+            insert_tiles(I.wrap(removed), insert_path, ts);
           switch (place_cursor) {
           | `Selection => (inserted_l, ts)
           | `Other => (([], List.length(fixed_prefix)), ts)
@@ -293,10 +289,9 @@ module rec Typ: {
 
   let round_selection: (ordered_selection, HTyp.t) => ordered_selection;
 
-  let remove_tiles:
-    (ordered_selection, HTyp.t) => (HTyp.inner_tiles, t, HTyp.t);
+  let remove_tiles: (ordered_selection, HTyp.t) => (HTyp.Inner.t, t, HTyp.t);
   let insert_tiles:
-    (HTyp.inner_tiles, t, HTyp.t) => option((ordered_selection, HTyp.t));
+    (HTyp.Inner.t, t, HTyp.t) => option((ordered_selection, HTyp.t));
   let restructure:
     (~place_cursor: [ | `Selection | `Other]=?, (t, t), t, HTyp.t) =>
     option((t, HTyp.t));
@@ -432,9 +427,9 @@ and Pat: {
   let round_selection: (ordered_selection, HPat.t) => ordered_selection;
 
   let remove_tiles:
-    (ordered_selection, HPat.t) => option((HPat.inner_tiles, t, HPat.t));
+    (ordered_selection, HPat.t) => option((HPat.Inner.t, t, HPat.t));
   let insert_tiles:
-    (HPat.inner_tiles, t, HPat.t) => option((ordered_selection, HPat.t));
+    (HPat.Inner.t, t, HPat.t) => option((ordered_selection, HPat.t));
   let restructure:
     (
       ~place_cursor: [ | `Selection | `Other]=?,
@@ -621,9 +616,9 @@ and Exp: {
   let round_selection: (ordered_selection, HExp.t) => ordered_selection;
 
   let remove_tiles:
-    (ordered_selection, HExp.t) => option((HExp.inner_tiles, t, HExp.t));
+    (ordered_selection, HExp.t) => option((HExp.Inner.t, t, HExp.t));
   let insert_tiles:
-    (HExp.inner_tiles, t, HExp.t) => option((ordered_selection, HExp.t));
+    (HExp.Inner.t, t, HExp.t) => option((ordered_selection, HExp.t));
   let restructure:
     (
       ~place_cursor: [ | `Selection | `Other]=?,
@@ -887,15 +882,8 @@ and Exp: {
   };
 
   module P = {
-    type inner_tiles = HExp.inner_tiles;
-    let wrap_inner = tiles => HExp.Exp(tiles);
-    let unwrap_inner =
-      fun
-      | HExp.Other(_) => None
-      | HExp.Exp(ts) => Some(ts);
-
     let insert_tiles =
-        (~insert_tiles, tiles: inner_tiles, (two_step, target), e) =>
+        (~insert_tiles, tiles: HExp.Inner.t, (two_step, target), e) =>
       switch (unzip(two_step, (e, None))) {
       | `Pat(p, unzipped) =>
         switch (tiles) {
@@ -919,7 +907,7 @@ and Exp: {
 
     let remove_tiles =
         (~remove_tiles, (two_step, selection), e)
-        : option((inner_tiles, t, HExp.t)) =>
+        : option((HExp.Inner.t, t, HExp.t)) =>
       switch (unzip(two_step, (e, None))) {
       | `Exp(e, zrest) =>
         let+ (removed, removed_path, e) = remove_tiles(selection, e);
@@ -932,7 +920,7 @@ and Exp: {
         switch (rezipped) {
         | `Pat(_) => failwith("unzipping and rezipping changed sort")
         | `Exp(e, _none) => (
-            HExp.Other(removed),
+            HExp.Inner.Other(removed),
             cons(two_step, removed_path),
             e,
           )
@@ -960,5 +948,5 @@ and Exp: {
         };
       };
   };
-  include Common(HExp.Tile, P);
+  include Common(HExp.Tile, HExp.Inner, P);
 };

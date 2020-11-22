@@ -48,13 +48,19 @@ module Tile = {
     | PostOp(_) => raise(Void_PostOp)
     | BinOp(OperatorHole | Arrow) => [];
 };
-include Tiles.Make(Tile);
-
 [@deriving sexp]
 type t = Tile.s;
+include Tiles.Make(Tile);
 
-type inner_tiles =
-  | Typ(Tile.s);
+module Inner = {
+  type t =
+    | Typ(Tile.s);
+
+  let wrap = (ts: Tile.s) => Typ(ts);
+  let unwrap =
+    fun
+    | Typ(ts) => Some(ts);
+};
 
 let rec contract = (ty: t): Type.t =>
   switch (root(ty)) {
