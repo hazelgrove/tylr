@@ -55,29 +55,95 @@ let cons_ordered_selection = (two_step, (l, r)) => (
   cons(two_step, r),
 );
 
-module Helper =
+module Common =
        (
          T: Tile.S,
          P: {
            type inner_tiles;
            let wrap_inner: T.s => inner_tiles;
+           let unwrap_inner: inner_tiles => option(T.s);
+
            let insert_tiles:
-             (inner_tiles, t, T.s) => option((ordered_selection, T.s));
-           let remove_tiles:
-             (ordered_selection, T.s) => option((inner_tiles, t, T.s));
-           let nested_restructure:
              (
-               ~place_cursor: [ | `Selection | `Other],
-               ~restructure: (ordered_selection, t, T.s) => option((t, T.s)),
-               two_step,
-               ordered_selection,
-               t,
-               T.s
+               ~insert_tiles: (inner_tiles as 'inner, t as 't, T.s as 'ts) =>
+                              (option((ordered_selection, T.s)) as 'r),
+               'inner,
+               (two_step, 't),
+               'ts
              ) =>
-             option((t, T.s));
+             'r;
+           let remove_tiles:
+             (
+               ~remove_tiles: (ordered_selection as 'os, T.s as 'ts) =>
+                              (option((inner_tiles, t, T.s)) as 'r),
+               (two_step, 'os),
+               'ts
+             ) =>
+             'r;
+           let restructure:
+             (
+               ~place_cursor: [ | `Selection | `Other] as 'pc,
+               ~restructure: (
+                               ~place_cursor: 'pc=?,
+                               ordered_selection as 'os,
+                               t as 't,
+                               T.s as 'ts
+                             ) =>
+                             (option((t, T.s)) as 'r),
+               (two_step, 'os, 't),
+               'ts
+             ) =>
+             'r;
          },
        ) => {
   module Ts = Tiles.Make(T);
+
+  let rec insert_tiles =
+          (tiles: P.inner_tiles, (steps, j): t, ts: T.s)
+          : option((ordered_selection, T.s)) =>
+    switch (steps) {
+    | [] =>
+      let+ tiles = P.unwrap_inner(tiles);
+      let (prefix, suffix) = ListUtil.split_n(j, ts);
+      let suffix_len = {
+        let (_, suffix) = Ts.fix_empty_holes(prefix @ tiles, suffix);
+        List.length(suffix);
+      };
+      let (prefix_len, ts) = {
+        let (prefix, suffix) = Ts.fix_empty_holes(prefix, tiles @ suffix);
+        (List.length(prefix), prefix @ suffix);
+      };
+      let inserted = (
+        ([], prefix_len),
+        ([], List.length(ts) - suffix_len),
+      );
+      (inserted, ts);
+    | [two_step, ...steps] =>
+      P.insert_tiles(~insert_tiles, tiles, (two_step, (steps, j)), ts)
+    };
+
+  let rec remove_tiles =
+          ((l, r): ordered_selection, ts: T.s)
+          : option((P.inner_tiles, t, T.s)) =>
+    switch (l, r) {
+    | (([], j_l), ([], j_r)) =>
+      let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
+      let (prefix, suffix) = Ts.fix_empty_holes(prefix, suffix);
+      Some((
+        P.wrap_inner(removed),
+        ([], List.length(prefix)),
+        prefix @ suffix,
+      ));
+    | (([], _), ([_, ..._], _))
+    | (([_, ..._], _), ([], _)) => None
+    | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
+      if (two_step_l != two_step_r) {
+        None;
+      } else {
+        let selection = ((steps_l, j_l), (steps_r, j_r));
+        P.remove_tiles(~remove_tiles, (two_step_l, selection), ts);
+      }
+    };
 
   let rec restructure =
           (
@@ -135,7 +201,7 @@ module Helper =
         let ts = fixed_prefix @ fixed_suffix;
         if (tile_step < j_l) {
           let+ ((inserted_l, inserted_r), ts) =
-            P.insert_tiles(P.wrap_inner(removed), target, ts);
+            insert_tiles(P.wrap_inner(removed), target, ts);
           switch (place_cursor) {
           | `Selection => (inserted_l, ts)
           | `Other => (inserted_r, ts)
@@ -151,7 +217,7 @@ module Helper =
             ([(tile_step, child_step), ...steps], j_target);
           };
           let+ ((inserted_l, _), ts) =
-            P.insert_tiles(P.wrap_inner(removed), insert_path, ts);
+            insert_tiles(P.wrap_inner(removed), insert_path, ts);
           switch (place_cursor) {
           | `Selection => (inserted_l, ts)
           | `Other => (([], List.length(fixed_prefix)), ts)
@@ -161,10 +227,9 @@ module Helper =
         if (two_step_l != two_step_r) {
           None;
         } else {
-          let* (removed_tiles, removed_path, ts) =
-            P.remove_tiles((l, r), ts);
+          let* (removed_tiles, removed_path, ts) = remove_tiles((l, r), ts);
           let+ (inserted_selection, ts) =
-            P.insert_tiles(removed_tiles, target, ts);
+            insert_tiles(removed_tiles, target, ts);
           (cursor_path(inserted_selection, removed_path), ts);
         }
       | (
@@ -176,19 +241,16 @@ module Helper =
           let l = (steps_l, j_l);
           let r = (steps_r, j_r);
           let target = (steps_t, j_target);
-          P.nested_restructure(
+          P.restructure(
             ~place_cursor,
             ~restructure,
-            two_step_l,
-            (l, r),
-            target,
+            (two_step_l, (l, r), target),
             ts,
           );
         } else if (two_step_l == two_step_r) {
-          let* (removed_tiles, removed_path, ts) =
-            P.remove_tiles((l, r), ts);
+          let* (removed_tiles, removed_path, ts) = remove_tiles((l, r), ts);
           let+ (inserted_selection, ts) =
-            P.insert_tiles(removed_tiles, target, ts);
+            insert_tiles(removed_tiles, target, ts);
           (cursor_path(inserted_selection, removed_path), ts);
         } else if (two_step_t == two_step_l) {
           restructure(~place_cursor=`Other, (r, target), l, ts);
@@ -696,43 +758,6 @@ and Exp: {
     go(anchor);
   };
 
-  let rec remove_tiles =
-          ((l, r): ordered_selection, e: HExp.t)
-          : option((HExp.inner_tiles, t, HExp.t)) =>
-    switch (l, r) {
-    | (([], j_l), ([], j_r)) =>
-      let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, e);
-      let (prefix, suffix) = HExp.fix_empty_holes(prefix, suffix);
-      Some((Exp(removed), ([], List.length(prefix)), prefix @ suffix));
-    | (([], _), ([_, ..._], _))
-    | (([_, ..._], _), ([], _)) => None
-    | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
-      if (two_step_l != two_step_r) {
-        None;
-      } else {
-        switch (unzip(two_step_l, (e, None))) {
-        | `Exp(e, zrest) =>
-          let+ (removed, removed_path, e) =
-            remove_tiles(((steps_l, j_l), (steps_r, j_r)), e);
-          let ztile = OptUtil.get(() => assert(false), zrest);
-          let (two_step, `Exp(e, _)) = zip_ztile(e, ztile);
-          (removed, cons(two_step, removed_path), e);
-        | `Pat(p, zrest) =>
-          let+ (removed, removed_path, p) =
-            Pat.remove_tiles(((steps_l, j_l), (steps_r, j_r)), p);
-          let (two_step, rezipped) = Pat.zip_ztile(p, Option.get(zrest));
-          switch (rezipped) {
-          | `Pat(_) => failwith("unzipping and rezipping changed sort")
-          | `Exp(e, _none) => (
-              HExp.Other(removed),
-              cons(two_step, removed_path),
-              e,
-            )
-          };
-        };
-      }
-    };
-
   let rec remove_selection =
           ((l, r): ordered_selection, e: HExp.t): option((t, HExp.t)) =>
     switch (l, r) {
@@ -861,86 +886,79 @@ and Exp: {
     (l, r);
   };
 
-  let insert_tiles =
-      (tiles: HExp.inner_tiles, (steps, j): t, e: HExp.t)
-      : option((ordered_selection, HExp.t)) => {
-    let rec go = (steps, e) =>
-      switch (steps) {
-      | [] =>
-        switch (tiles) {
-        | Other(_) => None
-        | Exp(tiles) =>
-          let (prefix, suffix) = ListUtil.split_n(j, e);
-          let suffix_len = {
-            let (_, suffix) = HExp.fix_empty_holes(prefix @ tiles, suffix);
-            List.length(suffix);
-          };
-          let (prefix_len, e) = {
-            let (prefix, suffix) =
-              HExp.fix_empty_holes(prefix, tiles @ suffix);
-            (List.length(prefix), prefix @ suffix);
-          };
-          let inserted = (
-            ([], prefix_len),
-            ([], List.length(e) - suffix_len),
-          );
-          Some((inserted, e));
-        }
-      | [two_step, ...steps] =>
-        switch (unzip(two_step, (e, None))) {
-        | `Pat(p, unzipped) =>
-          switch (tiles) {
-          | Exp(_) => None
-          | Other(tiles) =>
-            let+ (selection, inserted) =
-              Pat.insert_tiles(tiles, (steps, j), p);
-            switch (Pat.zip_ztile(inserted, Option.get(unzipped))) {
-            | (_, `Pat(_)) =>
-              failwith("unzipping and rezipping changed sorts")
-            | (two_step, `Exp(rezipped, _)) => (
-                cons_ordered_selection(two_step, selection),
-                rezipped,
-              )
-            };
-          }
-        | `Exp(e, unzipped) =>
-          let+ (selection, inserted) = go(steps, e);
-          let (two_step, `Exp(rezipped, _)) =
-            zip_ztile(inserted, Option.get(unzipped));
-          (cons_ordered_selection(two_step, selection), rezipped);
-        }
-      };
-    go(steps, e);
-  };
-
-  let nested_restructure =
-      (
-        ~place_cursor: [ | `Selection | `Other],
-        ~restructure: (ordered_selection, t, HExp.t) => option((t, HExp.t)),
-        two_step: two_step,
-        (l, r): ordered_selection,
-        target: t,
-        e: HExp.t,
-      )
-      : option((t, HExp.t)) =>
-    switch (unzip(two_step, (e, None))) {
-    | `Exp(e, zrest) =>
-      let+ (path, e) = restructure((l, r), target, e);
-      let (_, `Exp(e, _)) = zip_ztile(e, Option.get(zrest));
-      (cons(two_step, path), e);
-    | `Pat(p, zrest) =>
-      let+ (path, p) = Pat.restructure(~place_cursor, (l, r), target, p);
-      switch (Pat.zip_ztile(p, Option.get(zrest))) {
-      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
-      | (_, `Exp(e, _)) => (cons(two_step, path), e)
-      };
-    };
-  module Path_helpers = {
+  module P = {
     type inner_tiles = HExp.inner_tiles;
     let wrap_inner = tiles => HExp.Exp(tiles);
-    let insert_tiles = insert_tiles;
-    let remove_tiles = remove_tiles;
-    let nested_restructure = nested_restructure;
+    let unwrap_inner =
+      fun
+      | HExp.Other(_) => None
+      | HExp.Exp(ts) => Some(ts);
+
+    let insert_tiles =
+        (~insert_tiles, tiles: inner_tiles, (two_step, target), e) =>
+      switch (unzip(two_step, (e, None))) {
+      | `Pat(p, unzipped) =>
+        switch (tiles) {
+        | Exp(_) => None
+        | Other(tiles) =>
+          let+ (selection, inserted) = Pat.insert_tiles(tiles, target, p);
+          switch (Pat.zip_ztile(inserted, Option.get(unzipped))) {
+          | (_, `Pat(_)) => failwith("unzipping and rezipping changed sorts")
+          | (two_step, `Exp(rezipped, _)) => (
+              cons_ordered_selection(two_step, selection),
+              rezipped,
+            )
+          };
+        }
+      | `Exp(e, unzipped) =>
+        let+ (selection, inserted) = insert_tiles(tiles, target, e);
+        let (two_step, `Exp(rezipped, _)) =
+          zip_ztile(inserted, Option.get(unzipped));
+        (cons_ordered_selection(two_step, selection), rezipped);
+      };
+
+    let remove_tiles =
+        (~remove_tiles, (two_step, selection), e)
+        : option((inner_tiles, t, HExp.t)) =>
+      switch (unzip(two_step, (e, None))) {
+      | `Exp(e, zrest) =>
+        let+ (removed, removed_path, e) = remove_tiles(selection, e);
+        let ztile = OptUtil.get(() => assert(false), zrest);
+        let (two_step, `Exp(e, _)) = zip_ztile(e, ztile);
+        (removed, cons(two_step, removed_path), e);
+      | `Pat(p, zrest) =>
+        let+ (removed, removed_path, p) = Pat.remove_tiles(selection, p);
+        let (two_step, rezipped) = Pat.zip_ztile(p, Option.get(zrest));
+        switch (rezipped) {
+        | `Pat(_) => failwith("unzipping and rezipping changed sort")
+        | `Exp(e, _none) => (
+            HExp.Other(removed),
+            cons(two_step, removed_path),
+            e,
+          )
+        };
+      };
+
+    let restructure =
+        (
+          ~place_cursor: [ | `Selection | `Other] as 'pc,
+          ~restructure: (~place_cursor: 'pc=?, _, _, _) => _,
+          (two_step: two_step, (l, r): ordered_selection, target: t),
+          e: HExp.t,
+        )
+        : option((t, HExp.t)) =>
+      switch (unzip(two_step, (e, None))) {
+      | `Exp(e, zrest) =>
+        let+ (path, e) = restructure(~place_cursor, (l, r), target, e);
+        let (_, `Exp(e, _)) = zip_ztile(e, Option.get(zrest));
+        (cons(two_step, path), e);
+      | `Pat(p, zrest) =>
+        let+ (path, p) = Pat.restructure(~place_cursor, (l, r), target, p);
+        switch (Pat.zip_ztile(p, Option.get(zrest))) {
+        | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Exp(e, _)) => (cons(two_step, path), e)
+        };
+      };
   };
-  include Helper(HExp.Tile, Path_helpers);
+  include Common(HExp.Tile, P);
 };
