@@ -253,13 +253,13 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
   | (Delete(_), (Restructuring(selection, _), zipper)) =>
     switch (zipper) {
     | `Typ(ty, unzipped) =>
-      let+ (path, ty) = ZPath.Typ.remove_selection(selection, ty);
+      let+ (path, ty) = ZPath.Typ.delete_selection(selection, ty);
       (EditState.Mode.Normal(path), `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
-      let+ (path, p) = ZPath.Pat.remove_selection(selection, p);
+      let+ (path, p) = ZPath.Pat.delete_selection(selection, p);
       (EditState.Mode.Normal(path), `Pat((p, unzipped)));
     | `Exp(e, unzipped) =>
-      let+ (path, e) = ZPath.Exp.remove_selection(selection, e);
+      let+ (path, e) = ZPath.Exp.delete_selection(selection, e);
       (EditState.Mode.Normal(path), `Exp((e, unzipped)));
     }
 
