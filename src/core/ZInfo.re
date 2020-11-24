@@ -1,4 +1,5 @@
 open Util;
+open OptUtil.Syntax;
 
 module Exp = {
   type t('z) = {
@@ -25,7 +26,6 @@ module Exp = {
   };
 
   let rec mk = (ze: ZExp.t): option(t(ZExp.t)) => {
-    open OptUtil.Syntax;
     let (n, (e, zrest)) = ZPath.Exp.zip(HExp.dummy_hole, ze);
     let* info =
       switch (zrest) {
@@ -172,7 +172,6 @@ module Exp = {
     go(e, info);
   }
   and mk_ztile = (ztile: ZExp.ztile): option(t(ZExp.ztile)) => {
-    open OptUtil.Syntax;
     let (zroot, ze) = {
       let ((tile_step, _), `Exp(e, zrest)) =
         ZPath.Exp.zip_ztile(HExp.dummy_hole, ztile);
@@ -254,7 +253,6 @@ module Pat = {
   };
 
   let rec mk = (zp: ZPat.t): option(t(ZPat.t)) => {
-    open OptUtil.Syntax;
     let (n, (p, zrest)) = ZPath.Pat.zip(HPat.dummy_hole, zp);
     let* info =
       switch (zrest) {
@@ -331,7 +329,6 @@ module Pat = {
     go(p, info);
   }
   and mk_ztile = (ztile: ZPat.ztile): option(t(ZPat.ztile)) => {
-    open OptUtil.Syntax;
     let ((tile_step, _), zipped) =
       ZPath.Pat.zip_ztile(HPat.dummy_hole, ztile);
     switch (zipped) {

@@ -292,7 +292,7 @@ module Common =
       let* {prefix, z: ts, suffix} = P.unzip_cis(two_step_l, ts);
       let+ (path, ts) =
         delete_selection(((steps_l, j_l), ([], List.length(ts))), ts);
-      let (_removed, suffix) =
+      let (_deleted, suffix) =
         ListUtil.split_n(j_r - (tile_step + 1), suffix);
       let path = {
         let n = List.length(prefix) + List.length(ts);
