@@ -69,8 +69,8 @@ module Common =
            type unzipped;
            type zipper = (T.s, option(ztile));
 
-           let sort: [ | `Typ | `Pat | `Exp];
-           let sort_at: (t, T.s) => [ | `Typ | `Pat | `Exp];
+           let sort: Sort.t;
+           let sort_at: (t, T.s) => Sort.t;
 
            let zip_ztile: (T.s, ztile) => (two_step, zipped);
            let unzip: (two_step, zipper) => unzipped;
@@ -436,7 +436,7 @@ module rec Typ: {
   let unzip_tile: (child_step, HTyp.Tile.t, ZTyp.t) => unzipped;
   let unzip: (two_step, ZTyp.zipper) => unzipped;
 
-  let sort: (t, HTyp.t) => [ | `Typ];
+  let sort_at: (t, HTyp.t) => Sort.t;
 
   /**
    * `move(d, zipper, path)` first attempts to returns the next path
@@ -454,7 +454,8 @@ module rec Typ: {
 
   let round_selection: (ordered_selection, HTyp.t) => ordered_selection;
 
-  let remove_tiles: (ordered_selection, HTyp.t) => (HTyp.Inner.t, t, HTyp.t);
+  let remove_tiles:
+    (ordered_selection, HTyp.t) => option((HTyp.Inner.t, t, HTyp.t));
   let insert_tiles:
     (HTyp.Inner.t, t, HTyp.t) => option((ordered_selection, HTyp.t));
   let restructure:
@@ -462,7 +463,6 @@ module rec Typ: {
     option((t, HTyp.t));
 } = {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
-  type did_it_zip = option((two_step, zipped));
 
   let zip = (ty: HTyp.t, zty: ZTyp.t): (tile_step, ZTyp.zipper) => (
     List.length(zty.prefix),
@@ -499,61 +499,102 @@ module rec Typ: {
     unzip_tile(r, tile, ze);
   };
 
-  let rec move =
-          (
-            d: Direction.t,
-            (steps, k): t,
-            (ty, zrest) as zipper: ZTyp.zipper,
-          )
-          : option((t, did_it_zip)) => {
-    let if_left = (then_, else_) => d == Left ? then_ : else_;
-    switch (steps) {
-    | [] =>
-      let next = if_left(k - 1, k);
-      switch (ListUtil.nth_opt(next, ty), zrest) {
-      | (None, None) => None
-      | (Some(tile), _) =>
-        let path =
-          switch (tile) {
-          | Operand(OperandHole | Num)
-          | BinOp(OperatorHole | Arrow) => (steps, if_left(k - 1, k + 1))
-          | Operand(Paren(ty)) => (
-              [(next, 0)],
-              if_left(List.length(ty), 0),
-            )
-          | PreOp(_) => raise(HTyp.Tile.Void_PreOp)
-          | PostOp(_) => raise(HTyp.Tile.Void_PostOp)
-          };
-        Some((path, None));
-      | (_, Some(ztile)) =>
-        let ((tile_step, _) as two_step, zipped) = zip_ztile(ty, ztile);
-        let path = ([], if_left(tile_step, tile_step + 1));
-        Some((path, Some((two_step, zipped))));
+  let sort_at = (_, _) => Sort.Typ;
+
+  module P = {
+    type ztile = ZTyp.ztile;
+    type zipper = ZTyp.zipper;
+
+    type nonrec zipped = zipped;
+    type nonrec unzipped = unzipped;
+
+    let sort = Sort.Typ;
+    let sort_at = sort_at;
+
+    let zip_ztile = zip_ztile;
+    let unzip = unzip;
+    let unzip_cis = (two_step, ty) => {
+      let `Typ(ty, unzipped) = unzip(two_step, (ty, None));
+      switch (Option.get(unzipped)) {
+      | Operand(ParenZ_body({prefix, suffix, _})) =>
+        Some(ZList.{prefix, z: ty, suffix})
+      | PreOp(_) => raise(ZTyp.Void_ZPreOp)
+      | PostOp(AnnZ_ann(_)) =>
+        failwith("rezipping unzipped result would change sorts")
+      | BinOp(_) => raise(ZTyp.Void_ZBinOp)
       };
-    | [two_step, ...steps] =>
-      let `Typ(unzipped) = unzip(two_step, zipper);
-      let+ (moved, did_it_zip) = move(d, (steps, k), unzipped);
-      switch (did_it_zip) {
-      | None => (cons(two_step, moved), None)
-      | Some(_) => (moved, None)
+    };
+
+    let enter_from =
+        (d: Direction.t, tile: HTyp.Tile.t)
+        : option((child_step, caret_step)) =>
+      switch (tile) {
+      | Operand(OperandHole | Num)
+      | BinOp(OperatorHole | Arrow) => None
+      | Operand(Paren(ty)) => Some((0, d == Left ? List.length(ty) : 0))
+      | PreOp(_) => raise(HTyp.Tile.Void_PreOp)
+      | PostOp(_) => raise(HTyp.Tile.Void_PostOp)
+      };
+    let move = (~move, d, path, `Typ(unzipped)) => {
+      let+ (moved, did_it_zip) = move(d, path, unzipped);
+      (moved, Option.is_some(did_it_zip));
+    };
+
+    let insert_tiles =
+        (~insert_tiles, tiles: HTyp.Inner.t, (two_step, target), ty) => {
+      let `Typ(ty, unzipped) = unzip(two_step, (ty, None));
+      let+ (selection, inserted) = insert_tiles(tiles, target, ty);
+      switch (Typ.zip_ztile(inserted, Option.get(unzipped))) {
+      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sorts")
+      | (two_step, `Typ(rezipped, _)) => (
+          cons_ordered_selection(two_step, selection),
+          rezipped,
+        )
+      };
+    };
+
+    let remove_tiles =
+        (~remove_tiles, (two_step, selection), ty)
+        : option((HTyp.Inner.t, t, HTyp.t)) => {
+      let `Typ(ty, zrest) = unzip(two_step, (ty, None));
+      let+ (removed, removed_path, ty) = remove_tiles(selection, ty);
+      switch (zip_ztile(ty, Option.get(zrest))) {
+      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+      | (two_step, `Typ(ty, _none)) => (
+          removed,
+          cons(two_step, removed_path),
+          ty,
+        )
+      };
+    };
+
+    let restructure =
+        (
+          ~place_cursor: [ | `Selection | `Other] as 'pc,
+          ~restructure: (~place_cursor: 'pc=?, _, _, _) => _,
+          (two_step, (l, r), target),
+          ty: HTyp.t,
+        )
+        : option((t, HTyp.t)) => {
+      let `Typ(ty, zrest) = unzip(two_step, (ty, None));
+      let+ (path, ty) = restructure(~place_cursor, (l, r), target, ty);
+      switch (zip_ztile(ty, Option.get(zrest))) {
+      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+      | (_, `Typ(ty, _)) => (cons(two_step, path), ty)
+      };
+    };
+
+    let delete_selection =
+        (~delete_selection, (two_step, selection), ty): option((t, HTyp.t)) => {
+      let `Typ(ty, unzipped) = unzip(two_step, (ty, None));
+      let+ (path, ty) = delete_selection(selection, ty);
+      switch (zip_ztile(ty, Option.get(unzipped))) {
+      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+      | (_, `Typ(ty, _)) => (cons(two_step, path), ty)
       };
     };
   };
-
-  let sort = (_, _) => `Typ;
-
-  let select = (_, _) => failwith("todo");
-
-  /* assumes l, r are maximally unzipped */
-  let round_selection = (selection, _) => selection;
-
-  let delete_selection = (_, _) => failwith("unimplemented");
-
-  let remove_tiles = (_, _) => failwith("unimplemented");
-  let insert_tiles = (_, _, _) => failwith("unimplemented");
-  [@warning "-27"]
-  let restructure = (~place_cursor=`Selection, _, _, _) =>
-    failwith("unimplemented");
+  include Common(HTyp.Tile, HTyp.Inner, P);
 }
 and Pat: {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
@@ -567,7 +608,7 @@ and Pat: {
   let unzip_tile: (child_step, HPat.Tile.t, ZPat.t) => unzipped;
   let unzip: (two_step, ZPat.zipper) => unzipped;
 
-  let sort: (t, HPat.t) => [ | `Pat | `Typ];
+  let sort_at: (t, HPat.t) => Sort.t;
 
   let move: (Direction.t, t, ZPat.zipper) => option((t, did_it_zip));
 
@@ -592,7 +633,6 @@ and Pat: {
     option((t, HPat.t));
 } = {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
-  type did_it_zip = option((two_step, zipped));
 
   let zip = (p: HPat.t, zp: ZPat.t): (tile_step, ZPat.zipper) => (
     List.length(zp.prefix),
@@ -631,98 +671,158 @@ and Pat: {
     unzip_tile(r, tile, zp);
   };
 
-  let rec move =
-          (d: Direction.t, (steps, k): t, (p, zrest) as zipper: ZPat.zipper)
-          : option((t, did_it_zip)) => {
-    let if_left = (then_, else_) => d == Left ? then_ : else_;
-    switch (steps) {
-    | [] =>
-      let next = if_left(k - 1, k);
-      switch (ListUtil.nth_opt(next, p), zrest) {
-      | (None, None) => None
-      | (Some(tile), _) =>
-        let path =
-          switch (tile) {
-          | Operand(OperandHole | Var(_))
-          | BinOp(OperatorHole) => (steps, if_left(k - 1, k + 1))
-          | Operand(Paren(p)) => (
-              [(next, 0)],
-              if_left(List.length(p), 0),
-            )
-          | PostOp(Ann(_, ty)) => (
-              [(next, 0)],
-              if_left(List.length(ty), 0),
-            )
-          | PreOp(_) => raise(HPat.Tile.Void_PreOp)
-          };
-        Some((path, None));
-      | (_, Some(ztile)) =>
-        let ((tile_step, _) as two_step, zipped) = zip_ztile(p, ztile);
-        let path = ([], if_left(tile_step, tile_step + 1));
-        Some((path, Some((two_step, zipped))));
-      };
-    | [two_step, ...steps] =>
-      switch (unzip(two_step, zipper)) {
-      | `Pat(unzipped) =>
-        let+ (moved, did_it_zip) = move(d, (steps, k), unzipped);
-        switch (did_it_zip) {
-        | None => (cons(two_step, moved), None)
-        | Some(_) => (moved, None)
-        };
-      | `Typ(unzipped) =>
-        let+ (moved, did_it_zip) = Typ.move(d, (steps, k), unzipped);
-        switch (did_it_zip) {
-        | None => (cons(two_step, moved), None)
-        | Some(_) => (moved, None)
-        };
-      }
-    };
-  };
-
   // TODO fix output type
-  let rec sort = ((steps, j): t, p: HPat.t): [ | `Typ | `Pat] =>
+  let rec sort_at = ((steps, j): t, p: HPat.t): Sort.t =>
     switch (steps) {
-    | [] => `Pat
+    | [] => Pat
     | [two_step, ...steps] =>
       let path = (steps, j);
       switch (unzip(two_step, (p, None))) {
-      | `Typ(_) => `Typ
-      | `Pat(p, _) => sort(path, p)
+      | `Typ(ty, _) => Typ.sort_at(path, ty)
+      | `Pat(p, _) => sort_at(path, p)
       };
     };
 
-  let select = (_, _) => failwith("todo");
+  module P = {
+    type ztile = ZPat.ztile;
+    type zipper = ZPat.zipper;
 
-  /* assumes l, r are maximally unzipped */
-  let round_selection =
-      ((l, r): ordered_selection, p: HPat.t): ordered_selection => {
-    let rec next_pat_path = (d: Direction.t, current: t): t => {
-      let (next, _) = Option.get(move(d, current, (p, None)));
-      switch (sort(next, p)) {
-      | `Typ => next_pat_path(d, next)
-      | `Pat => current
+    type nonrec zipped = zipped;
+    type nonrec unzipped = unzipped;
+
+    let sort = Sort.Pat;
+    let sort_at = sort_at;
+
+    let zip_ztile = zip_ztile;
+    let unzip = unzip;
+    let unzip_cis = (two_step, p) =>
+      switch (unzip(two_step, (p, None))) {
+      | `Typ(_) => None
+      | `Pat(p, unzipped) =>
+        switch (Option.get(unzipped)) {
+        | Operand(ParenZ_body({prefix, suffix, _})) =>
+          Some(ZList.{prefix, z: p, suffix})
+        | PreOp(LamZ_pat(_)) => None
+        | PostOp(_) => raise(ZPat.Void_ZPostOp)
+        | BinOp(_) => raise(ZPat.Void_ZBinOp)
+        }
       };
-    };
-    let l =
-      switch (sort(l, p)) {
-      | `Pat => l
-      | _ => next_pat_path(Left, l)
+
+    let enter_from =
+        (d: Direction.t, tile: HPat.Tile.t)
+        : option((child_step, caret_step)) =>
+      switch (tile) {
+      | Operand(OperandHole | Var(_))
+      | BinOp(OperatorHole) => None
+      | Operand(Paren(p)) => Some((0, d == Left ? List.length(p) : 0))
+      | PostOp(Ann(_, ty)) => Some((0, d == Left ? List.length(ty) : 0))
+      | PreOp(_) => raise(HPat.Tile.Void_PreOp)
       };
-    let r =
-      switch (sort(r, p)) {
-      | `Pat => r
-      | _ => next_pat_path(Right, r)
+    let move = (~move, d, path, unzipped) =>
+      switch (unzipped) {
+      | `Pat(unzipped) =>
+        let+ (moved, did_it_zip) = move(d, path, unzipped);
+        (moved, Option.is_some(did_it_zip));
+      | `Typ(unzipped) =>
+        let+ (moved, did_it_zip) = Typ.move(d, path, unzipped);
+        (moved, Option.is_some(did_it_zip));
       };
-    (l, r);
+
+    let insert_tiles =
+        (~insert_tiles, tiles: HPat.Inner.t, (two_step, target), p) =>
+      switch (unzip(two_step, (p, None))) {
+      | `Typ(ty, unzipped) =>
+        switch (tiles) {
+        | Pat(_) => None
+        | Other(tiles) =>
+          let+ (selection, inserted) = Typ.insert_tiles(tiles, target, ty);
+          switch (Typ.zip_ztile(inserted, Option.get(unzipped))) {
+          | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+          | (two_step, `Pat(rezipped, _)) => (
+              cons_ordered_selection(two_step, selection),
+              rezipped,
+            )
+          };
+        }
+      | `Pat(p, unzipped) =>
+        let+ (selection, inserted) = insert_tiles(tiles, target, p);
+        switch (zip_ztile(inserted, Option.get(unzipped))) {
+        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(rezipped, _)) => (
+            cons_ordered_selection(two_step, selection),
+            rezipped,
+          )
+        };
+      };
+
+    let remove_tiles =
+        (~remove_tiles, (two_step, selection), p)
+        : option((HPat.Inner.t, t, HPat.t)) =>
+      switch (unzip(two_step, (p, None))) {
+      | `Pat(p, zrest) =>
+        let+ (removed, removed_path, p) = remove_tiles(selection, p);
+        switch (zip_ztile(p, Option.get(zrest))) {
+        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (two_step, `Pat(p, _)) => (
+            removed,
+            cons(two_step, removed_path),
+            p,
+          )
+        };
+      | `Typ(ty, zrest) =>
+        let+ (removed, removed_path, ty) = Typ.remove_tiles(selection, ty);
+        switch (Typ.zip_ztile(ty, Option.get(zrest))) {
+        | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(p, _none)) => (
+            HPat.Inner.Other(removed),
+            cons(two_step, removed_path),
+            p,
+          )
+        };
+      };
+
+    let restructure =
+        (
+          ~place_cursor: [ | `Selection | `Other] as 'pc,
+          ~restructure: (~place_cursor: 'pc=?, _, _, _) => _,
+          (two_step, (l, r), target),
+          p: HPat.t,
+        )
+        : option((t, HPat.t)) =>
+      switch (unzip(two_step, (p, None))) {
+      | `Pat(p, zrest) =>
+        let+ (path, p) = restructure(~place_cursor, (l, r), target, p);
+        switch (zip_ztile(p, Option.get(zrest))) {
+        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(p, _none)) => (cons(two_step, path), p)
+        };
+      | `Typ(ty, zrest) =>
+        let+ (path, ty) =
+          Typ.restructure(~place_cursor, (l, r), target, ty);
+        switch (Typ.zip_ztile(ty, Option.get(zrest))) {
+        | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(p, _none)) => (cons(two_step, path), p)
+        };
+      };
+
+    let delete_selection =
+        (~delete_selection, (two_step, selection), p): option((t, HPat.t)) =>
+      switch (unzip(two_step, (p, None))) {
+      | `Typ(ty, unzipped) =>
+        let+ (path, ty) = Typ.delete_selection(selection, ty);
+        switch (Typ.zip_ztile(ty, Option.get(unzipped))) {
+        | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(p, _)) => (cons(two_step, path), p)
+        };
+      | `Pat(p, unzipped) =>
+        let+ (path, p) = delete_selection(selection, p);
+        switch (zip_ztile(p, Option.get(unzipped))) {
+        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(p, _)) => (cons(two_step, path), p)
+        };
+      };
   };
-
-  let delete_selection = (_, _) => failwith("unimplemented");
-
-  let remove_tiles = (_, _) => failwith("unimplemented");
-  let insert_tiles = (_, _, _) => failwith("unimplemented");
-  [@warning "-27"]
-  let restructure = (~place_cursor=`Selection, (_, _), _, _) =>
-    failwith("unimplemented");
+  include Common(HPat.Tile, HPat.Inner, P);
 }
 and Exp: {
   type zipped = [ | `Exp(ZExp.zipper)];
@@ -736,7 +836,7 @@ and Exp: {
   let unzip_tile: (child_step, HExp.Tile.t, ZExp.t) => unzipped;
   let unzip: (two_step, ZExp.zipper) => unzipped;
 
-  let sort_at: (t, HExp.t) => [ | `Exp | `Pat | `Typ];
+  let sort_at: (t, HExp.t) => Sort.t;
 
   let move: (Direction.t, t, ZExp.zipper) => option((t, did_it_zip));
 
@@ -801,28 +901,25 @@ and Exp: {
     unzip_tile(r, tile, ze);
   };
 
-  let rec sort_at = ((steps, j): t, e: HExp.t): [ | `Typ | `Pat | `Exp] =>
+  let rec sort_at = ((steps, j): t, e: HExp.t): Sort.t =>
     switch (steps) {
-    | [] => `Exp
+    | [] => Exp
     | [two_step, ...steps] =>
       let path = (steps, j);
       switch (unzip(two_step, (e, None))) {
-      | `Pat(p, _) =>
-        switch (Pat.sort(path, p)) {
-        | `Typ => `Typ
-        | `Pat => `Pat
-        }
+      | `Pat(p, _) => Pat.sort_at(path, p)
       | `Exp(e, _) => sort_at(path, e)
       };
     };
 
   module P = {
     type ztile = ZExp.ztile;
+    type zipper = ZExp.zipper;
+
     type nonrec zipped = zipped;
     type nonrec unzipped = unzipped;
-    type zipper = (HExp.t, option(ztile));
 
-    let sort = `Exp;
+    let sort = Sort.Exp;
     let sort_at = sort_at;
 
     let zip_ztile = zip_ztile;
@@ -889,8 +986,7 @@ and Exp: {
       switch (unzip(two_step, (e, None))) {
       | `Exp(e, zrest) =>
         let+ (removed, removed_path, e) = remove_tiles(selection, e);
-        let ztile = OptUtil.get(() => assert(false), zrest);
-        let (two_step, `Exp(e, _)) = zip_ztile(e, ztile);
+        let (two_step, `Exp(e, _)) = zip_ztile(e, Option.get(zrest));
         (removed, cons(two_step, removed_path), e);
       | `Pat(p, zrest) =>
         let+ (removed, removed_path, p) = Pat.remove_tiles(selection, p);
