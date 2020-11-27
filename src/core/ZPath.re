@@ -531,7 +531,7 @@ module rec Typ: {
       switch (tile) {
       | Operand(OperandHole | Num)
       | BinOp(OperatorHole | Arrow) => None
-      | Operand(Paren(ty)) => Some((0, d == Left ? List.length(ty) : 0))
+      | Operand(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
       | PreOp(_) => raise(HTyp.Tile.Void_PreOp)
       | PostOp(_) => raise(HTyp.Tile.Void_PostOp)
       };
@@ -714,8 +714,8 @@ and Pat: {
       switch (tile) {
       | Operand(OperandHole | Var(_))
       | BinOp(OperatorHole) => None
-      | Operand(Paren(p)) => Some((0, d == Left ? List.length(p) : 0))
-      | PostOp(Ann(_, ty)) => Some((0, d == Left ? List.length(ty) : 0))
+      | Operand(Paren(p)) => Some((0, d == Left ? 0 : List.length(p)))
+      | PostOp(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
       | PreOp(_) => raise(HPat.Tile.Void_PreOp)
       };
     let move = (~move, d, path, unzipped) =>
@@ -944,8 +944,8 @@ and Exp: {
       | Operand(OperandHole | Num(_) | Var(_))
       | BinOp(Plus(_) | OperatorHole) => None
       | Operand(Paren(e))
-      | PostOp(Ap(_, e)) => Some((0, d == Left ? List.length(e) : 0))
-      | PreOp(Lam(_, p)) => Some((0, d == Left ? List.length(p) : 0))
+      | PostOp(Ap(_, e)) => Some((0, d == Left ? 0 : List.length(e)))
+      | PreOp(Lam(_, p)) => Some((0, d == Left ? 0 : List.length(p)))
       };
     let move = (~move, d, path, unzipped) =>
       switch (unzipped) {
