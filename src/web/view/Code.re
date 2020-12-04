@@ -70,6 +70,7 @@ module type COMMON = {
   type tiles;
   let length: tiles => int;
   let offset: (ZPath.t, tiles) => int;
+  let empty_holes: tiles => list(int);
 };
 
 let space = 1;
@@ -77,25 +78,14 @@ module Common =
        (
          T: Tile.S,
          V: {
-           let length_of_operand: T.operand => int;
-           let length_of_preop: T.preop => int;
-           let length_of_postop: T.postop => int;
-           let length_of_binop: T.binop => int;
-
+           let length_of_tile: T.t => int;
            let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
+           let empty_holes_of_tile: T.t => list(int);
          },
        ) => {
-  let length_of_tile = (t: T.t): int =>
-    Tile.map(
-      V.length_of_operand,
-      V.length_of_preop,
-      V.length_of_postop,
-      V.length_of_binop,
-      t,
-    );
   let length = (ts: T.s): int =>
     ts
-    |> List.map(length_of_tile)
+    |> List.map(V.length_of_tile)
     |> List.map((+)(1))
     |> List.fold_left((+), -1);
 
@@ -110,6 +100,20 @@ module Common =
       + space
       + V.offset_tile((child_step, (steps, j)), tile);
     };
+
+  let empty_holes = (ts: T.s): list(int) => {
+    let (_, holes) =
+      ts
+      |> ListUtil.fold_left_map(
+           (start, tile) => {
+             let origins =
+               V.empty_holes_of_tile(tile) |> List.map((+)(start));
+             (start + V.length_of_tile(tile) + space, origins);
+           },
+           0,
+         );
+    List.concat(holes);
+  };
 };
 
 module type TYP = COMMON with type tiles = HTyp.t;
@@ -117,17 +121,20 @@ module rec Typ: TYP = {
   type tiles = HTyp.t;
 
   module V = {
-    let length_of_operand =
-      fun
-      | HTyp.Tile.OperandHole => 1
-      | Num => 3
-      | Paren(body) => 1 + space + Typ.length(body) + space + 1;
-    let length_of_preop = () => raise(HTyp.Tile.Void_PreOp);
-    let length_of_postop = () => raise(HTyp.Tile.Void_PostOp);
-    let length_of_binop =
-      fun
-      | HTyp.Tile.OperatorHole
-      | Arrow => 1;
+    open HTyp.Tile;
+
+    let length_of_tile: t => int =
+      Tile.map(
+        fun
+        | HTyp.Tile.OperandHole => 1
+        | Num => 3
+        | Paren(body) => 1 + space + Typ.length(body) + space + 1,
+        () => raise(Void_PreOp),
+        () => raise(Void_PostOp),
+        fun
+        | HTyp.Tile.OperatorHole
+        | Arrow => 1,
+      );
 
     let offset_tile = ((child_step, path), tile) => {
       let `Typ(ty, unzipped) =
@@ -139,6 +146,21 @@ module rec Typ: TYP = {
         failwith("rezipping unzipped result would change sort")
       | BinOp(_) => raise(ZTyp.Void_ZBinOp)
       };
+    };
+
+    let empty_holes_of_tile = {
+      let shift = n => List.map((+)(n + space));
+      Tile.map(
+        fun
+        | HTyp.Tile.OperandHole => [0]
+        | Num => []
+        | Paren(body) => shift(1, Typ.empty_holes(body)),
+        () => raise(Void_PreOp),
+        () => raise(Void_PostOp),
+        fun
+        | HTyp.Tile.OperatorHole => [0]
+        | Arrow => [],
+      );
     };
   };
   include Common(HTyp.Tile, V);
@@ -152,18 +174,20 @@ module rec Pat: PAT = {
   type tiles = HPat.t;
 
   module V = {
-    let length_of_operand =
-      fun
-      | HPat.Tile.OperandHole => 1
-      | Var(x) => String.length(x)
-      | Paren(body) => 1 + space + Pat.length(body) + space + 1;
-    let length_of_preop = () => raise(HPat.Tile.Void_PreOp);
-    let length_of_postop =
-      fun
-      | HPat.Tile.Ann(_, ann) => 1 + space + Typ.length(ann);
-    let length_of_binop =
-      fun
-      | HPat.Tile.OperatorHole => 1;
+    open HPat.Tile;
+
+    let length_of_tile: t => int =
+      Tile.map(
+        fun
+        | OperandHole => 1
+        | Var(x) => String.length(x)
+        | Paren(body) => 1 + space + Pat.length(body) + space + 1,
+        () => raise(Void_PreOp),
+        fun
+        | Ann(_, ann) => 1 + space + Typ.length(ann),
+        fun
+        | OperatorHole => 1,
+      );
 
     let offset_tile = ((child_step, path), tile) =>
       switch (ZPath.Pat.unzip_tile(child_step, tile, ZPat.mk())) {
@@ -184,10 +208,24 @@ module rec Pat: PAT = {
         | BinOp(_) => raise(ZPat.Void_ZBinOp)
         }
       };
+
+    let empty_holes_of_tile = {
+      let shift = n => List.map((+)(n + space));
+      Tile.map(
+        fun
+        | OperandHole => [0]
+        | Var(_) => []
+        | Paren(body) => shift(1, Pat.empty_holes(body)),
+        () => raise(Void_PreOp),
+        fun
+        | Ann(_, ty) => shift(1, Typ.empty_holes(ty)),
+        fun
+        | OperatorHole => [0],
+      );
+    };
   };
   include Common(HPat.Tile, V);
 
-  let empty_holes = _ => failwith("todo");
   let err_holes = _ => failwith("todo");
   let err_holes_z = (_, _) => failwith("todo");
 
@@ -201,22 +239,23 @@ module rec Exp: EXP = {
   type tiles = HExp.t;
 
   module V = {
-    let length_of_operand =
-      fun
-      | HExp.Tile.OperandHole => 1
-      | Var(_, x) => String.length(x)
-      | Num(_, n) => String.length(string_of_int(n))
-      | Paren(body) => 1 + space + Exp.length(body) + space + 1;
-    let length_of_preop =
-      fun
-      | HExp.Tile.Lam(_, p) => 1 + space + Pat.length(p) + space + 1;
-    let length_of_postop =
-      fun
-      | HExp.Tile.Ap(_, arg) => 1 + space + Exp.length(arg) + space + 1;
-    let length_of_binop =
-      fun
-      | HExp.Tile.OperatorHole
-      | Plus(_) => 1;
+    open HExp.Tile;
+
+    let length_of_tile =
+      Tile.map(
+        fun
+        | OperandHole => 1
+        | Var(_, x) => String.length(x)
+        | Num(_, n) => String.length(string_of_int(n))
+        | Paren(body) => 1 + space + Exp.length(body) + space + 1,
+        fun
+        | Lam(_, p) => 1 + space + Pat.length(p) + space + 1,
+        fun
+        | Ap(_, arg) => 1 + space + Exp.length(arg) + space + 1,
+        fun
+        | OperatorHole
+        | Plus(_) => 1,
+      );
 
     let offset_tile = ((child_step, path), tile) =>
       switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
@@ -236,33 +275,26 @@ module rec Exp: EXP = {
         | BinOp(_) => raise(ZExp.Void_ZBinOp)
         }
       };
+
+    let empty_holes_of_tile = {
+      let shift = n => List.map((+)(n + space));
+      Tile.map(
+        fun
+        | OperandHole => [0]
+        | Num(_)
+        | Var(_) => []
+        | Paren(body) => shift(1, Exp.empty_holes(body)),
+        fun
+        | Lam(_, p) => shift(1, Pat.empty_holes(p)),
+        fun
+        | Ap(_, arg) => shift(1, Exp.empty_holes(arg)),
+        fun
+        | OperatorHole => [0]
+        | Plus(_) => [],
+      );
+    };
   };
   include Common(HExp.Tile, V);
-
-  let rec empty_holes = (e: HExp.t): list(int) => {
-    let of_tile = (tile: HExp.Tile.t): list(int) => {
-      let shift = List.map((+)(2));
-      switch (tile) {
-      | Operand(OperandHole) => [0]
-      | Operand(Num(_) | Var(_)) => []
-      | Operand(Paren(body)) => shift(empty_holes(body))
-      | PreOp(Lam(_, p)) => shift(Pat.empty_holes(p))
-      | PostOp(Ap(_, arg)) => shift(empty_holes(arg))
-      | BinOp(OperatorHole) => [0]
-      | BinOp(Plus(_)) => []
-      };
-    };
-    let (_, holes) =
-      e
-      |> ListUtil.fold_left_map(
-           (start, tile) => {
-             let origins = of_tile(tile) |> List.map((+)(start));
-             (start + length_of_tile(tile) + 1, origins);
-           },
-           0,
-         );
-    List.concat(holes);
-  };
 
   let rec err_holes =
           (~expanded=false, e: HExp.t)
