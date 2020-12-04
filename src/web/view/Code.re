@@ -169,7 +169,17 @@ module rec Typ: TYP = {
   let view = (~font_metrics as _, _, _) => failwith("todo");
 };
 
-module type PAT = COMMON with type tiles = HPat.t;
+module type PAT = {
+  include COMMON with type tiles = HPat.t;
+  let err_holes: HPat.t => list((int, CodeDecoration.ErrHole.profile));
+  let err_holes_z:
+    (ZPath.t, HPat.t) => list((int, CodeDecoration.ErrHole.profile));
+
+  let view_of_ztile: ZPat.ztile => (list(Node.t), list(Node.t));
+  let view_of_normal:
+    (~font_metrics: FontMetrics.t, ZPath.t, HPat.t) => list(Node.t);
+  let view: (~font_metrics: FontMetrics.t, EditState.Mode.t, HPat.t) => Node.t;
+};
 module rec Pat: PAT = {
   type tiles = HPat.t;
 
@@ -234,7 +244,14 @@ module rec Pat: PAT = {
   let view = (~font_metrics as _, _, _) => failwith("todo");
 };
 
-module type EXP = COMMON with type tiles = HExp.t;
+module type EXP = {
+  include COMMON with type tiles = HExp.t;
+  let err_holes:
+    (~expanded: bool=?, HExp.t) =>
+    list((int, CodeDecoration.ErrHole.profile));
+  let err_holes_z:
+    (ZPath.t, HExp.t) => list((int, CodeDecoration.ErrHole.profile));
+};
 module rec Exp: EXP = {
   type tiles = HExp.t;
 
@@ -318,7 +335,10 @@ module rec Exp: EXP = {
       | PreOp((Lam(_, p) as preop, body)) =>
         let pat_holes = shift(1 + space, Pat.err_holes(p));
         let body_holes =
-          shift(length_of_preop(preop) + space, err_holes(~expanded, body));
+          shift(
+            V.length_of_tile(PreOp(preop)) + space,
+            err_holes(~expanded, body),
+          );
         pat_holes @ body_holes;
       | PostOp((fn, Ap(_, arg))) =>
         let fn_holes = err_holes(~expanded, fn);
@@ -328,7 +348,7 @@ module rec Exp: EXP = {
         let l_holes = err_holes(~expanded, l);
         let r_holes =
           shift(
-            length(l) + space + length_of_binop(binop) + space,
+            length(l) + space + V.length_of_tile(BinOp(binop)) + space,
             err_holes(~expanded, r),
           );
         l_holes @ r_holes;
@@ -368,7 +388,8 @@ module rec Exp: EXP = {
                 err_holes_z(([two_step, ...steps], j), body);
               };
           let holes_p = shift(2, holes_p);
-          let holes_body = shift(length_of_preop(preop) + 1, holes_body);
+          let holes_body =
+            shift(V.length_of_tile(PreOp(preop)) + space, holes_body);
           holes_p @ holes_body;
         | PostOp((fn, Ap(_, arg))) =>
           let in_postop = tile_step == List.length(fn);
@@ -377,7 +398,7 @@ module rec Exp: EXP = {
               ? err_holes(fn) : err_holes_z(([two_step, ...steps], j), fn);
           let holes_arg =
             in_postop ? err_holes_z((steps, j), arg) : err_holes(arg);
-          let holes_arg = shift(length(fn) + 1, holes_arg);
+          let holes_arg = shift(length(fn) + space, holes_arg);
           holes_fn @ holes_arg;
         | BinOp((l, binop, r)) =>
           let len_l = List.length(l);
@@ -397,7 +418,10 @@ module rec Exp: EXP = {
                 err_holes_z(([two_step, ...steps], j), r);
               };
           let holes_r =
-            shift(length(l) + 1 + length_of_binop(binop) + 1, holes_r);
+            shift(
+              length(l) + space + V.length_of_tile(BinOp(binop)) + space,
+              holes_r,
+            );
           holes_l @ holes_r;
         };
       };
@@ -411,7 +435,7 @@ module rec Exp: EXP = {
         switch (operand) {
         | OperandHole => ([], [], 1, true)
         | Var(_)
-        | Num(_) => ([], [], length_of_operand(operand), false)
+        | Num(_) => ([], [], V.length_of_tile(Operand(operand)), false)
         | Paren(body) =>
           let body_len = length(body);
           ([(2, body_len)], [], 2 + body_len + 2, false);
