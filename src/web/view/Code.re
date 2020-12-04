@@ -68,9 +68,12 @@ let decoration_container =
 
 module type COMMON = {
   type tiles;
+  type ztile;
   let length: tiles => int;
   let offset: (ZPath.t, tiles) => int;
   let empty_holes: tiles => list(int);
+  let view_of_ztile: ztile => (list(Node.t), list(Node.t));
+  let view: (~font_metrics: FontMetrics.t, EditState.Mode.t, tiles) => Node.t;
 };
 
 let space = 1;
@@ -116,9 +119,10 @@ module Common =
   };
 };
 
-module type TYP = COMMON with type tiles = HTyp.t;
+module type TYP = COMMON with type tiles = HTyp.t and type ztile = ZTyp.ztile;
 module rec Typ: TYP = {
   type tiles = HTyp.t;
+  type ztile = ZTyp.ztile;
 
   module V = {
     open HTyp.Tile;
@@ -170,7 +174,7 @@ module rec Typ: TYP = {
 };
 
 module type PAT = {
-  include COMMON with type tiles = HPat.t;
+  include COMMON with type tiles = HPat.t and type ztile = ZPat.ztile;
   let err_holes: HPat.t => list((int, CodeDecoration.ErrHole.profile));
   let err_holes_z:
     (ZPath.t, HPat.t) => list((int, CodeDecoration.ErrHole.profile));
@@ -182,6 +186,7 @@ module type PAT = {
 };
 module rec Pat: PAT = {
   type tiles = HPat.t;
+  type ztile = ZPat.ztile;
 
   module V = {
     open HPat.Tile;
@@ -245,7 +250,7 @@ module rec Pat: PAT = {
 };
 
 module type EXP = {
-  include COMMON with type tiles = HExp.t;
+  include COMMON with type tiles = HExp.t and type ztile = ZExp.ztile;
   let err_holes:
     (~expanded: bool=?, HExp.t) =>
     list((int, CodeDecoration.ErrHole.profile));
@@ -254,6 +259,7 @@ module type EXP = {
 };
 module rec Exp: EXP = {
   type tiles = HExp.t;
+  type ztile = ZExp.ztile;
 
   module V = {
     open HExp.Tile;
