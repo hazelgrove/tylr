@@ -73,6 +73,8 @@ module type COMMON = {
   let offset: (ZPath.t, tiles) => int;
   let empty_holes: tiles => list(int);
   let view_of_ztile: ztile => (list(Node.t), list(Node.t));
+  let view_of_normal:
+    (~font_metrics: FontMetrics.t, ZPath.t, tiles) => list(Node.t);
   let view: (~font_metrics: FontMetrics.t, EditState.Mode.t, tiles) => Node.t;
 };
 
@@ -86,6 +88,9 @@ module Common =
            let text_of_tile: T.t => Node.t;
            let profile_of_tile: T.t => CodeDecoration.Tile.profile;
            let empty_holes_of_tile: T.t => list(int);
+           let view_of_normal:
+             (~font_metrics: FontMetrics.t, (ZPath.two_step, ZPath.t), T.s) =>
+             list(Node.t);
          },
        ) => {
   let length = (ts: T.s): int =>
@@ -205,6 +210,31 @@ module Common =
       };
     Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));
   };
+
+  let view_of_normal =
+      (~font_metrics: FontMetrics.t, (steps, j): ZPath.t, ts: T.s)
+      : list(Node.t) => {
+    let view_of_decorated_term = view_of_decorated_term(~font_metrics);
+    switch (steps) {
+    | [] =>
+      let caret = {
+        let (prefix, _) = ListUtil.split_n(j, ts);
+        let len = length(prefix);
+        CodeDecoration.Caret.view(~font_metrics, len, []);
+      };
+      let code = {
+        let k = j == List.length(ts) ? j - 1 : j;
+        let ZList.{prefix, z, suffix} = Ts.nth_root(k, ts);
+        let prefix = List.map(V.text_of_tile, prefix);
+        let zroot = view_of_decorated_term(z);
+        let suffix = List.map(V.text_of_tile, suffix);
+        CodeText.space(prefix @ [zroot, ...suffix]);
+      };
+      [Node.span([Attr.classes(["zipped"])], [caret, ...code])];
+    | [two_step, ...steps] =>
+      V.view_of_normal(~font_metrics, (two_step, (steps, j)), ts)
+    };
+  };
 };
 
 module type TYP = COMMON with type tiles = HTyp.t and type ztile = ZTyp.ztile;
@@ -256,6 +286,13 @@ module rec Typ: TYP = {
         | HTyp.Tile.OperatorHole => [0]
         | Arrow => [],
       );
+    };
+
+    let view_of_normal = (~font_metrics, (two_step, path), p) => {
+      let `Typ(ty, unzipped) = ZPath.Typ.unzip(two_step, (p, None));
+      let (l, r) = Typ.view_of_ztile(Option.get(unzipped));
+      let ty = Typ.view_of_normal(~font_metrics, path, ty);
+      l @ ty @ r;
     };
   };
   include Common(HTyp.Tile, V);
@@ -332,6 +369,18 @@ module rec Pat: PAT = {
         | OperatorHole => [0],
       );
     };
+
+    let view_of_normal = (~font_metrics, (two_step, path), p) =>
+      switch (ZPath.Pat.unzip(two_step, (p, None))) {
+      | `Typ(ty, unzipped) =>
+        let (l, r) = Typ.view_of_ztile(Option.get(unzipped));
+        let ty = Typ.view_of_normal(~font_metrics, path, ty);
+        l @ ty @ r;
+      | `Pat(p, unzipped) =>
+        let (l, r) = Pat.view_of_ztile(Option.get(unzipped));
+        let p = Pat.view_of_normal(~font_metrics, path, p);
+        l @ p @ r;
+      };
   };
   include Common(HPat.Tile, V);
 
@@ -456,6 +505,18 @@ module rec Exp: EXP = {
         | Plus(_) => [],
       );
     };
+
+    let view_of_normal = (~font_metrics, (two_step, path), e) =>
+      switch (ZPath.Exp.unzip(two_step, (e, None))) {
+      | `Pat(p, unzipped) =>
+        let (l, r) = Pat.view_of_ztile(Option.get(unzipped));
+        let p = Pat.view_of_normal(~font_metrics, path, p);
+        l @ p @ r;
+      | `Exp(e, unzipped) =>
+        let (l, r) = Exp.view_of_ztile(Option.get(unzipped));
+        let e = Exp.view_of_normal(~font_metrics, path, e);
+        l @ e @ r;
+      };
   };
   include Common(HExp.Tile, V);
 
@@ -585,42 +646,6 @@ module rec Exp: EXP = {
     | PreOp(_) => raise(ZExp.Void_ZPreOp)
     | BinOp(_) => raise(ZExp.Void_ZBinOp)
     };
-  };
-
-  let view_of_normal =
-      (~font_metrics: FontMetrics.t, (steps, j): ZPath.t, e: HExp.t)
-      : list(Node.t) => {
-    let view_of_decorated_term = view_of_decorated_term(~font_metrics);
-    let rec go = (steps, e) =>
-      switch (steps) {
-      | [] =>
-        let caret = {
-          let (prefix, _) = ListUtil.split_n(j, e);
-          let len = length(prefix);
-          CodeDecoration.Caret.view(~font_metrics, len, []);
-        };
-        let code = {
-          let k = j == List.length(e) ? j - 1 : j;
-          let ZList.{prefix, z, suffix} = HExp.nth_root(k, e);
-          let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-          let zroot = view_of_decorated_term(z);
-          let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-          CodeText.space(prefix @ [zroot, ...suffix]);
-        };
-        [Node.span([Attr.classes(["zipped"])], [caret, ...code])];
-      | [two_step, ...steps] =>
-        switch (ZPath.Exp.unzip(two_step, (e, None))) {
-        | `Pat(p, unzipped) =>
-          let (l, r) = Pat.view_of_ztile(Option.get(unzipped));
-          let p = Pat.view_of_normal(~font_metrics, (steps, j), p);
-          l @ p @ r;
-        | `Exp(e, unzipped) =>
-          let (l, r) = view_of_ztile(Option.get(unzipped));
-          let e = go(steps, e);
-          l @ e @ r;
-        }
-      };
-    go(steps, e);
   };
 
   let view_of_decorated_selection =
