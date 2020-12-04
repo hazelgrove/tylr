@@ -179,6 +179,32 @@ module Common =
       [text, contour],
     );
   };
+
+  module Ts = Tiles.Make(T);
+  let view_of_decorated_term =
+      (~font_metrics: FontMetrics.t, root: Ts.root): Node.t => {
+    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
+    let view_of_decorated_open_child =
+      view_of_decorated_open_child(~font_metrics);
+    let vs =
+      switch (root) {
+      | Operand(operand) => [view_of_decorated_tile(Operand(operand))]
+      | PreOp((preop, r)) => [
+          view_of_decorated_tile(PreOp(preop)),
+          view_of_decorated_open_child(~side=Right, r),
+        ]
+      | PostOp((l, postop)) => [
+          view_of_decorated_open_child(~side=Left, l),
+          view_of_decorated_tile(PostOp(postop)),
+        ]
+      | BinOp((l, binop, r)) => [
+          view_of_decorated_open_child(~side=Left, l),
+          view_of_decorated_tile(BinOp(binop)),
+          view_of_decorated_open_child(~side=Right, r),
+        ]
+      };
+    Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));
+  };
 };
 
 module type TYP = COMMON with type tiles = HTyp.t and type ztile = ZTyp.ztile;
@@ -547,31 +573,6 @@ module rec Exp: EXP = {
       };
       outer_hole @ inner_holes;
     };
-
-  let view_of_decorated_term =
-      (~font_metrics: FontMetrics.t, root: HExp.root): Node.t => {
-    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
-    let view_of_decorated_open_child =
-      view_of_decorated_open_child(~font_metrics);
-    let vs =
-      switch (root) {
-      | Operand(operand) => [view_of_decorated_tile(Operand(operand))]
-      | PreOp((preop, r)) => [
-          view_of_decorated_tile(PreOp(preop)),
-          view_of_decorated_open_child(~side=Right, r),
-        ]
-      | PostOp((l, postop)) => [
-          view_of_decorated_open_child(~side=Left, l),
-          view_of_decorated_tile(PostOp(postop)),
-        ]
-      | BinOp((l, binop, r)) => [
-          view_of_decorated_open_child(~side=Left, l),
-          view_of_decorated_tile(BinOp(binop)),
-          view_of_decorated_open_child(~side=Right, r),
-        ]
-      };
-    Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));
-  };
 
   let view_of_ztile = (ztile: ZExp.ztile): (list(Node.t), list(Node.t)) => {
     switch (ztile) {
