@@ -46,6 +46,8 @@ let map =
   | BinOp(binop) => f_binop(binop);
 
 module type S = {
+  let sort: Sort.t;
+
   [@deriving sexp]
   type operand;
   [@deriving sexp]

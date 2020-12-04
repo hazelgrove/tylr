@@ -83,6 +83,8 @@ module Common =
          V: {
            let length_of_tile: T.t => int;
            let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
+           let text_of_tile: T.t => Node.t;
+           let profile_of_tile: T.t => CodeDecoration.Tile.profile;
            let empty_holes_of_tile: T.t => list(int);
          },
        ) => {
@@ -116,6 +118,22 @@ module Common =
            0,
          );
     List.concat(holes);
+  };
+
+  let view_of_decorated_tile =
+      (~font_metrics: FontMetrics.t, tile: T.t): Node.t => {
+    let hole_radii = hole_radii(~font_metrics);
+    let text = V.text_of_tile(tile);
+    let decoration = {
+      let profile = V.profile_of_tile(tile);
+      decoration_container(
+        ~font_metrics,
+        ~length=profile.len,
+        ~cls="tile",
+        CodeDecoration.Tile.view(~sort=T.sort, ~hole_radii, profile),
+      );
+    };
+    Node.span([Attr.classes(["decorated-tile"])], [text, decoration]);
   };
 };
 
@@ -151,6 +169,9 @@ module rec Typ: TYP = {
       | BinOp(_) => raise(ZTyp.Void_ZBinOp)
       };
     };
+
+    let text_of_tile = CodeText.Typ.view_of_tile;
+    let profile_of_tile = _ => failwith("todo");
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
@@ -223,6 +244,9 @@ module rec Pat: PAT = {
         | BinOp(_) => raise(ZPat.Void_ZBinOp)
         }
       };
+
+    let text_of_tile = CodeText.Pat.view_of_tile;
+    let profile_of_tile = _ => failwith("todo");
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
@@ -298,6 +322,52 @@ module rec Exp: EXP = {
         | BinOp(_) => raise(ZExp.Void_ZBinOp)
         }
       };
+
+    let text_of_tile = CodeText.Exp.view_of_tile;
+
+    let profile_of_tile = (tile: HExp.Tile.t): CodeDecoration.Tile.profile => {
+      switch (tile) {
+      | Operand(operand) =>
+        let (open_children, closed_children, len, is_hole) =
+          switch (operand) {
+          | OperandHole => ([], [], 1, true)
+          | Var(_)
+          | Num(_) => ([], [], length_of_tile(Operand(operand)), false)
+          | Paren(body) =>
+            let body_len = Exp.length(body);
+            ([(2, body_len)], [], 2 + body_len + 2, false);
+          };
+        {shape: `Operand(is_hole), len, open_children, closed_children};
+      | PreOp(preop) =>
+        let (open_children, closed_children, len) =
+          switch (preop) {
+          | Lam(_, p) =>
+            let p_len = Pat.length(p);
+            ([], [(2, p_len)], 2 + p_len + 2);
+          };
+        {shape: `PreOp, len, open_children, closed_children};
+      | PostOp(postop) =>
+        let (open_children, closed_children, len) =
+          switch (postop) {
+          | Ap(_, arg) =>
+            let arg_len = Exp.length(arg);
+            ([], [(2, arg_len)], 2 + arg_len + 2);
+          };
+        {shape: `PostOp, len, open_children, closed_children};
+      | BinOp(binop) =>
+        let (open_children, closed_children, len, is_hole) =
+          switch (binop) {
+          | Plus(_) => ([], [], 1, false)
+          | OperatorHole => ([], [], 1, true)
+          };
+        CodeDecoration.Tile.{
+          shape: `BinOp(is_hole),
+          len,
+          open_children,
+          closed_children,
+        };
+      };
+    };
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
@@ -433,66 +503,6 @@ module rec Exp: EXP = {
       };
       outer_hole @ inner_holes;
     };
-
-  let profile_of_tile = (tile: HExp.Tile.t): CodeDecoration.Tile.profile => {
-    switch (tile) {
-    | Operand(operand) =>
-      let (open_children, closed_children, len, is_hole) =
-        switch (operand) {
-        | OperandHole => ([], [], 1, true)
-        | Var(_)
-        | Num(_) => ([], [], V.length_of_tile(Operand(operand)), false)
-        | Paren(body) =>
-          let body_len = length(body);
-          ([(2, body_len)], [], 2 + body_len + 2, false);
-        };
-      {shape: `Operand(is_hole), len, open_children, closed_children};
-    | PreOp(preop) =>
-      let (open_children, closed_children, len) =
-        switch (preop) {
-        | Lam(_, p) =>
-          let p_len = Pat.length(p);
-          ([], [(2, p_len)], 2 + p_len + 2);
-        };
-      {shape: `PreOp, len, open_children, closed_children};
-    | PostOp(postop) =>
-      let (open_children, closed_children, len) =
-        switch (postop) {
-        | Ap(_, arg) =>
-          let arg_len = length(arg);
-          ([], [(2, arg_len)], 2 + arg_len + 2);
-        };
-      {shape: `PostOp, len, open_children, closed_children};
-    | BinOp(binop) =>
-      let (open_children, closed_children, len, is_hole) =
-        switch (binop) {
-        | Plus(_) => ([], [], 1, false)
-        | OperatorHole => ([], [], 1, true)
-        };
-      CodeDecoration.Tile.{
-        shape: `BinOp(is_hole),
-        len,
-        open_children,
-        closed_children,
-      };
-    };
-  };
-
-  let view_of_decorated_tile =
-      (~font_metrics: FontMetrics.t, tile: HExp.Tile.t): Node.t => {
-    let hole_radii = hole_radii(~font_metrics);
-    let text = CodeText.Exp.view_of_tile(tile);
-    let decoration = {
-      let profile = profile_of_tile(tile);
-      decoration_container(
-        ~font_metrics,
-        ~length=profile.len,
-        ~cls="tile",
-        CodeDecoration.Tile.view(~sort=Exp, ~hole_radii, profile),
-      );
-    };
-    Node.span([Attr.classes(["decorated-tile"])], [text, decoration]);
-  };
 
   let view_of_decorated_open_child =
       (~font_metrics: FontMetrics.t, ~side: Direction.t, e: HExp.t): Node.t => {

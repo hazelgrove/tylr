@@ -2,6 +2,8 @@ open Sexplib.Std;
 open Util;
 
 module Tile = {
+  let sort = Sort.Pat;
+
   [@deriving sexp]
   type s = list(t)
   [@deriving sexp]
