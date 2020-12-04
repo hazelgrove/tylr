@@ -120,6 +120,11 @@ module Common =
     List.concat(holes);
   };
 
+  let text = (ts: T.s): Node.t => {
+    let tiles = List.map(V.text_of_tile, ts);
+    Node.span([], ListUtil.join(Node.text(Unicode.nbsp), tiles));
+  };
+
   let view_of_decorated_tile =
       (~font_metrics: FontMetrics.t, tile: T.t): Node.t => {
     let hole_radii = hole_radii(~font_metrics);
@@ -134,6 +139,45 @@ module Common =
       );
     };
     Node.span([Attr.classes(["decorated-tile"])], [text, decoration]);
+  };
+
+  let view_of_decorated_open_child =
+      (~font_metrics: FontMetrics.t, ~side: Direction.t, ts: T.s): Node.t => {
+    let text = text(ts);
+    let contour = {
+      let length = length(ts);
+      decoration_container(
+        ~font_metrics,
+        ~length=length + 1,
+        ~origin=
+          switch (side) {
+          | Left => 0
+          | Right => (-1)
+          },
+        ~cls="open-child",
+        CodeDecoration.OpenChild.view(~sort=T.sort, ~side, length),
+      );
+    };
+    /*
+     let inset_empty_holes = {
+       let radii = hole_radii(~font_metrics);
+       empty_holes(e)
+       |> List.map(origin =>
+            decoration_container(
+              ~font_metrics,
+              ~origin,
+              ~length=1,
+              ~cls="inset-empty-hole",
+              CodeDecoration.EmptyHole.view(~radii, ~inset=true),
+            )
+          );
+     };
+     */
+    Node.span(
+      [Attr.classes(["decorated-open-child"])],
+      // [text, contour, ...inset_empty_holes],
+      [text, contour],
+    );
   };
 };
 
@@ -503,45 +547,6 @@ module rec Exp: EXP = {
       };
       outer_hole @ inner_holes;
     };
-
-  let view_of_decorated_open_child =
-      (~font_metrics: FontMetrics.t, ~side: Direction.t, e: HExp.t): Node.t => {
-    let text = CodeText.Exp.view(e);
-    let contour = {
-      let length = length(e);
-      decoration_container(
-        ~font_metrics,
-        ~length=length + 1,
-        ~origin=
-          switch (side) {
-          | Left => 0
-          | Right => (-1)
-          },
-        ~cls="open-child",
-        CodeDecoration.OpenChild.view(~sort=Exp, ~side, length),
-      );
-    };
-    /*
-     let inset_empty_holes = {
-       let radii = hole_radii(~font_metrics);
-       empty_holes(e)
-       |> List.map(origin =>
-            decoration_container(
-              ~font_metrics,
-              ~origin,
-              ~length=1,
-              ~cls="inset-empty-hole",
-              CodeDecoration.EmptyHole.view(~radii, ~inset=true),
-            )
-          );
-     };
-     */
-    Node.span(
-      [Attr.classes(["decorated-open-child"])],
-      // [text, contour, ...inset_empty_holes],
-      [text, contour],
-    );
-  };
 
   let view_of_decorated_term =
       (~font_metrics: FontMetrics.t, root: HExp.root): Node.t => {
