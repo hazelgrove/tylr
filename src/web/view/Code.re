@@ -268,61 +268,40 @@ module Exp = {
           (~expanded=false, e: HExp.t)
           : list((int, CodeDecoration.ErrHole.profile)) => {
     let shift = n => List.map(PairUtil.map_fst((+)(n)));
-    switch (HExp.root(e)) {
-    | Operand(operand) =>
-      switch (HExp.get_hole_status_operand(operand)) {
+    let outer_hole =
+      switch (HExp.get_hole_status(e)) {
       | NotInHole => []
       | InHole =>
-        // TODO missing inner holes
-        let len = length_of_operand(operand);
-        [(0, {expanded, len})];
-      }
-    | PreOp((preop, r)) =>
-      let holes_preop =
-        switch (preop) {
-        | Lam(status, p) =>
-          let outer_hole =
-            switch (status) {
-            | NotInHole => []
-            | InHole =>
-              let len = length_of_preop(preop) + length(r);
-              [(0, CodeDecoration.ErrHole.{expanded, len})];
-            };
-          let inner_holes = Pat.err_holes(p) |> shift(2);
-          outer_hole @ inner_holes;
-        };
-      let holes_r =
-        err_holes(~expanded, r) |> shift(length_of_preop(preop));
-      holes_preop @ holes_r;
-    | PostOp((l, postop)) =>
-      let holes_l = err_holes(~expanded, l);
-      let holes_postop =
-        switch (postop) {
-        | Ap(status, arg) =>
-          let outer_hole =
-            switch (status) {
-            | NotInHole => []
-            | InHole =>
-              let len = length(l) + length_of_postop(postop);
-              [(0, CodeDecoration.ErrHole.{expanded, len})];
-            };
-          let inner_holes = shift(2, err_holes(arg));
-          outer_hole @ inner_holes;
-        };
-      holes_l @ holes_postop;
-    | BinOp((l, binop, r)) =>
-      let holes_l = err_holes(~expanded, l);
-      let holes_binop =
-        switch (binop) {
-        | OperatorHole
-        | Plus(NotInHole) => []
-        | Plus(InHole) =>
-          let len = length(l) + length_of_binop(binop);
-          [(0, CodeDecoration.ErrHole.{expanded, len})];
-        };
-      let holes_r = err_holes(~expanded, r);
-      holes_l @ holes_binop @ holes_r;
-    };
+        let len = length(e);
+        [
+          {
+            (0, CodeDecoration.ErrHole.{expanded, len});
+          },
+        ];
+      };
+    let inner_holes =
+      switch (HExp.root(e)) {
+      | Operand(OperandHole | Num(_) | Var(_)) => []
+      | Operand(Paren(body)) => err_holes(body)
+      | PreOp((Lam(_, p) as preop, body)) =>
+        let pat_holes = shift(1 + space, Pat.err_holes(p));
+        let body_holes =
+          shift(length_of_preop(preop) + space, err_holes(~expanded, body));
+        pat_holes @ body_holes;
+      | PostOp((fn, Ap(_, arg))) =>
+        let fn_holes = err_holes(~expanded, fn);
+        let arg_holes = shift(1 + space, err_holes(arg));
+        fn_holes @ arg_holes;
+      | BinOp((l, (OperatorHole | Plus(_)) as binop, r)) =>
+        let l_holes = err_holes(~expanded, l);
+        let r_holes =
+          shift(
+            length(l) + space + length_of_binop(binop) + space,
+            err_holes(~expanded, r),
+          );
+        l_holes @ r_holes;
+      };
+    outer_hole @ inner_holes;
   };
 
   let rec err_holes_z =
