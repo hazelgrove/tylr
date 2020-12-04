@@ -74,7 +74,8 @@ module type COMMON = {
   let empty_holes: tiles => list(int);
   let view_of_ztile: ztile => (list(Node.t), list(Node.t));
   let view_of_normal:
-    (~font_metrics: FontMetrics.t, ZPath.t, tiles) => list(Node.t);
+    (~font_metrics: FontMetrics.t, ZPath.t, (tiles, option(ztile))) =>
+    list(Node.t);
   let view: (~font_metrics: FontMetrics.t, EditState.Mode.t, tiles) => Node.t;
 };
 
@@ -83,13 +84,19 @@ module Common =
        (
          T: Tile.S,
          V: {
+           // TODO make Z sig
+           type ztile;
            let length_of_tile: T.t => int;
            let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
            let text_of_tile: T.t => Node.t;
            let profile_of_tile: T.t => CodeDecoration.Tile.profile;
            let empty_holes_of_tile: T.t => list(int);
            let view_of_normal:
-             (~font_metrics: FontMetrics.t, (ZPath.two_step, ZPath.t), T.s) =>
+             (
+               ~font_metrics: FontMetrics.t,
+               (ZPath.two_step, ZPath.t),
+               (T.s, option(ztile))
+             ) =>
              list(Node.t);
          },
        ) => {
@@ -212,7 +219,11 @@ module Common =
   };
 
   let view_of_normal =
-      (~font_metrics: FontMetrics.t, (steps, j): ZPath.t, ts: T.s)
+      (
+        ~font_metrics: FontMetrics.t,
+        (steps, j): ZPath.t,
+        (ts: T.s, _: option(V.ztile)) as zipper,
+      )
       : list(Node.t) => {
     let view_of_decorated_term = view_of_decorated_term(~font_metrics);
     switch (steps) {
@@ -232,7 +243,7 @@ module Common =
       };
       [Node.span([Attr.classes(["zipped"])], [caret, ...code])];
     | [two_step, ...steps] =>
-      V.view_of_normal(~font_metrics, (two_step, (steps, j)), ts)
+      V.view_of_normal(~font_metrics, (two_step, (steps, j)), zipper)
     };
   };
 };
@@ -244,17 +255,18 @@ module rec Typ: TYP = {
 
   module V = {
     open HTyp.Tile;
+    type ztile = ZTyp.ztile;
 
     let length_of_tile: t => int =
       Tile.map(
         fun
-        | HTyp.Tile.OperandHole => 1
+        | OperandHole => 1
         | Num => 3
         | Paren(body) => 1 + space + Typ.length(body) + space + 1,
         () => raise(Void_PreOp),
         () => raise(Void_PostOp),
         fun
-        | HTyp.Tile.OperatorHole
+        | OperatorHole
         | Arrow => 1,
       );
 
@@ -277,22 +289,20 @@ module rec Typ: TYP = {
       let shift = n => List.map((+)(n + space));
       Tile.map(
         fun
-        | HTyp.Tile.OperandHole => [0]
+        | OperandHole => [0]
         | Num => []
         | Paren(body) => shift(1, Typ.empty_holes(body)),
         () => raise(Void_PreOp),
         () => raise(Void_PostOp),
         fun
-        | HTyp.Tile.OperatorHole => [0]
+        | OperatorHole => [0]
         | Arrow => [],
       );
     };
 
-    let view_of_normal = (~font_metrics, (two_step, path), p) => {
-      let `Typ(ty, unzipped) = ZPath.Typ.unzip(two_step, (p, None));
-      let (l, r) = Typ.view_of_ztile(Option.get(unzipped));
-      let ty = Typ.view_of_normal(~font_metrics, path, ty);
-      l @ ty @ r;
+    let view_of_normal = (~font_metrics, (two_step, path), zipper) => {
+      let `Typ(zipper) = ZPath.Typ.unzip(two_step, zipper);
+      Typ.view_of_normal(~font_metrics, path, zipper);
     };
   };
   include Common(HTyp.Tile, V);
@@ -306,11 +316,6 @@ module type PAT = {
   let err_holes: HPat.t => list((int, CodeDecoration.ErrHole.profile));
   let err_holes_z:
     (ZPath.t, HPat.t) => list((int, CodeDecoration.ErrHole.profile));
-
-  let view_of_ztile: ZPat.ztile => (list(Node.t), list(Node.t));
-  let view_of_normal:
-    (~font_metrics: FontMetrics.t, ZPath.t, HPat.t) => list(Node.t);
-  let view: (~font_metrics: FontMetrics.t, EditState.Mode.t, HPat.t) => Node.t;
 };
 module rec Pat: PAT = {
   type tiles = HPat.t;
@@ -318,6 +323,7 @@ module rec Pat: PAT = {
 
   module V = {
     open HPat.Tile;
+    type ztile = ZPat.ztile;
 
     let length_of_tile: t => int =
       Tile.map(
@@ -370,16 +376,10 @@ module rec Pat: PAT = {
       );
     };
 
-    let view_of_normal = (~font_metrics, (two_step, path), p) =>
-      switch (ZPath.Pat.unzip(two_step, (p, None))) {
-      | `Typ(ty, unzipped) =>
-        let (l, r) = Typ.view_of_ztile(Option.get(unzipped));
-        let ty = Typ.view_of_normal(~font_metrics, path, ty);
-        l @ ty @ r;
-      | `Pat(p, unzipped) =>
-        let (l, r) = Pat.view_of_ztile(Option.get(unzipped));
-        let p = Pat.view_of_normal(~font_metrics, path, p);
-        l @ p @ r;
+    let view_of_normal = (~font_metrics, (two_step, path), zipper) =>
+      switch (ZPath.Pat.unzip(two_step, zipper)) {
+      | `Typ(zipper) => Typ.view_of_normal(~font_metrics, path, zipper)
+      | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
       };
   };
   include Common(HPat.Tile, V);
@@ -406,6 +406,7 @@ module rec Exp: EXP = {
 
   module V = {
     open HExp.Tile;
+    type ztile = ZExp.ztile;
 
     let length_of_tile =
       Tile.map(
@@ -506,16 +507,10 @@ module rec Exp: EXP = {
       );
     };
 
-    let view_of_normal = (~font_metrics, (two_step, path), e) =>
-      switch (ZPath.Exp.unzip(two_step, (e, None))) {
-      | `Pat(p, unzipped) =>
-        let (l, r) = Pat.view_of_ztile(Option.get(unzipped));
-        let p = Pat.view_of_normal(~font_metrics, path, p);
-        l @ p @ r;
-      | `Exp(e, unzipped) =>
-        let (l, r) = Exp.view_of_ztile(Option.get(unzipped));
-        let e = Exp.view_of_normal(~font_metrics, path, e);
-        l @ e @ r;
+    let view_of_normal = (~font_metrics, (two_step, path), zipper) =>
+      switch (ZPath.Exp.unzip(two_step, zipper)) {
+      | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
+      | `Exp(zipper) => Exp.view_of_normal(~font_metrics, path, zipper)
       };
   };
   include Common(HExp.Tile, V);
@@ -899,7 +894,10 @@ module rec Exp: EXP = {
       : Node.t =>
     switch (mode) {
     | Normal(focus) =>
-      Node.span([], CodeText.space(view_of_normal(~font_metrics, focus, e)))
+      Node.span(
+        [],
+        CodeText.space(view_of_normal(~font_metrics, focus, (e, None))),
+      )
     | Selecting(selection) => view_of_selecting(~font_metrics, selection, e)
     | Restructuring(selection, target) =>
       view_of_restructuring(~font_metrics, selection, target, e)
