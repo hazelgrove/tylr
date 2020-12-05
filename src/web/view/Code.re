@@ -118,7 +118,10 @@ module Common =
            let length_of_tile: T.t => int;
            let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
            let text_of_tile: T.t => Node.t;
-           let profile_of_tile: T.t => CodeDecoration.Tile.profile;
+           let is_operand_hole: T.operand => bool;
+           let is_operator_hole: T.binop => bool;
+           let open_children_of_tile: T.t => list((int, int));
+           let closed_children_of_tile: T.t => list((int, int));
            let empty_holes_of_tile: T.t => list(int);
            let view_of_ztile: ztile => zipper_view(unit);
            let view_of_normal:
@@ -182,12 +185,26 @@ module Common =
     Node.span([], ListUtil.join(Node.text(Unicode.nbsp), tiles));
   };
 
+  let profile_of_tile = (t: T.t) =>
+    CodeDecoration.Tile.{
+      shape:
+        switch (t) {
+        | Operand(operand) => `Operand(V.is_operand_hole(operand))
+        | PreOp(_) => `PreOp
+        | PostOp(_) => `PostOp
+        | BinOp(binop) => `BinOp(V.is_operator_hole(binop))
+        },
+      len: V.length_of_tile(t),
+      open_children: V.open_children_of_tile(t),
+      closed_children: V.closed_children_of_tile(t),
+    };
+
   let view_of_decorated_tile =
       (~font_metrics: FontMetrics.t, tile: T.t): Node.t => {
     let hole_radii = hole_radii(~font_metrics);
     let text = V.text_of_tile(tile);
     let decoration = {
-      let profile = V.profile_of_tile(tile);
+      let profile = profile_of_tile(tile);
       decoration_container(
         ~font_metrics,
         ~length=profile.len,
@@ -566,7 +583,39 @@ module rec Typ: TYP = {
     };
 
     let text_of_tile = CodeText.Typ.view_of_tile;
-    let profile_of_tile = _ => failwith("todo");
+
+    let is_operand_hole =
+      fun
+      | OperandHole => true
+      | _ => false;
+    let is_operator_hole =
+      fun
+      | OperatorHole => true
+      | _ => false;
+    let open_children_of_tile =
+      Tile.map(
+        fun
+        | OperandHole
+        | Num => []
+        | Paren(body) => [(1 + space, Typ.length(body))],
+        () => raise(HTyp.Tile.Void_PreOp),
+        () => raise(HTyp.Tile.Void_PostOp),
+        fun
+        | Arrow
+        | OperatorHole => [],
+      );
+    let closed_children_of_tile =
+      Tile.map(
+        fun
+        | OperandHole
+        | Num
+        | Paren(_) => [],
+        () => raise(HTyp.Tile.Void_PreOp),
+        () => raise(HTyp.Tile.Void_PostOp),
+        fun
+        | Arrow
+        | OperatorHole => [],
+      );
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
@@ -647,7 +696,38 @@ module rec Pat: PAT = {
       };
 
     let text_of_tile = CodeText.Pat.view_of_tile;
-    let profile_of_tile = _ => failwith("todo");
+
+    let is_operand_hole =
+      fun
+      | OperandHole => true
+      | _ => false;
+    let is_operator_hole =
+      fun
+      | OperatorHole => true;
+    let open_children_of_tile =
+      Tile.map(
+        fun
+        | OperandHole
+        | Var(_) => []
+        | Paren(body) => [(1 + space, Pat.length(body))],
+        () => raise(HPat.Tile.Void_PreOp),
+        fun
+        | Ann(_) => [],
+        fun
+        | OperatorHole => [],
+      );
+    let closed_children_of_tile =
+      Tile.map(
+        fun
+        | OperandHole
+        | Var(_)
+        | Paren(_) => [],
+        () => raise(HPat.Tile.Void_PreOp),
+        fun
+        | Ann(_, ann) => [(1 + space, Typ.length(ann))],
+        fun
+        | OperatorHole => [],
+      );
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
@@ -737,49 +817,44 @@ module rec Exp: EXP = {
 
     let text_of_tile = CodeText.Exp.view_of_tile;
 
-    let profile_of_tile = (tile: HExp.Tile.t): CodeDecoration.Tile.profile => {
-      switch (tile) {
-      | Operand(operand) =>
-        let (open_children, closed_children, len, is_hole) =
-          switch (operand) {
-          | OperandHole => ([], [], 1, true)
-          | Var(_)
-          | Num(_) => ([], [], length_of_tile(Operand(operand)), false)
-          | Paren(body) =>
-            let body_len = Exp.length(body);
-            ([(2, body_len)], [], 2 + body_len + 2, false);
-          };
-        {shape: `Operand(is_hole), len, open_children, closed_children};
-      | PreOp(preop) =>
-        let (open_children, closed_children, len) =
-          switch (preop) {
-          | Lam(_, p) =>
-            let p_len = Pat.length(p);
-            ([], [(2, p_len)], 2 + p_len + 2);
-          };
-        {shape: `PreOp, len, open_children, closed_children};
-      | PostOp(postop) =>
-        let (open_children, closed_children, len) =
-          switch (postop) {
-          | Ap(_, arg) =>
-            let arg_len = Exp.length(arg);
-            ([], [(2, arg_len)], 2 + arg_len + 2);
-          };
-        {shape: `PostOp, len, open_children, closed_children};
-      | BinOp(binop) =>
-        let (open_children, closed_children, len, is_hole) =
-          switch (binop) {
-          | Plus(_) => ([], [], 1, false)
-          | OperatorHole => ([], [], 1, true)
-          };
-        CodeDecoration.Tile.{
-          shape: `BinOp(is_hole),
-          len,
-          open_children,
-          closed_children,
-        };
-      };
-    };
+    let is_operand_hole =
+      fun
+      | OperandHole => true
+      | _ => false;
+    let is_operator_hole =
+      fun
+      | OperatorHole => true
+      | _ => false;
+    let open_children_of_tile =
+      Tile.map(
+        fun
+        | OperandHole
+        | Var(_)
+        | Num(_) => []
+        | Paren(body) => [(1 + space, Exp.length(body))],
+        fun
+        | Lam(_) => [],
+        fun
+        | Ap(_, arg) => [(1 + space, Exp.length(arg))],
+        fun
+        | Plus(_)
+        | OperatorHole => [],
+      );
+    let closed_children_of_tile =
+      Tile.map(
+        fun
+        | OperandHole
+        | Var(_)
+        | Num(_)
+        | Paren(_) => [],
+        fun
+        | Lam(_, p) => [(1 + space, Pat.length(p))],
+        fun
+        | Ap(_) => [],
+        fun
+        | Plus(_)
+        | OperatorHole => [],
+      );
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
