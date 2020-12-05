@@ -639,8 +639,12 @@ module rec Typ: TYP = {
       Typ.view_of_normal(~font_metrics, path, zipper);
     };
 
-    let view_of_decorated_selection = (~font_metrics as _, _, _) =>
-      failwith("todo");
+    let view_of_decorated_selection =
+        (~font_metrics, (two_step, selection), zipper) => {
+      let `Typ(zipper) = ZPath.Typ.unzip(two_step, zipper);
+      Typ.view_of_decorated_selection(~font_metrics, selection, zipper);
+    };
+
     let view_of_decorated_selection_tile =
         (~font_metrics as _, ~select as _, _, _) =>
       failwith("todo");
@@ -752,8 +756,15 @@ module rec Pat: PAT = {
       | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
       };
 
-    let view_of_decorated_selection = (~font_metrics as _, _, _) =>
-      failwith("todo");
+    let view_of_decorated_selection =
+        (~font_metrics, (two_step, selection), zipper) =>
+      switch (ZPath.Pat.unzip(two_step, zipper)) {
+      | `Typ(zipper) =>
+        Typ.view_of_decorated_selection(~font_metrics, selection, zipper)
+      | `Pat(zipper) =>
+        Pat.view_of_decorated_selection(~font_metrics, selection, zipper)
+      };
+
     let view_of_decorated_selection_tile =
         (~font_metrics as _, ~select as _, _, _) =>
       failwith("todo");
