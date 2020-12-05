@@ -66,17 +66,46 @@ let decoration_container =
   );
 };
 
+type zipper_view('z) = ZList.t('z, Node.t);
+
 module type COMMON = {
   type tiles;
   type ztile;
   let length: tiles => int;
   let offset: (ZPath.t, tiles) => int;
   let empty_holes: tiles => list(int);
-  let view_of_ztile: ztile => (list(Node.t), list(Node.t));
   let view_of_normal:
     (~font_metrics: FontMetrics.t, ZPath.t, (tiles, option(ztile))) =>
-    list(Node.t);
-  let view: (~font_metrics: FontMetrics.t, EditState.Mode.t, tiles) => Node.t;
+    zipper_view(Node.t);
+  let view_of_decorated_selection:
+    (
+      ~font_metrics: FontMetrics.t,
+      ZPath.ordered_selection,
+      (tiles, option(ztile))
+    ) =>
+    zipper_view((list(Node.t), list(Node.t), list(Node.t)));
+  let view_of_selecting:
+    (
+      ~font_metrics: FontMetrics.t,
+      ZPath.anchored_selection,
+      (tiles, option(ztile))
+    ) =>
+    zipper_view((list(Node.t), Node.t, list(Node.t)));
+  let view_of_restructuring:
+    (
+      ~font_metrics: FontMetrics.t,
+      ZPath.ordered_selection,
+      ZPath.t,
+      (tiles, option(ztile))
+    ) =>
+    zipper_view(Node.t);
+  let view:
+    (
+      ~font_metrics: FontMetrics.t,
+      EditState.Mode.t,
+      (tiles, option(ztile))
+    ) =>
+    Node.t;
 };
 
 let space = 1;
@@ -91,13 +120,29 @@ module Common =
            let text_of_tile: T.t => Node.t;
            let profile_of_tile: T.t => CodeDecoration.Tile.profile;
            let empty_holes_of_tile: T.t => list(int);
+           let view_of_ztile: ztile => zipper_view(unit);
            let view_of_normal:
              (
                ~font_metrics: FontMetrics.t,
                (ZPath.two_step, ZPath.t),
                (T.s, option(ztile))
              ) =>
-             list(Node.t);
+             zipper_view(Node.t);
+           let view_of_decorated_selection_tile:
+             (
+               ~font_metrics: FontMetrics.t,
+               ~select: Direction.t,
+               (ZPath.child_step, ZPath.t),
+               T.t
+             ) =>
+             (list(Node.t), list(Node.t));
+           let view_of_decorated_selection:
+             (
+               ~font_metrics: FontMetrics.t,
+               (ZPath.two_step, ZPath.ordered_selection),
+               (T.s, option(ztile))
+             ) =>
+             zipper_view((list(Node.t), list(Node.t), list(Node.t)));
          },
        ) => {
   let length = (ts: T.s): int =>
@@ -218,33 +263,258 @@ module Common =
     Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));
   };
 
+  let view_of_unzipped = (unzipped: option(V.ztile)): zipper_view(unit) =>
+    switch (unzipped) {
+    | None => ZList.mk(~z=(), ())
+    | Some(ztile) => V.view_of_ztile(ztile)
+    };
+
   let view_of_normal =
       (
         ~font_metrics: FontMetrics.t,
         (steps, j): ZPath.t,
-        (ts: T.s, _: option(V.ztile)) as zipper,
+        (ts: T.s, unzipped) as zipper,
       )
-      : list(Node.t) => {
+      : zipper_view(Node.t) => {
     let view_of_decorated_term = view_of_decorated_term(~font_metrics);
     switch (steps) {
     | [] =>
-      let caret = {
-        let (prefix, _) = ListUtil.split_n(j, ts);
-        let len = length(prefix);
-        CodeDecoration.Caret.view(~font_metrics, len, []);
+      let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
+      let z = {
+        let caret = {
+          let (prefix, _) = ListUtil.split_n(j, ts);
+          let len = length(prefix);
+          CodeDecoration.Caret.view(~font_metrics, len, []);
+        };
+        let code = {
+          let k = j == List.length(ts) ? j - 1 : j;
+          let ZList.{prefix, z, suffix} = Ts.nth_root(k, ts);
+          let prefix = List.map(V.text_of_tile, prefix);
+          let zroot = view_of_decorated_term(z);
+          let suffix = List.map(V.text_of_tile, suffix);
+          CodeText.space(prefix @ [zroot, ...suffix]);
+        };
+        Node.span([Attr.classes(["zipped"])], [caret, ...code]);
       };
-      let code = {
-        let k = j == List.length(ts) ? j - 1 : j;
-        let ZList.{prefix, z, suffix} = Ts.nth_root(k, ts);
-        let prefix = List.map(V.text_of_tile, prefix);
-        let zroot = view_of_decorated_term(z);
-        let suffix = List.map(V.text_of_tile, suffix);
-        CodeText.space(prefix @ [zroot, ...suffix]);
-      };
-      [Node.span([Attr.classes(["zipped"])], [caret, ...code])];
+      ZList.mk(~prefix, ~z, ~suffix, ());
     | [two_step, ...steps] =>
       V.view_of_normal(~font_metrics, (two_step, (steps, j)), zipper)
     };
+  };
+
+  let view_of_decorated_selection =
+      (
+        ~font_metrics: FontMetrics.t,
+        selection: ZPath.ordered_selection,
+        (ts: T.s, unzipped) as zipper,
+      )
+      : zipper_view((list(Node.t), list(Node.t), list(Node.t))) => {
+    let ((steps_l, j_l), (steps_r, j_r)) = selection;
+    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
+    switch (steps_l, steps_r) {
+    | ([two_step, ...steps_l], [two_step', ...steps_r])
+        when two_step == two_step' =>
+      V.view_of_decorated_selection(
+        ~font_metrics,
+        (two_step, ((steps_l, j_l), (steps_r, j_r))),
+        zipper,
+      )
+    | _ =>
+      let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
+      let z =
+        switch (steps_l, steps_r) {
+        | ([], []) =>
+          let (prefix, selected, suffix) =
+            ListUtil.split_sublist(j_l, j_r, ts);
+          let prefix = List.map(V.text_of_tile, prefix);
+          let selected = List.map(view_of_decorated_tile, selected);
+          let suffix = List.map(V.text_of_tile, suffix);
+          (prefix, selected, suffix);
+        | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
+          let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_r, ts);
+          let (prefix, selected) = ListUtil.split_n(j_l, prefix);
+          let prefix = List.map(V.text_of_tile, prefix);
+          let suffix = List.map(V.text_of_tile, suffix);
+          let selected = List.map(view_of_decorated_tile, selected);
+          let (inner_selected, inner_unselected) =
+            V.view_of_decorated_selection_tile(
+              ~font_metrics,
+              ~select=Left,
+              (child_step_r, (steps_r, j_r)),
+              tile,
+            );
+          (prefix, selected @ inner_selected, inner_unselected @ suffix);
+        | ([(tile_step_l, child_step_l), ...steps_l], []) =>
+          let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_l, ts);
+          let (selected, suffix) =
+            ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
+          let prefix = List.map(V.text_of_tile, prefix);
+          let suffix = List.map(V.text_of_tile, suffix);
+          let selected = List.map(view_of_decorated_tile, selected);
+          let (inner_unselected, inner_selected) =
+            V.view_of_decorated_selection_tile(
+              ~font_metrics,
+              ~select=Right,
+              (child_step_l, (steps_l, j_l)),
+              tile,
+            );
+          (prefix @ inner_unselected, inner_selected @ selected, suffix);
+        | (
+            [(tile_step_l, child_step_l), ...steps_l],
+            [(tile_step_r, child_step_r), ...steps_r],
+          ) =>
+          let (prefix, tile_r, suffix) = ListUtil.split_nth(tile_step_r, ts);
+          let (prefix, tile_l, mid) =
+            ListUtil.split_nth(tile_step_l, prefix);
+          let prefix = List.map(V.text_of_tile, prefix);
+          let (unselected_l, selected_l) =
+            V.view_of_decorated_selection_tile(
+              ~font_metrics,
+              ~select=Right,
+              (child_step_l, (steps_l, j_l)),
+              tile_l,
+            );
+          let mid = List.map(view_of_decorated_tile, mid);
+          let (selected_r, unselected_r) =
+            V.view_of_decorated_selection_tile(
+              ~font_metrics,
+              ~select=Left,
+              (child_step_r, (steps_r, j_r)),
+              tile_r,
+            );
+          let suffix = List.map(V.text_of_tile, suffix);
+          (
+            prefix @ unselected_l,
+            selected_l @ mid @ selected_r,
+            unselected_r @ suffix,
+          );
+        };
+      ZList.mk(~prefix, ~z, ~suffix, ());
+    };
+  };
+
+  let view_of_selecting =
+      (
+        ~font_metrics: FontMetrics.t,
+        selection: ZPath.anchored_selection,
+        (ts, _) as zipper,
+      ) => {
+    let ((l, r), caret_side) = ZPath.mk_ordered_selection(selection);
+    let ZList.{prefix, z: (pre, selected, suf), suffix} =
+      view_of_decorated_selection(~font_metrics, (l, r), zipper);
+    let (caret, selection_box) = {
+      let (offset_l, offset_r) = (offset(l, ts), offset(r, ts));
+      let caret =
+        CodeDecoration.Caret.view(
+          ~font_metrics,
+          caret_side == Left ? offset_l : offset_r,
+          [],
+        );
+      let selection_box =
+        Node.div(
+          [
+            Attr.classes(["selection-box"]),
+            Attr.create(
+              "style",
+              Printf.sprintf(
+                "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+                (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
+                (-0.15) *. font_metrics.row_height,
+                font_metrics.col_width *. Float.of_int(offset_r - offset_l),
+                font_metrics.row_height *. 1.2,
+              ),
+            ),
+          ],
+          [],
+        );
+      (caret, selection_box);
+    };
+    let z =
+      Node.span(
+        [Attr.classes(["selection-container"])],
+        [caret, selection_box, ...CodeText.space(selected)],
+      );
+    ZList.mk(~prefix, ~z=(pre, z, suf), ~suffix, ());
+  };
+
+  let view_of_restructuring =
+      (
+        ~font_metrics: FontMetrics.t,
+        (l, r) as selection: ZPath.ordered_selection,
+        target: ZPath.t,
+        (ts, _) as zipper,
+      )
+      : zipper_view(Node.t) => {
+    let ZList.{prefix, z: (pre, selected, suf), suffix} =
+      view_of_decorated_selection(~font_metrics, selection, zipper);
+    let selection_len = offset(r, ts) - offset(l, ts);
+    let placeholder =
+      Node.span(
+        [Attr.classes(["placeholder"])],
+        [
+          Node.div(
+            [
+              Attr.classes(["placeholder-mask"]),
+              Attr.create(
+                "style",
+                Printf.sprintf(
+                  "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+                  (-0.5) *. font_metrics.col_width,
+                  (-0.15) *. font_metrics.row_height,
+                  font_metrics.col_width *. Float.of_int(selection_len),
+                  font_metrics.row_height *. 1.2,
+                ),
+              ),
+            ],
+            [],
+          ),
+          ...CodeText.space(selected),
+        ],
+      );
+    let (caret, flag) = {
+      let offset = offset(target, ts);
+      let caret = CodeDecoration.Caret.view(~font_metrics, offset, []);
+      let flag =
+        Node.span(
+          [
+            Attr.classes(["flag"]),
+            Attr.create(
+              "style",
+              Printf.sprintf(
+                "left: %fpx; top: %fpx; padding: 0 %fpx;",
+                (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
+                (-1.15) *. font_metrics.row_height,
+                0.5 *. font_metrics.col_width,
+              ),
+            ),
+          ],
+          [
+            Node.div(
+              [
+                Attr.classes(["selection-box", "moving"]),
+                Attr.create(
+                  "style",
+                  Printf.sprintf(
+                    "left: 0; top: %fpx; width: %fpx; height: %fpx;",
+                    (-0.15) *. font_metrics.row_height,
+                    font_metrics.col_width *. Float.of_int(selection_len),
+                    font_metrics.row_height *. 1.2,
+                  ),
+                ),
+              ],
+              [],
+            ),
+            ...CodeText.space(selected),
+          ],
+        );
+      (caret, flag);
+    };
+    let z =
+      Node.span(
+        [Attr.classes(["restructuring"])],
+        [caret, flag, ...CodeText.space(pre @ [placeholder, ...suf])],
+      );
+    ZList.mk(~prefix, ~z, ~suffix, ());
   };
 };
 
@@ -300,14 +570,21 @@ module rec Typ: TYP = {
       );
     };
 
+    let view_of_ztile = _ => failwith("todo");
+
     let view_of_normal = (~font_metrics, (two_step, path), zipper) => {
       let `Typ(zipper) = ZPath.Typ.unzip(two_step, zipper);
       Typ.view_of_normal(~font_metrics, path, zipper);
     };
+
+    let view_of_decorated_selection = (~font_metrics as _, _, _) =>
+      failwith("todo");
+    let view_of_decorated_selection_tile =
+        (~font_metrics as _, ~select as _, _, _) =>
+      failwith("todo");
   };
   include Common(HTyp.Tile, V);
 
-  let view_of_ztile = _ => failwith("todo");
   let view = (~font_metrics as _, _, _) => failwith("todo");
 };
 
@@ -376,19 +653,25 @@ module rec Pat: PAT = {
       );
     };
 
+    let view_of_ztile = _ => failwith("todo");
+
     let view_of_normal = (~font_metrics, (two_step, path), zipper) =>
       switch (ZPath.Pat.unzip(two_step, zipper)) {
       | `Typ(zipper) => Typ.view_of_normal(~font_metrics, path, zipper)
       | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
       };
+
+    let view_of_decorated_selection = (~font_metrics as _, _, _) =>
+      failwith("todo");
+    let view_of_decorated_selection_tile =
+        (~font_metrics as _, ~select as _, _, _) =>
+      failwith("todo");
   };
   include Common(HPat.Tile, V);
 
   let err_holes = _ => failwith("todo");
   let err_holes_z = (_, _) => failwith("todo");
 
-  let view_of_ztile = _ => failwith("todo");
-  let view_of_normal = (~font_metrics as _, _, _) => failwith("todo");
   let view = (~font_metrics as _, _, _) => failwith("todo");
 };
 
@@ -507,10 +790,66 @@ module rec Exp: EXP = {
       );
     };
 
+    let view_of_ztile = (ztile: ZExp.ztile): zipper_view(unit) => {
+      switch (ztile) {
+      | Operand(ParenZ_body({prefix, suffix, _}))
+      | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+        let (l, r) = CodeText.of_Paren;
+        let prefix = List.map(text_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(text_of_tile, suffix)];
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
+      | PreOp(_) => raise(ZExp.Void_ZPreOp)
+      | BinOp(_) => raise(ZExp.Void_ZBinOp)
+      };
+    };
+
     let view_of_normal = (~font_metrics, (two_step, path), zipper) =>
       switch (ZPath.Exp.unzip(two_step, zipper)) {
       | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
       | `Exp(zipper) => Exp.view_of_normal(~font_metrics, path, zipper)
+      };
+
+    let view_of_decorated_selection =
+        (~font_metrics, (two_step, selection), zipper) =>
+      switch (ZPath.Exp.unzip(two_step, zipper)) {
+      | `Pat(zipper) =>
+        Pat.view_of_decorated_selection(~font_metrics, selection, zipper)
+      | `Exp(zipper) =>
+        Exp.view_of_decorated_selection(~font_metrics, selection, zipper)
+      };
+
+    let view_of_decorated_selection_tile =
+        (~font_metrics, ~select: Direction.t, (child_step, path), tile) =>
+      switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
+      | `Pat(_) => failwith("todo")
+      | `Exp((e, unzipped) as zipper) =>
+        switch (Option.get(unzipped)) {
+        | Operand(ParenZ_body(_))
+        | PostOp(ApZ_arg(_)) =>
+          let (open_paren, close_paren) = CodeText.of_Paren;
+          let (l, r) =
+            switch (select) {
+            | Left =>
+              let ZList.{z: (_, selected, suffix), _} =
+                Exp.view_of_decorated_selection(
+                  ~font_metrics,
+                  (([], 0), path),
+                  zipper,
+                );
+              (selected, suffix);
+            | Right =>
+              let ZList.{z: (prefix, selected, _), _} =
+                Exp.view_of_decorated_selection(
+                  ~font_metrics,
+                  (path, ([], List.length(e))),
+                  zipper,
+                );
+              (prefix, selected);
+            };
+          ([open_paren, ...l], r @ [close_paren]);
+        | PreOp(_) => raise(ZExp.Void_ZPreOp)
+        | BinOp(_) => raise(ZExp.Void_ZBinOp)
+        }
       };
   };
   include Common(HExp.Tile, V);
@@ -630,278 +969,25 @@ module rec Exp: EXP = {
       outer_hole @ inner_holes;
     };
 
-  let view_of_ztile = (ztile: ZExp.ztile): (list(Node.t), list(Node.t)) => {
-    switch (ztile) {
-    | Operand(ParenZ_body({prefix, suffix, _}))
-    | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-      let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-      let (l, r) = CodeText.of_Paren;
-      let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-      (prefix @ [l], [r, ...suffix]);
-    | PreOp(_) => raise(ZExp.Void_ZPreOp)
-    | BinOp(_) => raise(ZExp.Void_ZBinOp)
-    };
-  };
-
-  let view_of_decorated_selection =
-      (
-        ~font_metrics: FontMetrics.t,
-        selection: ZPath.ordered_selection,
-        e: HExp.t,
-      )
-      : (list(Node.t), list(Node.t), list(Node.t)) => {
-    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
-    let rec go = (((steps_l, j_l), (steps_r, j_r)), e: HExp.t) =>
-      switch (steps_l, steps_r) {
-      | ([], []) =>
-        let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, e);
-        let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-        let selected = List.map(view_of_decorated_tile, selected);
-        let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-        (prefix, selected, suffix);
-      | ([], [two_step_r, ...steps_r]) =>
-        switch (ZPath.Exp.unzip(two_step_r, (e, None))) {
-        | `Pat(_) => failwith("todo")
-        | `Exp(e, unzipped) =>
-          switch (Option.get(unzipped)) {
-          | Operand(ParenZ_body({prefix, suffix, _}))
-          | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-            let (prefix, selected) = ListUtil.split_n(j_l, prefix);
-            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-            let selected = List.map(view_of_decorated_tile, selected);
-            let (open_paren, close_paren) = CodeText.of_Paren;
-            let (_, inner_selected, inner_suffix) =
-              go((([], 0), (steps_r, j_r)), e);
-            (
-              prefix,
-              selected @ [open_paren, ...inner_selected],
-              inner_suffix @ [close_paren, ...suffix],
-            );
-          | PreOp(_) => raise(ZExp.Void_ZPreOp)
-          | BinOp(_) => raise(ZExp.Void_ZBinOp)
-          }
-        }
-      | ([two_step_l, ...steps_l], []) =>
-        switch (ZPath.Exp.unzip(two_step_l, (e, None))) {
-        | `Pat(_) => failwith("todo")
-        | `Exp(e, unzipped) =>
-          switch (Option.get(unzipped)) {
-          | Operand(ParenZ_body({prefix, suffix, _}))
-          | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-            let (selected, suffix) =
-              ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
-            let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-            let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-            let selected = List.map(view_of_decorated_tile, selected);
-            let (open_paren, close_paren) = CodeText.of_Paren;
-            let (inner_prefix, inner_selected, _) =
-              go(((steps_l, j_l), ([], List.length(e))), e);
-            (
-              prefix @ [open_paren, ...inner_prefix],
-              inner_selected @ [close_paren, ...selected],
-              suffix,
-            );
-          | PreOp(_) => raise(ZExp.Void_ZPreOp)
-          | BinOp(_) => raise(ZExp.Void_ZBinOp)
-          }
-        }
-      | ([two_step, ...steps_l], [two_step', ...steps_r])
-          when two_step == two_step' =>
-        switch (ZPath.Exp.unzip(two_step, (e, None))) {
-        | `Pat(_) => failwith("Code.Exp.view_of_selecting")
-        | `Exp(e, unzipped) =>
-          let (l, r) = view_of_ztile(Option.get(unzipped));
-          let (prefix, selected, suffix) =
-            go(((steps_l, j_l), (steps_r, j_r)), e);
-          (l @ prefix, selected, suffix @ r);
-        }
-      | ([two_step_l, ...steps_l], [two_step_r, ...steps_r]) =>
-        switch (
-          ZPath.Exp.unzip(two_step_l, (e, None)),
-          ZPath.Exp.unzip(two_step_r, (e, None)),
-        ) {
-        | (`Pat(_), _)
-        | (_, `Pat(_)) => failwith("Code.Exp.view_of_selecting")
-        | (`Exp(e_l, unzipped_l), `Exp(e_r, unzipped_r)) =>
-          let (prefix, selected_l_mid) =
-            switch (Option.get(unzipped_l)) {
-            | Operand(ParenZ_body({prefix, suffix, _}))
-            | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-              let prefix = List.map(CodeText.Exp.view_of_tile, prefix);
-              let selected_mid = {
-                let (mid, _) =
-                  ListUtil.split_n(
-                    fst(two_step_r) - List.length(prefix) - 1,
-                    suffix,
-                  );
-                List.map(view_of_decorated_tile, mid);
-              };
-              let (open_paren, close_paren) = CodeText.of_Paren;
-              let (inner_prefix, selected_l, _) =
-                go(((steps_l, j_l), ([], List.length(e_l))), e_l);
-              (
-                prefix @ [open_paren, ...inner_prefix],
-                selected_l @ [close_paren, ...selected_mid],
-              );
-            | PreOp(_) => raise(ZExp.Void_ZPreOp)
-            | BinOp(_) => raise(ZExp.Void_ZBinOp)
-            };
-          let (selected_r, suffix) =
-            switch (Option.get(unzipped_r)) {
-            | Operand(ParenZ_body({suffix, _}))
-            | PostOp(ApZ_arg(_, {suffix, _})) =>
-              let (open_paren, close_paren) = CodeText.of_Paren;
-              let (_, selected_r, inner_suffix) =
-                go((([], 0), (steps_r, j_r)), e_r);
-              let suffix = List.map(CodeText.Exp.view_of_tile, suffix);
-              (
-                [open_paren, ...selected_r],
-                inner_suffix @ [close_paren, ...suffix],
-              );
-            | PreOp(_) => raise(ZExp.Void_ZPreOp)
-            | BinOp(_) => raise(ZExp.Void_ZBinOp)
-            };
-          (prefix, selected_l_mid @ selected_r, suffix);
-        }
-      };
-    go(selection, e);
-  };
-
-  let view_of_selecting =
-      (
-        ~font_metrics: FontMetrics.t,
-        selection: ZPath.anchored_selection,
-        e: HExp.t,
-      )
-      : Node.t => {
-    let ((l, r), caret_side) = ZPath.mk_ordered_selection(selection);
-    let (prefix, selection, suffix) =
-      view_of_decorated_selection(~font_metrics, (l, r), e);
-    let (caret, selection_box) = {
-      let (offset_l, offset_r) = (offset(l, e), offset(r, e));
-      let caret =
-        CodeDecoration.Caret.view(
-          ~font_metrics,
-          caret_side == Left ? offset_l : offset_r,
-          [],
-        );
-      let selection_box =
-        Node.div(
-          [
-            Attr.classes(["selection-box"]),
-            Attr.create(
-              "style",
-              Printf.sprintf(
-                "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-                (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
-                (-0.15) *. font_metrics.row_height,
-                font_metrics.col_width *. Float.of_int(offset_r - offset_l),
-                font_metrics.row_height *. 1.2,
-              ),
-            ),
-          ],
-          [],
-        );
-      (caret, selection_box);
-    };
-    Node.span(
-      [Attr.classes(["selection-container"])],
-      [caret, selection_box, ...CodeText.space(prefix @ selection @ suffix)],
-    );
-  };
-
-  let view_of_restructuring =
-      (
-        ~font_metrics: FontMetrics.t,
-        (l, r) as selection: ZPath.ordered_selection,
-        target: ZPath.t,
-        e: HExp.t,
-      )
-      : Node.t => {
-    let (prefix, selected, suffix) =
-      view_of_decorated_selection(~font_metrics, selection, e);
-    let selection_len = offset(r, e) - offset(l, e);
-    let placeholder =
-      Node.span(
-        [Attr.classes(["placeholder"])],
-        [
-          Node.div(
-            [
-              Attr.classes(["placeholder-mask"]),
-              Attr.create(
-                "style",
-                Printf.sprintf(
-                  "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-                  (-0.5) *. font_metrics.col_width,
-                  (-0.15) *. font_metrics.row_height,
-                  font_metrics.col_width *. Float.of_int(selection_len),
-                  font_metrics.row_height *. 1.2,
-                ),
-              ),
-            ],
-            [],
-          ),
-          ...CodeText.space(selected),
-        ],
-      );
-    let (caret, flag) = {
-      let offset = offset(target, e);
-      let caret = CodeDecoration.Caret.view(~font_metrics, offset, []);
-      let flag =
-        Node.span(
-          [
-            Attr.classes(["flag"]),
-            Attr.create(
-              "style",
-              Printf.sprintf(
-                "left: %fpx; top: %fpx; padding: 0 %fpx;",
-                (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
-                (-1.15) *. font_metrics.row_height,
-                0.5 *. font_metrics.col_width,
-              ),
-            ),
-          ],
-          [
-            Node.div(
-              [
-                Attr.classes(["selection-box", "moving"]),
-                Attr.create(
-                  "style",
-                  Printf.sprintf(
-                    "left: 0; top: %fpx; width: %fpx; height: %fpx;",
-                    (-0.15) *. font_metrics.row_height,
-                    font_metrics.col_width *. Float.of_int(selection_len),
-                    font_metrics.row_height *. 1.2,
-                  ),
-                ),
-              ],
-              [],
-            ),
-            ...CodeText.space(selected),
-          ],
-        );
-      (caret, flag);
-    };
-    Node.span(
-      [Attr.classes(["restructuring"])],
-      [caret, flag, ...CodeText.space(prefix @ [placeholder, ...suffix])],
-    );
-  };
-
   let view =
-      (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, e: HExp.t)
-      : Node.t =>
-    switch (mode) {
-    | Normal(focus) =>
-      Node.span(
-        [],
-        CodeText.space(view_of_normal(~font_metrics, focus, (e, None))),
-      )
-    | Selecting(selection) => view_of_selecting(~font_metrics, selection, e)
-    | Restructuring(selection, target) =>
-      view_of_restructuring(~font_metrics, selection, target, e)
-    };
+      (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, zipper): Node.t => {
+    let ZList.{prefix, z, suffix} =
+      switch (mode) {
+      | Normal(focus) => view_of_normal(~font_metrics, focus, zipper)
+      | Selecting(selection) =>
+        let ZList.{prefix, z: (pre, selected, suf), suffix} =
+          view_of_selecting(~font_metrics, selection, zipper);
+        ZList.mk(
+          ~prefix,
+          ~z=Node.span([], CodeText.space(pre @ [selected, ...suf])),
+          ~suffix,
+          (),
+        );
+      | Restructuring(selection, target) =>
+        view_of_restructuring(~font_metrics, selection, target, zipper)
+      };
+    Node.span([], CodeText.space(prefix @ [z, ...suffix]));
+  };
 };
 
 let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
@@ -951,30 +1037,14 @@ let view =
     let err_holes = err_holes(~font_metrics, zipped_mode, zipped_e);
     (empty_holes, err_holes);
   };
-  let (unzipped_l, unzipped_r) = {
-    let unzipped =
-      switch (zipper) {
-      | `Typ(_, unzipped) => Option.map(Typ.view_of_ztile, unzipped)
-      | `Pat(_, unzipped) => Option.map(Pat.view_of_ztile, unzipped)
-      | `Exp(_, unzipped) => Option.map(Exp.view_of_ztile, unzipped)
-      };
-    switch (unzipped) {
-    | None => ([], [])
-    | Some((l, r)) => (l, r)
-    };
-  };
-  let zipped =
+  let zipper =
     switch (zipper) {
-    | `Typ(zipped, _) => Typ.view(~font_metrics, mode, zipped)
-    | `Pat(zipped, _) => Pat.view(~font_metrics, mode, zipped)
-    | `Exp(zipped, _) => Exp.view(~font_metrics, mode, zipped)
+    | `Typ(zipper) => Typ.view(~font_metrics, mode, zipper)
+    | `Pat(zipper) => Pat.view(~font_metrics, mode, zipper)
+    | `Exp(zipper) => Exp.view(~font_metrics, mode, zipper)
     };
   Node.span(
     [Attr.id("code")],
-    List.concat([
-      empty_holes,
-      err_holes,
-      CodeText.space(unzipped_l @ [zipped, ...unzipped_r]),
-    ]),
+    List.concat([empty_holes, err_holes, [zipper]]),
   );
 };
