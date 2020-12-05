@@ -90,7 +90,7 @@ module type COMMON = {
       ZPath.anchored_selection,
       (tiles, option(ztile))
     ) =>
-    zipper_view((list(Node.t), Node.t, list(Node.t)));
+    zipper_view(Node.t);
   let view_of_restructuring:
     (
       ~font_metrics: FontMetrics.t,
@@ -432,9 +432,9 @@ module Common =
     let z =
       Node.span(
         [Attr.classes(["selection-container"])],
-        [caret, selection_box, ...CodeText.space(selected)],
+        [caret, selection_box, ...CodeText.space(pre @ selected @ suf)],
       );
-    ZList.mk(~prefix, ~z=(pre, z, suf), ~suffix, ());
+    ZList.mk(~prefix, ~z, ~suffix, ());
   };
 
   let view_of_restructuring =
@@ -975,14 +975,7 @@ module rec Exp: EXP = {
       switch (mode) {
       | Normal(focus) => view_of_normal(~font_metrics, focus, zipper)
       | Selecting(selection) =>
-        let ZList.{prefix, z: (pre, selected, suf), suffix} =
-          view_of_selecting(~font_metrics, selection, zipper);
-        ZList.mk(
-          ~prefix,
-          ~z=Node.span([], CodeText.space(pre @ [selected, ...suf])),
-          ~suffix,
-          (),
-        );
+        view_of_selecting(~font_metrics, selection, zipper)
       | Restructuring(selection, target) =>
         view_of_restructuring(~font_metrics, selection, target, zipper)
       };
