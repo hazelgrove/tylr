@@ -516,6 +516,19 @@ module Common =
       );
     ZList.mk(~prefix, ~z, ~suffix, ());
   };
+
+  let view =
+      (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, zipper): Node.t => {
+    let ZList.{prefix, z, suffix} =
+      switch (mode) {
+      | Normal(focus) => view_of_normal(~font_metrics, focus, zipper)
+      | Selecting(selection) =>
+        view_of_selecting(~font_metrics, selection, zipper)
+      | Restructuring(selection, target) =>
+        view_of_restructuring(~font_metrics, selection, target, zipper)
+      };
+    Node.span([], CodeText.space(prefix @ [z, ...suffix]));
+  };
 };
 
 module type TYP = COMMON with type tiles = HTyp.t and type ztile = ZTyp.ztile;
@@ -584,8 +597,6 @@ module rec Typ: TYP = {
       failwith("todo");
   };
   include Common(HTyp.Tile, V);
-
-  let view = (~font_metrics as _, _, _) => failwith("todo");
 };
 
 module type PAT = {
@@ -671,8 +682,6 @@ module rec Pat: PAT = {
 
   let err_holes = _ => failwith("todo");
   let err_holes_z = (_, _) => failwith("todo");
-
-  let view = (~font_metrics as _, _, _) => failwith("todo");
 };
 
 module type EXP = {
@@ -968,19 +977,6 @@ module rec Exp: EXP = {
       };
       outer_hole @ inner_holes;
     };
-
-  let view =
-      (~font_metrics: FontMetrics.t, mode: EditState.Mode.t, zipper): Node.t => {
-    let ZList.{prefix, z, suffix} =
-      switch (mode) {
-      | Normal(focus) => view_of_normal(~font_metrics, focus, zipper)
-      | Selecting(selection) =>
-        view_of_selecting(~font_metrics, selection, zipper)
-      | Restructuring(selection, target) =>
-        view_of_restructuring(~font_metrics, selection, target, zipper)
-      };
-    Node.span([], CodeText.space(prefix @ [z, ...suffix]));
-  };
 };
 
 let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
