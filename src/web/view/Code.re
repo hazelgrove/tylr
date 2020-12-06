@@ -9,8 +9,6 @@ module type COMMON = {
   module Z: ZTile.S with module T := T;
   let length: T.s => int;
   let offset: (ZPath.t, T.s) => int;
-  let text_of_tile: T.t => Node.t;
-  let text: T.s => Node.t;
   let empty_holes: T.s => list(int);
   let view_of_normal:
     (~font_metrics: FontMetrics.t, ZPath.t, Z.zipper) => zipper_view(Node.t);
@@ -37,10 +35,10 @@ module Common =
        (
          T: Tile.S,
          Z: ZTile.S with module T := T,
+         Txt: Text.COMMON with module T := T,
          V: {
            let length_of_tile: T.t => int;
            let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
-           let text_of_tile: T.t => Node.t;
            let is_operand_hole: T.operand => bool;
            let is_operator_hole: T.binop => bool;
            let open_children_of_tile: T.t => list((int, int));
@@ -103,12 +101,6 @@ module Common =
     List.concat(holes);
   };
 
-  let text_of_tile = V.text_of_tile;
-  let text = (ts: T.s): Node.t => {
-    let tiles = List.map(V.text_of_tile, ts);
-    Node.span([], ListUtil.join(Node.text(Unicode.nbsp), tiles));
-  };
-
   let profile_of_tile = (t: T.t) =>
     Decoration.Tile.{
       shape:
@@ -125,7 +117,7 @@ module Common =
 
   let view_of_decorated_tile =
       (~font_metrics: FontMetrics.t, tile: T.t): Node.t => {
-    let text = V.text_of_tile(tile);
+    let text = Txt.view_of_tile(tile);
     let decoration = {
       let profile = profile_of_tile(tile);
       Decoration.container(
@@ -140,7 +132,7 @@ module Common =
 
   let view_of_decorated_open_child =
       (~font_metrics: FontMetrics.t, ~side: Direction.t, ts: T.s): Node.t => {
-    let text = text(ts);
+    let text = Txt.view(ts);
     let contour = {
       let length = length(ts);
       Decoration.container(
@@ -229,9 +221,9 @@ module Common =
         let code = {
           let k = j == List.length(ts) ? j - 1 : j;
           let ZList.{prefix, z, suffix} = Ts.nth_root(k, ts);
-          let prefix = List.map(V.text_of_tile, prefix);
+          let prefix = List.map(Txt.view_of_tile, prefix);
           let zroot = view_of_decorated_term(z);
-          let suffix = List.map(V.text_of_tile, suffix);
+          let suffix = List.map(Txt.view_of_tile, suffix);
           Text.space(prefix @ [zroot, ...suffix]);
         };
         Node.span([Attr.classes(["zipped"])], [caret, ...code]);
@@ -266,15 +258,15 @@ module Common =
         | ([], []) =>
           let (prefix, selected, suffix) =
             ListUtil.split_sublist(j_l, j_r, ts);
-          let prefix = List.map(V.text_of_tile, prefix);
+          let prefix = List.map(Txt.view_of_tile, prefix);
           let selected = List.map(view_of_decorated_tile, selected);
-          let suffix = List.map(V.text_of_tile, suffix);
+          let suffix = List.map(Txt.view_of_tile, suffix);
           (prefix, selected, suffix);
         | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
           let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_r, ts);
           let (prefix, selected) = ListUtil.split_n(j_l, prefix);
-          let prefix = List.map(V.text_of_tile, prefix);
-          let suffix = List.map(V.text_of_tile, suffix);
+          let prefix = List.map(Txt.view_of_tile, prefix);
+          let suffix = List.map(Txt.view_of_tile, suffix);
           let selected = List.map(view_of_decorated_tile, selected);
           let (inner_selected, inner_unselected) =
             V.view_of_decorated_selection_tile(
@@ -288,8 +280,8 @@ module Common =
           let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_l, ts);
           let (selected, suffix) =
             ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
-          let prefix = List.map(V.text_of_tile, prefix);
-          let suffix = List.map(V.text_of_tile, suffix);
+          let prefix = List.map(Txt.view_of_tile, prefix);
+          let suffix = List.map(Txt.view_of_tile, suffix);
           let selected = List.map(view_of_decorated_tile, selected);
           let (inner_unselected, inner_selected) =
             V.view_of_decorated_selection_tile(
@@ -306,7 +298,7 @@ module Common =
           let (prefix, tile_r, suffix) = ListUtil.split_nth(tile_step_r, ts);
           let (prefix, tile_l, mid) =
             ListUtil.split_nth(tile_step_l, prefix);
-          let prefix = List.map(V.text_of_tile, prefix);
+          let prefix = List.map(Txt.view_of_tile, prefix);
           let (unselected_l, selected_l) =
             V.view_of_decorated_selection_tile(
               ~font_metrics,
@@ -322,7 +314,7 @@ module Common =
               (child_step_r, (steps_r, j_r)),
               tile_r,
             );
-          let suffix = List.map(V.text_of_tile, suffix);
+          let suffix = List.map(Txt.view_of_tile, suffix);
           (
             prefix @ unselected_l,
             selected_l @ mid @ selected_r,
@@ -546,8 +538,6 @@ module rec Typ: TYP = {
       };
     };
 
-    let text_of_tile = Text.Typ.view_of_tile;
-
     let is_operand_hole =
       fun
       | OperandHole => true
@@ -600,14 +590,14 @@ module rec Typ: TYP = {
       switch (ztile) {
       | Operand(ParenZ_body({prefix, suffix, _})) =>
         let (l, r) = Text.of_Paren;
-        let prefix = List.map(text_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(text_of_tile, suffix)];
+        let prefix = List.map(Text.Typ.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Typ.view_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PreOp () => raise(ZTyp.Void_ZPreOp)
       | PostOp(AnnZ_ann(_, {prefix, suffix, _})) =>
         let (l, r) = failwith("todo");
-        let prefix = List.map(Pat.text_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Pat.text_of_tile, suffix)];
+        let prefix = List.map(Text.Pat.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Pat.view_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | BinOp () => raise(ZTyp.Void_ZBinOp)
       };
@@ -627,7 +617,7 @@ module rec Typ: TYP = {
         (~font_metrics as _, ~select as _, _, _) =>
       failwith("todo");
   };
-  include Common(HTyp.Tile, ZTyp, V);
+  include Common(HTyp.Tile, ZTyp, Text.Typ, V);
 }
 and Pat: PAT = {
   module V = {
@@ -663,8 +653,6 @@ and Pat: PAT = {
         | BinOp () => raise(ZPat.Void_ZBinOp)
         }
       };
-
-    let text_of_tile = Text.Pat.view_of_tile;
 
     let is_operand_hole =
       fun
@@ -717,13 +705,13 @@ and Pat: PAT = {
       switch (ztile) {
       | Operand(ParenZ_body({prefix, suffix, _})) =>
         let (l, r) = Text.of_Paren;
-        let prefix = List.map(text_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(text_of_tile, suffix)];
+        let prefix = List.map(Text.Pat.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Pat.view_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PreOp(LamZ_pat(_, {prefix, suffix, _})) =>
         let (l, r) = Text.of_Lam;
-        let prefix = List.map(Exp.text_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Exp.text_of_tile, suffix)];
+        let prefix = List.map(Text.Exp.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PostOp () => raise(ZPat.Void_ZPostOp)
       | BinOp () => raise(ZPat.Void_ZBinOp)
@@ -749,7 +737,7 @@ and Pat: PAT = {
         (~font_metrics as _, ~select as _, _, _) =>
       failwith("todo");
   };
-  include Common(HPat.Tile, ZPat, V);
+  include Common(HPat.Tile, ZPat, Text.Pat, V);
 
   module M = {
     let length = length;
@@ -874,8 +862,6 @@ and Exp: EXP = {
         }
       };
 
-    let text_of_tile = Text.Exp.view_of_tile;
-
     let is_operand_hole =
       fun
       | OperandHole => true
@@ -938,8 +924,8 @@ and Exp: EXP = {
       | Operand(ParenZ_body({prefix, suffix, _}))
       | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
         let (l, r) = Text.of_Paren;
-        let prefix = List.map(text_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(text_of_tile, suffix)];
+        let prefix = List.map(Text.Exp.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PreOp () => raise(ZExp.Void_ZPreOp)
       | BinOp () => raise(ZExp.Void_ZBinOp)
@@ -995,7 +981,7 @@ and Exp: EXP = {
         }
       };
   };
-  include Common(HExp.Tile, ZExp, V);
+  include Common(HExp.Tile, ZExp, Text.Exp, V);
 
   module M = {
     let length = length;
