@@ -938,7 +938,7 @@ and Exp: EXP = {
         }
       };
 
-    let text_of_tile = CodeText.Exp.view_of_tile;
+    let text_of_tile = Text.Exp.view_of_tile;
 
     let is_operand_hole =
       fun
