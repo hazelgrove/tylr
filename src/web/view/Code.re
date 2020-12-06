@@ -2,11 +2,6 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
-let hole_radii = (~font_metrics: FontMetrics.t) => {
-  let r = 3.5;
-  (r /. font_metrics.col_width, r /. font_metrics.row_height);
-};
-
 type zipper_view('z) = ZList.t('z, Node.t);
 
 module type COMMON = {
@@ -130,7 +125,6 @@ module Common =
 
   let view_of_decorated_tile =
       (~font_metrics: FontMetrics.t, tile: T.t): Node.t => {
-    let hole_radii = hole_radii(~font_metrics);
     let text = V.text_of_tile(tile);
     let decoration = {
       let profile = profile_of_tile(tile);
@@ -138,7 +132,7 @@ module Common =
         ~font_metrics,
         ~length=profile.len,
         ~cls="tile",
-        Decoration.Tile.view(~sort=T.sort, ~hole_radii, profile),
+        Decoration.Tile.view(~sort=T.sort, ~font_metrics, profile),
       );
     };
     Node.span([Attr.classes(["decorated-tile"])], [text, decoration]);
@@ -1131,7 +1125,6 @@ and Exp: EXP = {
 };
 
 let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
-  let radii = hole_radii(~font_metrics);
   Exp.empty_holes(e)
   |> List.map(origin =>
        Decoration.container(
@@ -1139,7 +1132,7 @@ let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
          ~origin,
          ~length=1,
          ~cls="empty-hole",
-         Decoration.EmptyHole.view(~radii, ~inset=false),
+         Decoration.EmptyHole.view(~font_metrics, ~inset=false),
        )
      );
 };

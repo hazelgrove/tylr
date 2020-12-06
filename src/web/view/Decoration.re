@@ -3,6 +3,11 @@ open Virtual_dom.Vdom;
 module Sort = Core.Sort;
 module Direction = Core.Direction;
 
+let hole_radii = (~font_metrics: FontMetrics.t) => {
+  let r = 3.5;
+  (r /. font_metrics.col_width, r /. font_metrics.row_height);
+};
+
 let tip = 0.3;
 let child_border_thickness = 0.12;
 
@@ -148,24 +153,26 @@ module EmptyHole = {
       ],
     );
 
-  let view =
-      (~inset: bool, ~radii as (r_x, r_y): (float, float)): list(Node.t) => [
-    inset_shadow_filter,
-    Node.create_svg(
-      "ellipse",
-      AttrUtil.[
-        cx(0.5),
-        cy(0.5),
-        rx(r_x),
-        ry(r_y),
-        vector_effect("non-scaling-stroke"),
-        stroke_width(inset ? 0.3 : 0.75),
-        filter(inset ? "url(#empty-hole-inset-shadow)" : "none"),
-        Attr.classes(["empty-hole-path"]),
-      ],
-      [],
-    ),
-  ];
+  let view = (~inset: bool, ~font_metrics: FontMetrics.t): list(Node.t) => {
+    let (r_x, r_y) = hole_radii(~font_metrics);
+    [
+      inset_shadow_filter,
+      Node.create_svg(
+        "ellipse",
+        AttrUtil.[
+          cx(0.5),
+          cy(0.5),
+          rx(r_x),
+          ry(r_y),
+          vector_effect("non-scaling-stroke"),
+          stroke_width(inset ? 0.3 : 0.75),
+          filter(inset ? "url(#empty-hole-inset-shadow)" : "none"),
+          Attr.classes(["empty-hole-path"]),
+        ],
+        [],
+      ),
+    ];
+  };
 };
 
 module OpenChild = {
@@ -457,14 +464,14 @@ module Tile = {
       (
         ~sort: Sort.t,
         ~attrs: list(Attr.t)=[],
-        ~hole_radii: (float, float),
+        ~font_metrics: FontMetrics.t,
         profile: profile,
       )
       : list(Node.t) => {
     let empty_hole =
       switch (profile.shape) {
       | `Operand(true)
-      | `BinOp(true) => EmptyHole.view(~radii=hole_radii, ~inset=true)
+      | `BinOp(true) => EmptyHole.view(~font_metrics, ~inset=true)
       | _ => []
       };
     open_child_paths(~sort, profile.open_children)
