@@ -18,6 +18,7 @@ module Make =
          let root: T.s => root;
 
          let nth_root: (int, T.s) => Util.ZList.t(root, T.t);
+         let is_root: (int, T.s) => bool;
 
          let get_root:
            (
@@ -250,6 +251,14 @@ module Make =
         };
     go(Sk.mk(tiles));
   };
+
+  let is_root = (n: int, ts: T.s) =>
+    switch (root(ts)) {
+    | Operand(_)
+    | PreOp(_) => n == 0
+    | PostOp((l, _))
+    | BinOp((l, _, _)) => n == List.length(l)
+    };
 
   let get_root =
       (

@@ -64,6 +64,27 @@ module Inner = {
     | Pat(ts) => Some(ts);
 };
 
+// does not recurse into parentheses
+let get_hole_status_operand: Tile.operand => _ =
+  fun
+  | OperandHole
+  | Var(_)
+  | Paren(_) => HoleStatus.NotInHole;
+let get_hole_status_preop = () => raise(Tile.Void_PreOp);
+let get_hole_status_postop: Tile.postop => _ =
+  fun
+  | Ann(status, _) => status;
+let get_hole_status_binop: Tile.binop => _ =
+  fun
+  | OperatorHole => HoleStatus.NotInHole;
+let get_hole_status =
+  get_root(
+    ~operand=get_hole_status_operand,
+    ~preop=get_hole_status_preop,
+    ~postop=get_hole_status_postop,
+    ~binop=get_hole_status_binop,
+  );
+
 let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
   update_root(
     ~operand=put_hole_status_operand(status),
