@@ -7,65 +7,6 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let decoration_container =
-    (
-      ~font_metrics: FontMetrics.t,
-      ~origin: int=0,
-      ~length: int,
-      ~cls: string,
-      svgs: list(Node.t),
-    )
-    : Node.t => {
-  let buffered_height = 2;
-  let buffered_width = length + 1;
-
-  let buffered_height_px =
-    Float.of_int(buffered_height) *. font_metrics.row_height;
-  let buffered_width_px =
-    Float.of_int(buffered_width) *. font_metrics.col_width;
-
-  let container_origin_x =
-    (Float.of_int(origin) -. 0.5) *. font_metrics.col_width;
-  let container_origin_y = (-0.5) *. font_metrics.row_height;
-
-  Node.div(
-    [
-      Attr.classes([
-        "decoration-container",
-        Printf.sprintf("%s-container", cls),
-      ]),
-      Attr.create(
-        "style",
-        Printf.sprintf(
-          "top: %fpx; left: %fpx;",
-          container_origin_y,
-          container_origin_x,
-        ),
-      ),
-    ],
-    [
-      Node.create_svg(
-        "svg",
-        [
-          Attr.classes([cls]),
-          Attr.create(
-            "viewBox",
-            Printf.sprintf(
-              "-0.5 -0.5 %d %d",
-              buffered_width,
-              buffered_height,
-            ),
-          ),
-          Attr.create("width", Printf.sprintf("%fpx", buffered_width_px)),
-          Attr.create("height", Printf.sprintf("%fpx", buffered_height_px)),
-          Attr.create("preserveAspectRatio", "none"),
-        ],
-        svgs,
-      ),
-    ],
-  );
-};
-
 type zipper_view('z) = ZList.t('z, Node.t);
 
 module type COMMON = {
@@ -74,6 +15,7 @@ module type COMMON = {
   let length: T.s => int;
   let offset: (ZPath.t, T.s) => int;
   let text_of_tile: T.t => Node.t;
+  let text: T.s => Node.t;
   let empty_holes: T.s => list(int);
   let view_of_normal:
     (~font_metrics: FontMetrics.t, ZPath.t, Z.zipper) => zipper_view(Node.t);
@@ -192,7 +134,7 @@ module Common =
     let text = V.text_of_tile(tile);
     let decoration = {
       let profile = profile_of_tile(tile);
-      decoration_container(
+      Decoration.container(
         ~font_metrics,
         ~length=profile.len,
         ~cls="tile",
@@ -207,7 +149,7 @@ module Common =
     let text = text(ts);
     let contour = {
       let length = length(ts);
-      decoration_container(
+      Decoration.container(
         ~font_metrics,
         ~length=length + 1,
         ~origin=
@@ -224,7 +166,7 @@ module Common =
        let radii = hole_radii(~font_metrics);
        empty_holes(e)
        |> List.map(origin =>
-            decoration_container(
+            Decoration.container(
               ~font_metrics,
               ~origin,
               ~length=1,
@@ -1192,7 +1134,7 @@ let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
   let radii = hole_radii(~font_metrics);
   Exp.empty_holes(e)
   |> List.map(origin =>
-       decoration_container(
+       Decoration.container(
          ~font_metrics,
          ~origin,
          ~length=1,
@@ -1212,7 +1154,7 @@ let err_holes =
     };
   profiles
   |> List.map(((origin, profile: Decoration.ErrHole.profile)) =>
-       decoration_container(
+       Decoration.container(
          ~font_metrics,
          ~origin,
          ~length=profile.len,
