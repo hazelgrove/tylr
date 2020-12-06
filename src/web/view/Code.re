@@ -69,52 +69,38 @@ let decoration_container =
 type zipper_view('z) = ZList.t('z, Node.t);
 
 module type COMMON = {
-  type tiles;
-  type ztile;
-  let length: tiles => int;
-  let offset: (ZPath.t, tiles) => int;
-  let empty_holes: tiles => list(int);
+  module T: Tile.S;
+  module Z: ZTile.S with module T := T;
+  let length: T.s => int;
+  let offset: (ZPath.t, T.s) => int;
+  let text_of_tile: T.t => Node.t;
+  let empty_holes: T.s => list(int);
   let view_of_normal:
-    (~font_metrics: FontMetrics.t, ZPath.t, (tiles, option(ztile))) =>
-    zipper_view(Node.t);
+    (~font_metrics: FontMetrics.t, ZPath.t, Z.zipper) => zipper_view(Node.t);
   let view_of_decorated_selection:
-    (
-      ~font_metrics: FontMetrics.t,
-      ZPath.ordered_selection,
-      (tiles, option(ztile))
-    ) =>
+    (~font_metrics: FontMetrics.t, ZPath.ordered_selection, Z.zipper) =>
     zipper_view((list(Node.t), list(Node.t), list(Node.t)));
   let view_of_selecting:
-    (
-      ~font_metrics: FontMetrics.t,
-      ZPath.anchored_selection,
-      (tiles, option(ztile))
-    ) =>
+    (~font_metrics: FontMetrics.t, ZPath.anchored_selection, Z.zipper) =>
     zipper_view(Node.t);
   let view_of_restructuring:
     (
       ~font_metrics: FontMetrics.t,
       ZPath.ordered_selection,
       ZPath.t,
-      (tiles, option(ztile))
+      Z.zipper
     ) =>
     zipper_view(Node.t);
   let view:
-    (
-      ~font_metrics: FontMetrics.t,
-      EditState.Mode.t,
-      (tiles, option(ztile))
-    ) =>
-    Node.t;
+    (~font_metrics: FontMetrics.t, EditState.Mode.t, Z.zipper) => Node.t;
 };
 
 let space = 1;
 module Common =
        (
          T: Tile.S,
+         Z: ZTile.S with module T := T,
          V: {
-           // TODO make Z sig
-           type ztile;
            let length_of_tile: T.t => int;
            let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
            let text_of_tile: T.t => Node.t;
@@ -123,12 +109,12 @@ module Common =
            let open_children_of_tile: T.t => list((int, int));
            let closed_children_of_tile: T.t => list((int, int));
            let empty_holes_of_tile: T.t => list(int);
-           let view_of_ztile: ztile => zipper_view(unit);
+           let view_of_ztile: Z.ztile => zipper_view(unit);
            let view_of_normal:
              (
                ~font_metrics: FontMetrics.t,
                (ZPath.two_step, ZPath.t),
-               (T.s, option(ztile))
+               Z.zipper
              ) =>
              zipper_view(Node.t);
            let view_of_decorated_selection_tile:
@@ -143,7 +129,7 @@ module Common =
              (
                ~font_metrics: FontMetrics.t,
                (ZPath.two_step, ZPath.ordered_selection),
-               (T.s, option(ztile))
+               Z.zipper
              ) =>
              zipper_view((list(Node.t), list(Node.t), list(Node.t)));
          },
@@ -180,6 +166,7 @@ module Common =
     List.concat(holes);
   };
 
+  let text_of_tile = V.text_of_tile;
   let text = (ts: T.s): Node.t => {
     let tiles = List.map(V.text_of_tile, ts);
     Node.span([], ListUtil.join(Node.text(Unicode.nbsp), tiles));
@@ -280,7 +267,7 @@ module Common =
     Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));
   };
 
-  let view_of_unzipped = (unzipped: option(V.ztile)): zipper_view(unit) =>
+  let view_of_unzipped = (unzipped: Z.unzipped): zipper_view(unit) =>
     switch (unzipped) {
     | None => ZList.mk(~z=(), ())
     | Some(ztile) => V.view_of_ztile(ztile)
@@ -581,14 +568,23 @@ module ErrHole =
   };
 };
 
-module type TYP = COMMON with type tiles = HTyp.t and type ztile = ZTyp.ztile;
-module rec Typ: TYP = {
-  type tiles = HTyp.t;
-  type ztile = ZTyp.ztile;
+module type TYP = COMMON with module T := HTyp.Tile and module Z := ZTyp;
+module type PAT = {
+  include COMMON with module T := HPat.Tile and module Z := ZPat;
+  let err_holes: HPat.t => list((int, CodeDecoration.ErrHole.profile));
+  let err_holes_z:
+    (ZPath.t, HPat.t) => list((int, CodeDecoration.ErrHole.profile));
+};
+module type EXP = {
+  include COMMON with module T := HExp.Tile and module Z := ZExp;
+  let err_holes: HExp.t => list((int, CodeDecoration.ErrHole.profile));
+  let err_holes_z:
+    (ZPath.t, HExp.t) => list((int, CodeDecoration.ErrHole.profile));
+};
 
+module rec Typ: TYP = {
   module V = {
     open HTyp.Tile;
-    type ztile = ZTyp.ztile;
 
     let length_of_tile: t => int =
       Tile.map(
@@ -664,7 +660,21 @@ module rec Typ: TYP = {
       );
     };
 
-    let view_of_ztile = _ => failwith("todo");
+    let view_of_ztile = (ztile: ZTyp.ztile): zipper_view(unit) =>
+      switch (ztile) {
+      | Operand(ParenZ_body({prefix, suffix, _})) =>
+        let (l, r) = CodeText.of_Paren;
+        let prefix = List.map(text_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(text_of_tile, suffix)];
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
+      | PreOp () => raise(ZTyp.Void_ZPreOp)
+      | PostOp(AnnZ_ann(_, {prefix, suffix, _})) =>
+        let (l, r) = failwith("todo");
+        let prefix = List.map(Pat.text_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Pat.text_of_tile, suffix)];
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
+      | BinOp () => raise(ZTyp.Void_ZBinOp)
+      };
 
     let view_of_normal = (~font_metrics, (two_step, path), zipper) => {
       let `Typ(zipper) = ZPath.Typ.unzip(two_step, zipper);
@@ -681,22 +691,11 @@ module rec Typ: TYP = {
         (~font_metrics as _, ~select as _, _, _) =>
       failwith("todo");
   };
-  include Common(HTyp.Tile, V);
-};
-
-module type PAT = {
-  include COMMON with type tiles = HPat.t and type ztile = ZPat.ztile;
-  let err_holes: HPat.t => list((int, CodeDecoration.ErrHole.profile));
-  let err_holes_z:
-    (ZPath.t, HPat.t) => list((int, CodeDecoration.ErrHole.profile));
-};
-module rec Pat: PAT = {
-  type tiles = HPat.t;
-  type ztile = ZPat.ztile;
-
+  include Common(HTyp.Tile, ZTyp, V);
+}
+and Pat: PAT = {
   module V = {
     open HPat.Tile;
-    type ztile = ZPat.ztile;
 
     let length_of_tile: t => int =
       Tile.map(
@@ -778,7 +777,22 @@ module rec Pat: PAT = {
       );
     };
 
-    let view_of_ztile = _ => failwith("todo");
+    let view_of_ztile = (ztile: ZPat.ztile): zipper_view(unit) => {
+      switch (ztile) {
+      | Operand(ParenZ_body({prefix, suffix, _})) =>
+        let (l, r) = CodeText.of_Paren;
+        let prefix = List.map(text_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(text_of_tile, suffix)];
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
+      | PreOp(LamZ_pat(_, {prefix, suffix, _})) =>
+        let (l, r) = CodeText.of_Lam;
+        let prefix = List.map(Exp.text_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Exp.text_of_tile, suffix)];
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
+      | PostOp () => raise(ZPat.Void_ZPostOp)
+      | BinOp () => raise(ZPat.Void_ZBinOp)
+      };
+    };
 
     let view_of_normal = (~font_metrics, (two_step, path), zipper) =>
       switch (ZPath.Pat.unzip(two_step, zipper)) {
@@ -799,7 +813,7 @@ module rec Pat: PAT = {
         (~font_metrics as _, ~select as _, _, _) =>
       failwith("todo");
   };
-  include Common(HPat.Tile, V);
+  include Common(HPat.Tile, ZPat, V);
 
   module M = {
     let length = length;
@@ -885,21 +899,10 @@ module rec Pat: PAT = {
     };
   };
   include ErrHole(HPat.Tile, M);
-};
-
-module type EXP = {
-  include COMMON with type tiles = HExp.t and type ztile = ZExp.ztile;
-  let err_holes: HExp.t => list((int, CodeDecoration.ErrHole.profile));
-  let err_holes_z:
-    (ZPath.t, HExp.t) => list((int, CodeDecoration.ErrHole.profile));
-};
-module rec Exp: EXP = {
-  type tiles = HExp.t;
-  type ztile = ZExp.ztile;
-
+}
+and Exp: EXP = {
   module V = {
     open HExp.Tile;
-    type ztile = ZExp.ztile;
 
     let length_of_tile =
       Tile.map(
@@ -1056,7 +1059,7 @@ module rec Exp: EXP = {
         }
       };
   };
-  include Common(HExp.Tile, V);
+  include Common(HExp.Tile, ZExp, V);
 
   module M = {
     let length = length;
