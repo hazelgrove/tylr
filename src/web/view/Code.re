@@ -885,9 +885,6 @@ module rec Pat: PAT = {
     };
   };
   include ErrHole(HPat.Tile, M);
-
-  let err_holes = _ => failwith("todo");
-  let err_holes_z = (_, _) => failwith("todo");
 };
 
 module type EXP = {
