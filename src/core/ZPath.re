@@ -58,33 +58,28 @@ let cons_ordered_selection = (two_step, (l, r)) => (
 module Common =
        (
          T: Tile.S,
+         Z: ZTile.S with module T := T,
          I: {
            type t;
            let wrap: T.s => t;
            let unwrap: t => option(T.s);
          },
          P: {
-           type ztile;
            type zipped;
            type unzipped;
-           type zipper = (T.s, option(ztile));
 
            let sort: Sort.t;
            let sort_at: (t, T.s) => Sort.t;
 
-           let zip_ztile: (T.s, ztile) => (two_step, zipped);
-           let unzip: (two_step, zipper) => unzipped;
+           let zip_ztile: (T.s, Z.ztile) => (two_step, zipped);
+           let unzip: (two_step, Z.zipper) => unzipped;
            let unzip_cis: (two_step, T.s) => option(ZList.t(T.s, T.t));
 
            let enter_from:
              (Direction.t, T.t) => option((child_step, caret_step));
            let move:
              (
-               ~move: (
-                        Direction.t as 'd,
-                        t as 't,
-                        (T.s, option(ztile)) as 'zipper
-                      ) =>
+               ~move: (Direction.t as 'd, t as 't, Z.zipper) =>
                       option((t, option((two_step, zipped)))),
                'd,
                't,
@@ -138,11 +133,7 @@ module Common =
   type did_it_zip = option((two_step, P.zipped));
 
   let rec move =
-          (
-            d: Direction.t,
-            (steps, j): t,
-            (ts, zrest) as zipper: (T.s, option(P.ztile)),
-          )
+          (d: Direction.t, (steps, j): t, (ts, zrest) as zipper: Z.zipper)
           : option((t, did_it_zip)) => {
     switch (steps) {
     | [] =>
@@ -170,7 +161,7 @@ module Common =
   };
 
   let select =
-      (d: Direction.t, anchor: t, zipper: P.zipper)
+      (d: Direction.t, anchor: t, zipper: Z.zipper)
       : option((anchored_selection, did_it_zip)) => {
     let+ (next, did_it_zip) = move(d, anchor, zipper);
     switch (did_it_zip) {
@@ -533,9 +524,6 @@ module rec Typ: TYP = {
   let sort_at = (_, _) => Sort.Typ;
 
   module P = {
-    type ztile = ZTyp.ztile;
-    type zipper = ZTyp.zipper;
-
     type nonrec zipped = zipped;
     type nonrec unzipped = unzipped;
 
@@ -625,7 +613,7 @@ module rec Typ: TYP = {
       };
     };
   };
-  include Common(HTyp.Tile, HTyp.Inner, P);
+  include Common(HTyp.Tile, ZTyp, HTyp.Inner, P);
 }
 and Pat: PAT = {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
@@ -680,9 +668,6 @@ and Pat: PAT = {
     };
 
   module P = {
-    type ztile = ZPat.ztile;
-    type zipper = ZPat.zipper;
-
     type nonrec zipped = zipped;
     type nonrec unzipped = unzipped;
 
@@ -818,7 +803,7 @@ and Pat: PAT = {
         };
       };
   };
-  include Common(HPat.Tile, HPat.Inner, P);
+  include Common(HPat.Tile, ZPat, HPat.Inner, P);
 }
 and Exp: EXP = {
   type zipped = [ | `Exp(ZExp.zipper)];
@@ -874,9 +859,6 @@ and Exp: EXP = {
     };
 
   module P = {
-    type ztile = ZExp.ztile;
-    type zipper = ZExp.zipper;
-
     type nonrec zipped = zipped;
     type nonrec unzipped = unzipped;
 
@@ -998,5 +980,5 @@ and Exp: EXP = {
         (cons(two_step, path), e);
       };
   };
-  include Common(HExp.Tile, HExp.Inner, P);
+  include Common(HExp.Tile, ZExp, HExp.Inner, P);
 };
