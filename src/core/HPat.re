@@ -33,7 +33,7 @@ module Tile = {
   let precedence: t => int =
     fun
     | Operand(_) => 0
-    | PreOp(_) => raise(Void_PreOp)
+    | PreOp () => raise(Void_PreOp)
     | PostOp(Ann(_)) => 2
     | BinOp(OperatorHole) => 1;
 
@@ -44,7 +44,7 @@ module Tile = {
     fun
     | Operand(OperandHole | Var(_)) => []
     | Operand(Paren(body)) => [body]
-    | PreOp(_) => raise(Void_PreOp)
+    | PreOp () => raise(Void_PreOp)
     | PostOp(Ann(_)) => []
     | BinOp(OperatorHole) => [];
 };

@@ -194,7 +194,7 @@ module Exp = {
           };
         Some(info);
       }
-    | PreOp(_) => raise(ZExp.Void_ZPreOp)
+    | PreOp((Lam(_), _)) => raise(ZExp.Void_ZPreOp)
     | PostOp((l, _)) =>
       switch (Tile.get_postop(ztile)) {
       | ApZ_arg(_) =>
@@ -226,7 +226,7 @@ module Exp = {
           {ctx: info.ctx, mode: Ana({expected: ty_in, fix})};
         };
       }
-    | BinOp(_) => raise(ZExp.Void_ZBinOp)
+    | BinOp((_, OperatorHole | Plus(_), _)) => raise(ZExp.Void_ZBinOp)
     };
   };
 };
@@ -268,7 +268,7 @@ module Pat = {
       | Operand(_) =>
         // dummy hole
         Some(info)
-      | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+      | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
       | PostOp((subj, Ann(_, ann))) =>
         let ann_ty = HTyp.contract(ann);
         let subj_mode =
@@ -392,8 +392,8 @@ module Pat = {
             {ctx: info.ctx, mode: p_mode};
           }
         }
-      | PostOp(_) => raise(ZPat.Void_ZPostOp)
-      | BinOp(_) => raise(ZPat.Void_ZBinOp)
+      | PostOp((_, Ap(_))) => raise(ZPat.Void_ZPostOp)
+      | BinOp((_, OperatorHole | Plus(_), _)) => raise(ZPat.Void_ZBinOp)
       };
     | `Pat(p, zrest) =>
       let (zroot, zp) = {
@@ -421,8 +421,8 @@ module Pat = {
           Some({ctx: info.ctx, mode: body_mode});
         }
       | PreOp(_) => failwith("no preop that takes a pat produces a pat")
-      | PostOp(_) => raise(ZPat.Void_ZPostOp)
-      | BinOp(_) => raise(ZPat.Void_ZBinOp)
+      | PostOp((_, Ann(_))) => raise(ZPat.Void_ZPostOp)
+      | BinOp((_, OperatorHole, _)) => raise(ZPat.Void_ZBinOp)
       };
     };
   };

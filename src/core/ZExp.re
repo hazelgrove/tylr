@@ -26,6 +26,6 @@ let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
 let index: ztile => int =
   fun
   | Operand(ParenZ_body({prefix, _})) => List.length(prefix)
-  | PreOp(_) => raise(Void_ZPreOp)
+  | PreOp () => raise(Void_ZPreOp)
   | PostOp(ApZ_arg(_, {prefix, _})) => List.length(prefix)
-  | BinOp(_) => raise(Void_ZBinOp);
+  | BinOp () => raise(Void_ZBinOp);

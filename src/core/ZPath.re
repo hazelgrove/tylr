@@ -458,12 +458,12 @@ module rec Typ: TYP = {
       let (tile_step, (ty, zrest)) =
         zip([Tile.Operand(HTyp.Tile.Paren(subject))], zty);
       ((tile_step, 0), `Typ((ty, zrest)));
-    | PreOp(_) => raise(ZTyp.Void_ZPreOp)
+    | PreOp () => raise(ZTyp.Void_ZPreOp)
     | PostOp(AnnZ_ann(status, zp)) =>
       let (tile_step, (p, zrest)) =
         Pat.zip([Tile.PostOp(HPat.Tile.Ann(status, subject))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
-    | BinOp(_) => raise(ZTyp.Void_ZBinOp)
+    | BinOp () => raise(ZTyp.Void_ZBinOp)
     };
 
   type unzipped = [ | `Typ(ZTyp.zipper)];
@@ -499,9 +499,9 @@ module rec Typ: TYP = {
       switch (Option.get(unzipped)) {
       | Operand(ParenZ_body({prefix, suffix, _})) =>
         Some(ZList.{prefix, z: ty, suffix})
-      | PreOp(_) => raise(ZTyp.Void_ZPreOp)
+      | PreOp () => raise(ZTyp.Void_ZPreOp)
       | PostOp(AnnZ_ann(_)) => raise(Unzip_rezip_changes_sort)
-      | BinOp(_) => raise(ZTyp.Void_ZBinOp)
+      | BinOp () => raise(ZTyp.Void_ZBinOp)
       };
     };
 
@@ -512,8 +512,8 @@ module rec Typ: TYP = {
       | Operand(OperandHole | Num)
       | BinOp(OperatorHole | Arrow) => None
       | Operand(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | PreOp(_) => raise(HTyp.Tile.Void_PreOp)
-      | PostOp(_) => raise(HTyp.Tile.Void_PostOp)
+      | PreOp () => raise(HTyp.Tile.Void_PreOp)
+      | PostOp () => raise(HTyp.Tile.Void_PostOp)
       };
     let move = (d, path, `Typ(unzipped)) => {
       let+ (moved, did_it_zip) = Typ.move(d, path, unzipped);
@@ -589,8 +589,8 @@ and Pat: PAT = {
       let (tile_step, (e, zrest)) =
         Exp.zip([Tile.PreOp(HExp.Tile.Lam(status, p))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | PostOp(_) => raise(ZPat.Void_ZPostOp)
-    | BinOp(_) => raise(ZPat.Void_ZBinOp)
+    | PostOp () => raise(ZPat.Void_ZPostOp)
+    | BinOp () => raise(ZPat.Void_ZBinOp)
     };
 
   type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
@@ -641,8 +641,8 @@ and Pat: PAT = {
         | Operand(ParenZ_body({prefix, suffix, _})) =>
           Some(ZList.{prefix, z: p, suffix})
         | PreOp(LamZ_pat(_)) => None
-        | PostOp(_) => raise(ZPat.Void_ZPostOp)
-        | BinOp(_) => raise(ZPat.Void_ZBinOp)
+        | PostOp () => raise(ZPat.Void_ZPostOp)
+        | BinOp () => raise(ZPat.Void_ZBinOp)
         }
       };
 
@@ -654,7 +654,7 @@ and Pat: PAT = {
       | BinOp(OperatorHole) => None
       | Operand(Paren(p)) => Some((0, d == Left ? 0 : List.length(p)))
       | PostOp(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+      | PreOp () => raise(HPat.Tile.Void_PreOp)
       };
     let move = (d, path, unzipped) =>
       switch (unzipped) {
@@ -771,12 +771,12 @@ and Exp: EXP = {
       let (tile_step, (e, zrest)) =
         zip([Tile.Operand(HExp.Tile.Paren(e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | PreOp(_) => raise(ZExp.Void_ZPreOp)
+    | PreOp () => raise(ZExp.Void_ZPreOp)
     | PostOp(ApZ_arg(status, ze)) =>
       let (tile_step, (e, zrest)) =
         zip([Tile.PostOp(HExp.Tile.Ap(status, e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | BinOp(_) => raise(ZExp.Void_ZBinOp)
+    | BinOp () => raise(ZExp.Void_ZBinOp)
     };
 
   type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
@@ -828,8 +828,8 @@ and Exp: EXP = {
         | Operand(ParenZ_body({prefix, suffix, _}))
         | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
           Some(ZList.{prefix, z: e, suffix})
-        | PreOp(_) => raise(ZExp.Void_ZPreOp)
-        | BinOp(_) => raise(ZExp.Void_ZBinOp)
+        | PreOp () => raise(ZExp.Void_ZPreOp)
+        | BinOp () => raise(ZExp.Void_ZBinOp)
         }
       };
 

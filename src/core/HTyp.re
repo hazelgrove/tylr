@@ -34,8 +34,8 @@ module Tile = {
   let precedence: t => int =
     fun
     | Operand(_) => 0
-    | PreOp(_) => raise(Void_PreOp)
-    | PostOp(_) => raise(Void_PostOp)
+    | PreOp () => raise(Void_PreOp)
+    | PostOp () => raise(Void_PostOp)
     | BinOp(OperatorHole) => 1
     | BinOp(Arrow) => 2;
 
@@ -46,8 +46,8 @@ module Tile = {
     fun
     | Operand(OperandHole | Num) => []
     | Operand(Paren(body)) => [body]
-    | PreOp(_) => raise(Void_PreOp)
-    | PostOp(_) => raise(Void_PostOp)
+    | PreOp () => raise(Void_PreOp)
+    | PostOp () => raise(Void_PostOp)
     | BinOp(OperatorHole | Arrow) => [];
 };
 [@deriving sexp]
@@ -72,8 +72,8 @@ let rec contract = (ty: t): Type.t =>
     | Num => Num
     | Paren(body) => contract(body)
     }
-  | PreOp(_) => raise(Tile.Void_PreOp)
-  | PostOp(_) => raise(Tile.Void_PostOp)
+  | PreOp(((), _)) => raise(Tile.Void_PreOp)
+  | PostOp((_, ())) => raise(Tile.Void_PostOp)
   | BinOp((ty1, binop, ty2)) =>
     switch (binop) {
     | OperatorHole => Hole

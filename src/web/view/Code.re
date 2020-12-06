@@ -608,9 +608,9 @@ module rec Typ: TYP = {
         ZPath.Typ.unzip_tile(child_step, tile, ZTyp.mk());
       switch (Option.get(unzipped)) {
       | Operand(ParenZ_body(_)) => 1 + space + Typ.offset(path, ty)
-      | PreOp(_) => raise(ZTyp.Void_ZPreOp)
+      | PreOp () => raise(ZTyp.Void_ZPreOp)
       | PostOp(AnnZ_ann(_)) => raise(ZPath.Unzip_rezip_changes_sort)
-      | BinOp(_) => raise(ZTyp.Void_ZBinOp)
+      | BinOp () => raise(ZTyp.Void_ZBinOp)
       };
     };
 
@@ -716,16 +716,16 @@ module rec Pat: PAT = {
       | `Typ(ty, unzipped) =>
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body(_)) => raise(ZPath.Unzip_rezip_changes_sort)
-        | PreOp(_) => raise(ZTyp.Void_ZPreOp)
+        | PreOp () => raise(ZTyp.Void_ZPreOp)
         | PostOp(AnnZ_ann(_)) => 1 + space + Typ.offset(path, ty)
-        | BinOp(_) => raise(ZTyp.Void_ZBinOp)
+        | BinOp () => raise(ZTyp.Void_ZBinOp)
         }
       | `Pat(p, unzipped) =>
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body(_)) => 1 + space + Pat.offset(path, p)
         | PreOp(LamZ_pat(_)) => raise(ZPath.Unzip_rezip_changes_sort)
-        | PostOp(_) => raise(ZPat.Void_ZPostOp)
-        | BinOp(_) => raise(ZPat.Void_ZBinOp)
+        | PostOp () => raise(ZPat.Void_ZPostOp)
+        | BinOp () => raise(ZPat.Void_ZBinOp)
         }
       };
 
@@ -926,15 +926,15 @@ module rec Exp: EXP = {
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body(_)) => raise(ZPath.Unzip_rezip_changes_sort)
         | PreOp(LamZ_pat(_)) => 1 + space + Pat.offset(path, p)
-        | PostOp(_) => raise(ZPat.Void_ZPostOp)
-        | BinOp(_) => raise(ZPat.Void_ZBinOp)
+        | PostOp () => raise(ZPat.Void_ZPostOp)
+        | BinOp () => raise(ZPat.Void_ZBinOp)
         }
       | `Exp(e, unzipped) =>
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body(_))
         | PostOp(ApZ_arg(_)) => 1 + space + Exp.offset(path, e)
-        | PreOp(_) => raise(ZExp.Void_ZPreOp)
-        | BinOp(_) => raise(ZExp.Void_ZBinOp)
+        | PreOp () => raise(ZExp.Void_ZPreOp)
+        | BinOp () => raise(ZExp.Void_ZBinOp)
         }
       };
 
@@ -1005,8 +1005,8 @@ module rec Exp: EXP = {
         let prefix = List.map(text_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(text_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
-      | PreOp(_) => raise(ZExp.Void_ZPreOp)
-      | BinOp(_) => raise(ZExp.Void_ZBinOp)
+      | PreOp () => raise(ZExp.Void_ZPreOp)
+      | BinOp () => raise(ZExp.Void_ZBinOp)
       };
     };
 
@@ -1054,8 +1054,8 @@ module rec Exp: EXP = {
               (prefix, selected);
             };
           ([open_paren, ...l], r @ [close_paren]);
-        | PreOp(_) => raise(ZExp.Void_ZPreOp)
-        | BinOp(_) => raise(ZExp.Void_ZBinOp)
+        | PreOp () => raise(ZExp.Void_ZPreOp)
+        | BinOp () => raise(ZExp.Void_ZBinOp)
         }
       };
   };

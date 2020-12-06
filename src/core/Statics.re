@@ -10,7 +10,7 @@ module Pat = {
         | Var(x) => Some((Type.Hole, Ctx.add(x, Type.Hole, ctx)))
         | Paren(body) => syn(ctx, body)
         }
-      | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+      | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
       | PostOp((subj, Ann(status, ann))) =>
         switch (status) {
         | NotInHole =>
@@ -41,7 +41,7 @@ module Pat = {
       | Var(x) => Some(Ctx.add(x, ty, ctx))
       | Paren(body) => ana(ctx, body, ty)
       }
-    | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+    | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
     | PostOp((_, Ann(_)))
     | BinOp((_, OperatorHole, _)) => subsume()
     };
@@ -59,7 +59,7 @@ module Pat = {
         let (body, ty, ctx) = syn_fix_holes(ctx, body);
         ([Tile.Operand(HPat.Tile.Paren(body))], ty, ctx);
       }
-    | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+    | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
     | PostOp((subj, Ann(_, ann))) =>
       let ty = HTyp.contract(ann);
       let (subj, ctx) = ana_fix_holes(ctx, subj, ty);
@@ -84,7 +84,7 @@ module Pat = {
         let (body, ctx) = ana_fix_holes(ctx, body, ty);
         ([Tile.Operand(HPat.Tile.Paren(body))], ctx);
       }
-    | PreOp(_) => raise(HPat.Tile.Void_PreOp)
+    | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
     | PostOp((_, Ann(_)))
     | BinOp((_, OperatorHole, _)) => subsume()
     };

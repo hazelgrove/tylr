@@ -27,5 +27,5 @@ let index: ztile => int =
   fun
   | Operand(ParenZ_body({prefix, _})) => List.length(prefix)
   | PreOp(LamZ_pat(_, {prefix, _})) => List.length(prefix)
-  | PostOp(_) => raise(Void_ZPostOp)
-  | BinOp(_) => raise(Void_ZBinOp);
+  | PostOp () => raise(Void_ZPostOp)
+  | BinOp () => raise(Void_ZBinOp);
