@@ -22,12 +22,12 @@ let of_Plus = Node.text("+");
 let of_OperatorHole = Node.text(Unicode.nbsp);
 
 module Typ = {
-  let view_of_tile = _ => failwith("CodeText.Typ.view_of_tile");
+  let view_of_tile = _ => failwith("Text.Typ.view_of_tile");
 };
 
 module Pat = {
-  let view_of_tile = _ => failwith("CodeText.Pat.view_of_tile");
-  let view = _ => failwith("CodeText.Pat.view");
+  let view_of_tile = _ => failwith("Text.Pat.view_of_tile");
+  let view = _ => failwith("Text.Pat.view");
 };
 
 module Exp = {

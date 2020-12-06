@@ -173,7 +173,7 @@ module Common =
   };
 
   let profile_of_tile = (t: T.t) =>
-    CodeDecoration.Tile.{
+    Decoration.Tile.{
       shape:
         switch (t) {
         | Operand(operand) => `Operand(V.is_operand_hole(operand))
@@ -196,7 +196,7 @@ module Common =
         ~font_metrics,
         ~length=profile.len,
         ~cls="tile",
-        CodeDecoration.Tile.view(~sort=T.sort, ~hole_radii, profile),
+        Decoration.Tile.view(~sort=T.sort, ~hole_radii, profile),
       );
     };
     Node.span([Attr.classes(["decorated-tile"])], [text, decoration]);
@@ -216,7 +216,7 @@ module Common =
           | Right => (-1)
           },
         ~cls="open-child",
-        CodeDecoration.OpenChild.view(~sort=T.sort, ~side, length),
+        Decoration.OpenChild.view(~sort=T.sort, ~side, length),
       );
     };
     /*
@@ -229,7 +229,7 @@ module Common =
               ~origin,
               ~length=1,
               ~cls="inset-empty-hole",
-              CodeDecoration.EmptyHole.view(~radii, ~inset=true),
+              Decoration.EmptyHole.view(~radii, ~inset=true),
             )
           );
      };
@@ -264,7 +264,7 @@ module Common =
           view_of_decorated_open_child(~side=Right, r),
         ]
       };
-    Node.span([Attr.classes(["decorated-term"])], CodeText.space(vs));
+    Node.span([Attr.classes(["decorated-term"])], Text.space(vs));
   };
 
   let view_of_unzipped = (unzipped: Z.unzipped): zipper_view(unit) =>
@@ -288,7 +288,7 @@ module Common =
         let caret = {
           let (prefix, _) = ListUtil.split_n(j, ts);
           let len = length(prefix);
-          CodeDecoration.Caret.view(~font_metrics, len, []);
+          Decoration.Caret.view(~font_metrics, len, []);
         };
         let code = {
           let k = j == List.length(ts) ? j - 1 : j;
@@ -296,7 +296,7 @@ module Common =
           let prefix = List.map(V.text_of_tile, prefix);
           let zroot = view_of_decorated_term(z);
           let suffix = List.map(V.text_of_tile, suffix);
-          CodeText.space(prefix @ [zroot, ...suffix]);
+          Text.space(prefix @ [zroot, ...suffix]);
         };
         Node.span([Attr.classes(["zipped"])], [caret, ...code]);
       };
@@ -409,7 +409,7 @@ module Common =
     let (caret, selection_box) = {
       let (offset_l, offset_r) = (offset(l, ts), offset(r, ts));
       let caret =
-        CodeDecoration.Caret.view(
+        Decoration.Caret.view(
           ~font_metrics,
           caret_side == Left ? offset_l : offset_r,
           [],
@@ -436,7 +436,7 @@ module Common =
     let z =
       Node.span(
         [Attr.classes(["selection-container"])],
-        [caret, selection_box, ...CodeText.space(pre @ selected @ suf)],
+        [caret, selection_box, ...Text.space(pre @ selected @ suf)],
       );
     ZList.mk(~prefix, ~z, ~suffix, ());
   };
@@ -472,12 +472,12 @@ module Common =
             ],
             [],
           ),
-          ...CodeText.space(selected),
+          ...Text.space(selected),
         ],
       );
     let (caret, flag) = {
       let offset = offset(target, ts);
-      let caret = CodeDecoration.Caret.view(~font_metrics, offset, []);
+      let caret = Decoration.Caret.view(~font_metrics, offset, []);
       let flag =
         Node.span(
           [
@@ -508,7 +508,7 @@ module Common =
               ],
               [],
             ),
-            ...CodeText.space(selected),
+            ...Text.space(selected),
           ],
         );
       (caret, flag);
@@ -516,7 +516,7 @@ module Common =
     let z =
       Node.span(
         [Attr.classes(["restructuring"])],
-        [caret, flag, ...CodeText.space(pre @ [placeholder, ...suf])],
+        [caret, flag, ...Text.space(pre @ [placeholder, ...suf])],
       );
     ZList.mk(~prefix, ~z, ~suffix, ());
   };
@@ -531,7 +531,7 @@ module Common =
       | Restructuring(selection, target) =>
         view_of_restructuring(~font_metrics, selection, target, zipper)
       };
-    Node.span([], CodeText.space(prefix @ [z, ...suffix]));
+    Node.span([], Text.space(prefix @ [z, ...suffix]));
   };
 };
 
@@ -542,13 +542,13 @@ module ErrHole =
            let length: T.s => int;
            let get_hole_status: T.s => HoleStatus.t;
            let inner_err_holes:
-             T.s => list((int, CodeDecoration.ErrHole.profile));
+             T.s => list((int, Decoration.ErrHole.profile));
            let inner_err_holes_z:
-             (ZPath.t, T.s) => list((int, CodeDecoration.ErrHole.profile));
+             (ZPath.t, T.s) => list((int, Decoration.ErrHole.profile));
          },
        ) => {
   let err_holes = (ts: T.s) => {
-    let outer_hole: list((int, CodeDecoration.ErrHole.profile)) =
+    let outer_hole: list((int, Decoration.ErrHole.profile)) =
       switch (V.get_hole_status(ts)) {
       | NotInHole => []
       | InHole => [(0, {expanded: false, len: V.length(ts)})]
@@ -558,7 +558,7 @@ module ErrHole =
   };
 
   let err_holes_z = (path: ZPath.t, ts: T.s) => {
-    let outer_hole: list((int, CodeDecoration.ErrHole.profile)) =
+    let outer_hole: list((int, Decoration.ErrHole.profile)) =
       switch (V.get_hole_status(ts)) {
       | NotInHole => []
       | InHole => [(0, {expanded: true, len: V.length(ts)})]
@@ -571,15 +571,15 @@ module ErrHole =
 module type TYP = COMMON with module T := HTyp.Tile and module Z := ZTyp;
 module type PAT = {
   include COMMON with module T := HPat.Tile and module Z := ZPat;
-  let err_holes: HPat.t => list((int, CodeDecoration.ErrHole.profile));
+  let err_holes: HPat.t => list((int, Decoration.ErrHole.profile));
   let err_holes_z:
-    (ZPath.t, HPat.t) => list((int, CodeDecoration.ErrHole.profile));
+    (ZPath.t, HPat.t) => list((int, Decoration.ErrHole.profile));
 };
 module type EXP = {
   include COMMON with module T := HExp.Tile and module Z := ZExp;
-  let err_holes: HExp.t => list((int, CodeDecoration.ErrHole.profile));
+  let err_holes: HExp.t => list((int, Decoration.ErrHole.profile));
   let err_holes_z:
-    (ZPath.t, HExp.t) => list((int, CodeDecoration.ErrHole.profile));
+    (ZPath.t, HExp.t) => list((int, Decoration.ErrHole.profile));
 };
 
 module rec Typ: TYP = {
@@ -610,7 +610,7 @@ module rec Typ: TYP = {
       };
     };
 
-    let text_of_tile = CodeText.Typ.view_of_tile;
+    let text_of_tile = Text.Typ.view_of_tile;
 
     let is_operand_hole =
       fun
@@ -663,7 +663,7 @@ module rec Typ: TYP = {
     let view_of_ztile = (ztile: ZTyp.ztile): zipper_view(unit) =>
       switch (ztile) {
       | Operand(ParenZ_body({prefix, suffix, _})) =>
-        let (l, r) = CodeText.of_Paren;
+        let (l, r) = Text.of_Paren;
         let prefix = List.map(text_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(text_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
@@ -728,7 +728,7 @@ and Pat: PAT = {
         }
       };
 
-    let text_of_tile = CodeText.Pat.view_of_tile;
+    let text_of_tile = Text.Pat.view_of_tile;
 
     let is_operand_hole =
       fun
@@ -780,12 +780,12 @@ and Pat: PAT = {
     let view_of_ztile = (ztile: ZPat.ztile): zipper_view(unit) => {
       switch (ztile) {
       | Operand(ParenZ_body({prefix, suffix, _})) =>
-        let (l, r) = CodeText.of_Paren;
+        let (l, r) = Text.of_Paren;
         let prefix = List.map(text_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(text_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PreOp(LamZ_pat(_, {prefix, suffix, _})) =>
-        let (l, r) = CodeText.of_Lam;
+        let (l, r) = Text.of_Lam;
         let prefix = List.map(Exp.text_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(Exp.text_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
@@ -1001,7 +1001,7 @@ and Exp: EXP = {
       switch (ztile) {
       | Operand(ParenZ_body({prefix, suffix, _}))
       | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
-        let (l, r) = CodeText.of_Paren;
+        let (l, r) = Text.of_Paren;
         let prefix = List.map(text_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(text_of_tile, suffix)];
         ZList.mk(~prefix, ~z=(), ~suffix, ());
@@ -1033,7 +1033,7 @@ and Exp: EXP = {
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body(_))
         | PostOp(ApZ_arg(_)) =>
-          let (open_paren, close_paren) = CodeText.of_Paren;
+          let (open_paren, close_paren) = Text.of_Paren;
           let (l, r) =
             switch (select) {
             | Left =>
@@ -1197,7 +1197,7 @@ let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {
          ~origin,
          ~length=1,
          ~cls="empty-hole",
-         CodeDecoration.EmptyHole.view(~radii, ~inset=false),
+         Decoration.EmptyHole.view(~radii, ~inset=false),
        )
      );
 };
@@ -1211,13 +1211,13 @@ let err_holes =
     | Restructuring(_) => []
     };
   profiles
-  |> List.map(((origin, profile: CodeDecoration.ErrHole.profile)) =>
+  |> List.map(((origin, profile: Decoration.ErrHole.profile)) =>
        decoration_container(
          ~font_metrics,
          ~origin,
          ~length=profile.len,
          ~cls="err-hole",
-         CodeDecoration.ErrHole.view(profile),
+         Decoration.ErrHole.view(profile),
        )
      );
 };
