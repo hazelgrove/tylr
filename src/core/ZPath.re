@@ -424,19 +424,22 @@ module Common =
     };
 };
 
-module rec Typ: {
-  type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
+module type COMMON = {
+  module T: Tile.S;
+  module Z: ZTile.S with module T := T;
+  type inner_tiles;
+
+  type zipped;
+  let zip: (T.s, Z.t) => (tile_step, Z.zipper);
+  let zip_ztile: (T.s, Z.ztile) => (two_step, zipped);
+
+  type unzipped;
+  let unzip_tile: (child_step, T.t, Z.t) => unzipped;
+  let unzip: (two_step, Z.zipper) => unzipped;
+
+  let sort_at: (t, T.s) => Sort.t;
+
   type did_it_zip = option((two_step, zipped));
-
-  let zip: (HTyp.t, ZTyp.t) => (tile_step, ZTyp.zipper);
-  let zip_ztile: (HTyp.t, ZTyp.ztile) => (two_step, zipped);
-
-  type unzipped = [ | `Typ(ZTyp.zipper)];
-
-  let unzip_tile: (child_step, HTyp.Tile.t, ZTyp.t) => unzipped;
-  let unzip: (two_step, ZTyp.zipper) => unzipped;
-
-  let sort_at: (t, HTyp.t) => Sort.t;
 
   /**
    * `move(d, zipper, path)` first attempts to returns the next path
@@ -445,23 +448,51 @@ module rec Typ: {
    * the focused term), then it attempts to zip `zipper` and try once
    * more.
    */
-  let move: (Direction.t, t, ZTyp.zipper) => option((t, did_it_zip));
+  let move: (Direction.t, t, Z.zipper) => option((t, did_it_zip));
 
   let select:
-    (Direction.t, t, ZTyp.zipper) => option((anchored_selection, did_it_zip));
-
-  let delete_selection: (ordered_selection, HTyp.t) => option((t, HTyp.t));
-
-  let round_selection: (ordered_selection, HTyp.t) => ordered_selection;
+    (Direction.t, t, Z.zipper) => option((anchored_selection, did_it_zip));
+  let delete_selection: (ordered_selection, T.s) => option((t, T.s));
+  let round_selection: (ordered_selection, T.s) => ordered_selection;
 
   let remove_tiles:
-    (ordered_selection, HTyp.t) => option((HTyp.Inner.t, t, HTyp.t));
+    (ordered_selection, T.s) => option((inner_tiles, t, T.s));
   let insert_tiles:
-    (HTyp.Inner.t, t, HTyp.t) => option((ordered_selection, HTyp.t));
+    (inner_tiles, t, T.s) => option((ordered_selection, T.s));
   let restructure:
-    (~place_cursor: [ | `Selection | `Other]=?, (t, t), t, HTyp.t) =>
-    option((t, HTyp.t));
-} = {
+    (~place_cursor: [ | `Selection | `Other]=?, (t, t), t, T.s) =>
+    option((t, T.s));
+};
+
+module type TYP = {
+  include
+    COMMON with
+      module T := HTyp.Tile and
+      module Z := ZTyp and
+      type inner_tiles := HTyp.Inner.t and
+      type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)] and
+      type unzipped = [ | `Typ(ZTyp.zipper)];
+};
+module type PAT = {
+  include
+    COMMON with
+      module T := HPat.Tile and
+      module Z := ZPat and
+      type inner_tiles := HPat.Inner.t and
+      type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)] and
+      type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
+};
+module type EXP = {
+  include
+    COMMON with
+      module T := HExp.Tile and
+      module Z := ZExp and
+      type inner_tiles := HExp.Inner.t and
+      type zipped = [ | `Exp(ZExp.zipper)] and
+      type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
+};
+
+module rec Typ: TYP = {
   type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
 
   let zip = (ty: HTyp.t, zty: ZTyp.t): (tile_step, ZTyp.zipper) => (
@@ -596,42 +627,7 @@ module rec Typ: {
   };
   include Common(HTyp.Tile, HTyp.Inner, P);
 }
-and Pat: {
-  type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
-  type did_it_zip = option((two_step, zipped));
-
-  let zip: (HPat.t, ZPat.t) => (tile_step, ZPat.zipper);
-  let zip_ztile: (HPat.t, ZPat.ztile) => (two_step, zipped);
-
-  type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
-
-  let unzip_tile: (child_step, HPat.Tile.t, ZPat.t) => unzipped;
-  let unzip: (two_step, ZPat.zipper) => unzipped;
-
-  let sort_at: (t, HPat.t) => Sort.t;
-
-  let move: (Direction.t, t, ZPat.zipper) => option((t, did_it_zip));
-
-  let select:
-    (Direction.t, t, ZPat.zipper) => option((anchored_selection, did_it_zip));
-
-  let delete_selection: (ordered_selection, HPat.t) => option((t, HPat.t));
-
-  let round_selection: (ordered_selection, HPat.t) => ordered_selection;
-
-  let remove_tiles:
-    (ordered_selection, HPat.t) => option((HPat.Inner.t, t, HPat.t));
-  let insert_tiles:
-    (HPat.Inner.t, t, HPat.t) => option((ordered_selection, HPat.t));
-  let restructure:
-    (
-      ~place_cursor: [ | `Selection | `Other]=?,
-      ordered_selection,
-      t,
-      HPat.t
-    ) =>
-    option((t, HPat.t));
-} = {
+and Pat: PAT = {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
 
   let zip = (p: HPat.t, zp: ZPat.t): (tile_step, ZPat.zipper) => (
@@ -824,42 +820,7 @@ and Pat: {
   };
   include Common(HPat.Tile, HPat.Inner, P);
 }
-and Exp: {
-  type zipped = [ | `Exp(ZExp.zipper)];
-  type did_it_zip = option((two_step, zipped));
-
-  let zip: (HExp.t, ZExp.t) => (tile_step, ZExp.zipper);
-  let zip_ztile: (HExp.t, ZExp.ztile) => (two_step, zipped);
-
-  type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
-
-  let unzip_tile: (child_step, HExp.Tile.t, ZExp.t) => unzipped;
-  let unzip: (two_step, ZExp.zipper) => unzipped;
-
-  let sort_at: (t, HExp.t) => Sort.t;
-
-  let move: (Direction.t, t, ZExp.zipper) => option((t, did_it_zip));
-
-  let select:
-    (Direction.t, t, ZExp.zipper) => option((anchored_selection, did_it_zip));
-
-  let delete_selection: (ordered_selection, HExp.t) => option((t, HExp.t));
-
-  let round_selection: (ordered_selection, HExp.t) => ordered_selection;
-
-  let remove_tiles:
-    (ordered_selection, HExp.t) => option((HExp.Inner.t, t, HExp.t));
-  let insert_tiles:
-    (HExp.Inner.t, t, HExp.t) => option((ordered_selection, HExp.t));
-  let restructure:
-    (
-      ~place_cursor: [ | `Selection | `Other]=?,
-      ordered_selection,
-      t,
-      HExp.t
-    ) =>
-    option((t, HExp.t));
-} = {
+and Exp: EXP = {
   type zipped = [ | `Exp(ZExp.zipper)];
 
   let zip = (e: HExp.t, ze: ZExp.t): (tile_step, ZExp.zipper) => (

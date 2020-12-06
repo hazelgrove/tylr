@@ -16,7 +16,9 @@ and zbinop = unit; // empty
 exception Void_ZPostOp;
 exception Void_ZBinOp;
 
-type zipper = (HPat.t, option(ztile));
+type unzipped = option(ztile);
+type zipped = HPat.t;
+type zipper = (zipped, unzipped);
 
 let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
   Util.ZList.mk(~prefix, ~z, ~suffix, ());
