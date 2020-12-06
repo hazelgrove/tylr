@@ -14,6 +14,7 @@ type two_step = (tile_step, child_step);
 type t = (list(two_step), caret_step);
 
 exception Out_of_sync;
+exception Unzip_rezip_changes_sort;
 
 let cons = (two_step, (steps, j)) => ([two_step, ...steps], j);
 
@@ -499,8 +500,7 @@ module rec Typ: TYP = {
       | Operand(ParenZ_body({prefix, suffix, _})) =>
         Some(ZList.{prefix, z: ty, suffix})
       | PreOp(_) => raise(ZTyp.Void_ZPreOp)
-      | PostOp(AnnZ_ann(_)) =>
-        failwith("rezipping unzipped result would change sorts")
+      | PostOp(AnnZ_ann(_)) => raise(Unzip_rezip_changes_sort)
       | BinOp(_) => raise(ZTyp.Void_ZBinOp)
       };
     };
@@ -524,7 +524,7 @@ module rec Typ: TYP = {
       let `Typ(ty, unzipped) = unzip(two_step, (ty, None));
       let+ (selection, inserted) = Typ.insert_tiles(tiles, target, ty);
       switch (Typ.zip_ztile(inserted, Option.get(unzipped))) {
-      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sorts")
+      | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
       | (two_step, `Typ(rezipped, _)) => (
           cons_ordered_selection(two_step, selection),
           rezipped,
@@ -537,7 +537,7 @@ module rec Typ: TYP = {
       let `Typ(ty, zrest) = unzip(two_step, (ty, None));
       let+ (removed, removed_path, ty) = Typ.remove_tiles(selection, ty);
       switch (zip_ztile(ty, Option.get(zrest))) {
-      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+      | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
       | (two_step, `Typ(ty, _none)) => (
           removed,
           cons(two_step, removed_path),
@@ -556,7 +556,7 @@ module rec Typ: TYP = {
       let `Typ(ty, zrest) = unzip(two_step, (ty, None));
       let+ (path, ty) = Typ.restructure(~place_cursor, (l, r), target, ty);
       switch (zip_ztile(ty, Option.get(zrest))) {
-      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+      | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
       | (_, `Typ(ty, _)) => (cons(two_step, path), ty)
       };
     };
@@ -565,7 +565,7 @@ module rec Typ: TYP = {
       let `Typ(ty, unzipped) = unzip(two_step, (ty, None));
       let+ (path, ty) = Typ.delete_selection(selection, ty);
       switch (zip_ztile(ty, Option.get(unzipped))) {
-      | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+      | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
       | (_, `Typ(ty, _)) => (cons(two_step, path), ty)
       };
     };
@@ -674,7 +674,7 @@ and Pat: PAT = {
         | Other(tiles) =>
           let+ (selection, inserted) = Typ.insert_tiles(tiles, target, ty);
           switch (Typ.zip_ztile(inserted, Option.get(unzipped))) {
-          | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+          | (_, `Typ(_)) => raise(Unzip_rezip_changes_sort)
           | (two_step, `Pat(rezipped, _)) => (
               cons_ordered_selection(two_step, selection),
               rezipped,
@@ -684,7 +684,7 @@ and Pat: PAT = {
       | `Pat(p, unzipped) =>
         let+ (selection, inserted) = Pat.insert_tiles(tiles, target, p);
         switch (zip_ztile(inserted, Option.get(unzipped))) {
-        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Exp(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Pat(rezipped, _)) => (
             cons_ordered_selection(two_step, selection),
             rezipped,
@@ -698,7 +698,7 @@ and Pat: PAT = {
       | `Pat(p, zrest) =>
         let+ (removed, removed_path, p) = Pat.remove_tiles(selection, p);
         switch (zip_ztile(p, Option.get(zrest))) {
-        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Exp(_)) => raise(Unzip_rezip_changes_sort)
         | (two_step, `Pat(p, _)) => (
             removed,
             cons(two_step, removed_path),
@@ -708,7 +708,7 @@ and Pat: PAT = {
       | `Typ(ty, zrest) =>
         let+ (removed, removed_path, ty) = Typ.remove_tiles(selection, ty);
         switch (Typ.zip_ztile(ty, Option.get(zrest))) {
-        | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Typ(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Pat(p, _none)) => (
             HPat.Inner.Other(removed),
             cons(two_step, removed_path),
@@ -728,14 +728,14 @@ and Pat: PAT = {
       | `Pat(p, zrest) =>
         let+ (path, p) = Pat.restructure(~place_cursor, (l, r), target, p);
         switch (zip_ztile(p, Option.get(zrest))) {
-        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Exp(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Pat(p, _none)) => (cons(two_step, path), p)
         };
       | `Typ(ty, zrest) =>
         let+ (path, ty) =
           Typ.restructure(~place_cursor, (l, r), target, ty);
         switch (Typ.zip_ztile(ty, Option.get(zrest))) {
-        | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Typ(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Pat(p, _none)) => (cons(two_step, path), p)
         };
       };
@@ -745,13 +745,13 @@ and Pat: PAT = {
       | `Typ(ty, unzipped) =>
         let+ (path, ty) = Typ.delete_selection(selection, ty);
         switch (Typ.zip_ztile(ty, Option.get(unzipped))) {
-        | (_, `Typ(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Typ(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Pat(p, _)) => (cons(two_step, path), p)
         };
       | `Pat(p, unzipped) =>
         let+ (path, p) = Pat.delete_selection(selection, p);
         switch (zip_ztile(p, Option.get(unzipped))) {
-        | (_, `Exp(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Exp(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Pat(p, _)) => (cons(two_step, path), p)
         };
       };
@@ -861,7 +861,7 @@ and Exp: EXP = {
         | Other(tiles) =>
           let+ (selection, inserted) = Pat.insert_tiles(tiles, target, p);
           switch (Pat.zip_ztile(inserted, Option.get(unzipped))) {
-          | (_, `Pat(_)) => failwith("unzipping and rezipping changed sorts")
+          | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
           | (two_step, `Exp(rezipped, _)) => (
               cons_ordered_selection(two_step, selection),
               rezipped,
@@ -886,7 +886,7 @@ and Exp: EXP = {
         let+ (removed, removed_path, p) = Pat.remove_tiles(selection, p);
         let (two_step, rezipped) = Pat.zip_ztile(p, Option.get(zrest));
         switch (rezipped) {
-        | `Pat(_) => failwith("unzipping and rezipping changed sort")
+        | `Pat(_) => raise(Unzip_rezip_changes_sort)
         | `Exp(e, _none) => (
             HExp.Inner.Other(removed),
             cons(two_step, removed_path),
@@ -910,7 +910,7 @@ and Exp: EXP = {
       | `Pat(p, zrest) =>
         let+ (path, p) = Pat.restructure(~place_cursor, (l, r), target, p);
         switch (Pat.zip_ztile(p, Option.get(zrest))) {
-        | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Exp(e, _)) => (cons(two_step, path), e)
         };
       };
@@ -920,7 +920,7 @@ and Exp: EXP = {
       | `Pat(p, unzipped) =>
         let+ (path, p) = Pat.delete_selection(selection, p);
         switch (Pat.zip_ztile(p, Option.get(unzipped))) {
-        | (_, `Pat(_)) => failwith("unzipping and rezipping changed sort")
+        | (_, `Pat(_)) => raise(Unzip_rezip_changes_sort)
         | (_, `Exp(e, _)) => (cons(two_step, path), e)
         };
       | `Exp(e, unzipped) =>

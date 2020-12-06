@@ -576,8 +576,7 @@ module rec Typ: TYP = {
       switch (Option.get(unzipped)) {
       | Operand(ParenZ_body(_)) => 1 + space + Typ.offset(path, ty)
       | PreOp(_) => raise(ZTyp.Void_ZPreOp)
-      | PostOp(AnnZ_ann(_)) =>
-        failwith("rezipping unzipped result would change sort")
+      | PostOp(AnnZ_ann(_)) => raise(ZPath.Unzip_rezip_changes_sort)
       | BinOp(_) => raise(ZTyp.Void_ZBinOp)
       };
     };
@@ -683,8 +682,7 @@ module rec Pat: PAT = {
       switch (ZPath.Pat.unzip_tile(child_step, tile, ZPat.mk())) {
       | `Typ(ty, unzipped) =>
         switch (Option.get(unzipped)) {
-        | Operand(ParenZ_body(_)) =>
-          failwith("rezipping unzipped result would change sort")
+        | Operand(ParenZ_body(_)) => raise(ZPath.Unzip_rezip_changes_sort)
         | PreOp(_) => raise(ZTyp.Void_ZPreOp)
         | PostOp(AnnZ_ann(_)) => 1 + space + Typ.offset(path, ty)
         | BinOp(_) => raise(ZTyp.Void_ZBinOp)
@@ -692,8 +690,7 @@ module rec Pat: PAT = {
       | `Pat(p, unzipped) =>
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body(_)) => 1 + space + Pat.offset(path, p)
-        | PreOp(LamZ_pat(_)) =>
-          failwith("rezipping unzipped result would change sort")
+        | PreOp(LamZ_pat(_)) => raise(ZPath.Unzip_rezip_changes_sort)
         | PostOp(_) => raise(ZPat.Void_ZPostOp)
         | BinOp(_) => raise(ZPat.Void_ZBinOp)
         }
@@ -811,8 +808,7 @@ module rec Exp: EXP = {
       switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
       | `Pat(p, unzipped) =>
         switch (Option.get(unzipped)) {
-        | Operand(ParenZ_body(_)) =>
-          failwith("rezipping unzipped result would change sort")
+        | Operand(ParenZ_body(_)) => raise(ZPath.Unzip_rezip_changes_sort)
         | PreOp(LamZ_pat(_)) => 1 + space + Pat.offset(path, p)
         | PostOp(_) => raise(ZPat.Void_ZPostOp)
         | BinOp(_) => raise(ZPat.Void_ZBinOp)
