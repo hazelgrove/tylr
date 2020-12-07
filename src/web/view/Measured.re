@@ -27,9 +27,11 @@ module Common =
            let empty_holes_of_tile: T.t => list(int);
          },
        ) => {
+  let length_of_tile = Sort_specific.length_of_tile;
+
   let length = (ts: T.s): int =>
     ts
-    |> List.map(Sort_specific.length_of_tile)
+    |> List.map(length_of_tile)
     |> List.map((+)(1))
     |> List.fold_left((+), -1);
 
@@ -53,7 +55,7 @@ module Common =
              let origins =
                Sort_specific.empty_holes_of_tile(tile)
                |> List.map((+)(start));
-             (start + Sort_specific.length_of_tile(tile) + space, origins);
+             (start + length_of_tile(tile) + space, origins);
            },
            0,
          );
@@ -70,7 +72,7 @@ module Common =
         | PostOp(_) => `PostOp
         | BinOp(binop) => `BinOp(Sort_specific.is_operator_hole(binop))
         },
-      len: Sort_specific.length_of_tile(t),
+      len: length_of_tile(t),
       open_children: Sort_specific.open_children_of_tile(t),
       closed_children: Sort_specific.closed_children_of_tile(t),
     };
@@ -192,7 +194,6 @@ module rec Typ: TYP = {
     };
   };
   include Common(HTyp.Tile, Sort_specific);
-  let length_of_tile = Sort_specific.length_of_tile;
 };
 
 module type PAT = {
@@ -364,7 +365,6 @@ module rec Pat: PAT = {
   };
   include Common(HPat.Tile, Sort_specific);
   include ErrHole(HPat.Tile, Pat, Sort_specific);
-  let length_of_tile = Sort_specific.length_of_tile;
 };
 
 module type EXP = {
@@ -592,5 +592,4 @@ module rec Exp: EXP = {
   };
   include Common(HExp.Tile, Sort_specific);
   include ErrHole(HExp.Tile, Exp, Sort_specific);
-  let length_of_tile = Sort_specific.length_of_tile;
 };

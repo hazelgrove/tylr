@@ -150,7 +150,7 @@ module Common =
   let view_of_unzipped = (unzipped: Z.unzipped): zipper_view(unit) =>
     switch (unzipped) {
     | None => ZList.mk(~z=(), ())
-    | Some(ztile) => V.view_of_ztile(ztile)
+    | Some(ztile) => view_of_ztile(ztile)
     };
 
   let view_of_normal =
