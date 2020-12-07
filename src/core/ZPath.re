@@ -612,7 +612,6 @@ and Pat: PAT = {
     unzip_tile(r, tile, zp);
   };
 
-  // TODO fix output type
   let rec sort_at = ((steps, j): t, p: HPat.t): Sort.t =>
     switch (steps) {
     | [] => Pat
