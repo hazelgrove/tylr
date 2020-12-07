@@ -9,8 +9,11 @@ module type COMMON = {
   module Z: ZTile.S with module T := T;
 
   let view_of_ztile: Z.ztile => zipper_view(unit);
+  let view_of_unzipped: Z.unzipped => zipper_view(unit);
+
   let view_of_normal:
     (~font_metrics: FontMetrics.t, ZPath.t, Z.zipper) => zipper_view(Node.t);
+
   let view_of_decorated_selection:
     (~font_metrics: FontMetrics.t, ZPath.ordered_selection, Z.zipper) =>
     zipper_view((list(Node.t), list(Node.t), list(Node.t)));
@@ -20,6 +23,7 @@ module type COMMON = {
   let view_of_selecting:
     (~font_metrics: FontMetrics.t, ZPath.anchored_selection, Z.zipper) =>
     zipper_view(Node.t);
+
   let view_of_restructuring:
     (
       ~font_metrics: FontMetrics.t,
@@ -28,6 +32,7 @@ module type COMMON = {
       Z.zipper
     ) =>
     zipper_view(Node.t);
+
   let view:
     (~font_metrics: FontMetrics.t, EditState.Mode.t, Z.zipper) => Node.t;
 };
@@ -445,16 +450,20 @@ module rec Typ: TYP = {
 
     let view_of_ztile = (ztile: ZTyp.ztile): zipper_view(unit) =>
       switch (ztile) {
-      | Operand(ParenZ_body({prefix, suffix, _})) =>
+      | Operand(ParenZ_body({prefix, suffix, z})) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Typ.view_of_unzipped(z);
         let (l, r) = Text.of_Paren;
-        let prefix = List.map(Text.Typ.view_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Text.Typ.view_of_tile, suffix)];
+        let prefix = pre @ List.map(Text.Typ.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Typ.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PreOp () => raise(ZTyp.Void_ZPreOp)
-      | PostOp(AnnZ_ann(_, {prefix, suffix, _})) =>
+      | PostOp(AnnZ_ann(_, {prefix, suffix, z})) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Pat.view_of_unzipped(z);
         let (l, r) = Text.of_Ann;
-        let prefix = List.map(Text.Pat.view_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Text.Pat.view_of_tile, suffix)];
+        let prefix = pre @ List.map(Text.Pat.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Pat.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | BinOp () => raise(ZTyp.Void_ZBinOp)
       };
@@ -489,15 +498,19 @@ and Pat: PAT = {
 
     let view_of_ztile = (ztile: ZPat.ztile): zipper_view(unit) => {
       switch (ztile) {
-      | Operand(ParenZ_body({prefix, suffix, _})) =>
+      | Operand(ParenZ_body({prefix, suffix, z})) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Pat.view_of_unzipped(z);
         let (l, r) = Text.of_Paren;
-        let prefix = List.map(Text.Pat.view_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Text.Pat.view_of_tile, suffix)];
+        let prefix = pre @ List.map(Text.Pat.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Pat.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
-      | PreOp(LamZ_pat(_, {prefix, suffix, _})) =>
+      | PreOp(LamZ_pat(_, {prefix, suffix, z})) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Exp.view_of_unzipped(z);
         let (l, r) = Text.of_Lam;
-        let prefix = List.map(Text.Exp.view_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)];
+        let prefix = pre @ List.map(Text.Exp.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PostOp () => raise(ZPat.Void_ZPostOp)
       | BinOp () => raise(ZPat.Void_ZBinOp)
@@ -553,11 +566,13 @@ and Exp: EXP = {
 
     let view_of_ztile = (ztile: ZExp.ztile): zipper_view(unit) => {
       switch (ztile) {
-      | Operand(ParenZ_body({prefix, suffix, _}))
-      | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+      | Operand(ParenZ_body({prefix, suffix, z}))
+      | PostOp(ApZ_arg(_, {prefix, suffix, z})) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Exp.view_of_unzipped(z);
         let (l, r) = Text.of_Paren;
-        let prefix = List.map(Text.Exp.view_of_tile, prefix) @ [l];
-        let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)];
+        let prefix = pre @ List.map(Text.Exp.view_of_tile, prefix) @ [l];
+        let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PreOp () => raise(ZExp.Void_ZPreOp)
       | BinOp () => raise(ZExp.Void_ZBinOp)
