@@ -160,6 +160,13 @@
   z-index: var(--inset-empty-hole-z);
 }
 
+.err-hole-path {
+  fill: none;
+  stroke-dasharray: 3 2;
+  stroke: var(--hole-stroke-color);
+  stroke-width: 0.5;
+}
+
 .open-child-path {
   stroke-width: 0.5;
   fill: var(--light-page-color);
