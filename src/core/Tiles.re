@@ -212,7 +212,7 @@ module Make =
           }
           : {
             let zroot = go(r);
-            {...zroot, prefix: zroot.prefix @ [List.nth(tiles, m)]};
+            {...zroot, prefix: [List.nth(tiles, m), ...zroot.prefix]};
           }
       | PostOp(l, m) =>
         n == m
@@ -223,7 +223,7 @@ module Make =
           }
           : {
             let zroot = go(l);
-            {...zroot, suffix: [List.nth(tiles, m), ...zroot.suffix]};
+            {...zroot, suffix: zroot.suffix @ [List.nth(tiles, m)]};
           }
       | BinOp(l, m, r) => {
           let (_, tiles_l, _) =
