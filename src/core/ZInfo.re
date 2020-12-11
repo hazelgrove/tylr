@@ -1,174 +1,241 @@
 open Util;
 open OptUtil.Syntax;
 
+// module E = {
+//   type t('z) = {
+//     ctx: Ctx.t,
+//     mode: mode('z),
+//   }
+//   and mode('z) =
+//     | Syn({
+//         fn_pos: bool,
+//         fix: Type.t => 'z,
+//       })
+//     | Ana({
+//         expected: Type.t,
+//         fix: unit => 'z,
+//       });
+
+//   let map = (f: 'y => 'z, info: t('y)): t('z) => {
+//     ctx: info.ctx,
+//     mode:
+//       switch (info.mode) {
+//       | Syn({fn_pos, fix}) => Syn({fn_pos, fix: ty => f(fix(ty))})
+//       | Ana({expected, fix}) => Ana({expected, fix: () => f(fix())})
+//       },
+//   };
+
+//   let init: t(ZExp.unzipped) = {
+//     ctx: Ctx.empty,
+//     mode: Syn({
+//       fn_pos: false,
+//       fix: _ => None,
+//     })
+//   };
+
+//   let rec mk = (~init: t(ZExp.unzipped)=init, steps: ZPath.steps, e: HExp.t) => {
+//     switch (steps) {
+//     | [] => Some(init)
+//     | [(tile_step, child_step), ...steps] =>
+//       let* init = mk_tile(~init, tile_step, e);
+//       let ZList.{z, _} = HExp.nth_root(tile_step, e);
+//       let op = operand =>
+//         switch (ZPath.Exp.unzip_tile(child_step, Tile.Operand(operand))) {
+//         |
+//         }
+
+//       switch (ZPath.Exp.unzip(two_step, (e, None))) {
+//       | `Pat(p, unzipped) =>
+//         Option.get(unzipped)
+//         |> Tile.get(
+//           fun
+//           | ParenZ_body(_) => raise(ZPath.Unzip_rezip_changes_sort),
+//           fun
+//           | LamZ_pat(status, _) =>
+
+//         )
+//         | ParenZ_body(_) => raise()
+//         |
+//         }
+//       }
+//     }
+//   }
+//   and mk_tile = ((steps: ZPath.steps, n: ZPath.tile_step), e: HExp.t) =>
+//     switch (steps) {
+//     | [] =>
+//     }
+// }
+
 module Exp = {
   type t('z) = {
     ctx: Ctx.t,
     mode: mode('z),
   }
   and mode('z) =
-    | Syn({
-        fn_pos: bool,
-        fix: Type.t => 'z,
-      })
-    | Ana({
-        expected: Type.t,
-        fix: unit => 'z,
-      });
+    | Syn(Type.t => 'z)
+    | Ana(Type.t, 'z)
+    | Fn_pos((Type.t, Type.t) => 'z)
+    | Let_def(Type.t, Type.t => 'z);
 
+  let map_mode = (f: 'y => 'z, mode: mode('y)): mode('z) =>
+    switch (mode) {
+    | Syn(fix) => Syn(ty => f(fix(ty)))
+    | Ana(expected, fixed) => Ana(expected, f(fixed))
+    | Fn_pos(fix) => Fn_pos((ty_in, ty_out) => f(fix(ty_in, ty_out)))
+    | Let_def(expected, fix) => Let_def(expected, ty => f(fix(ty)))
+    };
   let map = (f: 'y => 'z, info: t('y)): t('z) => {
     ctx: info.ctx,
-    mode:
-      switch (info.mode) {
-      | Syn({fn_pos, fix}) => Syn({fn_pos, fix: ty => f(fix(ty))})
-      | Ana({expected, fix}) => Ana({expected, fix: () => f(fix())})
-      },
+    mode: map_mode(f, info.mode),
   };
 
   let rec mk = (ze: ZExp.t): option(t(ZExp.t)) => {
     let (n, (e, zrest)) = ZPath.Exp.zip(HExp.dummy_hole, ze);
     let* info =
       switch (zrest) {
-      | None =>
-        Some({
-          ctx: Ctx.empty,
-          mode: Syn({fn_pos: false, fix: _ => ZExp.mk()}),
-        })
+      | None => Some({ctx: Ctx.empty, mode: Syn(_ => ZExp.mk())})
       | Some(ztile) =>
         let+ info = mk_ztile(ztile);
         map(ztile => ZExp.mk(~z=ztile, ()), info);
       };
 
-    let rec go = (e: HExp.t, info: t(ZExp.t)): option(t(ZExp.t)) =>
-      switch (HExp.root(e)) {
-      | Operand(_) =>
-        // dummy hole
-        Some(info)
-      | PreOp((Lam(status, p), body)) =>
-        let* body_info =
-          switch (info.mode) {
-          | Syn({fn_pos: _, fix}) =>
-            let+ (ty_in, ctx) = Statics.Pat.syn(info.ctx, p);
-            let fix = ty_out => {
-              let ze = fix(Arrow(ty_in, ty_out));
-              {...ze, prefix: ze.prefix @ [PreOp(Lam(NotInHole, p))]};
-            };
-            {ctx, mode: Syn({fn_pos: false, fix})};
-          | Ana({expected, fix}) =>
-            switch (Type.matched_arrow(expected), status) {
-            | (None, NotInHole) => None
-            | (Some((ty_in, ty_out)), _) =>
-              let+ ctx = Statics.Pat.ana(info.ctx, p, ty_in);
-              let fix = () => {
-                let ze = fix();
-                {...ze, prefix: ze.prefix @ [PreOp(Lam(NotInHole, p))]};
-              };
-              {ctx, mode: Ana({expected: ty_out, fix})};
-            | (_, InHole) =>
-              let+ (_, ctx) = Statics.Pat.syn(info.ctx, p);
-              let fix = _ => {
-                let ze = fix();
-                {...ze, prefix: ze.prefix @ [PreOp(Lam(InHole, p))]};
-              };
-              {ctx, mode: Syn({fn_pos: false, fix})};
-            }
+    let rec go = (e: HExp.t, info: t(ZExp.t)): option(t(ZExp.t)) => {
+      open HExp.T;
+      // dummy hole
+      let op = _ => Some(info);
+      let pre = preop =>
+        switch (preop) {
+        | (Lam(_, p), body) =>
+          let syn_pat = () => {
+            let+ (pty, ctx) = Statics.Pat.syn(info.ctx, p);
+            (PType.to_type(pty), ctx);
           };
-        go(body, body_info);
-      | PostOp((fn, Ap(_, arg))) =>
-        let fn_mode =
-          Syn({
-            fn_pos: true,
-            fix: fn_ty => {
-              let (ty_in, ty_out) =
-                OptUtil.get(
-                  () =>
-                    failwith("expected client to return matched arrow type"),
-                  Type.matched_arrow(fn_ty),
-                );
-              switch (info.mode) {
-              | Syn({fn_pos, fix}) =>
-                // TODO check if in fn_pos
-                let arg = Statics.Exp.ana_fix_holes(info.ctx, arg, ty_in);
-                let status: HoleStatus.t =
-                  !fn_pos || Option.is_some(Type.matched_arrow(ty_out))
-                    ? NotInHole : InHole;
-                let ze = fix(ty_out);
-                {
-                  ...ze,
-                  suffix: [
-                    Tile.PostOp(HExp.Tile.Ap(status, arg)),
-                    ...ze.suffix,
-                  ],
-                };
-              | Ana({expected, fix}) =>
-                let arg = Statics.Exp.ana_fix_holes(info.ctx, arg, ty_in);
-                let status: HoleStatus.t =
-                  Type.consistent(ty_out, expected) ? NotInHole : InHole;
-                let ze = fix();
-                {...ze, suffix: [PostOp(Ap(status, arg)), ...ze.suffix]};
+          let mk_ze = (status, p, ze) =>
+            ZList.{
+              ...ze,
+              prefix: ze.prefix @ [Tile.PreOp(Lam(status, p))],
+            };
+          let* body_info =
+            switch (info.mode) {
+            | Syn(fix) =>
+              let+ (ty_in, ctx) = syn_pat();
+              let fix = ty_out =>
+                mk_ze(NotInHole, p, fix(Arrow(ty_in, ty_out)));
+              {ctx, mode: Syn(fix)};
+            | Ana(expected, fixed) =>
+              switch (Type.matched_arrow(expected)) {
+              | None =>
+                let+ (_, ctx) = syn_pat();
+                let fix = _ => mk_ze(InHole, p, fixed);
+                {ctx, mode: Syn(fix)};
+              | Some((ty_in, ty_out)) =>
+                let+ ctx = Statics.Pat.ana(info.ctx, p, ty_in);
+                let fixed = mk_ze(NotInHole, p, fixed);
+                {ctx, mode: Ana(ty_out, fixed)};
+              }
+            | Fn_pos(fix) =>
+              let+ (ty_in, ctx) = syn_pat();
+              let fix = ty_out => mk_ze(NotInHole, p, fix(ty_in, ty_out));
+              {ctx, mode: Syn(fix)};
+            | Let_def(expected, fix) =>
+              switch (Type.matched_arrow(expected)) {
+              | None =>
+                let+ (ty_in, ctx) = syn_pat();
+                let fix = ty_out =>
+                  mk_ze(NotInHole, p, fix(Arrow(ty_in, ty_out)));
+                {ctx, mode: Syn(fix)};
+              | Some((ty_in, ty_out)) =>
+                let+ ctx = Statics.Pat.ana(info.ctx, p, ty_in);
+                let fixed = mk_ze(NotInHole, p, fix(Arrow(ty_in, ty_out)));
+                {ctx, mode: Ana(ty_out, fixed)};
+              }
+            };
+          go(body, body_info);
+        | (Let(p, def), body) =>
+          let mk_ze = ze =>
+            ZList.{...ze, prefix: ze.prefix @ [Tile.PreOp(Let(p, def))]};
+          let mode = map_mode(mk_ze, info.mode);
+          // def_ty sufficient to get ctx
+          let* def_ty = Statics.Exp.syn(info.ctx, def);
+          let* ctx = Statics.Pat.ana(info.ctx, p, def_ty);
+          go(body, {ctx, mode});
+        };
+      let post = postop =>
+        switch (postop) {
+        | (fn, Ap(_, arg)) =>
+          let fix = (ty_in, ty_out) => {
+            let arg = Statics.Exp.ana_fix_holes(info.ctx, arg, ty_in);
+            let mk_ze = (status, ze) =>
+              ZList.{
+                ...ze,
+                suffix: [Tile.PostOp(Ap(status, arg)), ...ze.suffix],
               };
-            },
-          });
-        go(fn, {ctx: info.ctx, mode: fn_mode});
-      | BinOp((l, Plus(_), r)) =>
-        let is_left = n < List.length(l);
-        let operand_mode =
-          Ana({
-            expected: Num,
-            fix: () =>
-              switch (info.mode) {
-              | Syn({fn_pos, fix}) =>
-                let (status: HoleStatus.t, ty: Type.t) =
-                  fn_pos ? (InHole, Hole) : (NotInHole, Num);
-                // TODO shouldn't be necessary to fix in positions like this
-                let ze = fix(ty);
-                is_left
-                  ? {
-                    ...ze,
-                    suffix:
-                      [Tile.BinOp(HExp.Tile.Plus(status)), ...r] @ ze.suffix,
-                  }
-                  : {...ze, prefix: ze.prefix @ l @ [BinOp(Plus(status))]};
-              | Ana({expected, fix}) =>
-                let status: HoleStatus.t =
-                  Type.consistent(expected, Num) ? NotInHole : InHole;
-                let ze = fix();
-                is_left
-                  ? {
-                    ...ze,
-                    suffix:
-                      [Tile.BinOp(HExp.Tile.Plus(status)), ...r] @ ze.suffix,
-                  }
-                  : {...ze, prefix: ze.prefix @ l @ [BinOp(Plus(status))]};
-              },
-          });
-        go(is_left ? l : r, {ctx: info.ctx, mode: operand_mode});
-      | BinOp((l, OperatorHole, r)) =>
-        let is_left = n < List.length(l);
-        let operand_mode =
-          Syn({
-            fn_pos: false,
-            fix: _ => {
-              let ze =
-                switch (info.mode) {
-                | Syn({fix, _}) => fix(Type.Hole)
-                | Ana({fix, _}) => fix()
+            switch (info.mode) {
+            | Syn(fix) => mk_ze(NotInHole, fix(ty_out))
+            | Ana(expected, fixed) =>
+              let status = HoleStatus.mk(Type.consistent(ty_out, expected));
+              mk_ze(status, fixed);
+            | Fn_pos(fix) =>
+              let (status: HoleStatus.t, (ty_in, ty_out)) =
+                switch (Type.matched_arrow(ty_out)) {
+                | None => (InHole, Type.(Hole, Hole))
+                | Some(tys) => (NotInHole, tys)
                 };
-              is_left
-                ? {
-                  ...ze,
-                  suffix:
-                    [Tile.BinOp(HExp.Tile.OperatorHole), ...r] @ ze.suffix,
-                }
-                : {
-                  ...ze,
-                  prefix:
-                    ze.prefix @ l @ [Tile.BinOp(HExp.Tile.OperatorHole)],
-                };
-            },
-          });
-        go(is_left ? l : r, {ctx: info.ctx, mode: operand_mode});
+              mk_ze(status, fix(ty_in, ty_out));
+            | Let_def(expected, fix) =>
+              let status = HoleStatus.mk(Type.consistent(ty_out, expected));
+              mk_ze(status, fix(ty_out));
+            };
+          };
+          go(fn, {ctx: info.ctx, mode: Fn_pos(fix)});
+        };
+      let bin = ((l, binop, r)) => {
+        let is_left = n < List.length(l);
+        switch (binop) {
+        | Plus(_) =>
+          let mk_ze = (status, ze: ZExp.t): ZExp.t =>
+            is_left
+              ? {
+                ...ze,
+                suffix: [Tile.BinOp(Plus(status)), ...r] @ ze.suffix,
+              }
+              : {...ze, prefix: ze.prefix @ l @ [Tile.BinOp(Plus(status))]};
+          let fixed =
+            switch (info.mode) {
+            | Syn(fix) =>
+              // TODO shouldn't be necessary to fix in positions like this
+              mk_ze(NotInHole, fix(Num))
+            | Ana(expected, fixed) =>
+              let status = HoleStatus.mk(Type.consistent(expected, Num));
+              mk_ze(status, fixed);
+            | Fn_pos(fix) => mk_ze(InHole, fix(Hole, Hole))
+            | Let_def(expected, fix) =>
+              let (status: HoleStatus.t, ty: Type.t) =
+                Type.consistent(expected, Num)
+                  ? (NotInHole, Num) : (InHole, Hole);
+              mk_ze(status, fix(ty));
+            };
+          go(is_left ? l : r, {...info, mode: Ana(Num, fixed)});
+        | OperatorHole =>
+          let mk_ze = (ze: ZExp.t): ZExp.t =>
+            is_left
+              ? {
+                ...ze,
+                suffix: [Tile.BinOp(OperatorHole), ...r] @ ze.suffix,
+              }
+              : {...ze, prefix: ze.prefix @ l @ [Tile.BinOp(OperatorHole)]};
+          let fix = _ =>
+            switch (info.mode) {
+            | Syn(fix) => mk_ze(fix(Hole))
+            | Ana(_, fixed) => mk_ze(fixed)
+            | Fn_pos(fix) => mk_ze(fix(Hole, Hole))
+            | Let_def(_, fix) => mk_ze(fix(Hole))
+            };
+          go(is_left ? l : r, {...info, mode: Syn(fix)});
+        };
       };
+      Tile.get(op, pre, post, bin, HExp.root(e));
+    };
     go(e, info);
   }
   and mk_ztile = (ztile: ZExp.ztile): option(t(ZExp.ztile)) => {
@@ -183,50 +250,84 @@ module Exp = {
     | Operand(_) =>
       switch (Tile.get_operand(ztile)) {
       | ParenZ_body(_) =>
-        let info =
-          switch (info.mode) {
-          | Syn({fn_pos, fix}) =>
-            let fix = ty => Tile.Operand(ZExp.ParenZ_body(fix(ty)));
-            {ctx: info.ctx, mode: Syn({fn_pos, fix})};
-          | Ana({expected, fix}) =>
-            let fix = () => Tile.Operand(ZExp.ParenZ_body(fix()));
-            {ctx: info.ctx, mode: Ana({expected, fix})};
-          };
-        Some(info);
+        let wrap = ze => Tile.Operand(ZExp.ParenZ_body(ze));
+        Some(map(wrap, info));
       }
-    | PreOp((Lam(_), _)) => raise(ZExp.Void_ZPreOp)
+    | PreOp((_, r)) =>
+      let mk_ze = (r, ze) => ZList.{...ze, suffix: r @ ze.suffix};
+      switch (Tile.get_preop(ztile)) {
+      | LetZ_def(p, _) =>
+        let+ (pty, _) = Statics.Pat.syn(info.ctx, p);
+        let ze = ctx_body =>
+          switch (info.mode) {
+          | Syn(fix) =>
+            let (body, ty) = Statics.Exp.syn_fix_holes(ctx_body, r);
+            mk_ze(body, fix(ty));
+          | Ana(expected, fixed) =>
+            let body = Statics.Exp.ana_fix_holes(ctx_body, r, expected);
+            mk_ze(body, fixed);
+          | Fn_pos(fix) =>
+            let (body, (ty_in, ty_out)) = {
+              let (body, ty) = Statics.Exp.syn_fix_holes(ctx_body, r);
+              switch (Type.matched_arrow(ty)) {
+              | None => (
+                  HExp.put_hole_status(InHole, body),
+                  Type.(Hole, Hole),
+                )
+              | Some(tys) => (body, tys)
+              };
+            };
+            mk_ze(body, fix(ty_in, ty_out));
+          | Let_def(expected, fix) =>
+            let body = Statics.Exp.ana_fix_holes(info.ctx, r, expected);
+            let ty =
+              Statics.Exp.syn(info.ctx, body)
+              |> OptUtil.get(() =>
+                   failwith("expected body to synthesize after ana fixing")
+                 );
+            mk_ze(body, fix(ty));
+          };
+        let fix = def_ty => {
+          let joined_ty = PType.join_or_to_type(pty, def_ty);
+          let ctx_body =
+            Statics.Pat.ana(info.ctx, p, joined_ty)
+            |> OptUtil.get(() =>
+                 failwith("expected p to have consistent type with joined_ty")
+               );
+          let ze = ze(ctx_body);
+          Tile.PreOp(ZExp.LetZ_def(p, ze));
+        };
+        {...info, mode: Let_def(PType.to_type(pty), fix)};
+      };
     | PostOp((l, _)) =>
+      let mk_ze = (l, ze) => ZList.{...ze, prefix: ze.prefix @ l};
       switch (Tile.get_postop(ztile)) {
       | ApZ_arg(_) =>
+        let mk_ztile = (status, ze) =>
+          Tile.PostOp(ZExp.ApZ_arg(status, mk_ze(l, ze)));
         let* fn_ty = Statics.Exp.syn(info.ctx, l);
         let+ (ty_in, ty_out) = Type.matched_arrow(fn_ty);
-        switch (info.mode) {
-        | Syn({fn_pos, fix}) =>
-          let fix = () => {
-            let (status: HoleStatus.t, ty) =
-              !fn_pos || Option.is_some(Type.matched_arrow(ty_out))
-                ? (NotInHole, ty_out) : (InHole, Hole);
-            let ze = {
-              let ze = fix(ty);
-              {...ze, prefix: ze.prefix @ l};
-            };
-            Tile.PostOp(ZExp.ApZ_arg(status, ze));
+        let fixed =
+          switch (info.mode) {
+          | Syn(fix) => mk_ztile(NotInHole, fix(ty_out))
+          | Ana(expected, fixed) =>
+            let status = HoleStatus.mk(Type.consistent(ty_out, expected));
+            mk_ztile(status, fixed);
+          | Fn_pos(fix) =>
+            switch (Type.matched_arrow(ty_out)) {
+            | None => mk_ztile(InHole, fix(Hole, Hole))
+            | Some((ty_in, ty_out)) =>
+              mk_ztile(NotInHole, fix(ty_in, ty_out))
+            }
+          | Let_def(expected, fix) =>
+            let status = HoleStatus.mk(Type.consistent(ty_out, expected));
+            mk_ztile(status, fix(ty_out));
           };
-          {ctx: info.ctx, mode: Ana({expected: ty_in, fix})};
-        | Ana({expected, fix}) =>
-          let fix = () => {
-            let status: HoleStatus.t =
-              Type.consistent(ty_out, expected) ? NotInHole : InHole;
-            let ze = {
-              let ze = fix();
-              {...ze, prefix: ze.prefix @ l};
-            };
-            Tile.PostOp(ZExp.ApZ_arg(status, ze));
-          };
-          {ctx: info.ctx, mode: Ana({expected: ty_in, fix})};
-        };
-      }
-    | BinOp((_, OperatorHole | Plus(_), _)) => raise(ZExp.Void_ZBinOp)
+        {...info, mode: Ana(ty_in, fixed)};
+      };
+    | BinOp(_) =>
+      let () = Tile.get_binop(ztile);
+      raise(ZExp.Void_ZBinOp);
     };
   };
 };
@@ -237,95 +338,91 @@ module Pat = {
     mode: mode('z),
   }
   and mode('z) =
-    | Syn({fix: (Type.t, Ctx.t) => 'z})
-    | Ana({
-        expected: Type.t,
-        fix: Ctx.t => 'z,
-      });
+    | Syn((PType.t, Ctx.t) => 'z)
+    | Ana(Type.t, Ctx.t => 'z)
+    | Let_pat(Type.t, (PType.t, Ctx.t) => 'z);
 
+  let map_mode = (f: 'y => 'z, mode: mode('y)): mode('z) =>
+    switch (mode) {
+    | Syn(fix) => Syn((ty, ctx) => f(fix(ty, ctx)))
+    | Ana(expected, fix) => Ana(expected, ctx => f(fix(ctx)))
+    | Let_pat(def_ty, fix) =>
+      Let_pat(def_ty, (pty, ctx) => f(fix(pty, ctx)))
+    };
   let map = (f: 'y => 'z, info: t('y)): t('z) => {
     ctx: info.ctx,
-    mode:
-      switch (info.mode) {
-      | Syn({fix}) => Syn({fix: (ty, ctx) => f(fix(ty, ctx))})
-      | Ana({expected, fix}) => Ana({expected, fix: ctx => f(fix(ctx))})
-      },
+    mode: map_mode(f, info.mode),
   };
 
   let rec mk = (zp: ZPat.t): option(t(ZPat.t)) => {
     let (n, (p, zrest)) = ZPath.Pat.zip(HPat.dummy_hole, zp);
     let* info =
       switch (zrest) {
-      | None =>
-        Some({ctx: Ctx.empty, mode: Syn({fix: (_, _) => ZPat.mk()})})
+      | None => Some({ctx: Ctx.empty, mode: Syn((_, _) => ZPat.mk())})
       | Some(ztile) =>
         let+ info = mk_ztile(ztile);
         map(ztile => ZPat.mk(~z=ztile, ()), info);
       };
 
-    let rec go = (p: HPat.t, info: t(ZPat.t)): option(t(ZPat.t)) =>
-      switch (HPat.root(p)) {
-      | Operand(_) =>
-        // dummy hole
-        Some(info)
-      | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
-      | PostOp((subj, Ann(_, ann))) =>
-        let ann_ty = HTyp.contract(ann);
-        let subj_mode =
-          switch (info.mode) {
-          | Syn({fix}) =>
-            let fix = (ctx: Ctx.t): ZPat.t => {
-              let zp = fix(ann_ty, ctx);
-              {...zp, suffix: [PostOp(Ann(NotInHole, ann)), ...zp.suffix]};
-            };
-            Ana({expected: ann_ty, fix});
-          | Ana({expected, fix}) =>
-            let fix = (ctx: Ctx.t): ZPat.t => {
-              let zp = fix(ctx);
-              let status: HoleStatus.t =
-                Type.consistent(ann_ty, expected) ? NotInHole : InHole;
-              {...zp, suffix: [PostOp(Ann(status, ann)), ...zp.suffix]};
-            };
-            Ana({expected: ann_ty, fix});
+    let rec go = (p: HPat.t, info: t(ZPat.t)): option(t(ZPat.t)) => {
+      HPat.T.(
+        switch (HPat.root(p)) {
+        | Operand(_) =>
+          // dummy hole
+          Some(info)
+        | PreOp(((), _)) => raise(Void_PreOp)
+        | PostOp((subj, Ann(_, ann))) =>
+          let ann_ty = HTyp.contract(ann);
+          let mk_zp = (status, zp: ZPat.t): ZPat.t => {
+            ...zp,
+            suffix: [PostOp(Ann(status, ann)), ...zp.suffix],
           };
-        go(subj, {ctx: info.ctx, mode: subj_mode});
-      | BinOp((l, OperatorHole, r)) =>
-        if (n < List.length(l)) {
-          let l_mode =
-            Syn({
-              fix: (_, ctx) => {
-                let (r, _, ctx) = Statics.Pat.syn_fix_holes(ctx, r);
-                let ze =
-                  switch (info.mode) {
-                  | Syn({fix}) => fix(Type.Hole, ctx)
-                  | Ana({fix, _}) => fix(ctx)
-                  };
-                {
-                  ...ze,
-                  suffix:
-                    [Tile.BinOp(HPat.Tile.OperatorHole), ...r] @ ze.suffix,
-                };
-              },
-            });
-          go(l, {ctx: info.ctx, mode: l_mode});
-        } else {
-          let* (_, ctx) = Statics.Pat.syn(info.ctx, l);
-          let r_mode =
-            Syn({
-              fix: (_, ctx) => {
-                let ze =
-                  switch (info.mode) {
-                  | Syn({fix}) => fix(Type.Hole, ctx)
-                  | Ana({fix, _}) => fix(ctx)
-                  };
-                let prefix =
-                  ze.prefix @ l @ [Tile.BinOp(HPat.Tile.OperatorHole)];
-                {...ze, prefix};
-              },
-            });
-          go(r, {ctx, mode: r_mode});
+          let subj_mode =
+            switch (info.mode) {
+            | Syn(fix) =>
+              let fix = ctx =>
+                mk_zp(NotInHole, fix(PType.of_type(ann_ty), ctx));
+              Ana(ann_ty, fix);
+            | Ana(expected, fix) =>
+              let fix = ctx => {
+                let status =
+                  HoleStatus.mk(Type.consistent(ann_ty, expected));
+                mk_zp(status, fix(ctx));
+              };
+              Ana(ann_ty, fix);
+            | Let_pat(_, fix) =>
+              let fix = ctx =>
+                mk_zp(NotInHole, fix(PType.of_type(ann_ty), ctx));
+              Ana(ann_ty, fix);
+            };
+          go(subj, {ctx: info.ctx, mode: subj_mode});
+        | BinOp((l, OperatorHole, r)) =>
+          let is_left = n < List.length(l);
+          let tile = Tile.BinOp(OperatorHole);
+          let mk_zp = ctx =>
+            switch (info.mode) {
+            | Syn(fix)
+            | Let_pat(_, fix) => fix(Unspecified, ctx)
+            | Ana(_, fix) => fix(ctx)
+            };
+          if (is_left) {
+            let fix = (_, ctx): ZPat.t => {
+              let (r, _, ctx) = Statics.Pat.syn_fix_holes(ctx, r);
+              let zp = mk_zp(ctx);
+              {...zp, suffix: [tile, ...r] @ zp.suffix};
+            };
+            go(l, {...info, mode: Syn(fix)});
+          } else {
+            let fix = (_, ctx): ZPat.t => {
+              let zp = mk_zp(ctx);
+              {...zp, prefix: zp.prefix @ l @ [tile]};
+            };
+            let* (_, ctx) = Statics.Pat.syn(info.ctx, l);
+            go(r, {ctx, mode: Syn(fix)});
+          };
         }
-      };
+      );
+    };
     go(p, info);
   }
   and mk_ztile = (ztile: ZPat.ztile): option(t(ZPat.ztile)) => {
@@ -341,59 +438,116 @@ module Pat = {
       switch (zroot) {
       | Operand(_) => failwith("no operand that takes a pat and produces exp")
       | PreOp((_, r)) =>
+        let mk_ze = (r, ze: ZExp.t): ZExp.t => {
+          ...ze,
+          suffix: r @ ze.suffix,
+        };
         switch (Tile.get_preop(ztile)) {
-        | LamZ_pat(status, _) =>
-          switch (info.mode) {
-          | Syn({fn_pos: _, fix}) =>
-            let p_mode =
-              Syn({
-                fix: (ty_in, ctx) => {
-                  let ze = {
-                    let (body, ty_out) = Statics.Exp.syn_fix_holes(ctx, r);
-                    let ze = fix(Arrow(ty_in, ty_out));
-                    {...ze, suffix: body @ ze.suffix};
-                  };
-                  Tile.PreOp(ZPat.LamZ_pat(NotInHole, ze));
-                },
-              });
-            Some({ctx: info.ctx, mode: p_mode});
-          | Ana({expected, fix}) =>
-            let+ p_mode =
-              switch (Type.matched_arrow(expected), status) {
-              | (None, NotInHole) => None
-              | (Some((ty_in, ty_out)), _) =>
-                Some(
-                  Ana({
-                    expected: ty_in,
-                    fix: ctx => {
-                      let ze = {
-                        let body = Statics.Exp.ana_fix_holes(ctx, r, ty_out);
-                        let ze = fix();
-                        {...ze, suffix: body @ ze.suffix};
-                      };
-                      Tile.PreOp(ZPat.LamZ_pat(NotInHole, ze));
-                    },
-                  }),
-                )
-              | (_, InHole) =>
-                Some(
-                  Syn({
-                    fix: (_, ctx) => {
-                      let ze = {
-                        let (body, _) = Statics.Exp.syn_fix_holes(ctx, r);
-                        let ze = fix();
-                        {...ze, suffix: body @ ze.suffix};
-                      };
-                      Tile.PreOp(ZPat.LamZ_pat(InHole, ze));
-                    },
-                  }),
-                )
+        | LamZ_pat(_) =>
+          let mk_ztile = (status, body, ze) => {
+            let ze = mk_ze(body, ze);
+            Tile.PreOp(ZPat.LamZ_pat(status, ze));
+          };
+          let mode: mode(ZPat.ztile) =
+            switch (info.mode) {
+            | Syn(fix) =>
+              let fix = (ty_in, ctx) => {
+                let (body, ty_out) = Statics.Exp.syn_fix_holes(ctx, r);
+                mk_ztile(
+                  NotInHole,
+                  body,
+                  fix(Arrow(PType.to_type(ty_in), ty_out)),
+                );
               };
-            {ctx: info.ctx, mode: p_mode};
-          }
-        }
-      | PostOp((_, Ap(_))) => raise(ZPat.Void_ZPostOp)
-      | BinOp((_, OperatorHole | Plus(_), _)) => raise(ZPat.Void_ZBinOp)
+              Syn(fix);
+            | Ana(expected, fixed) =>
+              switch (Type.matched_arrow(expected)) {
+              | None =>
+                let fix = (_, ctx) => {
+                  let (body, _) = Statics.Exp.syn_fix_holes(ctx, r);
+                  mk_ztile(InHole, body, fixed);
+                };
+                Syn(fix);
+              | Some((ty_in, ty_out)) =>
+                let fix = ctx => {
+                  let body = Statics.Exp.ana_fix_holes(ctx, r, ty_out);
+                  mk_ztile(NotInHole, body, fixed);
+                };
+                Ana(ty_in, fix);
+              }
+            | Fn_pos(fix) =>
+              let fix = (ty_in, ctx) => {
+                let (body, ty_out) = Statics.Exp.syn_fix_holes(ctx, r);
+                mk_ztile(
+                  NotInHole,
+                  body,
+                  fix(PType.to_type(ty_in), ty_out),
+                );
+              };
+              Syn(fix);
+            | Let_def(expected, fix) =>
+              switch (Type.matched_arrow(expected)) {
+              | None =>
+                let fix = (_, ctx) => {
+                  let (body, _) = Statics.Exp.syn_fix_holes(ctx, r);
+                  mk_ztile(InHole, body, fix(Hole));
+                };
+                Syn(fix);
+              | Some((ty_in, ty_out)) =>
+                let fix = ctx => {
+                  let body = Statics.Exp.ana_fix_holes(ctx, r, ty_out);
+                  mk_ztile(NotInHole, body, fix(Arrow(ty_in, ty_out)));
+                };
+                Ana(ty_in, fix);
+              }
+            };
+          Some({ctx: info.ctx, mode});
+        | LetZ_pat(_, def) =>
+          let mk_ztile = (def, body, ze) => {
+            let ze = mk_ze(body, ze);
+            Tile.PreOp(ZPat.LetZ_pat(ze, def));
+          };
+          let* def_ty = Statics.Exp.syn(info.ctx, def);
+          let fix = (pty, ctx) => {
+            let joined = PType.join_or_to_type(pty, def_ty);
+            let def = Statics.Exp.ana_fix_holes(ctx, def, joined);
+            switch (info.mode) {
+            | Syn(fix) =>
+              let (body, ty) = Statics.Exp.syn_fix_holes(ctx, r);
+              mk_ztile(def, body, fix(ty));
+            | Ana(expected, fixed) =>
+              let body = Statics.Exp.ana_fix_holes(ctx, r, expected);
+              mk_ztile(def, body, fixed);
+            | Fn_pos(fix) =>
+              let (body, (ty_in, ty_out)) = {
+                let (body, ty) = Statics.Exp.syn_fix_holes(ctx, r);
+                switch (Type.matched_arrow(ty)) {
+                | None => (
+                    HExp.put_hole_status(InHole, body),
+                    Type.(Hole, Hole),
+                  )
+                | Some(tys) => (body, tys)
+                };
+              };
+              mk_ztile(def, body, fix(ty_in, ty_out));
+            | Let_def(expected, fix) =>
+              let body = Statics.Exp.ana_fix_holes(info.ctx, r, expected);
+              let ty =
+                Statics.Exp.syn(info.ctx, body)
+                |> OptUtil.get(() =>
+                     failwith("expected body to synthesize after ana fixing")
+                   );
+              mk_ztile(def, body, fix(ty));
+            };
+          };
+          Some({ctx: info.ctx, mode: Let_pat(def_ty, fix)});
+        };
+      | PostOp(_) =>
+        let () = Tile.get_postop(ztile);
+        raise(ZPat.Void_ZPostOp);
+      | BinOp(_) =>
+        let () = Tile.get_binop(ztile);
+        raise(ZPat.Void_ZBinOp);
       };
     | `Pat(p, zrest) =>
       let (zroot, zp) = {
@@ -405,20 +559,8 @@ module Pat = {
       | Operand(_) =>
         switch (Tile.get_operand(ztile)) {
         | ParenZ_body(_) =>
-          let body_mode =
-            switch (info.mode) {
-            | Syn({fix}) =>
-              Syn({
-                fix: (ty, ctx) =>
-                  Tile.Operand(ZPat.ParenZ_body(fix(ty, ctx))),
-              })
-            | Ana({expected, fix}) =>
-              Ana({
-                expected,
-                fix: ctx => Tile.Operand(ZPat.ParenZ_body(fix(ctx))),
-              })
-            };
-          Some({ctx: info.ctx, mode: body_mode});
+          let wrap = ze => Tile.Operand(ZPat.ParenZ_body(ze));
+          Some(map(wrap, info));
         }
       | PreOp(_) => failwith("no preop that takes a pat produces a pat")
       | PostOp((_, Ann(_))) => raise(ZPat.Void_ZPostOp)

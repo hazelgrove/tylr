@@ -22,7 +22,7 @@ type t =
   | Construct(tile_shape);
 
 module Typ = {
-  let tile_of_shape = (~selection=[]): (tile_shape => option(HTyp.Tile.t)) =>
+  let tile_of_shape = (~selection=[]): (tile_shape => option(HTyp.T.t)) =>
     fun
     | NumLit(_)
     | Lam
@@ -36,7 +36,7 @@ module Typ = {
     | Arrow => Some(BinOp(Arrow));
 };
 module Pat = {
-  let tile_of_shape = (~selection=[]): (tile_shape => option(HPat.Tile.t)) =>
+  let tile_of_shape = (~selection=[]): (tile_shape => option(HPat.T.t)) =>
     fun
     | Num
     | NumLit(_)
@@ -52,7 +52,7 @@ module Pat = {
     | Ann => Some(PostOp(Ann(NotInHole, HTyp.mk_hole())));
 };
 module Exp = {
-  let tile_of_shape = (~selection=[]): (tile_shape => option(HExp.Tile.t)) =>
+  let tile_of_shape = (~selection=[]): (tile_shape => option(HExp.T.t)) =>
     fun
     | Num
     | Ann
@@ -172,12 +172,21 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
           let+ ZInfo.Pat.{ctx, mode} = ZInfo.Pat.mk_ztile(ztile);
           let (p, ztile) =
             switch (mode) {
-            | Syn({fix}) =>
+            | Syn(fix) =>
               let (p, ty, ctx) = Statics.Pat.syn_fix_holes(ctx, p);
               (p, fix(ty, ctx));
-            | Ana({expected, fix}) =>
+            | Ana(expected, fix) =>
               let (p, ctx) = Statics.Pat.ana_fix_holes(ctx, p, expected);
               (p, fix(ctx));
+            | Let_pat(def_ty, fix) =>
+              let (p, pty, _) = Statics.Pat.syn_fix_holes(ctx, p);
+              let joined = PType.join_or_to_type(pty, def_ty);
+              let ctx =
+                Statics.Pat.ana(ctx, p, joined)
+                |> OptUtil.get(() =>
+                     failwith("expected joined type to be consistent with p")
+                   );
+              (p, fix(pty, ctx));
             };
           `Pat((p, Some(ztile)));
         };
@@ -199,12 +208,21 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
           let+ ZInfo.Exp.{ctx, mode} = ZInfo.Exp.mk_ztile(ztile);
           let (e, ztile) =
             switch (mode) {
-            | Syn({fn_pos, fix}) =>
-              let (e, ty) = Statics.Exp.syn_fix_holes(~fn_pos, ctx, e);
+            | Syn(fix) =>
+              let (e, ty) = Statics.Exp.syn_fix_holes(ctx, e);
               (e, fix(ty));
-            | Ana({expected, fix}) =>
+            | Ana(expected, fixed) =>
               let e = Statics.Exp.ana_fix_holes(ctx, e, expected);
-              (e, fix());
+              (e, fixed);
+            | Fn_pos(fix) =>
+              let (e, ty) = Statics.Exp.syn_fix_holes(ctx, e);
+              switch (Type.matched_arrow(ty)) {
+              | None =>
+                let e = HExp.put_hole_status(InHole, e);
+                (e, fix(Hole, Hole));
+              | Some((ty_in, ty_out)) => (e, fix(ty_in, ty_out))
+              };
+            | Let_def(_) => failwith("todo")
             };
           `Exp((e, Some(ztile)));
         };

@@ -116,13 +116,13 @@ module ErrHole =
   };
 };
 
-module type TYP = COMMON with module T := HTyp.Tile;
+module type TYP = COMMON with module T := HTyp.T;
 module rec Typ: TYP = {
   module Sort_specific = {
-    open HTyp.Tile;
+    open HTyp.T;
 
     let length_of_tile: t => int =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole => 1
         | Num => 3
@@ -154,25 +154,25 @@ module rec Typ: TYP = {
       | OperatorHole => true
       | _ => false;
     let open_children_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole
         | Num => []
         | Paren(body) => [(1 + space, Typ.length(body))],
-        () => raise(HTyp.Tile.Void_PreOp),
-        () => raise(HTyp.Tile.Void_PostOp),
+        () => raise(HTyp.T.Void_PreOp),
+        () => raise(HTyp.T.Void_PostOp),
         fun
         | Arrow
         | OperatorHole => [],
       );
     let closed_children_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole
         | Num
         | Paren(_) => [],
-        () => raise(HTyp.Tile.Void_PreOp),
-        () => raise(HTyp.Tile.Void_PostOp),
+        () => raise(HTyp.T.Void_PreOp),
+        () => raise(HTyp.T.Void_PostOp),
         fun
         | Arrow
         | OperatorHole => [],
@@ -180,7 +180,7 @@ module rec Typ: TYP = {
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole => [0]
         | Num => []
@@ -193,19 +193,19 @@ module rec Typ: TYP = {
       );
     };
   };
-  include Common(HTyp.Tile, Sort_specific);
+  include Common(HTyp.T, Sort_specific);
 };
 
 module type PAT = {
-  include COMMON with module T := HPat.Tile;
-  include ERR_HOLE with module T := HPat.Tile;
+  include COMMON with module T := HPat.T;
+  include ERR_HOLE with module T := HPat.T;
 };
 module rec Pat: PAT = {
   module Sort_specific = {
-    open HPat.Tile;
+    open HPat.T;
 
     let length_of_tile: t => int =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole => 1
         | Var(x) => String.length(x)
@@ -243,24 +243,24 @@ module rec Pat: PAT = {
       fun
       | OperatorHole => true;
     let open_children_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole
         | Var(_) => []
         | Paren(body) => [(1 + space, Pat.length(body))],
-        () => raise(HPat.Tile.Void_PreOp),
+        () => raise(HPat.T.Void_PreOp),
         fun
         | Ann(_) => [],
         fun
         | OperatorHole => [],
       );
     let closed_children_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole
         | Var(_)
         | Paren(_) => [],
-        () => raise(HPat.Tile.Void_PreOp),
+        () => raise(HPat.T.Void_PreOp),
         fun
         | Ann(_, ann) => [(1 + space, Typ.length(ann))],
         fun
@@ -269,7 +269,7 @@ module rec Pat: PAT = {
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole => [0]
         | Var(_) => []
@@ -288,7 +288,7 @@ module rec Pat: PAT = {
       switch (HPat.root(p)) {
       | Operand(OperandHole | Var(_)) => []
       | Operand(Paren(body)) => shift(1, Pat.err_holes(body))
-      | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
+      | PreOp(((), _)) => raise(HPat.T.Void_PreOp)
       | PostOp((subj, Ann(_))) => Pat.err_holes(subj)
       | BinOp((l, OperatorHole as binop, r)) =>
         let l_holes = Pat.err_holes(l);
@@ -307,7 +307,7 @@ module rec Pat: PAT = {
         switch (HPat.root(p)) {
         | Operand(OperandHole | Var(_)) => []
         | Operand(Paren(body)) => shift(1, Pat.err_holes(body))
-        | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
+        | PreOp(((), _)) => raise(HPat.T.Void_PreOp)
         | PostOp((subj, Ann(_))) =>
           j == List.length(subj)
             ? Pat.err_holes(subj) : Pat.err_holes_z(([], j), subj)
@@ -332,7 +332,7 @@ module rec Pat: PAT = {
         | Operand(OperandHole | Var(_)) => raise(ZPath.Out_of_sync)
         | Operand(Paren(body)) =>
           shift(1, Pat.err_holes_z((steps, j), body))
-        | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
+        | PreOp(((), _)) => raise(HPat.T.Void_PreOp)
         | PostOp((subj, Ann(_))) =>
           let in_postop = tile_step == List.length(subj);
           in_postop
@@ -363,20 +363,20 @@ module rec Pat: PAT = {
       };
     };
   };
-  include Common(HPat.Tile, Sort_specific);
-  include ErrHole(HPat.Tile, Pat, Sort_specific);
+  include Common(HPat.T, Sort_specific);
+  include ErrHole(HPat.T, Pat, Sort_specific);
 };
 
 module type EXP = {
-  include COMMON with module T := HExp.Tile;
-  include ERR_HOLE with module T := HExp.Tile;
+  include COMMON with module T := HExp.T;
+  include ERR_HOLE with module T := HExp.T;
 };
 module rec Exp: EXP = {
   module Sort_specific = {
-    open HExp.Tile;
+    open HExp.T;
 
     let length_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole => 1
         | Var(_, x) => String.length(x)
@@ -418,7 +418,7 @@ module rec Exp: EXP = {
       | OperatorHole => true
       | _ => false;
     let open_children_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole
         | Var(_)
@@ -433,7 +433,7 @@ module rec Exp: EXP = {
         | OperatorHole => [],
       );
     let closed_children_of_tile =
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole
         | Var(_)
@@ -450,7 +450,7 @@ module rec Exp: EXP = {
 
     let empty_holes_of_tile = {
       let shift = n => List.map((+)(n + space));
-      Tile.map(
+      Tile.get(
         fun
         | OperandHole => [0]
         | Num(_)
@@ -590,6 +590,6 @@ module rec Exp: EXP = {
       };
     };
   };
-  include Common(HExp.Tile, Sort_specific);
-  include ErrHole(HExp.Tile, Exp, Sort_specific);
+  include Common(HExp.T, Sort_specific);
+  include ErrHole(HExp.T, Exp, Sort_specific);
 };

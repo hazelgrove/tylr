@@ -1,7 +1,7 @@
 /**
  * Bottom-up one-hole context filled by either `HTyp.t` or `ztile`
  */
-type t = Util.ZList.t(option(ztile), HTyp.Tile.t)
+type t = Util.ZList.t(option(ztile), HTyp.T.t)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HTyp.t` or `t`
  */

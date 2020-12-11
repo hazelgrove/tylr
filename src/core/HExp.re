@@ -1,7 +1,7 @@
 open Sexplib.Std;
 open Util;
 
-module Tile = {
+module T = {
   let sort = Sort.Exp;
 
   [@deriving sexp]
@@ -17,6 +17,7 @@ module Tile = {
   [@deriving sexp]
   and preop =
     | Lam(HoleStatus.t, HPat.t)
+    | Let(HPat.t, s)
   [@deriving sexp]
   and postop =
     | Ap(HoleStatus.t, s)
@@ -32,87 +33,95 @@ module Tile = {
   let is_operator_hole: t => bool = (==)(Tile.BinOp(OperatorHole));
 
   let precedence: t => int =
-    fun
-    | Operand(_) => 0
-    | PreOp(Lam(_)) => 10
-    | PostOp(Ap(_)) => 1
-    | BinOp(Plus(_)) => 3
-    | BinOp(OperatorHole) => 2;
+    Tile.get(
+      _ => 0,
+      fun
+      | Lam(_) => 10
+      | Let(_) => 11,
+      fun
+      | Ap(_) => 1,
+      fun
+      | Plus(_) => 3
+      | OperatorHole => 2,
+    );
 
   let associativity =
     [(2, Associativity.Left), (3, Left)] |> List.to_seq |> IntMap.of_seq;
 
   let get_open_children: t => list(s) =
-    fun
-    | Operand(OperandHole | Num(_) | Var(_)) => []
-    | Operand(Paren(body)) => [body]
-    | PreOp(Lam(_)) => []
-    | PostOp(Ap(_, arg)) => [arg]
-    | BinOp(OperatorHole | Plus(_)) => [];
+    Tile.get(
+      fun
+      | OperandHole
+      | Num(_)
+      | Var(_) => []
+      | Paren(body) => [body],
+      fun
+      | Lam(_) => []
+      | Let(_, def) => [def],
+      fun
+      | Ap(_, arg) => [arg],
+      fun
+      | OperatorHole
+      | Plus(_) => [],
+    );
 };
+open T;
 
 [@deriving sexp]
-type t = Tile.s;
-include Tiles.Make(Tile);
+type t = T.s;
+include Tiles.Make(T);
 
 module Inner = {
   type t =
-    | Exp(Tile.s)
+    | Exp(T.s)
     | Other(HPat.Inner.t);
 
-  let wrap = (ts: Tile.s) => Exp(ts);
+  let wrap = (ts: T.s) => Exp(ts);
   let unwrap =
     fun
     | Other(_) => None
     | Exp(ts) => Some(ts);
 };
 
-// does not recurse into parentheses
-let get_hole_status_operand: Tile.operand => _ =
-  fun
-  | OperandHole
-  | Paren(_) => HoleStatus.NotInHole
-  | Num(status, _)
-  | Var(status, _) => status;
-let get_hole_status_preop: Tile.preop => _ =
-  fun
-  | Lam(status, _) => status;
-let get_hole_status_postop: Tile.postop => _ =
-  fun
-  | Ap(status, _) => status;
-let get_hole_status_binop: Tile.binop => _ =
-  fun
-  | OperatorHole => HoleStatus.NotInHole
-  | Plus(status) => status;
-let get_hole_status =
-  get_root(
-    ~operand=get_hole_status_operand,
-    ~preop=get_hole_status_preop,
-    ~postop=get_hole_status_postop,
-    ~binop=get_hole_status_binop,
-  );
+// does not recurse into term
+let get_hole_status = e =>
+  root(e)
+  |> Tile.get(
+       fun
+       | OperandHole
+       | Paren(_) => HoleStatus.NotInHole
+       | Num(status, _)
+       | Var(status, _) => status,
+       fun
+       | (Lam(status, _), _) => status
+       | (Let(_), _) => HoleStatus.NotInHole,
+       fun
+       | (_, Ap(status, _)) => status,
+       fun
+       | (_, OperatorHole, _) => HoleStatus.NotInHole
+       | (_, Plus(status), _) => status,
+     );
 
-// recurses into parentheses
-let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
-  update_root(
-    ~operand=put_hole_status_operand(status),
-    ~preop=put_hole_status_preop(status),
-    ~postop=put_hole_status_postop(status),
-    ~binop=put_hole_status_binop(status),
-  )
-and put_hole_status_operand = status =>
-  fun
-  | OperandHole => OperandHole
-  | Num(_, n) => Num(status, n)
-  | Var(_, x) => Var(status, x)
-  | Paren(body) => Paren(put_hole_status(status, body))
-and put_hole_status_preop = status =>
-  fun
-  | Lam(_, p) => Lam(status, p)
-and put_hole_status_postop = status =>
-  fun
-  | Ap(_, arg) => Ap(status, arg)
-and put_hole_status_binop = status =>
-  fun
-  | Plus(_) => Plus(status)
-  | OperatorHole => OperatorHole;
+// recurses into term
+let rec put_hole_status = (status: HoleStatus.t, e: t): t =>
+  Tile.(
+    root(e)
+    |> get(
+         fun
+         | OperandHole as op => [Operand(op)]
+         | Num(_, n) => [Operand(Num(status, n))]
+         | Var(_, x) => [Operand(Var(status, x))]
+         | Paren(body) => [Operand(Paren(put_hole_status(status, body)))],
+         fun
+         | (Lam(_, p), body) => [PreOp(Lam(status, p)), ...body]
+         | (Let(_) as pre, body) => [
+             PreOp(pre),
+             ...put_hole_status(status, body),
+           ],
+         fun
+         | (fn, Ap(_, arg)) => fn @ [PostOp(Ap(status, arg))],
+         fun
+         | (l, OperatorHole as bin, r) => l @ [BinOp(bin), ...r]
+         | (l, Plus(_), r) => l @ [BinOp(Plus(status)), ...r],
+       )
+  );

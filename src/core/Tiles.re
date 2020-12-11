@@ -14,31 +14,9 @@ module Make =
              (T.s, T.postop),
              (T.s, T.binop, T.s),
            );
-
          let root: T.s => root;
-
          let nth_root: (int, T.s) => Util.ZList.t(root, T.t);
          let is_root: (int, T.s) => bool;
-
-         let get_root:
-           (
-             ~operand: T.operand => 'a,
-             ~preop: T.preop => 'a,
-             ~postop: T.postop => 'a,
-             ~binop: T.binop => 'a,
-             T.s
-           ) =>
-           'a;
-
-         let update_root:
-           (
-             ~operand: T.operand => T.operand,
-             ~preop: T.preop => T.preop,
-             ~postop: T.postop => T.postop,
-             ~binop: T.binop => T.binop,
-             T.s
-           ) =>
-           T.s;
        } => {
   open Util;
 
@@ -258,37 +236,5 @@ module Make =
     | PreOp(_) => n == 0
     | PostOp((l, _))
     | BinOp((l, _, _)) => n == List.length(l)
-    };
-
-  let get_root =
-      (
-        ~operand: T.operand => 'a,
-        ~preop: T.preop => 'a,
-        ~postop: T.postop => 'a,
-        ~binop: T.binop => 'a,
-        tiles: T.s,
-      )
-      : 'a =>
-    switch (root(tiles)) {
-    | Operand(t) => operand(t)
-    | PreOp((t, _)) => preop(t)
-    | PostOp((_, t)) => postop(t)
-    | BinOp((_, t, _)) => binop(t)
-    };
-
-  let update_root =
-      (
-        ~operand: T.operand => T.operand,
-        ~preop: T.preop => T.preop,
-        ~postop: T.postop => T.postop,
-        ~binop: T.binop => T.binop,
-        tiles: T.s,
-      )
-      : T.s =>
-    switch (root(tiles)) {
-    | Operand(t) => [Operand(operand(t))]
-    | PreOp((t, ts)) => [PreOp(preop(t)), ...ts]
-    | PostOp((ts, t)) => ts @ [PostOp(postop(t))]
-    | BinOp((ts1, t, ts2)) => ts1 @ [BinOp(binop(t)), ...ts2]
     };
 };

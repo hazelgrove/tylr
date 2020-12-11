@@ -31,19 +31,19 @@ let is_binop =
   | BinOp(_) => true
   | _ => false;
 
-let map =
+let get =
     (
-      f_operand: 'operand => 'a,
-      f_preop: 'preop => 'a,
-      f_postop: 'postop => 'a,
-      f_binop: 'binop => 'a,
+      get_operand: 'operand => 'a,
+      get_preop: 'preop => 'a,
+      get_postop: 'postop => 'a,
+      get_binop: 'binop => 'a,
     )
     : (t('operand, 'preop, 'postop, 'binop) => 'a) =>
   fun
-  | Operand(operand) => f_operand(operand)
-  | PreOp(preop) => f_preop(preop)
-  | PostOp(postop) => f_postop(postop)
-  | BinOp(binop) => f_binop(binop);
+  | Operand(operand) => get_operand(operand)
+  | PreOp(preop) => get_preop(preop)
+  | PostOp(postop) => get_postop(postop)
+  | BinOp(binop) => get_binop(binop);
 
 module type S = {
   let sort: Sort.t;

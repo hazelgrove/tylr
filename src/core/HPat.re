@@ -1,7 +1,7 @@
 open Sexplib.Std;
 open Util;
 
-module Tile = {
+module T = {
   let sort = Sort.Pat;
 
   [@deriving sexp]
@@ -48,61 +48,52 @@ module Tile = {
     | PostOp(Ann(_)) => []
     | BinOp(OperatorHole) => [];
 };
+open T;
+
 [@deriving sexp]
-type t = Tile.s;
-include Tiles.Make(Tile);
+type t = T.s;
+include Tiles.Make(T);
 
 module Inner = {
   type t =
-    | Pat(Tile.s)
+    | Pat(T.s)
     | Other(HTyp.Inner.t);
 
-  let wrap = (ts: Tile.s) => Pat(ts);
+  let wrap = (ts: T.s) => Pat(ts);
   let unwrap =
     fun
     | Other(_) => None
     | Pat(ts) => Some(ts);
 };
 
-// does not recurse into parentheses
-let get_hole_status_operand: Tile.operand => _ =
-  fun
-  | OperandHole
-  | Var(_)
-  | Paren(_) => HoleStatus.NotInHole;
-let get_hole_status_preop = () => raise(Tile.Void_PreOp);
-let get_hole_status_postop: Tile.postop => _ =
-  fun
-  | Ann(status, _) => status;
-let get_hole_status_binop: Tile.binop => _ =
-  fun
-  | OperatorHole => HoleStatus.NotInHole;
-let get_hole_status =
-  get_root(
-    ~operand=get_hole_status_operand,
-    ~preop=get_hole_status_preop,
-    ~postop=get_hole_status_postop,
-    ~binop=get_hole_status_binop,
-  );
+// does not recurse into term
+let get_hole_status = p =>
+  root(p)
+  |> Tile.get(
+       fun
+       | OperandHole
+       | Var(_)
+       | Paren(_) => HoleStatus.NotInHole,
+       (((), _)) => raise(T.Void_PreOp),
+       fun
+       | (_, Ann(status, _)) => status,
+       fun
+       | (_, OperatorHole, _) => HoleStatus.NotInHole,
+     );
 
-let rec put_hole_status = (status: HoleStatus.t): (t => t) =>
-  update_root(
-    ~operand=put_hole_status_operand(status),
-    ~preop=put_hole_status_preop(status),
-    ~postop=put_hole_status_postop(status),
-    ~binop=put_hole_status_binop(status),
-  )
-and put_hole_status_operand = status =>
-  fun
-  | OperandHole => OperandHole
-  | Var(x) => Var(x)
-  | Paren(body) => Paren(put_hole_status(status, body))
-and put_hole_status_preop = _ =>
-  fun
-  | _ => raise(Tile.Void_PreOp)
-and put_hole_status_postop = status =>
-  fun
-  | Ann(_, ann) => Ann(status, ann)
-and put_hole_status_binop = _ =>
-  fun
-  | OperatorHole => OperatorHole;
+// recurses into term
+let rec put_hole_status = (status: HoleStatus.t, p: t): t =>
+  Tile.(
+    root(p)
+    |> get(
+         fun
+         | OperandHole => [Operand(OperandHole)]
+         | Var(x) => [Operand(Var(x))]
+         | Paren(body) => [Operand(Paren(put_hole_status(status, body)))],
+         (((), _)) => raise(T.Void_PreOp),
+         fun
+         | (subj, Ann(_, ann)) => subj @ [PostOp(Ann(status, ann))],
+         fun
+         | (l, OperatorHole as bin, r) => l @ [BinOp(bin), ...r],
+       )
+  );

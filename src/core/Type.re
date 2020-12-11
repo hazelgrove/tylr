@@ -17,3 +17,15 @@ let matched_arrow =
   | Hole => Some((Hole, Hole))
   | Num => None
   | Arrow(ty1, ty2) => Some((ty1, ty2));
+
+open Util.OptUtil.Syntax;
+let rec join = (ty, ty') =>
+  switch (ty, ty') {
+  | (Hole, _) => Some(ty')
+  | (_, Hole) => Some(ty)
+  | (Arrow(ty1, ty2), Arrow(ty1', ty2')) =>
+    let+ ty1 = join(ty1, ty1')
+    and+ ty2 = join(ty2, ty2');
+    Arrow(ty1, ty2);
+  | _ => ty == ty' ? Some(ty) : None
+  };

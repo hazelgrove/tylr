@@ -1,7 +1,7 @@
 open Sexplib.Std;
 open Util;
 
-module Tile = {
+module T = {
   let sort = Sort.Typ;
 
   [@deriving sexp]
@@ -50,15 +50,17 @@ module Tile = {
     | PostOp () => raise(Void_PostOp)
     | BinOp(OperatorHole | Arrow) => [];
 };
+open T;
+
 [@deriving sexp]
-type t = Tile.s;
-include Tiles.Make(Tile);
+type t = T.s;
+include Tiles.Make(T);
 
 module Inner = {
   type t =
-    | Typ(Tile.s);
+    | Typ(T.s);
 
-  let wrap = (ts: Tile.s) => Typ(ts);
+  let wrap = (ts: T.s) => Typ(ts);
   let unwrap =
     fun
     | Typ(ts) => Some(ts);
@@ -72,8 +74,8 @@ let rec contract = (ty: t): Type.t =>
     | Num => Num
     | Paren(body) => contract(body)
     }
-  | PreOp(((), _)) => raise(Tile.Void_PreOp)
-  | PostOp((_, ())) => raise(Tile.Void_PostOp)
+  | PreOp(((), _)) => raise(T.Void_PreOp)
+  | PostOp((_, ())) => raise(T.Void_PostOp)
   | BinOp((ty1, binop, ty2)) =>
     switch (binop) {
     | OperatorHole => Hole

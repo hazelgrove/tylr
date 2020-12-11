@@ -14,13 +14,13 @@ let init = () => {
       Tile.[
         Operand(
           Paren([
-            Operand(HExp.Tile.Num(NotInHole, 1)),
-            BinOp(HExp.Tile.Plus(NotInHole)),
-            Operand(HExp.Tile.Num(NotInHole, 2)),
+            Operand(HExp.T.Num(NotInHole, 1)),
+            BinOp(HExp.T.Plus(NotInHole)),
+            Operand(HExp.T.Num(NotInHole, 2)),
           ]),
         ),
-        BinOp(HExp.Tile.Plus(NotInHole)),
-        Operand(HExp.Tile.Num(NotInHole, 3)),
+        BinOp(HExp.T.Plus(NotInHole)),
+        Operand(HExp.T.Num(NotInHole, 3)),
       ],
       None,
     )),

@@ -1,140 +1,158 @@
 open Util;
 
 module Pat = {
-  let rec syn = (ctx: Ctx.t, p: HPat.t): option((Type.t, Ctx.t)) => {
-    OptUtil.Syntax.(
-      switch (HPat.root(p)) {
-      | Operand(operand) =>
-        switch (operand) {
-        | OperandHole => Some((Type.Hole, ctx))
-        | Var(x) => Some((Type.Hole, Ctx.add(x, Type.Hole, ctx)))
-        | Paren(body) => syn(ctx, body)
-        }
-      | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
-      | PostOp((subj, Ann(status, ann))) =>
-        switch (status) {
-        | NotInHole =>
+  open OptUtil.Syntax;
+  open HPat.T;
+
+  let rec syn = (ctx: Ctx.t, p: HPat.t): option((PType.t, Ctx.t)) => {
+    let in_hole = Some((PType.Unspecified, ctx));
+    let op =
+      fun
+      | OperandHole => in_hole
+      | Var(x) => Some((Unspecified, Ctx.add(x, Type.Hole, ctx)))
+      | Paren(body) => syn(ctx, body);
+    let pre = (((), _)) => raise(Void_PreOp);
+    let post =
+      fun
+      | (_, Ann(InHole, _)) => in_hole
+      | (subj, Ann(NotInHole, ann)) => {
           let ty = HTyp.contract(ann);
           let+ ctx = ana(ctx, subj, ty);
-          (ty, ctx);
-        | InHole =>
-          let+ (_, ctx) = syn(ctx, HPat.put_hole_status(NotInHole, p));
-          (Type.Hole, ctx);
-        }
-      | BinOp((l, OperatorHole, r)) =>
-        let* (_, ctx) = syn(ctx, l);
-        let+ (_, ctx) = syn(ctx, r);
-        (Type.Hole, ctx);
-      }
-    );
+          (PType.of_type(ty), ctx);
+        };
+    let bin = ((l, OperatorHole, r)) => {
+      let* (_, ctx) = syn(ctx, l);
+      let+ (_, ctx) = syn(ctx, r);
+      (PType.Unspecified, ctx);
+    };
+    Tile.get(op, pre, post, bin, HPat.root(p));
   }
   and ana = (ctx: Ctx.t, p: HPat.t, ty: Type.t): option(Ctx.t) => {
-    open OptUtil.Syntax;
     let subsume = () => {
-      let* (ty', ctx) = syn(ctx, p);
-      Type.consistent(ty, ty') ? Some(ctx) : None;
+      let* (pty, ctx) = syn(ctx, p);
+      Type.consistent(PType.to_type(pty), ty) ? Some(ctx) : None;
     };
-    switch (HPat.root(p)) {
-    | Operand(operand) =>
-      switch (operand) {
+    let op =
+      fun
       | OperandHole => subsume()
       | Var(x) => Some(Ctx.add(x, ty, ctx))
-      | Paren(body) => ana(ctx, body, ty)
-      }
-    | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
-    | PostOp((_, Ann(_)))
-    | BinOp((_, OperatorHole, _)) => subsume()
-    };
+      | Paren(body) => ana(ctx, body, ty);
+    let pre = (((), _)) => raise(Void_PreOp);
+    let post = ((_, Ann(_))) => subsume();
+    let bin = ((_, OperatorHole, _)) => subsume();
+    Tile.get(op, pre, post, bin, HPat.root(p));
   };
 
-  let rec syn_fix_holes = (ctx: Ctx.t, p: HPat.t): (HPat.t, Type.t, Ctx.t) =>
-    switch (HPat.root(p)) {
-    | Operand(operand) =>
-      switch (operand) {
-      | OperandHole => ([Tile.Operand(operand)], Type.Hole, ctx)
-      | Var(x) =>
-        let ctx = Ctx.add(x, Type.Hole, ctx);
-        ([Tile.Operand(operand)], Hole, ctx);
-      | Paren(body) =>
-        let (body, ty, ctx) = syn_fix_holes(ctx, body);
-        ([Tile.Operand(HPat.Tile.Paren(body))], ty, ctx);
-      }
-    | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
-    | PostOp((subj, Ann(_, ann))) =>
+  let rec syn_fix_holes = (ctx: Ctx.t, p: HPat.t): (HPat.t, PType.t, Ctx.t) => {
+    let op =
+      fun
+      | (OperandHole | Var(_)) as operand => (
+          [Tile.Operand(operand)],
+          PType.Unspecified,
+          ctx,
+        )
+      | Paren(body) => {
+          let (body, pty, ctx) = syn_fix_holes(ctx, body);
+          ([Tile.Operand(Paren(body))], pty, ctx);
+        };
+    let pre = (((), _)) => raise(Void_PreOp);
+    let post = ((subj, Ann(_, ann))) => {
       let ty = HTyp.contract(ann);
-      let (subj, ctx) = ana_fix_holes(ctx, subj, ty);
-      (subj @ [Tile.PostOp(HPat.Tile.Ann(NotInHole, ann))], ty, ctx);
-    | BinOp((l, OperatorHole, r)) =>
+      let (subj, ctx) = ana_fix_holes(Ctx.empty, subj, ty);
+      (subj @ [Tile.PostOp(Ann(NotInHole, ann))], PType.of_type(ty), ctx);
+    };
+    let bin = ((l, OperatorHole, r)) => {
       let (l, _, ctx) = syn_fix_holes(ctx, l);
       let (r, _, ctx) = syn_fix_holes(ctx, r);
-      (l @ [Tile.BinOp(OperatorHole), ...r], Type.Hole, ctx);
-    }
+      (l @ [Tile.BinOp(OperatorHole), ...r], PType.Unspecified, ctx);
+    };
+    Tile.get(op, pre, post, bin, HPat.root(p));
+  }
   and ana_fix_holes = (ctx: Ctx.t, p: HPat.t, ty: Type.t): (HPat.t, Ctx.t) => {
-    let subsume = () => {
-      let (p, ty', ctx) = syn_fix_holes(ctx, p);
-      let p = Type.consistent(ty, ty') ? p : HPat.put_hole_status(InHole, p);
-      (p, ctx);
-    };
-    switch (HPat.root(p)) {
-    | Operand(operand) =>
-      switch (operand) {
-      | OperandHole => subsume()
+    let op =
+      fun
+      | OperandHole => (p, ctx)
       | Var(x) => (p, Ctx.add(x, ty, ctx))
-      | Paren(body) =>
-        let (body, ctx) = ana_fix_holes(ctx, body, ty);
-        ([Tile.Operand(HPat.Tile.Paren(body))], ctx);
-      }
-    | PreOp(((), _)) => raise(HPat.Tile.Void_PreOp)
-    | PostOp((_, Ann(_)))
-    | BinOp((_, OperatorHole, _)) => subsume()
+      | Paren(body) => {
+          let (body, ctx) = ana_fix_holes(ctx, body, ty);
+          ([Tile.Operand(Paren(body))], ctx);
+        };
+    let pre = (((), _)) => raise(Void_PreOp);
+    let post = ((subj, Ann(_, ann))) => {
+      let ty_ann = HTyp.contract(ann);
+      let (subj, ctx) = ana_fix_holes(ctx, subj, ty_ann);
+      let status: HoleStatus.t =
+        Type.consistent(ty_ann, ty) ? NotInHole : InHole;
+      (subj @ [Tile.PostOp(Ann(status, ann))], ctx);
     };
+    let bin = ((l, OperatorHole, r)) => {
+      let (l, ctx) = ana_fix_holes(ctx, l, Hole);
+      let (r, ctx) = ana_fix_holes(ctx, r, Hole);
+      // TODO review
+      (l @ [Tile.BinOp(OperatorHole), ...r], ctx);
+    };
+    Tile.get(op, pre, post, bin, HPat.root(p));
   };
 };
 
 module Exp = {
+  open HExp.T;
+
   let rec syn = (ctx: Ctx.t, e: HExp.t): option(Type.t) => {
     open OptUtil.Syntax;
     let in_hole = () => {
       let+ _ = syn(ctx, HExp.put_hole_status(NotInHole, e));
       Type.Hole;
     };
-    switch (HExp.root(e)) {
-    | Operand(operand) =>
-      switch (operand) {
+    let op =
+      fun
       | OperandHole
       | Var(InHole, _)
-      | Num(InHole, _) => Some(Hole)
+      | Num(InHole, _) => Some(Type.Hole)
       | Var(NotInHole, x) => Ctx.find_opt(x, ctx)
       | Num(NotInHole, _) => Some(Num)
-      | Paren(body) => syn(ctx, body)
-      }
-    | PreOp((Lam(status, p), body)) =>
-      switch (status) {
-      | InHole => in_hole()
-      | NotInHole =>
-        let* (ty_in, ctx) = Pat.syn(ctx, p);
-        let+ ty_out = syn(ctx, body);
-        Type.Arrow(ty_in, ty_out);
-      }
-    | PostOp((fn, Ap(status, arg))) =>
-      switch (status) {
-      | InHole => in_hole()
-      | NotInHole =>
-        let* fn_ty = syn(ctx, fn);
-        let* (ty_in, ty_out) = Type.matched_arrow(fn_ty);
-        ana(ctx, arg, ty_in) ? Some(ty_out) : None;
-      }
-    | BinOp((l, Plus(status), r)) =>
-      switch (status) {
-      | InHole => in_hole()
-      | NotInHole =>
-        ana(ctx, l, Type.Num) && ana(ctx, r, Type.Num) ? Some(Num) : None
-      }
-    | BinOp((l, OperatorHole, r)) =>
-      let+ _ = syn(ctx, l)
-      and+ _ = syn(ctx, r);
-      Type.Hole;
-    };
+      | Paren(body) => syn(ctx, body);
+    let pre =
+      fun
+      | (Lam(status, p), body) =>
+        switch (status) {
+        | InHole => in_hole()
+        | NotInHole =>
+          let* (pty, ctx) = Pat.syn(ctx, p);
+          let+ ty_body = syn(ctx, body);
+          Type.Arrow(PType.to_type(pty), ty_body);
+        }
+      | (Let(p, def), body) => {
+          let* (pty, _) = Pat.syn(ctx, p);
+          let* def_ty = syn(ctx, def);
+          let joined_ty = PType.join_or_to_type(pty, def_ty);
+          let* ctx_body = Pat.ana(ctx, p, joined_ty);
+          ana(ctx, def, joined_ty) ? syn(ctx_body, body) : None;
+        };
+    let post =
+      fun
+      | (fn, Ap(status, arg)) =>
+        switch (status) {
+        | InHole => in_hole()
+        | NotInHole =>
+          let* fn_ty = syn(ctx, fn);
+          let* (ty_in, ty_out) = Type.matched_arrow(fn_ty);
+          ana(ctx, arg, ty_in) ? Some(ty_out) : None;
+        };
+    let bin =
+      fun
+      | (l, Plus(status), r) =>
+        switch (status) {
+        | InHole => in_hole()
+        | NotInHole =>
+          ana(ctx, l, Type.Num) && ana(ctx, r, Type.Num) ? Some(Num) : None
+        }
+      | (l, OperatorHole, r) => {
+          let+ _ = syn(ctx, l)
+          and+ _ = syn(ctx, r);
+          Type.Hole;
+        };
+    Tile.get(op, pre, post, bin, HExp.root(e));
   }
   and ana = (ctx: Ctx.t, e: HExp.t, ty: Type.t): bool => {
     let ( let* ) = (o, f) =>
@@ -146,100 +164,129 @@ module Exp = {
       let* ty' = syn(ctx, e);
       Type.consistent(ty, ty');
     };
-    switch (HExp.root(e)) {
-    | Operand(operand) =>
-      switch (operand) {
+    let op =
+      fun
       | OperandHole
       | Num(_)
       | Var(_) => subsume()
-      | Paren(body) => ana(ctx, body, ty)
-      }
-    | PreOp((Lam(InHole, _), _)) =>
-      Option.is_some(syn(ctx, HExp.put_hole_status(NotInHole, e)))
-    | PreOp((Lam(NotInHole, p), body)) =>
-      let* (ty_in, ty_out) = Type.matched_arrow(ty);
-      let* ctx = Pat.ana(ctx, p, ty_in);
-      ana(ctx, body, ty_out);
-    | PostOp((_, Ap(_)))
-    | BinOp((_, OperatorHole | Plus(_), _)) => subsume()
-    };
+      | Paren(body) => ana(ctx, body, ty);
+    let pre =
+      fun
+      | (Lam(InHole, _), _) =>
+        Option.is_some(syn(ctx, HExp.put_hole_status(NotInHole, e)))
+      | (Lam(NotInHole, p), body) => {
+          let* (ty_in, ty_out) = Type.matched_arrow(ty);
+          let* ctx = Pat.ana(ctx, p, ty_in);
+          ana(ctx, body, ty_out);
+        }
+      | (Let(p, def), body) => {
+          let* (pty, _) = Pat.syn(ctx, p);
+          let* def_ty = syn(ctx, def);
+          let joined_ty = PType.join_or_to_type(pty, def_ty);
+          let* ctx_body = Pat.ana(ctx, p, joined_ty);
+          ana(ctx, def, joined_ty) && ana(ctx_body, body, ty);
+        };
+    let post =
+      fun
+      | (_, Ap(_)) => subsume();
+    let bin =
+      fun
+      | (_, OperatorHole | Plus(_), _) => subsume();
+    Tile.get(op, pre, post, bin, HExp.root(e));
   };
 
-  // TODO use fn_pos flag
-  let rec syn_fix_holes =
-          (~fn_pos as _=false, ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) =>
-    switch (HExp.root(e)) {
-    | Operand(operand) =>
+  let rec syn_fix_holes = (ctx: Ctx.t, e: HExp.t): (HExp.t, Type.t) => {
+    let op = operand =>
       switch (operand) {
       | OperandHole => ([Tile.Operand(operand)], Type.Hole)
-      | Num(_, m) => (
-          [Tile.Operand(HExp.Tile.Num(NotInHole, m))],
-          Type.Num,
-        )
+      | Num(_, m) => ([Tile.Operand(Num(NotInHole, m))], Type.Num)
       | Var(_, x) =>
         switch (Ctx.find_opt(x, ctx)) {
-        | None => ([Tile.Operand(HExp.Tile.Var(InHole, x))], Type.Hole)
-        | Some(ty) => ([Tile.Operand(HExp.Tile.Var(NotInHole, x))], ty)
+        | None => ([Tile.Operand(Var(InHole, x))], Type.Hole)
+        | Some(ty) => ([Tile.Operand(Var(NotInHole, x))], ty)
         }
       | Paren(body) =>
         let (body, ty) = syn_fix_holes(ctx, body);
-        ([Tile.Operand(HExp.Tile.Paren(body))], ty);
-      }
-    | PreOp((Lam(_, p), body)) =>
-      let (p, ty1, ctx) = Pat.syn_fix_holes(ctx, p);
-      let (body, ty2) = syn_fix_holes(ctx, body);
-      (
-        [Tile.PreOp(HExp.Tile.Lam(NotInHole, p)), ...body],
-        Arrow(ty1, ty2),
-      );
-    | PostOp((fn, Ap(_, arg))) =>
+        ([Tile.Operand(Paren(body))], ty);
+      };
+    let pre = preop =>
+      switch (preop) {
+      | (Lam(_, p), body) =>
+        let (p, pty, ctx) = Pat.syn_fix_holes(ctx, p);
+        let (body, body_ty) = syn_fix_holes(ctx, body);
+        (
+          [Tile.PreOp(Lam(NotInHole, p)), ...body],
+          Type.Arrow(PType.to_type(pty), body_ty),
+        );
+      | (Let(p, def), body) =>
+        let (p, pty, _) = Pat.syn_fix_holes(ctx, p);
+        let (def, def_ty) = syn_fix_holes(ctx, def);
+        let joined_ty = PType.join_or_to_type(pty, def_ty);
+        let (p, ctx_body) = Pat.ana_fix_holes(ctx, p, joined_ty);
+        let def = ana_fix_holes(ctx, def, joined_ty);
+        let (body, ty) = syn_fix_holes(ctx_body, body);
+        ([Tile.PreOp(Let(p, def)), ...body], ty);
+      };
+    let post = ((fn, Ap(_, arg))) => {
       let (fn, fn_ty) = syn_fix_holes(ctx, fn);
       switch (Type.matched_arrow(fn_ty)) {
       | None =>
         let fn = HExp.put_hole_status(InHole, fn);
         let arg = ana_fix_holes(ctx, arg, Type.Hole);
-        (fn @ [Tile.PostOp(HExp.Tile.Ap(NotInHole, arg))], Type.Hole);
+        (fn @ [Tile.PostOp(Ap(NotInHole, arg))], Type.Hole);
       | Some((ty1, ty2)) =>
         let arg = ana_fix_holes(ctx, arg, ty1);
-        (e @ [Tile.PostOp(HExp.Tile.Ap(NotInHole, arg))], ty2);
+        (e @ [Tile.PostOp(Ap(NotInHole, arg))], ty2);
       };
-    | BinOp((l, Plus(_), r)) =>
-      let l = ana_fix_holes(ctx, l, Type.Num);
-      let r = ana_fix_holes(ctx, r, Type.Num);
-      (l @ [Tile.BinOp(HExp.Tile.Plus(NotInHole)), ...r], Type.Num);
-    | BinOp((l, OperatorHole, r)) =>
-      let (l, _) = syn_fix_holes(ctx, l);
-      let (r, _) = syn_fix_holes(ctx, r);
-      (l @ [Tile.BinOp(OperatorHole), ...r], Type.Hole);
-    }
+    };
+    let bin = binop =>
+      switch (binop) {
+      | (l, Plus(_), r) =>
+        let l = ana_fix_holes(ctx, l, Type.Num);
+        let r = ana_fix_holes(ctx, r, Type.Num);
+        (l @ [Tile.BinOp(Plus(NotInHole)), ...r], Type.Num);
+      | (l, OperatorHole, r) =>
+        let (l, _) = syn_fix_holes(ctx, l);
+        let (r, _) = syn_fix_holes(ctx, r);
+        (l @ [Tile.BinOp(OperatorHole), ...r], Type.Hole);
+      };
+    Tile.get(op, pre, post, bin, HExp.root(e));
+  }
   and ana_fix_holes = (ctx: Ctx.t, e: HExp.t, ty: Type.t): HExp.t => {
     let subsume = () => {
       let (e, ty') = syn_fix_holes(ctx, e);
       Type.consistent(ty, ty') ? e : HExp.put_hole_status(InHole, e);
     };
-    switch (HExp.root(e)) {
-    | Operand(operand) =>
+    let op = operand =>
       switch (operand) {
       | OperandHole
       | Num(_)
       | Var(_) => subsume()
       | Paren(body) =>
         let body = ana_fix_holes(ctx, body, ty);
-        [Tile.Operand(HExp.Tile.Paren(body))];
-      }
-    | PreOp((Lam(_, p), body)) =>
-      switch (Type.matched_arrow(ty)) {
-      | None =>
-        let (p, _, ctx) = Pat.syn_fix_holes(ctx, p);
-        let (body, _) = syn_fix_holes(ctx, body);
-        [Tile.PreOp(HExp.Tile.Lam(InHole, p)), ...body];
-      | Some((ty_in, ty_out)) =>
-        let (p, ctx) = Pat.ana_fix_holes(ctx, p, ty_in);
-        let body = ana_fix_holes(ctx, body, ty_out);
-        [Tile.PreOp(HExp.Tile.Lam(NotInHole, p)), ...body];
-      }
-    | PostOp((_, Ap(_)))
-    | BinOp((_, OperatorHole | Plus(_), _)) => subsume()
-    };
+        [Tile.Operand(Paren(body))];
+      };
+    let pre = preop =>
+      switch (preop) {
+      | (Lam(_, p), body) =>
+        switch (Type.matched_arrow(ty)) {
+        | None =>
+          let (p, ctx) = Pat.ana_fix_holes(ctx, p, Hole);
+          let (body, _) = syn_fix_holes(ctx, body);
+          [Tile.PreOp(Lam(InHole, p)), ...body];
+        | Some((ty_in, ty_out)) =>
+          let (p, ctx) = Pat.ana_fix_holes(ctx, p, ty_in);
+          let body = ana_fix_holes(ctx, body, ty_out);
+          [Tile.PreOp(Lam(NotInHole, p)), ...body];
+        }
+      | (Let(_), _) => subsume()
+      };
+    let post =
+      fun
+      | (_, Ap(_)) => subsume();
+    let bin =
+      fun
+      | (_, OperatorHole | Plus(_), _) => subsume();
+    Tile.get(op, pre, post, bin, HExp.root(e));
   };
 };

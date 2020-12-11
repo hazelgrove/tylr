@@ -442,13 +442,13 @@ module Common =
   };
 };
 
-module type TYP = COMMON with module T := HTyp.Tile and module Z := ZTyp;
-module type PAT = COMMON with module T := HPat.Tile and module Z := ZPat;
-module type EXP = COMMON with module T := HExp.Tile and module Z := ZExp;
+module type TYP = COMMON with module T := HTyp.T and module Z := ZTyp;
+module type PAT = COMMON with module T := HPat.T and module Z := ZPat;
+module type EXP = COMMON with module T := HExp.T and module Z := ZExp;
 
 module rec Typ: TYP = {
   module V = {
-    open HTyp.Tile;
+    open HTyp.T;
 
     let length_of_child = (two_step, ty) => {
       let `Typ(ty, _) = ZPath.Typ.unzip(two_step, (ty, None));
@@ -497,11 +497,11 @@ module rec Typ: TYP = {
       (prefix @ l, r @ suffix);
     };
   };
-  include Common(HTyp.Tile, ZTyp, Text.Typ, Measured.Typ, V);
+  include Common(HTyp.T, ZTyp, Text.Typ, Measured.Typ, V);
 }
 and Pat: PAT = {
   module V = {
-    open HPat.Tile;
+    open HPat.T;
 
     let length_of_child = (two_step, p) =>
       switch (ZPath.Pat.unzip(two_step, (p, None))) {
@@ -571,11 +571,11 @@ and Pat: PAT = {
       (prefix @ l, r @ suffix);
     };
   };
-  include Common(HPat.Tile, ZPat, Text.Pat, Measured.Pat, V);
+  include Common(HPat.T, ZPat, Text.Pat, Measured.Pat, V);
 }
 and Exp: EXP = {
   module V = {
-    open HExp.Tile;
+    open HExp.T;
 
     let length_of_child = (two_step, e) =>
       switch (ZPath.Exp.unzip(two_step, (e, None))) {
@@ -639,7 +639,7 @@ and Exp: EXP = {
       (prefix @ l, r @ suffix);
     };
   };
-  include Common(HExp.Tile, ZExp, Text.Exp, Measured.Exp, V);
+  include Common(HExp.T, ZExp, Text.Exp, Measured.Exp, V);
 };
 
 let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) => {

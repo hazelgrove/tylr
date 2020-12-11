@@ -11,7 +11,9 @@ type caret_step = int;
 [@deriving sexp]
 type two_step = (tile_step, child_step);
 [@deriving sexp]
-type t = (list(two_step), caret_step);
+type steps = list(two_step);
+[@deriving sexp]
+type t = (steps, caret_step);
 
 exception Out_of_sync;
 exception Unzip_rezip_changes_sort;
@@ -420,7 +422,7 @@ module type COMMON = {
 module type TYP = {
   include
     COMMON with
-      module T := HTyp.Tile and
+      module T := HTyp.T and
       module Z := ZTyp and
       type inner_tiles := HTyp.Inner.t and
       type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)] and
@@ -429,7 +431,7 @@ module type TYP = {
 module type PAT = {
   include
     COMMON with
-      module T := HPat.Tile and
+      module T := HPat.T and
       module Z := ZPat and
       type inner_tiles := HPat.Inner.t and
       type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)] and
@@ -438,7 +440,7 @@ module type PAT = {
 module type EXP = {
   include
     COMMON with
-      module T := HExp.Tile and
+      module T := HExp.T and
       module Z := ZExp and
       type inner_tiles := HExp.Inner.t and
       type zipped = [ | `Exp(ZExp.zipper)] and
@@ -456,19 +458,19 @@ module rec Typ: TYP = {
     switch (ztile) {
     | Operand(ParenZ_body(zty)) =>
       let (tile_step, (ty, zrest)) =
-        zip([Tile.Operand(HTyp.Tile.Paren(subject))], zty);
+        zip([Tile.Operand(HTyp.T.Paren(subject))], zty);
       ((tile_step, 0), `Typ((ty, zrest)));
     | PreOp () => raise(ZTyp.Void_ZPreOp)
     | PostOp(AnnZ_ann(status, zp)) =>
       let (tile_step, (p, zrest)) =
-        Pat.zip([Tile.PostOp(HPat.Tile.Ann(status, subject))], zp);
+        Pat.zip([Tile.PostOp(HPat.T.Ann(status, subject))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
     | BinOp () => raise(ZTyp.Void_ZBinOp)
     };
 
   type unzipped = [ | `Typ(ZTyp.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HTyp.Tile.t, zty: ZTyp.t): unzipped =>
+  let unzip_tile = (r: child_step, tile: HTyp.T.t, zty: ZTyp.t): unzipped =>
     switch (tile) {
     | Operand(Paren(body)) when r == 0 =>
       `Typ((body, Some(Tile.Operand(ParenZ_body(zty)))))
@@ -506,14 +508,13 @@ module rec Typ: TYP = {
     };
 
     let enter_from =
-        (d: Direction.t, tile: HTyp.Tile.t)
-        : option((child_step, caret_step)) =>
+        (d: Direction.t, tile: HTyp.T.t): option((child_step, caret_step)) =>
       switch (tile) {
       | Operand(OperandHole | Num)
       | BinOp(OperatorHole | Arrow) => None
       | Operand(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | PreOp () => raise(HTyp.Tile.Void_PreOp)
-      | PostOp () => raise(HTyp.Tile.Void_PostOp)
+      | PreOp () => raise(HTyp.T.Void_PreOp)
+      | PostOp () => raise(HTyp.T.Void_PostOp)
       };
     let move = (d, path, `Typ(unzipped)) => {
       let+ (moved, did_it_zip) = Typ.move(d, path, unzipped);
@@ -570,7 +571,7 @@ module rec Typ: TYP = {
       };
     };
   };
-  include Common(HTyp.Tile, ZTyp, HTyp.Inner, P);
+  include Common(HTyp.T, ZTyp, HTyp.Inner, P);
 }
 and Pat: PAT = {
   type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
@@ -583,11 +584,15 @@ and Pat: PAT = {
     switch (ztile) {
     | Operand(ParenZ_body(zp)) =>
       let (tile_step, (p, zrest)) =
-        zip([Tile.Operand(HPat.Tile.Paren(p))], zp);
+        zip([Tile.Operand(HPat.T.Paren(p))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
     | PreOp(LamZ_pat(status, ze)) =>
       let (tile_step, (e, zrest)) =
-        Exp.zip([Tile.PreOp(HExp.Tile.Lam(status, p))], ze);
+        Exp.zip([Tile.PreOp(HExp.T.Lam(status, p))], ze);
+      ((tile_step, 0), `Exp((e, zrest)));
+    | PreOp(LetZ_pat(ze, def)) =>
+      let (tile_step, (e, zrest)) =
+        Exp.zip([Tile.PreOp(HExp.T.Let(p, def))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
     | PostOp () => raise(ZPat.Void_ZPostOp)
     | BinOp () => raise(ZPat.Void_ZBinOp)
@@ -595,7 +600,7 @@ and Pat: PAT = {
 
   type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HPat.Tile.t, zp: ZPat.t): unzipped =>
+  let unzip_tile = (r: child_step, tile: HPat.T.t, zp: ZPat.t): unzipped =>
     switch (tile) {
     | Operand(Paren(body)) when r == 0 =>
       `Pat((body, Some(Tile.Operand(ZPat.ParenZ_body(zp)))))
@@ -639,21 +644,20 @@ and Pat: PAT = {
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body({prefix, suffix, _})) =>
           Some(ZList.{prefix, z: p, suffix})
-        | PreOp(LamZ_pat(_)) => None
+        | PreOp(LamZ_pat(_) | LetZ_pat(_)) => None
         | PostOp () => raise(ZPat.Void_ZPostOp)
         | BinOp () => raise(ZPat.Void_ZBinOp)
         }
       };
 
     let enter_from =
-        (d: Direction.t, tile: HPat.Tile.t)
-        : option((child_step, caret_step)) =>
+        (d: Direction.t, tile: HPat.T.t): option((child_step, caret_step)) =>
       switch (tile) {
       | Operand(OperandHole | Var(_))
       | BinOp(OperatorHole) => None
       | Operand(Paren(p)) => Some((0, d == Left ? 0 : List.length(p)))
       | PostOp(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | PreOp () => raise(HPat.Tile.Void_PreOp)
+      | PreOp () => raise(HPat.T.Void_PreOp)
       };
     let move = (d, path, unzipped) =>
       switch (unzipped) {
@@ -755,7 +759,7 @@ and Pat: PAT = {
         };
       };
   };
-  include Common(HPat.Tile, ZPat, HPat.Inner, P);
+  include Common(HPat.T, ZPat, HPat.Inner, P);
 }
 and Exp: EXP = {
   type zipped = [ | `Exp(ZExp.zipper)];
@@ -768,19 +772,22 @@ and Exp: EXP = {
     switch (ztile) {
     | Operand(ParenZ_body(ze)) =>
       let (tile_step, (e, zrest)) =
-        zip([Tile.Operand(HExp.Tile.Paren(e))], ze);
+        zip([Tile.Operand(HExp.T.Paren(e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | PreOp () => raise(ZExp.Void_ZPreOp)
+    | PreOp(LetZ_def(p, ze)) =>
+      let (tile_step, (e, zrest)) =
+        zip([Tile.PreOp(HExp.T.Let(p, e))], ze);
+      ((tile_step, 1), `Exp((e, zrest)));
     | PostOp(ApZ_arg(status, ze)) =>
       let (tile_step, (e, zrest)) =
-        zip([Tile.PostOp(HExp.Tile.Ap(status, e))], ze);
+        zip([Tile.PostOp(HExp.T.Ap(status, e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
     | BinOp () => raise(ZExp.Void_ZBinOp)
     };
 
   type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HExp.Tile.t, ze: ZExp.t): unzipped =>
+  let unzip_tile = (r: child_step, tile: HExp.T.t, ze: ZExp.t): unzipped =>
     switch (tile) {
     | Operand(Paren(body)) when r == 0 =>
       `Exp((body, Some(Tile.Operand(ParenZ_body(ze)))))
@@ -825,23 +832,33 @@ and Exp: EXP = {
       | `Exp(e, unzipped) =>
         switch (Option.get(unzipped)) {
         | Operand(ParenZ_body({prefix, suffix, _}))
+        | PreOp(LetZ_def(_, {prefix, suffix, _}))
         | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
           Some(ZList.{prefix, z: e, suffix})
-        | PreOp () => raise(ZExp.Void_ZPreOp)
         | BinOp () => raise(ZExp.Void_ZBinOp)
         }
       };
 
     let enter_from =
-        (d: Direction.t, tile: HExp.Tile.t)
-        : option((child_step, caret_step)) =>
-      switch (tile) {
-      | Operand(OperandHole | Num(_) | Var(_))
-      | BinOp(Plus(_) | OperatorHole) => None
-      | Operand(Paren(e))
-      | PostOp(Ap(_, e)) => Some((0, d == Left ? 0 : List.length(e)))
-      | PreOp(Lam(_, p)) => Some((0, d == Left ? 0 : List.length(p)))
-      };
+        (d: Direction.t): (HExp.T.t => option((child_step, caret_step))) =>
+      HExp.T.(
+        Tile.get(
+          fun
+          | OperandHole
+          | Num(_)
+          | Var(_) => None
+          | Paren(body) => Some((0, d == Left ? 0 : List.length(body))),
+          fun
+          | Lam(_, p) => Some((0, d == Left ? 0 : List.length(p)))
+          | Let(_, def) =>
+            d == Left ? Some((0, 0)) : Some((1, List.length(def))),
+          fun
+          | Ap(_, arg) => Some((0, d == Left ? 0 : List.length(arg))),
+          fun
+          | Plus(_)
+          | OperatorHole => None,
+        )
+      );
     let move = (d, path, unzipped) =>
       switch (unzipped) {
       | `Exp(unzipped) =>
@@ -928,5 +945,5 @@ and Exp: EXP = {
         (cons(two_step, path), e);
       };
   };
-  include Common(HExp.Tile, ZExp, HExp.Inner, P);
+  include Common(HExp.T, ZExp, HExp.Inner, P);
 };

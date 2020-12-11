@@ -35,9 +35,9 @@ module Make = (T: Tile.S, Sort_specific: {let view_of_tile: T.t => Node.t;}) => 
   };
 };
 
-module type TYP = {include COMMON with module T := HTyp.Tile;};
+module type TYP = {include COMMON with module T := HTyp.T;};
 module rec Typ: TYP = {
-  let view_of_tile = (tile: HTyp.Tile.t): Node.t => {
+  let view_of_tile = (tile: HTyp.T.t): Node.t => {
     let vs =
       switch (tile) {
       | Operand(OperandHole) => [of_OperandHole]
@@ -45,19 +45,19 @@ module rec Typ: TYP = {
       | Operand(Paren(body)) =>
         let (open_, close) = of_Paren;
         [open_, Typ.view(body), close];
-      | PreOp () => raise(HTyp.Tile.Void_PreOp)
-      | PostOp () => raise(HTyp.Tile.Void_PostOp)
+      | PreOp () => raise(HTyp.T.Void_PreOp)
+      | PostOp () => raise(HTyp.T.Void_PostOp)
       | BinOp(OperatorHole) => [of_OperatorHole]
       | BinOp(Arrow) => [of_Arrow]
       };
     Node.span([Attr.classes(["code-text"])], space(vs));
   };
-  include Make(HTyp.Tile, Typ);
+  include Make(HTyp.T, Typ);
 };
 
-module type PAT = {include COMMON with module T := HPat.Tile;};
+module type PAT = {include COMMON with module T := HPat.T;};
 module rec Pat: PAT = {
-  let view_of_tile = (tile: HPat.Tile.t): Node.t => {
+  let view_of_tile = (tile: HPat.T.t): Node.t => {
     let vs =
       switch (tile) {
       | Operand(OperandHole) => [of_OperandHole]
@@ -65,7 +65,7 @@ module rec Pat: PAT = {
       | Operand(Paren(body)) =>
         let (open_, close) = of_Paren;
         [open_, Pat.view(body), close];
-      | PreOp () => raise(HPat.Tile.Void_PreOp)
+      | PreOp () => raise(HPat.T.Void_PreOp)
       | PostOp(Ann(_, ann)) =>
         let (open_, close) = of_Ann;
         [open_, Typ.view(ann), close];
@@ -73,12 +73,12 @@ module rec Pat: PAT = {
       };
     Node.span([Attr.classes(["code-text"])], space(vs));
   };
-  include Make(HPat.Tile, Pat);
+  include Make(HPat.T, Pat);
 };
 
-module type EXP = {include COMMON with module T := HExp.Tile;};
+module type EXP = {include COMMON with module T := HExp.T;};
 module rec Exp: EXP = {
-  let view_of_tile = (tile: HExp.Tile.t): Node.t => {
+  let view_of_tile = (tile: HExp.T.t): Node.t => {
     let vs =
       switch (tile) {
       | Operand(OperandHole) => [of_OperandHole]
@@ -98,5 +98,5 @@ module rec Exp: EXP = {
       };
     Node.span([Attr.classes(["code-text"])], space(vs));
   };
-  include Make(HExp.Tile, Exp);
+  include Make(HExp.T, Exp);
 };
