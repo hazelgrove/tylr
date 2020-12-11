@@ -9,6 +9,7 @@ type tile_shape =
   | Var(Var.t)
   | Paren
   | Lam
+  | Let
   | Ap
   | Ann
   | Plus
@@ -26,6 +27,7 @@ module Typ = {
     fun
     | NumLit(_)
     | Lam
+    | Let
     | Ap
     | Plus
     | Var(_)
@@ -41,6 +43,7 @@ module Pat = {
     | Num
     | NumLit(_)
     | Lam
+    | Let
     | Ap
     | Plus
     | Arrow => None
@@ -64,6 +67,7 @@ module Exp = {
     // TODO come back to Lam, consider generalizing output to list of tiles
     // so that bidelimited wrapping is not the only possible outcome on a selection
     | Lam => Some(PreOp(Lam(NotInHole, HPat.mk_hole())))
+    | Let => Some(PreOp(Let(HPat.mk_hole(), HExp.mk_hole())))
     | Ap =>
       Some(
         PostOp(Ap(NotInHole, selection == [] ? HExp.mk_hole() : selection)),
