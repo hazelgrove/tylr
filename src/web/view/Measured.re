@@ -10,7 +10,7 @@ module type COMMON = {
   let length_of_tile: T.t => int;
   let length: T.s => int;
 
-  let children_offsets: (~just: [ | `Open | `Closed]=?, T.t) => list(int);
+  let children_offsets: (~filter: [ | `Open | `Closed]=?, T.t) => list(int);
   let offset: (ZPath.t, T.s) => int;
 
   let empty_holes: T.s => list(int);
@@ -45,14 +45,8 @@ module Common =
     |> List.fold_left((+), -1);
 
   let children_offsets =
-      (~just: option([ | `Open | `Closed])=?, tile): list(int) => {
-    let children =
-      switch (just) {
-      | None => P.children
-      | Some(`Open) => P.open_children
-      | Some(`Closed) => P.closed_children
-      };
-    children(tile)
+      (~filter: option([ | `Open | `Closed])=?, tile): list(int) => {
+    P.children(~filter?, tile)
     |> List.map(child_step =>
          Sort_specific.offset_tile((child_step, ([], 0)), tile)
        );
@@ -344,7 +338,7 @@ module rec Typ: TYP = {
            | Arrow
            | OperatorHole => [],
          )
-      |> List.combine(Typ.children_offsets(~just=`Open, tile));
+      |> List.combine(Typ.children_offsets(~filter=`Open, tile));
     let closed_children_of_tile = tile =>
       tile
       |> Tile.get(
@@ -358,7 +352,7 @@ module rec Typ: TYP = {
            | Arrow
            | OperatorHole => [],
          )
-      |> List.combine(Typ.children_offsets(~just=`Closed, tile));
+      |> List.combine(Typ.children_offsets(~filter=`Closed, tile));
 
     let inner_empty_holes_of_tile =
       Tile.get(
@@ -436,7 +430,7 @@ module rec Pat: PAT = {
            fun
            | OperatorHole => [],
          )
-      |> List.combine(Pat.children_offsets(~just=`Open, tile));
+      |> List.combine(Pat.children_offsets(~filter=`Open, tile));
     let closed_children_of_tile = tile =>
       tile
       |> Tile.get(
@@ -450,7 +444,7 @@ module rec Pat: PAT = {
            fun
            | OperatorHole => [],
          )
-      |> List.combine(Pat.children_offsets(~just=`Closed, tile));
+      |> List.combine(Pat.children_offsets(~filter=`Closed, tile));
 
     let inner_empty_holes_of_tile =
       Tile.get(
@@ -588,7 +582,7 @@ module rec Exp: EXP = {
            | Plus(_)
            | OperatorHole => [],
          )
-      |> List.combine(Exp.children_offsets(~just=`Open, tile));
+      |> List.combine(Exp.children_offsets(~filter=`Open, tile));
     let closed_children_of_tile = tile =>
       tile
       |> Tile.get(
@@ -606,7 +600,7 @@ module rec Exp: EXP = {
            | Plus(_)
            | OperatorHole => [],
          )
-      |> List.combine(Exp.children_offsets(~just=`Closed, tile));
+      |> List.combine(Exp.children_offsets(~filter=`Closed, tile));
 
     let inner_empty_holes_of_tile =
       Tile.get(
