@@ -39,10 +39,14 @@ module Common =
   let length_of_tile = Sort_specific.length_of_tile;
 
   let length = (ts: T.s): int =>
-    ts
-    |> List.map(length_of_tile)
-    |> List.map((+)(1))
-    |> List.fold_left((+), -1);
+    switch (ts) {
+    | [] => 0
+    | [_, ..._] =>
+      ts
+      |> List.map(length_of_tile)
+      |> List.map((+)(1))
+      |> List.fold_left((+), -1)
+    };
 
   let children_offsets =
       (~filter: option([ | `Open | `Closed])=?, tile): list(int) => {

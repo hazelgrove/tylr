@@ -1,3 +1,4 @@
+open Sexplib.Std;
 open Virtual_dom.Vdom;
 
 module Sort = Core.Sort;
@@ -287,6 +288,7 @@ module OpenChild = {
 };
 
 module Tile = {
+  [@deriving sexp]
   type profile = {
     shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],
     len: int,
@@ -415,6 +417,7 @@ module Tile = {
         profile.open_children
         |> List.map(((start, len)) =>
              List.concat([
+               // TODO unify 1 with space width
                [H({x: Float.of_int(start) -. 1. +. tip})],
                tr_bl(),
                tl_br(~child_border=`South, ()),
