@@ -396,6 +396,10 @@ module type COMMON = {
 
   type did_it_zip = option((two_step, zipped));
 
+  let children: T.t => list(child_step);
+  let open_children: T.t => list(child_step);
+  let closed_children: T.t => list(child_step);
+
   /**
    * `move(d, zipper, path)` first attempts to returns the next path
    * from `path` in direction `d` within the focused term of `zipper`.
@@ -486,6 +490,49 @@ module rec Typ: TYP = {
   };
 
   let sort_at = (_, _) => Sort.Typ;
+
+  let children =
+    HTyp.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Num => []
+        | Paren(_) => [0],
+        () => raise(Void_PreOp),
+        () => raise(Void_PostOp),
+        fun
+        | OperatorHole
+        | Arrow => [],
+      )
+    );
+  let open_children =
+    HTyp.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Num => []
+        | Paren(_) => [0],
+        () => raise(Void_PreOp),
+        () => raise(Void_PostOp),
+        fun
+        | OperatorHole
+        | Arrow => [],
+      )
+    );
+  let closed_children =
+    HTyp.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Num => []
+        | Paren(_) => [],
+        () => raise(Void_PreOp),
+        () => raise(Void_PostOp),
+        fun
+        | OperatorHole
+        | Arrow => [],
+      )
+    );
 
   module P = {
     type nonrec zipped = zipped;
@@ -627,6 +674,49 @@ and Pat: PAT = {
       | `Pat(p, _) => sort_at(path, p)
       };
     };
+
+  let children =
+    HPat.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Var(_) => []
+        | Paren(_) => [0],
+        () => raise(Void_PreOp),
+        fun
+        | Ann(_) => [0],
+        fun
+        | OperatorHole => [],
+      )
+    );
+  let open_children =
+    HPat.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Var(_) => []
+        | Paren(_) => [0],
+        () => raise(Void_PreOp),
+        fun
+        | Ann(_) => [],
+        fun
+        | OperatorHole => [],
+      )
+    );
+  let closed_children =
+    HPat.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Var(_)
+        | Paren(_) => [],
+        () => raise(Void_PreOp),
+        fun
+        | Ann(_) => [0],
+        fun
+        | OperatorHole => [],
+      )
+    );
 
   module P = {
     type nonrec zipped = zipped;
@@ -816,6 +906,61 @@ and Exp: EXP = {
       | `Exp(e, _) => sort_at(path, e)
       };
     };
+
+  let children =
+    HExp.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Num(_)
+        | Var(_) => []
+        | Paren(_) => [0],
+        fun
+        | Lam(_) => [0]
+        | Let(_) => [0, 1],
+        fun
+        | Ap(_) => [0],
+        fun
+        | Plus(_)
+        | OperatorHole => [],
+      )
+    );
+  let open_children =
+    HExp.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Num(_)
+        | Var(_) => []
+        | Paren(_) => [0],
+        fun
+        | Lam(_) => []
+        | Let(_) => [1],
+        fun
+        | Ap(_) => [0],
+        fun
+        | Plus(_)
+        | OperatorHole => [],
+      )
+    );
+  let closed_children =
+    HExp.T.(
+      Tile.get(
+        fun
+        | OperandHole
+        | Num(_)
+        | Var(_)
+        | Paren(_) => [],
+        fun
+        | Lam(_) => [0]
+        | Let(_) => [0],
+        fun
+        | Ap(_) => [],
+        fun
+        | Plus(_)
+        | OperatorHole => [],
+      )
+    );
 
   module P = {
     type nonrec zipped = zipped;
