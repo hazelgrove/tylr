@@ -525,6 +525,16 @@ and Pat: PAT = {
         let prefix = pre @ List.map(Text.Exp.view_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
+      | PreOp(LetZ_pat({prefix, suffix, z}, def)) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Exp.view_of_unzipped(z);
+        let (let_, eq, in_) = Text.of_Let;
+        let prefix = pre @ List.map(Text.Exp.view_of_tile, prefix) @ [let_];
+        let suffix =
+          [eq, ...List.map(Text.Exp.view_of_tile, def)]
+          @ [in_, ...List.map(Text.Exp.view_of_tile, suffix)]
+          @ suf;
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PostOp () => raise(ZPat.Void_ZPostOp)
       | BinOp () => raise(ZPat.Void_ZBinOp)
       };
@@ -593,7 +603,17 @@ and Exp: EXP = {
         let prefix = pre @ List.map(Text.Exp.view_of_tile, prefix) @ [l];
         let suffix = [r, ...List.map(Text.Exp.view_of_tile, suffix)] @ suf;
         ZList.mk(~prefix, ~z=(), ~suffix, ());
-      | PreOp () => raise(ZExp.Void_ZPreOp)
+      | PreOp(LetZ_def(p, {prefix, suffix, z})) =>
+        let ZList.{prefix: pre, z: (), suffix: suf} =
+          Exp.view_of_unzipped(z);
+        let (let_, eq, in_) = Text.of_Let;
+        let prefix =
+          pre
+          @ List.map(Text.Exp.view_of_tile, prefix)
+          @ [let_, ...List.map(Text.Pat.view_of_tile, p)]
+          @ [eq];
+        let suffix = [in_, ...List.map(Text.Exp.view_of_tile, suffix)] @ suf;
+        ZList.mk(~prefix, ~z=(), ~suffix, ());
       | BinOp () => raise(ZExp.Void_ZBinOp)
       };
     };
