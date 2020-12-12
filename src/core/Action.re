@@ -87,15 +87,15 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
       let move = path =>
         switch (zipper) {
         | `Exp(zipper) => (
-            ZPath.Exp.move(d, path, zipper) :>
+            ZPath.Exp.move_zipper(d, path, zipper) :>
               option((ZPath.t, EditState.Zipper.did_it_zip))
           )
         | `Pat(zipper) => (
-            ZPath.Pat.move(d, path, zipper) :>
+            ZPath.Pat.move_zipper(d, path, zipper) :>
               option((ZPath.t, EditState.Zipper.did_it_zip))
           )
         | `Typ(zipper) => (
-            ZPath.Typ.move(d, path, zipper) :>
+            ZPath.Typ.move_zipper(d, path, zipper) :>
               option((ZPath.t, EditState.Zipper.did_it_zip))
           )
         };
