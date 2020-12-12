@@ -388,7 +388,7 @@ module rec Pat: PAT = {
         | Paren(body) => 1 + space + Pat.length(body) + space + 1,
         () => raise(Void_PreOp),
         fun
-        | Ann(_, ann) => 1 + space + Typ.length(ann),
+        | Ann(_, ann) => 1 + space + Typ.length(ann) + space,
         fun
         | OperatorHole => 1,
       );

@@ -15,7 +15,7 @@ let of_Lam = (Node.text(Unicode.lam), Node.text("."));
 let of_Let = (Node.text("let"), Node.text("="), Node.text("in"));
 
 // postop
-let of_Ann = (Node.text(":"), Node.text(Unicode.nbsp));
+let of_Ann = (Node.text(":"), Node.text(""));
 let of_Ap = of_Paren;
 
 // binop
