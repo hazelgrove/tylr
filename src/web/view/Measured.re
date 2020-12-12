@@ -79,7 +79,7 @@ module Common =
                  Sort_specific.inner_empty_holes_of_tile(tile)
                  |> List.combine(children_offsets(tile))
                  |> List.map(((offset, origins)) =>
-                      List.map((+)(offset), origins)
+                      List.map((+)(offset + space), origins)
                     )
                  |> List.flatten
                };
