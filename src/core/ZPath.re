@@ -472,12 +472,25 @@ module rec Typ: TYP = {
 
   type unzipped = [ | `Typ(ZTyp.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HTyp.T.t, zty: ZTyp.t): unzipped =>
-    switch (tile) {
-    | Operand(Paren(body)) when r == 0 =>
-      `Typ((body, Some(Tile.Operand(ParenZ_body(zty)))))
-    | _ => raise(Invalid_argument("ZPath.Typ.unzip_tile"))
-    };
+  let unzip_tile = (r: child_step, tile: HTyp.T.t, zty: ZTyp.t): unzipped => {
+    open HTyp.T;
+    let invalid = () => raise(Invalid_argument("ZPath.Typ.unzip_tile"));
+    tile
+    |> Tile.get(
+         fun
+         | OperandHole
+         | Num => invalid()
+         | Paren(body) =>
+           r == 0
+             ? `Typ((body, Some(Tile.Operand(ZTyp.ParenZ_body(zty)))))
+             : invalid(),
+         () => raise(Void_PreOp),
+         () => raise(Void_PostOp),
+         fun
+         | OperatorHole
+         | Arrow => invalid(),
+       );
+  };
   let unzip =
       ((l, r): two_step, (ty: HTyp.t, zrest: option(ZTyp.ztile))): unzipped => {
     let (tile, ze) = {
@@ -617,14 +630,28 @@ and Pat: PAT = {
 
   type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HPat.T.t, zp: ZPat.t): unzipped =>
-    switch (tile) {
-    | Operand(Paren(body)) when r == 0 =>
-      `Pat((body, Some(Tile.Operand(ZPat.ParenZ_body(zp)))))
-    | PostOp(Ann(status, ann)) when r == 0 =>
-      `Typ((ann, Some(Tile.PostOp(ZTyp.AnnZ_ann(status, zp)))))
-    | _ => raise(Invalid_argument("ZPath.Pat.unzip_tile"))
-    };
+  let unzip_tile = (r: child_step, tile: HPat.T.t, zp: ZPat.t): unzipped => {
+    open HPat.T;
+    let invalid = () => raise(Invalid_argument("ZPath.Pat.unzip_tile"));
+    tile
+    |> Tile.get(
+         fun
+         | OperandHole
+         | Var(_) => invalid()
+         | Paren(body) =>
+           r == 0
+             ? `Pat((body, Some(Tile.Operand(ZPat.ParenZ_body(zp)))))
+             : invalid(),
+         () => raise(Void_PreOp),
+         fun
+         | Ann(status, ann) =>
+           r == 0
+             ? `Typ((ann, Some(Tile.PostOp(ZTyp.AnnZ_ann(status, zp)))))
+             : invalid(),
+         fun
+         | OperatorHole => invalid(),
+       );
+  };
   let unzip =
       ((l, r): two_step, (p: HPat.t, zrest: option(ZPat.ztile))): unzipped => {
     let (tile, zp) = {
@@ -819,16 +846,40 @@ and Exp: EXP = {
 
   type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HExp.T.t, ze: ZExp.t): unzipped =>
-    switch (tile) {
-    | Operand(Paren(body)) when r == 0 =>
-      `Exp((body, Some(Tile.Operand(ParenZ_body(ze)))))
-    | PreOp(Lam(status, p)) when r == 0 =>
-      `Pat((p, Some(Tile.PreOp(ZPat.LamZ_pat(status, ze)))))
-    | PostOp(Ap(status, arg)) when r == 0 =>
-      `Exp((arg, Some(Tile.PostOp(ZExp.ApZ_arg(status, ze)))))
-    | _ => raise(Invalid_argument("ZPath.Exp.unzip_tile"))
-    };
+  let unzip_tile = (r: child_step, tile: HExp.T.t, ze: ZExp.t): unzipped => {
+    open HExp.T;
+    let invalid = () => raise(Invalid_argument("ZPath.Exp.unzip_tile"));
+    tile
+    |> Tile.get(
+         fun
+         | OperandHole
+         | Num(_)
+         | Var(_) => invalid()
+         | Paren(body) =>
+           r == 0
+             ? `Exp((body, Some(Tile.Operand(ZExp.ParenZ_body(ze)))))
+             : invalid(),
+         fun
+         | Lam(status, p) =>
+           r == 0
+             ? `Pat((p, Some(Tile.PreOp(ZPat.LamZ_pat(status, ze)))))
+             : invalid()
+         | Let(p, def) =>
+           switch (r) {
+           | 0 => `Pat((p, Some(Tile.PreOp(ZPat.LetZ_pat(ze, def)))))
+           | 1 => `Exp((def, Some(Tile.PreOp(ZExp.LetZ_def(p, ze)))))
+           | _ => invalid()
+           },
+         fun
+         | Ap(status, arg) =>
+           r == 0
+             ? `Exp((arg, Some(Tile.PostOp(ZExp.ApZ_arg(status, ze)))))
+             : invalid(),
+         fun
+         | OperatorHole
+         | Plus(_) => invalid(),
+       );
+  };
   let unzip =
       ((l, r): two_step, (e: HExp.t, zrest: option(ZExp.ztile))): unzipped => {
     let (tile, ze) = {
