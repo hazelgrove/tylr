@@ -58,6 +58,48 @@ let cons_ordered_selection = (two_step, (l, r)) => (
   cons(two_step, r),
 );
 
+module type COMMON = {
+  module T: Tile.S;
+  module Z: ZTile.S with module T := T;
+  type inner_tiles;
+
+  type zip_result;
+  let zip: (T.s, Z.t) => (tile_step, Z.zipper);
+  let zip_ztile: (T.s, Z.ztile) => (two_step, zip_result);
+
+  type unzip_result;
+  let unzip_tile: (child_step, T.t, Z.t) => unzip_result;
+  let unzip: (two_step, Z.zipper) => unzip_result;
+
+  let sort_at: (t, T.s) => Sort.t;
+
+  type did_it_zip = option((two_step, zip_result));
+
+  let children: (~filter: [ | `Open | `Closed]=?, T.t) => list(child_step);
+
+  /**
+   * `move(d, zipper, path)` first attempts to returns the next path
+   * from `path` in direction `d` within the focused term of `zipper`.
+   * If no such path exists (i.e. the cursor is at one of the ends of
+   * the focused term), then it attempts to zip `zipper` and try once
+   * more.
+   */
+  let move: (Direction.t, t, Z.zipper) => option((t, did_it_zip));
+
+  let select:
+    (Direction.t, t, Z.zipper) => option((anchored_selection, did_it_zip));
+  let delete_selection: (ordered_selection, T.s) => option((t, T.s));
+  let round_selection: (ordered_selection, T.s) => ordered_selection;
+
+  let remove_tiles:
+    (ordered_selection, T.s) => option((inner_tiles, t, T.s));
+  let insert_tiles:
+    (inner_tiles, t, T.s) => option((ordered_selection, T.s));
+  let restructure:
+    (~place_cursor: [ | `Selection | `Other]=?, (t, t), t, T.s) =>
+    option((t, T.s));
+};
+
 module Common =
        (
          T: Tile.S,
@@ -378,48 +420,6 @@ module Common =
         (path, prefix @ ts_l @ ts_r @ suffix);
       }
     };
-};
-
-module type COMMON = {
-  module T: Tile.S;
-  module Z: ZTile.S with module T := T;
-  type inner_tiles;
-
-  type zip_result;
-  let zip: (T.s, Z.t) => (tile_step, Z.zipper);
-  let zip_ztile: (T.s, Z.ztile) => (two_step, zip_result);
-
-  type unzip_result;
-  let unzip_tile: (child_step, T.t, Z.t) => unzip_result;
-  let unzip: (two_step, Z.zipper) => unzip_result;
-
-  let sort_at: (t, T.s) => Sort.t;
-
-  type did_it_zip = option((two_step, zip_result));
-
-  let children: (~filter: [ | `Open | `Closed]=?, T.t) => list(child_step);
-
-  /**
-   * `move(d, zipper, path)` first attempts to returns the next path
-   * from `path` in direction `d` within the focused term of `zipper`.
-   * If no such path exists (i.e. the cursor is at one of the ends of
-   * the focused term), then it attempts to zip `zipper` and try once
-   * more.
-   */
-  let move: (Direction.t, t, Z.zipper) => option((t, did_it_zip));
-
-  let select:
-    (Direction.t, t, Z.zipper) => option((anchored_selection, did_it_zip));
-  let delete_selection: (ordered_selection, T.s) => option((t, T.s));
-  let round_selection: (ordered_selection, T.s) => ordered_selection;
-
-  let remove_tiles:
-    (ordered_selection, T.s) => option((inner_tiles, t, T.s));
-  let insert_tiles:
-    (inner_tiles, t, T.s) => option((ordered_selection, T.s));
-  let restructure:
-    (~place_cursor: [ | `Selection | `Other]=?, (t, t), t, T.s) =>
-    option((t, T.s));
 };
 
 module type TYP = {
