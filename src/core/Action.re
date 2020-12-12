@@ -104,9 +104,9 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
     let mode = EditState.Mode.put_focus(focus, mode);
     switch (did_it_zip) {
     | None => (mode, zipper)
-    | Some((two_step, zipped)) => (
+    | Some((two_step, zip_result)) => (
         EditState.Mode.update_anchors(ZPath.cons(two_step), mode),
-        zipped,
+        zip_result,
       )
     };
 
@@ -121,7 +121,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         let zipper =
           switch (did_it_zip) {
           | None => zipper
-          | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
+          | Some((_, zip_result)) => (zip_result :> EditState.Zipper.t)
           };
         (selection, zipper);
       | `Pat(z) =>
@@ -129,7 +129,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         let zipper =
           switch (did_it_zip) {
           | None => zipper
-          | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
+          | Some((_, zip_result)) => (zip_result :> EditState.Zipper.t)
           };
         (selection, zipper);
       | `Exp(z) =>
@@ -137,7 +137,7 @@ let rec perform = (a: t, edit_state: EditState.t): option(EditState.t) =>
         let zipper =
           switch (did_it_zip) {
           | None => zipper
-          | Some((_, zipped)) => (zipped :> EditState.Zipper.t)
+          | Some((_, zip_result)) => (zip_result :> EditState.Zipper.t)
           };
         (selection, zipper);
       };

@@ -68,19 +68,19 @@ module Common =
            let unwrap: t => option(T.s);
          },
          P: {
-           type zipped;
-           type unzipped;
+           type zip_result;
+           type unzip_result;
 
            let sort: Sort.t;
            let sort_at: (t, T.s) => Sort.t;
 
-           let zip_ztile: (T.s, Z.ztile) => (two_step, zipped);
-           let unzip: (two_step, Z.zipper) => unzipped;
+           let zip_ztile: (T.s, Z.ztile) => (two_step, zip_result);
+           let unzip: (two_step, Z.zipper) => unzip_result;
            let unzip_cis: (two_step, T.s) => option(ZList.t(T.s, T.t));
 
            let enter_from:
              (Direction.t, T.t) => option((child_step, caret_step));
-           let move: (Direction.t, t, unzipped) => option((t, bool));
+           let move: (Direction.t, t, unzip_result) => option((t, bool));
 
            let insert_tiles:
              (I.t, (two_step, t), T.s) => option((ordered_selection, T.s));
@@ -99,7 +99,7 @@ module Common =
        ) => {
   module Ts = Tiles.Make(T);
 
-  type did_it_zip = option((two_step, P.zipped));
+  type did_it_zip = option((two_step, P.zip_result));
 
   let move =
       (d: Direction.t, (steps, j): t, (ts, zrest) as zipper: Z.zipper)
@@ -117,13 +117,14 @@ module Common =
           };
         Some((path, None));
       | (_, Some(ztile)) =>
-        let ((tile_step, _) as two_step, zipped) = P.zip_ztile(ts, ztile);
+        let ((tile_step, _) as two_step, zip_result) =
+          P.zip_ztile(ts, ztile);
         let path = ([], d == Left ? tile_step : tile_step + 1);
-        Some((path, Some((two_step, zipped))));
+        Some((path, Some((two_step, zip_result))));
       };
     | [two_step, ...steps] =>
-      let unzipped = P.unzip(two_step, zipper);
-      let+ (moved, did_it_zip) = P.move(d, (steps, j), unzipped);
+      let unzip_result = P.unzip(two_step, zipper);
+      let+ (moved, did_it_zip) = P.move(d, (steps, j), unzip_result);
       let path = did_it_zip ? moved : cons(two_step, moved);
       (path, None);
     };
@@ -384,17 +385,17 @@ module type COMMON = {
   module Z: ZTile.S with module T := T;
   type inner_tiles;
 
-  type zipped;
+  type zip_result;
   let zip: (T.s, Z.t) => (tile_step, Z.zipper);
-  let zip_ztile: (T.s, Z.ztile) => (two_step, zipped);
+  let zip_ztile: (T.s, Z.ztile) => (two_step, zip_result);
 
-  type unzipped;
-  let unzip_tile: (child_step, T.t, Z.t) => unzipped;
-  let unzip: (two_step, Z.zipper) => unzipped;
+  type unzip_result;
+  let unzip_tile: (child_step, T.t, Z.t) => unzip_result;
+  let unzip: (two_step, Z.zipper) => unzip_result;
 
   let sort_at: (t, T.s) => Sort.t;
 
-  type did_it_zip = option((two_step, zipped));
+  type did_it_zip = option((two_step, zip_result));
 
   let children: (~filter: [ | `Open | `Closed]=?, T.t) => list(child_step);
 
@@ -427,8 +428,8 @@ module type TYP = {
       module T := HTyp.T and
       module Z := ZTyp and
       type inner_tiles := HTyp.Inner.t and
-      type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)] and
-      type unzipped = [ | `Typ(ZTyp.zipper)];
+      type zip_result = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)] and
+      type unzip_result = [ | `Typ(ZTyp.zipper)];
 };
 module type PAT = {
   include
@@ -436,8 +437,8 @@ module type PAT = {
       module T := HPat.T and
       module Z := ZPat and
       type inner_tiles := HPat.Inner.t and
-      type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)] and
-      type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
+      type zip_result = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)] and
+      type unzip_result = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
 };
 module type EXP = {
   include
@@ -445,18 +446,19 @@ module type EXP = {
       module T := HExp.T and
       module Z := ZExp and
       type inner_tiles := HExp.Inner.t and
-      type zipped = [ | `Exp(ZExp.zipper)] and
-      type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
+      type zip_result = [ | `Exp(ZExp.zipper)] and
+      type unzip_result = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
 };
 
 module rec Typ: TYP = {
-  type zipped = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
+  type zip_result = [ | `Typ(ZTyp.zipper) | `Pat(ZPat.zipper)];
 
   let zip = (ty: HTyp.t, zty: ZTyp.t): (tile_step, ZTyp.zipper) => (
     List.length(zty.prefix),
     (zty.prefix @ ty @ zty.suffix, zty.z),
   );
-  let zip_ztile = (subject: HTyp.t, ztile: ZTyp.ztile): (two_step, zipped) =>
+  let zip_ztile =
+      (subject: HTyp.t, ztile: ZTyp.ztile): (two_step, zip_result) =>
     switch (ztile) {
     | Operand(ParenZ_body(zty)) =>
       let (tile_step, (ty, zrest)) =
@@ -470,9 +472,9 @@ module rec Typ: TYP = {
     | BinOp () => raise(ZTyp.Void_ZBinOp)
     };
 
-  type unzipped = [ | `Typ(ZTyp.zipper)];
+  type unzip_result = [ | `Typ(ZTyp.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HTyp.T.t, zty: ZTyp.t): unzipped => {
+  let unzip_tile = (r: child_step, tile: HTyp.T.t, zty: ZTyp.t): unzip_result => {
     open HTyp.T;
     let invalid = () => raise(Invalid_argument("ZPath.Typ.unzip_tile"));
     tile
@@ -492,7 +494,8 @@ module rec Typ: TYP = {
        );
   };
   let unzip =
-      ((l, r): two_step, (ty: HTyp.t, zrest: option(ZTyp.ztile))): unzipped => {
+      ((l, r): two_step, (ty: HTyp.t, zrest: option(ZTyp.ztile)))
+      : unzip_result => {
     let (tile, ze) = {
       let (prefix, tile, suffix) = ListUtil.split_nth(l, ty);
       (tile, ZTyp.mk(~prefix, ~z=?zrest, ~suffix, ()));
@@ -518,8 +521,8 @@ module rec Typ: TYP = {
     );
 
   module P = {
-    type nonrec zipped = zipped;
-    type nonrec unzipped = unzipped;
+    type nonrec zip_result = zip_result;
+    type nonrec unzip_result = unzip_result;
 
     let sort = Sort.Typ;
     let sort_at = sort_at;
@@ -604,13 +607,13 @@ module rec Typ: TYP = {
   include Common(HTyp.T, ZTyp, HTyp.Inner, P);
 }
 and Pat: PAT = {
-  type zipped = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
+  type zip_result = [ | `Pat(ZPat.zipper) | `Exp(ZExp.zipper)];
 
   let zip = (p: HPat.t, zp: ZPat.t): (tile_step, ZPat.zipper) => (
     List.length(zp.prefix),
     (zp.prefix @ p @ zp.suffix, zp.z),
   );
-  let zip_ztile = (p: HPat.t, ztile: ZPat.ztile): (two_step, zipped) =>
+  let zip_ztile = (p: HPat.t, ztile: ZPat.ztile): (two_step, zip_result) =>
     switch (ztile) {
     | Operand(ParenZ_body(zp)) =>
       let (tile_step, (p, zrest)) =
@@ -628,9 +631,9 @@ and Pat: PAT = {
     | BinOp () => raise(ZPat.Void_ZBinOp)
     };
 
-  type unzipped = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
+  type unzip_result = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HPat.T.t, zp: ZPat.t): unzipped => {
+  let unzip_tile = (r: child_step, tile: HPat.T.t, zp: ZPat.t): unzip_result => {
     open HPat.T;
     let invalid = () => raise(Invalid_argument("ZPath.Pat.unzip_tile"));
     tile
@@ -653,7 +656,8 @@ and Pat: PAT = {
        );
   };
   let unzip =
-      ((l, r): two_step, (p: HPat.t, zrest: option(ZPat.ztile))): unzipped => {
+      ((l, r): two_step, (p: HPat.t, zrest: option(ZPat.ztile)))
+      : unzip_result => {
     let (tile, zp) = {
       let (prefix, tile, suffix) = ListUtil.split_nth(l, p);
       (tile, ZPat.mk(~prefix, ~z=?zrest, ~suffix, ()));
@@ -698,8 +702,8 @@ and Pat: PAT = {
     );
 
   module P = {
-    type nonrec zipped = zipped;
-    type nonrec unzipped = unzipped;
+    type nonrec zip_result = zip_result;
+    type nonrec unzip_result = unzip_result;
 
     let sort = Sort.Pat;
     let sort_at = sort_at;
@@ -728,13 +732,13 @@ and Pat: PAT = {
       | PostOp(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
       | PreOp () => raise(HPat.T.Void_PreOp)
       };
-    let move = (d, path, unzipped) =>
-      switch (unzipped) {
-      | `Pat(unzipped) =>
-        let+ (moved, did_it_zip) = Pat.move(d, path, unzipped);
+    let move = (d, path, unzip_result) =>
+      switch (unzip_result) {
+      | `Pat(zipper) =>
+        let+ (moved, did_it_zip) = Pat.move(d, path, zipper);
         (moved, Option.is_some(did_it_zip));
-      | `Typ(unzipped) =>
-        let+ (moved, did_it_zip) = Typ.move(d, path, unzipped);
+      | `Typ(zipper) =>
+        let+ (moved, did_it_zip) = Typ.move(d, path, zipper);
         (moved, Option.is_some(did_it_zip));
       };
 
@@ -831,13 +835,13 @@ and Pat: PAT = {
   include Common(HPat.T, ZPat, HPat.Inner, P);
 }
 and Exp: EXP = {
-  type zipped = [ | `Exp(ZExp.zipper)];
+  type zip_result = [ | `Exp(ZExp.zipper)];
 
   let zip = (e: HExp.t, ze: ZExp.t): (tile_step, ZExp.zipper) => (
     List.length(ze.prefix),
     (ze.prefix @ e @ ze.suffix, ze.z),
   );
-  let zip_ztile = (e: HExp.t, ztile: ZExp.ztile): (two_step, zipped) =>
+  let zip_ztile = (e: HExp.t, ztile: ZExp.ztile): (two_step, zip_result) =>
     switch (ztile) {
     | Operand(ParenZ_body(ze)) =>
       let (tile_step, (e, zrest)) =
@@ -854,9 +858,9 @@ and Exp: EXP = {
     | BinOp () => raise(ZExp.Void_ZBinOp)
     };
 
-  type unzipped = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
+  type unzip_result = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
 
-  let unzip_tile = (r: child_step, tile: HExp.T.t, ze: ZExp.t): unzipped => {
+  let unzip_tile = (r: child_step, tile: HExp.T.t, ze: ZExp.t): unzip_result => {
     open HExp.T;
     let invalid = () => raise(Invalid_argument("ZPath.Exp.unzip_tile"));
     tile
@@ -891,7 +895,8 @@ and Exp: EXP = {
        );
   };
   let unzip =
-      ((l, r): two_step, (e: HExp.t, zrest: option(ZExp.ztile))): unzipped => {
+      ((l, r): two_step, (e: HExp.t, zrest: option(ZExp.ztile)))
+      : unzip_result => {
     let (tile, ze) = {
       let (prefix, tile, suffix) = ListUtil.split_nth(l, e);
       (tile, ZExp.mk(~prefix, ~z=?zrest, ~suffix, ()));
@@ -947,8 +952,8 @@ and Exp: EXP = {
     );
 
   module P = {
-    type nonrec zipped = zipped;
-    type nonrec unzipped = unzipped;
+    type nonrec zip_result = zip_result;
+    type nonrec unzip_result = unzip_result;
 
     let sort = Sort.Exp;
     let sort_at = sort_at;
@@ -988,13 +993,13 @@ and Exp: EXP = {
           | OperatorHole => None,
         )
       );
-    let move = (d, path, unzipped) =>
-      switch (unzipped) {
-      | `Exp(unzipped) =>
-        let+ (moved, did_it_zip) = Exp.move(d, path, unzipped);
+    let move = (d, path, unzip_result) =>
+      switch (unzip_result) {
+      | `Exp(zipper) =>
+        let+ (moved, did_it_zip) = Exp.move(d, path, zipper);
         (moved, Option.is_some(did_it_zip));
-      | `Pat(unzipped) =>
-        let+ (moved, did_it_zip) = Pat.move(d, path, unzipped);
+      | `Pat(zipper) =>
+        let+ (moved, did_it_zip) = Pat.move(d, path, zipper);
         (moved, Option.is_some(did_it_zip));
       };
 

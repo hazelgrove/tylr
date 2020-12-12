@@ -426,9 +426,9 @@ module Pat = {
     go(p, info);
   }
   and mk_ztile = (ztile: ZPat.ztile): option(t(ZPat.ztile)) => {
-    let ((tile_step, _), zipped) =
+    let ((tile_step, _), zip_result) =
       ZPath.Pat.zip_ztile(HPat.dummy_hole, ztile);
-    switch (zipped) {
+    switch (zip_result) {
     | `Exp(e, zrest) =>
       let (zroot, ze) = {
         let ZList.{prefix, z, suffix} = HExp.nth_root(tile_step, e);
