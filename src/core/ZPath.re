@@ -678,10 +678,20 @@ and Pat: PAT = {
         fun
         | OperandHole
         | Var(_) => []
-        | Paren(_) => filter == Some(`Closed) ? [] : [0],
+        | Paren(_) =>
+          switch (filter) {
+          | Some(`Closed) => []
+          | Some(`Open)
+          | None => [0]
+          },
         () => raise(Void_PreOp),
         fun
-        | Ann(_) => filter == Some(`Open) ? [0] : [],
+        | Ann(_) =>
+          switch (filter) {
+          | Some(`Open) => []
+          | Some(`Closed)
+          | None => [0]
+          },
         fun
         | OperatorHole => [],
       )
