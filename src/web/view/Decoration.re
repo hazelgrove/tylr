@@ -311,12 +311,14 @@ module Tile = {
         [
           Attr.id(id),
           Attr.create("gradientUnits", "userSpaceOnUse"),
-          Attr.create("x1", string_of_int(start - 1)),
-          Attr.create("x2", string_of_int(start + len + 1)),
+          Attr.create("x1", string_of_int(start)),
+          // TODO unify with space
+          Attr.create("x2", string_of_int(start + len + 2)),
         ],
         NodeUtil.[
           stop(
             AttrUtil.[
+              // TODO unify with space
               offset(0.6 /. Float.of_int(len + 2)),
               stop_color("#fdf6e3"),
             ],
@@ -362,7 +364,7 @@ module Tile = {
                  create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
                ],
              [
-               M({x: Float.of_int(start - 1), y: 0.}),
+               M({x: Float.of_int(start), y: 0.}),
                H_({dx: Float.of_int(len + 2)}),
              ],
            ),
@@ -417,8 +419,7 @@ module Tile = {
         profile.open_children
         |> List.map(((start, len)) =>
              List.concat([
-               // TODO unify 1 with space width
-               [H({x: Float.of_int(start) -. 1. +. tip})],
+               [H({x: Float.of_int(start) +. tip})],
                tr_bl(),
                tl_br(~child_border=`South, ()),
                [H_({dx: Float.of_int(len)})],

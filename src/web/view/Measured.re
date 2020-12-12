@@ -38,15 +38,13 @@ module Common =
        ) => {
   let length_of_tile = Sort_specific.length_of_tile;
 
+  // -1 when ts is empty, which is consistent
+  // for use in computing offsets
   let length = (ts: T.s): int =>
-    switch (ts) {
-    | [] => 0
-    | [_, ..._] =>
-      ts
-      |> List.map(length_of_tile)
-      |> List.map((+)(1))
-      |> List.fold_left((+), -1)
-    };
+    ts
+    |> List.map(length_of_tile)
+    |> List.map((+)(1))
+    |> List.fold_left((+), -1);
 
   let children_offsets =
       (~filter: option([ | `Open | `Closed])=?, tile): list(int) => {
