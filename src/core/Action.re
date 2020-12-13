@@ -316,7 +316,7 @@ let perform_restructuring =
     (
       a: t,
       (l, r) as selection: ZPath.ordered_selection,
-      target: ZPath.t,
+      (steps_t, j_t) as target: ZPath.t,
       zipper: EditState.Zipper.t,
     )
     : option(EditState.t) =>
@@ -326,13 +326,24 @@ let perform_restructuring =
       EditState.Zipper.restructure(selection, target, zipper);
     (EditState.Mode.Normal(path), zipper);
   | Move(d) =>
-    if (d == Left && target == r) {
-      Some((Restructuring((l, r), l), zipper));
-    } else if (d == Right && target == l) {
-      Some((Restructuring((l, r), r), zipper));
+    let ((steps_l, j_l), (steps_r, j_r)) = (l, r);
+    // assuming now that restructuring mode is only
+    // entered when selection contains unmatched delim
+    let j_t = j_t + Direction.sign(d);
+    if (steps_t == steps_l
+        && 0 <= j_t
+        && j_t <= j_l
+        || steps_t == steps_r
+        && j_r <= j_t
+        && j_t <= EditState.Zipper.length_at(steps_r, zipper)) {
+      Some((Restructuring(selection, (steps_t, j_t)), zipper));
+    } else if (steps_t == steps_l && j_t > j_l) {
+      Some((Restructuring(selection, r), zipper));
+    } else if (steps_t == steps_r && j_t < j_r) {
+      Some((Restructuring(selection, l), zipper));
     } else {
-      failwith("todo");
-    }
+      None;
+    };
   | Delete(_) =>
     let+ (path, zipper) =
       EditState.Zipper.delete_selection(selection, zipper);
