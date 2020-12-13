@@ -37,6 +37,7 @@ let rec compare = ((steps, j), (steps', j')) =>
 
 [@deriving sexp]
 type anchored_selection = {
+  origin: t,
   anchor: t,
   focus: t,
 };
@@ -44,11 +45,13 @@ type anchored_selection = {
 type ordered_selection = (t, t);
 
 let mk_ordered_selection =
-    ({anchor, focus}: anchored_selection): (ordered_selection, Direction.t) =>
+    ({anchor, focus, _}: anchored_selection)
+    : (ordered_selection, Direction.t) =>
   compare(anchor, focus) <= 0
     ? ((anchor, focus), Right) : ((focus, anchor), Left);
 
-let cons_anchored_selection = (two_step, {anchor, focus}) => {
+let cons_anchored_selection = (two_step, {origin, anchor, focus}) => {
+  origin: cons(two_step, origin),
   anchor: cons(two_step, anchor),
   focus: cons(two_step, focus),
 };
@@ -71,6 +74,7 @@ module type COMMON = {
   let unzip_tile: (child_step, T.t, Z.t) => unzip_result;
   let unzip: (two_step, Z.zipper) => unzip_result;
 
+  let length_at: (steps, T.s) => int;
   let sort_at: (t, T.s) => Sort.t;
 
   type did_it_zip = option((two_step, zip_result));
@@ -86,8 +90,8 @@ module type COMMON = {
    */
   let move_zipper: (Direction.t, t, Z.zipper) => option((t, did_it_zip));
 
-  let select:
-    (Direction.t, t, Z.zipper) => option((anchored_selection, did_it_zip));
+  // let select:
+  //   (Direction.t, t, Z.zipper) => option((anchored_selection, did_it_zip));
   let delete_selection: (ordered_selection, T.s) => option((t, T.s));
   let round_selection: (ordered_selection, T.s) => ordered_selection;
 
@@ -173,17 +177,19 @@ module Common =
       (path, Some((two_step, zip_result)));
     };
 
-  let select =
-      (d: Direction.t, anchor: t, zipper: Z.zipper)
-      : option((anchored_selection, did_it_zip)) => {
-    let+ (next, did_it_zip) = move_zipper(d, anchor, zipper);
-    switch (did_it_zip) {
-    | None => ({anchor, focus: next}, did_it_zip)
-    | Some((two_step, _)) =>
-      let anchor = cons(two_step, anchor);
-      ({anchor, focus: next}, did_it_zip);
-    };
-  };
+  /*
+   let select =
+       (d: Direction.t, anchor: t, zipper: Z.zipper)
+       : option((anchored_selection, did_it_zip)) => {
+     let+ (next, did_it_zip) = move_zipper(d, anchor, zipper);
+     switch (did_it_zip) {
+     | None => ({anchor, focus: next}, did_it_zip)
+     | Some((two_step, _)) =>
+       let anchor = cons(two_step, anchor);
+       ({anchor, focus: next}, did_it_zip);
+     };
+   };
+   */
 
   /* assumes l, r are maximally unzipped */
   let round_selection =
@@ -505,6 +511,14 @@ module rec Typ: TYP = {
     unzip_tile(r, tile, ze);
   };
 
+  let rec length_at = (steps, ty) =>
+    switch (steps) {
+    | [] => List.length(ty)
+    | [two_step, ...steps] =>
+      let `Typ(ty, _) = unzip(two_step, (ty, None));
+      length_at(steps, ty);
+    };
+
   let sort_at = (_, _) => Sort.Typ;
 
   let children = (~filter=?) =>
@@ -680,6 +694,16 @@ and Pat: PAT = {
     };
     unzip_tile(r, tile, zp);
   };
+
+  let rec length_at = (steps, p) =>
+    switch (steps) {
+    | [] => List.length(p)
+    | [two_step, ...steps] =>
+      switch (unzip(two_step, (p, None))) {
+      | `Typ(ty, _) => Typ.length_at(steps, ty)
+      | `Pat(p, _) => length_at(steps, p)
+      }
+    };
 
   let rec sort_at = ((steps, j): t, p: HPat.t): Sort.t =>
     switch (steps) {
@@ -946,6 +970,16 @@ and Exp: EXP = {
     };
     unzip_tile(r, tile, ze);
   };
+
+  let rec length_at = (steps, e) =>
+    switch (steps) {
+    | [] => List.length(e)
+    | [two_step, ...steps] =>
+      switch (unzip(two_step, (e, None))) {
+      | `Pat(p, _) => Pat.length_at(steps, p)
+      | `Exp(e, _) => length_at(steps, e)
+      }
+    };
 
   let rec sort_at = ((steps, j): t, e: HExp.t): Sort.t =>
     switch (steps) {

@@ -24,13 +24,14 @@ module Mode = {
   let put_focus = focus =>
     fun
     | Normal(_) => Normal(focus)
-    | Selecting({anchor, _}) => Selecting({anchor, focus})
+    | Selecting({origin, anchor, _}) => Selecting({origin, anchor, focus})
     | Restructuring(selection, _) => Restructuring(selection, focus);
 
   let update_anchors = (f: ZPath.t => ZPath.t) =>
     fun
     | Normal(_) as mode => mode
-    | Selecting({anchor, focus}) => Selecting({anchor: f(anchor), focus})
+    | Selecting({origin, anchor, focus}) =>
+      Selecting({origin: f(origin), anchor: f(anchor), focus})
     | Restructuring((l, r), focus) => Restructuring((f(l), f(r)), focus);
 };
 
@@ -43,6 +44,20 @@ module Zipper = {
     | `Typ(zipper) => (ZPath.Typ.unzip(two_step, zipper) :> t)
     | `Pat(zipper) => (ZPath.Pat.unzip(two_step, zipper) :> t)
     | `Exp(zipper) => (ZPath.Exp.unzip(two_step, zipper) :> t)
+    };
+
+  let sort_at = (path, zipper: t) =>
+    switch (zipper) {
+    | `Typ(ty, _) => ZPath.Typ.sort_at(path, ty)
+    | `Pat(p, _) => ZPath.Pat.sort_at(path, p)
+    | `Exp(e, _) => ZPath.Exp.sort_at(path, e)
+    };
+
+  let length_at = (path, zipper: t) =>
+    switch (zipper) {
+    | `Typ(ty, _) => ZPath.Typ.length_at(path, ty)
+    | `Pat(p, _) => ZPath.Pat.length_at(path, p)
+    | `Exp(e, _) => ZPath.Exp.length_at(path, e)
     };
 
   open Util.OptUtil.Syntax;

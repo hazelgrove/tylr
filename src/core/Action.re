@@ -103,11 +103,70 @@ module Exp = {
   include Common(HExp.T, M);
 };
 
+let rec move_selecting =
+        (
+          d: Direction.t,
+          {anchor, focus, _} as selection: ZPath.anchored_selection,
+          zipper: EditState.Zipper.t,
+        )
+        : option((ZPath.anchored_selection, EditState.Zipper.t)) => {
+  let anchor_sort = EditState.Zipper.sort_at(anchor, zipper);
+  let (_, focus_side) = ZPath.mk_ordered_selection(selection);
+  let* (next_focus, did_it_zip) = EditState.Zipper.move(d, focus, zipper);
+  let (selection, zipper) =
+    switch (did_it_zip) {
+    | None => ({...selection, focus: next_focus}, zipper)
+    | Some((two_step, zipper)) => (
+        {
+          ...ZPath.cons_anchored_selection(two_step, selection),
+          focus: next_focus,
+        },
+        zipper,
+      )
+    };
+  let next_sort = EditState.Zipper.sort_at(next_focus, zipper);
+  let c = Sort.compare(next_sort, anchor_sort);
+  if ((anchor == focus || d == focus_side) && c > 0) {
+    let+ (selection, zipper) =
+      move_selecting(
+        Direction.toggle(d),
+        {...selection, anchor: selection.focus, focus: selection.anchor},
+        zipper,
+      );
+    (
+      {...selection, anchor: selection.focus, focus: selection.anchor},
+      zipper,
+    );
+  } else if ((anchor == focus || d == focus_side) && c < 0) {
+    move_selecting(d, selection, zipper);
+  } else if (d != focus_side && c < 0) {
+    let rec move_until_same_sort = anchor => {
+      // assuming movement should never cause zip up here, review assumption
+      let (next_anchor, _) =
+        EditState.Zipper.move(Direction.toggle(d), anchor, zipper)
+        |> OptUtil.get(() => assert(false));
+      if (Sort.compare(
+            EditState.Zipper.sort_at(next_anchor, zipper),
+            next_sort,
+          )
+          == 0) {
+        next_anchor;
+      } else {
+        move_until_same_sort(next_anchor);
+      };
+    };
+    let next_anchor = move_until_same_sort(selection.anchor);
+    Some(({...selection, anchor: next_anchor}, zipper));
+  } else {
+    Some((selection, zipper));
+  };
+};
+
 let rec perform_normal =
         (a: t, (steps, j) as focus: ZPath.t, zipper: EditState.Zipper.t)
         : option(EditState.t) =>
   switch (a) {
-  | Mark => Some((Selecting({anchor: focus, focus}), zipper))
+  | Mark => Some((Selecting({origin: focus, anchor: focus, focus}), zipper))
 
   | Move(d) =>
     let+ (focus, did_it_zip) = EditState.Zipper.move(d, focus, zipper);
@@ -122,32 +181,7 @@ let rec perform_normal =
 
   | Delete(d) =>
     let+ (selection, zipper) =
-      switch (zipper) {
-      | `Typ(z) =>
-        let+ (selection, did_it_zip) = ZPath.Typ.select(d, focus, z);
-        let zipper =
-          switch (did_it_zip) {
-          | None => zipper
-          | Some((_, zip_result)) => (zip_result :> EditState.Zipper.t)
-          };
-        (selection, zipper);
-      | `Pat(z) =>
-        let+ (selection, did_it_zip) = ZPath.Pat.select(d, focus, z);
-        let zipper =
-          switch (did_it_zip) {
-          | None => zipper
-          | Some((_, zip_result)) => (zip_result :> EditState.Zipper.t)
-          };
-        (selection, zipper);
-      | `Exp(z) =>
-        let+ (selection, did_it_zip) = ZPath.Exp.select(d, focus, z);
-        let zipper =
-          switch (did_it_zip) {
-          | None => zipper
-          | Some((_, zip_result)) => (zip_result :> EditState.Zipper.t)
-          };
-        (selection, zipper);
-      };
+      move_selecting(d, {origin: focus, anchor: focus, focus}, zipper);
     let ((l, _) as selection, _) = ZPath.mk_ordered_selection(selection);
     (EditState.Mode.Restructuring(selection, l), zipper);
 
@@ -239,7 +273,9 @@ let rec perform_selecting =
     let (ordered, _) = ZPath.mk_ordered_selection(selection);
     Some((Restructuring(ordered, fst(ordered)), zipper));
 
-  | Move(_) => failwith("todo")
+  | Move(d) =>
+    let+ (selection, zipper) = move_selecting(d, selection, zipper);
+    (EditState.Mode.Selecting(selection), zipper);
 
   | Delete(_) =>
     let (ordered, _) = ZPath.mk_ordered_selection(selection);
