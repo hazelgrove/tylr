@@ -44,6 +44,50 @@ module Zipper = {
     | `Pat(zipper) => (ZPath.Pat.unzip(two_step, zipper) :> t)
     | `Exp(zipper) => (ZPath.Exp.unzip(two_step, zipper) :> t)
     };
+
+  open Util.OptUtil.Syntax;
+
+  let move = (d: Direction.t, path: ZPath.t, zipper: t) =>
+    switch (zipper) {
+    | `Exp(zipper) => (
+        ZPath.Exp.move_zipper(d, path, zipper) :>
+          option((ZPath.t, did_it_zip))
+      )
+    | `Pat(zipper) => (
+        ZPath.Pat.move_zipper(d, path, zipper) :>
+          option((ZPath.t, did_it_zip))
+      )
+    | `Typ(zipper) => (
+        ZPath.Typ.move_zipper(d, path, zipper) :>
+          option((ZPath.t, did_it_zip))
+      )
+    };
+
+  let delete_selection = (selection, zipper: t) =>
+    switch (zipper) {
+    | `Typ(ty, unzipped) =>
+      let+ (path, ty) = ZPath.Typ.delete_selection(selection, ty);
+      (path, `Typ((ty, unzipped)));
+    | `Pat(p, unzipped) =>
+      let+ (path, p) = ZPath.Pat.delete_selection(selection, p);
+      (path, `Pat((p, unzipped)));
+    | `Exp(e, unzipped) =>
+      let+ (path, e) = ZPath.Exp.delete_selection(selection, e);
+      (path, `Exp((e, unzipped)));
+    };
+
+  let restructure = (selection, target, zipper: t) =>
+    switch (zipper) {
+    | `Typ(ty, unzipped) =>
+      let+ (path, ty) = ZPath.Typ.restructure(selection, target, ty);
+      (path, `Typ((ty, unzipped)));
+    | `Pat(p, unzipped) =>
+      let+ (path, p) = ZPath.Pat.restructure(selection, target, p);
+      (path, `Pat((p, unzipped)));
+    | `Exp(e, unzipped) =>
+      let+ (path, e) = ZPath.Exp.restructure(selection, target, e);
+      (path, `Exp((e, unzipped)));
+    };
 };
 
 type t = (Mode.t, Zipper.t);
