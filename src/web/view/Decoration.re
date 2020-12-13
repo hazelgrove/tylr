@@ -10,7 +10,7 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
 };
 
 let tip = 0.3;
-let child_border_thickness = 0.12;
+let child_border_thickness = 0.105;
 
 module Diag = {
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
