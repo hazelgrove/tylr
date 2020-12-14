@@ -18,10 +18,21 @@ module type COMMON = {
     (~font_metrics: FontMetrics.t, ZPath.t, Z.zipper) => zipper_view(Node.t);
 
   let view_of_decorated_selection:
-    (~font_metrics: FontMetrics.t, ZPath.ordered_selection, Z.zipper) =>
+    (
+      ~font_metrics: FontMetrics.t,
+      ~show_targets: bool,
+      ZPath.ordered_selection,
+      Z.zipper
+    ) =>
     zipper_view((list(Node.t), list(Node.t), list(Node.t)));
   let view_of_decorated_partition:
-    (~font_metrics: FontMetrics.t, ~partition: Direction.t, ZPath.t, T.s) =>
+    (
+      ~font_metrics: FontMetrics.t,
+      ~partition: Direction.t,
+      ~show_targets: bool,
+      ZPath.t,
+      T.s
+    ) =>
     (list(Node.t), list(Node.t));
   let view_of_selecting:
     (~font_metrics: FontMetrics.t, ZPath.anchored_selection, Z.zipper) =>
@@ -63,6 +74,7 @@ module Common =
              (
                ~font_metrics: FontMetrics.t,
                ~partition: Direction.t,
+               ~show_targets: bool,
                (ZPath.child_step, ZPath.t),
                T.t
              ) =>
@@ -202,6 +214,7 @@ module Common =
   let view_of_decorated_selection =
       (
         ~font_metrics: FontMetrics.t,
+        ~show_targets: bool,
         selection: ZPath.ordered_selection,
         (ts: T.s, unzipped),
       )
@@ -209,26 +222,29 @@ module Common =
     let ((steps_l, j_l), (steps_r, j_r)) = selection;
     let view_of_decorated_tile =
       view_of_decorated_tile(~font_metrics, ~highlight=false);
+    let view_of_tile =
+      show_targets ? view_of_decorated_tile : Txt.view_of_tile;
     let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
     let z =
       switch (steps_l, steps_r) {
       | ([], []) =>
         let (prefix, selected, suffix) =
           ListUtil.split_sublist(j_l, j_r, ts);
-        let prefix = List.map(Txt.view_of_tile, prefix);
+        let prefix = List.map(view_of_tile, prefix);
         let selected = List.map(view_of_decorated_tile, selected);
-        let suffix = List.map(Txt.view_of_tile, suffix);
+        let suffix = List.map(view_of_tile, suffix);
         (prefix, selected, suffix);
       | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
         let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_r, ts);
         let (prefix, selected) = ListUtil.split_n(j_l, prefix);
-        let prefix = List.map(Txt.view_of_tile, prefix);
+        let prefix = List.map(view_of_tile, prefix);
         let suffix = List.map(Txt.view_of_tile, suffix);
         let selected = List.map(view_of_decorated_tile, selected);
         let (inner_selected, inner_unselected) =
           V.view_of_decorated_partition(
             ~font_metrics,
             ~partition=Left,
+            ~show_targets,
             (child_step_r, (steps_r, j_r)),
             tile,
           );
@@ -238,12 +254,13 @@ module Common =
         let (selected, suffix) =
           ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
         let prefix = List.map(Txt.view_of_tile, prefix);
-        let suffix = List.map(Txt.view_of_tile, suffix);
+        let suffix = List.map(view_of_tile, suffix);
         let selected = List.map(view_of_decorated_tile, selected);
         let (inner_unselected, inner_selected) =
           V.view_of_decorated_partition(
             ~font_metrics,
             ~partition=Right,
+            ~show_targets,
             (child_step_l, (steps_l, j_l)),
             tile,
           );
@@ -259,6 +276,7 @@ module Common =
           V.view_of_decorated_partition(
             ~font_metrics,
             ~partition=Right,
+            ~show_targets,
             (child_step_l, (steps_l, j_l)),
             tile_l,
           );
@@ -267,6 +285,7 @@ module Common =
           V.view_of_decorated_partition(
             ~font_metrics,
             ~partition=Left,
+            ~show_targets,
             (child_step_r, (steps_r, j_r)),
             tile_r,
           );
@@ -280,25 +299,25 @@ module Common =
     ZList.mk(~prefix, ~z, ~suffix, ());
   };
   let view_of_decorated_partition =
-      (~font_metrics, ~partition: Direction.t, path, ts) =>
+      (~font_metrics, ~partition: Direction.t, ~show_targets: bool, path, ts) => {
+    let view_of_decorated_selection = selection =>
+      view_of_decorated_selection(
+        ~font_metrics,
+        ~show_targets,
+        selection,
+        (ts, None),
+      );
     switch (partition) {
     | Left =>
       let ZList.{z: (_, selected, suffix), _} =
-        view_of_decorated_selection(
-          ~font_metrics,
-          (([], 0), path),
-          (ts, None),
-        );
+        view_of_decorated_selection((([], 0), path));
       (selected, suffix);
     | Right =>
       let ZList.{z: (prefix, selected, _), _} =
-        view_of_decorated_selection(
-          ~font_metrics,
-          (path, ([], List.length(ts))),
-          (ts, None),
-        );
+        view_of_decorated_selection((path, ([], List.length(ts))));
       (prefix, selected);
     };
+  };
 
   let view_of_selecting =
       (
@@ -308,7 +327,12 @@ module Common =
       ) => {
     let ((l, r), caret_side) = ZPath.mk_ordered_selection(selection);
     let ZList.{prefix, z: (pre, selected, suf), suffix} =
-      view_of_decorated_selection(~font_metrics, (l, r), zipper);
+      view_of_decorated_selection(
+        ~font_metrics,
+        ~show_targets=false,
+        (l, r),
+        zipper,
+      );
     let (caret, selection_box) = {
       let (offset_l, offset_r) = (M.offset(l, ts), M.offset(r, ts));
       let caret =
@@ -353,7 +377,12 @@ module Common =
       )
       : zipper_view(Node.t) => {
     let ZList.{prefix, z: (pre, selected, suf), suffix} =
-      view_of_decorated_selection(~font_metrics, selection, zipper);
+      view_of_decorated_selection(
+        ~font_metrics,
+        ~show_targets=true,
+        selection,
+        zipper,
+      );
     let selection_len = M.offset(r, ts) - M.offset(l, ts);
     let placeholder =
       Node.span(
@@ -491,13 +520,25 @@ module rec Typ: TYP = {
     };
 
     let view_of_decorated_partition =
-        (~font_metrics, ~partition: Direction.t, (child_step, path), tile) => {
+        (
+          ~font_metrics,
+          ~partition: Direction.t,
+          ~show_targets,
+          (child_step, path),
+          tile,
+        ) => {
       let `Typ(ty, unzipped) =
         ZPath.Typ.unzip_tile(child_step, tile, ZTyp.mk());
       let ZList.{prefix, z: (), suffix} =
         view_of_ztile(Option.get(unzipped));
       let (l, r) =
-        Typ.view_of_decorated_partition(~font_metrics, ~partition, path, ty);
+        Typ.view_of_decorated_partition(
+          ~font_metrics,
+          ~partition,
+          ~show_targets,
+          path,
+          ty,
+        );
       (prefix @ l, r @ suffix);
     };
   };
@@ -565,7 +606,7 @@ and Pat: PAT = {
       };
 
     let view_of_decorated_partition =
-        (~font_metrics, ~partition, (child_step, path), tile) => {
+        (~font_metrics, ~partition, ~show_targets, (child_step, path), tile) => {
       let (ZList.{prefix, z: (), suffix}, (l, r)) =
         switch (ZPath.Pat.unzip_tile(child_step, tile, ZPat.mk())) {
         | `Typ(ty, unzipped) => (
@@ -573,6 +614,7 @@ and Pat: PAT = {
             Typ.view_of_decorated_partition(
               ~font_metrics,
               ~partition,
+              ~show_targets,
               path,
               ty,
             ),
@@ -582,6 +624,7 @@ and Pat: PAT = {
             Pat.view_of_decorated_partition(
               ~font_metrics,
               ~partition,
+              ~show_targets,
               path,
               p,
             ),
@@ -643,7 +686,13 @@ and Exp: EXP = {
       };
 
     let view_of_decorated_partition =
-        (~font_metrics, ~partition: Direction.t, (child_step, path), tile) => {
+        (
+          ~font_metrics,
+          ~partition: Direction.t,
+          ~show_targets,
+          (child_step, path),
+          tile,
+        ) => {
       let (ZList.{prefix, z: (), suffix}, (l, r)) =
         switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
         | `Pat(p, unzipped) => (
@@ -651,6 +700,7 @@ and Exp: EXP = {
             Pat.view_of_decorated_partition(
               ~font_metrics,
               ~partition,
+              ~show_targets,
               path,
               p,
             ),
@@ -660,6 +710,7 @@ and Exp: EXP = {
             Exp.view_of_decorated_partition(
               ~font_metrics,
               ~partition,
+              ~show_targets,
               path,
               e,
             ),
