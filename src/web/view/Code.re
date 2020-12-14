@@ -72,7 +72,7 @@ module Common =
   let view_of_ztile = V.view_of_ztile;
 
   let view_of_decorated_tile =
-      (~font_metrics: FontMetrics.t, tile: T.t): Node.t => {
+      (~font_metrics: FontMetrics.t, ~highlight: bool, tile: T.t): Node.t => {
     let text = Txt.view_of_tile(tile);
     let decoration = {
       let profile = M.profile_of_tile(tile);
@@ -80,7 +80,12 @@ module Common =
         ~font_metrics,
         ~length=profile.len,
         ~cls="tile",
-        Decoration.Tile.view(~sort=T.sort, ~font_metrics, profile),
+        Decoration.Tile.view(
+          ~sort=T.sort,
+          ~font_metrics,
+          ~highlight,
+          profile,
+        ),
       );
     };
     Node.span([Attr.classes(["decorated-tile"])], [text, decoration]);
@@ -128,7 +133,8 @@ module Common =
   module Ts = Tiles.Make(T);
   let view_of_decorated_term =
       (~font_metrics: FontMetrics.t, root: Ts.root): Node.t => {
-    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
+    let view_of_decorated_tile =
+      view_of_decorated_tile(~font_metrics, ~highlight=true);
     let view_of_decorated_open_child =
       view_of_decorated_open_child(~font_metrics);
     let vs =
@@ -201,7 +207,8 @@ module Common =
       )
       : zipper_view((list(Node.t), list(Node.t), list(Node.t))) => {
     let ((steps_l, j_l), (steps_r, j_r)) = selection;
-    let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
+    let view_of_decorated_tile =
+      view_of_decorated_tile(~font_metrics, ~highlight=false);
     let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
     let z =
       switch (steps_l, steps_r) {

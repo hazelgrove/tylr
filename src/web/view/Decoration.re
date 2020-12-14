@@ -374,7 +374,13 @@ module Tile = {
   };
 
   let contour_path =
-      (~sort: Sort.t, ~attrs: list(Attr.t), profile: profile): Node.t => {
+      (
+        ~sort: Sort.t,
+        ~attrs: list(Attr.t),
+        ~highlight: bool,
+        profile: profile,
+      )
+      : Node.t => {
     open SvgUtil.Path;
     open Diag;
     let closed_child_paths =
@@ -438,7 +444,11 @@ module Tile = {
     SvgUtil.Path.view(
       ~attrs=
         Attr.[
-          classes([Sort.to_string(sort), "tile-path"]),
+          classes([
+            Sort.to_string(sort),
+            "tile-path",
+            ...highlight ? ["highlighted"] : [],
+          ]),
           create("vector-effect", "non-scaling-stroke"),
           ...attrs,
         ],
@@ -469,6 +479,7 @@ module Tile = {
         ~sort: Sort.t,
         ~attrs: list(Attr.t)=[],
         ~font_metrics: FontMetrics.t,
+        ~highlight: bool,
         profile: profile,
       )
       : list(Node.t) => {
@@ -481,7 +492,7 @@ module Tile = {
     open_child_paths(~sort, profile.open_children)
     @ [
       shadow_filter(~sort),
-      contour_path(~sort, ~attrs, profile),
+      contour_path(~sort, ~attrs, ~highlight, profile),
       ...empty_hole,
     ];
   };

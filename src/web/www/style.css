@@ -191,26 +191,36 @@
 
 .tile-path {
   filter: url(#outer-drop-shadow);
-  stroke-width: 0.3;
+  stroke-width: 0.5;
   fill-rule: evenodd;
+  fill: var(--light-page-color);
+}
+.tile-path.highlighted {
+  stroke-width: 0.3;
 }
 .Exp.tile-path {
-  fill: var(--exp-bg-color);
   stroke: var(--exp-shadow-color);
+}
+.Exp.tile-path.highlighted {
+  fill: var(--exp-bg-color);
 }
 .Exp.tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
 }
 .Pat.tile-path {
-  fill: var(--pat-bg-color);
   stroke: var(--pat-shadow-color);
+}
+.Pat.tile-path.highlighted {
+  fill: var(--pat-bg-color);
 }
 .Pat.tile-drop-shadow {
   flood-color: var(--pat-shadow-color);
 }
 .Typ.tile-path {
-  fill: var(--typ-bg-color);
   stroke: var(--typ-shadow-color);
+}
+.Typ.tile-path.highlighted {
+  fill: var(--typ-bg-color);
 }
 .Typ.tile-drop-shadow {
   flood-color: var(--typ-shadow-color);
