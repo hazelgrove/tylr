@@ -695,8 +695,7 @@ let err_holes =
      );
 };
 
-let view =
-    (~font_metrics: FontMetrics.t, (mode, zipper) as edit_state: EditState.t) => {
+let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
   let (empty_holes, err_holes) = {
     let (zipped_mode, zipped_e) =
       switch (EditState.zip_up(edit_state)) {
@@ -708,12 +707,14 @@ let view =
     let err_holes = err_holes(~font_metrics, zipped_mode, zipped_e);
     (empty_holes, err_holes);
   };
-  let zipper =
-    switch (zipper) {
+  let zipper = {
+    let (mode, unzipped) = EditState.unzip_down(edit_state);
+    switch (unzipped) {
     | `Typ(zipper) => Typ.view(~font_metrics, mode, zipper)
     | `Pat(zipper) => Pat.view(~font_metrics, mode, zipper)
     | `Exp(zipper) => Exp.view(~font_metrics, mode, zipper)
     };
+  };
   Node.span(
     [Attr.id("code")],
     List.concat([empty_holes, err_holes, [zipper]]),

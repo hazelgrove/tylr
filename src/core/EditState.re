@@ -107,7 +107,7 @@ module Zipper = {
 
 type t = (Mode.t, Zipper.t);
 
-let zip_up = ((mode, zipper) as edit_state: t): t =>
+let rec zip_up = ((mode, zipper) as edit_state: t): t =>
   switch (zipper) {
   | `Typ(_, None)
   | `Pat(_, None)
@@ -115,13 +115,43 @@ let zip_up = ((mode, zipper) as edit_state: t): t =>
   | `Typ(ty, Some(ztile)) =>
     let (two_step, zipped) = ZPath.Typ.zip_ztile(ty, ztile);
     let mode = Mode.cons(two_step, mode);
-    (mode, (zipped :> Zipper.t));
+    zip_up((mode, (zipped :> Zipper.t)));
   | `Pat(p, Some(ztile)) =>
     let (two_step, zipped) = ZPath.Pat.zip_ztile(p, ztile);
     let mode = Mode.cons(two_step, mode);
-    (mode, (zipped :> Zipper.t));
+    zip_up((mode, (zipped :> Zipper.t)));
   | `Exp(e, Some(ztile)) =>
     let (two_step, zipped) = ZPath.Exp.zip_ztile(e, ztile);
     let mode = Mode.cons(two_step, mode);
-    (mode, (zipped :> Zipper.t));
+    zip_up((mode, (zipped :> Zipper.t)));
+  };
+
+let rec unzip_down = ((mode, zipper) as edit_state: t): t =>
+  switch (mode) {
+  | Normal(([two_step, ...steps], j)) =>
+    unzip_down((Normal((steps, j)), Zipper.unzip(two_step, zipper)))
+  | Selecting({
+      origin: ([two_step_o, ...steps_o], j_o),
+      anchor: ([two_step_a, ...steps_a], j_a),
+      focus: ([two_step_f, ...steps_f], j_f),
+    })
+      when two_step_o == two_step_a && two_step_a == two_step_f =>
+    unzip_down((
+      Selecting({
+        origin: (steps_o, j_o),
+        anchor: (steps_a, j_a),
+        focus: (steps_f, j_f),
+      }),
+      Zipper.unzip(two_step_o, zipper),
+    ))
+  | Restructuring(
+      (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)),
+      ([two_step_t, ...steps_t], j_t),
+    )
+      when two_step_l == two_step_r && two_step_r == two_step_t =>
+    unzip_down((
+      Restructuring(((steps_l, j_l), (steps_r, j_r)), (steps_t, j_t)),
+      Zipper.unzip(two_step_l, zipper),
+    ))
+  | _ => edit_state
   };
