@@ -62,13 +62,6 @@ module Common =
                T.t
              ) =>
              (list(Node.t), list(Node.t));
-           let view_of_decorated_selection:
-             (
-               ~font_metrics: FontMetrics.t,
-               (ZPath.two_step, ZPath.ordered_selection),
-               Z.zipper
-             ) =>
-             zipper_view((list(Node.t), list(Node.t), list(Node.t)));
          },
        ) => {
   let view_of_ztile = V.view_of_ztile;
@@ -197,91 +190,80 @@ module Common =
       (
         ~font_metrics: FontMetrics.t,
         selection: ZPath.ordered_selection,
-        (ts: T.s, unzipped) as zipper,
+        (ts: T.s, unzipped),
       )
       : zipper_view((list(Node.t), list(Node.t), list(Node.t))) => {
     let ((steps_l, j_l), (steps_r, j_r)) = selection;
     let view_of_decorated_tile = view_of_decorated_tile(~font_metrics);
-    switch (steps_l, steps_r) {
-    | ([two_step, ...steps_l], [two_step', ...steps_r])
-        when two_step == two_step' =>
-      V.view_of_decorated_selection(
-        ~font_metrics,
-        (two_step, ((steps_l, j_l), (steps_r, j_r))),
-        zipper,
-      )
-    | _ =>
-      let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
-      let z =
-        switch (steps_l, steps_r) {
-        | ([], []) =>
-          let (prefix, selected, suffix) =
-            ListUtil.split_sublist(j_l, j_r, ts);
-          let prefix = List.map(Txt.view_of_tile, prefix);
-          let selected = List.map(view_of_decorated_tile, selected);
-          let suffix = List.map(Txt.view_of_tile, suffix);
-          (prefix, selected, suffix);
-        | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
-          let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_r, ts);
-          let (prefix, selected) = ListUtil.split_n(j_l, prefix);
-          let prefix = List.map(Txt.view_of_tile, prefix);
-          let suffix = List.map(Txt.view_of_tile, suffix);
-          let selected = List.map(view_of_decorated_tile, selected);
-          let (inner_selected, inner_unselected) =
-            V.view_of_decorated_partition(
-              ~font_metrics,
-              ~partition=Left,
-              (child_step_r, (steps_r, j_r)),
-              tile,
-            );
-          (prefix, selected @ inner_selected, inner_unselected @ suffix);
-        | ([(tile_step_l, child_step_l), ...steps_l], []) =>
-          let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_l, ts);
-          let (selected, suffix) =
-            ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
-          let prefix = List.map(Txt.view_of_tile, prefix);
-          let suffix = List.map(Txt.view_of_tile, suffix);
-          let selected = List.map(view_of_decorated_tile, selected);
-          let (inner_unselected, inner_selected) =
-            V.view_of_decorated_partition(
-              ~font_metrics,
-              ~partition=Right,
-              (child_step_l, (steps_l, j_l)),
-              tile,
-            );
-          (prefix @ inner_unselected, inner_selected @ selected, suffix);
-        | (
-            [(tile_step_l, child_step_l), ...steps_l],
-            [(tile_step_r, child_step_r), ...steps_r],
-          ) =>
-          let (prefix, tile_r, suffix) = ListUtil.split_nth(tile_step_r, ts);
-          let (prefix, tile_l, mid) =
-            ListUtil.split_nth(tile_step_l, prefix);
-          let prefix = List.map(Txt.view_of_tile, prefix);
-          let (unselected_l, selected_l) =
-            V.view_of_decorated_partition(
-              ~font_metrics,
-              ~partition=Right,
-              (child_step_l, (steps_l, j_l)),
-              tile_l,
-            );
-          let mid = List.map(view_of_decorated_tile, mid);
-          let (selected_r, unselected_r) =
-            V.view_of_decorated_partition(
-              ~font_metrics,
-              ~partition=Left,
-              (child_step_r, (steps_r, j_r)),
-              tile_r,
-            );
-          let suffix = List.map(Txt.view_of_tile, suffix);
-          (
-            prefix @ unselected_l,
-            selected_l @ mid @ selected_r,
-            unselected_r @ suffix,
+    let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
+    let z =
+      switch (steps_l, steps_r) {
+      | ([], []) =>
+        let (prefix, selected, suffix) =
+          ListUtil.split_sublist(j_l, j_r, ts);
+        let prefix = List.map(Txt.view_of_tile, prefix);
+        let selected = List.map(view_of_decorated_tile, selected);
+        let suffix = List.map(Txt.view_of_tile, suffix);
+        (prefix, selected, suffix);
+      | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
+        let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_r, ts);
+        let (prefix, selected) = ListUtil.split_n(j_l, prefix);
+        let prefix = List.map(Txt.view_of_tile, prefix);
+        let suffix = List.map(Txt.view_of_tile, suffix);
+        let selected = List.map(view_of_decorated_tile, selected);
+        let (inner_selected, inner_unselected) =
+          V.view_of_decorated_partition(
+            ~font_metrics,
+            ~partition=Left,
+            (child_step_r, (steps_r, j_r)),
+            tile,
           );
-        };
-      ZList.mk(~prefix, ~z, ~suffix, ());
-    };
+        (prefix, selected @ inner_selected, inner_unselected @ suffix);
+      | ([(tile_step_l, child_step_l), ...steps_l], []) =>
+        let (prefix, tile, suffix) = ListUtil.split_nth(tile_step_l, ts);
+        let (selected, suffix) =
+          ListUtil.split_n(j_r - List.length(prefix) - 1, suffix);
+        let prefix = List.map(Txt.view_of_tile, prefix);
+        let suffix = List.map(Txt.view_of_tile, suffix);
+        let selected = List.map(view_of_decorated_tile, selected);
+        let (inner_unselected, inner_selected) =
+          V.view_of_decorated_partition(
+            ~font_metrics,
+            ~partition=Right,
+            (child_step_l, (steps_l, j_l)),
+            tile,
+          );
+        (prefix @ inner_unselected, inner_selected @ selected, suffix);
+      | (
+          [(tile_step_l, child_step_l), ...steps_l],
+          [(tile_step_r, child_step_r), ...steps_r],
+        ) =>
+        let (prefix, tile_r, suffix) = ListUtil.split_nth(tile_step_r, ts);
+        let (prefix, tile_l, mid) = ListUtil.split_nth(tile_step_l, prefix);
+        let prefix = List.map(Txt.view_of_tile, prefix);
+        let (unselected_l, selected_l) =
+          V.view_of_decorated_partition(
+            ~font_metrics,
+            ~partition=Right,
+            (child_step_l, (steps_l, j_l)),
+            tile_l,
+          );
+        let mid = List.map(view_of_decorated_tile, mid);
+        let (selected_r, unselected_r) =
+          V.view_of_decorated_partition(
+            ~font_metrics,
+            ~partition=Left,
+            (child_step_r, (steps_r, j_r)),
+            tile_r,
+          );
+        let suffix = List.map(Txt.view_of_tile, suffix);
+        (
+          prefix @ unselected_l,
+          selected_l @ mid @ selected_r,
+          unselected_r @ suffix,
+        );
+      };
+    ZList.mk(~prefix, ~z, ~suffix, ());
   };
   let view_of_decorated_partition =
       (~font_metrics, ~partition: Direction.t, path, ts) =>
@@ -480,12 +462,6 @@ module rec Typ: TYP = {
       Typ.view_of_normal(~font_metrics, path, zipper);
     };
 
-    let view_of_decorated_selection =
-        (~font_metrics, (two_step, selection), zipper) => {
-      let `Typ(zipper) = ZPath.Typ.unzip(two_step, zipper);
-      Typ.view_of_decorated_selection(~font_metrics, selection, zipper);
-    };
-
     let view_of_decorated_partition =
         (~font_metrics, ~partition: Direction.t, (child_step, path), tile) => {
       let `Typ(ty, unzipped) =
@@ -544,15 +520,6 @@ and Pat: PAT = {
       switch (ZPath.Pat.unzip(two_step, zipper)) {
       | `Typ(zipper) => Typ.view_of_normal(~font_metrics, path, zipper)
       | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
-      };
-
-    let view_of_decorated_selection =
-        (~font_metrics, (two_step, selection), zipper) =>
-      switch (ZPath.Pat.unzip(two_step, zipper)) {
-      | `Typ(zipper) =>
-        Typ.view_of_decorated_selection(~font_metrics, selection, zipper)
-      | `Pat(zipper) =>
-        Pat.view_of_decorated_selection(~font_metrics, selection, zipper)
       };
 
     let view_of_decorated_partition =
@@ -622,15 +589,6 @@ and Exp: EXP = {
       switch (ZPath.Exp.unzip(two_step, zipper)) {
       | `Pat(zipper) => Pat.view_of_normal(~font_metrics, path, zipper)
       | `Exp(zipper) => Exp.view_of_normal(~font_metrics, path, zipper)
-      };
-
-    let view_of_decorated_selection =
-        (~font_metrics, (two_step, selection), zipper) =>
-      switch (ZPath.Exp.unzip(two_step, zipper)) {
-      | `Pat(zipper) =>
-        Pat.view_of_decorated_selection(~font_metrics, selection, zipper)
-      | `Exp(zipper) =>
-        Exp.view_of_decorated_selection(~font_metrics, selection, zipper)
       };
 
     let view_of_decorated_partition =
