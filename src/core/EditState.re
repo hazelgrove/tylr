@@ -39,6 +39,22 @@ module Zipper = {
   type t = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
   type did_it_zip = option((ZPath.two_step, t));
 
+  let zip = (zipper: t): option((ZPath.two_step, t)) =>
+    switch (zipper) {
+    | `Typ(_, None)
+    | `Pat(_, None)
+    | `Exp(_, None) => None
+    | `Typ(ty, Some(ztile)) =>
+      let (two_step, zip_result) = ZPath.Typ.zip_ztile(ty, ztile);
+      Some((two_step, (zip_result :> t)));
+    | `Pat(p, Some(ztile)) =>
+      let (two_step, zip_result) = ZPath.Pat.zip_ztile(p, ztile);
+      Some((two_step, (zip_result :> t)));
+    | `Exp(e, Some(ztile)) =>
+      let (two_step, zip_result) = ZPath.Exp.zip_ztile(e, ztile);
+      Some((two_step, (zip_result :> t)));
+    };
+
   let unzip = (two_step, zipper: t) =>
     switch (zipper) {
     | `Typ(zipper) => (ZPath.Typ.unzip(two_step, zipper) :> t)

@@ -11,6 +11,9 @@ module type COMMON = {
   let view_of_ztile: Z.ztile => zipper_view(unit);
   let view_of_unzipped: Z.unzipped => zipper_view(unit);
 
+  let view_of_normal_level:
+    (~font_metrics: FontMetrics.t, ZPath.t, ZPath.tile_step, Z.zipper) =>
+    zipper_view(Node.t);
   let view_of_normal:
     (~font_metrics: FontMetrics.t, ZPath.t, Z.zipper) => zipper_view(Node.t);
 
@@ -45,8 +48,10 @@ module Common =
          Txt: Text.COMMON with module T := T,
          M: Measured.COMMON with module T := T,
          V: {
-           let length_of_child: (ZPath.two_step, T.s) => int;
            let view_of_ztile: Z.ztile => zipper_view(unit);
+           let view_of_normal_zip:
+             (~font_metrics: FontMetrics.t, Z.zipper) =>
+             option(zipper_view(Node.t));
            let view_of_normal:
              (
                ~font_metrics: FontMetrics.t,
@@ -152,35 +157,37 @@ module Common =
     | Some(ztile) => view_of_ztile(ztile)
     };
 
-  let view_of_normal =
-      (
-        ~font_metrics: FontMetrics.t,
-        (steps, j) as path: ZPath.t,
-        (ts: T.s, unzipped) as zipper,
-      )
-      : zipper_view(Node.t) => {
-    let view_of_caret = Decoration.Caret.view(~font_metrics);
-    let view_of_decorated_term = view_of_decorated_term(~font_metrics);
-    let view_of_zipped = n => {
-      let caret = view_of_caret(M.offset(path, ts), []);
+  let view_of_normal_level = (~font_metrics, path, n, (zipped, unzipped)) => {
+    let z = {
+      let caret =
+        Decoration.Caret.view(~font_metrics, M.offset(path, zipped), []);
       let code = {
-        let ZList.{prefix, z, suffix} = Ts.nth_root(n, ts);
+        let ZList.{prefix, z, suffix} = Ts.nth_root(n, zipped);
         let prefix = List.map(Txt.view_of_tile, prefix);
-        let zroot = view_of_decorated_term(z);
+        let zroot = view_of_decorated_term(~font_metrics, z);
         let suffix = List.map(Txt.view_of_tile, suffix);
         Text.space(prefix @ [zroot, ...suffix]);
       };
       Node.span([Attr.classes(["zipped"])], [caret, ...code]);
     };
+    let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
+    ZList.mk(~prefix, ~z, ~suffix, ());
+  };
+
+  let view_of_normal =
+      (
+        ~font_metrics: FontMetrics.t,
+        (steps, j) as path: ZPath.t,
+        (ts: T.s, _) as zipper,
+      )
+      : zipper_view(Node.t) => {
     switch (steps) {
-    | [] =>
-      let z = view_of_zipped(j == List.length(ts) ? j - 1 : j);
-      let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
-      ZList.mk(~prefix, ~z, ~suffix, ());
-    | [(tile_step, _) as two_step] when j == V.length_of_child(two_step, ts) =>
-      let z = view_of_zipped(tile_step);
-      let ZList.{prefix, z: (), suffix} = view_of_unzipped(unzipped);
-      ZList.mk(~prefix, ~z, ~suffix, ());
+    | [] when j == List.length(ts) =>
+      switch (V.view_of_normal_zip(~font_metrics, zipper)) {
+      | Some(r) => r
+      | None => view_of_normal_level(~font_metrics, path, j - 1, zipper)
+      }
+    | [] => view_of_normal_level(~font_metrics, path, j, zipper)
     | [two_step, ...steps] =>
       V.view_of_normal(~font_metrics, (two_step, (steps, j)), zipper)
     };
@@ -432,10 +439,10 @@ module rec Typ: TYP = {
   module V = {
     open HTyp.T;
 
-    let length_of_child = (two_step, ty) => {
-      let `Typ(ty, _) = ZPath.Typ.unzip(two_step, (ty, None));
-      List.length(ty);
-    };
+    // let length_of_child = (two_step, ty) => {
+    //   let `Typ(ty, _) = ZPath.Typ.unzip(two_step, (ty, None));
+    //   List.length(ty);
+    // };
 
     let view_of_ztile = (ztile: ZTyp.ztile): zipper_view(unit) =>
       switch (ztile) {
@@ -456,6 +463,20 @@ module rec Typ: TYP = {
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | BinOp () => raise(ZTyp.Void_ZBinOp)
       };
+
+    let view_of_normal_zip = (~font_metrics, (zipped, unzipped)) => {
+      open OptUtil.Syntax;
+      let+ ztile = unzipped;
+      let ((tile_step, _) as two_step, zip_result) =
+        ZPath.Typ.zip_ztile(zipped, ztile);
+      let path = ([two_step], List.length(zipped));
+      switch (zip_result) {
+      | `Typ(zipper) =>
+        Typ.view_of_normal_level(~font_metrics, path, tile_step, zipper)
+      | `Pat(zipper) =>
+        Pat.view_of_normal_level(~font_metrics, path, tile_step, zipper)
+      };
+    };
 
     let view_of_normal = (~font_metrics, (two_step, path), zipper) => {
       let `Typ(zipper) = ZPath.Typ.unzip(two_step, zipper);
@@ -479,11 +500,11 @@ and Pat: PAT = {
   module V = {
     open HPat.T;
 
-    let length_of_child = (two_step, p) =>
-      switch (ZPath.Pat.unzip(two_step, (p, None))) {
-      | `Typ(ty, _) => List.length(ty)
-      | `Pat(p, _) => List.length(p)
-      };
+    // let length_of_child = (two_step, p) =>
+    //   switch (ZPath.Pat.unzip(two_step, (p, None))) {
+    //   | `Typ(ty, _) => List.length(ty)
+    //   | `Pat(p, _) => List.length(p)
+    //   };
 
     let view_of_ztile = (ztile: ZPat.ztile): zipper_view(unit) => {
       switch (ztile) {
@@ -513,6 +534,20 @@ and Pat: PAT = {
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | PostOp () => raise(ZPat.Void_ZPostOp)
       | BinOp () => raise(ZPat.Void_ZBinOp)
+      };
+    };
+
+    let view_of_normal_zip = (~font_metrics, (zipped, unzipped)) => {
+      open OptUtil.Syntax;
+      let+ ztile = unzipped;
+      let ((tile_step, _) as two_step, zip_result) =
+        ZPath.Pat.zip_ztile(zipped, ztile);
+      let path = ([two_step], List.length(zipped));
+      switch (zip_result) {
+      | `Pat(zipper) =>
+        Pat.view_of_normal_level(~font_metrics, path, tile_step, zipper)
+      | `Exp(zipper) =>
+        Exp.view_of_normal_level(~font_metrics, path, tile_step, zipper)
       };
     };
 
@@ -554,11 +589,11 @@ and Exp: EXP = {
   module V = {
     open HExp.T;
 
-    let length_of_child = (two_step, e) =>
-      switch (ZPath.Exp.unzip(two_step, (e, None))) {
-      | `Pat(p, _) => List.length(p)
-      | `Exp(e, _) => List.length(e)
-      };
+    // let length_of_child = (two_step, e) =>
+    //   switch (ZPath.Exp.unzip(two_step, (e, None))) {
+    //   | `Pat(p, _) => List.length(p)
+    //   | `Exp(e, _) => List.length(e)
+    //   };
 
     let view_of_ztile = (ztile: ZExp.ztile): zipper_view(unit) => {
       switch (ztile) {
@@ -583,6 +618,15 @@ and Exp: EXP = {
         ZList.mk(~prefix, ~z=(), ~suffix, ());
       | BinOp () => raise(ZExp.Void_ZBinOp)
       };
+    };
+
+    let view_of_normal_zip = (~font_metrics, (zipped, unzipped)) => {
+      open OptUtil.Syntax;
+      let+ ztile = unzipped;
+      let ((tile_step, _) as two_step, `Exp(zipper)) =
+        ZPath.Exp.zip_ztile(zipped, ztile);
+      let path = ([two_step], List.length(zipped));
+      Exp.view_of_normal_level(~font_metrics, path, tile_step, zipper);
     };
 
     let view_of_normal = (~font_metrics, (two_step, path), zipper) =>
