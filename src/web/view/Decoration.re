@@ -534,7 +534,9 @@ module Caret = {
     Node.div([Attr.classes(["construct-shape"])], [Node.text(txt)]);
 
   let key = txt => Node.div([Attr.classes(["key"])], [Node.text(txt)]);
-  let keys = ks => Node.div([Attr.classes(["keys"])], List.map(key, ks));
+
+  let keys_container = Node.div([Attr.classes(["keys"])]);
+  let keys = ks => keys_container(List.map(key, ks));
 
   let move_row = [
     keys([Unicode.left_arrow, Unicode.right_arrow]),
@@ -542,15 +544,12 @@ module Caret = {
   ];
 
   let select_row = [
-    Node.div(
-      [Attr.classes(["keys"])],
-      [
-        key("Shift"),
-        Node.div([], [Node.text("+")]),
-        key(Unicode.left_arrow),
-        key(Unicode.right_arrow),
-      ],
-    ),
+    keys_container([
+      key("Shift"),
+      Node.div([], [Node.text("+")]),
+      key(Unicode.left_arrow),
+      key(Unicode.right_arrow),
+    ]),
     action_type("Select"),
   ];
 
@@ -568,6 +567,22 @@ module Caret = {
         buffer_row,
         [
           [buffer_cell, action_type("Construct")],
+          [
+            keys_container([
+              key("0"),
+              Node.div([], [Node.text("-")]),
+              key("9"),
+            ]),
+            construct_shape("single-digit num"),
+          ],
+          [
+            keys_container([
+              key("a"),
+              Node.div([], [Node.text("-")]),
+              key("z"),
+            ]),
+            construct_shape("single-char var"),
+          ],
           [keys(["+"]), construct_shape("plus")],
           [keys(["("]), construct_shape("parentheses")],
           [keys(["\\"]), construct_shape("lambda")],
