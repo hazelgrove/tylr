@@ -301,9 +301,9 @@ module Tile = {
     open SvgUtil.Path;
     let color =
       switch (sort) {
-      | Typ => "#6c71c4"
-      | Pat => "#268bd2"
-      | Exp => "#859900"
+      | Typ => "var(--typ-shadow-color)"
+      | Pat => "var(--pat-shadow-color)"
+      | Exp => "var(--exp-shadow-color)"
       };
     let gradient = (id, start, len) =>
       Node.create_svg(
@@ -320,7 +320,8 @@ module Tile = {
             AttrUtil.[
               // TODO unify with space
               offset(0.6 /. Float.of_int(len + 2)),
-              stop_color("#fdf6e3"),
+              stop_color(color),
+              stop_opacity("0"),
             ],
           ),
           stop(
@@ -342,7 +343,8 @@ module Tile = {
               offset(
                 (Float.of_int(len + 2) -. 0.6) /. Float.of_int(len + 2),
               ),
-              stop_color("#fdf6e3"),
+              stop_color(color),
+              stop_opacity("0"),
             ],
           ),
         ],

@@ -18,3 +18,4 @@ let filter = s => create("filter", s);
 
 let offset = f => create("offset", Printf.sprintf("%f%%", 100. *. f));
 let stop_color = s => create("stop-color", s);
+let stop_opacity = s => create("stop-opacity", s);
