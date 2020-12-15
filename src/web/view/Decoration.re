@@ -541,6 +541,19 @@ module Caret = {
     action_type("Move"),
   ];
 
+  let select_row = [
+    Node.div(
+      [Attr.classes(["keys"])],
+      [
+        key("Shift"),
+        Node.div([], [Node.text("+")]),
+        key(Unicode.left_arrow),
+        key(Unicode.right_arrow),
+      ],
+    ),
+    action_type("Select"),
+  ];
+
   let delete_row = [
     keys(["Backspace", "Del"]),
     action_type("Delete/Restructure"),
@@ -580,6 +593,8 @@ module Caret = {
           [Attr.id("action-table")],
           List.concat([
             move_row,
+            buffer_row,
+            select_row,
             buffer_row,
             delete_row,
             buffer_row,
