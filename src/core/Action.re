@@ -5,6 +5,7 @@ open OptUtil.Syntax;
 [@deriving sexp]
 type tile_shape =
   | Num
+  | Bool
   | NumLit(int)
   | Var(Var.t)
   | Paren
@@ -51,6 +52,7 @@ module Typ = {
       | Var(_)
       | Ann => None
       | Num => Some(Operand(Num))
+      | Bool => Some(Operand(Bool))
       | Paren =>
         Some(Operand(Paren(selection == [] ? HTyp.mk_hole() : selection)))
       | Arrow => Some(BinOp(Arrow));
@@ -62,6 +64,7 @@ module Pat = {
     let tile_of_shape = (~selection=[]): (tile_shape => option(HPat.T.t)) =>
       fun
       | Num
+      | Bool
       | NumLit(_)
       | Lam
       | Let
@@ -82,6 +85,7 @@ module Exp = {
     let tile_of_shape = (~selection=[]): (tile_shape => option(HExp.T.t)) =>
       fun
       | Num
+      | Bool
       | Ann
       | Arrow => None
       | NumLit(n) => Some(Operand(Num(NotInHole, n)))
