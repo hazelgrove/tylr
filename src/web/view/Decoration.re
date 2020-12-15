@@ -206,9 +206,9 @@ module OpenChild = {
         };
       let color =
         switch (sort) {
-        | Typ => "#6c71c4"
-        | Pat => "#268bd2"
-        | Exp => "#859900"
+        | Typ => "var(--typ-shadow-color)"
+        | Pat => "var(--pat-shadow-color)"
+        | Exp => "var(--exp-shadow-color)"
         };
       let gradient =
         Node.create_svg(
@@ -222,10 +222,7 @@ module OpenChild = {
           [
             Node.create_svg(
               "stop",
-              [
-                Attr.create("offset", "0%"),
-                Attr.create("stop-color", color),
-              ],
+              [Attr.create("offset", "0%"), AttrUtil.stop_color(color)],
               [],
             ),
             Node.create_svg(
@@ -235,7 +232,7 @@ module OpenChild = {
                   "offset",
                   Printf.sprintf("%f%%", 100. *. (len -. 1.25) /. len),
                 ),
-                Attr.create("stop-color", color),
+                AttrUtil.stop_color(color),
               ],
               [],
             ),
@@ -246,7 +243,8 @@ module OpenChild = {
                   "offset",
                   Printf.sprintf("%f%%", 100. *. (len -. 0.6) /. len),
                 ),
-                Attr.create("stop-color", "#fdf6e3"),
+                AttrUtil.stop_color(color),
+                AttrUtil.stop_opacity("0"),
               ],
               [],
             ),
@@ -423,7 +421,7 @@ module Tile = {
             @ [H_({dx: Float.neg(tip)})],
           )
         };
-      let left_and_top_sides =
+      let open_child_contours =
         profile.open_children
         |> List.map(((start, len)) =>
              List.concat([
@@ -435,10 +433,10 @@ module Tile = {
                br_tl(),
              ])
            )
-        |> List.cons([M({x: 0., y: 1.}), ...left_tip])
         |> List.concat;
       List.concat([
-        left_and_top_sides,
+        [M({x: 0., y: 1.}), ...left_tip],
+        open_child_contours,
         [H({x: Float.of_int(profile.len)}), ...right_tip],
         [Z],
       ]);
