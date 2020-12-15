@@ -13,47 +13,52 @@ let key_handlers =
     Attr.on_keypress(_ => Event.Prevent_default),
     Attr.on_keydown(evt => {
       let key = Js.to_string(Js.Optdef.get(evt##.key, () => assert(false)));
-      let held_shift = Js.to_bool(evt##.shiftKey);
+      let no_ctrl_alt_meta = JsUtil.no_ctrl_alt_meta(evt);
+      let held_shift = JsUtil.held_shift(evt);
       let p = a => Update.PerformAction(a);
       let updates: list(Update.t) =
-        switch (key) {
-        | "ArrowLeft"
-        | "ArrowRight" =>
-          let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-          switch (mode) {
-          | Normal(_) =>
-            held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))]
-          | Selecting(_) =>
-            held_shift ? [p(Move(d))] : [Escape, p(Move(d))]
-          | Restructuring(_) => [p(Move(d))]
-          };
-        | "Backspace" => [p(Delete(Left))]
-        | "Delete" => [p(Delete(Right))]
-        | "+" => [p(Construct(Plus))]
-        | "(" => [p(Construct(Paren))]
-        | "\\" => [p(Construct(Lam))]
-        | "=" => [p(Construct(Let))]
-        | ":" => [p(Construct(Ann))]
-        | "Escape" => [Escape]
-        | "Enter" =>
-          switch (mode) {
-          | Normal(_) => []
-          | Selecting(_) => [Escape]
-          | Restructuring(_) => [p(Mark)]
-          }
-        | _ =>
-          switch (zipper) {
-          | `Typ(_) =>
-            if (key == "n") {
-              [p(Construct(Num))];
-            } else if (key == "b") {
-              [p(Construct(Bool))];
-            } else {
-              [];
+        if (!no_ctrl_alt_meta) {
+          [];
+        } else {
+          switch (key) {
+          | "ArrowLeft"
+          | "ArrowRight" =>
+            let d: Direction.t = key == "ArrowLeft" ? Left : Right;
+            switch (mode) {
+            | Normal(_) =>
+              held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))]
+            | Selecting(_) =>
+              held_shift ? [p(Move(d))] : [Escape, p(Move(d))]
+            | Restructuring(_) => [p(Move(d))]
+            };
+          | "Backspace" => [p(Delete(Left))]
+          | "Delete" => [p(Delete(Right))]
+          | "+" => [p(Construct(Plus))]
+          | "(" => [p(Construct(Paren))]
+          | "\\" => [p(Construct(Lam))]
+          | "=" => [p(Construct(Let))]
+          | ":" => [p(Construct(Ann))]
+          | "Escape" => [Escape]
+          | "Enter" =>
+            switch (mode) {
+            | Normal(_) => []
+            | Selecting(_) => [Escape]
+            | Restructuring(_) => [p(Mark)]
             }
-          | `Pat(_)
-          | `Exp(_) => is_var(key) ? [p(Construct(Var(key)))] : []
-          }
+          | _ =>
+            switch (zipper) {
+            | `Typ(_) =>
+              if (key == "n") {
+                [p(Construct(Num))];
+              } else if (key == "b") {
+                [p(Construct(Bool))];
+              } else {
+                [];
+              }
+            | `Pat(_)
+            | `Exp(_) => is_var(key) ? [p(Construct(Var(key)))] : []
+            }
+          };
         };
       switch (updates) {
       | [] => Event.Many([])
