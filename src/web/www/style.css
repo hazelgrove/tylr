@@ -120,6 +120,7 @@
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
+  border-radius: 4px;
 }
 .selection-box.moving {
   box-shadow: 1px 1px 2px darkgray;
@@ -139,6 +140,7 @@
   background-color: lightgray;
   box-sizing: border-box;
   box-shadow: inset 1px 1px 2px darkgray;
+  border-radius: 4px;
 }
 
 .decoration-container {
