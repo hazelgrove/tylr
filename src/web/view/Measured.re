@@ -300,6 +300,7 @@ module rec Typ: TYP = {
         fun
         | OperandHole => 1
         | Num => 3
+        | Bool => 4
         | Paren(body) => 1 + space + Typ.length(body) + space + 1,
         () => raise(Void_PreOp),
         () => raise(Void_PostOp),
@@ -332,7 +333,8 @@ module rec Typ: TYP = {
       |> Tile.get(
            fun
            | OperandHole
-           | Num => []
+           | Num
+           | Bool => []
            | Paren(body) => [Typ.length(body)],
            () => raise(Void_PreOp),
            () => raise(Void_PostOp),
@@ -347,6 +349,7 @@ module rec Typ: TYP = {
            fun
            | OperandHole
            | Num
+           | Bool
            | Paren(_) => [],
            () => raise(HTyp.T.Void_PreOp),
            () => raise(HTyp.T.Void_PostOp),
@@ -360,7 +363,8 @@ module rec Typ: TYP = {
       Tile.get(
         fun
         | OperandHole
-        | Num => []
+        | Num
+        | Bool => []
         | Paren(body) => [Typ.empty_holes(body)],
         () => raise(Void_PreOp),
         () => raise(Void_PostOp),

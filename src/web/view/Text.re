@@ -38,19 +38,26 @@ module Make = (T: Tile.S, Sort_specific: {let view_of_tile: T.t => Node.t;}) => 
 
 module type TYP = {include COMMON with module T := HTyp.T;};
 module rec Typ: TYP = {
-  let view_of_tile = (tile: HTyp.T.t): Node.t => {
+  open HTyp.T;
+
+  let view_of_tile = (tile: t): Node.t => {
     let vs =
-      switch (tile) {
-      | Operand(OperandHole) => [of_OperandHole]
-      | Operand(Num) => [Node.text("Num")]
-      | Operand(Paren(body)) =>
-        let (open_, close) = of_Paren;
-        [open_, Typ.view(body), close];
-      | PreOp () => raise(HTyp.T.Void_PreOp)
-      | PostOp () => raise(HTyp.T.Void_PostOp)
-      | BinOp(OperatorHole) => [of_OperatorHole]
-      | BinOp(Arrow) => [of_Arrow]
-      };
+      tile
+      |> Tile.get(
+           fun
+           | OperandHole => [of_OperandHole]
+           | Num => [Node.text("num")]
+           | Bool => [Node.text("bool")]
+           | Paren(body) => {
+               let (open_, close) = of_Paren;
+               [open_, Typ.view(body), close];
+             },
+           () => raise(Void_PreOp),
+           () => raise(Void_PostOp),
+           fun
+           | OperatorHole => [of_OperatorHole]
+           | Arrow => [of_Arrow],
+         );
     Node.span([Attr.classes(["code-text"])], space(vs));
   };
   include Make(HTyp.T, Typ);

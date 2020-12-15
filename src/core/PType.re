@@ -2,12 +2,14 @@ type t =
   | Unspecified
   | Hole
   | Num
+  | Bool
   | Arrow(t, t);
 
 let rec of_type = (ty: Type.t): t =>
   switch (ty) {
   | Hole => Hole
   | Num => Num
+  | Bool => Bool
   | Arrow(ty1, ty2) => Arrow(of_type(ty1), of_type(ty2))
   };
 
@@ -16,6 +18,7 @@ let rec to_type =
   | Unspecified
   | Hole => Type.Hole
   | Num => Num
+  | Bool => Bool
   | Arrow(pty1, pty2) => Arrow(to_type(pty1), to_type(pty2));
 
 open Util.OptUtil.Syntax;

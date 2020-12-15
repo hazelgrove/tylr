@@ -488,7 +488,8 @@ module rec Typ: TYP = {
       |> Tile.get(
            fun
            | OperandHole
-           | Num => invalid()
+           | Num
+           | Bool => invalid()
            | Paren(body) =>
              r == 0
                ? `Typ((body, Some(Tile.Operand(ZTyp.ParenZ_body(zty)))))
@@ -526,7 +527,8 @@ module rec Typ: TYP = {
       Tile.get(
         fun
         | OperandHole
-        | Num => []
+        | Num
+        | Bool => []
         | Paren(_) => filter == Some(`Closed) ? [] : [0],
         () => raise(Void_PreOp),
         () => raise(Void_PostOp),
@@ -558,7 +560,7 @@ module rec Typ: TYP = {
     let enter_from =
         (d: Direction.t, tile: HTyp.T.t): option((child_step, caret_step)) =>
       switch (tile) {
-      | Operand(OperandHole | Num)
+      | Operand(OperandHole | Num | Bool)
       | BinOp(OperatorHole | Arrow) => None
       | Operand(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
       | PreOp () => raise(HTyp.T.Void_PreOp)

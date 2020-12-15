@@ -12,6 +12,7 @@ module T = {
   and operand =
     | OperandHole
     | Num
+    | Bool
     | Paren(s)
   [@deriving sexp]
   and preop = unit // empty
@@ -44,7 +45,7 @@ module T = {
 
   let get_open_children: t => list(s) =
     fun
-    | Operand(OperandHole | Num) => []
+    | Operand(OperandHole | Num | Bool) => []
     | Operand(Paren(body)) => [body]
     | PreOp () => raise(Void_PreOp)
     | PostOp () => raise(Void_PostOp)
@@ -72,6 +73,7 @@ let rec contract = (ty: t): Type.t =>
     switch (operand) {
     | OperandHole => Hole
     | Num => Num
+    | Bool => Bool
     | Paren(body) => contract(body)
     }
   | PreOp(((), _)) => raise(T.Void_PreOp)

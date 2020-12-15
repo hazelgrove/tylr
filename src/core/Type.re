@@ -1,6 +1,7 @@
 type t =
   | Hole
   | Num
+  | Bool
   | Arrow(t, t);
 
 let rec consistent = (ty, ty') =>
@@ -15,7 +16,8 @@ let rec consistent = (ty, ty') =>
 let matched_arrow =
   fun
   | Hole => Some((Hole, Hole))
-  | Num => None
+  | Num
+  | Bool => None
   | Arrow(ty1, ty2) => Some((ty1, ty2));
 
 open Util.OptUtil.Syntax;
