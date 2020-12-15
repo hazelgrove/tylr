@@ -19,7 +19,7 @@ let of_Ann = (Node.text(":"), Node.text(""));
 let of_Ap = of_Paren;
 
 // binop
-let of_Arrow = Node.text(Unicode.arrow);
+let of_Arrow = Node.text(Unicode.right_arrow);
 let of_Plus = Node.text("+");
 let of_OperatorHole = Node.text(Unicode.nbsp);
 

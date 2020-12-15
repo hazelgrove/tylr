@@ -499,6 +499,42 @@ module Tile = {
 };
 
 module Caret = {
+  let action_type = txt =>
+    Node.div([Attr.classes(["action-type"])], [Node.text(txt)]);
+
+  let construct_shape = txt =>
+    Node.div([Attr.classes(["construct-shape"])], [Node.text(txt)]);
+
+  let key = txt => Node.div([Attr.classes(["key"])], [Node.text(txt)]);
+  let keys = ks => Node.div([Attr.classes(["keys"])], List.map(key, ks));
+
+  let move_row = [
+    keys([Unicode.left_arrow, Unicode.right_arrow]),
+    action_type("Move"),
+  ];
+
+  let delete_row = [
+    keys(["Backspace", "Del"]),
+    action_type("Delete/Restructure"),
+  ];
+
+  let buffer_cell = Node.div([], []);
+  let buffer_row = [buffer_cell, buffer_cell];
+
+  let construct_rows =
+    List.concat(
+      Util.ListUtil.join(
+        buffer_row,
+        [
+          [buffer_cell, action_type("Construct")],
+          [keys(["+"]), construct_shape("plus")],
+          [keys(["("]), construct_shape("parentheses")],
+          [keys(["\\"]), construct_shape("lambda")],
+          [keys(["="]), construct_shape("let expression")],
+        ],
+      ),
+    );
+
   let view = (~font_metrics: FontMetrics.t, offset: int, _) =>
     Node.div(
       [
@@ -512,43 +548,15 @@ module Caret = {
         ),
       ],
       [
-        Node.table(
-          [
-            Attr.id("action-table"),
-            Attr.create(
-              "style",
-              Printf.sprintf("top: %fpx", font_metrics.row_height),
-            ),
-          ],
-          [
-            Node.tr(
-              [],
-              [
-                Node.td(
-                  [Attr.create("colspan", "2")],
-                  [Node.text("Move")],
-                ),
-              ],
-            ),
-            Node.tr(
-              [],
-              [
-                Node.td(
-                  [Attr.create("colspan", "2")],
-                  [Node.text("Construct")],
-                ),
-              ],
-            ),
-            Node.tr(
-              [],
-              [
-                Node.td(
-                  [Attr.create("colspan", "2")],
-                  [Node.text("Delete")],
-                ),
-              ],
-            ),
-          ],
+        Node.div(
+          [Attr.id("action-table")],
+          List.concat([
+            move_row,
+            buffer_row,
+            delete_row,
+            buffer_row,
+            construct_rows,
+          ]),
         ),
       ],
     );

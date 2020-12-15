@@ -12,6 +12,14 @@
   src: url('fonts/FiraCode-SemiBold.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: 'Karla';
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://fonts.gstatic.com/s/karla/v14/qkBIXvYC6trAT55ZBi1ueQVIjQTD-JqaE0lK.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
@@ -49,17 +57,6 @@
   left: 0%;
   background-color: var(--light-page-color);
   color: var(--light-text-color);
-}
-
-#caret {
-  position: absolute;
-  border-left: 1.5px solid var(--light-text-color);
-  height: 60vh;
-  z-index: var(--caret-z);
-}
-
-#action-table {
-  position: relative;
 }
 
 #code-container {
@@ -224,4 +221,58 @@
 }
 .Typ.tile-drop-shadow {
   flood-color: var(--typ-shadow-color);
+}
+
+#caret {
+  position: absolute;
+  border-left: 1.5px solid var(--light-text-color);
+  height: 60vh;
+  z-index: var(--caret-z);
+}
+
+#action-table {
+  position: relative;
+  top: 80px;
+  left: -108px;
+  font: caption;
+  display: grid;
+  grid-template-columns: 100px auto;
+  grid-template-rows: auto 20px auto 20px repeat(10, auto 2px);
+  column-gap: 16px;
+  color: black;
+}
+
+#action-table .keys {
+  justify-self: right;
+  align-self: center;
+  width: 100%;
+  display: grid;
+  grid-template-rows: 1fr;
+  grid-template-columns: auto;
+  grid-auto-columns: min-content;
+  justify-items: right;
+  justify-content: right;
+  grid-auto-flow: column;
+}
+#action-table .key {
+  background-color: rgb(89, 89, 89);
+  color: whitesmoke;
+  border-radius: 3px;
+  padding: 1.5px 3px;
+  margin-right: 4px;
+  min-width: 12px;
+  display: grid;
+  justify-content: center;
+  align-content: center;
+  font-family: Karla;
+}
+
+#action-table .action-type {
+  font-weight: bold;
+  justify-self: left;
+  align-self: center;
+}
+
+#action-table .construct-shape {
+  justify-self: left;
 }
