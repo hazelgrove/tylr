@@ -2,7 +2,13 @@ open Js_of_ocaml;
 open Virtual_dom.Vdom;
 open Core;
 
-let key_handlers = (~inject: Update.t => Event.t, ~mode: EditState.Mode.t) => {
+let is_var = s => Re.Str.string_match(Re.Str.regexp("[a-z]"), s, 0);
+
+let key_handlers =
+    (
+      ~inject: Update.t => Event.t,
+      ~edit_state as (mode, zipper): EditState.t,
+    ) => {
   [
     Attr.on_keypress(_ => Event.Prevent_default),
     Attr.on_keydown(evt => {
@@ -35,7 +41,19 @@ let key_handlers = (~inject: Update.t => Event.t, ~mode: EditState.Mode.t) => {
           | Selecting(_) => [Escape]
           | Restructuring(_) => [p(Mark)]
           }
-        | _ => []
+        | _ =>
+          switch (zipper) {
+          | `Typ(_) =>
+            if (key == "n") {
+              [p(Construct(Num))];
+            } else if (key == "b") {
+              [p(Construct(Bool))];
+            } else {
+              [];
+            }
+          | `Pat(_)
+          | `Exp(_) => is_var(key) ? [p(Construct(Var(key)))] : []
+          }
         };
       switch (updates) {
       | [] => Event.Many([])
@@ -70,7 +88,7 @@ let view = (~inject, model: Model.t) =>
             focus_code();
             Event.Prevent_default;
           }),
-          ...key_handlers(~inject, ~mode=fst(model.edit_state)),
+          ...key_handlers(~inject, ~edit_state=model.edit_state),
         ],
         [Code.view(~font_metrics=model.font_metrics, model.edit_state)],
       ),
