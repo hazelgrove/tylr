@@ -36,6 +36,9 @@
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6c71c4;
 
+  --action-text-color: rgb(82, 82, 82);
+  --action-key-color: whitesmoke;
+
   --open-child-z: 0;
   --empty-hole-z: 1;
   --err-hole-z: 1;
@@ -242,7 +245,7 @@
   grid-template-columns: 100px auto;
   grid-template-rows: repeat(3, auto 20px) repeat(10, auto 2px);
   column-gap: 16px;
-  color: black;
+  color: var(--action-text-color);
 }
 
 #action-table .keys {
@@ -258,8 +261,8 @@
   grid-auto-flow: column;
 }
 #action-table .key {
-  background-color: rgb(89, 89, 89);
-  color: whitesmoke;
+  background-color: var(--action-text-color);
+  color: var(--action-key-color);
   border-radius: 3px;
   padding: 1.5px 3px;
   margin: 0 2px;
