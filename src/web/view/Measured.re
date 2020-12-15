@@ -15,7 +15,7 @@ module type COMMON = {
 
   let empty_holes: T.s => list(int);
 
-  let profile_of_tile: (~show_children: bool, T.t) => Decoration.Tile.profile;
+  let profile_of_tile: T.t => Decoration.Tile.profile;
 };
 module Common =
        (
@@ -93,7 +93,7 @@ module Common =
     List.concat(holes);
   };
 
-  let profile_of_tile = (~show_children: bool, t: T.t) =>
+  let profile_of_tile = (t: T.t) =>
     Decoration.Tile.{
       shape:
         switch (t) {
@@ -104,10 +104,8 @@ module Common =
         | BinOp(binop) => `BinOp(Sort_specific.is_operator_hole(binop))
         },
       len: length_of_tile(t),
-      open_children:
-        show_children ? Sort_specific.open_children_of_tile(t) : [],
-      closed_children:
-        show_children ? Sort_specific.closed_children_of_tile(t) : [],
+      open_children: Sort_specific.open_children_of_tile(t),
+      closed_children: Sort_specific.closed_children_of_tile(t),
     };
 };
 

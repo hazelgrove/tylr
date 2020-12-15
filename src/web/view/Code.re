@@ -93,7 +93,7 @@ module Common =
       : Node.t => {
     let text = Txt.view_of_tile(tile);
     let decoration = {
-      let profile = M.profile_of_tile(~show_children, tile);
+      let profile = M.profile_of_tile(tile);
       Decoration.container(
         ~font_metrics,
         ~length=profile.len,
@@ -102,6 +102,7 @@ module Common =
           ~sort=T.sort,
           ~font_metrics,
           ~highlight,
+          ~show_children,
           profile,
         ),
       );

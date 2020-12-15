@@ -480,6 +480,7 @@ module Tile = {
         ~attrs: list(Attr.t)=[],
         ~font_metrics: FontMetrics.t,
         ~highlight: bool,
+        ~show_children: bool,
         profile: profile,
       )
       : list(Node.t) => {
@@ -489,6 +490,9 @@ module Tile = {
       | `BinOp(true) => EmptyHole.view(~font_metrics, ~inset=true)
       | _ => []
       };
+    let profile =
+      show_children
+        ? profile : {...profile, open_children: [], closed_children: []};
     open_child_paths(~sort, profile.open_children)
     @ [
       shadow_filter(~sort),
