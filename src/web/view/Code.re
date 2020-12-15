@@ -88,6 +88,7 @@ module Common =
         ~font_metrics: FontMetrics.t,
         ~highlight: bool,
         ~show_children: bool,
+        ~apply_shadow: bool,
         tile: T.t,
       )
       : Node.t => {
@@ -103,6 +104,7 @@ module Common =
           ~font_metrics,
           ~highlight,
           ~show_children,
+          ~apply_shadow,
           profile,
         ),
       );
@@ -157,6 +159,7 @@ module Common =
         ~font_metrics,
         ~highlight=true,
         ~show_children=true,
+        ~apply_shadow=true,
       );
     let view_of_decorated_open_child =
       view_of_decorated_open_child(~font_metrics);
@@ -236,6 +239,7 @@ module Common =
         ~font_metrics,
         ~highlight=false,
         ~show_children=false,
+        ~apply_shadow=false,
       );
     let view_of_tile =
       show_targets ? view_of_decorated_tile : Txt.view_of_tile;

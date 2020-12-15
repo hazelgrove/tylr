@@ -187,10 +187,13 @@
 */
 
 .tile-path {
-  filter: url(#outer-drop-shadow);
-  stroke-width: 0.5;
+  filter: url(#thin-outer-drop-shadow);
+  stroke-width: 0.4;
   fill-rule: evenodd;
   fill: var(--light-page-color);
+}
+.tile-path.with-shadow {
+  filter: url(#outer-drop-shadow);
 }
 .tile-path.highlighted {
   stroke-width: 0.3;

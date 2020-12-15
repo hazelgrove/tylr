@@ -378,6 +378,7 @@ module Tile = {
         ~sort: Sort.t,
         ~attrs: list(Attr.t),
         ~highlight: bool,
+        ~apply_shadow: bool,
         profile: profile,
       )
       : Node.t => {
@@ -444,11 +445,14 @@ module Tile = {
     SvgUtil.Path.view(
       ~attrs=
         Attr.[
-          classes([
-            Sort.to_string(sort),
-            "tile-path",
-            ...highlight ? ["highlighted"] : [],
-          ]),
+          classes(
+            [
+              Sort.to_string(sort),
+              "tile-path",
+              ...highlight ? ["highlighted"] : [],
+            ]
+            @ (apply_shadow ? ["with-shadow"] : []),
+          ),
           create("vector-effect", "non-scaling-stroke"),
           ...attrs,
         ],
@@ -474,6 +478,24 @@ module Tile = {
       ],
     );
 
+  let thin_shadow_filter = (~sort: Sort.t) =>
+    Node.create_svg(
+      "filter",
+      [Attr.id("thin-outer-drop-shadow")],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tile-drop-shadow", Sort.to_string(sort)]),
+            Attr.create("dx", "0.06"),
+            Attr.create("dy", "0.024"),
+            Attr.create("stdDeviation", "0"),
+          ],
+          [],
+        ),
+      ],
+    );
+
   let view =
       (
         ~sort: Sort.t,
@@ -481,6 +503,7 @@ module Tile = {
         ~font_metrics: FontMetrics.t,
         ~highlight: bool,
         ~show_children: bool,
+        ~apply_shadow: bool,
         profile: profile,
       )
       : list(Node.t) => {
@@ -496,7 +519,8 @@ module Tile = {
     open_child_paths(~sort, profile.open_children)
     @ [
       shadow_filter(~sort),
-      contour_path(~sort, ~attrs, ~highlight, profile),
+      thin_shadow_filter(~sort),
+      contour_path(~sort, ~attrs, ~highlight, ~apply_shadow, profile),
       ...empty_hole,
     ];
   };
