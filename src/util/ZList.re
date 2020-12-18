@@ -1,3 +1,6 @@
+open Sexplib.Std;
+
+[@deriving sexp]
 type t('z, 'a) = {
   prefix: list('a),
   z: 'z,

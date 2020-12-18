@@ -95,7 +95,8 @@ let rec split_nth_opt = (n, xs) =>
   };
 let split_nth = (n, xs) =>
   switch (split_nth_opt(n, xs)) {
-  | None => raise(Invalid_argument("ListUtil.split_nth"))
+  | None =>
+    raise(Invalid_argument("ListUtil.split_nth: " ++ string_of_int(n)))
   | Some(r) => r
   };
 

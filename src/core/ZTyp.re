@@ -1,6 +1,9 @@
+open Sexplib.Std;
+
 /**
  * Bottom-up one-hole context filled by either `HTyp.t` or `ztile`
  */
+[@deriving sexp]
 type t = Util.ZList.t(option(ztile), HTyp.T.t)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HTyp.t` or `t`
@@ -16,8 +19,11 @@ and zbinop = unit; // empty
 exception Void_ZPreOp;
 exception Void_ZBinOp;
 
+[@deriving sexp]
 type unzipped = option(ztile);
+[@deriving sexp]
 type zipped = HTyp.t;
+[@deriving sexp]
 type zipper = (zipped, unzipped);
 
 let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>

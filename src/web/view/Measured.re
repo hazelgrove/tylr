@@ -46,7 +46,7 @@ module type COMMON_INPUT = {
     ((ZPath.child_step, ZPath.t), T.t) => term_profile;
 
   let selecting_tiles_in_tile:
-    (~side: Direction.t, (ZPath.child_step, ZPath.t), T.t) =>
+    ((ZPath.child_step, ZPath.ordered_selection), T.t) =>
     (tile_profiles, tile_profiles);
 };
 
@@ -78,7 +78,7 @@ module type COMMON = {
   let selecting_tiles:
     (ZPath.ordered_selection, T.s) => (tile_profiles, tile_profiles);
   let selecting_tiles_in_zipper:
-    (~side: Direction.t, ZPath.t, Z.zipper) => (tile_profiles, tile_profiles);
+    (ZPath.ordered_selection, Z.zipper) => (tile_profiles, tile_profiles);
 
   let restructuring_tiles:
     (ZPath.ordered_selection, ZPath.t, T.s) => (tile_profiles, tile_profiles);
@@ -285,8 +285,7 @@ module Common =
         tile_profiles(false, selected) |> shift(prefix_len + space);
       let (selected_r, targets_r) =
         Sort_specific.selecting_tiles_in_tile(
-          ~side=Left,
-          (child_step_r, (steps_r, j_r)),
+          (child_step_r, (([], 0), (steps_r, j_r))),
           tile,
         )
         |> TupleUtil.map2(shift(prefix_len + space + selected_len + space));
@@ -300,8 +299,13 @@ module Common =
       let tile_len = Sort_specific.length_of_tile(tile);
       let (selected_l, targets_l) =
         Sort_specific.selecting_tiles_in_tile(
-          ~side=Right,
-          (child_step_l, (steps_l, j_l)),
+          (
+            child_step_l,
+            (
+              (steps_l, j_l),
+              ([], Sort_specific.child_length(child_step_l, tile)),
+            ),
+          ),
           tile,
         )
         |> TupleUtil.map2(shift(prefix_len + space));
@@ -312,6 +316,15 @@ module Common =
         tile_profiles(false, suffix)
         |> shift(prefix_len + space + tile_len + space + selected_len + space);
       (selected_l @ selected, targets_l @ suffix);
+    | ([two_step_l, ...steps_l], [two_step_r, ...steps_r])
+        when two_step_l == two_step_r =>
+      let (tile_step, child_step) = two_step_l;
+      let (prefix, tile, _) = ListUtil.split_nth(tile_step, ts);
+      Sort_specific.selecting_tiles_in_tile(
+        (child_step, ((steps_l, j_l), (steps_r, j_r))),
+        tile,
+      )
+      |> TupleUtil.map2(shift(length(prefix) + space));
     | (
         [(tile_step_l, child_step_l), ...steps_l],
         [(tile_step_r, child_step_r), ...steps_r],
@@ -325,8 +338,13 @@ module Common =
         TupleUtil.map2(Sort_specific.length_of_tile, (tile_l, tile_r));
       let (targets_l, selected_l) =
         Sort_specific.selecting_tiles_in_tile(
-          ~side=Right,
-          (child_step_l, (steps_l, j_l)),
+          (
+            child_step_l,
+            (
+              (steps_l, j_l),
+              ([], Sort_specific.child_length(child_step_l, tile_l)),
+            ),
+          ),
           tile_l,
         )
         |> TupleUtil.map2(shift(prefix_len + space));
@@ -335,8 +353,7 @@ module Common =
         |> shift(prefix_len + space + l_len + space);
       let (selected_r, targets_r) =
         Sort_specific.selecting_tiles_in_tile(
-          ~side=Right,
-          (child_step_r, (steps_r, j_r)),
+          (child_step_r, (([], 0), (steps_r, j_r))),
           tile_r,
         )
         |> TupleUtil.map2(
@@ -355,13 +372,7 @@ module Common =
     };
   };
 
-  let selecting_tiles_in_zipper =
-      (~side: Direction.t, path, (zipped, unzipped)) => {
-    let selection =
-      switch (side) {
-      | Left => (([], 0), path)
-      | Right => (path, ([], List.length(zipped)))
-      };
+  let selecting_tiles_in_zipper = (selection, (zipped, unzipped)) => {
     selecting_tiles(selection, zipped)
     |> TupleUtil.map2(shift(offset_unzipped(unzipped)));
   };
@@ -672,10 +683,9 @@ module rec Typ: TYP = {
     List.length(ty);
   };
 
-  let selecting_tiles_in_tile =
-      (~side: Direction.t, (child_step, path), tile) => {
+  let selecting_tiles_in_tile = ((child_step, selection), tile) => {
     let `Typ(zipper) = ZPath.Typ.unzip_tile(child_step, tile, ZTyp.mk());
-    Typ.selecting_tiles_in_zipper(~side, path, zipper);
+    Typ.selecting_tiles_in_zipper(selection, zipper);
   };
 
   include Common(HTyp.T, HTyp.Inner, ZTyp, ZPath.Typ, Typ);
@@ -788,10 +798,10 @@ module rec Pat: PAT = {
     | `Pat(zipper) => Pat.tile_profiles_in_zipper(~style, steps, zipper)
     };
 
-  let selecting_tiles_in_tile = (~side, (child_step, path), tile) =>
+  let selecting_tiles_in_tile = ((child_step, selection), tile) =>
     switch (ZPath.Pat.unzip_tile(child_step, tile, ZPat.mk())) {
-    | `Typ(zipper) => Typ.selecting_tiles_in_zipper(~side, path, zipper)
-    | `Pat(zipper) => Pat.selecting_tiles_in_zipper(~side, path, zipper)
+    | `Typ(zipper) => Typ.selecting_tiles_in_zipper(selection, zipper)
+    | `Pat(zipper) => Pat.selecting_tiles_in_zipper(selection, zipper)
     };
 
   let get_hole_status = HPat.get_hole_status;
@@ -972,10 +982,10 @@ module rec Exp: EXP = {
     | `Pat(zipper) => Pat.tile_profiles_in_zipper(~style, steps, zipper)
     };
 
-  let selecting_tiles_in_tile = (~side, (child_step, path), tile) =>
+  let selecting_tiles_in_tile = ((child_step, selection), tile) =>
     switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
-    | `Exp(zipper) => Exp.selecting_tiles_in_zipper(~side, path, zipper)
-    | `Pat(zipper) => Pat.selecting_tiles_in_zipper(~side, path, zipper)
+    | `Exp(zipper) => Exp.selecting_tiles_in_zipper(selection, zipper)
+    | `Pat(zipper) => Pat.selecting_tiles_in_zipper(selection, zipper)
     };
 
   let get_hole_status = HExp.get_hole_status;

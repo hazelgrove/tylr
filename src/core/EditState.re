@@ -1,4 +1,5 @@
 module Mode = {
+  [@deriving sexp]
   type t =
     | Normal(ZPath.t)
     | Selecting(ZPath.anchored_selection)
@@ -36,6 +37,7 @@ module Mode = {
 };
 
 module Zipper = {
+  [@deriving sexp]
   type t = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
   type did_it_zip = option((ZPath.two_step, t));
 
@@ -121,6 +123,7 @@ module Zipper = {
     };
 };
 
+[@deriving sexp]
 type t = (Mode.t, Zipper.t);
 
 let rec zip_up = ((mode, zipper) as edit_state: t): t =>

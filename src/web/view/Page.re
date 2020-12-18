@@ -79,7 +79,7 @@ let focus_code = () => {
   JsUtil.get_elem_by_id("code-container")##focus;
 };
 
-let view = (~inject, model: Model.t) =>
+let view = (~inject, model: Model.t) => {
   Node.div(
     [Attr.id("page")],
     [
@@ -112,3 +112,4 @@ let view = (~inject, model: Model.t) =>
       ),
     ],
   );
+};
