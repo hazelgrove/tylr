@@ -154,14 +154,18 @@ module EmptyHole = {
       ],
     );
 
-  let view = (~inset: bool, ~font_metrics: FontMetrics.t): list(Node.t) => {
+  let view =
+      (~offset=0, ~inset: bool, ~font_metrics: FontMetrics.t, ())
+      : list(Node.t) => {
+    // necessary because of AttrUtil shadowing below
+    let o = offset;
     let (r_x, r_y) = hole_radii(~font_metrics);
     [
       inset_shadow_filter,
       Node.create_svg(
         "ellipse",
         AttrUtil.[
-          cx(0.5),
+          cx(Float.of_int(o) +. 0.5),
           cy(0.5),
           rx(r_x),
           ry(r_y),
@@ -177,7 +181,13 @@ module EmptyHole = {
 };
 
 module OpenChild = {
-  let view = (~sort: Sort.t, ~side: Direction.t, len: int): list(Node.t) => {
+  type profile = {
+    sort: Sort.t,
+    side: Direction.t,
+    len: int,
+  };
+
+  let view = ({sort, side, len}: profile): list(Node.t) => {
     open SvgUtil.Path;
     open Diag;
     let len = Float.of_int(len + 1);
@@ -288,10 +298,14 @@ module OpenChild = {
 module Tile = {
   [@deriving sexp]
   type profile = {
-    shape: [ | `Operand(bool) | `PreOp | `PostOp | `BinOp(bool)],
+    shape: Core.Tile.t(unit, unit, unit, unit),
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
+    empty_holes: list(int),
+    highlight: bool,
+    apply_shadow: bool,
+    sort: Sort.t,
   };
 
   let open_child_paths =
@@ -373,15 +387,7 @@ module Tile = {
     |> List.flatten;
   };
 
-  let contour_path =
-      (
-        ~sort: Sort.t,
-        ~attrs: list(Attr.t),
-        ~highlight: bool,
-        ~apply_shadow: bool,
-        profile: profile,
-      )
-      : Node.t => {
+  let contour_path = (~attrs: list(Attr.t), profile: profile): Node.t => {
     open SvgUtil.Path;
     open Diag;
     let closed_child_paths =
@@ -400,20 +406,20 @@ module Tile = {
     let outer_path = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
-        | `Operand(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
-        | `PreOp => (
+        | Operand () => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+        | PreOp () => (
             br_tl() @ bl_tr(),
             [H_({dx: tip}), ...tr_bl()]
             @ tl_br()
             @ [H_({dx: Float.neg(tip)})],
           )
-        | `PostOp => (
+        | PostOp () => (
             [H_({dx: Float.neg(tip)}), ...bl_tr()]
             @ br_tl()
             @ [H_({dx: tip})],
             tl_br() @ tr_bl(),
           )
-        | `BinOp(_) => (
+        | BinOp () => (
             [H_({dx: Float.neg(tip)}), ...bl_tr()]
             @ br_tl()
             @ [H_({dx: tip})],
@@ -447,11 +453,11 @@ module Tile = {
         Attr.[
           classes(
             [
-              Sort.to_string(sort),
+              Sort.to_string(profile.sort),
               "tile-path",
-              ...highlight ? ["highlighted"] : [],
+              ...profile.highlight ? ["highlighted"] : [],
             ]
-            @ (apply_shadow ? ["with-shadow"] : []),
+            @ (profile.apply_shadow ? ["with-shadow"] : []),
           ),
           create("vector-effect", "non-scaling-stroke"),
           ...attrs,
@@ -498,30 +504,27 @@ module Tile = {
 
   let view =
       (
-        ~sort: Sort.t,
         ~attrs: list(Attr.t)=[],
         ~font_metrics: FontMetrics.t,
-        ~highlight: bool,
         ~show_children: bool,
-        ~apply_shadow: bool,
         profile: profile,
       )
       : list(Node.t) => {
-    let empty_hole =
-      switch (profile.shape) {
-      | `Operand(true)
-      | `BinOp(true) => EmptyHole.view(~font_metrics, ~inset=true)
-      | _ => []
-      };
+    let empty_holes =
+      profile.empty_holes
+      |> List.map(offset =>
+           EmptyHole.view(~offset, ~font_metrics, ~inset=true, ())
+         )
+      |> List.flatten;
     let profile =
       show_children
         ? profile : {...profile, open_children: [], closed_children: []};
-    open_child_paths(~sort, profile.open_children)
+    open_child_paths(~sort=profile.sort, profile.open_children)
     @ [
-      shadow_filter(~sort),
-      thin_shadow_filter(~sort),
-      contour_path(~sort, ~attrs, ~highlight, ~apply_shadow, profile),
-      ...empty_hole,
+      shadow_filter(~sort=profile.sort),
+      thin_shadow_filter(~sort=profile.sort),
+      contour_path(~attrs, profile),
+      ...empty_holes,
     ];
   };
 };

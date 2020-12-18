@@ -62,6 +62,14 @@
   color: var(--light-text-color);
 }
 
+#font-specimen {
+  position: fixed;
+  top: 0;
+  left: 100%;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
 #code-container {
   position: fixed;
   top: 40%;
@@ -72,10 +80,10 @@
   outline: none;
 }
 
-#font-specimen {
-  position: fixed;
-  top: 0;
-  left: 100%;
+#code {
+  position: relative;
+  line-height: 1.4;
+  vertical-align: middle;
 }
 
 .code-text {
@@ -93,10 +101,6 @@
 }
 .empty-hole-inset-shadow-flood {
   flood-color: var(--hole-stroke-color);
-}
-
-#code {
-  position: relative;
 }
 
 .decorated-tile,
