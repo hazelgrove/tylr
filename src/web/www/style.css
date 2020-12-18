@@ -196,42 +196,47 @@
 */
 
 .tile-path {
-  filter: url(#thin-outer-drop-shadow);
   stroke-width: 0.4;
   fill-rule: evenodd;
   fill: var(--light-page-color);
-}
-.tile-path.with-shadow {
-  filter: url(#outer-drop-shadow);
 }
 .tile-path.highlighted {
   stroke-width: 0.3;
 }
 .Exp.tile-path {
   stroke: var(--exp-shadow-color);
+  filter: url(#thin-outer-drop-shadow-Exp);
 }
 .Exp.tile-path.highlighted {
   fill: var(--exp-bg-color);
+  filter: url(#outer-drop-shadow-Exp);
 }
-.Exp.tile-drop-shadow {
+#outer-drop-shadow-Exp .tile-drop-shadow,
+#thin-outer-drop-shadow-Exp .tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
 }
 .Pat.tile-path {
   stroke: var(--pat-shadow-color);
+  filter: url(#thin-outer-drop-shadow-Pat);
 }
 .Pat.tile-path.highlighted {
   fill: var(--pat-bg-color);
+  filter: url(#outer-drop-shadow-Pat);
 }
-.Pat.tile-drop-shadow {
+#outer-drop-shadow-Pat .tile-drop-shadow,
+#thin-outer-drop-shadow-Pat .tile-drop-shadow {
   flood-color: var(--pat-shadow-color);
 }
 .Typ.tile-path {
   stroke: var(--typ-shadow-color);
+  filter: url(#thin-outer-drop-shadow-Typ);
 }
 .Typ.tile-path.highlighted {
   fill: var(--typ-bg-color);
+  filter: url(#outer-drop-shadow-Typ);
 }
-.Typ.tile-drop-shadow {
+#outer-drop-shadow-Typ .tile-drop-shadow,
+#thin-outer-drop-shadow-Typ .tile-drop-shadow {
   flood-color: var(--typ-shadow-color);
 }
 

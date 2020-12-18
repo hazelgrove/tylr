@@ -229,10 +229,6 @@ module EmptyHole = {
     let o = offset;
     let (r_x, r_y) = hole_radii(~font_metrics);
     [
-      switch (inset) {
-      | Some(`Thick) => inset_shadow_filter
-      | _ => thin_inset_shadow_filter
-      },
       Node.create_svg(
         "ellipse",
         AttrUtil.[
@@ -533,7 +529,7 @@ module Tile = {
       List.concat([
         ["tile-path", Sort.to_string(profile.sort)],
         switch (profile.style) {
-        | Highlighted => ["highlighted", "with-shadow"]
+        | Highlighted => ["highlighted"]
         | Unhighlighted(_) => []
         },
       ]);
@@ -551,12 +547,12 @@ module Tile = {
   let shadow_filter = (~sort: Sort.t) =>
     Node.create_svg(
       "filter",
-      [Attr.id("outer-drop-shadow")],
+      [Attr.id("outer-drop-shadow-" ++ Sort.to_string(sort))],
       [
         Node.create_svg(
           "feDropShadow",
           [
-            Attr.classes(["tile-drop-shadow", Sort.to_string(sort)]),
+            Attr.classes(["tile-drop-shadow"]),
             Attr.create("dx", "0.1"),
             Attr.create("dy", "0.04"),
             Attr.create("stdDeviation", "0"),
@@ -569,12 +565,12 @@ module Tile = {
   let thin_shadow_filter = (~sort: Sort.t) =>
     Node.create_svg(
       "filter",
-      [Attr.id("thin-outer-drop-shadow")],
+      [Attr.id("thin-outer-drop-shadow-" ++ Sort.to_string(sort))],
       [
         Node.create_svg(
           "feDropShadow",
           [
-            Attr.classes(["tile-drop-shadow", Sort.to_string(sort)]),
+            Attr.classes(["tile-drop-shadow"]),
             Attr.create("dx", "0.06"),
             Attr.create("dy", "0.024"),
             Attr.create("stdDeviation", "0"),
@@ -624,12 +620,7 @@ module Tile = {
       | _ => profile
       };
     open_child_paths(~sort=profile.sort, profile.open_children)
-    @ [
-      shadow_filter(~sort=profile.sort),
-      thin_shadow_filter(~sort=profile.sort),
-      contour_path(~attrs, profile),
-      ...empty_holes,
-    ];
+    @ [contour_path(~attrs, profile), ...empty_holes];
   };
 };
 

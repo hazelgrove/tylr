@@ -86,9 +86,15 @@ let view = (~inject, model: Model.t) =>
       FontSpecimen.view(),
       NodeUtil.svg(
         [],
-        [
-          Decoration.EmptyHole.inset_shadow_filter,
-          Decoration.EmptyHole.thin_inset_shadow_filter,
+        Decoration.[
+          Tile.shadow_filter(~sort=Exp),
+          Tile.thin_shadow_filter(~sort=Exp),
+          Tile.shadow_filter(~sort=Pat),
+          Tile.thin_shadow_filter(~sort=Pat),
+          Tile.shadow_filter(~sort=Typ),
+          Tile.thin_shadow_filter(~sort=Typ),
+          EmptyHole.inset_shadow_filter,
+          EmptyHole.thin_inset_shadow_filter,
         ],
       ),
       Node.div(
