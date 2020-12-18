@@ -850,5 +850,5 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
     | Normal(focus) => view_of_normal(~font_metrics, focus, e)
     | _ => failwith("todo")
     };
-  Node.span([Attr.classes(["code"])], vs);
+  Node.div([Attr.id("code")], vs);
 };

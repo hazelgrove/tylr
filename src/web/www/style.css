@@ -83,12 +83,12 @@
 #code {
   position: relative;
   line-height: 1.4;
-  vertical-align: middle;
 }
 
 .code-text {
   position: relative;
   z-index: var(--code-text-z);
+  vertical-align: middle;
 }
 
 .term {
