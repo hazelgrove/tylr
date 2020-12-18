@@ -154,14 +154,85 @@ module EmptyHole = {
       ],
     );
 
+  let thin_inset_shadow_filter =
+    Node.create_svg(
+      "filter",
+      [Attr.id("empty-hole-thin-inset-shadow")],
+      [
+        Node.create_svg(
+          "feOffset",
+          Attr.[
+            create("in", "SourceAlpha"),
+            create("dx", "0.06"),
+            create("dy", "0.024"),
+            create("result", "offset-alpha"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feFlood",
+          Attr.[
+            classes(["empty-hole-inset-shadow-flood"]),
+            create("flood-opacity", "1"),
+            create("result", "color"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feComposite",
+          Attr.[
+            create("operator", "out"),
+            create("in", "SourceAlpha"),
+            create("in2", "offset-alpha"),
+            create("result", "shadow-shape"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feComposite",
+          Attr.[
+            create("operator", "in"),
+            create("in", "color"),
+            create("in2", "shadow-shape"),
+            create("result", "drop-shadow"),
+          ],
+          [],
+        ),
+        Node.create_svg(
+          "feMerge",
+          [],
+          [
+            Node.create_svg(
+              "feMergeNode",
+              [Attr.create("in", "SourceGraphic")],
+              [],
+            ),
+            Node.create_svg(
+              "feMergeNode",
+              [Attr.create("in", "drop-shadow")],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
+
   let view =
-      (~offset=0, ~inset: bool, ~font_metrics: FontMetrics.t, ())
+      (
+        ~offset=0,
+        ~inset: option([ | `Thick | `Thin]),
+        ~font_metrics: FontMetrics.t,
+        (),
+      )
       : list(Node.t) => {
     // necessary because of AttrUtil shadowing below
     let o = offset;
     let (r_x, r_y) = hole_radii(~font_metrics);
     [
-      inset_shadow_filter,
+      switch (inset) {
+      | Some(`Thick) => inset_shadow_filter
+      | _ => thin_inset_shadow_filter
+      },
       Node.create_svg(
         "ellipse",
         AttrUtil.[
@@ -170,8 +241,14 @@ module EmptyHole = {
           rx(r_x),
           ry(r_y),
           vector_effect("non-scaling-stroke"),
-          stroke_width(inset ? 0.3 : 0.75),
-          filter(inset ? "url(#empty-hole-inset-shadow)" : "none"),
+          stroke_width(Option.is_some(inset) ? 0.3 : 0.75),
+          filter(
+            switch (inset) {
+            | None => "none"
+            | Some(`Thin) => "url(#empty-hole-thin-inset-shadow)"
+            | Some(`Thick) => "url(#empty-hole-inset-shadow)"
+            },
+          ),
           Attr.classes(["empty-hole-path"]),
         ],
         [],
@@ -297,15 +374,19 @@ module OpenChild = {
 
 module Tile = {
   [@deriving sexp]
+  type style =
+    | Highlighted
+    | Unhighlighted(bool);
+
+  [@deriving sexp]
   type profile = {
-    shape: Core.Tile.t(unit, unit, unit, unit),
+    shape: Core.Tile.t(bool, unit, unit, bool),
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
     empty_holes: list(int),
-    highlight: bool,
-    apply_shadow: bool,
     sort: Sort.t,
+    style,
   };
 
   let open_child_paths =
@@ -406,7 +487,7 @@ module Tile = {
     let outer_path = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
-        | Operand () => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+        | Operand(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
         | PreOp () => (
             br_tl() @ bl_tr(),
             [H_({dx: tip}), ...tr_bl()]
@@ -419,7 +500,7 @@ module Tile = {
             @ [H_({dx: tip})],
             tl_br() @ tr_bl(),
           )
-        | BinOp () => (
+        | BinOp(_) => (
             [H_({dx: Float.neg(tip)}), ...bl_tr()]
             @ br_tl()
             @ [H_({dx: tip})],
@@ -448,17 +529,18 @@ module Tile = {
         [Z],
       ]);
     };
+    let clss =
+      List.concat([
+        ["tile-path", Sort.to_string(profile.sort)],
+        switch (profile.style) {
+        | Highlighted => ["highlighted", "with-shadow"]
+        | Unhighlighted(_) => []
+        },
+      ]);
     SvgUtil.Path.view(
       ~attrs=
         Attr.[
-          classes(
-            [
-              Sort.to_string(profile.sort),
-              "tile-path",
-              ...profile.highlight ? ["highlighted"] : [],
-            ]
-            @ (profile.apply_shadow ? ["with-shadow"] : []),
-          ),
+          classes(clss),
           create("vector-effect", "non-scaling-stroke"),
           ...attrs,
         ],
@@ -506,19 +588,41 @@ module Tile = {
       (
         ~attrs: list(Attr.t)=[],
         ~font_metrics: FontMetrics.t,
-        ~show_children: bool,
         profile: profile,
       )
       : list(Node.t) => {
     let empty_holes =
-      profile.empty_holes
-      |> List.map(offset =>
-           EmptyHole.view(~offset, ~font_metrics, ~inset=true, ())
-         )
-      |> List.flatten;
+      switch (profile.style) {
+      | Highlighted =>
+        switch (profile.shape) {
+        | Operand(true)
+        | BinOp(true) =>
+          EmptyHole.view(~offset=0, ~font_metrics, ~inset=Some(`Thick), ())
+        | _ => []
+        }
+      | Unhighlighted(show_children) =>
+        show_children
+          ? []
+          : profile.empty_holes
+            |> List.map(offset =>
+                 EmptyHole.view(
+                   ~offset,
+                   ~font_metrics,
+                   ~inset=Some(`Thin),
+                   (),
+                 )
+               )
+            |> List.flatten
+      };
     let profile =
-      show_children
-        ? profile : {...profile, open_children: [], closed_children: []};
+      switch (profile.style) {
+      | Unhighlighted(false) => {
+          ...profile,
+          open_children: [],
+          closed_children: [],
+        }
+      | _ => profile
+      };
     open_child_paths(~sort=profile.sort, profile.open_children)
     @ [
       shadow_filter(~sort=profile.sort),

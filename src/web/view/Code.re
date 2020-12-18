@@ -751,7 +751,7 @@ let empty_holes = (~font_metrics: FontMetrics.t, e: HExp.t): list(Node.t) =>
          ~origin,
          ~length=1,
          ~cls="empty-hole",
-         Decoration.EmptyHole.view(~font_metrics, ~inset=false, ()),
+         Decoration.EmptyHole.view(~font_metrics, ~inset=None, ()),
        )
      );
 
@@ -785,7 +785,7 @@ let view_of_normal = (~font_metrics, path, e) => {
         ~length=profile.len,
         ~cls="tile",
         ~origin=offset,
-        Decoration.Tile.view(~font_metrics, ~show_children=true, profile),
+        Decoration.Tile.view(~font_metrics, profile),
       );
     };
     let open_children =

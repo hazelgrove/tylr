@@ -84,6 +84,13 @@ let view = (~inject, model: Model.t) =>
     [Attr.id("page")],
     [
       FontSpecimen.view(),
+      NodeUtil.svg(
+        [],
+        [
+          Decoration.EmptyHole.inset_shadow_filter,
+          Decoration.EmptyHole.thin_inset_shadow_filter,
+        ],
+      ),
       Node.div(
         [
           Attr.id("code-container"),

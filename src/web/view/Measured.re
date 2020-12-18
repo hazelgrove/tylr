@@ -39,12 +39,7 @@ module type COMMON_INPUT = {
   let child_length: (ZPath.child_step, T.t) => int;
 
   let tile_profiles_in_tile:
-    (
-      ~apply_shadow: bool,
-      ~highlight: bool,
-      (ZPath.child_step, ZPath.steps),
-      T.t
-    ) =>
+    (~style: Decoration.Tile.style, (ZPath.child_step, ZPath.steps), T.t) =>
     tile_profiles;
 
   let term_profile_of_tile:
@@ -70,16 +65,15 @@ module type COMMON = {
   let empty_holes: T.s => list(int);
 
   let profile_of_tile:
-    (~highlight: bool, ~apply_shadow: bool, T.t) => Decoration.Tile.profile;
+    (~style: Decoration.Tile.style, T.t) => Decoration.Tile.profile;
 
   let term_profile: (ZPath.t, T.s) => term_profile;
   let term_profile_in_zipper: (ZPath.t, Z.zipper) => term_profile;
 
   let tile_profiles_at:
-    (~apply_shadow: bool, ~highlight: bool, ZPath.steps, T.s) => tile_profiles;
+    (~style: Decoration.Tile.style, ZPath.steps, T.s) => tile_profiles;
   let tile_profiles_in_zipper:
-    (~apply_shadow: bool, ~highlight: bool, ZPath.steps, Z.zipper) =>
-    tile_profiles;
+    (~style: Decoration.Tile.style, ZPath.steps, Z.zipper) => tile_profiles;
 
   let selecting_tiles:
     (ZPath.ordered_selection, T.s) => (tile_profiles, tile_profiles);
@@ -168,59 +162,50 @@ module Common =
     List.concat(holes);
   };
 
-  let profile_of_tile =
-      (~highlight, ~apply_shadow, t: T.t): Decoration.Tile.profile =>
+  let profile_of_tile = (~style, t: T.t): Decoration.Tile.profile =>
     Decoration.Tile.{
       shape:
         switch (t) {
-        | Operand(_) => Operand()
+        | Operand(operand) =>
+          Operand(Sort_specific.is_operand_hole(operand))
         | PreOp(_) => PreOp()
         | PostOp(_) => PostOp()
-        | BinOp(_) => BinOp()
+        | BinOp(binop) => BinOp(Sort_specific.is_operator_hole(binop))
         },
       len: length_of_tile(t),
       open_children: Sort_specific.open_children_of_tile(t),
       closed_children: Sort_specific.closed_children_of_tile(t),
       empty_holes: empty_holes_of_tile(t),
       sort: T.sort,
-      highlight,
-      apply_shadow,
+      style,
     };
-  let tile_profiles = (~highlight, ~apply_shadow, ts) =>
+  let tile_profiles = (~style, ts) =>
     ts
     |> ListUtil.fold_left_map(
          (offset, tile) => {
-           let profile = profile_of_tile(~highlight, ~apply_shadow, tile);
+           let profile = profile_of_tile(~style, tile);
            (offset + profile.len + space, (offset, profile));
          },
          0,
        )
     |> snd;
 
-  let tile_profiles_at =
-      (~apply_shadow, ~highlight, steps: ZPath.steps, ts: T.s) =>
+  let tile_profiles_at = (~style, steps: ZPath.steps, ts: T.s) =>
     switch (steps) {
-    | [] => tile_profiles(~apply_shadow, ~highlight, ts)
+    | [] => tile_profiles(~style, ts)
     | [(tile_step, child_step), ...steps] =>
       let (prefix, tile, _) = ListUtil.split_nth(tile_step, ts);
-      Sort_specific.tile_profiles_in_tile(
-        ~apply_shadow,
-        ~highlight,
-        (child_step, steps),
-        tile,
-      )
+      Sort_specific.tile_profiles_in_tile(~style, (child_step, steps), tile)
       |> shift(length(prefix) + space);
     };
-  let tile_profiles_in_zipper =
-      (~apply_shadow, ~highlight, steps, (zipped, unzipped)) =>
-    tile_profiles_at(~apply_shadow, ~highlight, steps, zipped)
+  let tile_profiles_in_zipper = (~style, steps, (zipped, unzipped)) =>
+    tile_profiles_at(~style, steps, zipped)
     |> shift(offset_unzipped(unzipped));
 
   module Ts = Tiles.Make(T);
 
   let term_profile_of_root = {
-    let profile_of_tile =
-      profile_of_tile(~apply_shadow=true, ~highlight=true);
+    let profile_of_tile = profile_of_tile(~style=Highlighted);
     let open_child_profile = (side, len) =>
       Decoration.OpenChild.{sort: T.sort, side, len};
     Tile.get(
@@ -276,16 +261,18 @@ module Common =
     |> shift_term_profile(offset_unzipped(unzipped));
 
   let selecting_tiles = (((steps_l, j_l), (steps_r, j_r)), ts) => {
-    let tile_profiles = tile_profiles(~apply_shadow=false, ~highlight=false);
+    let tile_profiles = show_children =>
+      tile_profiles(~style=Unhighlighted(show_children));
     switch (steps_l, steps_r) {
     | ([], []) =>
       let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
       let (prefix_len, selected_len) =
         TupleUtil.map2(length, (prefix, selected));
-      let prefix = tile_profiles(prefix);
-      let selected = tile_profiles(selected) |> shift(prefix_len + space);
+      let prefix = tile_profiles(true, prefix);
+      let selected =
+        tile_profiles(false, selected) |> shift(prefix_len + space);
       let suffix =
-        tile_profiles(suffix)
+        tile_profiles(true, suffix)
         |> shift(prefix_len + space + selected_len + space);
       (selected, prefix @ suffix);
     | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
@@ -293,8 +280,9 @@ module Common =
       let (prefix, selected) = ListUtil.split_n(j_l, prefix);
       let (prefix_len, selected_len) =
         TupleUtil.map2(length, (prefix, selected));
-      let prefix = tile_profiles(prefix);
-      let selected = tile_profiles(selected) |> shift(prefix_len + space);
+      let prefix = tile_profiles(false, prefix);
+      let selected =
+        tile_profiles(false, selected) |> shift(prefix_len + space);
       let (selected_r, targets_r) =
         Sort_specific.selecting_tiles_in_tile(
           ~side=Left,
@@ -318,10 +306,10 @@ module Common =
         )
         |> TupleUtil.map2(shift(prefix_len + space));
       let selected =
-        tile_profiles(selected)
+        tile_profiles(false, selected)
         |> shift(prefix_len + space + tile_len + space);
       let suffix =
-        tile_profiles(suffix)
+        tile_profiles(false, suffix)
         |> shift(prefix_len + space + tile_len + space + selected_len + space);
       (selected_l @ selected, targets_l @ suffix);
     | (
@@ -343,7 +331,8 @@ module Common =
         )
         |> TupleUtil.map2(shift(prefix_len + space));
       let selected =
-        tile_profiles(selected) |> shift(prefix_len + space + l_len + space);
+        tile_profiles(false, selected)
+        |> shift(prefix_len + space + l_len + space);
       let (selected_r, targets_r) =
         Sort_specific.selecting_tiles_in_tile(
           ~side=Right,
@@ -386,12 +375,7 @@ module Common =
     if (steps_t != steps_l && steps_t != steps_r) {
       let (selected_tiles, _) = selecting_tiles(selection, ts);
       let target_tiles =
-        tile_profiles_at(
-          ~apply_shadow=false,
-          ~highlight=false,
-          fst(target),
-          ts,
-        );
+        tile_profiles_at(~style=Unhighlighted(true), fst(target), ts);
       (selected_tiles, target_tiles);
     } else {
       selecting_tiles(selection, ts);
@@ -678,10 +662,9 @@ module rec Typ: TYP = {
     Typ.term_profile_in_zipper(path, zipper);
   };
 
-  let tile_profiles_in_tile =
-      (~apply_shadow, ~highlight, (child_step, steps), tile) => {
+  let tile_profiles_in_tile = (~style, (child_step, steps), tile) => {
     let `Typ(zipper) = ZPath.Typ.unzip_tile(child_step, tile, ZTyp.mk());
-    Typ.tile_profiles_in_zipper(~apply_shadow, ~highlight, steps, zipper);
+    Typ.tile_profiles_in_zipper(~style, steps, zipper);
   };
 
   let child_length = (child_step, tile) => {
@@ -799,13 +782,10 @@ module rec Pat: PAT = {
     | `Pat(zipper) => Pat.term_profile_in_zipper(path, zipper)
     };
 
-  let tile_profiles_in_tile =
-      (~apply_shadow, ~highlight, (child_step, steps), tile) =>
+  let tile_profiles_in_tile = (~style, (child_step, steps), tile) =>
     switch (ZPath.Pat.unzip_tile(child_step, tile, ZPat.mk())) {
-    | `Typ(zipper) =>
-      Typ.tile_profiles_in_zipper(~apply_shadow, ~highlight, steps, zipper)
-    | `Pat(zipper) =>
-      Pat.tile_profiles_in_zipper(~apply_shadow, ~highlight, steps, zipper)
+    | `Typ(zipper) => Typ.tile_profiles_in_zipper(~style, steps, zipper)
+    | `Pat(zipper) => Pat.tile_profiles_in_zipper(~style, steps, zipper)
     };
 
   let selecting_tiles_in_tile = (~side, (child_step, path), tile) =>
@@ -986,13 +966,10 @@ module rec Exp: EXP = {
     | `Pat(zipper) => Pat.term_profile_in_zipper(path, zipper)
     };
 
-  let tile_profiles_in_tile =
-      (~apply_shadow, ~highlight, (child_step, steps), tile) =>
+  let tile_profiles_in_tile = (~style, (child_step, steps), tile) =>
     switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
-    | `Exp(zipper) =>
-      Exp.tile_profiles_in_zipper(~apply_shadow, ~highlight, steps, zipper)
-    | `Pat(zipper) =>
-      Pat.tile_profiles_in_zipper(~apply_shadow, ~highlight, steps, zipper)
+    | `Exp(zipper) => Exp.tile_profiles_in_zipper(~style, steps, zipper)
+    | `Pat(zipper) => Pat.tile_profiles_in_zipper(~style, steps, zipper)
     };
 
   let selecting_tiles_in_tile = (~side, (child_step, path), tile) =>
