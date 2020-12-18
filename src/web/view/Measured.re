@@ -616,7 +616,7 @@ module rec Typ: TYP = {
       | ParenZ_body(_) => 1 + space,
       () => raise(Void_ZPreOp),
       fun
-      | AnnZ_ann(_) => raise(ZPath.Unzip_rezip_changes_sort),
+      | AnnZ_ann(_) => 1 + space,
       () => raise(Void_ZBinOp),
     );
 
@@ -726,8 +726,8 @@ module rec Pat: PAT = {
       fun
       | ParenZ_body(_) => 1 + space,
       fun
-      | LamZ_pat(_)
-      | LetZ_pat(_) => raise(ZPath.Unzip_rezip_changes_sort),
+      | LamZ_pat(_) => 1 + space
+      | LetZ_pat(_) => 3 + space,
       () => raise(Void_ZPostOp),
       () => raise(Void_ZBinOp),
     );
@@ -899,7 +899,7 @@ module rec Exp: EXP = {
       fun
       | ParenZ_body(_) => 1 + space,
       fun
-      | LetZ_def(p, _) => 3 + space + Pat.length(p) + 1 + space,
+      | LetZ_def(p, _) => 3 + space + Pat.length(p) + space + 1 + space,
       fun
       | ApZ_arg(_) => 1 + space,
       () =>
