@@ -768,13 +768,12 @@ let err_holes = (~font_metrics, focus: ZPath.t, e: HExp.t): list(Node.t) => {
      );
 };
 
+let view_of_text = e =>
+  Node.span([Attr.classes(["code-text"])], Text.space(Text.Exp.view(e)));
+
 let view_of_normal = (~font_metrics, path, e) => {
   let container = Decoration.container(~font_metrics);
-  let text =
-    Node.span(
-      [Attr.classes(["code-text"])],
-      Text.space(Text.Exp.view(e)),
-    );
+  let text = view_of_text(e);
   let empty_holes = empty_holes(~font_metrics, e);
   let err_holes = err_holes(~font_metrics, path, e);
   let current_term = {
@@ -810,33 +809,52 @@ let view_of_normal = (~font_metrics, path, e) => {
   List.concat([empty_holes, err_holes, current_term, [text, caret]]);
 };
 
-let view_of_selecting = _ => {
-  /*
-   let ((l, r) as selection, _) = ZPath.mk_ordered_selection(selection);
-   let (offset_l, offset_r) = (Measured.Exp.offset(l, e), Measured.Exp.offset(r, e));
-   let (tiles, _) = Measured.Exp.selecting_tiles(selection, e);
-   let selection_box =
-     Node.div(
-       [
-         Attr.classes(["selection-box"]),
-         Attr.create(
-           "style",
-           Printf.sprintf(
-             "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-             (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
-             (-0.15) *. font_metrics.row_height,
-             font_metrics.col_width *. Float.of_int(offset_r - offset_l),
-             font_metrics.row_height *. 1.3,
-           ),
-         ),
-       ],
-       [],
-     );
-   */
-  // (~font_metrics, (l, r), e) => {
-  failwith(
-    "todo",
+let view_of_selecting = (~font_metrics: FontMetrics.t, selection, e) => {
+  let ((l, r) as selection, caret_side) =
+    ZPath.mk_ordered_selection(selection);
+  let (offset_l, offset_r) = (
+    Measured.Exp.offset(l, e),
+    Measured.Exp.offset(r, e),
   );
+  let text = view_of_text(e);
+  let empty_holes = empty_holes(~font_metrics, e);
+  let tiles = {
+    let (tiles, _) = Measured.Exp.selecting_tiles(selection, e);
+    tiles
+    |> List.map(((offset, profile: Decoration.Tile.profile)) =>
+         Decoration.container(
+           ~font_metrics,
+           ~length=profile.len,
+           ~cls="tile",
+           ~origin=offset,
+           Decoration.Tile.view(~font_metrics, profile),
+         )
+       );
+  };
+  let selection_box =
+    Node.div(
+      [
+        Attr.classes(["selection-box"]),
+        Attr.create(
+          "style",
+          Printf.sprintf(
+            "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+            (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
+            (-0.15) *. font_metrics.row_height,
+            font_metrics.col_width *. Float.of_int(offset_r - offset_l),
+            font_metrics.row_height *. 1.3,
+          ),
+        ),
+      ],
+      [],
+    );
+  let caret =
+    Decoration.Caret.view(
+      ~font_metrics,
+      caret_side == Left ? offset_l : offset_r,
+      [],
+    );
+  List.concat([empty_holes, tiles, [text, selection_box, caret]]);
 };
 
 let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
@@ -848,6 +866,7 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
   let vs =
     switch (mode) {
     | Normal(focus) => view_of_normal(~font_metrics, focus, e)
+    | Selecting(selection) => view_of_selecting(~font_metrics, selection, e)
     | _ => failwith("todo")
     };
   Node.div([Attr.id("code")], vs);
