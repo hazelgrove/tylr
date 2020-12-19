@@ -154,6 +154,7 @@ let view_of_restructuring =
       ],
     );
   let (caret, flag) = {
+    let selected_text = view_of_text(selected);
     let selected_tiles =
       List.map(
         view_of_tile(~font_metrics),
@@ -190,8 +191,9 @@ let view_of_restructuring =
             ],
             [],
           ),
-          ...selected_tiles @ Text.space(selected),
-        ],
+          ...selected_tiles,
+        ]
+        @ [selected_text],
       );
     (caret, flag);
   };
