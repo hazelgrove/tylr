@@ -10,7 +10,7 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
 };
 
 let tip = 0.3;
-let child_border_thickness = 0.105;
+let child_border_thickness = 0.1;
 
 module Diag = {
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
@@ -748,7 +748,7 @@ let container =
       Attr.create(
         "style",
         Printf.sprintf(
-          "top: %fpx; left: %fpx;",
+          "top: calc(%fpx - 1px); left: %fpx;",
           container_origin_y,
           container_origin_x,
         ),
