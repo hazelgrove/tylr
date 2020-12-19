@@ -120,10 +120,7 @@ let view_of_restructuring =
   let text = view_of_text(prefix @ selected @ suffix);
   let empty_holes = empty_holes(~font_metrics, e);
   let (selected_tiles, target_tiles) =
-    TupleUtil.map2(
-      List.map(view_of_tile(~font_metrics)),
-      Measured.Exp.restructuring_tiles(selection, target, e),
-    );
+    Measured.Exp.restructuring_tiles(selection, target, e);
   let placeholder =
     Node.span(
       [
@@ -157,6 +154,11 @@ let view_of_restructuring =
       ],
     );
   let (caret, flag) = {
+    let selected_tiles =
+      List.map(
+        view_of_tile(~font_metrics),
+        Measured.shift(- offset_l, selected_tiles),
+      );
     let caret = Decoration.Caret.view(~font_metrics, offset_t, []);
     let flag =
       Node.span(
@@ -193,6 +195,11 @@ let view_of_restructuring =
       );
     (caret, flag);
   };
+  let (selected_tiles, target_tiles) =
+    TupleUtil.map2(
+      List.map(view_of_tile(~font_metrics)),
+      (selected_tiles, target_tiles),
+    );
   List.concat([
     empty_holes,
     selected_tiles,
