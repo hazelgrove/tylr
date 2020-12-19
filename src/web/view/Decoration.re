@@ -4,13 +4,18 @@ open Virtual_dom.Vdom;
 module Sort = Core.Sort;
 module Direction = Core.Direction;
 
+let tip = 0.3;
+let child_border_thickness = 0.1;
+
+let shadow_dx = "0.1";
+let shadow_dy = "0.03";
+let thin_shadow_dx = "0.06";
+let thin_shadow_dy = "0.024";
+
 let hole_radii = (~font_metrics: FontMetrics.t) => {
   let r = 3.5;
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
-
-let tip = 0.3;
-let child_border_thickness = 0.1;
 
 module Diag = {
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
@@ -100,8 +105,8 @@ module EmptyHole = {
           "feOffset",
           Attr.[
             create("in", "SourceAlpha"),
-            create("dx", "0.1"),
-            create("dy", "0.04"),
+            create("dx", shadow_dx),
+            create("dy", shadow_dy),
             create("result", "offset-alpha"),
           ],
           [],
@@ -163,8 +168,8 @@ module EmptyHole = {
           "feOffset",
           Attr.[
             create("in", "SourceAlpha"),
-            create("dx", "0.06"),
-            create("dy", "0.024"),
+            create("dx", thin_shadow_dx),
+            create("dy", thin_shadow_dy),
             create("result", "offset-alpha"),
           ],
           [],
@@ -553,8 +558,8 @@ module Tile = {
           "feDropShadow",
           [
             Attr.classes(["tile-drop-shadow"]),
-            Attr.create("dx", "0.1"),
-            Attr.create("dy", "0.04"),
+            Attr.create("dx", shadow_dx),
+            Attr.create("dy", shadow_dy),
             Attr.create("stdDeviation", "0"),
           ],
           [],
@@ -571,8 +576,8 @@ module Tile = {
           "feDropShadow",
           [
             Attr.classes(["tile-drop-shadow"]),
-            Attr.create("dx", "0.06"),
-            Attr.create("dy", "0.024"),
+            Attr.create("dx", thin_shadow_dx),
+            Attr.create("dy", thin_shadow_dy),
             Attr.create("stdDeviation", "0"),
           ],
           [],
