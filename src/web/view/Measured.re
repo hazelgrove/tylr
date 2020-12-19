@@ -334,8 +334,7 @@ module Common =
         ListUtil.split_nth(tile_step_l, prefix);
       let (prefix_len, selected_len) =
         TupleUtil.map2(length, (prefix, selected));
-      let (l_len, r_len) =
-        TupleUtil.map2(Sort_specific.length_of_tile, (tile_l, tile_r));
+      let l_len = Sort_specific.length_of_tile(tile_l);
       let (selected_l, targets_l) =
         Sort_specific.selecting_tiles_in_tile(
           (
@@ -357,16 +356,7 @@ module Common =
           tile_r,
         )
         |> TupleUtil.map2(
-             shift(
-               prefix_len
-               + space
-               + l_len
-               + space
-               + selected_len
-               + space
-               + r_len
-               + space,
-             ),
+             shift(prefix_len + space + l_len + space + selected_len + space),
            );
       (selected_l @ selected @ selected_r, targets_l @ targets_r);
     };
