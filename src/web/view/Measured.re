@@ -336,7 +336,7 @@ module Common =
         TupleUtil.map2(length, (prefix, selected));
       let (l_len, r_len) =
         TupleUtil.map2(Sort_specific.length_of_tile, (tile_l, tile_r));
-      let (targets_l, selected_l) =
+      let (selected_l, targets_l) =
         Sort_specific.selecting_tiles_in_tile(
           (
             child_step_l,
