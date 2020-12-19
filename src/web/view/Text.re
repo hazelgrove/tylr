@@ -8,7 +8,10 @@ let space = ListUtil.join(Node.text(Unicode.nbsp));
 let of_OperandHole = Node.text(Unicode.nbsp);
 let of_Var = x => Node.text(x);
 let of_NumLit = n => Node.text(string_of_int(n));
-let of_Paren = (Node.text("("), Node.text(")"));
+let of_Paren = (
+  Node.span([Attr.classes(["paren"])], [Node.text("(")]),
+  Node.span([Attr.classes(["paren"])], [Node.text(")")]),
+);
 
 // preop
 let of_Lam = (Node.text(Unicode.lam), Node.text("."));

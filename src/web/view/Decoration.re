@@ -753,7 +753,7 @@ let container =
       Attr.create(
         "style",
         Printf.sprintf(
-          "top: calc(%fpx - 1px); left: %fpx;",
+          "top: calc(%fpx + 2px); left: %fpx;",
           container_origin_y,
           container_origin_x,
         ),
