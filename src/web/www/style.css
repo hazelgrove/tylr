@@ -25,6 +25,7 @@
   --light-text-color: #586e75;
 
   --selection-color: rgb(255, 230, 230);
+  --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
   --empty-hole-fill-color: #ffef00;
@@ -49,7 +50,8 @@
   --inset-empty-hole-z: 4;
   --code-text-z: 5;
   --placeholder-z: 6;
-  --caret-z: 7;
+  --flag-z: 7;
+  --caret-z: 8;
 }
 
 #page {
@@ -131,16 +133,17 @@
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 .selection-box.moving {
-  box-shadow: 1px 1px 2px darkgray;
+  box-shadow: 0.5px 0.5px 2px var(--selection-shadow-color);
 }
 .restructuring {
   position: relative;
 }
 .flag {
   position: absolute;
+  z-index: var(--flag-z);
 }
 .placeholder {
   position: absolute;
