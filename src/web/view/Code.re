@@ -90,7 +90,7 @@ let view_of_selecting = (~font_metrics: FontMetrics.t, selection, e) => {
         Attr.create(
           "style",
           Printf.sprintf(
-            "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+            "left: %fpx; top: calc(%fpx + 2px); width: %fpx; height: %fpx;",
             (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
             (-0.15) *. font_metrics.row_height,
             font_metrics.col_width *. Float.of_int(offset_r - offset_l),
@@ -128,7 +128,7 @@ let view_of_restructuring =
         Attr.create(
           "style",
           Printf.sprintf(
-            "left: %fpx; width: %fpx;",
+            "top: 2px; left: %fpx; width: %fpx;",
             Float.of_int(offset_l) *. font_metrics.col_width,
             font_metrics.col_width *. Float.of_int(offset_r - offset_l),
           ),
@@ -181,7 +181,7 @@ let view_of_restructuring =
               Attr.create(
                 "style",
                 Printf.sprintf(
-                  "left: 0; top: %fpx; width: %fpx; height: %fpx;",
+                  "left: 0; top: calc(%fpx + 2px); width: %fpx; height: %fpx;",
                   (-0.15) *. font_metrics.row_height,
                   font_metrics.col_width *. Float.of_int(offset_r - offset_l),
                   font_metrics.row_height *. 1.3,
