@@ -155,12 +155,6 @@ let view_of_restructuring =
     );
   let (caret, flag) = {
     let selected_text = view_of_text(selected);
-    print_endline("-- 0 --");
-    print_endline("offset_l = " ++ string_of_int(offset_l));
-    selected_tiles
-    |> List.iter(((offset, _)) =>
-         print_endline("tile offset " ++ string_of_int(offset))
-       );
     let selected_tiles =
       List.map(
         view_of_tile(~font_metrics),
