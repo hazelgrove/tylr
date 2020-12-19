@@ -197,17 +197,8 @@ let view_of_restructuring =
       );
     (caret, flag);
   };
-  let (selected_tiles, target_tiles) =
-    TupleUtil.map2(
-      List.map(view_of_tile(~font_metrics)),
-      (selected_tiles, target_tiles),
-    );
-  List.concat([
-    empty_holes,
-    selected_tiles,
-    target_tiles,
-    [text, placeholder, caret, flag],
-  ]);
+  let target_tiles = List.map(view_of_tile(~font_metrics), target_tiles);
+  List.concat([empty_holes, target_tiles, [text, placeholder, caret, flag]]);
 };
 
 let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
