@@ -91,7 +91,7 @@ let view_of_selecting = (~font_metrics: FontMetrics.t, selection, e) => {
           "style",
           Printf.sprintf(
             "left: %fpx; top: calc(%fpx + 2px); width: %fpx; height: %fpx;",
-            (Float.of_int(offset_l) +. 0.5) *. font_metrics.col_width,
+            (Float.of_int(offset_l) -. 0.5) *. font_metrics.col_width,
             (-0.15) *. font_metrics.row_height,
             font_metrics.col_width *. Float.of_int(offset_r - offset_l),
             font_metrics.row_height *. 1.3,
@@ -142,7 +142,7 @@ let view_of_restructuring =
               "style",
               Printf.sprintf(
                 "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-                0.5 *. font_metrics.col_width,
+                (-0.5) *. font_metrics.col_width,
                 (-0.15) *. font_metrics.row_height,
                 font_metrics.col_width *. Float.of_int(offset_r - offset_l),
                 font_metrics.row_height *. 1.3,
@@ -155,6 +155,12 @@ let view_of_restructuring =
     );
   let (caret, flag) = {
     let selected_text = view_of_text(selected);
+    print_endline("-- 0 --");
+    print_endline("offset_l = " ++ string_of_int(offset_l));
+    selected_tiles
+    |> List.iter(((offset, _)) =>
+         print_endline("tile offset " ++ string_of_int(offset))
+       );
     let selected_tiles =
       List.map(
         view_of_tile(~font_metrics),
@@ -168,10 +174,9 @@ let view_of_restructuring =
           Attr.create(
             "style",
             Printf.sprintf(
-              "left: %fpx; top: %fpx; padding: 0 %fpx;",
-              (Float.of_int(offset_t) +. 0.5) *. font_metrics.col_width,
+              "left: %fpx; top: %fpx;",
+              Float.of_int(offset_t) *. font_metrics.col_width,
               (-1.3) *. font_metrics.row_height,
-              0.5 *. font_metrics.col_width,
             ),
           ),
         ],
@@ -182,7 +187,8 @@ let view_of_restructuring =
               Attr.create(
                 "style",
                 Printf.sprintf(
-                  "left: 0; top: calc(%fpx + 2px); width: %fpx; height: %fpx;",
+                  "left: %fpx; top: calc(%fpx + 2px); width: %fpx; height: %fpx;",
+                  (-0.5) *. font_metrics.col_width,
                   (-0.15) *. font_metrics.row_height,
                   font_metrics.col_width *. Float.of_int(offset_r - offset_l),
                   font_metrics.row_height *. 1.3,

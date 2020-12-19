@@ -122,7 +122,7 @@ module Common =
     switch (steps) {
     | [] =>
       let (prefix, _) = ListUtil.split_n(j, ts);
-      length(prefix);
+      length(prefix) + space;
     | [(tile_step, child_step), ...steps] =>
       let (prefix, tile, _) = ListUtil.split_nth(tile_step, ts);
       length(prefix)

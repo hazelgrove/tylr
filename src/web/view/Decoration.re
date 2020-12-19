@@ -514,7 +514,7 @@ module Tile = {
         profile.open_children
         |> List.map(((start, len)) =>
              List.concat([
-               [H({x: Float.of_int(start) +. tip})],
+               [H({x: Float.of_int(start - 1) +. tip})],
                tr_bl(),
                tl_br(~child_border=`South, ()),
                [H_({dx: Float.of_int(len)})],
@@ -702,7 +702,7 @@ module Caret = {
           "style",
           Printf.sprintf(
             "top: 0; left: %fpx",
-            (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
+            (Float.of_int(offset) -. 0.5) *. font_metrics.col_width,
           ),
         ),
       ],
