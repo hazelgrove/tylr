@@ -24,6 +24,8 @@
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
 
+  --selection-color: rgb(255, 230, 230);
+
   --hole-stroke-color: #dc322f;
   --empty-hole-fill-color: #ffef00;
 
@@ -40,13 +42,13 @@
   --action-key-color: whitesmoke;
 
   --open-child-z: 0;
-  --empty-hole-z: 1;
-  --err-hole-z: 1;
-  --tile-z: 2;
-  --inset-empty-hole-z: 3;
-  --code-text-z: 4;
-  --placeholder-z: 5;
-  --selection-box-z: 6;
+  --selection-box-z: 1;
+  --empty-hole-z: 2;
+  --err-hole-z: 2;
+  --tile-z: 3;
+  --inset-empty-hole-z: 4;
+  --code-text-z: 5;
+  --placeholder-z: 6;
   --caret-z: 7;
 }
 
@@ -125,7 +127,7 @@
   position: relative;
 }
 .selection-box {
-  border: 1.5px solid #e85d22;
+  background-color: var(--selection-color);
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
@@ -207,6 +209,9 @@
 }
 .tile-path.highlighted {
   stroke-width: 0.3;
+}
+.tile-path.selected {
+  fill: var(--selection-color);
 }
 .Exp.tile-path {
   stroke: var(--exp-shadow-color);

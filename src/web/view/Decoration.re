@@ -377,7 +377,10 @@ module Tile = {
   [@deriving sexp]
   type style =
     | Highlighted
-    | Unhighlighted(bool);
+    | Unhighlighted({
+        show_children: bool,
+        selected: bool,
+      });
 
   [@deriving sexp]
   type profile = {
@@ -535,7 +538,7 @@ module Tile = {
         ["tile-path", Sort.to_string(profile.sort)],
         switch (profile.style) {
         | Highlighted => ["highlighted"]
-        | Unhighlighted(_) => []
+        | Unhighlighted({selected, _}) => selected ? ["selected"] : []
         },
       ]);
     SvgUtil.Path.view(
@@ -601,7 +604,7 @@ module Tile = {
           EmptyHole.view(~offset=0, ~font_metrics, ~inset=Some(`Thick), ())
         | _ => []
         }
-      | Unhighlighted(show_children) =>
+      | Unhighlighted({show_children, _}) =>
         show_children
           ? []
           : profile.empty_holes
@@ -617,7 +620,7 @@ module Tile = {
       };
     let profile =
       switch (profile.style) {
-      | Unhighlighted(false) => {
+      | Unhighlighted({show_children: false, _}) => {
           ...profile,
           open_children: [],
           closed_children: [],

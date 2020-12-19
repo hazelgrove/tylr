@@ -261,18 +261,20 @@ module Common =
     |> shift_term_profile(offset_unzipped(unzipped));
 
   let selecting_tiles = (((steps_l, j_l), (steps_r, j_r)), ts) => {
-    let tile_profiles = show_children =>
-      tile_profiles(~style=Unhighlighted(show_children));
+    let tile_profiles = (~show_children, ~selected) =>
+      tile_profiles(~style=Unhighlighted({show_children, selected}));
     switch (steps_l, steps_r) {
     | ([], []) =>
       let (prefix, selected, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
       let (prefix_len, selected_len) =
         TupleUtil.map2(length, (prefix, selected));
-      let prefix = tile_profiles(true, prefix);
+      let prefix =
+        tile_profiles(~show_children=true, ~selected=false, prefix);
       let selected =
-        tile_profiles(false, selected) |> shift(prefix_len + space);
+        tile_profiles(~show_children=false, ~selected=true, selected)
+        |> shift(prefix_len + space);
       let suffix =
-        tile_profiles(true, suffix)
+        tile_profiles(~show_children=true, ~selected=false, suffix)
         |> shift(prefix_len + space + selected_len + space);
       (selected, prefix @ suffix);
     | ([], [(tile_step_r, child_step_r), ...steps_r]) =>
@@ -280,9 +282,11 @@ module Common =
       let (prefix, selected) = ListUtil.split_n(j_l, prefix);
       let (prefix_len, selected_len) =
         TupleUtil.map2(length, (prefix, selected));
-      let prefix = tile_profiles(false, prefix);
+      let prefix =
+        tile_profiles(~show_children=false, ~selected=false, prefix);
       let selected =
-        tile_profiles(false, selected) |> shift(prefix_len + space);
+        tile_profiles(~show_children=false, ~selected=true, selected)
+        |> shift(prefix_len + space);
       let (selected_r, targets_r) =
         Sort_specific.selecting_tiles_in_tile(
           (child_step_r, (([], 0), (steps_r, j_r))),
@@ -310,10 +314,10 @@ module Common =
         )
         |> TupleUtil.map2(shift(prefix_len + space));
       let selected =
-        tile_profiles(false, selected)
+        tile_profiles(~show_children=false, ~selected=true, selected)
         |> shift(prefix_len + space + tile_len + space);
       let suffix =
-        tile_profiles(false, suffix)
+        tile_profiles(~show_children=false, ~selected=false, suffix)
         |> shift(prefix_len + space + tile_len + space + selected_len + space);
       (selected_l @ selected, targets_l @ suffix);
     | ([two_step_l, ...steps_l], [two_step_r, ...steps_r])
@@ -348,7 +352,7 @@ module Common =
         )
         |> TupleUtil.map2(shift(prefix_len + space));
       let selected =
-        tile_profiles(false, selected)
+        tile_profiles(~show_children=false, ~selected=true, selected)
         |> shift(prefix_len + space + l_len + space);
       let (selected_r, targets_r) =
         Sort_specific.selecting_tiles_in_tile(
@@ -376,7 +380,11 @@ module Common =
     if (steps_t != steps_l && steps_t != steps_r) {
       let (selected_tiles, _) = selecting_tiles(selection, ts);
       let target_tiles =
-        tile_profiles_at(~style=Unhighlighted(true), fst(target), ts);
+        tile_profiles_at(
+          ~style=Unhighlighted({show_children: true, selected: false}),
+          fst(target),
+          ts,
+        );
       (selected_tiles, target_tiles);
     } else {
       selecting_tiles(selection, ts);
