@@ -258,6 +258,7 @@ module Common =
     term_profile(path, zipped)
     |> shift_term_profile(offset_unzipped(unzipped));
 
+  // recursion assumes restructuring not entered unless unmatched delim
   let selecting_tiles = (((steps_l, j_l), (steps_r, j_r)), ts) => {
     let tile_profiles = (~show_children, ~selected) =>
       tile_profiles(~style=Unhighlighted({show_children, selected}));
@@ -267,12 +268,12 @@ module Common =
       let (prefix_len, selected_len) =
         TupleUtil.map2(length, (prefix, selected));
       let prefix =
-        tile_profiles(~show_children=true, ~selected=false, prefix);
+        tile_profiles(~show_children=false, ~selected=false, prefix);
       let selected =
         tile_profiles(~show_children=false, ~selected=true, selected)
         |> shift(prefix_len + space);
       let suffix =
-        tile_profiles(~show_children=true, ~selected=false, suffix)
+        tile_profiles(~show_children=false, ~selected=false, suffix)
         |> shift(prefix_len + space + selected_len + space);
       (selected, prefix @ suffix);
     | ([], [(tile_step_r, child_step_r), ...steps_r]) =>

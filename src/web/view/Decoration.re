@@ -612,7 +612,7 @@ module Tile = {
         );
       | _ =>
         switch (profile.style) {
-        | Unhighlighted({show_children, _}) when !show_children =>
+        | Unhighlighted({show_children: false, _}) =>
           profile.empty_holes
           |> List.map(offset =>
                EmptyHole.view(~offset, ~font_metrics, ~inset=Some(`Thin), ())
