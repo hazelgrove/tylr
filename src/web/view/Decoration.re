@@ -596,27 +596,30 @@ module Tile = {
       )
       : list(Node.t) => {
     let empty_holes =
-      switch (profile.style) {
-      | Highlighted =>
-        switch (profile.shape) {
-        | Operand(true)
-        | BinOp(true) =>
-          EmptyHole.view(~offset=0, ~font_metrics, ~inset=Some(`Thick), ())
+      switch (profile.shape) {
+      | Operand(true)
+      | BinOp(true) =>
+        let inset_style =
+          switch (profile.style) {
+          | Highlighted => `Thick
+          | Unhighlighted(_) => `Thin
+          };
+        EmptyHole.view(
+          ~offset=0,
+          ~font_metrics,
+          ~inset=Some(inset_style),
+          (),
+        );
+      | _ =>
+        switch (profile.style) {
+        | Unhighlighted({show_children, _}) when !show_children =>
+          profile.empty_holes
+          |> List.map(offset =>
+               EmptyHole.view(~offset, ~font_metrics, ~inset=Some(`Thin), ())
+             )
+          |> List.flatten
         | _ => []
         }
-      | Unhighlighted({show_children, _}) =>
-        show_children
-          ? []
-          : profile.empty_holes
-            |> List.map(offset =>
-                 EmptyHole.view(
-                   ~offset,
-                   ~font_metrics,
-                   ~inset=Some(`Thin),
-                   (),
-                 )
-               )
-            |> List.flatten
       };
     let profile =
       switch (profile.style) {
