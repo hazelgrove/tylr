@@ -140,9 +140,7 @@ module Common =
     | _ =>
       Sort_specific.empty_holes_of_children(t)
       |> List.combine(children_offsets(t))
-      |> List.map(((offset, origins)) =>
-           List.map((+)(offset + space), origins)
-         )
+      |> List.map(((offset, origins)) => List.map((+)(offset), origins))
       |> List.flatten
     };
 
