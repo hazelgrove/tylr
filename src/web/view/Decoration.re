@@ -408,9 +408,9 @@ module Tile = {
         [
           Attr.id(id),
           Attr.create("gradientUnits", "userSpaceOnUse"),
-          Attr.create("x1", string_of_int(start)),
+          Attr.create("x1", string_of_int(start - 1)),
           // TODO unify with space
-          Attr.create("x2", string_of_int(start + len + 2)),
+          Attr.create("x2", string_of_int(start + len + 1)),
         ],
         NodeUtil.[
           stop(
@@ -463,7 +463,7 @@ module Tile = {
                  create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
                ],
              [
-               M({x: Float.of_int(start), y: 0.}),
+               M({x: Float.of_int(start - 1), y: 0.}),
                H_({dx: Float.of_int(len + 2)}),
              ],
            ),
