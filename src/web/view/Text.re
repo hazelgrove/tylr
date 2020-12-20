@@ -124,6 +124,19 @@ module Make =
         ~suffix,
         (),
       );
+    | ([two_step_l, ...steps_l], [two_step_r, ...steps_r])
+        when two_step_l == two_step_r =>
+      let (tile_step, child_step) = two_step_l;
+      let (pre, tile, suf) = ListUtil.split_nth(tile_step, ts);
+      let (pre, suf) = TupleUtil.map2(view, (pre, suf));
+      ZView.add(
+        pre,
+        suf,
+        S.view_of_selection_tile(
+          (child_step, ((steps_l, j_l), (steps_r, j_r))),
+          tile,
+        ),
+      );
     | (
         [(tile_step_l, child_step_l), ...steps_l],
         [(tile_step_r, child_step_r), ...steps_r],
