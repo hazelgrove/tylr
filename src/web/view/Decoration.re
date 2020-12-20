@@ -479,7 +479,7 @@ module Tile = {
       profile.closed_children
       |> List.map(((start, len)) =>
            List.concat([
-             [M({x: Float.of_int(start + 1), y: child_border_thickness})],
+             [M({x: Float.of_int(start), y: child_border_thickness})],
              tr_bl(~child_border=`North, ()),
              tl_br(~child_border=`South, ()),
              [H_({dx: Float.of_int(len)})],
