@@ -77,7 +77,10 @@ let view_of_selecting = (~font_metrics: FontMetrics.t, selection, e) => {
     Measured.Exp.offset(l, e),
     Measured.Exp.offset(r, e),
   );
-  let text = view_of_text(Text.Exp.view(e));
+  let text = {
+    let ZList.{prefix, z, suffix} = Text.Exp.view_of_selection(selection, e);
+    view_of_text(prefix @ z @ suffix);
+  };
   let empty_holes = empty_holes(~font_metrics, e);
   let tiles = {
     let (tiles, _) = Measured.Exp.selecting_tiles(selection, e);

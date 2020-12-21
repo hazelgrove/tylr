@@ -4,6 +4,9 @@ open Core;
 
 let space = ListUtil.join(Node.text(Unicode.nbsp));
 
+let emph_if = (b, node) =>
+  b ? Node.span([Attr.classes(["emph"])], [node]) : node;
+
 // operand
 let of_OperandHole = Node.text(Unicode.nbsp);
 let of_Var = x => Node.text(x);
@@ -31,10 +34,10 @@ module type SORT_INPUT = {
   module Z: ZTile.S with module T := T;
 
   let view_of_tile: T.t => list(Node.t);
-  let view_of_ztile: Z.ztile => ZView.t(unit);
+  let view_of_ztile: (~emph: bool=?, Z.ztile) => ZView.t(unit);
 
   let view_of_selection_tile:
-    ((ZPath.child_step, ZPath.ordered_selection), T.t) =>
+    (~emph: bool=?, (ZPath.child_step, ZPath.ordered_selection), T.t) =>
     ZView.t(list(Node.t));
 };
 
@@ -44,12 +47,13 @@ module type COMMON = {
 
   let view: T.s => list(Node.t);
   let view_of_z: Z.t => ZView.t(unit);
-  let view_of_unzipped: Z.unzipped => ZView.t(unit);
+  let view_of_unzipped: (~emph: bool=?, Z.unzipped) => ZView.t(unit);
 
   let view_of_selection:
     (ZPath.ordered_selection, T.s) => ZView.t(list(Node.t));
   let view_of_selection_zipper:
-    (ZPath.ordered_selection, Z.zipper) => ZView.t(list(Node.t));
+    (~emph: bool=?, ZPath.ordered_selection, Z.zipper) =>
+    ZView.t(list(Node.t));
 };
 
 module type TYP = {
@@ -73,10 +77,10 @@ module Make =
        ) => {
   let view = ts => ts |> List.map(S.view_of_tile) |> List.flatten;
 
-  let view_of_unzipped = (unzipped: Z.unzipped): ZView.t(unit) =>
+  let view_of_unzipped = (~emph=false, unzipped: Z.unzipped): ZView.t(unit) =>
     switch (unzipped) {
     | None => ZList.mk(~z=(), ())
-    | Some(ztile) => S.view_of_ztile(ztile)
+    | Some(ztile) => S.view_of_ztile(~emph, ztile)
     };
 
   let view_of_z = ({prefix, suffix, z}: Z.t): ZView.t(unit) => {
@@ -100,7 +104,7 @@ module Make =
         TupleUtil.map3(view, (prefix, selected, suffix));
       let ZList.{prefix: selected_r, z: _, suffix: unselected_r} = {
         let r = (steps_r, j_r);
-        S.view_of_selection_tile((child_step_r, (r, r)), tile);
+        S.view_of_selection_tile(~emph=true, (child_step_r, (r, r)), tile);
       };
       ZList.mk(
         ~prefix,
@@ -116,7 +120,7 @@ module Make =
         TupleUtil.map3(view, (prefix, selected, suffix));
       let ZList.{prefix: unselected_l, z: _, suffix: selected_l} = {
         let l = (steps_l, j_l);
-        S.view_of_selection_tile((child_step_l, (l, l)), tile);
+        S.view_of_selection_tile(~emph=true, (child_step_l, (l, l)), tile);
       };
       ZList.mk(
         ~prefix=prefix @ unselected_l,
@@ -129,7 +133,7 @@ module Make =
       let (tile_step, child_step) = two_step_l;
       let (pre, tile, suf) = ListUtil.split_nth(tile_step, ts);
       let (pre, suf) = TupleUtil.map2(view, (pre, suf));
-      ZView.add(
+      ZView.wrap(
         pre,
         suf,
         S.view_of_selection_tile(
@@ -147,11 +151,19 @@ module Make =
         TupleUtil.map3(view, (prefix, mid, suffix));
       let ZList.{prefix: unselected_l, z: _, suffix: selected_l} = {
         let l = (steps_l, j_l);
-        S.view_of_selection_tile((child_step_l, (l, l)), tile_l);
+        S.view_of_selection_tile(
+          ~emph=true,
+          (child_step_l, (l, l)),
+          tile_l,
+        );
       };
       let ZList.{prefix: selected_r, z: _, suffix: unselected_r} = {
         let r = (steps_r, j_r);
-        S.view_of_selection_tile((child_step_r, (r, r)), tile_r);
+        S.view_of_selection_tile(
+          ~emph=true,
+          (child_step_r, (r, r)),
+          tile_r,
+        );
       };
       ZList.mk(
         ~prefix=prefix @ unselected_l,
@@ -162,8 +174,9 @@ module Make =
     };
   };
 
-  let view_of_selection_zipper = (selection, (zipped, unzipped)) => {
-    let ZList.{prefix: pre, z: (), suffix: suf} = view_of_unzipped(unzipped);
+  let view_of_selection_zipper = (~emph=false, selection, (zipped, unzipped)) => {
+    let ZList.{prefix: pre, z: (), suffix: suf} =
+      view_of_unzipped(~emph, unzipped);
     let ZList.{prefix, z, suffix} = view_of_selection(selection, zipped);
     ZList.mk(~prefix=pre @ prefix, ~z, ~suffix=suffix @ suf, ());
   };
@@ -190,26 +203,27 @@ module rec Typ: TYP = {
       | Arrow => [of_Arrow],
     );
 
-  let view_of_ztile =
+  let view_of_ztile = (~emph=false) =>
     Tile.get(
       fun
       | ParenZ_body(zty) => {
-          let (l, r) = of_Paren;
-          ZView.add([l], [r], Typ.view_of_z(zty));
+          let (l, r) = TupleUtil.map2(emph_if(emph), of_Paren);
+          ZView.insert([l], [r], Typ.view_of_z(zty));
         },
       () => raise(Void_ZPreOp),
       fun
       | AnnZ_ann(_, zp) => {
-          let (l, r) = of_Ann;
-          ZView.add([l], [r], Pat.view_of_z(zp));
+          let (l, r) = TupleUtil.map2(emph_if(emph), of_Ann);
+          ZView.insert([l], [r], Pat.view_of_z(zp));
         },
       () => raise(Void_ZBinOp),
     );
 
   let view_of_selection_tile =
-      ((child_step, selection), tile: HTyp.T.t): ZView.t(list(Node.t)) => {
+      (~emph=false, (child_step, selection), tile: HTyp.T.t)
+      : ZView.t(list(Node.t)) => {
     let `Typ(zipper) = ZPath.Typ.unzip_tile(child_step, tile, ZTyp.mk());
-    Typ.view_of_selection_zipper(selection, zipper);
+    Typ.view_of_selection_zipper(~emph, selection, zipper);
   };
 
   include Make(HTyp.T, ZTyp, Typ);
@@ -237,31 +251,31 @@ and Pat: PAT = {
       | OperatorHole => [of_OperatorHole],
     );
 
-  let view_of_ztile =
+  let view_of_ztile = (~emph=false) =>
     Tile.get(
       fun
       | ParenZ_body(zp) => {
-          let (l, r) = of_Paren;
-          ZView.add([l], [r], Pat.view_of_z(zp));
+          let (l, r) = TupleUtil.map2(emph_if(emph), of_Paren);
+          ZView.insert([l], [r], Pat.view_of_z(zp));
         },
       fun
       | LamZ_pat(_, ze) => {
-          let (l, r) = of_Lam;
-          ZView.add([l], [r], Exp.view_of_z(ze));
+          let (l, r) = TupleUtil.map2(emph_if(emph), of_Lam);
+          ZView.insert([l], [r], Exp.view_of_z(ze));
         }
       | LetZ_pat(ze, def) => {
-          let (let_, eq, in_) = of_Let;
+          let (let_, eq, in_) = TupleUtil.map3(emph_if(emph), of_Let);
           let def = Exp.view(def);
-          ZView.add([let_], [eq, ...def] @ [in_], Exp.view_of_z(ze));
+          ZView.insert([let_], [eq, ...def] @ [in_], Exp.view_of_z(ze));
         },
       () => raise(Void_ZPostOp),
       () => raise(Void_ZBinOp),
     );
 
-  let view_of_selection_tile = ((child_step, selection), tile) =>
+  let view_of_selection_tile = (~emph=false, (child_step, selection), tile) =>
     switch (ZPath.Pat.unzip_tile(child_step, tile, ZPat.mk())) {
-    | `Typ(zipper) => Typ.view_of_selection_zipper(selection, zipper)
-    | `Pat(zipper) => Pat.view_of_selection_zipper(selection, zipper)
+    | `Typ(zipper) => Typ.view_of_selection_zipper(~emph, selection, zipper)
+    | `Pat(zipper) => Pat.view_of_selection_zipper(~emph, selection, zipper)
     };
 
   include Make(HPat.T, ZPat, Pat);
@@ -299,32 +313,32 @@ and Exp: EXP = {
       | Plus(_) => [of_Plus],
     );
 
-  let view_of_ztile =
+  let view_of_ztile = (~emph=false) =>
     Tile.get(
       fun
       | ParenZ_body(ze) => {
-          let (l, r) = of_Paren;
-          ZView.add([l], [r], Exp.view_of_z(ze));
+          let (l, r) = TupleUtil.map2(emph_if(emph), of_Paren);
+          ZView.insert([l], [r], Exp.view_of_z(ze));
         },
       fun
       | LetZ_def(p, ze) => {
-          let (let_, eq, in_) = of_Let;
+          let (let_, eq, in_) = TupleUtil.map3(emph_if(emph), of_Let);
           let p = Pat.view(p);
-          ZView.add([let_, ...p] @ [eq], [in_], Exp.view_of_z(ze));
+          ZView.insert([let_, ...p] @ [eq], [in_], Exp.view_of_z(ze));
         },
       fun
       | ApZ_arg(_, ze) => {
-          let (l, r) = of_Paren;
-          ZView.add([l], [r], Exp.view_of_z(ze));
+          let (l, r) = TupleUtil.map2(emph_if(emph), of_Paren);
+          ZView.insert([l], [r], Exp.view_of_z(ze));
         },
       () =>
       raise(ZExp.Void_ZBinOp)
     );
 
-  let view_of_selection_tile = ((child_step, selection), tile) =>
+  let view_of_selection_tile = (~emph=false, (child_step, selection), tile) =>
     switch (ZPath.Exp.unzip_tile(child_step, tile, ZExp.mk())) {
-    | `Pat(zipper) => Pat.view_of_selection_zipper(selection, zipper)
-    | `Exp(zipper) => Exp.view_of_selection_zipper(selection, zipper)
+    | `Pat(zipper) => Pat.view_of_selection_zipper(~emph, selection, zipper)
+    | `Exp(zipper) => Exp.view_of_selection_zipper(~emph, selection, zipper)
     };
 
   include Make(HExp.T, ZExp, Exp);

@@ -306,3 +306,7 @@
 #action-table .construct-shape {
   justify-self: left;
 }
+
+.emph {
+  color: rgb(210, 82, 82);
+}
