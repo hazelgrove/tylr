@@ -50,7 +50,7 @@ module type COMMON = {
   let view_of_unzipped: (~emph: bool=?, Z.unzipped) => ZView.t(unit);
 
   let view_of_selection:
-    (ZPath.ordered_selection, T.s) => ZView.t(list(Node.t));
+    (~emph: bool=?, ZPath.ordered_selection, T.s) => ZView.t(list(Node.t));
   let view_of_selection_zipper:
     (~emph: bool=?, ZPath.ordered_selection, Z.zipper) =>
     ZView.t(list(Node.t));
@@ -90,7 +90,7 @@ module Make =
     ZList.mk(~prefix, ~z=(), ~suffix, ());
   };
 
-  let view_of_selection = (selection, ts) => {
+  let view_of_selection = (~emph=false, selection, ts) => {
     let ((steps_l, j_l), (steps_r, j_r)) = selection;
     switch (steps_l, steps_r) {
     | ([], []) =>
@@ -137,6 +137,7 @@ module Make =
         pre,
         suf,
         S.view_of_selection_tile(
+          ~emph,
           (child_step, ((steps_l, j_l), (steps_r, j_r))),
           tile,
         ),
@@ -177,7 +178,8 @@ module Make =
   let view_of_selection_zipper = (~emph=false, selection, (zipped, unzipped)) => {
     let ZList.{prefix: pre, z: (), suffix: suf} =
       view_of_unzipped(~emph, unzipped);
-    let ZList.{prefix, z, suffix} = view_of_selection(selection, zipped);
+    let ZList.{prefix, z, suffix} =
+      view_of_selection(~emph, selection, zipped);
     ZList.mk(~prefix=pre @ prefix, ~z, ~suffix=suffix @ suf, ());
   };
 };
