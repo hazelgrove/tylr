@@ -614,7 +614,7 @@ module rec Typ: TYP = {
 
     let restructure =
         (
-          ~place_cursor: [ | `Selection | `Other] as 'pc,
+          ~place_cursor: [ | `Selection | `Other],
           (two_step, (l, r), target),
           ty: HTyp.t,
         )

@@ -23,129 +23,62 @@ module Make =
   let mk_hole = (): T.s => [T.mk_operand_hole()];
   let dummy_hole = mk_hole();
 
+  // Assumes prefix and suffix are internally structurally correct,
+  // only fixes things at prefix/suffix interface.
+  // Puts new empty holes on suffix.
   let fix_empty_holes = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
-    let go_prefix = (tiles: T.s) => {
-      let rec go_operand = (tiles: T.s) => {
-        switch (tiles) {
-        | [] => []
-        | [t1, t2, ...ts]
-            when T.is_operand_hole(t1) && T.is_operator_hole(t2) =>
-          go_operand(ts)
-        | [t1, t2, ...ts] when T.is_operand_hole(t1) && Tile.is_operand(t2) =>
-          go_operand([t2, ...ts])
-        | [t, ...ts] when T.is_operator_hole(t) => go_operand(ts)
-        | [t, ...ts] =>
-          switch (t) {
-          | PreOp(_) => [t, ...go_operand(ts)]
-          | Operand(_) => [t, ...go_operator(ts)]
+    switch (ListUtil.split_last_opt(prefix), suffix) {
+    | (None, []) => ([], [T.mk_operand_hole()])
+    | (None, [first, ...trailing]) =>
+      let suffix =
+        if (T.is_operator_hole(first)) {
+          trailing;
+        } else {
+          switch (first) {
+          | Operand(_)
+          | PreOp(_) => suffix
           | PostOp(_)
-          | BinOp(_) => [T.mk_operand_hole(), ...go_operator(tiles)]
-          }
+          | BinOp(_) => [T.mk_operand_hole(), ...suffix]
+          };
         };
-      }
-      and go_operator = (tiles: T.s) => {
-        switch (tiles) {
-        | [] => []
-        | [t1, t2, ...ts]
-            when T.is_operator_hole(t1) && T.is_operand_hole(t2) =>
-          go_operator(ts)
-        | [t1, t2, ...ts] when T.is_operator_hole(t1) && Tile.is_binop(t2) =>
-          go_operator([t2, ...ts])
-        | [t, ...ts] when T.is_operand_hole(t) => go_operator(ts)
-        | [t, ...ts] =>
-          switch (t) {
-          | PostOp(_) => [t, ...go_operator(ts)]
-          | BinOp(_) => [t, ...go_operand(ts)]
+      ([], suffix);
+    | (Some((leading, last)), []) =>
+      let prefix =
+        if (T.is_operator_hole(last)) {
+          leading;
+        } else {
+          switch (last) {
+          | Operand(_)
+          | PostOp(_) => prefix
           | PreOp(_)
-          | Operand(_) => [T.mk_operator_hole(), ...go_operand(tiles)]
-          }
+          | BinOp(_) => prefix @ [T.mk_operand_hole()]
+          };
         };
-      };
-      go_operand(tiles);
-    };
-
-    let go_suffix = (tiles: T.s) => {
-      let rec go_operand = (tiles: T.s) => {
-        switch (tiles) {
-        | [] => []
-        | [t1, t2, ...ts]
-            when T.is_operand_hole(t1) && T.is_operator_hole(t2) =>
-          go_operand(ts)
-        | [t1, t2, ...ts] when T.is_operand_hole(t1) && Tile.is_operand(t2) =>
-          go_operand([t2, ...ts])
-        | [t, ...ts] when T.is_operator_hole(t) => go_operand(ts)
-        | [t, ...ts] =>
-          switch (t) {
-          | PostOp(_) => [t, ...go_operand(ts)]
-          | Operand(_) => [t, ...go_operator(ts)]
-          | PreOp(_)
-          | BinOp(_) => [T.mk_operand_hole(), ...go_operator(tiles)]
-          }
-        };
-      }
-      and go_operator = (tiles: T.s) => {
-        switch (tiles) {
-        | [] => []
-        | [t1, t2, ...ts]
-            when T.is_operator_hole(t1) && T.is_operand_hole(t2) =>
-          go_operator(ts)
-        | [t1, t2, ...ts] when T.is_operator_hole(t1) && Tile.is_binop(t2) =>
-          go_operator([t2, ...ts])
-        | [t, ...ts] when T.is_operand_hole(t) => go_operator(ts)
-        | [t, ...ts] =>
-          switch (t) {
-          | PreOp(_) => [t, ...go_operator(ts)]
-          | BinOp(_) => [t, ...go_operand(ts)]
-          | PostOp(_)
-          | Operand(_) => [T.mk_operator_hole(), ...go_operand(tiles)]
-          }
-        };
-      };
-      go_operand(tiles);
-    };
-
-    let prefix = go_prefix(prefix);
-    let suffix = List.rev(go_suffix(List.rev(suffix)));
-    switch (ListUtil.last_opt(prefix), ListUtil.hd_opt(suffix)) {
-    | (None, None) => ([], [T.mk_operand_hole()])
-    | (None, Some(Operand(_) | PreOp(_)))
-    | (Some(Operand(_) | PostOp(_)), None) => (prefix, suffix)
-    | (None, Some(PostOp(_) | BinOp(_)))
-    | (Some(PreOp(_) | BinOp(_)), None) => (
-        prefix,
-        [T.mk_operand_hole(), ...suffix],
-      )
-    | (Some(t1), Some(t2)) =>
-      if (T.is_operand_hole(t1)
-          && T.is_operator_hole(t2)
-          || T.is_operator_hole(t1)
-          && T.is_operand_hole(t2)) {
-        let (prefix, _) = ListUtil.split_last(prefix);
-        let suffix = List.tl(suffix);
-        (prefix, suffix);
-      } else if (T.is_operand_hole(t1)
-                 && Tile.is_operand(t2)
-                 || T.is_operator_hole(t1)
-                 && Tile.is_binop(t2)) {
-        let (prefix, _) = ListUtil.split_last(prefix);
-        (prefix, suffix);
-      } else if (Tile.is_operand(t1)
-                 && T.is_operand_hole(t2)
-                 || Tile.is_binop(t2)
-                 && T.is_operator_hole(t2)) {
-        (prefix, List.tl(suffix));
-      } else {
-        switch (t1, t2) {
-        | (Operand(_) | PostOp(_), Operand(_) | PreOp(_)) => (
-            prefix,
-            [T.mk_operator_hole(), ...suffix],
-          )
-        | (PreOp(_) | BinOp(_), PostOp(_) | BinOp(_)) => (
-            prefix,
-            [T.mk_operand_hole(), ...suffix],
-          )
-        | _ => (prefix, suffix)
-        };
+      (prefix, []);
+    | (Some((leading, last)), [first, ...trailing]) =>
+      switch (last, first) {
+      | (Operand(_) | PostOp(_), Operand(_) | PreOp(_)) =>
+        if (T.is_operand_hole(first)) {
+          (prefix, trailing);
+        } else if (T.is_operand_hole(last)) {
+          (leading, suffix);
+        } else {
+          (prefix, [T.mk_operator_hole(), ...suffix]);
+        }
+      | (BinOp(_) | PreOp(_), BinOp(_) | PostOp(_)) =>
+        if (T.is_operator_hole(first)) {
+          (prefix, trailing);
+        } else if (T.is_operator_hole(last)) {
+          (leading, suffix);
+        } else {
+          (prefix, [T.mk_operand_hole(), ...suffix]);
+        }
+      | _ =>
+        T.is_operand_hole(last)
+        && T.is_operator_hole(first)
+        || T.is_operator_hole(last)
+        && T.is_operand_hole(first)
+          ? (leading, trailing) : (prefix, suffix)
       }
     };
   };

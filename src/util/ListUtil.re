@@ -126,6 +126,12 @@ let split_last = (xs: list('x)): (list('x), 'x) =>
   };
 let leading = xs => fst(split_last(xs));
 
+let split_first = (xs: list('x)): ('x, list('x)) =>
+  switch (xs) {
+  | [] => raise(Invalid_argument("ListUtil.split_first"))
+  | [first, ...trailing] => (first, trailing)
+  };
+
 let rec fold_left_map =
         (f: ('acc, 'x) => ('acc, 'y), start: 'acc, xs: list('x))
         : ('acc, list('y)) =>
