@@ -23,38 +23,10 @@ module Make =
   let mk_hole = (): T.s => [T.mk_operand_hole()];
   let dummy_hole = mk_hole();
 
-  // Assumes prefix and suffix are internally structurally correct,
-  // only fixes things at prefix/suffix interface.
-  // Puts new empty holes on suffix.
-  let fix_empty_holes = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
+  let fix_empty_holes_between = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
     switch (ListUtil.split_last_opt(prefix), suffix) {
-    | (None, []) => ([], [T.mk_operand_hole()])
-    | (None, [first, ...trailing]) =>
-      let suffix =
-        if (T.is_operator_hole(first)) {
-          trailing;
-        } else {
-          switch (first) {
-          | Operand(_)
-          | PreOp(_) => suffix
-          | PostOp(_)
-          | BinOp(_) => [T.mk_operand_hole(), ...suffix]
-          };
-        };
-      ([], suffix);
-    | (Some((leading, last)), []) =>
-      let prefix =
-        if (T.is_operator_hole(last)) {
-          leading;
-        } else {
-          switch (last) {
-          | Operand(_)
-          | PostOp(_) => prefix
-          | PreOp(_)
-          | BinOp(_) => prefix @ [T.mk_operand_hole()]
-          };
-        };
-      (prefix, []);
+    | (None, _)
+    | (_, []) => (prefix, suffix)
     | (Some((leading, last)), [first, ...trailing]) =>
       switch (last, first) {
       | (Operand(_) | PostOp(_), Operand(_) | PreOp(_)) =>
@@ -80,6 +52,55 @@ module Make =
         && T.is_operand_hole(first)
           ? (leading, trailing) : (prefix, suffix)
       }
+    };
+  };
+
+  let fix_empty_holes_left = (ts: T.s): T.s =>
+    switch (ts) {
+    | [] => [T.mk_operand_hole()]
+    | [t, ...ts] =>
+      let left_cap =
+        switch (t) {
+        | _ when T.is_operator_hole(t) => []
+        | Operand(_)
+        | PreOp(_) => [t]
+        | PostOp(_)
+        | BinOp(_) => [T.mk_operand_hole(), t]
+        };
+      left_cap @ ts;
+    };
+
+  let fix_empty_holes_right = (ts: T.s): T.s =>
+    switch (ListUtil.split_last_opt(ts)) {
+    | None => [T.mk_operand_hole()]
+    | Some((ts, t)) =>
+      let right_cap =
+        switch (t) {
+        | _ when T.is_operator_hole(t) => []
+        | Operand(_)
+        | PostOp(_) => [t]
+        | PreOp(_)
+        | BinOp(_) => [t, T.mk_operand_hole()]
+        };
+      ts @ right_cap;
+    };
+
+  // Assumes prefix and suffix are internally structurally correct,
+  // only fixes things at prefix/suffix interface and at ends.
+  // Puts new empty holes on suffix.
+  let fix_empty_holes = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
+    let (prefix, suffix) = fix_empty_holes_between(prefix, suffix);
+    switch (prefix, suffix) {
+    | ([], _) =>
+      let suffix = fix_empty_holes_left(fix_empty_holes_right(suffix));
+      (prefix, suffix);
+    | (_, []) =>
+      let prefix = fix_empty_holes_right(fix_empty_holes_left(prefix));
+      (prefix, suffix);
+    | _ =>
+      let prefix = fix_empty_holes_left(prefix);
+      let suffix = fix_empty_holes_right(suffix);
+      (prefix, suffix);
     };
   };
 
