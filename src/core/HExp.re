@@ -26,11 +26,11 @@ module T = {
     | Plus(HoleStatus.t)
     | BinHole;
 
-  let mk_op_hole = (): t => Op(OpHole);
-  let mk_bin_hole = (): t => Bin(BinHole);
+  let mk_op_hole = () => OpHole;
+  let mk_bin_hole = () => BinHole;
 
-  let is_op_hole: t => bool = (==)(Tile.Op(OpHole));
-  let is_bin_hole: t => bool = (==)(Tile.Bin(BinHole));
+  let is_op_hole = (==)(OpHole);
+  let is_bin_hole = (==)(BinHole);
 
   let precedence: t => int =
     Tile.get(

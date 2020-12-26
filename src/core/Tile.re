@@ -61,11 +61,11 @@ module type S = {
   [@deriving sexp]
   type s = list(t);
 
-  let mk_op_hole: unit => t;
-  let mk_bin_hole: unit => t;
+  let mk_op_hole: unit => op;
+  let mk_bin_hole: unit => bin;
 
-  let is_op_hole: t => bool;
-  let is_bin_hole: t => bool;
+  let is_op_hole: op => bool;
+  let is_bin_hole: bin => bool;
 
   let precedence: t => int;
   let associativity: Util.IntMap.t(Associativity.t);

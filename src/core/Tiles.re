@@ -16,7 +16,7 @@ module Make =
        } => {
   open Util;
 
-  let mk_hole = (): T.s => [T.mk_op_hole()];
+  let mk_hole = (): T.s => [Tile.Op(T.mk_op_hole())];
   let dummy_hole = mk_hole();
 
   let fix_empty_holes_between = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
@@ -25,28 +25,33 @@ module Make =
     | (_, []) => (prefix, suffix)
     | (Some((leading, last)), [first, ...trailing]) =>
       switch (last, first) {
-      | (Op(_) | Post(_), Op(_) | Pre(_)) =>
-        if (T.is_op_hole(first)) {
-          (prefix, trailing);
-        } else if (T.is_op_hole(last)) {
-          (leading, suffix);
-        } else {
-          (prefix, [T.mk_bin_hole(), ...suffix]);
-        }
-      | (Bin(_) | Pre(_), Bin(_) | Post(_)) =>
-        if (T.is_bin_hole(first)) {
-          (prefix, trailing);
-        } else if (T.is_bin_hole(last)) {
-          (leading, suffix);
-        } else {
-          (prefix, [T.mk_op_hole(), ...suffix]);
-        }
-      | _ =>
-        T.is_op_hole(last)
-        && T.is_bin_hole(first)
-        || T.is_bin_hole(last)
-        && T.is_op_hole(first)
-          ? (leading, trailing) : (prefix, suffix)
+      | (Op(op), Bin(bin))
+      | (Bin(bin), Op(op)) when T.is_op_hole(op) && T.is_bin_hole(bin) => (
+          leading,
+          trailing,
+        )
+      | (Op(op), Op(_) | Pre(_)) when T.is_op_hole(op) => (leading, suffix)
+      | (Op(_) | Post(_), Op(op)) when T.is_op_hole(op) => (
+          prefix,
+          trailing,
+        )
+      | (Op(_) | Post(_), Op(_) | Pre(_)) => (
+          prefix,
+          [Bin(T.mk_bin_hole()), ...suffix],
+        )
+      | (Bin(bin), Bin(_) | Post(_)) when T.is_bin_hole(bin) => (
+          leading,
+          suffix,
+        )
+      | (Bin(_) | Pre(_), Bin(bin)) when T.is_bin_hole(bin) => (
+          prefix,
+          trailing,
+        )
+      | (Bin(_) | Pre(_), Bin(_) | Post(_)) => (
+          prefix,
+          [Op(T.mk_op_hole()), ...suffix],
+        )
+      | _ => (prefix, suffix)
       }
     };
   };
