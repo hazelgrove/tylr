@@ -264,14 +264,11 @@ let rec perform_normal =
     }
   };
 
-let rec perform_selecting =
-        (
-          a: t,
-          selection: ZPath.anchored_selection,
-          zipper: EditState.Zipper.t,
-        )
-        : option(EditState.t) =>
+let perform_selecting =
+    (a: t, selection: ZPath.anchored_selection, zipper: EditState.Zipper.t)
+    : option(EditState.t) =>
   switch (a) {
+  | Delete(_)
   | Mark =>
     let (ordered, _) = ZPath.mk_ordered_selection(selection);
     Some((Restructuring(ordered, fst(ordered)), zipper));
@@ -279,36 +276,6 @@ let rec perform_selecting =
   | Move(d) =>
     let+ (selection, zipper) = move_selecting(d, selection, zipper);
     (EditState.Mode.Selecting(selection), zipper);
-
-  | Delete(_) =>
-    let (ordered, _) = ZPath.mk_ordered_selection(selection);
-    let ((steps_l, _j_l), (steps_r, _j_r)) = ordered;
-    if (steps_l == steps_r) {
-      failwith("todo");
-    } else {
-      perform_selecting(Mark, selection, zipper);
-    };
-
-  /*
-   | (
-       Delete(_) | Construct(_),
-       (
-         Selecting({
-           anchor: ([two_step_l, ...steps_l], j_l),
-           focus: ([two_step_r, ...steps_r], j_r),
-         }),
-         zipper,
-       ),
-     )
-       when two_step_l == two_step_r =>
-     let mode =
-       EditState.Mode.Selecting({
-         anchor: (steps_l, j_l),
-         focus: (steps_r, j_r),
-       });
-     let zipper = EditState.Zipper.unzip(two_step_l, zipper);
-     perform(a, (mode, zipper));
-   */
 
   | Construct(_) =>
     // TODO
