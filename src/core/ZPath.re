@@ -461,16 +461,16 @@ module rec Typ: TYP = {
   let zip_ztile =
       (subject: HTyp.t, ztile: ZTyp.ztile): (two_step, zip_result) =>
     switch (ztile) {
-    | Operand(ParenZ_body(zty)) =>
+    | Op(ParenZ_body(zty)) =>
       let (tile_step, (ty, zrest)) =
-        zip([Tile.Operand(HTyp.T.Paren(subject))], zty);
+        zip([Tile.Op(HTyp.T.Paren(subject))], zty);
       ((tile_step, 0), `Typ((ty, zrest)));
-    | PreOp () => raise(ZTyp.Void_ZPreOp)
-    | PostOp(AnnZ_ann(status, zp)) =>
+    | Pre () => raise(ZTyp.Void_zpre)
+    | Post(AnnZ_ann(status, zp)) =>
       let (tile_step, (p, zrest)) =
-        Pat.zip([Tile.PostOp(HPat.T.Ann(status, subject))], zp);
+        Pat.zip([Tile.Post(HPat.T.Ann(status, subject))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
-    | BinOp () => raise(ZTyp.Void_ZBinOp)
+    | Bin () => raise(ZTyp.Void_zbin)
     };
 
   type unzip_result = [ | `Typ(ZTyp.zipper)];
@@ -481,17 +481,17 @@ module rec Typ: TYP = {
       tile
       |> Tile.get(
            fun
-           | OperandHole
+           | OpHole
            | Num
            | Bool => invalid()
            | Paren(body) =>
              r == 0
-               ? `Typ((body, Some(Tile.Operand(ZTyp.ParenZ_body(zty)))))
+               ? `Typ((body, Some(Tile.Op(ZTyp.ParenZ_body(zty)))))
                : invalid(),
-           () => raise(Void_PreOp),
-           () => raise(Void_PostOp),
+           () => raise(Void_pre),
+           () => raise(Void_post),
            fun
-           | OperatorHole
+           | BinHole
            | Arrow => invalid(),
          )
     );
@@ -520,14 +520,14 @@ module rec Typ: TYP = {
     HTyp.T.(
       Tile.get(
         fun
-        | OperandHole
+        | OpHole
         | Num
         | Bool => []
         | Paren(_) => filter == Some(`Closed) ? [] : [0],
-        () => raise(Void_PreOp),
-        () => raise(Void_PostOp),
+        () => raise(Void_pre),
+        () => raise(Void_post),
         fun
-        | OperatorHole
+        | BinHole
         | Arrow => [],
       )
     );
@@ -543,22 +543,22 @@ module rec Typ: TYP = {
     let unzip_cis = (two_step, ty) => {
       let `Typ(ty, unzipped) = unzip(two_step, (ty, None));
       switch (Option.get(unzipped)) {
-      | Operand(ParenZ_body({prefix, suffix, _})) =>
+      | Op(ParenZ_body({prefix, suffix, _})) =>
         Some(ZList.{prefix, z: ty, suffix})
-      | PreOp () => raise(ZTyp.Void_ZPreOp)
-      | PostOp(AnnZ_ann(_)) => raise(Unzip_rezip_changes_sort)
-      | BinOp () => raise(ZTyp.Void_ZBinOp)
+      | Pre () => raise(ZTyp.Void_zpre)
+      | Post(AnnZ_ann(_)) => raise(Unzip_rezip_changes_sort)
+      | Bin () => raise(ZTyp.Void_zbin)
       };
     };
 
     let enter_from =
         (d: Direction.t, tile: HTyp.T.t): option((child_step, caret_step)) =>
       switch (tile) {
-      | Operand(OperandHole | Num | Bool)
-      | BinOp(OperatorHole | Arrow) => None
-      | Operand(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | PreOp () => raise(HTyp.T.Void_PreOp)
-      | PostOp () => raise(HTyp.T.Void_PostOp)
+      | Op(OpHole | Num | Bool)
+      | Bin(BinHole | Arrow) => None
+      | Op(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
+      | Pre () => raise(HTyp.T.Void_pre)
+      | Post () => raise(HTyp.T.Void_post)
       };
 
     let move = (d, (child_step, path), tile) => {
@@ -571,10 +571,10 @@ module rec Typ: TYP = {
           |> Tile.get(
                fun
                | ParenZ_body(_) => None,
-               () => raise(Void_ZPreOp),
+               () => raise(Void_zpre),
                fun
                | AnnZ_ann(_) => raise(Unzip_rezip_changes_sort),
-               () => raise(Void_ZBinOp),
+               () => raise(Void_zbin),
              )
         )
       };
@@ -641,20 +641,19 @@ and Pat: PAT = {
   );
   let zip_ztile = (p: HPat.t, ztile: ZPat.ztile): (two_step, zip_result) =>
     switch (ztile) {
-    | Operand(ParenZ_body(zp)) =>
-      let (tile_step, (p, zrest)) =
-        zip([Tile.Operand(HPat.T.Paren(p))], zp);
+    | Op(ParenZ_body(zp)) =>
+      let (tile_step, (p, zrest)) = zip([Tile.Op(HPat.T.Paren(p))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
-    | PreOp(LamZ_pat(status, ze)) =>
+    | Pre(LamZ_pat(status, ze)) =>
       let (tile_step, (e, zrest)) =
-        Exp.zip([Tile.PreOp(HExp.T.Lam(status, p))], ze);
+        Exp.zip([Tile.Pre(HExp.T.Lam(status, p))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | PreOp(LetZ_pat(ze, def)) =>
+    | Pre(LetZ_pat(ze, def)) =>
       let (tile_step, (e, zrest)) =
-        Exp.zip([Tile.PreOp(HExp.T.Let(p, def))], ze);
+        Exp.zip([Tile.Pre(HExp.T.Let(p, def))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | PostOp () => raise(ZPat.Void_ZPostOp)
-    | BinOp () => raise(ZPat.Void_ZBinOp)
+    | Post () => raise(ZPat.Void_zpost)
+    | Bin () => raise(ZPat.Void_zbin)
     };
 
   type unzip_result = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
@@ -665,20 +664,20 @@ and Pat: PAT = {
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Var(_) => invalid()
          | Paren(body) =>
            r == 0
-             ? `Pat((body, Some(Tile.Operand(ZPat.ParenZ_body(zp)))))
+             ? `Pat((body, Some(Tile.Op(ZPat.ParenZ_body(zp)))))
              : invalid(),
-         () => raise(Void_PreOp),
+         () => raise(Void_pre),
          fun
          | Ann(status, ann) =>
            r == 0
-             ? `Typ((ann, Some(Tile.PostOp(ZTyp.AnnZ_ann(status, zp)))))
+             ? `Typ((ann, Some(Tile.Post(ZTyp.AnnZ_ann(status, zp)))))
              : invalid(),
          fun
-         | OperatorHole => invalid(),
+         | BinHole => invalid(),
        );
   };
   let unzip =
@@ -716,7 +715,7 @@ and Pat: PAT = {
     HPat.T.(
       Tile.get(
         fun
-        | OperandHole
+        | OpHole
         | Var(_) => []
         | Paren(_) =>
           switch (filter) {
@@ -724,7 +723,7 @@ and Pat: PAT = {
           | Some(`Open)
           | None => [0]
           },
-        () => raise(Void_PreOp),
+        () => raise(Void_pre),
         fun
         | Ann(_) =>
           switch (filter) {
@@ -733,7 +732,7 @@ and Pat: PAT = {
           | None => [0]
           },
         fun
-        | OperatorHole => [],
+        | BinHole => [],
       )
     );
 
@@ -750,22 +749,22 @@ and Pat: PAT = {
       | `Typ(_) => None
       | `Pat(p, unzipped) =>
         switch (Option.get(unzipped)) {
-        | Operand(ParenZ_body({prefix, suffix, _})) =>
+        | Op(ParenZ_body({prefix, suffix, _})) =>
           Some(ZList.{prefix, z: p, suffix})
-        | PreOp(LamZ_pat(_) | LetZ_pat(_)) => None
-        | PostOp () => raise(ZPat.Void_ZPostOp)
-        | BinOp () => raise(ZPat.Void_ZBinOp)
+        | Pre(LamZ_pat(_) | LetZ_pat(_)) => None
+        | Post () => raise(ZPat.Void_zpost)
+        | Bin () => raise(ZPat.Void_zbin)
         }
       };
 
     let enter_from =
         (d: Direction.t, tile: HPat.T.t): option((child_step, caret_step)) =>
       switch (tile) {
-      | Operand(OperandHole | Var(_))
-      | BinOp(OperatorHole) => None
-      | Operand(Paren(p)) => Some((0, d == Left ? 0 : List.length(p)))
-      | PostOp(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | PreOp () => raise(HPat.T.Void_PreOp)
+      | Op(OpHole | Var(_))
+      | Bin(BinHole) => None
+      | Op(Paren(p)) => Some((0, d == Left ? 0 : List.length(p)))
+      | Post(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
+      | Pre () => raise(HPat.T.Void_pre)
       };
 
     let move = (d, (child_step, path), tile) =>
@@ -779,10 +778,10 @@ and Pat: PAT = {
             |> Tile.get(
                  fun
                  | ParenZ_body(_) => raise(Unzip_rezip_changes_sort),
-                 () => raise(Void_ZPreOp),
+                 () => raise(Void_zpre),
                  fun
                  | AnnZ_ann(_) => None,
-                 () => raise(Void_ZBinOp),
+                 () => raise(Void_zbin),
                )
           )
         }
@@ -798,8 +797,8 @@ and Pat: PAT = {
                  fun
                  | LamZ_pat(_)
                  | LetZ_pat(_) => raise(Unzip_rezip_changes_sort),
-                 () => raise(Void_ZPostOp),
-                 () => raise(Void_ZBinOp),
+                 () => raise(Void_zpost),
+                 () => raise(Void_zbin),
                )
           )
         }
@@ -906,19 +905,18 @@ and Exp: EXP = {
   );
   let zip_ztile = (e: HExp.t, ztile: ZExp.ztile): (two_step, zip_result) =>
     switch (ztile) {
-    | Operand(ParenZ_body(ze)) =>
-      let (tile_step, (e, zrest)) =
-        zip([Tile.Operand(HExp.T.Paren(e))], ze);
+    | Op(ParenZ_body(ze)) =>
+      let (tile_step, (e, zrest)) = zip([Tile.Op(HExp.T.Paren(e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | PreOp(LetZ_def(p, ze)) =>
+    | Pre(LetZ_def(p, ze)) =>
       let (tile_step, (e, zrest)) =
-        zip([Tile.PreOp(HExp.T.Let(p, e))], ze);
+        zip([Tile.Pre(HExp.T.Let(p, e))], ze);
       ((tile_step, 1), `Exp((e, zrest)));
-    | PostOp(ApZ_arg(status, ze)) =>
+    | Post(ApZ_arg(status, ze)) =>
       let (tile_step, (e, zrest)) =
-        zip([Tile.PostOp(HExp.T.Ap(status, e))], ze);
+        zip([Tile.Post(HExp.T.Ap(status, e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
-    | BinOp () => raise(ZExp.Void_ZBinOp)
+    | Bin () => raise(ZExp.Void_zbin)
     };
 
   type unzip_result = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
@@ -929,31 +927,31 @@ and Exp: EXP = {
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Num(_)
          | Var(_) => invalid()
          | Paren(body) =>
            r == 0
-             ? `Exp((body, Some(Tile.Operand(ZExp.ParenZ_body(ze)))))
+             ? `Exp((body, Some(Tile.Op(ZExp.ParenZ_body(ze)))))
              : invalid(),
          fun
          | Lam(status, p) =>
            r == 0
-             ? `Pat((p, Some(Tile.PreOp(ZPat.LamZ_pat(status, ze)))))
+             ? `Pat((p, Some(Tile.Pre(ZPat.LamZ_pat(status, ze)))))
              : invalid()
          | Let(p, def) =>
            switch (r) {
-           | 0 => `Pat((p, Some(Tile.PreOp(ZPat.LetZ_pat(ze, def)))))
-           | 1 => `Exp((def, Some(Tile.PreOp(ZExp.LetZ_def(p, ze)))))
+           | 0 => `Pat((p, Some(Tile.Pre(ZPat.LetZ_pat(ze, def)))))
+           | 1 => `Exp((def, Some(Tile.Pre(ZExp.LetZ_def(p, ze)))))
            | _ => invalid()
            },
          fun
          | Ap(status, arg) =>
            r == 0
-             ? `Exp((arg, Some(Tile.PostOp(ZExp.ApZ_arg(status, ze)))))
+             ? `Exp((arg, Some(Tile.Post(ZExp.ApZ_arg(status, ze)))))
              : invalid(),
          fun
-         | OperatorHole
+         | BinHole
          | Plus(_) => invalid(),
        );
   };
@@ -992,7 +990,7 @@ and Exp: EXP = {
     HExp.T.(
       Tile.get(
         fun
-        | OperandHole
+        | OpHole
         | Num(_)
         | Var(_) => []
         | Paren(_) =>
@@ -1020,7 +1018,7 @@ and Exp: EXP = {
           },
         fun
         | Plus(_)
-        | OperatorHole => [],
+        | BinHole => [],
       )
     );
 
@@ -1037,11 +1035,11 @@ and Exp: EXP = {
       | `Pat(_) => None
       | `Exp(e, unzipped) =>
         switch (Option.get(unzipped)) {
-        | Operand(ParenZ_body({prefix, suffix, _}))
-        | PreOp(LetZ_def(_, {prefix, suffix, _}))
-        | PostOp(ApZ_arg(_, {prefix, suffix, _})) =>
+        | Op(ParenZ_body({prefix, suffix, _}))
+        | Pre(LetZ_def(_, {prefix, suffix, _}))
+        | Post(ApZ_arg(_, {prefix, suffix, _})) =>
           Some(ZList.{prefix, z: e, suffix})
-        | BinOp () => raise(ZExp.Void_ZBinOp)
+        | Bin () => raise(ZExp.Void_zbin)
         }
       };
 
@@ -1050,7 +1048,7 @@ and Exp: EXP = {
       HExp.T.(
         Tile.get(
           fun
-          | OperandHole
+          | OpHole
           | Num(_)
           | Var(_) => None
           | Paren(body) => Some((0, d == Left ? 0 : List.length(body))),
@@ -1062,7 +1060,7 @@ and Exp: EXP = {
           | Ap(_, arg) => Some((0, d == Left ? 0 : List.length(arg))),
           fun
           | Plus(_)
-          | OperatorHole => None,
+          | BinHole => None,
         )
       );
     let move = (d, (child_step, path), tile) =>
@@ -1079,8 +1077,8 @@ and Exp: EXP = {
                  fun
                  | LamZ_pat(_) => None
                  | LetZ_pat(_) => d == Left ? None : Some((1, ([], 0))),
-                 () => raise(Void_ZPostOp),
-                 () => raise(Void_ZBinOp),
+                 () => raise(Void_zpost),
+                 () => raise(Void_zbin),
                )
           )
         }
@@ -1105,7 +1103,7 @@ and Exp: EXP = {
                    | ApZ_arg(_) => None
                  ),
                  () =>
-                 raise(Void_ZBinOp)
+                 raise(Void_zbin)
                )
           )
         }

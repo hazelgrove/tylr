@@ -9,19 +9,14 @@ module Make =
 
          [@deriving sexp]
          type root =
-           Tile.t(
-             T.operand,
-             (T.preop, T.s),
-             (T.s, T.postop),
-             (T.s, T.binop, T.s),
-           );
+           Tile.t(T.op, (T.pre, T.s), (T.s, T.post), (T.s, T.bin, T.s));
          let root: T.s => root;
          let nth_root: (int, T.s) => Util.ZList.t(root, T.t);
          let is_root: (int, T.s) => bool;
        } => {
   open Util;
 
-  let mk_hole = (): T.s => [T.mk_operand_hole()];
+  let mk_hole = (): T.s => [T.mk_op_hole()];
   let dummy_hole = mk_hole();
 
   let fix_empty_holes_between = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
@@ -30,27 +25,27 @@ module Make =
     | (_, []) => (prefix, suffix)
     | (Some((leading, last)), [first, ...trailing]) =>
       switch (last, first) {
-      | (Operand(_) | PostOp(_), Operand(_) | PreOp(_)) =>
-        if (T.is_operand_hole(first)) {
+      | (Op(_) | Post(_), Op(_) | Pre(_)) =>
+        if (T.is_op_hole(first)) {
           (prefix, trailing);
-        } else if (T.is_operand_hole(last)) {
+        } else if (T.is_op_hole(last)) {
           (leading, suffix);
         } else {
-          (prefix, [T.mk_operator_hole(), ...suffix]);
+          (prefix, [T.mk_bin_hole(), ...suffix]);
         }
-      | (BinOp(_) | PreOp(_), BinOp(_) | PostOp(_)) =>
-        if (T.is_operator_hole(first)) {
+      | (Bin(_) | Pre(_), Bin(_) | Post(_)) =>
+        if (T.is_bin_hole(first)) {
           (prefix, trailing);
-        } else if (T.is_operator_hole(last)) {
+        } else if (T.is_bin_hole(last)) {
           (leading, suffix);
         } else {
-          (prefix, [T.mk_operand_hole(), ...suffix]);
+          (prefix, [T.mk_op_hole(), ...suffix]);
         }
       | _ =>
-        T.is_operand_hole(last)
-        && T.is_operator_hole(first)
-        || T.is_operator_hole(last)
-        && T.is_operand_hole(first)
+        T.is_op_hole(last)
+        && T.is_bin_hole(first)
+        || T.is_bin_hole(last)
+        && T.is_op_hole(first)
           ? (leading, trailing) : (prefix, suffix)
       }
     };
@@ -90,57 +85,51 @@ module Make =
   module Sk = Skel.Make(T);
 
   [@deriving sexp]
-  type root =
-    Tile.t(
-      T.operand,
-      (T.preop, T.s),
-      (T.s, T.postop),
-      (T.s, T.binop, T.s),
-    );
+  type root = Tile.t(T.op, (T.pre, T.s), (T.s, T.post), (T.s, T.bin, T.s));
 
   let root = (tiles: T.s): root =>
     switch (Sk.mk(tiles)) {
-    | Operand(_) => Operand(Tile.get_operand(List.hd(tiles)))
-    | PreOp(_) => PreOp((Tile.get_preop(List.hd(tiles)), List.tl(tiles)))
-    | PostOp(_) =>
+    | Op(_) => Op(Tile.get_operand(List.hd(tiles)))
+    | Pre(_) => Pre((Tile.get_preop(List.hd(tiles)), List.tl(tiles)))
+    | Post(_) =>
       let (prefix, last) = ListUtil.split_last(tiles);
-      PostOp((prefix, Tile.get_postop(last)));
-    | BinOp(_, n, _) =>
+      Post((prefix, Tile.get_postop(last)));
+    | Bin(_, n, _) =>
       let (prefix, nth, suffix) = ListUtil.split_nth(n, tiles);
-      BinOp((prefix, Tile.get_binop(nth), suffix));
+      Bin((prefix, Tile.get_binop(nth), suffix));
     };
 
   let nth_root = (n: int, tiles: T.s): ZList.t(root, T.t) => {
     let tile = List.nth(tiles, n);
     let rec go: Skel.t => ZList.t(root, T.t) =
       fun
-      | Operand(m) =>
+      | Op(m) =>
         n == m
-          ? ZList.mk(~z=Tile.Operand(Tile.get_operand(tile)), ())
+          ? ZList.mk(~z=Tile.Op(Tile.get_operand(tile)), ())
           : raise(Invalid_argument("Tiles.nth_root"))
-      | PreOp(m, r) =>
+      | Pre(m, r) =>
         n == m
           ? {
             let (_, tiles_r, _) =
               ListUtil.split_sublist(m + 1, m + 1 + Skel.size(r), tiles);
-            ZList.mk(~z=Tile.PreOp((Tile.get_preop(tile), tiles_r)), ());
+            ZList.mk(~z=Tile.Pre((Tile.get_preop(tile), tiles_r)), ());
           }
           : {
             let zroot = go(r);
             {...zroot, prefix: [List.nth(tiles, m), ...zroot.prefix]};
           }
-      | PostOp(l, m) =>
+      | Post(l, m) =>
         n == m
           ? {
             let (_, tiles_l, _) =
               ListUtil.split_sublist(m - Skel.size(l), m, tiles);
-            ZList.mk(~z=Tile.PostOp((tiles_l, Tile.get_postop(tile))), ());
+            ZList.mk(~z=Tile.Post((tiles_l, Tile.get_postop(tile))), ());
           }
           : {
             let zroot = go(l);
             {...zroot, suffix: zroot.suffix @ [List.nth(tiles, m)]};
           }
-      | BinOp(l, m, r) => {
+      | Bin(l, m, r) => {
           let (_, tiles_l, _) =
             ListUtil.split_sublist(m - Skel.size(l), m, tiles);
           let (_, tiles_r, _) =
@@ -159,7 +148,7 @@ module Make =
             };
           } else {
             ZList.mk(
-              ~z=Tile.BinOp((tiles_l, Tile.get_binop(tile), tiles_r)),
+              ~z=Tile.Bin((tiles_l, Tile.get_binop(tile), tiles_r)),
               (),
             );
           };
@@ -169,9 +158,9 @@ module Make =
 
   let is_root = (n: int, ts: T.s) =>
     switch (root(ts)) {
-    | Operand(_)
-    | PreOp(_) => n == 0
-    | PostOp((l, _))
-    | BinOp((l, _, _)) => n == List.length(l)
+    | Op(_)
+    | Pre(_) => n == 0
+    | Post((l, _))
+    | Bin((l, _, _)) => n == List.length(l)
     };
 };

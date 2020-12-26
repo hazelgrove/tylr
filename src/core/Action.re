@@ -52,11 +52,11 @@ module Typ = {
       | Plus
       | Var(_)
       | Ann => None
-      | Num => Some(Operand(Num))
-      | Bool => Some(Operand(Bool))
+      | Num => Some(Op(Num))
+      | Bool => Some(Op(Bool))
       | Paren =>
-        Some(Operand(Paren(selection == [] ? HTyp.mk_hole() : selection)))
-      | Arrow => Some(BinOp(Arrow));
+        Some(Op(Paren(selection == [] ? HTyp.mk_hole() : selection)))
+      | Arrow => Some(Bin(Arrow));
   };
   include Common(HTyp.T, M);
 };
@@ -72,12 +72,12 @@ module Pat = {
       | Ap
       | Plus
       | Arrow => None
-      | Var(x) => Some(Operand(Var(x)))
+      | Var(x) => Some(Op(Var(x)))
       | Paren =>
-        Some(Operand(Paren(selection == [] ? HPat.mk_hole() : selection)))
+        Some(Op(Paren(selection == [] ? HPat.mk_hole() : selection)))
       // TODO come back to Ann, consider generalizing output to list of tiles
       // so that bidelimited wrapping is not the only possible outcome on a selection
-      | Ann => Some(PostOp(Ann(NotInHole, HTyp.mk_hole())));
+      | Ann => Some(Post(Ann(NotInHole, HTyp.mk_hole())));
   };
   include Common(HPat.T, M);
 };
@@ -89,21 +89,19 @@ module Exp = {
       | Bool
       | Ann
       | Arrow => None
-      | NumLit(n) => Some(Operand(Num(NotInHole, n)))
-      | Var(x) => Some(Operand(Var(NotInHole, x)))
+      | NumLit(n) => Some(Op(Num(NotInHole, n)))
+      | Var(x) => Some(Op(Var(NotInHole, x)))
       | Paren =>
-        Some(Operand(Paren(selection == [] ? HExp.mk_hole() : selection)))
+        Some(Op(Paren(selection == [] ? HExp.mk_hole() : selection)))
       // TODO come back to Lam, consider generalizing output to list of tiles
       // so that bidelimited wrapping is not the only possible outcome on a selection
-      | Lam => Some(PreOp(Lam(NotInHole, HPat.mk_hole())))
-      | Let => Some(PreOp(Let(HPat.mk_hole(), HExp.mk_hole())))
+      | Lam => Some(Pre(Lam(NotInHole, HPat.mk_hole())))
+      | Let => Some(Pre(Let(HPat.mk_hole(), HExp.mk_hole())))
       | Ap =>
         Some(
-          PostOp(
-            Ap(NotInHole, selection == [] ? HExp.mk_hole() : selection),
-          ),
+          Post(Ap(NotInHole, selection == [] ? HExp.mk_hole() : selection)),
         )
-      | Plus => Some(BinOp(Plus(NotInHole)));
+      | Plus => Some(Bin(Plus(NotInHole)));
   };
   include Common(HExp.T, M);
 };

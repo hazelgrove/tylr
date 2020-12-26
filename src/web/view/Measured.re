@@ -28,8 +28,8 @@ module type COMMON_INPUT = {
   let offset_tile: ((ZPath.child_step, ZPath.t), T.t) => int;
   let offset_ztile: Z.ztile => int;
 
-  let is_operand_hole: T.operand => bool;
-  let is_operator_hole: T.binop => bool;
+  let is_op_hole: T.op => bool;
+  let is_bin_hole: T.bin => bool;
 
   let open_children_of_tile: T.t => list((int, int));
   let closed_children_of_tile: T.t => list((int, int));
@@ -135,8 +135,8 @@ module Common =
 
   let empty_holes_of_tile = (t: T.t): list(int) =>
     switch (t) {
-    | Operand(op) when Sort_specific.is_operand_hole(op) => [0]
-    | BinOp(bin) when Sort_specific.is_operator_hole(bin) => [0]
+    | Op(op) when Sort_specific.is_op_hole(op) => [0]
+    | Bin(bin) when Sort_specific.is_bin_hole(bin) => [0]
     | _ =>
       Sort_specific.empty_holes_of_children(t)
       |> List.combine(children_offsets(t))
@@ -164,11 +164,10 @@ module Common =
     Decoration.Tile.{
       shape:
         switch (t) {
-        | Operand(operand) =>
-          Operand(Sort_specific.is_operand_hole(operand))
-        | PreOp(_) => PreOp()
-        | PostOp(_) => PostOp()
-        | BinOp(binop) => BinOp(Sort_specific.is_operator_hole(binop))
+        | Op(op) => Op(Sort_specific.is_op_hole(op))
+        | Pre(_) => Pre()
+        | Post(_) => Post()
+        | Bin(bin) => Bin(Sort_specific.is_bin_hole(bin))
         },
       len: length_of_tile(t),
       open_children: Sort_specific.open_children_of_tile(t),
@@ -207,22 +206,22 @@ module Common =
     let open_child_profile = (side, len) =>
       Decoration.OpenChild.{sort: T.sort, side, len};
     Tile.get(
-      op => ((0, profile_of_tile(Operand(op))), []),
+      op => ((0, profile_of_tile(Op(op))), []),
       ((pre, r)) => {
-        let pre_profile = profile_of_tile(Tile.PreOp(pre));
+        let pre_profile = profile_of_tile(Tile.Pre(pre));
         let r_profile = open_child_profile(Right, length(r));
         ((0, pre_profile), [(pre_profile.len + space, r_profile)]);
       },
       ((l, post)) => {
         let l_profile = open_child_profile(Left, length(l));
         (
-          (l_profile.len + space, profile_of_tile(PostOp(post))),
+          (l_profile.len + space, profile_of_tile(Post(post))),
           [(0, l_profile)],
         );
       },
       ((l, bin, r)) => {
         let l_profile = open_child_profile(Left, length(l));
-        let bin_profile = profile_of_tile(Tile.BinOp(bin));
+        let bin_profile = profile_of_tile(Tile.Bin(bin));
         let r_profile = open_child_profile(Right, length(r));
         (
           (l_profile.len + space, bin_profile),
@@ -420,10 +419,10 @@ module ErrHole =
 
   let root_tile =
     fun
-    | Tile.Operand(op) => Tile.Operand(op)
-    | PreOp((pre, _)) => PreOp(pre)
-    | PostOp((_, post)) => PostOp(post)
-    | BinOp((_, bin, _)) => BinOp(bin);
+    | Tile.Op(op) => Tile.Op(op)
+    | Pre((pre, _)) => Pre(pre)
+    | Post((_, post)) => Post(post)
+    | Bin((_, bin, _)) => Bin(bin);
 
   let shift = n => List.map(PairUtil.map_fst((+)(n + space)));
 
@@ -444,15 +443,15 @@ module ErrHole =
            )
         |> List.flatten;
       switch (Ts.root(ts)) {
-      | Operand(_) => tile_holes
-      | PreOp((_, r)) =>
+      | Op(_) => tile_holes
+      | Pre((_, r)) =>
         let r_holes = shift(S.length_of_tile(tile), err_holes(r));
         tile_holes @ r_holes;
-      | PostOp((l, _)) =>
+      | Post((l, _)) =>
         let l_holes = err_holes(l);
         let tile_holes = shift(S.length(l), tile_holes);
         l_holes @ tile_holes;
-      | BinOp((l, _, r)) =>
+      | Bin((l, _, r)) =>
         let l_holes = err_holes(l);
         let tile_holes = shift(S.length(l), tile_holes);
         let r_holes =
@@ -486,15 +485,15 @@ module ErrHole =
       | [] =>
         let tile_holes = position(S.err_holes_of_children(tile));
         switch (root) {
-        | Operand(_) => tile_holes
-        | PreOp((_, r)) =>
+        | Op(_) => tile_holes
+        | Pre((_, r)) =>
           let err_holes = j == 0 ? err_holes : err_holes_z(([], j - 1));
           tile_holes @ shift(S.length_of_tile(tile), err_holes(r));
-        | PostOp((l, _)) =>
+        | Post((l, _)) =>
           let err_holes =
             j == List.length(l) ? err_holes : err_holes_z(([], j));
           err_holes(l) @ shift(S.length(l), tile_holes);
-        | BinOp((l, _, r)) =>
+        | Bin((l, _, r)) =>
           let n = List.length(l);
           let (err_holes_l, err_holes_r) =
             if (j < n) {
@@ -514,12 +513,12 @@ module ErrHole =
       | [(tile_step, child_step) as two_step, ...steps] =>
         let in_tile =
           switch (root) {
-          | Operand(_) =>
+          | Op(_) =>
             assert(tile_step == 0);
             true;
-          | PreOp(_) => tile_step == 0
-          | PostOp((l, _))
-          | BinOp((l, _, _)) => tile_step == List.length(l)
+          | Pre(_) => tile_step == 0
+          | Post((l, _))
+          | Bin((l, _, _)) => tile_step == List.length(l)
           };
         let tile_holes =
           position(
@@ -528,8 +527,8 @@ module ErrHole =
               : S.err_holes_of_children(tile),
           );
         switch (root) {
-        | Operand(_) => tile_holes
-        | PreOp((_, r)) =>
+        | Op(_) => tile_holes
+        | Pre((_, r)) =>
           tile_holes
           @ shift(
               S.length_of_tile(tile),
@@ -540,13 +539,13 @@ module ErrHole =
                     r,
                   ),
             )
-        | PostOp((l, _)) =>
+        | Post((l, _)) =>
           (
             in_tile
               ? err_holes(l) : err_holes_z(([two_step, ...steps], j), l)
           )
           @ shift(S.length(l), tile_holes)
-        | BinOp((l, _, r)) =>
+        | Bin((l, _, r)) =>
           let n = List.length(l);
           let (err_holes_l, err_holes_r) =
             if (tile_step < n) {
@@ -586,14 +585,14 @@ module rec Typ: TYP = {
   let length_of_tile: HTyp.T.t => int =
     Tile.get(
       fun
-      | OperandHole => 1
+      | OpHole => 1
       | Num => 3
       | Bool => 4
       | Paren(body) => 1 + space + Typ.length(body) + space + 1,
-      () => raise(Void_PreOp),
-      () => raise(Void_PostOp),
+      () => raise(Void_pre),
+      () => raise(Void_post),
       fun
-      | OperatorHole
+      | BinHole
       | Arrow => 1,
     );
 
@@ -606,62 +605,62 @@ module rec Typ: TYP = {
     Tile.get(
       fun
       | ParenZ_body(_) => 1 + space,
-      () => raise(Void_ZPreOp),
+      () => raise(Void_zpre),
       fun
       | AnnZ_ann(_) => 1 + space,
-      () => raise(Void_ZBinOp),
+      () => raise(Void_zbin),
     );
 
-  let is_operand_hole =
+  let is_op_hole =
     fun
-    | OperandHole => true
+    | OpHole => true
     | _ => false;
-  let is_operator_hole =
+  let is_bin_hole =
     fun
-    | OperatorHole => true
+    | BinHole => true
     | _ => false;
   let open_children_of_tile = tile =>
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Num
          | Bool => []
          | Paren(body) => [Typ.length(body)],
-         () => raise(Void_PreOp),
-         () => raise(Void_PostOp),
+         () => raise(Void_pre),
+         () => raise(Void_post),
          fun
          | Arrow
-         | OperatorHole => [],
+         | BinHole => [],
        )
     |> List.combine(Typ.children_offsets(~filter=`Open, tile));
   let closed_children_of_tile = tile =>
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Num
          | Bool
          | Paren(_) => [],
-         () => raise(HTyp.T.Void_PreOp),
-         () => raise(HTyp.T.Void_PostOp),
+         () => raise(HTyp.T.Void_pre),
+         () => raise(HTyp.T.Void_post),
          fun
          | Arrow
-         | OperatorHole => [],
+         | BinHole => [],
        )
     |> List.combine(Typ.children_offsets(~filter=`Closed, tile));
 
   let empty_holes_of_children =
     Tile.get(
       fun
-      | OperandHole
+      | OpHole
       | Num
       | Bool => []
       | Paren(body) => [Typ.empty_holes(body)],
-      () => raise(Void_PreOp),
-      () => raise(Void_PostOp),
+      () => raise(Void_pre),
+      () => raise(Void_post),
       fun
-      | OperatorHole
+      | BinHole
       | Arrow => [],
     );
 
@@ -701,14 +700,14 @@ module rec Pat: PAT = {
   let length_of_tile: HPat.T.t => int =
     Tile.get(
       fun
-      | OperandHole => 1
+      | OpHole => 1
       | Var(x) => String.length(x)
       | Paren(body) => 1 + space + Pat.length(body) + space + 1,
-      () => raise(Void_PreOp),
+      () => raise(Void_pre),
       fun
       | Ann(_, ann) => 1 + space + Typ.length(ann) + space,
       fun
-      | OperatorHole => 1,
+      | BinHole => 1,
     );
 
   let offset_ztile =
@@ -718,8 +717,8 @@ module rec Pat: PAT = {
       fun
       | LamZ_pat(_) => 1 + space
       | LetZ_pat(_) => 3 + space,
-      () => raise(Void_ZPostOp),
-      () => raise(Void_ZBinOp),
+      () => raise(Void_zpost),
+      () => raise(Void_zbin),
     );
 
   let offset_tile = ((child_step, path), tile) =>
@@ -728,53 +727,53 @@ module rec Pat: PAT = {
     | `Pat(zipper) => Pat.offset_zipper(path, zipper)
     };
 
-  let is_operand_hole =
+  let is_op_hole =
     fun
-    | OperandHole => true
+    | OpHole => true
     | _ => false;
-  let is_operator_hole =
+  let is_bin_hole =
     fun
-    | OperatorHole => true;
+    | BinHole => true;
   let open_children_of_tile = tile =>
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Var(_) => []
          | Paren(body) => [Pat.length(body)],
-         () => raise(HPat.T.Void_PreOp),
+         () => raise(HPat.T.Void_pre),
          fun
          | Ann(_) => [],
          fun
-         | OperatorHole => [],
+         | BinHole => [],
        )
     |> List.combine(Pat.children_offsets(~filter=`Open, tile));
   let closed_children_of_tile = tile =>
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Var(_)
          | Paren(_) => [],
-         () => raise(Void_PreOp),
+         () => raise(Void_pre),
          fun
          | Ann(_, ann) => [Typ.length(ann)],
          fun
-         | OperatorHole => [],
+         | BinHole => [],
        )
     |> List.combine(Pat.children_offsets(~filter=`Closed, tile));
 
   let empty_holes_of_children =
     Tile.get(
       fun
-      | OperandHole
+      | OpHole
       | Var(_) => []
       | Paren(body) => [Pat.empty_holes(body)],
-      () => raise(Void_PreOp),
+      () => raise(Void_pre),
       fun
       | Ann(_, ty) => [Typ.empty_holes(ty)],
       fun
-      | OperatorHole => [],
+      | BinHole => [],
     );
 
   let child_length = (child_step, tile) =>
@@ -806,14 +805,14 @@ module rec Pat: PAT = {
   let err_holes_of_children =
     Tile.get(
       fun
-      | OperandHole
+      | OpHole
       | Var(_) => []
       | Paren(body) => [Pat.err_holes(body)],
-      () => raise(Void_PreOp),
+      () => raise(Void_pre),
       fun
       | Ann(_) => [[]],
       fun
-      | OperatorHole => [],
+      | BinHole => [],
     );
 
   let err_holes_of_children_z = ((child_step, path), tile) =>
@@ -823,10 +822,10 @@ module rec Pat: PAT = {
       |> Tile.get(
            fun
            | ZTyp.ParenZ_body(_) => raise(ZPath.Unzip_rezip_changes_sort),
-           () => raise(ZTyp.Void_ZPreOp),
+           () => raise(ZTyp.Void_zpre),
            fun
            | ZTyp.AnnZ_ann(_) => [[]],
-           () => raise(ZTyp.Void_ZBinOp),
+           () => raise(ZTyp.Void_zbin),
          )
     | `Pat(p, unzipped) =>
       Option.get(unzipped)
@@ -836,8 +835,8 @@ module rec Pat: PAT = {
            fun
            | ZPat.LamZ_pat(_)
            | LetZ_pat(_) => raise(ZPath.Unzip_rezip_changes_sort),
-           () => raise(ZPat.Void_ZPostOp),
-           () => raise(ZPat.Void_ZBinOp),
+           () => raise(ZPat.Void_zpost),
+           () => raise(ZPat.Void_zbin),
          )
     };
 
@@ -858,7 +857,7 @@ module rec Exp: EXP = {
   let length_of_tile =
     Tile.get(
       fun
-      | OperandHole => 1
+      | OpHole => 1
       | Var(_, x) => String.length(x)
       | Num(_, n) => String.length(string_of_int(n))
       | Paren(body) => 1 + space + Exp.length(body) + space + 1,
@@ -877,7 +876,7 @@ module rec Exp: EXP = {
       fun
       | Ap(_, arg) => 1 + space + Exp.length(arg) + space + 1,
       fun
-      | OperatorHole
+      | BinHole
       | Plus(_) => 1,
     );
 
@@ -890,7 +889,7 @@ module rec Exp: EXP = {
       fun
       | ApZ_arg(_) => 1 + space,
       () =>
-      raise(Void_ZBinOp)
+      raise(Void_zbin)
     );
 
   let offset_tile = ((child_step, path), tile) =>
@@ -899,19 +898,19 @@ module rec Exp: EXP = {
     | `Exp(zipper) => Exp.offset_zipper(path, zipper)
     };
 
-  let is_operand_hole =
+  let is_op_hole =
     fun
-    | OperandHole => true
+    | OpHole => true
     | _ => false;
-  let is_operator_hole =
+  let is_bin_hole =
     fun
-    | OperatorHole => true
+    | BinHole => true
     | _ => false;
   let open_children_of_tile = tile =>
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Var(_)
          | Num(_) => []
          | Paren(body) => [Exp.length(body)],
@@ -922,14 +921,14 @@ module rec Exp: EXP = {
          | Ap(_, arg) => [Exp.length(arg)],
          fun
          | Plus(_)
-         | OperatorHole => [],
+         | BinHole => [],
        )
     |> List.combine(Exp.children_offsets(~filter=`Open, tile));
   let closed_children_of_tile = tile =>
     tile
     |> Tile.get(
          fun
-         | OperandHole
+         | OpHole
          | Var(_)
          | Num(_)
          | Paren(_) => [],
@@ -940,14 +939,14 @@ module rec Exp: EXP = {
          | Ap(_) => [],
          fun
          | Plus(_)
-         | OperatorHole => [],
+         | BinHole => [],
        )
     |> List.combine(Exp.children_offsets(~filter=`Closed, tile));
 
   let empty_holes_of_children =
     Tile.get(
       fun
-      | OperandHole
+      | OpHole
       | Num(_)
       | Var(_) => []
       | Paren(body) => [Exp.empty_holes(body)],
@@ -957,7 +956,7 @@ module rec Exp: EXP = {
       fun
       | Ap(_, arg) => [Exp.empty_holes(arg)],
       fun
-      | OperatorHole
+      | BinHole
       | Plus(_) => [],
     );
 
@@ -990,7 +989,7 @@ module rec Exp: EXP = {
   let err_holes_of_children =
     Tile.get(
       fun
-      | OperandHole
+      | OpHole
       | Num(_)
       | Var(_) => []
       | Paren(body) => [Exp.err_holes(body)],
@@ -1000,7 +999,7 @@ module rec Exp: EXP = {
       fun
       | Ap(_, arg) => [Exp.err_holes(arg)],
       fun
-      | OperatorHole
+      | BinHole
       | Plus(_) => [],
     );
 
@@ -1017,8 +1016,8 @@ module rec Exp: EXP = {
                Pat.err_holes_z(path, p),
                Exp.err_holes(def),
              ],
-           () => raise(ZPat.Void_ZPostOp),
-           () => raise(ZPat.Void_ZBinOp),
+           () => raise(ZPat.Void_zpost),
+           () => raise(ZPat.Void_zbin),
          )
     | `Exp(e, unzipped) =>
       Option.get(unzipped)
@@ -1039,7 +1038,7 @@ module rec Exp: EXP = {
              | ZExp.ApZ_arg(_) => [Exp.err_holes_z(path, e)]
            ),
            () =>
-           raise(ZExp.Void_ZBinOp)
+           raise(ZExp.Void_zbin)
          )
     };
 

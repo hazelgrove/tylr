@@ -8,16 +8,16 @@ type t = Util.ZList.t(option(ztile), HTyp.T.t)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HTyp.t` or `t`
  */
-and ztile = Tile.t(zoperand, zpreop, zpostop, zbinop)
-and zoperand =
+and ztile = Tile.t(zop, zpre, zpost, zbin)
+and zop =
   | ParenZ_body(t)
-and zpreop = unit // empty
-and zpostop =
+and zpre = unit // empty
+and zpost =
   | AnnZ_ann(HoleStatus.t, ZPat.t)
-and zbinop = unit; // empty
+and zbin = unit; // empty
 
-exception Void_ZPreOp;
-exception Void_ZBinOp;
+exception Void_zpre;
+exception Void_zbin;
 
 [@deriving sexp]
 type unzipped = option(ztile);
@@ -31,7 +31,7 @@ let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
 
 let index: ztile => int =
   fun
-  | Operand(ParenZ_body({prefix, _})) => List.length(prefix)
-  | PreOp () => raise(Void_ZPreOp)
-  | PostOp(AnnZ_ann(_, {prefix, _})) => List.length(prefix)
-  | BinOp () => raise(Void_ZBinOp);
+  | Op(ParenZ_body({prefix, _})) => List.length(prefix)
+  | Pre () => raise(Void_zpre)
+  | Post(AnnZ_ann(_, {prefix, _})) => List.length(prefix)
+  | Bin () => raise(Void_zbin);

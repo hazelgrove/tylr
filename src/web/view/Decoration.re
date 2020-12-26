@@ -491,20 +491,20 @@ module Tile = {
     let outer_path = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
-        | Operand(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
-        | PreOp () => (
+        | Op(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+        | Pre () => (
             br_tl() @ bl_tr(),
             [H_({dx: tip}), ...tr_bl()]
             @ tl_br()
             @ [H_({dx: Float.neg(tip)})],
           )
-        | PostOp () => (
+        | Post () => (
             [H_({dx: Float.neg(tip)}), ...bl_tr()]
             @ br_tl()
             @ [H_({dx: tip})],
             tl_br() @ tr_bl(),
           )
-        | BinOp(_) => (
+        | Bin(_) => (
             [H_({dx: Float.neg(tip)}), ...bl_tr()]
             @ br_tl()
             @ [H_({dx: tip})],
@@ -597,8 +597,8 @@ module Tile = {
       : list(Node.t) => {
     let empty_holes =
       switch (profile.shape) {
-      | Operand(true)
-      | BinOp(true) =>
+      | Op(true)
+      | Bin(true) =>
         let inset_style =
           switch (profile.style) {
           | Highlighted => `Thick

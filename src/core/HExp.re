@@ -7,30 +7,30 @@ module T = {
   [@deriving sexp]
   type s = list(t)
   [@deriving sexp]
-  and t = Tile.t(operand, preop, postop, binop)
+  and t = Tile.t(op, pre, post, bin)
   [@deriving sexp]
-  and operand =
-    | OperandHole
+  and op =
+    | OpHole
     | Num(HoleStatus.t, int)
     | Var(HoleStatus.t, Var.t)
     | Paren(s)
   [@deriving sexp]
-  and preop =
+  and pre =
     | Lam(HoleStatus.t, HPat.t)
     | Let(HPat.t, s)
   [@deriving sexp]
-  and postop =
+  and post =
     | Ap(HoleStatus.t, s)
   [@deriving sexp]
-  and binop =
+  and bin =
     | Plus(HoleStatus.t)
-    | OperatorHole;
+    | BinHole;
 
-  let mk_operand_hole = (): t => Operand(OperandHole);
-  let mk_operator_hole = (): t => BinOp(OperatorHole);
+  let mk_op_hole = (): t => Op(OpHole);
+  let mk_bin_hole = (): t => Bin(BinHole);
 
-  let is_operand_hole: t => bool = (==)(Tile.Operand(OperandHole));
-  let is_operator_hole: t => bool = (==)(Tile.BinOp(OperatorHole));
+  let is_op_hole: t => bool = (==)(Tile.Op(OpHole));
+  let is_bin_hole: t => bool = (==)(Tile.Bin(BinHole));
 
   let precedence: t => int =
     Tile.get(
@@ -42,7 +42,7 @@ module T = {
       | Ap(_) => 1,
       fun
       | Plus(_) => 3
-      | OperatorHole => 2,
+      | BinHole => 2,
     );
 
   let associativity =
@@ -51,7 +51,7 @@ module T = {
   let get_open_children: t => list(s) =
     Tile.get(
       fun
-      | OperandHole
+      | OpHole
       | Num(_)
       | Var(_) => []
       | Paren(body) => [body],
@@ -61,7 +61,7 @@ module T = {
       fun
       | Ap(_, arg) => [arg],
       fun
-      | OperatorHole
+      | BinHole
       | Plus(_) => [],
     );
 };
@@ -88,7 +88,7 @@ let get_hole_status = e =>
   root(e)
   |> Tile.get(
        fun
-       | OperandHole
+       | OpHole
        | Paren(_) => HoleStatus.NotInHole
        | Num(status, _)
        | Var(status, _) => status,
@@ -98,7 +98,7 @@ let get_hole_status = e =>
        fun
        | (_, Ap(status, _)) => status,
        fun
-       | (_, OperatorHole, _) => HoleStatus.NotInHole
+       | (_, BinHole, _) => HoleStatus.NotInHole
        | (_, Plus(status), _) => status,
      );
 
@@ -108,20 +108,20 @@ let rec put_hole_status = (status: HoleStatus.t, e: t): t =>
     root(e)
     |> get(
          fun
-         | OperandHole as op => [Operand(op)]
-         | Num(_, n) => [Operand(Num(status, n))]
-         | Var(_, x) => [Operand(Var(status, x))]
-         | Paren(body) => [Operand(Paren(put_hole_status(status, body)))],
+         | OpHole as op => [Op(op)]
+         | Num(_, n) => [Op(Num(status, n))]
+         | Var(_, x) => [Op(Var(status, x))]
+         | Paren(body) => [Op(Paren(put_hole_status(status, body)))],
          fun
-         | (Lam(_, p), body) => [PreOp(Lam(status, p)), ...body]
+         | (Lam(_, p), body) => [Pre(Lam(status, p)), ...body]
          | (Let(_) as pre, body) => [
-             PreOp(pre),
+             Pre(pre),
              ...put_hole_status(status, body),
            ],
          fun
-         | (fn, Ap(_, arg)) => fn @ [PostOp(Ap(status, arg))],
+         | (fn, Ap(_, arg)) => fn @ [Post(Ap(status, arg))],
          fun
-         | (l, OperatorHole as bin, r) => l @ [BinOp(bin), ...r]
-         | (l, Plus(_), r) => l @ [BinOp(Plus(status)), ...r],
+         | (l, BinHole as bin, r) => l @ [Bin(bin), ...r]
+         | (l, Plus(_), r) => l @ [Bin(Plus(status)), ...r],
        )
   );

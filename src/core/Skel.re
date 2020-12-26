@@ -2,24 +2,24 @@ open Sexplib.Std;
 
 [@deriving sexp]
 type t =
-  | Operand(int)
-  | PreOp(int, t)
-  | PostOp(t, int)
-  | BinOp(t, int, t);
+  | Op(int)
+  | Pre(int, t)
+  | Post(t, int)
+  | Bin(t, int, t);
 
 let rec size =
   fun
-  | Operand(_) => 1
-  | PreOp(_, r) => 1 + size(r)
-  | PostOp(l, _) => size(l) + 1
-  | BinOp(l, _, r) => size(l) + 1 + size(r);
+  | Op(_) => 1
+  | Pre(_, r) => 1 + size(r)
+  | Post(l, _) => size(l) + 1
+  | Bin(l, _, r) => size(l) + 1 + size(r);
 
 let root_index =
   fun
-  | Operand(n)
-  | PreOp(n, _)
-  | PostOp(_, n)
-  | BinOp(_, n, _) => n;
+  | Op(n)
+  | Pre(n, _)
+  | Post(_, n)
+  | Bin(_, n, _) => n;
 
 module Make = (T: Tile.S) : {let mk: T.s => t;} => {
   type itile = (int, T.t);
@@ -27,29 +27,29 @@ module Make = (T: Tile.S) : {let mk: T.s => t;} => {
   let mk = (tiles: T.s): t => {
     let push_output = ((i, tile): itile, output_stack: list(t)): list(t) =>
       switch (tile) {
-      | Operand(_) => [Operand(i), ...output_stack]
-      | PreOp(_) =>
+      | Op(_) => [Op(i), ...output_stack]
+      | Pre(_) =>
         switch (output_stack) {
-        | [] => failwith("impossible: preop encountered empty stack")
-        | [skel, ...skels] => [PreOp(i, skel), ...skels]
+        | [] => failwith("impossible: pre encountered empty stack")
+        | [skel, ...skels] => [Pre(i, skel), ...skels]
         }
-      | PostOp(_) =>
+      | Post(_) =>
         switch (output_stack) {
-        | [] => failwith("impossible: postop encountered empty stack")
-        | [skel, ...skels] => [PostOp(skel, i), ...skels]
+        | [] => failwith("impossible: post encountered empty stack")
+        | [skel, ...skels] => [Post(skel, i), ...skels]
         }
-      | BinOp(_) =>
+      | Bin(_) =>
         switch (output_stack) {
         | []
         | [_] =>
-          failwith("impossible: binop encountered empty or singleton stack")
-        | [skel1, skel2, ...skels] => [BinOp(skel2, i, skel1), ...skels]
+          failwith("impossible: bin encountered empty or singleton stack")
+        | [skel1, skel2, ...skels] => [Bin(skel2, i, skel1), ...skels]
         }
       };
 
-    let process_operand = (~output_stack, ~shunted_stack, operand) => (
+    let process_operand = (~output_stack, ~shunted_stack, op) => (
       output_stack,
-      [operand, ...shunted_stack],
+      [op, ...shunted_stack],
     );
 
     let rec process_preop =
@@ -62,10 +62,10 @@ module Make = (T: Tile.S) : {let mk: T.s => t;} => {
       | [] => (output_stack, [ipreop, ...shunted_stack])
       | [(_, tile) as itile, ...itiles] =>
         switch (tile) {
-        | PreOp(_)
-        | BinOp(_) => (output_stack, [ipreop, ...shunted_stack])
-        | Operand(_)
-        | PostOp(_) =>
+        | Pre(_)
+        | Bin(_) => (output_stack, [ipreop, ...shunted_stack])
+        | Op(_)
+        | Post(_) =>
           process_preop(
             ~output_stack=push_output(itile, output_stack),
             ~shunted_stack=itiles,
@@ -80,22 +80,22 @@ module Make = (T: Tile.S) : {let mk: T.s => t;} => {
             (
               ~output_stack: list(t),
               ~shunted_stack: list(itile),
-              (_, postop) as ipostop: itile,
+              (_, post) as ipostop: itile,
             ) =>
       switch (shunted_stack) {
       | [] => (output_stack, [ipostop, ...shunted_stack])
       | [(_, tile) as itile, ...itiles] =>
         switch (tile) {
-        | Operand(_)
-        | PostOp(_) =>
+        | Op(_)
+        | Post(_) =>
           process_postop(
             ~output_stack=push_output(itile, output_stack),
             ~shunted_stack=itiles,
             ipostop,
           )
-        | PreOp(_)
-        | BinOp(_) =>
-          T.precedence(tile) <= T.precedence(postop)
+        | Pre(_)
+        | Bin(_) =>
+          T.precedence(tile) <= T.precedence(post)
             ? process_postop(
                 ~output_stack=push_output(itile, output_stack),
                 ~shunted_stack=itiles,
@@ -111,22 +111,22 @@ module Make = (T: Tile.S) : {let mk: T.s => t;} => {
             (
               ~output_stack: list(t),
               ~shunted_stack: list(itile),
-              (_, binop) as ibinop: itile,
+              (_, bin) as ibinop: itile,
             ) =>
       switch (shunted_stack) {
       | [] => (output_stack, [ibinop, ...shunted_stack])
       | [(_, tile) as itile, ...itiles] =>
         switch (tile) {
-        | Operand(_)
-        | PostOp(_) =>
+        | Op(_)
+        | Post(_) =>
           process_binop(
             ~output_stack=push_output(itile, output_stack),
             ~shunted_stack=itiles,
             ibinop,
           )
-        | PreOp(_)
-        | BinOp(_) =>
-          T.precedence(tile) <= T.precedence(binop)
+        | Pre(_)
+        | Bin(_) =>
+          T.precedence(tile) <= T.precedence(bin)
             ? process_binop(
                 ~output_stack=push_output(itile, output_stack),
                 ~shunted_stack=itiles,
@@ -153,10 +153,10 @@ module Make = (T: Tile.S) : {let mk: T.s => t;} => {
       | [(_, tile) as itile, ...itiles] =>
         let process =
           switch (tile) {
-          | Operand(_) => process_operand
-          | PreOp(_) => process_preop
-          | PostOp(_) => process_postop
-          | BinOp(_) => process_binop
+          | Op(_) => process_operand
+          | Pre(_) => process_preop
+          | Post(_) => process_postop
+          | Bin(_) => process_binop
           };
         let (output_stack, shunted_stack) =
           process(~output_stack, ~shunted_stack, itile);

@@ -5,11 +5,11 @@ open Util;
 module type S = {
   module T: Tile.S;
 
-  type zoperand;
-  type zpreop;
-  type zpostop;
-  type zbinop;
-  type ztile = Tile.t(zoperand, zpreop, zpostop, zbinop);
+  type zop;
+  type zpre;
+  type zpost;
+  type zbin;
+  type ztile = Tile.t(zop, zpre, zpost, zbin);
   type t = ZList.t(option(ztile), T.t);
 
   type unzipped = option(ztile);

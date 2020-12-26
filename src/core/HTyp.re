@@ -7,49 +7,49 @@ module T = {
   [@deriving sexp]
   type s = list(t)
   [@deriving sexp]
-  and t = Tile.t(operand, preop, postop, binop)
+  and t = Tile.t(op, pre, post, bin)
   [@deriving sexp]
-  and operand =
-    | OperandHole
+  and op =
+    | OpHole
     | Num
     | Bool
     | Paren(s)
   [@deriving sexp]
-  and preop = unit // empty
+  and pre = unit // empty
   [@deriving sexp]
-  and postop = unit // empty
+  and post = unit // empty
   [@deriving sexp]
-  and binop =
-    | OperatorHole
+  and bin =
+    | BinHole
     | Arrow;
 
-  exception Void_PreOp;
-  exception Void_PostOp;
+  exception Void_pre;
+  exception Void_post;
 
-  let mk_operand_hole = (): t => Operand(OperandHole);
-  let mk_operator_hole = (): t => BinOp(OperatorHole);
+  let mk_op_hole = (): t => Op(OpHole);
+  let mk_bin_hole = (): t => Bin(BinHole);
 
-  let is_operand_hole: t => bool = (==)(Tile.Operand(OperandHole));
-  let is_operator_hole: t => bool = (==)(Tile.BinOp(OperatorHole));
+  let is_op_hole: t => bool = (==)(Tile.Op(OpHole));
+  let is_bin_hole: t => bool = (==)(Tile.Bin(BinHole));
 
   let precedence: t => int =
     fun
-    | Operand(_) => 0
-    | PreOp () => raise(Void_PreOp)
-    | PostOp () => raise(Void_PostOp)
-    | BinOp(OperatorHole) => 1
-    | BinOp(Arrow) => 2;
+    | Op(_) => 0
+    | Pre () => raise(Void_pre)
+    | Post () => raise(Void_post)
+    | Bin(BinHole) => 1
+    | Bin(Arrow) => 2;
 
   let associativity =
     [(1, Associativity.Left), (2, Right)] |> List.to_seq |> IntMap.of_seq;
 
   let get_open_children: t => list(s) =
     fun
-    | Operand(OperandHole | Num | Bool) => []
-    | Operand(Paren(body)) => [body]
-    | PreOp () => raise(Void_PreOp)
-    | PostOp () => raise(Void_PostOp)
-    | BinOp(OperatorHole | Arrow) => [];
+    | Op(OpHole | Num | Bool) => []
+    | Op(Paren(body)) => [body]
+    | Pre () => raise(Void_pre)
+    | Post () => raise(Void_post)
+    | Bin(BinHole | Arrow) => [];
 };
 open T;
 
@@ -69,18 +69,18 @@ module Inner = {
 
 let rec contract = (ty: t): Type.t =>
   switch (root(ty)) {
-  | Operand(operand) =>
-    switch (operand) {
-    | OperandHole => Hole
+  | Op(op) =>
+    switch (op) {
+    | OpHole => Hole
     | Num => Num
     | Bool => Bool
     | Paren(body) => contract(body)
     }
-  | PreOp(((), _)) => raise(T.Void_PreOp)
-  | PostOp((_, ())) => raise(T.Void_PostOp)
-  | BinOp((ty1, binop, ty2)) =>
-    switch (binop) {
-    | OperatorHole => Hole
+  | Pre(((), _)) => raise(T.Void_pre)
+  | Post((_, ())) => raise(T.Void_post)
+  | Bin((ty1, bin, ty2)) =>
+    switch (bin) {
+    | BinHole => Hole
     | Arrow => Arrow(contract(ty1), contract(ty2))
     }
   };

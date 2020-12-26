@@ -39,8 +39,8 @@ open OptUtil.Syntax;
 //     | [(tile_step, child_step), ...steps] =>
 //       let* init = mk_tile(~init, tile_step, e);
 //       let ZList.{z, _} = HExp.nth_root(tile_step, e);
-//       let op = operand =>
-//         switch (ZPath.Exp.unzip_tile(child_step, Tile.Operand(operand))) {
+//       let op = op =>
+//         switch (ZPath.Exp.unzip_tile(child_step, Tile.Op(op))) {
 //         |
 //         }
 
@@ -103,18 +103,15 @@ module Exp = {
       open HExp.T;
       // dummy hole
       let op = _ => Some(info);
-      let pre = preop =>
-        switch (preop) {
+      let pre = pre =>
+        switch (pre) {
         | (Lam(_, p), body) =>
           let syn_pat = () => {
             let+ (pty, ctx) = Statics.Pat.syn(info.ctx, p);
             (PType.to_type(pty), ctx);
           };
           let mk_ze = (status, p, ze) =>
-            ZList.{
-              ...ze,
-              prefix: ze.prefix @ [Tile.PreOp(Lam(status, p))],
-            };
+            ZList.{...ze, prefix: ze.prefix @ [Tile.Pre(Lam(status, p))]};
           let* body_info =
             switch (info.mode) {
             | Syn(fix) =>
@@ -153,22 +150,22 @@ module Exp = {
           go(body, body_info);
         | (Let(p, def), body) =>
           let mk_ze = ze =>
-            ZList.{...ze, prefix: ze.prefix @ [Tile.PreOp(Let(p, def))]};
+            ZList.{...ze, prefix: ze.prefix @ [Tile.Pre(Let(p, def))]};
           let mode = map_mode(mk_ze, info.mode);
           // def_ty sufficient to get ctx
           let* def_ty = Statics.Exp.syn(info.ctx, def);
           let* ctx = Statics.Pat.ana(info.ctx, p, def_ty);
           go(body, {ctx, mode});
         };
-      let post = postop =>
-        switch (postop) {
+      let post = post =>
+        switch (post) {
         | (fn, Ap(_, arg)) =>
           let fix = (ty_in, ty_out) => {
             let arg = Statics.Exp.ana_fix_holes(info.ctx, arg, ty_in);
             let mk_ze = (status, ze) =>
               ZList.{
                 ...ze,
-                suffix: [Tile.PostOp(Ap(status, arg)), ...ze.suffix],
+                suffix: [Tile.Post(Ap(status, arg)), ...ze.suffix],
               };
             switch (info.mode) {
             | Syn(fix) => mk_ze(NotInHole, fix(ty_out))
@@ -189,17 +186,17 @@ module Exp = {
           };
           go(fn, {ctx: info.ctx, mode: Fn_pos(fix)});
         };
-      let bin = ((l, binop, r)) => {
+      let bin = ((l, bin, r)) => {
         let is_left = n < List.length(l);
-        switch (binop) {
+        switch (bin) {
         | Plus(_) =>
           let mk_ze = (status, ze: ZExp.t): ZExp.t =>
             is_left
               ? {
                 ...ze,
-                suffix: [Tile.BinOp(Plus(status)), ...r] @ ze.suffix,
+                suffix: [Tile.Bin(Plus(status)), ...r] @ ze.suffix,
               }
-              : {...ze, prefix: ze.prefix @ l @ [Tile.BinOp(Plus(status))]};
+              : {...ze, prefix: ze.prefix @ l @ [Tile.Bin(Plus(status))]};
           let fixed =
             switch (info.mode) {
             | Syn(fix) =>
@@ -216,14 +213,11 @@ module Exp = {
               mk_ze(status, fix(ty));
             };
           go(is_left ? l : r, {...info, mode: Ana(Num, fixed)});
-        | OperatorHole =>
+        | BinHole =>
           let mk_ze = (ze: ZExp.t): ZExp.t =>
             is_left
-              ? {
-                ...ze,
-                suffix: [Tile.BinOp(OperatorHole), ...r] @ ze.suffix,
-              }
-              : {...ze, prefix: ze.prefix @ l @ [Tile.BinOp(OperatorHole)]};
+              ? {...ze, suffix: [Tile.Bin(BinHole), ...r] @ ze.suffix}
+              : {...ze, prefix: ze.prefix @ l @ [Tile.Bin(BinHole)]};
           let fix = _ =>
             switch (info.mode) {
             | Syn(fix) => mk_ze(fix(Hole))
@@ -247,13 +241,13 @@ module Exp = {
     };
     let* info = mk(ze);
     switch (zroot) {
-    | Operand(_) =>
+    | Op(_) =>
       switch (Tile.get_operand(ztile)) {
       | ParenZ_body(_) =>
-        let wrap = ze => Tile.Operand(ZExp.ParenZ_body(ze));
+        let wrap = ze => Tile.Op(ZExp.ParenZ_body(ze));
         Some(map(wrap, info));
       }
-    | PreOp((_, r)) =>
+    | Pre((_, r)) =>
       let mk_ze = (r, ze) => ZList.{...ze, suffix: r @ ze.suffix};
       switch (Tile.get_preop(ztile)) {
       | LetZ_def(p, _) =>
@@ -295,16 +289,16 @@ module Exp = {
                  failwith("expected p to have consistent type with joined_ty")
                );
           let ze = ze(ctx_body);
-          Tile.PreOp(ZExp.LetZ_def(p, ze));
+          Tile.Pre(ZExp.LetZ_def(p, ze));
         };
         {...info, mode: Let_def(PType.to_type(pty), fix)};
       };
-    | PostOp((l, _)) =>
+    | Post((l, _)) =>
       let mk_ze = (l, ze) => ZList.{...ze, prefix: ze.prefix @ l};
       switch (Tile.get_postop(ztile)) {
       | ApZ_arg(_) =>
         let mk_ztile = (status, ze) =>
-          Tile.PostOp(ZExp.ApZ_arg(status, mk_ze(l, ze)));
+          Tile.Post(ZExp.ApZ_arg(status, mk_ze(l, ze)));
         let* fn_ty = Statics.Exp.syn(info.ctx, l);
         let+ (ty_in, ty_out) = Type.matched_arrow(fn_ty);
         let fixed =
@@ -325,9 +319,9 @@ module Exp = {
           };
         {...info, mode: Ana(ty_in, fixed)};
       };
-    | BinOp(_) =>
+    | Bin(_) =>
       let () = Tile.get_binop(ztile);
-      raise(ZExp.Void_ZBinOp);
+      raise(ZExp.Void_zbin);
     };
   };
 };
@@ -367,15 +361,15 @@ module Pat = {
     let rec go = (p: HPat.t, info: t(ZPat.t)): option(t(ZPat.t)) => {
       HPat.T.(
         switch (HPat.root(p)) {
-        | Operand(_) =>
+        | Op(_) =>
           // dummy hole
           Some(info)
-        | PreOp(((), _)) => raise(Void_PreOp)
-        | PostOp((subj, Ann(_, ann))) =>
+        | Pre(((), _)) => raise(Void_pre)
+        | Post((subj, Ann(_, ann))) =>
           let ann_ty = HTyp.contract(ann);
           let mk_zp = (status, zp: ZPat.t): ZPat.t => {
             ...zp,
-            suffix: [PostOp(Ann(status, ann)), ...zp.suffix],
+            suffix: [Post(Ann(status, ann)), ...zp.suffix],
           };
           let subj_mode =
             switch (info.mode) {
@@ -396,9 +390,9 @@ module Pat = {
               Ana(ann_ty, fix);
             };
           go(subj, {ctx: info.ctx, mode: subj_mode});
-        | BinOp((l, OperatorHole, r)) =>
+        | Bin((l, BinHole, r)) =>
           let is_left = n < List.length(l);
-          let tile = Tile.BinOp(OperatorHole);
+          let tile = Tile.Bin(BinHole);
           let mk_zp = ctx =>
             switch (info.mode) {
             | Syn(fix)
@@ -436,8 +430,8 @@ module Pat = {
       };
       let* info = Exp.mk(ze);
       switch (zroot) {
-      | Operand(_) => failwith("no operand that takes a pat and produces exp")
-      | PreOp((_, r)) =>
+      | Op(_) => failwith("no op that takes a pat and produces exp")
+      | Pre((_, r)) =>
         let mk_ze = (r, ze: ZExp.t): ZExp.t => {
           ...ze,
           suffix: r @ ze.suffix,
@@ -446,7 +440,7 @@ module Pat = {
         | LamZ_pat(_) =>
           let mk_ztile = (status, body, ze) => {
             let ze = mk_ze(body, ze);
-            Tile.PreOp(ZPat.LamZ_pat(status, ze));
+            Tile.Pre(ZPat.LamZ_pat(status, ze));
           };
           let mode: mode(ZPat.ztile) =
             switch (info.mode) {
@@ -505,7 +499,7 @@ module Pat = {
         | LetZ_pat(_, def) =>
           let mk_ztile = (def, body, ze) => {
             let ze = mk_ze(body, ze);
-            Tile.PreOp(ZPat.LetZ_pat(ze, def));
+            Tile.Pre(ZPat.LetZ_pat(ze, def));
           };
           let* def_ty = Statics.Exp.syn(info.ctx, def);
           let fix = (pty, ctx) => {
@@ -542,12 +536,12 @@ module Pat = {
           };
           Some({ctx: info.ctx, mode: Let_pat(def_ty, fix)});
         };
-      | PostOp(_) =>
+      | Post(_) =>
         let () = Tile.get_postop(ztile);
-        raise(ZPat.Void_ZPostOp);
-      | BinOp(_) =>
+        raise(ZPat.Void_zpost);
+      | Bin(_) =>
         let () = Tile.get_binop(ztile);
-        raise(ZPat.Void_ZBinOp);
+        raise(ZPat.Void_zbin);
       };
     | `Pat(p, zrest) =>
       let (zroot, zp) = {
@@ -556,15 +550,15 @@ module Pat = {
       };
       let* info = mk(zp);
       switch (zroot) {
-      | Operand(_) =>
+      | Op(_) =>
         switch (Tile.get_operand(ztile)) {
         | ParenZ_body(_) =>
-          let wrap = ze => Tile.Operand(ZPat.ParenZ_body(ze));
+          let wrap = ze => Tile.Op(ZPat.ParenZ_body(ze));
           Some(map(wrap, info));
         }
-      | PreOp(_) => failwith("no preop that takes a pat produces a pat")
-      | PostOp((_, Ann(_))) => raise(ZPat.Void_ZPostOp)
-      | BinOp((_, OperatorHole, _)) => raise(ZPat.Void_ZBinOp)
+      | Pre(_) => failwith("no pre that takes a pat produces a pat")
+      | Post((_, Ann(_))) => raise(ZPat.Void_zpost)
+      | Bin((_, BinHole, _)) => raise(ZPat.Void_zbin)
       };
     };
   };

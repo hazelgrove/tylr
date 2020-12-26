@@ -8,17 +8,17 @@ type t = Util.ZList.t(option(ztile), HPat.T.t)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HExp.t` or `t`
  */
-and ztile = Tile.t(zoperand, zpreop, zpostop, zbinop)
-and zoperand =
+and ztile = Tile.t(zop, zpre, zpost, zbin)
+and zop =
   | ParenZ_body(t)
-and zpreop =
+and zpre =
   | LamZ_pat(HoleStatus.t, ZExp.t)
   | LetZ_pat(ZExp.t, HExp.t)
-and zpostop = unit // empty
-and zbinop = unit; // empty
+and zpost = unit // empty
+and zbin = unit; // empty
 
-exception Void_ZPostOp;
-exception Void_ZBinOp;
+exception Void_zpost;
+exception Void_zbin;
 
 [@deriving sexp]
 type unzipped = option(ztile);
@@ -32,8 +32,8 @@ let mk = (~prefix=[], ~z: option(ztile)=?, ~suffix=[], ()) =>
 
 let index: ztile => int =
   fun
-  | Operand(ParenZ_body({prefix, _})) => List.length(prefix)
-  | PreOp(LamZ_pat(_, {prefix, _}) | LetZ_pat({prefix, _}, _)) =>
+  | Op(ParenZ_body({prefix, _})) => List.length(prefix)
+  | Pre(LamZ_pat(_, {prefix, _}) | LetZ_pat({prefix, _}, _)) =>
     List.length(prefix)
-  | PostOp () => raise(Void_ZPostOp)
-  | BinOp () => raise(Void_ZBinOp);
+  | Post () => raise(Void_zpost)
+  | Bin () => raise(Void_zbin);

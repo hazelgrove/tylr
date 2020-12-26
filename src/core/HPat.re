@@ -7,46 +7,46 @@ module T = {
   [@deriving sexp]
   type s = list(t)
   [@deriving sexp]
-  and t = Tile.t(operand, preop, postop, binop)
+  and t = Tile.t(op, pre, post, bin)
   [@deriving sexp]
-  and operand =
-    | OperandHole
+  and op =
+    | OpHole
     | Var(Var.t)
     | Paren(s)
   [@deriving sexp]
-  and preop = unit // empty
+  and pre = unit // empty
   [@deriving sexp]
-  and postop =
+  and post =
     | Ann(HoleStatus.t, HTyp.t)
   [@deriving sexp]
-  and binop =
-    | OperatorHole;
+  and bin =
+    | BinHole;
 
-  exception Void_PreOp;
+  exception Void_pre;
 
-  let mk_operand_hole = (): t => Operand(OperandHole);
-  let mk_operator_hole = (): t => BinOp(OperatorHole);
+  let mk_op_hole = (): t => Op(OpHole);
+  let mk_bin_hole = (): t => Bin(BinHole);
 
-  let is_operand_hole: t => bool = (==)(Tile.Operand(OperandHole));
-  let is_operator_hole: t => bool = (==)(Tile.BinOp(OperatorHole));
+  let is_op_hole: t => bool = (==)(Tile.Op(OpHole));
+  let is_bin_hole: t => bool = (==)(Tile.Bin(BinHole));
 
   let precedence: t => int =
     fun
-    | Operand(_) => 0
-    | PreOp () => raise(Void_PreOp)
-    | PostOp(Ann(_)) => 2
-    | BinOp(OperatorHole) => 1;
+    | Op(_) => 0
+    | Pre () => raise(Void_pre)
+    | Post(Ann(_)) => 2
+    | Bin(BinHole) => 1;
 
   let associativity =
     [(1, Associativity.Left)] |> List.to_seq |> IntMap.of_seq;
 
   let get_open_children: t => list(s) =
     fun
-    | Operand(OperandHole | Var(_)) => []
-    | Operand(Paren(body)) => [body]
-    | PreOp () => raise(Void_PreOp)
-    | PostOp(Ann(_)) => []
-    | BinOp(OperatorHole) => [];
+    | Op(OpHole | Var(_)) => []
+    | Op(Paren(body)) => [body]
+    | Pre () => raise(Void_pre)
+    | Post(Ann(_)) => []
+    | Bin(BinHole) => [];
 };
 open T;
 
@@ -71,14 +71,14 @@ let get_hole_status = p =>
   root(p)
   |> Tile.get(
        fun
-       | OperandHole
+       | OpHole
        | Var(_)
        | Paren(_) => HoleStatus.NotInHole,
-       (((), _)) => raise(T.Void_PreOp),
+       (((), _)) => raise(T.Void_pre),
        fun
        | (_, Ann(status, _)) => status,
        fun
-       | (_, OperatorHole, _) => HoleStatus.NotInHole,
+       | (_, BinHole, _) => HoleStatus.NotInHole,
      );
 
 // recurses into term
@@ -87,13 +87,13 @@ let rec put_hole_status = (status: HoleStatus.t, p: t): t =>
     root(p)
     |> get(
          fun
-         | OperandHole => [Operand(OperandHole)]
-         | Var(x) => [Operand(Var(x))]
-         | Paren(body) => [Operand(Paren(put_hole_status(status, body)))],
-         (((), _)) => raise(T.Void_PreOp),
+         | OpHole => [Op(OpHole)]
+         | Var(x) => [Op(Var(x))]
+         | Paren(body) => [Op(Paren(put_hole_status(status, body)))],
+         (((), _)) => raise(T.Void_pre),
          fun
-         | (subj, Ann(_, ann)) => subj @ [PostOp(Ann(status, ann))],
+         | (subj, Ann(_, ann)) => subj @ [Post(Ann(status, ann))],
          fun
-         | (l, OperatorHole as bin, r) => l @ [BinOp(bin), ...r],
+         | (l, BinHole as bin, r) => l @ [Bin(bin), ...r],
        )
   );

@@ -7,7 +7,7 @@ let space = ListUtil.join(Node.text(Unicode.nbsp));
 let emph_if = (b, node) =>
   b ? Node.span([Attr.classes(["emph"])], [node]) : node;
 
-// operand
+// op
 let of_OperandHole = Node.text(Unicode.nbsp);
 let of_Var = x => Node.text(x);
 let of_NumLit = n => Node.text(string_of_int(n));
@@ -16,15 +16,15 @@ let of_Paren = (
   Node.span([Attr.classes(["paren"])], [Node.text(")")]),
 );
 
-// preop
+// pre
 let of_Lam = (Node.text(Unicode.lam), Node.text("."));
 let of_Let = (Node.text("let"), Node.text("="), Node.text("in"));
 
-// postop
+// post
 let of_Ann = (Node.text(":"), Node.text(""));
 let of_Ap = of_Paren;
 
-// binop
+// bin
 let of_Arrow = Node.text(Unicode.right_arrow);
 let of_Plus = Node.text("+");
 let of_OperatorHole = Node.text(Unicode.nbsp);
@@ -191,17 +191,17 @@ module rec Typ: TYP = {
   let view_of_tile =
     Tile.get(
       fun
-      | OperandHole => [of_OperandHole]
+      | OpHole => [of_OperandHole]
       | Num => [Node.text("num")]
       | Bool => [Node.text("bool")]
       | Paren(body) => {
           let (open_, close) = of_Paren;
           [open_, ...Typ.view(body)] @ [close];
         },
-      () => raise(Void_PreOp),
-      () => raise(Void_PostOp),
+      () => raise(Void_pre),
+      () => raise(Void_post),
       fun
-      | OperatorHole => [of_OperatorHole]
+      | BinHole => [of_OperatorHole]
       | Arrow => [of_Arrow],
     );
 
@@ -212,13 +212,13 @@ module rec Typ: TYP = {
           let (l, r) = TupleUtil.map2(emph_if(emph), of_Paren);
           ZView.insert([l], [r], Typ.view_of_z(zty));
         },
-      () => raise(Void_ZPreOp),
+      () => raise(Void_zpre),
       fun
       | AnnZ_ann(_, zp) => {
           let (l, r) = TupleUtil.map2(emph_if(emph), of_Ann);
           ZView.insert([l], [r], Pat.view_of_z(zp));
         },
-      () => raise(Void_ZBinOp),
+      () => raise(Void_zbin),
     );
 
   let view_of_selection_tile =
@@ -237,20 +237,20 @@ and Pat: PAT = {
   let view_of_tile =
     Tile.get(
       fun
-      | OperandHole => [of_OperandHole]
+      | OpHole => [of_OperandHole]
       | Var(x) => [of_Var(x)]
       | Paren(body) => {
           let (open_, close) = of_Paren;
           [open_, ...Pat.view(body)] @ [close];
         },
-      () => raise(Void_PreOp),
+      () => raise(Void_pre),
       fun
       | Ann(_, ann) => {
           let (open_, close) = of_Ann;
           [open_, ...Typ.view(ann)] @ [close];
         },
       fun
-      | OperatorHole => [of_OperatorHole],
+      | BinHole => [of_OperatorHole],
     );
 
   let view_of_ztile = (~emph=false) =>
@@ -270,8 +270,8 @@ and Pat: PAT = {
           let def = Exp.view(def);
           ZView.insert([let_], [eq, ...def] @ [in_], Exp.view_of_z(ze));
         },
-      () => raise(Void_ZPostOp),
-      () => raise(Void_ZBinOp),
+      () => raise(Void_zpost),
+      () => raise(Void_zbin),
     );
 
   let view_of_selection_tile = (~emph=false, (child_step, selection), tile) =>
@@ -289,7 +289,7 @@ and Exp: EXP = {
   let view_of_tile =
     Tile.get(
       fun
-      | OperandHole => [of_OperandHole]
+      | OpHole => [of_OperandHole]
       | Var(_, x) => [of_Var(x)]
       | Num(_, n) => [of_NumLit(n)]
       | Paren(body) => {
@@ -311,7 +311,7 @@ and Exp: EXP = {
           [open_, ...Exp.view(arg)] @ [close];
         },
       fun
-      | OperatorHole => [of_OperatorHole]
+      | BinHole => [of_OperatorHole]
       | Plus(_) => [of_Plus],
     );
 
@@ -334,7 +334,7 @@ and Exp: EXP = {
           ZView.insert([l], [r], Exp.view_of_z(ze));
         },
       () =>
-      raise(ZExp.Void_ZBinOp)
+      raise(ZExp.Void_zbin)
     );
 
   let view_of_selection_tile = (~emph=false, (child_step, selection), tile) =>

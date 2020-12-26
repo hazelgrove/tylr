@@ -1,71 +1,71 @@
 [@deriving sexp]
-type t('operand, 'preop, 'postop, 'binop) =
-  | Operand('operand)
-  | PreOp('preop)
-  | PostOp('postop)
-  | BinOp('binop);
+type t('op, 'pre, 'post, 'bin) =
+  | Op('op)
+  | Pre('pre)
+  | Post('post)
+  | Bin('bin);
 
-let get_operand: t('operand, _, _, _) => 'operand =
+let get_operand: t('op, _, _, _) => 'op =
   fun
-  | Operand(operand) => operand
+  | Op(op) => op
   | _ => raise(Invalid_argument("Tile.get_operand"));
-let get_preop: t(_, 'preop, _, _) => 'preop =
+let get_preop: t(_, 'pre, _, _) => 'pre =
   fun
-  | PreOp(preop) => preop
+  | Pre(pre) => pre
   | _ => raise(Invalid_argument("Tile.get_preop"));
-let get_postop: t(_, _, 'postop, _) => 'postop =
+let get_postop: t(_, _, 'post, _) => 'post =
   fun
-  | PostOp(postop) => postop
+  | Post(post) => post
   | _ => raise(Invalid_argument("Tile.get_postop"));
-let get_binop: t(_, _, _, 'binop) => 'binop =
+let get_binop: t(_, _, _, 'bin) => 'bin =
   fun
-  | BinOp(binop) => binop
+  | Bin(bin) => bin
   | _ => raise(Invalid_argument("Tile.get_binop"));
 
 let is_operand =
   fun
-  | Operand(_) => true
+  | Op(_) => true
   | _ => false;
 let is_binop =
   fun
-  | BinOp(_) => true
+  | Bin(_) => true
   | _ => false;
 
 let get =
     (
-      get_operand: 'operand => 'a,
-      get_preop: 'preop => 'a,
-      get_postop: 'postop => 'a,
-      get_binop: 'binop => 'a,
+      get_operand: 'op => 'a,
+      get_preop: 'pre => 'a,
+      get_postop: 'post => 'a,
+      get_binop: 'bin => 'a,
     )
-    : (t('operand, 'preop, 'postop, 'binop) => 'a) =>
+    : (t('op, 'pre, 'post, 'bin) => 'a) =>
   fun
-  | Operand(operand) => get_operand(operand)
-  | PreOp(preop) => get_preop(preop)
-  | PostOp(postop) => get_postop(postop)
-  | BinOp(binop) => get_binop(binop);
+  | Op(op) => get_operand(op)
+  | Pre(pre) => get_preop(pre)
+  | Post(post) => get_postop(post)
+  | Bin(bin) => get_binop(bin);
 
 module type S = {
   let sort: Sort.t;
 
   [@deriving sexp]
-  type operand;
+  type op;
   [@deriving sexp]
-  type preop;
+  type pre;
   [@deriving sexp]
-  type postop;
+  type post;
   [@deriving sexp]
-  type binop;
+  type bin;
   [@deriving sexp]
-  type nonrec t = t(operand, preop, postop, binop);
+  type nonrec t = t(op, pre, post, bin);
   [@deriving sexp]
   type s = list(t);
 
-  let mk_operand_hole: unit => t;
-  let mk_operator_hole: unit => t;
+  let mk_op_hole: unit => t;
+  let mk_bin_hole: unit => t;
 
-  let is_operand_hole: t => bool;
-  let is_operator_hole: t => bool;
+  let is_op_hole: t => bool;
+  let is_bin_hole: t => bool;
 
   let precedence: t => int;
   let associativity: Util.IntMap.t(Associativity.t);
