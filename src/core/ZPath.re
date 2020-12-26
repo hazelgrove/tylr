@@ -213,19 +213,13 @@ module Common =
     | [] =>
       let+ tiles = I.unwrap(tiles);
       let (prefix, suffix) = ListUtil.split_n(j, ts);
-      let suffix_len = {
-        let (_, suffix) = Ts.fix_empty_holes(prefix @ tiles, suffix);
-        List.length(suffix);
-      };
-      let (prefix_len, ts) = {
-        let (prefix, suffix) = Ts.fix_empty_holes(prefix, tiles @ suffix);
-        (List.length(prefix), prefix @ suffix);
-      };
-      let inserted = (
-        ([], prefix_len),
-        ([], List.length(ts) - suffix_len),
+      let (prefix, tiles, suffix) =
+        Ts.fix_empty_holes_3(prefix, tiles, suffix);
+      let inserted_selection = (
+        ([], List.length(prefix)),
+        ([], List.length(prefix) + List.length(tiles)),
       );
-      (inserted, ts);
+      (inserted_selection, prefix @ tiles @ suffix);
     | [two_step, ...steps] =>
       P.insert_tiles(tiles, (two_step, (steps, j)), ts)
     };
@@ -235,7 +229,7 @@ module Common =
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
       let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
-      let (prefix, suffix) = Ts.fix_empty_holes(prefix, suffix);
+      let (prefix, suffix) = Ts.fix_empty_holes_2(prefix, suffix);
       Some((I.wrap(removed), ([], List.length(prefix)), prefix @ suffix));
     | (([], _), ([_, ..._], _))
     | (([_, ..._], _), ([], _)) => None
@@ -295,12 +289,12 @@ module Common =
             | `Other => (prefix, suffix_l @ removed @ suffix_r)
             };
           };
-        let (prefix, suffix) = Ts.fix_empty_holes(prefix, suffix);
+        let (prefix, suffix) = Ts.fix_empty_holes_2(prefix, suffix);
         Some((([], List.length(prefix)), prefix @ suffix));
       | ([], [], [(tile_step, child_step), ...steps]) =>
         let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
         let (fixed_prefix, fixed_suffix) =
-          Ts.fix_empty_holes(prefix, suffix);
+          Ts.fix_empty_holes_2(prefix, suffix);
         let ts = fixed_prefix @ fixed_suffix;
         if (tile_step < j_l) {
           let+ ((inserted_l, inserted_r), ts) =

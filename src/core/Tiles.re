@@ -4,7 +4,8 @@ module Make =
          let mk_hole: unit => T.s;
          let dummy_hole: T.s;
 
-         let fix_empty_holes: (T.s, T.s) => (T.s, T.s);
+         let fix_empty_holes_2: (T.s, T.s) => (T.s, T.s);
+         let fix_empty_holes_3: (T.s, T.s, T.s) => (T.s, T.s, T.s);
 
          [@deriving sexp]
          type root =
@@ -55,54 +56,36 @@ module Make =
     };
   };
 
-  let fix_empty_holes_left = (ts: T.s): T.s =>
-    switch (ts) {
-    | [] => [T.mk_operand_hole()]
-    | [t, ...ts] =>
-      let left_cap =
-        switch (t) {
-        | _ when T.is_operator_hole(t) => []
-        | Operand(_)
-        | PreOp(_) => [t]
-        | PostOp(_)
-        | BinOp(_) => [T.mk_operand_hole(), t]
+  let fix_empty_holes = (tss: list(T.s)): list(T.s) => {
+    let rec fix = (ts: T.s, tss: list(T.s)): list(T.s) => {
+      let skip_empty = (ts, tss) => {
+        let (ts, tss) = ListUtil.split_first(fix(ts, tss));
+        [ts, [], ...tss];
+      };
+      switch (tss) {
+      | [] => [ts]
+      | [[], ...tss] => skip_empty(ts, tss)
+      | [[_, ..._] as ts', ...tss] =>
+        let (ts, ts') = fix_empty_holes_between(ts, ts');
+        switch (ts') {
+        | [] => skip_empty(ts, tss)
+        | [_, ..._] => [ts, ts', ...tss]
         };
-      left_cap @ ts;
+      };
     };
-
-  let fix_empty_holes_right = (ts: T.s): T.s =>
-    switch (ListUtil.split_last_opt(ts)) {
-    | None => [T.mk_operand_hole()]
-    | Some((ts, t)) =>
-      let right_cap =
-        switch (t) {
-        | _ when T.is_operator_hole(t) => []
-        | Operand(_)
-        | PostOp(_) => [t]
-        | PreOp(_)
-        | BinOp(_) => [t, T.mk_operand_hole()]
-        };
-      ts @ right_cap;
-    };
-
-  // Assumes prefix and suffix are internally structurally correct,
-  // only fixes things at prefix/suffix interface and at ends.
-  // Puts new empty holes on suffix.
-  let fix_empty_holes = (prefix: T.s, suffix: T.s): (T.s, T.s) => {
-    let (prefix, suffix) = fix_empty_holes_between(prefix, suffix);
-    switch (prefix, suffix) {
-    | ([], _) =>
-      let suffix = fix_empty_holes_left(fix_empty_holes_right(suffix));
-      (prefix, suffix);
-    | (_, []) =>
-      let prefix = fix_empty_holes_right(fix_empty_holes_left(prefix));
-      (prefix, suffix);
-    | _ =>
-      let prefix = fix_empty_holes_left(prefix);
-      let suffix = fix_empty_holes_right(suffix);
-      (prefix, suffix);
-    };
+    List.fold_right(fix, tss, []);
   };
+
+  let fix_empty_holes_2 = (ts1, ts2) =>
+    switch (fix_empty_holes([ts1, ts2])) {
+    | [ts1, ts2] => (ts1, ts2)
+    | _ => failwith("fix_empty_holes expected to preserve length")
+    };
+  let fix_empty_holes_3 = (ts1, ts2, ts3) =>
+    switch (fix_empty_holes([ts1, ts2, ts3])) {
+    | [ts1, ts2, ts3] => (ts1, ts2, ts3)
+    | _ => failwith("fix_empty_holes expected to preserve length")
+    };
 
   module Sk = Skel.Make(T);
 

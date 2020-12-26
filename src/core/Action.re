@@ -35,8 +35,9 @@ module Common =
   let construct = (s: tile_shape, j: ZPath.caret_step, ts: T.s) => {
     let+ tile = M.tile_of_shape(s);
     let (prefix, suffix) = ListUtil.split_n(j, ts);
-    let (prefix, suffix) = Ts.fix_empty_holes(prefix @ [tile], suffix);
-    (List.length(prefix), prefix @ suffix);
+    let (prefix, tile, suffix) =
+      Ts.fix_empty_holes_3(prefix, [tile], suffix);
+    (List.length(prefix), prefix @ tile @ suffix);
   };
 };
 
