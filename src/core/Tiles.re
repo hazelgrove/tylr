@@ -17,6 +17,7 @@ module Make =
 
          let fix_empty_holes_2: (T.s, T.s) => (T.s, T.s);
          let fix_empty_holes_3: (T.s, T.s, T.s) => (T.s, T.s, T.s);
+         let fix_empty_holes_4: (T.s, T.s, T.s, T.s) => (T.s, T.s, T.s, T.s);
 
          [@deriving sexp]
          type root =
@@ -118,6 +119,11 @@ module Make =
   let fix_empty_holes_3 = (ts1, ts2, ts3) =>
     switch (fix_empty_holes([ts1, ts2, ts3])) {
     | [ts1, ts2, ts3] => (ts1, ts2, ts3)
+    | _ => failwith("fix_empty_holes expected to preserve length")
+    };
+  let fix_empty_holes_4 = (ts1, ts2, ts3, ts4) =>
+    switch (fix_empty_holes([ts1, ts2, ts3, ts4])) {
+    | [ts1, ts2, ts3, ts4] => (ts1, ts2, ts3, ts4)
     | _ => failwith("fix_empty_holes expected to preserve length")
     };
 

@@ -271,26 +271,34 @@ module Common =
         restructure(~place_cursor=`Other, (target, l), r, ts)
       | ([], [], []) =>
         let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
-        let (prefix, suffix) =
-          if (j_target <= j_l) {
+        let moving_left = j_target <= j_l;
+        let (prefix, swapped_l, swapped_r, suffix) =
+          if (moving_left) {
             let (prefix_l, prefix_r) = ListUtil.split_n(j_target, prefix);
-            switch (place_cursor) {
-            | `Selection => (prefix_l, removed @ prefix_r @ suffix)
-            | `Other => (prefix_l @ removed, prefix_r @ suffix)
-            };
+            (prefix_l, removed, prefix_r, suffix);
           } else {
             let (suffix_l, suffix_r) =
               ListUtil.split_n(
                 j_target - (List.length(prefix) + List.length(removed)),
                 suffix,
               );
-            switch (place_cursor) {
-            | `Selection => (prefix @ suffix_l, removed @ suffix_r)
-            | `Other => (prefix, suffix_l @ removed @ suffix_r)
-            };
+            (prefix, suffix_l, removed, suffix_r);
           };
-        let (prefix, suffix) = Ts.fix_empty_holes_2(prefix, suffix);
-        Some((([], List.length(prefix)), prefix @ suffix));
+        let (prefix, swapped_l, swapped_r, suffix) =
+          Ts.fix_empty_holes_4(prefix, swapped_l, swapped_r, suffix);
+        let j =
+          List.length(
+            switch (moving_left, place_cursor) {
+            | (true, `Selection)
+            | (false, `Other) => prefix
+            | (true, `Other)
+            | (false, `Selection) => prefix @ swapped_l
+            },
+          );
+        Some((
+          ([], j),
+          List.concat([prefix, swapped_l, swapped_r, suffix]),
+        ));
       | ([], [], [(tile_step, child_step), ...steps]) =>
         let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
         let (fixed_prefix, fixed_suffix) =
