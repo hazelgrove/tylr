@@ -1,3 +1,14 @@
+let rev =
+    (ts: list(Tile.t('op, 'pre, 'post, 'bin)))
+    : list(Tile.t('op, 'post, 'pre, 'bin)) =>
+  List.rev_map(
+    fun
+    | (Tile.Op(_) | Bin(_)) as t => t
+    | Pre(pre) => Post(pre)
+    | Post(post) => Pre(post),
+    ts,
+  );
+
 module Make =
        (T: Tile.S)
        : {
@@ -56,6 +67,28 @@ module Make =
     };
   };
 
+  let rec fix_empty_holes_left = tss =>
+    switch (tss) {
+    | [] => []
+    | [[], ...tss] => [[], ...fix_empty_holes_left(tss)]
+    | [[Tile.Bin(bin)], ...tss] when T.is_bin_hole(bin) => [
+        [],
+        ...fix_empty_holes_left(tss),
+      ]
+    | [[t, ..._] as ts, ...tss] =>
+      let left_cap =
+        switch (t) {
+        | Op(_)
+        | Pre(_) => []
+        | Post(_)
+        | Bin(_) => [Tile.Op(T.mk_op_hole())]
+        };
+      [left_cap @ ts, ...tss];
+    };
+
+  let fix_empty_holes_right = tss =>
+    tss |> List.rev_map(rev) |> fix_empty_holes_left |> List.rev_map(rev);
+
   let fix_empty_holes = (tss: list(T.s)): list(T.s) => {
     let rec fix = (ts: T.s, tss: list(T.s)): list(T.s) => {
       let skip_empty = (ts, tss) => {
@@ -73,7 +106,8 @@ module Make =
         };
       };
     };
-    List.fold_right(fix, tss, []);
+    let fixed_between = List.fold_right(fix, tss, []);
+    fix_empty_holes_left(fix_empty_holes_right(fixed_between));
   };
 
   let fix_empty_holes_2 = (ts1, ts2) =>
