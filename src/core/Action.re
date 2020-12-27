@@ -36,7 +36,7 @@ module Common =
     let+ tile = M.tile_of_shape(s);
     let (prefix, suffix) = ListUtil.split_n(j, ts);
     let (prefix, tile, suffix) =
-      Ts.fix_empty_holes_3(prefix, [tile], suffix);
+      ListUtil.take_3(Ts.fix_empty_holes([prefix, [tile], suffix]));
     (List.length(prefix), prefix @ tile @ suffix);
   };
 };

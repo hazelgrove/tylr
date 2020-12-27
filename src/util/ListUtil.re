@@ -142,3 +142,20 @@ let rec fold_left_map =
     let (final, ys) = fold_left_map(f, new_acc, xs);
     (final, [y, ...ys]);
   };
+
+let take_2 =
+  fun
+  | [x1, x2, ..._] => (x1, x2)
+  | _ => raise(Invalid_argument("ListUtil.take_2"));
+let take_3 =
+  fun
+  | [x1, x2, x3, ..._] => (x1, x2, x3)
+  | _ => raise(Invalid_argument("ListUtil.take_3"));
+let take_4 =
+  fun
+  | [x1, x2, x3, x4, ..._] => (x1, x2, x3, x4)
+  | _ => raise(Invalid_argument("ListUtil.take_4"));
+let take_5 =
+  fun
+  | [x1, x2, x3, x4, x5, ..._] => (x1, x2, x3, x4, x5)
+  | _ => raise(Invalid_argument("ListUtil.take_5"));

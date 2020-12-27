@@ -15,9 +15,8 @@ module Make =
          let mk_hole: unit => T.s;
          let dummy_hole: T.s;
 
-         let fix_empty_holes_2: (T.s, T.s) => (T.s, T.s);
-         let fix_empty_holes_3: (T.s, T.s, T.s) => (T.s, T.s, T.s);
-         let fix_empty_holes_4: (T.s, T.s, T.s, T.s) => (T.s, T.s, T.s, T.s);
+         // preserves length
+         let fix_empty_holes: list(T.s) => list(T.s);
 
          [@deriving sexp]
          type root =
@@ -110,22 +109,6 @@ module Make =
     let fixed_between = List.fold_right(fix, tss, []);
     fix_empty_holes_left(fix_empty_holes_right(fixed_between));
   };
-
-  let fix_empty_holes_2 = (ts1, ts2) =>
-    switch (fix_empty_holes([ts1, ts2])) {
-    | [ts1, ts2] => (ts1, ts2)
-    | _ => failwith("fix_empty_holes expected to preserve length")
-    };
-  let fix_empty_holes_3 = (ts1, ts2, ts3) =>
-    switch (fix_empty_holes([ts1, ts2, ts3])) {
-    | [ts1, ts2, ts3] => (ts1, ts2, ts3)
-    | _ => failwith("fix_empty_holes expected to preserve length")
-    };
-  let fix_empty_holes_4 = (ts1, ts2, ts3, ts4) =>
-    switch (fix_empty_holes([ts1, ts2, ts3, ts4])) {
-    | [ts1, ts2, ts3, ts4] => (ts1, ts2, ts3, ts4)
-    | _ => failwith("fix_empty_holes expected to preserve length")
-    };
 
   module Sk = Skel.Make(T);
 

@@ -214,7 +214,7 @@ module Common =
       let+ tiles = I.unwrap(tiles);
       let (prefix, suffix) = ListUtil.split_n(j, ts);
       let (prefix, tiles, suffix) =
-        Ts.fix_empty_holes_3(prefix, tiles, suffix);
+        ListUtil.take_3(Ts.fix_empty_holes([prefix, tiles, suffix]));
       let inserted_selection = (
         ([], List.length(prefix)),
         ([], List.length(prefix) + List.length(tiles)),
@@ -229,7 +229,8 @@ module Common =
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
       let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
-      let (prefix, suffix) = Ts.fix_empty_holes_2(prefix, suffix);
+      let (prefix, suffix) =
+        ListUtil.take_2(Ts.fix_empty_holes([prefix, suffix]));
       Some((I.wrap(removed), ([], List.length(prefix)), prefix @ suffix));
     | (([], _), ([_, ..._], _))
     | (([_, ..._], _), ([], _)) => None
@@ -285,7 +286,9 @@ module Common =
             (prefix, suffix_l, removed, suffix_r);
           };
         let (prefix, swapped_l, swapped_r, suffix) =
-          Ts.fix_empty_holes_4(prefix, swapped_l, swapped_r, suffix);
+          [prefix, swapped_l, swapped_r, suffix]
+          |> Ts.fix_empty_holes
+          |> ListUtil.take_4;
         let j =
           List.length(
             switch (moving_left, place_cursor) {
@@ -302,7 +305,7 @@ module Common =
       | ([], [], [(tile_step, child_step), ...steps]) =>
         let (prefix, removed, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
         let (fixed_prefix, fixed_suffix) =
-          Ts.fix_empty_holes_2(prefix, suffix);
+          ListUtil.take_2(Ts.fix_empty_holes([prefix, suffix]));
         let ts = fixed_prefix @ fixed_suffix;
         if (tile_step < j_l) {
           let+ ((inserted_l, inserted_r), ts) =
@@ -367,39 +370,31 @@ module Common =
     switch (l, r) {
     | (([], j_l), ([], j_r)) =>
       let (prefix, _, suffix) = ListUtil.split_sublist(j_l, j_r, ts);
-      Some((l, prefix @ suffix));
+      let (prefix, suffix) =
+        ListUtil.take_2(Ts.fix_empty_holes([prefix, suffix]));
+      let path = ([], List.length(prefix));
+      Some((path, prefix @ suffix));
     | (([], j_l), ([two_step_r, ...steps_r], j_r)) =>
       let* {prefix, z: ts, suffix} = P.unzip_cis(two_step_r, ts);
-      let+ (path, ts) = delete_selection((([], 0), (steps_r, j_r)), ts);
       let (prefix, _deleted) = ListUtil.split_n(j_l, prefix);
-      let path = {
-        let n = List.length(prefix);
-        switch (path) {
-        | ([], j) => ([], j + n)
-        | ([(tile_step, child_step), ...steps], j) => (
-            [(tile_step + n, child_step), ...steps],
-            j,
-          )
-        };
-      };
-      (path, prefix @ ts @ suffix);
+      let+ ((_empty, j), ts) =
+        delete_selection((([], 0), (steps_r, j_r)), ts);
+      let (l, r) = ListUtil.split_n(j, ts);
+      let (prefix, l, r, suffix) =
+        ListUtil.take_4(Ts.fix_empty_holes([prefix, l, r, suffix]));
+      let path = ([], List.length(prefix));
+      (path, List.concat([prefix, l, r, suffix]));
     | (([(tile_step, _) as two_step_l, ...steps_l], j_l), ([], j_r)) =>
       let* {prefix, z: ts, suffix} = P.unzip_cis(two_step_l, ts);
-      let+ (path, ts) =
-        delete_selection(((steps_l, j_l), ([], List.length(ts))), ts);
       let (_deleted, suffix) =
         ListUtil.split_n(j_r - (tile_step + 1), suffix);
-      let path = {
-        let n = List.length(prefix) + List.length(ts);
-        switch (path) {
-        | ([], j) => ([], j + n)
-        | ([(tile_step, child_step), ...steps], j) => (
-            [(tile_step + n, child_step), ...steps],
-            j,
-          )
-        };
-      };
-      (path, prefix @ ts @ suffix);
+      let+ ((_empty, j), ts) =
+        delete_selection(((steps_l, j_l), ([], List.length(ts))), ts);
+      let (l, r) = ListUtil.split_n(j, ts);
+      let (prefix, l, r, suffix) =
+        ListUtil.take_4(Ts.fix_empty_holes([prefix, l, r, suffix]));
+      let path = ([], List.length(prefix @ l));
+      (path, List.concat([prefix, l, r, suffix]));
     | (([two_step_l, ...steps_l], j_l), ([two_step_r, ...steps_r], j_r)) =>
       if (two_step_l == two_step_r) {
         let selection = ((steps_l, j_l), (steps_r, j_r));
@@ -407,7 +402,7 @@ module Common =
       } else {
         let* {z: ts_l, _} = P.unzip_cis(two_step_l, ts);
         let* {z: ts_r, _} = P.unzip_cis(two_step_r, ts);
-        let+ (path, ts_l) =
+        let+ (_, ts_l) =
           delete_selection(
             ((steps_l, j_l), ([], List.length(ts_l))),
             ts_l,
@@ -416,17 +411,10 @@ module Common =
           delete_selection((([], 0), (steps_r, j_r)), ts_r);
         let (prefix, _, suffix) =
           ListUtil.split_sublist(fst(two_step_l), fst(two_step_r) + 1, ts);
-        let path = {
-          let n = List.length(prefix);
-          switch (path) {
-          | ([], j) => ([], j + n)
-          | ([(tile_step, child_step), ...steps], j) => (
-              [(tile_step + n, child_step), ...steps],
-              j,
-            )
-          };
-        };
-        (path, prefix @ ts_l @ ts_r @ suffix);
+        let (prefix, ts_l, ts_r, suffix) =
+          ListUtil.take_4(Ts.fix_empty_holes([prefix, ts_l, ts_r, suffix]));
+        let path = ([], List.length(prefix));
+        (path, List.concat([prefix, ts_l, ts_r, suffix]));
       }
     };
 };
