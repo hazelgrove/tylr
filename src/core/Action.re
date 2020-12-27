@@ -183,10 +183,17 @@ let rec perform_normal =
     };
 
   | Delete(d) =>
-    let+ (selection, zipper) =
+    let* (selection, zipper) =
       move_selecting(d, {origin: focus, anchor: focus, focus}, zipper);
-    let ((l, _) as selection, _) = ZPath.mk_ordered_selection(selection);
-    (EditState.Mode.Restructuring(selection, l), zipper);
+    let (((steps_l, _) as l, (steps_r, _)) as selection, _) =
+      ZPath.mk_ordered_selection(selection);
+    if (steps_l == steps_r) {
+      let+ (path, zipper) =
+        EditState.Zipper.delete_selection(selection, zipper);
+      (EditState.Mode.Normal(path), zipper);
+    } else {
+      Some((EditState.Mode.Restructuring(selection, l), zipper));
+    };
 
   | Construct(s) =>
     switch (steps) {
