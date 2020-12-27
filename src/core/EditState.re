@@ -102,11 +102,13 @@ module Zipper = {
       let+ (path, ty) = ZPath.Typ.delete_selection(selection, ty);
       (path, `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
-      let+ (path, p) = ZPath.Pat.delete_selection(selection, p);
-      (path, `Pat((p, unzipped)));
+      let* (path, p) = ZPath.Pat.delete_selection(selection, p);
+      let+ fixed = ZInfo.Pat.fix_holes((p, unzipped));
+      (path, `Pat(fixed));
     | `Exp(e, unzipped) =>
-      let+ (path, e) = ZPath.Exp.delete_selection(selection, e);
-      (path, `Exp((e, unzipped)));
+      let* (path, e) = ZPath.Exp.delete_selection(selection, e);
+      let+ fixed = ZInfo.Exp.fix_holes((e, unzipped));
+      (path, `Exp(fixed));
     };
 
   let restructure = (selection, target, zipper: t) =>
@@ -115,11 +117,13 @@ module Zipper = {
       let+ (path, ty) = ZPath.Typ.restructure(selection, target, ty);
       (path, `Typ((ty, unzipped)));
     | `Pat(p, unzipped) =>
-      let+ (path, p) = ZPath.Pat.restructure(selection, target, p);
-      (path, `Pat((p, unzipped)));
+      let* (path, p) = ZPath.Pat.restructure(selection, target, p);
+      let+ fixed = ZInfo.Pat.fix_holes((p, unzipped));
+      (path, `Pat(fixed));
     | `Exp(e, unzipped) =>
-      let+ (path, e) = ZPath.Exp.restructure(selection, target, e);
-      (path, `Exp((e, unzipped)));
+      let* (path, e) = ZPath.Exp.restructure(selection, target, e);
+      let+ fixed = ZInfo.Exp.fix_holes((e, unzipped));
+      (path, `Exp(fixed));
     };
 };
 

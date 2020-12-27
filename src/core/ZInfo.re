@@ -259,6 +259,35 @@ module Exp = {
       raise(ZExp.Void_zbin);
     };
   };
+
+  let fix_holes = ((zipped, unzipped): ZExp.zipper): option(ZExp.zipper) => {
+    switch (unzipped) {
+    | None =>
+      let (zipped, _) = Statics.Exp.syn_fix_holes(Ctx.empty, zipped);
+      Some((zipped, None));
+    | Some(ztile) =>
+      let+ {ctx, mode} = mk_ztile(ztile);
+      let (zipped, ztile) =
+        switch (mode) {
+        | Syn(fix) =>
+          let (zipped, ty) = Statics.Exp.syn_fix_holes(ctx, zipped);
+          (zipped, fix(ty));
+        | Ana(expected, fixed) =>
+          let zipped = Statics.Exp.ana_fix_holes(ctx, zipped, expected);
+          (zipped, fixed);
+        | Fn_pos(fix) =>
+          let (zipped, ty) = Statics.Exp.syn_fix_holes(ctx, zipped);
+          switch (Type.matched_arrow(ty)) {
+          | None =>
+            let zipped = HExp.put_hole_status(InHole, zipped);
+            (zipped, fix(Hole, Hole));
+          | Some((ty_in, ty_out)) => (zipped, fix(ty_in, ty_out))
+          };
+        | Let_def(_) => failwith("todo")
+        };
+      (zipped, Some(ztile));
+    };
+  };
 };
 
 module Pat = {
@@ -495,6 +524,36 @@ module Pat = {
       | Post((_, Ann(_))) => raise(ZPat.Void_zpost)
       | Bin((_, BinHole, _)) => raise(ZPat.Void_zbin)
       };
+    };
+  };
+
+  let fix_holes = ((zipped, unzipped): ZPat.zipper): option(ZPat.zipper) => {
+    switch (unzipped) {
+    | None =>
+      let (zipped, _, _) = Statics.Pat.syn_fix_holes(Ctx.empty, zipped);
+      Some((zipped, None));
+    | Some(ztile) =>
+      let+ {ctx, mode} = mk_ztile(ztile);
+      let (zipped, ztile) =
+        switch (mode) {
+        | Syn(fix) =>
+          let (zipped, ty, ctx) = Statics.Pat.syn_fix_holes(ctx, zipped);
+          (zipped, fix(ty, ctx));
+        | Ana(expected, fix) =>
+          let (zipped, ctx) =
+            Statics.Pat.ana_fix_holes(ctx, zipped, expected);
+          (zipped, fix(ctx));
+        | Let_pat(def_ty, fix) =>
+          let (zipped, pty, _) = Statics.Pat.syn_fix_holes(ctx, zipped);
+          let joined = PType.join_or_to_type(pty, def_ty);
+          let ctx =
+            Statics.Pat.ana(ctx, zipped, joined)
+            |> OptUtil.get(() =>
+                 failwith("expected joined type to be consistent with p")
+               );
+          (zipped, fix(pty, ctx));
+        };
+      (zipped, Some(ztile));
     };
   };
 };

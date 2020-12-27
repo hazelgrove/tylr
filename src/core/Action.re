@@ -200,66 +200,12 @@ let rec perform_normal =
         (EditState.Mode.Normal(([], j)), `Typ((ty, unzipped)));
       | `Pat(p, unzipped) =>
         let* (j, p) = Pat.construct(s, j, p);
-        let+ zipper =
-          switch (unzipped) {
-          | None =>
-            let (p, _, _) = Statics.Pat.syn_fix_holes(Ctx.empty, p);
-            Some(`Pat((p, None)));
-          | Some(ztile) =>
-            let+ ZInfo.Pat.{ctx, mode} = ZInfo.Pat.mk_ztile(ztile);
-            let (p, ztile) =
-              switch (mode) {
-              | Syn(fix) =>
-                let (p, ty, ctx) = Statics.Pat.syn_fix_holes(ctx, p);
-                (p, fix(ty, ctx));
-              | Ana(expected, fix) =>
-                let (p, ctx) = Statics.Pat.ana_fix_holes(ctx, p, expected);
-                (p, fix(ctx));
-              | Let_pat(def_ty, fix) =>
-                let (p, pty, _) = Statics.Pat.syn_fix_holes(ctx, p);
-                let joined = PType.join_or_to_type(pty, def_ty);
-                let ctx =
-                  Statics.Pat.ana(ctx, p, joined)
-                  |> OptUtil.get(() =>
-                       failwith(
-                         "expected joined type to be consistent with p",
-                       )
-                     );
-                (p, fix(pty, ctx));
-              };
-            `Pat((p, Some(ztile)));
-          };
-        (EditState.Mode.Normal(([], j)), zipper);
+        let+ zipper = ZInfo.Pat.fix_holes((p, unzipped));
+        (EditState.Mode.Normal(([], j)), `Pat(zipper));
       | `Exp(e, unzipped) =>
         let* (j, e) = Exp.construct(s, j, e);
-        let+ zipper =
-          switch (unzipped) {
-          | None =>
-            let (e, _) = Statics.Exp.syn_fix_holes(Ctx.empty, e);
-            Some(`Exp((e, None)));
-          | Some(ztile) =>
-            let+ ZInfo.Exp.{ctx, mode} = ZInfo.Exp.mk_ztile(ztile);
-            let (e, ztile) =
-              switch (mode) {
-              | Syn(fix) =>
-                let (e, ty) = Statics.Exp.syn_fix_holes(ctx, e);
-                (e, fix(ty));
-              | Ana(expected, fixed) =>
-                let e = Statics.Exp.ana_fix_holes(ctx, e, expected);
-                (e, fixed);
-              | Fn_pos(fix) =>
-                let (e, ty) = Statics.Exp.syn_fix_holes(ctx, e);
-                switch (Type.matched_arrow(ty)) {
-                | None =>
-                  let e = HExp.put_hole_status(InHole, e);
-                  (e, fix(Hole, Hole));
-                | Some((ty_in, ty_out)) => (e, fix(ty_in, ty_out))
-                };
-              | Let_def(_) => failwith("todo")
-              };
-            `Exp((e, Some(ztile)));
-          };
-        (EditState.Mode.Normal(([], j)), zipper);
+        let+ zipper = ZInfo.Exp.fix_holes((e, unzipped));
+        (EditState.Mode.Normal(([], j)), `Exp(zipper));
       }
     }
   };
