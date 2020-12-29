@@ -72,7 +72,7 @@ module Make =
     | [] => [] // should never hit this case
     | [[], ...tss] =>
       switch (tss) {
-      | [] => [[Tile.Op(T.mk_op_hole())]]
+      | [] => [[], [Tile.Op(T.mk_op_hole())]]
       | [_, ..._] => [[], ...fix_empty_holes_left(tss)]
       }
     | [[Tile.Bin(bin), ...ts], ...tss] when T.is_bin_hole(bin) => [
