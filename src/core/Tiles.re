@@ -75,9 +75,12 @@ module Make =
       | [] => [[Tile.Op(T.mk_op_hole())]]
       | [_, ..._] => [[], ...fix_empty_holes_left(tss)]
       }
-    | [[Tile.Bin(bin)], ...tss] when T.is_bin_hole(bin) => [
-        [],
-        ...fix_empty_holes_left(tss),
+    | [[Tile.Bin(bin), ...ts], ...tss] when T.is_bin_hole(bin) => [
+        ts,
+        ...switch (ts) {
+           | [] => fix_empty_holes_left(tss)
+           | [_, ..._] => tss
+           },
       ]
     | [[t, ..._] as ts, ...tss] =>
       let left_cap =
