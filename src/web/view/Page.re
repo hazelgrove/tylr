@@ -3,6 +3,7 @@ open Virtual_dom.Vdom;
 open Core;
 
 let is_var = s => Re.Str.string_match(Re.Str.regexp("[a-z]"), s, 0);
+let is_num = s => Re.Str.string_match(Re.Str.regexp("[0-9]"), s, 0);
 
 let key_handlers =
     (
@@ -56,7 +57,14 @@ let key_handlers =
                 [];
               }
             | `Pat(_)
-            | `Exp(_) => is_var(key) ? [p(Construct(Var(key)))] : []
+            | `Exp(_) =>
+              if (is_var(key)) {
+                [p(Construct(Var(key)))];
+              } else if (is_num(key)) {
+                [p(Construct(NumLit(int_of_string(key))))];
+              } else {
+                [];
+              }
             }
           };
         };
