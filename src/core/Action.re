@@ -16,6 +16,16 @@ type tile_shape =
   | Plus
   | Arrow;
 
+module type COMMON_INPUT = {
+  module T: Tile.S;
+
+  type tile_construction =
+    | Wraps(T.s => T.t, ZPath.child_step)
+    | DoesNotWrap(T.t);
+
+  let construction_of_shape: tile_shape => option(tile_construction);
+};
+
 [@deriving sexp]
 type t =
   | Mark
@@ -23,27 +33,44 @@ type t =
   | Delete(Direction.t)
   | Construct(tile_shape);
 
-module Common =
-       (
-         T: Tile.S,
-         M: {
-           let tile_of_shape: (~selection: T.s=?, tile_shape) => option(T.t);
-         },
-       ) => {
+module Common = (T: Tile.S, M: COMMON_INPUT with module T := T) => {
   module Ts = Tiles.Make(T);
 
   let construct = (s: tile_shape, j: ZPath.caret_step, ts: T.s) => {
-    let+ tile = M.tile_of_shape(s);
-    let (prefix, suffix) = ListUtil.split_n(j, ts);
-    let (prefix, tile, suffix) =
-      ListUtil.take_3(Ts.fix_empty_holes([prefix, [tile], suffix]));
-    (List.length(prefix), prefix @ tile @ suffix);
+    let+ construction = M.construction_of_shape(s);
+    switch (construction) {
+    | DoesNotWrap(tile) =>
+      let (prefix, suffix) = ListUtil.split_n(j, ts);
+      let (prefix, tile, suffix) =
+        ListUtil.take_3(Ts.fix_empty_holes([prefix, [tile], suffix]));
+      (([], List.length(prefix @ tile)), prefix @ tile @ suffix);
+    | Wraps(wrap, child_step) =>
+      if (j == List.length(ts)) {
+        let body = Ts.mk_hole();
+        let tile = wrap(body);
+        let (ts, tile) = ListUtil.take_2(Ts.fix_empty_holes([ts, [tile]]));
+        (([(List.length(ts), child_step)], 0), ts @ tile);
+      } else {
+        let (prefix, wrapped, suffix) = ListUtil.split_nth(j, ts);
+        let tile = wrap(List.hd(Ts.fix_empty_holes([[wrapped]])));
+        let (prefix, tile, suffix) =
+          ListUtil.take_3(Ts.fix_empty_holes([prefix, [tile], suffix]));
+        (
+          ([(List.length(prefix), child_step)], 0),
+          prefix @ tile @ suffix,
+        );
+      }
+    };
   };
 };
 
 module Typ = {
   module M = {
-    let tile_of_shape = (~selection=[]): (tile_shape => option(HTyp.T.t)) =>
+    type tile_construction =
+      | Wraps(HTyp.t => HTyp.T.t, ZPath.child_step)
+      | DoesNotWrap(HTyp.T.t);
+
+    let construction_of_shape: tile_shape => option(tile_construction) =
       fun
       | NumLit(_)
       | Lam
@@ -52,17 +79,20 @@ module Typ = {
       | Plus
       | Var(_)
       | Ann => None
-      | Num => Some(Op(Num))
-      | Bool => Some(Op(Bool))
-      | Paren =>
-        Some(Op(Paren(selection == [] ? HTyp.mk_hole() : selection)))
-      | Arrow => Some(Bin(Arrow));
+      | Num => Some(DoesNotWrap(Op(Num)))
+      | Bool => Some(DoesNotWrap(Op(Bool)))
+      | Paren => Some(Wraps(body => Op(Paren(body)), 0))
+      | Arrow => Some(DoesNotWrap(Bin(Arrow)));
   };
   include Common(HTyp.T, M);
 };
 module Pat = {
   module M = {
-    let tile_of_shape = (~selection=[]): (tile_shape => option(HPat.T.t)) =>
+    type tile_construction =
+      | Wraps(HPat.t => HPat.T.t, ZPath.child_step)
+      | DoesNotWrap(HPat.T.t);
+
+    let construction_of_shape: tile_shape => option(tile_construction) =
       fun
       | Num
       | Bool
@@ -72,36 +102,35 @@ module Pat = {
       | Ap
       | Plus
       | Arrow => None
-      | Var(x) => Some(Op(Var(x)))
-      | Paren =>
-        Some(Op(Paren(selection == [] ? HPat.mk_hole() : selection)))
+      | Var(x) => Some(DoesNotWrap(Op(Var(x))))
+      | Paren => Some(Wraps(body => Op(Paren(body)), 0))
       // TODO come back to Ann, consider generalizing output to list of tiles
       // so that bidelimited wrapping is not the only possible outcome on a selection
-      | Ann => Some(Post(Ann(NotInHole, HTyp.mk_hole())));
+      | Ann => Some(DoesNotWrap(Post(Ann(NotInHole, HTyp.mk_hole()))));
   };
   include Common(HPat.T, M);
 };
 module Exp = {
   module M = {
-    let tile_of_shape = (~selection=[]): (tile_shape => option(HExp.T.t)) =>
+    type tile_construction =
+      | Wraps(HExp.t => HExp.T.t, ZPath.child_step)
+      | DoesNotWrap(HExp.T.t);
+
+    let construction_of_shape: tile_shape => option(tile_construction) =
       fun
       | Num
       | Bool
       | Ann
       | Arrow => None
-      | NumLit(n) => Some(Op(Num(NotInHole, n)))
-      | Var(x) => Some(Op(Var(NotInHole, x)))
-      | Paren =>
-        Some(Op(Paren(selection == [] ? HExp.mk_hole() : selection)))
+      | NumLit(n) => Some(DoesNotWrap(Op(Num(NotInHole, n))))
+      | Var(x) => Some(DoesNotWrap(Op(Var(NotInHole, x))))
+      | Paren => Some(Wraps(body => Op(Paren(body)), 0))
       // TODO come back to Lam, consider generalizing output to list of tiles
       // so that bidelimited wrapping is not the only possible outcome on a selection
-      | Lam => Some(Pre(Lam(NotInHole, HPat.mk_hole())))
-      | Let => Some(Pre(Let(HPat.mk_hole(), HExp.mk_hole())))
-      | Ap =>
-        Some(
-          Post(Ap(NotInHole, selection == [] ? HExp.mk_hole() : selection)),
-        )
-      | Plus => Some(Bin(Plus(NotInHole)));
+      | Lam => Some(DoesNotWrap(Pre(Lam(NotInHole, HPat.mk_hole()))))
+      | Let => Some(Wraps(def => Pre(Let(HPat.mk_hole(), def)), 0))
+      | Ap => Some(Wraps(arg => Post(Ap(NotInHole, arg)), 0))
+      | Plus => Some(DoesNotWrap(Bin(Plus(NotInHole))));
   };
   include Common(HExp.T, M);
 };
@@ -203,16 +232,16 @@ let rec perform_normal =
     | [] =>
       switch (zipper) {
       | `Typ(ty, unzipped) =>
-        let+ (j, ty) = Typ.construct(s, j, ty);
-        (EditState.Mode.Normal(([], j)), `Typ((ty, unzipped)));
+        let+ (path, ty) = Typ.construct(s, j, ty);
+        (EditState.Mode.Normal(path), `Typ((ty, unzipped)));
       | `Pat(p, unzipped) =>
-        let* (j, p) = Pat.construct(s, j, p);
+        let* (path, p) = Pat.construct(s, j, p);
         let+ zipper = ZInfo.Pat.fix_holes((p, unzipped));
-        (EditState.Mode.Normal(([], j)), `Pat(zipper));
+        (EditState.Mode.Normal(path), `Pat(zipper));
       | `Exp(e, unzipped) =>
-        let* (j, e) = Exp.construct(s, j, e);
+        let* (path, e) = Exp.construct(s, j, e);
         let+ zipper = ZInfo.Exp.fix_holes((e, unzipped));
-        (EditState.Mode.Normal(([], j)), `Exp(zipper));
+        (EditState.Mode.Normal(path), `Exp(zipper));
       }
     }
   };
