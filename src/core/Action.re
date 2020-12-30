@@ -49,7 +49,8 @@ module Common = (T: Tile.S, M: COMMON_INPUT with module T := T) => {
         let body = Ts.mk_hole();
         let tile = wrap(body);
         let (ts, tile) = ListUtil.take_2(Ts.fix_empty_holes([ts, [tile]]));
-        (([(List.length(ts), child_step)], 0), ts @ tile);
+        // HACK include tile then subtract 1 to account for any new holes on tile
+        (([(List.length(ts @ tile) - 1, child_step)], 0), ts @ tile);
       } else {
         let (prefix, wrapped, suffix) = ListUtil.split_nth(j, ts);
         let tile = wrap(List.hd(Ts.fix_empty_holes([[wrapped]])));
