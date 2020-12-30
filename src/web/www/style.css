@@ -267,7 +267,7 @@
   font: caption;
   display: grid;
   grid-template-columns: 100px auto;
-  grid-template-rows: repeat(3, auto 20px) repeat(10, auto 2px);
+  grid-template-rows: repeat(3, auto 20px) auto 4px repeat(10, auto 2px);
   column-gap: 16px;
   color: var(--action-text-color);
 }
