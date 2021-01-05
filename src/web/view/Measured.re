@@ -579,7 +579,7 @@ module type TYP = {
   include COMMON with module T := HTyp.T and module Z := ZTyp;
 };
 module rec Typ: TYP = {
-  open HTyp.T;
+  open HTyp;
   open ZTyp;
 
   let length_of_tile: HTyp.T.t => int =
@@ -642,8 +642,8 @@ module rec Typ: TYP = {
          | Num
          | Bool
          | Paren(_) => [],
-         () => raise(HTyp.T.Void_pre),
-         () => raise(HTyp.T.Void_post),
+         () => raise(HTyp.Void_pre),
+         () => raise(HTyp.Void_post),
          fun
          | Arrow
          | BinHole => [],

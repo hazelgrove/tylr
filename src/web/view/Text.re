@@ -185,7 +185,7 @@ module Make =
 };
 
 module rec Typ: TYP = {
-  open HTyp.T;
+  open HTyp;
   open ZTyp;
 
   let view_of_tile =

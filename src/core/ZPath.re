@@ -459,7 +459,7 @@ module rec Typ: TYP = {
     switch (ztile) {
     | Op(ParenZ_body(zty)) =>
       let (tile_step, (ty, zrest)) =
-        zip([Tile.Op(HTyp.T.Paren(subject))], zty);
+        zip([Tile.Op(HTyp.Paren(subject))], zty);
       ((tile_step, 0), `Typ((ty, zrest)));
     | Pre () => raise(ZTyp.Void_zpre)
     | Post(AnnZ_ann(status, zp)) =>
@@ -473,7 +473,7 @@ module rec Typ: TYP = {
 
   let unzip_tile = (r: child_step, tile: HTyp.T.t, zty: ZTyp.t): unzip_result => {
     let invalid = () => raise(Invalid_argument("ZPath.Typ.unzip_tile"));
-    HTyp.T.(
+    HTyp.(
       tile
       |> Tile.get(
            fun
@@ -513,7 +513,7 @@ module rec Typ: TYP = {
   let sort_at = (_, _) => Sort.Typ;
 
   let children = (~filter=?) =>
-    HTyp.T.(
+    HTyp.(
       Tile.get(
         fun
         | OpHole
@@ -553,8 +553,8 @@ module rec Typ: TYP = {
       | Op(OpHole | Num | Bool)
       | Bin(BinHole | Arrow) => None
       | Op(Paren(ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | Pre () => raise(HTyp.T.Void_pre)
-      | Post () => raise(HTyp.T.Void_post)
+      | Pre () => raise(HTyp.Void_pre)
+      | Post () => raise(HTyp.Void_post)
       };
 
     let move = (d, (child_step, path), tile) => {

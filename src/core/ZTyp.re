@@ -4,7 +4,7 @@ open Sexplib.Std;
  * Bottom-up one-hole context filled by either `HTyp.t` or `ztile`
  */
 [@deriving sexp]
-type t = Util.ZList.t(option(ztile), HTyp.T.t)
+type t = Util.ZList.t(option(ztile), HTyp.tile)
 /**
  * Bottom-up bidelimited one-hole context filled by either `HTyp.t` or `t`
  */

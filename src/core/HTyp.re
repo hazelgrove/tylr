@@ -1,30 +1,37 @@
 open Sexplib.Std;
 open Util;
 
+[@deriving sexp]
+type t = list(tile)
+[@deriving sexp]
+and tile = Tile.t(op, pre, post, bin)
+[@deriving sexp]
+and op =
+  | OpHole
+  | Num
+  | Bool
+  | Paren(t)
+[@deriving sexp]
+and pre = unit // empty
+[@deriving sexp]
+and post = unit // empty
+[@deriving sexp]
+and bin =
+  | BinHole
+  | Arrow;
+
+exception Void_pre;
+exception Void_post;
+
 module T = {
   let sort = Sort.Typ;
 
-  [@deriving sexp]
-  type s = list(t)
-  [@deriving sexp]
-  and t = Tile.t(op, pre, post, bin)
-  [@deriving sexp]
-  and op =
-    | OpHole
-    | Num
-    | Bool
-    | Paren(s)
-  [@deriving sexp]
-  and pre = unit // empty
-  [@deriving sexp]
-  and post = unit // empty
-  [@deriving sexp]
-  and bin =
-    | BinHole
-    | Arrow;
-
-  exception Void_pre;
-  exception Void_post;
+  type s = t;
+  type t = tile;
+  type nonrec op = op;
+  type nonrec pre = pre;
+  type nonrec post = post;
+  type nonrec bin = bin;
 
   let mk_op_hole = () => OpHole;
   let mk_bin_hole = () => BinHole;
@@ -51,10 +58,6 @@ module T = {
     | Post () => raise(Void_post)
     | Bin(BinHole | Arrow) => [];
 };
-open T;
-
-[@deriving sexp]
-type t = T.s;
 include Tiles.Make(T);
 
 module Inner = {
@@ -76,8 +79,8 @@ let rec contract = (ty: t): Type.t =>
     | Bool => Bool
     | Paren(body) => contract(body)
     }
-  | Pre(((), _)) => raise(T.Void_pre)
-  | Post((_, ())) => raise(T.Void_post)
+  | Pre(((), _)) => raise(Void_pre)
+  | Post((_, ())) => raise(Void_post)
   | Bin((ty1, bin, ty2)) =>
     switch (bin) {
     | BinHole => Hole
