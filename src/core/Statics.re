@@ -2,7 +2,7 @@ open Util;
 
 module Pat = {
   open OptUtil.Syntax;
-  open HPat.T;
+  open HPat;
 
   let rec syn = (ctx: Ctx.t, p: HPat.t): option((PType.t, Ctx.t)) => {
     let in_hole = Some((PType.Unspecified, ctx));

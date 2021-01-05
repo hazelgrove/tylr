@@ -323,7 +323,7 @@ module Pat = {
       };
 
     let rec go = (p: HPat.t, info: t(ZPat.t)): option(t(ZPat.t)) => {
-      HPat.T.(
+      HPat.(
         switch (HPat.root(p)) {
         | Op(_) =>
           // dummy hole

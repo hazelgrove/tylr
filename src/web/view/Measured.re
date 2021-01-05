@@ -694,7 +694,7 @@ module type PAT = {
   include ERR_HOLE with module T := HPat.T;
 };
 module rec Pat: PAT = {
-  open HPat.T;
+  open HPat;
   open ZPat;
 
   let length_of_tile: HPat.T.t => int =
@@ -741,7 +741,7 @@ module rec Pat: PAT = {
          | OpHole
          | Var(_) => []
          | Paren(body) => [Pat.length(body)],
-         () => raise(HPat.T.Void_pre),
+         () => raise(HPat.Void_pre),
          fun
          | Ann(_) => [],
          fun

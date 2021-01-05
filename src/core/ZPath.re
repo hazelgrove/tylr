@@ -464,7 +464,7 @@ module rec Typ: TYP = {
     | Pre () => raise(ZTyp.Void_zpre)
     | Post(AnnZ_ann(status, zp)) =>
       let (tile_step, (p, zrest)) =
-        Pat.zip([Tile.Post(HPat.T.Ann(status, subject))], zp);
+        Pat.zip([Tile.Post(HPat.Ann(status, subject))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
     | Bin () => raise(ZTyp.Void_zbin)
     };
@@ -638,7 +638,7 @@ and Pat: PAT = {
   let zip_ztile = (p: HPat.t, ztile: ZPat.ztile): (two_step, zip_result) =>
     switch (ztile) {
     | Op(ParenZ_body(zp)) =>
-      let (tile_step, (p, zrest)) = zip([Tile.Op(HPat.T.Paren(p))], zp);
+      let (tile_step, (p, zrest)) = zip([Tile.Op(HPat.Paren(p))], zp);
       ((tile_step, 0), `Pat((p, zrest)));
     | Pre(LamZ_pat(status, ze)) =>
       let (tile_step, (e, zrest)) =
@@ -655,7 +655,7 @@ and Pat: PAT = {
   type unzip_result = [ | `Pat(ZPat.zipper) | `Typ(ZTyp.zipper)];
 
   let unzip_tile = (r: child_step, tile: HPat.T.t, zp: ZPat.t): unzip_result => {
-    open HPat.T;
+    open HPat;
     let invalid = () => raise(Invalid_argument("ZPath.Pat.unzip_tile"));
     tile
     |> Tile.get(
@@ -708,7 +708,7 @@ and Pat: PAT = {
     };
 
   let children = (~filter=?) =>
-    HPat.T.(
+    HPat.(
       Tile.get(
         fun
         | OpHole
@@ -760,7 +760,7 @@ and Pat: PAT = {
       | Bin(BinHole) => None
       | Op(Paren(p)) => Some((0, d == Left ? 0 : List.length(p)))
       | Post(Ann(_, ty)) => Some((0, d == Left ? 0 : List.length(ty)))
-      | Pre () => raise(HPat.T.Void_pre)
+      | Pre () => raise(HPat.Void_pre)
       };
 
     let move = (d, (child_step, path), tile) =>

@@ -1,28 +1,35 @@
 open Sexplib.Std;
 open Util;
 
+[@deriving sexp]
+type t = list(tile)
+[@deriving sexp]
+and tile = Tile.t(op, pre, post, bin)
+[@deriving sexp]
+and op =
+  | OpHole
+  | Var(Var.t)
+  | Paren(t)
+[@deriving sexp]
+and pre = unit // empty
+[@deriving sexp]
+and post =
+  | Ann(HoleStatus.t, HTyp.t)
+[@deriving sexp]
+and bin =
+  | BinHole;
+
+exception Void_pre;
+
 module T = {
   let sort = Sort.Pat;
 
-  [@deriving sexp]
-  type s = list(t)
-  [@deriving sexp]
-  and t = Tile.t(op, pre, post, bin)
-  [@deriving sexp]
-  and op =
-    | OpHole
-    | Var(Var.t)
-    | Paren(s)
-  [@deriving sexp]
-  and pre = unit // empty
-  [@deriving sexp]
-  and post =
-    | Ann(HoleStatus.t, HTyp.t)
-  [@deriving sexp]
-  and bin =
-    | BinHole;
-
-  exception Void_pre;
+  type s = t;
+  type t = tile;
+  type nonrec op = op;
+  type nonrec pre = pre;
+  type nonrec post = post;
+  type nonrec bin = bin;
 
   let mk_op_hole = () => OpHole;
   let mk_bin_hole = () => BinHole;
@@ -48,10 +55,6 @@ module T = {
     | Post(Ann(_)) => []
     | Bin(BinHole) => [];
 };
-open T;
-
-[@deriving sexp]
-type t = T.s;
 include Tiles.Make(T);
 
 module Inner = {
@@ -74,7 +77,7 @@ let get_hole_status = p =>
        | OpHole
        | Var(_)
        | Paren(_) => HoleStatus.NotInHole,
-       (((), _)) => raise(T.Void_pre),
+       (((), _)) => raise(Void_pre),
        fun
        | (_, Ann(status, _)) => status,
        fun
@@ -90,7 +93,7 @@ let rec put_hole_status = (status: HoleStatus.t, p: t): t =>
          | OpHole => [Op(OpHole)]
          | Var(x) => [Op(Var(x))]
          | Paren(body) => [Op(Paren(put_hole_status(status, body)))],
-         (((), _)) => raise(T.Void_pre),
+         (((), _)) => raise(Void_pre),
          fun
          | (subj, Ann(_, ann)) => subj @ [Post(Ann(status, ann))],
          fun

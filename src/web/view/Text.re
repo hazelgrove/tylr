@@ -231,7 +231,7 @@ module rec Typ: TYP = {
   include Make(HTyp.T, ZTyp, Typ);
 }
 and Pat: PAT = {
-  open HPat.T;
+  open HPat;
   open ZPat;
 
   let view_of_tile =
