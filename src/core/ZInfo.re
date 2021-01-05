@@ -35,7 +35,7 @@ module Exp = {
       };
 
     let rec go = (e: HExp.t, info: t(ZExp.t)): option(t(ZExp.t)) => {
-      open HExp.T;
+      open HExp;
       // dummy hole
       let op = _ => Some(info);
       let pre = pre =>

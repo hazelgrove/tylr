@@ -283,7 +283,7 @@ and Pat: PAT = {
   include Make(HPat.T, ZPat, Pat);
 }
 and Exp: EXP = {
-  open HExp.T;
+  open HExp;
   open ZExp;
 
   let view_of_tile =

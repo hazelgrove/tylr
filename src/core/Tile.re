@@ -48,17 +48,11 @@ let get =
 module type S = {
   let sort: Sort.t;
 
-  [@deriving sexp]
   type op;
-  [@deriving sexp]
   type pre;
-  [@deriving sexp]
   type post;
-  [@deriving sexp]
   type bin;
-  [@deriving sexp]
   type nonrec t = t(op, pre, post, bin);
-  [@deriving sexp]
   type s = list(t);
 
   let mk_op_hole: unit => op;

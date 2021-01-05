@@ -1,30 +1,37 @@
 open Sexplib.Std;
 open Util;
 
+[@deriving sexp]
+type t = list(tile)
+[@deriving sexp]
+and tile = Tile.t(op, pre, post, bin)
+[@deriving sexp]
+and op =
+  | OpHole
+  | Num(HoleStatus.t, int)
+  | Var(HoleStatus.t, Var.t)
+  | Paren(t)
+[@deriving sexp]
+and pre =
+  | Lam(HoleStatus.t, HPat.t)
+  | Let(HPat.t, t)
+[@deriving sexp]
+and post =
+  | Ap(HoleStatus.t, t)
+[@deriving sexp]
+and bin =
+  | Plus(HoleStatus.t)
+  | BinHole;
+
 module T = {
   let sort = Sort.Exp;
 
-  [@deriving sexp]
-  type s = list(t)
-  [@deriving sexp]
-  and t = Tile.t(op, pre, post, bin)
-  [@deriving sexp]
-  and op =
-    | OpHole
-    | Num(HoleStatus.t, int)
-    | Var(HoleStatus.t, Var.t)
-    | Paren(s)
-  [@deriving sexp]
-  and pre =
-    | Lam(HoleStatus.t, HPat.t)
-    | Let(HPat.t, s)
-  [@deriving sexp]
-  and post =
-    | Ap(HoleStatus.t, s)
-  [@deriving sexp]
-  and bin =
-    | Plus(HoleStatus.t)
-    | BinHole;
+  type s = t;
+  type t = tile;
+  type nonrec op = op;
+  type nonrec pre = pre;
+  type nonrec post = post;
+  type nonrec bin = bin;
 
   let mk_op_hole = () => OpHole;
   let mk_bin_hole = () => BinHole;
@@ -65,10 +72,6 @@ module T = {
       | Plus(_) => [],
     );
 };
-open T;
-
-[@deriving sexp]
-type t = T.s;
 include Tiles.Make(T);
 
 module Inner = {

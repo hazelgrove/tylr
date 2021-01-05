@@ -642,11 +642,11 @@ and Pat: PAT = {
       ((tile_step, 0), `Pat((p, zrest)));
     | Pre(LamZ_pat(status, ze)) =>
       let (tile_step, (e, zrest)) =
-        Exp.zip([Tile.Pre(HExp.T.Lam(status, p))], ze);
+        Exp.zip([Tile.Pre(HExp.Lam(status, p))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
     | Pre(LetZ_pat(ze, def)) =>
       let (tile_step, (e, zrest)) =
-        Exp.zip([Tile.Pre(HExp.T.Let(p, def))], ze);
+        Exp.zip([Tile.Pre(HExp.Let(p, def))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
     | Post () => raise(ZPat.Void_zpost)
     | Bin () => raise(ZPat.Void_zbin)
@@ -902,15 +902,14 @@ and Exp: EXP = {
   let zip_ztile = (e: HExp.t, ztile: ZExp.ztile): (two_step, zip_result) =>
     switch (ztile) {
     | Op(ParenZ_body(ze)) =>
-      let (tile_step, (e, zrest)) = zip([Tile.Op(HExp.T.Paren(e))], ze);
+      let (tile_step, (e, zrest)) = zip([Tile.Op(HExp.Paren(e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
     | Pre(LetZ_def(p, ze)) =>
-      let (tile_step, (e, zrest)) =
-        zip([Tile.Pre(HExp.T.Let(p, e))], ze);
+      let (tile_step, (e, zrest)) = zip([Tile.Pre(HExp.Let(p, e))], ze);
       ((tile_step, 1), `Exp((e, zrest)));
     | Post(ApZ_arg(status, ze)) =>
       let (tile_step, (e, zrest)) =
-        zip([Tile.Post(HExp.T.Ap(status, e))], ze);
+        zip([Tile.Post(HExp.Ap(status, e))], ze);
       ((tile_step, 0), `Exp((e, zrest)));
     | Bin () => raise(ZExp.Void_zbin)
     };
@@ -918,7 +917,7 @@ and Exp: EXP = {
   type unzip_result = [ | `Exp(ZExp.zipper) | `Pat(ZPat.zipper)];
 
   let unzip_tile = (r: child_step, tile: HExp.T.t, ze: ZExp.t): unzip_result => {
-    open HExp.T;
+    open HExp;
     let invalid = () => raise(Invalid_argument("ZPath.Exp.unzip_tile"));
     tile
     |> Tile.get(
@@ -983,7 +982,7 @@ and Exp: EXP = {
     };
 
   let children = (~filter=?) =>
-    HExp.T.(
+    HExp.(
       Tile.get(
         fun
         | OpHole
@@ -1041,7 +1040,7 @@ and Exp: EXP = {
 
     let enter_from =
         (d: Direction.t): (HExp.T.t => option((child_step, caret_step))) =>
-      HExp.T.(
+      HExp.(
         Tile.get(
           fun
           | OpHole

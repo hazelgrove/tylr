@@ -851,7 +851,7 @@ module type EXP = {
   include ERR_HOLE with module T := HExp.T;
 };
 module rec Exp: EXP = {
-  open HExp.T;
+  open HExp;
   open ZExp;
 
   let length_of_tile =

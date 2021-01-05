@@ -92,7 +92,7 @@ module Pat = {
 };
 
 module Exp = {
-  open HExp.T;
+  open HExp;
 
   let rec syn = (ctx: Ctx.t, e: HExp.t): option(Type.t) => {
     open OptUtil.Syntax;

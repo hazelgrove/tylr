@@ -18,7 +18,6 @@ module Make =
          // preserves length
          let fix_empty_holes: list(T.s) => list(T.s);
 
-         [@deriving sexp]
          type root =
            Tile.t(T.op, (T.pre, T.s), (T.s, T.post), (T.s, T.bin, T.s));
          let root: T.s => root;
@@ -119,7 +118,6 @@ module Make =
 
   module Sk = Skel.Make(T);
 
-  [@deriving sexp]
   type root = Tile.t(T.op, (T.pre, T.s), (T.s, T.post), (T.s, T.bin, T.s));
 
   let root = (tiles: T.s): root =>
