@@ -86,12 +86,8 @@ module type COMMON = {
 module Common =
        (
          T: Tile.S,
-         // TODO internalize inner tiles into tile sig
-         I: {type t;},
          Z: ZTile.S with module T := T,
-         P:
-           ZPath.COMMON with
-             module T := T and module Z := Z and type inner_tiles := I.t,
+         P: ZPath.COMMON with module T := T and module Z := Z,
          Sort_specific: COMMON_INPUT with module T := T and module Z := Z,
        )
        : (COMMON with module T := T and module Z := Z) => {
@@ -684,7 +680,7 @@ module rec Typ: TYP = {
     Typ.selecting_tiles_in_zipper(selection, zipper);
   };
 
-  include Common(HTyp.T, HTyp.Inner, ZTyp, ZPath.Typ, Typ);
+  include Common(HTyp.T, ZTyp, ZPath.Typ, Typ);
 };
 
 module type PAT = {
@@ -840,7 +836,7 @@ module rec Pat: PAT = {
          )
     };
 
-  include Common(HPat.T, HPat.Inner, ZPat, ZPath.Pat, Pat);
+  include Common(HPat.T, ZPat, ZPath.Pat, Pat);
   include ErrHole(HPat.T, ZPat, Pat);
 };
 
@@ -1042,6 +1038,6 @@ module rec Exp: EXP = {
          )
     };
 
-  include Common(HExp.T, HExp.Inner, ZExp, ZPath.Exp, Exp);
+  include Common(HExp.T, ZExp, ZPath.Exp, Exp);
   include ErrHole(HExp.T, ZExp, Exp);
 };

@@ -19,9 +19,12 @@ and post = unit // empty
 and bin =
   | BinHole
   | Arrow;
-
 exception Void_pre;
 exception Void_post;
+
+type closed_descendant = unit; // empty
+type descendant = Descendant.t(t, closed_descendant);
+exception Void_closed_descendant;
 
 module T = {
   let sort = Sort.Typ;
@@ -32,6 +35,9 @@ module T = {
   type nonrec pre = pre;
   type nonrec post = post;
   type nonrec bin = bin;
+
+  type nonrec descendant = descendant;
+  type nonrec closed_descendant = closed_descendant;
 
   let mk_op_hole = () => OpHole;
   let mk_bin_hole = () => BinHole;
@@ -59,16 +65,6 @@ module T = {
     | Bin(BinHole | Arrow) => [];
 };
 include Tiles.Make(T);
-
-module Inner = {
-  type t =
-    | Typ(T.s);
-
-  let wrap = (ts: T.s) => Typ(ts);
-  let unwrap =
-    fun
-    | Typ(ts) => Some(ts);
-};
 
 let rec contract = (ty: t): Type.t =>
   switch (root(ty)) {

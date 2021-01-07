@@ -64,5 +64,7 @@ module type S = {
   let precedence: t => int;
   let associativity: Util.IntMap.t(Associativity.t);
 
+  type closed_descendant;
+  type descendant = Descendant.t(s, closed_descendant);
   let get_open_children: t => list(s);
 };

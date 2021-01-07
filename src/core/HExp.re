@@ -23,6 +23,9 @@ and bin =
   | Plus(HoleStatus.t)
   | BinHole;
 
+type closed_descendant = HPat.descendant;
+type descendant = Descendant.t(t, closed_descendant);
+
 module T = {
   let sort = Sort.Exp;
 
@@ -32,6 +35,9 @@ module T = {
   type nonrec pre = pre;
   type nonrec post = post;
   type nonrec bin = bin;
+
+  type nonrec descendant = descendant;
+  type nonrec closed_descendant = closed_descendant;
 
   let mk_op_hole = () => OpHole;
   let mk_bin_hole = () => BinHole;
@@ -73,18 +79,6 @@ module T = {
     );
 };
 include Tiles.Make(T);
-
-module Inner = {
-  type t =
-    | Exp(T.s)
-    | Other(HPat.Inner.t);
-
-  let wrap = (ts: T.s) => Exp(ts);
-  let unwrap =
-    fun
-    | Other(_) => None
-    | Exp(ts) => Some(ts);
-};
 
 // does not recurse into term
 let get_hole_status = e =>
