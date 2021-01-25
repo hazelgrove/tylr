@@ -17,11 +17,11 @@ module Tile = {
       | HTile.OpHole => Some(OpHole)
       | Text(s) =>
         if (s == "num") {
-          Some(Num)
+          Some(Num);
         } else if (s == "bool") {
-          Some(Bool)
+          Some(Bool);
         } else {
-          None
+          None;
         }
       | Paren(body) => Some(Paren(body)),
       fun

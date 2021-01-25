@@ -22,27 +22,15 @@ let fix_empty_holes_between = (prefix: s, suffix: s): (s, s) => {
   | (Some((leading, last)), [first, ...trailing]) =>
     switch (last, first) {
     | (Op(OpHole), Bin(BinHole))
-    | (Bin(BinHole), Op(OpHole)) => (
-        leading,
-        trailing,
-      )
+    | (Bin(BinHole), Op(OpHole)) => (leading, trailing)
     | (Op(OpHole), Op(_) | Pre(_)) => (leading, suffix)
-    | (Op(_) | Post(_), Op(OpHole)) => (
-        prefix,
-        trailing,
-      )
+    | (Op(_) | Post(_), Op(OpHole)) => (prefix, trailing)
     | (Op(_) | Post(_), Op(_) | Pre(_)) => (
         prefix,
         [Bin(BinHole), ...suffix],
       )
-    | (Bin(BinHole), Bin(_) | Post(_)) => (
-        leading,
-        suffix,
-      )
-    | (Bin(_) | Pre(_), Bin(BinHole)) => (
-        prefix,
-        trailing,
-      )
+    | (Bin(BinHole), Bin(_) | Post(_)) => (leading, suffix)
+    | (Bin(_) | Pre(_), Bin(BinHole)) => (prefix, trailing)
     | (Bin(_) | Pre(_), Bin(_) | Post(_)) => (
         prefix,
         [Op(OpHole), ...suffix],
@@ -63,9 +51,9 @@ let rec fix_empty_holes_left = tss =>
   | [[Tile.Bin(BinHole), ...ts], ...tss] => [
       ts,
       ...switch (ts) {
-          | [] => fix_empty_holes_left(tss)
-          | [_, ..._] => tss
-          },
+         | [] => fix_empty_holes_left(tss)
+         | [_, ..._] => tss
+         },
     ]
   | [[t, ..._] as ts, ...tss] =>
     let left_cap =

@@ -19,13 +19,11 @@ module type S = {
   // preserves length
   let fix_empty_holes: list(T.s) => list(T.s);
 
-  type root =
-    Tile.t(T.op, (T.pre, T.s), (T.s, T.post), (T.s, T.bin, T.s));
+  type root = Tile.t(T.op, (T.pre, T.s), (T.s, T.post), (T.s, T.bin, T.s));
   let root: T.s => root;
   let nth_root: (int, T.s) => Util.ZList.t(root, T.t);
   let is_root: (int, T.s) => bool;
-
-}
+};
 
 module Make = (T: Tile.S) => {
   open Util;
@@ -227,6 +225,3 @@ module Tessera = {
     | Let_eq(Tile.s)
     | Let_in;
 };
-
-
-

@@ -1,0 +1,163 @@
+type t('op, 'pre, 'post, 'bin) =
+  | Op('op)
+  | Pre('pre, t)
+  | Post(t, 'post)
+  | Bin(t, 'bin, t);
+
+module type IN = {
+  type op;
+  type pre;
+  type post;
+  type bin;
+  type nonrec t = t(op, pre, post, bin);
+
+  let precedence: HTile.t => option(int);
+  let associativity: IntMap.t(Associativity.t);
+};
+
+module Make = (I: IN) => {
+  type itile = (int, HTile.t);
+
+  let mk = (tiles: HTile.s): t => {
+    let push_output = ((i, tile): itile, output_stack: list(t)): list(t) =>
+      switch (tile) {
+      | Op(_) => [Op(i), ...output_stack]
+      | Pre(_) =>
+        switch (output_stack) {
+        | [] => failwith("impossible: pre encountered empty stack")
+        | [skel, ...skels] => [Pre(i, skel), ...skels]
+        }
+      | Post(_) =>
+        switch (output_stack) {
+        | [] => failwith("impossible: post encountered empty stack")
+        | [skel, ...skels] => [Post(skel, i), ...skels]
+        }
+      | Bin(_) =>
+        switch (output_stack) {
+        | []
+        | [_] =>
+          failwith("impossible: bin encountered empty or singleton stack")
+        | [skel1, skel2, ...skels] => [Bin(skel2, i, skel1), ...skels]
+        }
+      };
+
+    let process_operand = (~output_stack, ~shunted_stack, op) => (
+      output_stack,
+      [op, ...shunted_stack],
+    );
+
+    let rec process_preop =
+            (
+              ~output_stack: list(t),
+              ~shunted_stack: list(itile),
+              ipreop: itile,
+            ) => {
+      switch (shunted_stack) {
+      | [] => (output_stack, [ipreop, ...shunted_stack])
+      | [(_, tile) as itile, ...itiles] =>
+        switch (tile) {
+        | Pre(_)
+        | Bin(_) => (output_stack, [ipreop, ...shunted_stack])
+        | Op(_)
+        | Post(_) =>
+          process_preop(
+            ~output_stack=push_output(itile, output_stack),
+            ~shunted_stack=itiles,
+            ipreop,
+          )
+        }
+      };
+    };
+
+    // assumes postops lose ties with preops and binops
+    let rec process_postop =
+            (
+              ~output_stack: list(t),
+              ~shunted_stack: list(itile),
+              (_, post) as ipostop: itile,
+            ) =>
+      switch (shunted_stack) {
+      | [] => (output_stack, [ipostop, ...shunted_stack])
+      | [(_, tile) as itile, ...itiles] =>
+        switch (tile) {
+        | Op(_)
+        | Post(_) =>
+          process_postop(
+            ~output_stack=push_output(itile, output_stack),
+            ~shunted_stack=itiles,
+            ipostop,
+          )
+        | Pre(_)
+        | Bin(_) =>
+          I.precedence(tile) <= I.precedence(post)
+            ? process_postop(
+                ~output_stack=push_output(itile, output_stack),
+                ~shunted_stack=itiles,
+                ipostop,
+              )
+            : (output_stack, [ipostop, ...shunted_stack])
+        }
+      };
+
+    // currently assumes all binops are left-associative
+    // and binops lose ties with preops
+    let rec process_binop =
+            (
+              ~output_stack: list(t),
+              ~shunted_stack: list(itile),
+              (_, bin) as ibinop: itile,
+            ) =>
+      switch (shunted_stack) {
+      | [] => (output_stack, [ibinop, ...shunted_stack])
+      | [(_, tile) as itile, ...itiles] =>
+        switch (tile) {
+        | Op(_)
+        | Post(_) =>
+          process_binop(
+            ~output_stack=push_output(itile, output_stack),
+            ~shunted_stack=itiles,
+            ibinop,
+          )
+        | Pre(_)
+        | Bin(_) =>
+          I.precedence(tile) <= I.precedence(bin)
+            ? process_binop(
+                ~output_stack=push_output(itile, output_stack),
+                ~shunted_stack=itiles,
+                ibinop,
+              )
+            : (output_stack, [ibinop, ...shunted_stack])
+        }
+      };
+
+    let rec go =
+            (
+              ~output_stack: list(t)=[],
+              ~shunted_stack: list(itile)=[],
+              itiles: list(itile),
+            )
+            : list(t) => {
+      switch (itiles) {
+      | [] =>
+        shunted_stack
+        |> List.fold_left(
+             (output_stack, t) => push_output(t, output_stack),
+             output_stack,
+           )
+      | [(_, tile) as itile, ...itiles] =>
+        let process =
+          switch (tile) {
+          | Op(_) => process_operand
+          | Pre(_) => process_preop
+          | Post(_) => process_postop
+          | Bin(_) => process_binop
+          };
+        let (output_stack, shunted_stack) =
+          process(~output_stack, ~shunted_stack, itile);
+        go(~output_stack, ~shunted_stack, itiles);
+      };
+    };
+
+    tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
+  };
+};

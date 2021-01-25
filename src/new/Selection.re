@@ -1,11 +1,10 @@
-module Make = (
-  T: Tile.S,
-) => {
+module Make = (T: Tile.S) => {
   type elem =
     | Tile(T.t)
     | Tessera(T.tessera);
-  type t = ()
-}
+  type t =
+    | ();
+};
 
 type elem('tile, 'tessera) =
   | Tile('tile)

@@ -1,23 +1,32 @@
-type op =
+type t = HTerm.t(op, pre, post, bin)
+and op =
   | OpHole
   | Var(Var.t)
-  | Paren(HTile.s);
-type pre = unit; // empty
-type post =
-  | Ann(HTile.s);
-type bin =
+  | Paren(t)
+and pre = unit // empty
+and post =
+  | Ann(HTyp.t)
+and bin =
   | BinHole;
-type tile = Tile.t(op, pre, post, bin);
+
+type t = Tile.t(op, pre, post, bin);
 
 exception Void_pre;
 
-type t =
-  | Op(op)
-  | Pre(pre, t)
-  | Post(t, post)
-  | Bin(t, bin, t);
+module Tile = {
+  type t = Tile.t(op, pre, post, bin)
+  and op =
+    | OpHole
+    | Var(Var.t)
+    | Paren(HTile.s)
+  and pre = unit // empty
+  and post =
+    | Ann(HTile.s)
+  and bin =
+    | BinHole;
+};
 
-let precedence: tile => int =
+let precedence: Tile.t => int =
   Tile.get(
     _ => 0,
     () => raise(Void_pre),
@@ -30,7 +39,7 @@ let precedence: tile => int =
 let associativity =
   [(1, Associativity.Left)] |> List.to_seq |> IntMap.of_seq;
 
-let mk = (ts: HTile.s): t => {
+let associate = (ts: HTile.s): option(ZList.t(HTile.t, HTile.t)) => {
   if (ts == []) {
     failwith("expected ts to be nonempty");
   };
@@ -62,12 +71,53 @@ let mk = (ts: HTile.s): t => {
       let (n, _) = List.hd(max_p_ts);
       n;
     };
-  let {prefix, z, suffix} = ZList.split_at(n, ts);
-  switch (z) {
-  | Op(op) => Op(op)
-  | Pre(pre) => Pre(pre, suffix)
-  | Post(post) => Post(prefix, post)
-  | Bin(bin) => Bin(prefix, bin, suffix)
-  };
+  ZList.split_at(n, ts);
 };
 
+let rec mk = (ts: HTile.s): option(t) => {
+  let rec go = (skel: Skel.t): option(t) => {
+    let t = List.nth(ts, Skel.root_index(skel));
+    switch (skel) {
+    | Op(_) =>
+      let+ op =
+        switch (Tile.get_op(t)) {
+        | OpHole => Some(OpHole)
+        | Text(s) => StringUtil.is_var(s) ? Some(Var(s)) : None
+        | Paren(body) =>
+          let+ body = mk(body);
+          Some(Paren(body));
+        };
+      Some(Op(op));
+    | Pre(_, r) =>
+      let+ pre =
+        switch (Tile.get_pre(t)) {
+        | Lam(_)
+        | Let(_) => None
+        }
+      and+ r = go(r);
+      Some(Pre(pre, r));
+    | Post(l, _) =>
+      let+ l = go(l)
+      and+ post =
+        switch (Tile.get_post(t)) {
+        | Ap(_) => None
+        | Ann(ann) =>
+          let+ ann = HTyp.mk(ann);
+          Some(Ann(ann));
+        };
+      Some(Post(l, post));
+    | Bin(l, _, r) =>
+      let+ l = go(l)
+      and+ bin =
+        switch (Tile.get_bin(t)) {
+        | Plus
+        | Arrow => None
+        | BinHole => Some(BinHole)
+        }
+      and+ r = go(r);
+      Some(Bin(l, bin, r));
+    };
+  };
+  let* skel = associate(ts);
+  go(skel);
+};
