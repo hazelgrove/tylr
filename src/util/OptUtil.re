@@ -18,6 +18,9 @@ let product = (o1, o2) =>
   | (Some(a), Some(b)) => Some((a, b))
   };
 
+let sequence = (l: list(option('a))): option(list('a)) =>
+  List.fold_right(map2((x, xs) => [x, ...xs]), l, Some([]));
+
 module Syntax = {
   let ( let* ) = Option.bind;
   let (let+) = (o, f) => Option.map(f, o);

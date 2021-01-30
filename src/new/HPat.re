@@ -9,24 +9,12 @@ and post =
 and bin =
   | BinHole;
 
-type t = Tile.t(op, pre, post, bin);
-
 exception Void_pre;
 
-module Tile = {
-  type t = Tile.t(op, pre, post, bin)
-  and op =
-    | OpHole
-    | Var(Var.t)
-    | Paren(HTile.s)
-  and pre = unit // empty
-  and post =
-    | Ann(HTile.s)
-  and bin =
-    | BinHole;
-};
+type tile = Tile.t(op, pre, post, bin);
+type tiles = list(tile);
 
-let precedence: Tile.t => int =
+let precedence: tile => int =
   Tile.get(
     _ => 0,
     () => raise(Void_pre),
@@ -39,41 +27,7 @@ let precedence: Tile.t => int =
 let associativity =
   [(1, Associativity.Left)] |> List.to_seq |> IntMap.of_seq;
 
-let associate = (ts: HTile.s): option(ZList.t(HTile.t, HTile.t)) => {
-  if (ts == []) {
-    failwith("expected ts to be nonempty");
-  };
-  let its = List.mapi((i, t) => (i, t), ts);
-  let+ (max_p, max_p_ts) =
-    List.fold_right(
-      ((_, t) as it, max) => {
-        let* (max_p, max_p_ts) = max;
-        let* p = precedence(t);
-        if (p > max_p) {
-          Some((p, [it]));
-        } else if (p == max_p) {
-          Some((max_prec, [it, ...max_p_ts]));
-        } else {
-          max;
-        };
-      },
-      its,
-      Some((0, [])),
-    );
-  let a = IntMap.find(max_p, associativity);
-  let n =
-    if (List.length(max_p_ts) > 1 && a == Direction.Right) {
-      // guaranteed to succeed if ts is nonempty
-      let (_, (n, _)) = ListUtil.split_last(max_p_ts);
-      n;
-    } else {
-      // guaranteed to succeed if ts is nonempty
-      let (n, _) = List.hd(max_p_ts);
-      n;
-    };
-  ZList.split_at(n, ts);
-};
-
+// TODO fix type signature
 let rec mk = (ts: HTile.s): option(t) => {
   let rec go = (skel: Skel.t): option(t) => {
     let t = List.nth(ts, Skel.root_index(skel));

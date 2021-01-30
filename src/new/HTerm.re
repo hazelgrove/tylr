@@ -9,16 +9,33 @@ module type IN = {
   type pre;
   type post;
   type bin;
+
   type nonrec t = t(op, pre, post, bin);
+  type tile = Tile.t(op, pre, post, bin);
 
   let precedence: HTile.t => option(int);
   let associativity: IntMap.t(Associativity.t);
+
+  let of_htiles: HTile.s => option(list(tile));
+  let of_htile: HTile.t => option(tile);
+
+  let to_htiles: list(tile) => HTile.s;
+  let to_htile: tile => HTile.t;
 };
 
 module Make = (I: IN) => {
-  type itile = (int, HTile.t);
+  type itile = (int, I.tile);
+  type tiles = list(I.tile);
 
-  let mk = (tiles: HTile.s): t => {
+  let rec flatten = (tm: t): tiles =>
+    switch (tm) {
+    | Op(op) => [Op(op)]
+    | Pre(pre, r) => [Pre(pre), ...flatten(r)]
+    | Post(l, post) => flatten(l) @ [Post(post)]
+    | Bin(l, bin, r) => flatten(l) @ [Bin(bin), ...flatten(r)]
+    };
+
+  let associate = (tiles: tiles): Skel.t => {
     let push_output = ((i, tile): itile, output_stack: list(t)): list(t) =>
       switch (tile) {
       | Op(_) => [Op(i), ...output_stack]

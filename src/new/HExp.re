@@ -1,26 +1,4 @@
-module Tile = {
-  type op =
-    | OpHole
-    | Num(int)
-    | Var(Var.t)
-    | Paren(s);
-  type pre =
-    | Lam(s)
-    | Let(s, s);
-  type post =
-    | Ap(s);
-  type bin =
-    | BinHole
-    | Plus;
-  type t = Tile.t(op, pre, post, bin);
-};
-
-type t =
-  | TypeIncon(t)
-  | Op(op)
-  | Pre(pre, t)
-  | Post(t, post)
-  | Bin(t, bin, t)
+type t = HTerm.t(op, pre, post, bin)
 and op =
   | OpHole
   | Num(int)
@@ -34,3 +12,82 @@ and post =
 and bin =
   | Plus
   | BinHole;
+
+type tile = Tile.t(op, pre, post, bin);
+type tiles = list(tile);
+
+let precedence: tile => int =
+  Tile.get(
+    _ => 0,
+    fun
+    | Lam(_) => 10
+    | Let(_) => 11,
+    fun
+    | Ap(_) => 1,
+    fun
+    | Plus(_) => 3
+    | BinHole => 2,
+  );
+
+let associativity =
+  [(2, Associativity.Left), (3, Left)] |> List.to_seq |> IntMap.of_seq;
+
+let rec of_htiles = (ts: HTile.s): option(tiles) =>
+  ts |> List.map(of_htile) |> OptUtil.sequence
+and of_htile = (t: HTile.t): option(I.tile) =>
+  t
+  |> Tile.get(
+       fun
+       | OpHole => Some(Tile.Op(OpHole))
+       | Text(s) =>
+         if (StringUtil.is_num(s)) {
+           Some(Op(Num(int_of_string(s))));
+         } else if (StringUtil.is_var(s)) {
+           Some(Op(Var(s)));
+         } else {
+           None;
+         }
+       | Paren(body) => {
+           let+ body = of_htiles(body);
+           Tile.Op(Paren(body));
+         },
+       fun
+       | Lam(p) => {
+           let+ p = Pat.of_htiles(p);
+           Tile.Pre(Lam(p));
+         }
+       | Let(p, def) => {
+           let+ p = Pat.of_htiles(p)
+           and+ def = of_htiles(def);
+           Tile.Pre(Let(p, def));
+         },
+       fun
+       | Ann(_) => None
+       | Ap(arg) => {
+           let+ arg = of_htiles(arg);
+           Tile.Post(Ap(arg));
+         },
+       fun
+       | Arrow => None
+       | Plus => Some(Tile.Bin(Plus))
+       | BinHole => Some(Bin(BinHole)),
+     );
+
+include HTerm.Make({
+  type nonrec op = op;
+  type nonrec pre = pre;
+  type nonrec post = post;
+  type nonrec bin = bin;
+
+  type nonrec t = t;
+  type nonrec tile = tile;
+
+  let precedence = precedence;
+  let associativity = associativity;
+
+  let of_htiles = of_htiles;
+  let of_htile = of_htile;
+
+  let to_htiles = to_htiles;
+  let to_htile = to_htile;
+});
