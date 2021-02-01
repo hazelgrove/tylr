@@ -15,6 +15,14 @@ and bin =
   | Plus
   | Arrow;
 
+let mk_tile =
+    (open_: HTessera.open_, ts: HTile.s, close: HTessera.close): option(t) =>
+  switch (open_, close) {
+  | (Paren_l, Paren_r) => Some(Op(Paren(ts)))
+  | (Let_eq(p), Let_in) => Some(Pre(Let(p, ts)))
+  | _ => None
+  };
+
 let fix_empty_holes_between = (prefix: s, suffix: s): (s, s) => {
   switch (ListUtil.split_last_opt(prefix), suffix) {
   | (None, _)

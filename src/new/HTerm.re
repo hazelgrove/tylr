@@ -177,4 +177,17 @@ module Make = (I: IN) => {
 
     tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
   };
+
+  let mk = (tiles: tiles): t => {
+    let rec go = (skel: Skel.t) => {
+      let root = List.nth(tiles, Skel.root_index(skel));
+      switch (skel) {
+      | Op(_) => Op(Tile.get_op(root))
+      | Pre(_, r) => Pre(Tile.get_pre(root), go(r))
+      | Post(l, _) => Post(go(l), Tile.get_post(root))
+      | Bin(l, _, r) => Bin(go(l), Tile.get_bin(root), go(r))
+      };
+    };
+    go(associate(tiles));
+  };
 };

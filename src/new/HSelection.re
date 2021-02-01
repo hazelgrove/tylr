@@ -1,49 +1,52 @@
-type elem =
-  | Tile(HTile.t)
-  | Tessera(HTessera.t);
-type t = list(elem);
+type t('tile) = list(Either.t('tile, HTessera.t));
 
 exception Invalid_selection;
 
 let is_complete: t => bool =
   List.for_all(
     fun
-    | Tile(_) => true
-    | Tessera(_) => false,
+    | L(_tile) => true
+    | R(_tessera) => false,
   );
 
-let parse = (selection: t): t => {
-  let rec go = (selection: t): t =>
+let parse =
+    (
+      ~mk_tile:
+         (HTessera.open_, list('tile), HTessera.close) => option('tile),
+      selection: t('tile),
+    )
+    : t('tile) => {
+  let rec go = (selection: t('tile)): t('tile) =>
     switch (selection) {
     | [] => []
-    | [Tile(_) | Tessera(Close(_)) as elem, ...selection] => [
+    | [L(_tile) | R(Close(_)) as elem, ...selection] => [
         elem,
         ...go(selection),
       ]
-    | [Tessera(Open(open_)), ...selection'] =>
+    | [R(Open(open_)), ...selection'] =>
       switch (go_open(open_, selection')) {
       | None => selection
-      | Some((tile, selection)) => [Tile(tile), ...go(selection)]
+      | Some((tile, selection)) => [L(tile), ...go(selection)]
       }
     }
   and go_open =
-      (~rev_tiles: HTile.s=[], open_: HTessera.open_, selection: t)
-      : option((HTile.t, t)) =>
+      (
+        ~rev_tiles: list('tile)=[],
+        open_: HTessera.open_,
+        selection: t('tile),
+      )
+      : option(('tile, t('tile))) =>
     switch (selection) {
     | [] => None
-    | [Tile(tile), ...selection] =>
+    | [L(tile), ...selection] =>
       go_open(~rev_tiles=[tile, ...rev_tiles], open_, selection)
-    | [Tessera(Open(open_)), ...selection] =>
+    | [R(Open(open_)), ...selection] =>
       let+ (tile, selection) = go_open(open_, selection);
       go_open(~rev_tiles=[tile, ...rev_tiles], open_, selection);
-    | [Tessera(Close(_)), ...selection] =>
+    | [R(Close(close)), ...selection] =>
       let ts = List.rev(rev_tiles);
-      let tile =
-        switch (open_) {
-        | Paren_l => HTile.Paren(ts)
-        | Let_eq(p) => Let(p, ts)
-        };
-      Some((tile, selection));
+      let+ tile = mk_tile(open_, ts, close);
+      (tile, selection);
     };
   go(selection);
 };

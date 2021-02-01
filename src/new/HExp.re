@@ -91,3 +91,16 @@ include HTerm.Make({
   let to_htiles = to_htiles;
   let to_htile = to_htile;
 });
+
+let mk_tile =
+    (open_: HTessera.open_, ts: tiles, close: HTessera.close): option(tile) =>
+  switch (open_, close) {
+  | (Paren_l, Paren_r) =>
+    let body = mk(ts);
+    Some(Op(Paren(body)));
+  | (Let_eq(p), Let_in) =>
+    let p = HPat.mk(p);
+    let def = mk(ts);
+    Some(Pre(Let(p, def)));
+  | _ => None
+  };

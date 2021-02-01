@@ -1,24 +1,32 @@
 module Make =
        (
-         Zipped: {
+         G: {
+           // global
+           type t;
+           type normal;
+         },
+         T: {
            type tile;
-
-           type normal = ZList.t(unit, tile);
+           let mk_tile:
+             (HTessera.open_, list(tile), HTessera.close) => option(tile);
+         },
+         Zipped: {
+           type normal = ZList.t(unit, T.tile);
            type selecting =
-            ZList.t(
-              (Direction.t, HSelection.t),
-              Either.t(tile, HTessera.t),
-            );
+             ZList.t(
+               (Direction.t, HSelection.t),
+               Either.t(tile, HTessera.t),
+             );
            type restructuring =
-            ZList.t(
-              (Direction.t, list(HSelection.t)),
-              Either.t(tile, HSelection.t),
-            );
+             ZList.t(
+               (Direction.t, list(HSelection.t)),
+               Either.t(tile, HSelection.t),
+             );
 
            type t =
-            | Normal(normal)
-            | Selecting(selecting)
-            | Restructuring(restructuring);
+             | Normal(normal)
+             | Selecting(selecting)
+             | Restructuring(restructuring);
          },
          Unzipped: {
            type t;
@@ -26,7 +34,10 @@ module Make =
            type bidelimited = option(tile);
          },
          I: {
-           type t = (Zipped.tiles, Unzipped.bidelimited);
+           type t = (Zipped.t, Unzipped.bidelimited);
+           type normal = (Zipped.normal, Unzipped.bidelimited);
+
+           let mk_g: t => G.t;
 
            // strict
            type parent;
@@ -40,6 +51,17 @@ module Make =
              option(child);
          },
        ) => {
+  let restructuring_of_normal =
+      (
+        restructuring: (Direction.t, list(HSelection.t)),
+        {prefix, z: (), suffix}: Zipped.normal,
+      )
+      : Zipped.restructuring => {
+    let prefix = List.map(Either.l, prefix);
+    let suffix = List.map(Either.l, suffix);
+    {prefix, z: restructuring, suffix};
+  };
+
   let rec zip_to_nearest_bidelim =
           (zipped: Zipped.tiles, unzipped: Unzipped.t): I.t => {
     switch (unzipped) {
@@ -96,9 +118,177 @@ module Make =
     go(~unzipped, HExp.associate(ts));
   };
 
-  let select =
+  let move_normal =
+      (
+        d: Direction.t,
+        {prefix, z: (), suffix}: Zipped.normal,
+        unzipped: Unzipped.bidelimited,
+      )
+      : option(G.normal) => {
+    let j = List.length(prefix);
+    let exit = () => {
+      let+ unzipped_tile = unzipped;
+      // TODO first try moving to next child
+      I.exit_tile(d, prefix @ suffix, unzipped_tile);
+    };
+    switch (d) {
+    | Left when j == 0 => exit()
+    | Right when j == List.length(zipped) => exit()
+    | _ =>
+      let zipped = prefix @ suffix;
+      let n = d == Left ? j - 1 : j;
+      switch (enter(d, ZList.split_at(n, zipped), Bidelimited(unzipped))) {
+      | Some(_) as entered => entered
+      | None =>
+        let j = d == Left ? j - 1 : j + 1;
+        let (prefix, suffix) = ListUtil.split_n(j, zipped);
+        Some(I.mk_g_normal(({prefix, z: (), suffix}, unzipped)));
+      };
+    };
+  };
 
+  let rec move_selecting =
+          (
+            d: Direction.t,
+            {prefix, z: (side, selection), suffix}: Zipped.selecting,
+            unzipped: Unzipped.bidelimited,
+          )
+          : option(G.t) => {
+    let moved_within_zipped = (~prefix=prefix, ~suffix=suffix, selection) =>
+      Some(I.mk_g(({prefix, z: (side, selection), suffix}, unzipped)));
+    if (d != side) {
+      if (selection == []) {
+        move_selecting(d, {prefix, z: (d, selection), suffix}, unzipped);
+      } else {
+        switch (side) {
+        | Left =>
+          let (first, trailing) = ListUtil.split_first(selection);
+          switch (first) {
+          | R(_) =>
+            let prefix =
+              HSelection.parse(~mk_tile=T.mk_tile, prefix @ [first]);
+            moved_within_zipped(~prefix, trailing);
+          | L(tile) =>
+            let (open_, body, close) = HTile.flatten_tile(tile);
+            let prefix = prefix @ [R(open_)];
+            let selection = body @ [R(close), ...trailing];
+            moved_within_zipped(~prefix, selection);
+          };
+        | Right =>
+          let (leading, last) = ListUtil.split_last(selection);
+          switch (last) {
+          | R(_) =>
+            let suffix =
+              HSelection.parse(~mk_tile=T.mk_tile, [last, ...suffix]);
+            moved_within_zipped(~suffix, selection);
+          | L(tile) =>
+            let (open_, body, close) = HTile.flatten_tile(tile);
+            let suffix = [R(close), ...suffix];
+            let selection = leading @ [R(open_), ...body];
+            moved_within_zipped(~suffix, selection);
+          };
+        };
+      };
+    } else {
+      switch (side) {
+      | Left =>
+        switch (ListUtil.split_last_opt(prefix)) {
+        | None => failwith("todo: move into unzipped")
+        | Some((leading, R(tessera))) =>
+          let selection =
+            HSelection.parse(
+              ~mk_tile=T.mk_tile,
+              [R(tessera), ...selection],
+            );
+          moved_within_zipped(~suffix=leading, selection);
+        | Some((leading, L(tile))) =>
+          let (open_, body, close) = T.flatten_tile(tile);
+          let prefix =
+            prefix
+            @ [R(Open(open_)), ...List.map(Either.l, T.flatten(body))];
+          let selection = [R(Close(close)), ...selection];
+          moved_within_zipped(~prefix, selection);
+        }
+      | Right =>
+        switch (suffix) {
+        | [] => failwith("todo: move into unzipped")
+        | [R(tessera), ...trailing] =>
+          let selection =
+            HSelection.parse(~mk_tile=T.mk_tile, selection @ [R(tessera)]);
+          moved_within_zipped(~suffix=trailing, selection);
+        | [L(tile), ...trailing] =>
+          let (open_, body, close) = T.flatten_tile(tile);
+          let suffix =
+            List.map(Either.l, T.flatten(body))
+            @ [R(Close(close)), ...suffix];
+          let selection = selection @ [R(Open(open_))];
+          moved_within_zipped(~suffix, selection);
+        }
+      };
+    };
+  };
 
+  let move_restructuring =
+      (
+        d: Direction.t,
+        {prefix, z, suffix}: Zipped.restructuring,
+        unzipped: Unzipped.bidelimited,
+      )
+      : option(G.t) => {
+    let (side, selections) = z;
+    let picked_up_selection = (~prefix=prefix, ~suffix=suffix, selections) =>
+      Some(I.mk_g(({prefix, z: selections, suffix}, unzipped)));
+    let picked_up_all_selections =
+      List.for_all(Either.is_L, prefix) && List.for_all(Either.is_L, suffix);
+    let move_through_tile = (prefix, tile, suffix) =>
+      if (picked_up_all_selections) {
+        let prefix = List.filter_map(Either.get_L, prefix);
+        let suffix = List.filter_map(Either.get_L, suffix);
+        let+ normal = move_normal(d, {prefix, z: (), suffix}, unzipped);
+        G.restructuring_of_normal(normal);
+      } else {
+        let (prefix, suffix) =
+          switch (d) {
+          | Left => (prefix, [tile, ...suffix])
+          | Right => (prefix @ [tile], suffix)
+          };
+        Some(I.mk_g({prefix, z, suffix}, unzipped));
+      };
+    switch (d) {
+    | Left =>
+      switch (ListUtil.split_last_opt(prefix)) {
+      | None => failwith("todo")
+      | Some((leading, L(_) as tile)) =>
+        move_through_tile(leading, tile, suffix)
+      | Some((leading, R(_) as selection)) =>
+        picked_up_selection(
+          ~prefix=leading,
+          (Left, [selection, ...selections]),
+        )
+      }
+    | Right =>
+      switch (suffix) {
+      | [] => failwith("todo")
+      | [L(_) as tile, ...trailing] =>
+        // TODO first check that everything is unpositioned
+        // and if so then move into the tile
+        move_through_tile(prefix, tile, suffix)
+      | [R(selection), ...trailing] =>
+        picked_up_selection(
+          ~suffix=trailing,
+          (Right, selections @ [selection]),
+        )
+      }
+    };
+  };
+
+  let move = (d: Direction.t, (zipped, unzipped): t): option(G.t) =>
+    switch (zipped) {
+    | Normal(normal) => move_normal(d, normal, unzipped)
+    | Selecting(selecting) => move_selecting(d, selecting, unzipped)
+    | Restructuring(restructuring) =>
+      move_restructuring(d, restructuring, unzipped)
+    };
 };
 
 module rec Exp: EXP = {
@@ -203,42 +393,16 @@ and Pat: PAT = {
 }
 and Typ: TYP = {
   // todo
-};
+}
+and G: G = {
+  type t = [ | `Exp(Exp.t) | `Pat(Pat.t) | `Typ(Typ.t)];
 
-type t = [ | `Exp(Exp.t) | `Pat(Pat.t) | `Typ(Typ.t)];
-
-let apply = (f: (module S, S.t) => 'a, zipper: t): 'a =>
-  switch (zipper) {
-  | `Exp(zipper) => f((module Exp), zipper)
-  | `Pat(zipper) => f((module Pat), zipper)
-  | `Typ(zipper) => f((module Typ), zipper)
-  };
-
-let move = (
-  d: Direction.t,
-  (j, ()): EditMode.normal,
-  zipper: t,
-): option((EditMode.normal, t)) => {
-  // TODO define signature S
-  let go =
-      ((module S: S), (zipped, unzipped): S.t)
-      : option((EditMode.normal, Zipper.t)) => {
-    let n = d == Left ? j - 1 : j;
-    if (n < 0 || n >= List.length(zipped)) {
-      let+ unzipped_tile = unzipped;
-      // TODO first try moving to next child
-      let+ (j, parent) = S.exit_tile(d, zipped, unzipped_tile);
-      ((j, ()), parent :> Zipper.t);
-    } else {
-      switch (enter(d, ZList.split_at(n, zipped), Bidelimited(unzipped))) {
-      | Some((j, child)) => Some((j, R(child)))
-      | None =>
-        let j = d == Left ? j - 1 : j + 1;
-        Some(((j, ()), S.to_child(zipper) :> Zipper.t));
-      };
+  let apply = (f: ((module S), S.t) => 'a, zipper: t): 'a =>
+    switch (zipper) {
+    | `Exp(zipper) => f((module Exp), zipper)
+    | `Pat(zipper) => f((module Pat), zipper)
+    | `Typ(zipper) => f((module Typ), zipper)
     };
-  };
-  Zipper.apply(go, zipper);
 };
 
-let select = (d: Direction.t, )
+type t = G.t;
