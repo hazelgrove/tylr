@@ -1,39 +1,16 @@
 open Sexplib.Std;
 
 [@deriving sexp]
-type tile_shape =
-  | Text(string)
-  | Paren
-  | Lam
-  | Let
-  | Ap
-  | Ann
-  | Plus
-  | Arrow;
-
-[@deriving sexp]
 type t =
   | Mark
   | Move(Direction.t)
   | Delete(Direction.t)
-  | Construct(tile_shape);
+  | Construct(HTile.shape);
 
-let perform_normal =
-    (a: t, j: EditMode.normal, zipper: Zipper.t): option(EditState.t) =>
+let perform = (a: t, zipper: Zipper.t): option(Zipper.t) =>
   switch (a) {
-  | Mark =>
-    let selecting = ZList.mk(~z=(j, []), ());
-    Some((Selecting(selecting), zipper));
-
-  | Move(d) =>
-    let+ (j, zipper) = Zipper.move(d, j, zipper);
-    (Normal(j), zipper);
-  };
-
-let perform = (a: t, (mode, zipper): EditState.t): option(EditState.t) =>
-  switch (mode) {
-  | Normal(j) => perform_normal(a, j, zipper)
-  | Selecting(selecting) => perform_selecting(a, selecting, zipper)
-  | Restructuring(restructuring) =>
-    perform_restructuring(a, restructuring, zipper)
+  | Mark => Zipper.mark(zipper)
+  | Move(d) => Zipper.move(d, zipper)
+  | Delete(d) => Zipper.delete(d, zipper)
+  | Construct(shape) => Zipper.construct(shape, zipper)
   };

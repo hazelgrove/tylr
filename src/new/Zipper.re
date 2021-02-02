@@ -270,8 +270,6 @@ module Make =
       switch (suffix) {
       | [] => failwith("todo")
       | [L(_) as tile, ...trailing] =>
-        // TODO first check that everything is unpositioned
-        // and if so then move into the tile
         move_through_tile(prefix, tile, suffix)
       | [R(selection), ...trailing] =>
         picked_up_selection(
@@ -403,6 +401,12 @@ and G: G = {
     | `Pat(zipper) => f((module Pat), zipper)
     | `Typ(zipper) => f((module Typ), zipper)
     };
-};
 
-type t = G.t;
+  let move = (d: Direction.t, zipper: t): option(t) =>
+    switch (zipper) {
+    | `Exp(z) => Exp.move(d, z)
+    | `Pat(z) => Pat.move(d, z)
+    | `Typ(z) => Typ.move(d, z)
+    };
+};
+include G;
