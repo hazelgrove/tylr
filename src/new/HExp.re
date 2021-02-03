@@ -1,3 +1,4 @@
+// ex: 1 + 2 _ 3 // Bin(Op(1), Plus, Bin(Op(2), BinHole, Op(3)))
 type t = HTerm.t(op, pre, post, bin)
 and op =
   | OpHole
@@ -14,6 +15,7 @@ and bin =
   | BinHole;
 
 type tile = Tile.t(op, pre, post, bin);
+// ex: 1 + 2 _ 3 // [Op(1), Bin(Plus), Op(2), Bin(BinHole), Op(3)]
 type tiles = list(tile);
 
 let precedence: tile => int =

@@ -20,12 +20,17 @@ module Make =
              (HTessera.open_, list(tile), HTessera.close) => option(tile);
          },
          Zipped: {
+           // 1 | + (2 _ 3): {prefix: [1], z: (), suffix: [+, (2 _ 3)]}
            type pointing = ZList.t(unit, T.tile);
+           // 1 + [(] 2 _ 3 )
+           // {prefix: [L(1), L(+)], z: (L, [(])), suffix: [L(2), L(_), L(3), R(`)`)]}
            type selecting =
              ZList.t(
                (Direction.t, HSelection.t),
                Either.t(tile, HTessera.t),
              );
+           // 1 + [( 2 _] 3 ) + 4
+           // {prefix: [L(1), L(+)], z: (L, [[`(`]]), suffix: [L(2), L(_), L(3), R(`)`)]}
            type restructuring =
              ZList.t(
                (Direction.t, list(HSelection.t)),

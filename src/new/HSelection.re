@@ -2,6 +2,7 @@ type t('tile) = list(Either.t('tile, HTessera.t));
 
 exception Invalid_selection;
 
+// TODO maybe use different term
 let is_complete: t => bool =
   List.for_all(
     fun

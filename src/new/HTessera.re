@@ -1,6 +1,7 @@
+// TODO rename to avoid clash with open/closed children
 type open_ =
   | Paren_l
-  | Let_eq(HTile.s);
+  | Let_eq(/* pattern */ HTile.s);
 
 type close =
   | Paren_r
