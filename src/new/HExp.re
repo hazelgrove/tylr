@@ -18,6 +18,8 @@ type tile = Tile.t(op, pre, post, bin);
 // ex: 1 + 2 _ 3 // [Op(1), Bin(Plus), Op(2), Bin(BinHole), Op(3)]
 type tiles = list(tile);
 
+type selection = HSelection.t(tile);
+
 let precedence: tile => int =
   Tile.get(
     _ => 0,

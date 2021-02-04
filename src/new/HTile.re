@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Util;
 
 type s = list(t)
 and t = Tile.t(op, pre, post, bin)
@@ -27,14 +28,6 @@ type shape =
   | Ann
   | Plus
   | Arrow;
-
-let mk_tile =
-    (open_: HTessera.open_, ts: HTile.s, close: HTessera.close): option(t) =>
-  switch (open_, close) {
-  | (Paren_l, Paren_r) => Some(Op(Paren(ts)))
-  | (Let_eq(p), Let_in) => Some(Pre(Let(p, ts)))
-  | _ => None
-  };
 
 let fix_empty_holes_between = (prefix: s, suffix: s): (s, s) => {
   switch (ListUtil.split_last_opt(prefix), suffix) {
@@ -87,8 +80,11 @@ let rec fix_empty_holes_left = tss =>
     [left_cap @ ts, ...tss];
   };
 
-let fix_empty_holes_right = tss =>
-  tss |> List.rev_map(rev) |> fix_empty_holes_left |> List.rev_map(rev);
+let fix_empty_holes_right = (tss: list(s)) =>
+  tss
+  |> List.rev_map(Tile.rev)
+  |> fix_empty_holes_left
+  |> List.rev_map(Tile.rev);
 
 let fix_empty_holes = (tss: list(s)): list(s) => {
   let rec fix = (ts: s, tss: list(s)): list(s) => {
