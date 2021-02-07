@@ -193,13 +193,36 @@ module Make =
   let perform_restructuring =
       (
         a: Action.t,
-        {prefix, z, suffix}: Z.Subject.restructuring,
+        {prefix, z: (side, selections), suffix}: Z.Subject.restructuring,
         frame: Frame.bidelimited,
       )
       : option(Zipper.t) =>
     switch (a) {
+    | Mark =>
+      let finish = () => {
+        let selection =
+          prefix @ suffix
+          |> List.map(
+            fun
+            | L(tile) => [L(tile)]
+            | R(selection) => selection
+          )
+          |> List.flatten;
+        let tiles =
+          HSelection.is_whole(selection)
+          |> OptUtil.get_or_fail("expected restructuring to succeed")
+
+      }
+      switch (side) {
+      | Left =>
+        let (first, trailing) = ListUtil.split_first(selections);
+
+      }
+      switch (selections) {
+      | []
+      }
+
     | Move(d) =>
-      let (side, selections) = z;
       let picked_up_selection = (~prefix=prefix, ~suffix=suffix, selections) =>
         Some(I.mk((Restructuring({prefix, z: selections, suffix}), frame)));
       let picked_up_all_selections =
@@ -244,7 +267,6 @@ module Make =
         }
       };
 
-    | Mark
     | Delete(_)
     | Construct(_) => failwith("todo")
     };
