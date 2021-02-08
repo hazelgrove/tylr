@@ -19,6 +19,7 @@ module Make =
              (Direction.t, Term.t, Frame.bidelimited) => option(Zipper.t);
          },
        ) => {
+  // TODO use append_frame here
   let move_into_tile =
       (
         d: Direction.t,
@@ -190,37 +191,90 @@ module Make =
     | Construct(_) => failwith("todo")
     };
 
+  exception Invalid_restructure;
+  let parse_restructured =
+      ((prefix, suffix): (Term.Selection.t, Term.Selection.t) as 'ss)
+      : Zipper.t => {
+    let ss = TupleUtil.map2(Term.Selection.parse, (prefix, suffix));
+    let rec go =
+            (~rev_prefix=[], (prefix, suffix): 'ss)
+            : (Zipper.t, HTerm.Selection.t) =>
+      switch (prefix) {
+      | [Tile(tile), ...prefix] =>
+        go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
+      | [Tessera(tessera), ...prefix] =>
+        let open_ = Tessera.get_open(tessera);
+        let (zipper, tail) = go((prefix, suffix));
+        let (close, tail) = ListUtil.split_first(tail);
+        let close = Tessera.get_close(close);
+        let (suffix, tail) =
+          ListUtil.take_while(
+            fun
+            | Tile(_) => true
+            | Tessera(_) => false,
+            tail,
+          );
+        let zipper =
+          append_frame(
+            zipper,
+            (List.rev(rev_prefix), (open_, close), suffix),
+          );
+        (zipper, tail);
+      | [] =>
+        let (suffix, tail) =
+          ListUtil.take_while(
+            fun
+            | Tile(_) => true
+            | Tessera(_) => false,
+            suffix,
+          );
+        let zipper = I.mk(((List.rev(rev_prefix), (), suffix), None));
+        (zipper, tail);
+      };
+    let (zipper, tail) = go(ss);
+    assert(tail == []);
+    zipper;
+  };
+
   let perform_restructuring =
       (
         a: Action.t,
-        {prefix, z: (side, selections), suffix}: Z.Subject.restructuring,
+        (prefix, (side, selections), suffix): Z.Subject.restructuring,
         frame: Frame.bidelimited,
       )
       : option(Zipper.t) =>
     switch (a) {
     | Mark =>
-      let finish = () => {
-        let selection =
-          prefix @ suffix
-          |> List.map(
-            fun
-            | L(tile) => [L(tile)]
-            | R(selection) => selection
-          )
-          |> List.flatten;
-        let tiles =
-          HSelection.is_whole(selection)
-          |> OptUtil.get_or_fail("expected restructuring to succeed")
-
-      }
+      let flatten = elems =>
+        elems
+        |> List.map(
+             fun
+             | L(tile) => [L(tile)]
+             | R(selection) => selection,
+           )
+        |> List.flatten;
       switch (side) {
       | Left =>
         let (first, trailing) = ListUtil.split_first(selections);
-
-      }
-      switch (selections) {
-      | []
-      }
+        let suffix = [Either.R(first), ...suffix];
+        switch (trailing) {
+        | [] => Some(parse_restructured((prefix, suffix)))
+        | [_, ..._] =>
+          Some(
+            mk((Restructuring((prefix, (side, trailing), suffix)), frame)),
+          )
+        };
+      | Right =>
+        let (leading, last) = ListUtil.split_last(selections);
+        let prefix = prefix @ [Either.R(last)];
+        switch (leading) {
+        | [] => Some(parse_restructured((prefix, suffix)))
+        | [_, ..._] =>
+          Some(
+            mk((Restructuring((prefix, (side, leading), suffix)), frame)),
+          )
+        };
+      };
 
     | Move(d) =>
       let picked_up_selection = (~prefix=prefix, ~suffix=suffix, selections) =>
