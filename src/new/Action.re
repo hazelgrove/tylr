@@ -3,7 +3,7 @@ type t =
   | Mark
   | Move(Direction.t)
   | Delete(Direction.t)
-  | Construct(HTile.shape);
+  | Construct(HTessera.Shape.t);
 
 module Make =
        (

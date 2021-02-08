@@ -1,3 +1,11 @@
+// TODO may need to extend with OpHole/BinHole
+type singleton =
+  | Text(string)
+  | Lam(HTile.s)
+  | Ann(HTile.s)
+  | Plus
+  | Arrow;
+
 // TODO rename to avoid clash with open/closed children
 type open_ =
   | Paren_l
@@ -9,6 +17,7 @@ type close =
 
 // TODO add Mid
 type t =
+  | Singleton(singleton)
   | Open(open_)
   | Close(close);
 
@@ -20,3 +29,29 @@ let mk_tile = (open_: open_, ts: HTile.s, close: close): option(HTile.t) =>
   | (Let_eq(p), Let_in) => Some(Pre(Let(p, ts)))
   | _ => None
   };
+
+module Shape = {
+  [@deriving sexp]
+  type t =
+    | Text(string)
+    | Paren_l
+    | Paren_r
+    | Lam
+    | Let_eq
+    | Let_in
+    | Ann
+    | Plus
+    | Arrow;
+};
+
+let of_shape: Shape.t => t =
+  fun
+  | Text(s) => Singleton(Text(s))
+  | Paren_l => Open(Paren_l)
+  | Paren_r => Close(Paren_r)
+  | Lam => Singleton(Lam([Op(OpHole)]))
+  | Let_eq => Open(Let_eq([Op(OpHole)]))
+  | Let_in => Close(Let_in)
+  | Ann => Singleton(Ann([Op(OpHole)]))
+  | Plus => Singleton(Plus)
+  | Arrow => Singleton(Arrow);
