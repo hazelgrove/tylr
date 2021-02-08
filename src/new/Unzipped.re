@@ -6,7 +6,8 @@ module Exp = {
     | Bin_l(t, HExp.bin, HExp.t)
     | Bin_r(HExp.t, HExp.bin, t)
   and bidelimited = option(tile)
-  and tile = Tile.t(op, pre, post, bin)
+  and tile =
+    Tile.t(op, (pre, HExp.t), (HExp.t, post), (HExp.t, bin, HExp.t))
   and op =
     | Paren_body(t)
   and pre =

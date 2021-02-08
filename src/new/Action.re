@@ -302,27 +302,27 @@ module Exp = {
                Some(Zipper.Exp((subject, frame)));
              },
            fun
-           | Lam(p) => {
-               let subject = mk_normal(HPat.flatten(body));
-               let frame = Some(Frame.Pat.Lam_pat(frame));
+           | (Lam(p), body) => {
+               let subject = mk_normal(HPat.flatten(p));
+               let frame = Some(Pre(Frame.Pat.Lam_pat(frame), body));
                Some(Zipper.Pat((subject, frame)));
              }
-           | Let(p, def) =>
+           | (Let(p, def), body) =>
              switch (d) {
              | Left =>
                let subject = mk_normal(HExp.flatten(def));
-               let frame = Some(Frame.Exp.Let_def(frame));
+               let frame = Some(Pre(Frame.Exp.Let_def(frame), body));
                Some(Zipper.Exp((subject, frame)));
              | Right =>
                let subject = mk_normal(HPat.flatten(p));
-               let frame = Some(Frame.Pat.Let_pat(frame));
+               let frame = Some(Pre(Frame.Pat.Let_pat(frame), body));
                Some(Zipper.Pat((subject, frame)));
              },
            fun
            | Ap(_) => failwith("todo"),
            fun
-           | Plus
-           | BinHole => None,
+           | (_, Plus, _)
+           | (_, BinHole, _) => None,
          );
     };
 
