@@ -93,8 +93,29 @@ module Make =
           Some(I.mk((Pointing({prefix, z: (), suffix}), frame)));
         };
       };
-    | Delete(_)
-    | Construct(_) => failwith("todo")
+    | Delete(d) =>
+      let subject = prefix @ suffix;
+      let n = d == Left ? j - 1 : j;
+      // break up nth tile into alternating sequence of tesserae + open children
+      // if consists of a single tessera:
+      //   remove, fix empty holes, reassemble into pointing mode
+      // else:
+      //   enter restructuring mode on one of the end tesserae:
+      //   flatten the open children into tiles
+      //   convert the tesserae into selections
+      //   put the other tesserae and tiles on prefix or suffix
+      failwith("todo");
+
+    | Construct(_shape) =>
+      // open and close tesserae will return either a left or right focused list of tesserae
+      // compute the focused list from the shape
+      // depending on whether it's a left or right focused,
+      //  put the constructed tessera in prefix or suffix respectively
+      // if no more remaining tesserae:
+      //   fix empty holes and finish in pointing
+      // else:
+      //   remaining tesserae are restructuring mode focus
+      failwith("todo")
     };
 
   let perform_selecting =
@@ -187,8 +208,26 @@ module Make =
         };
       };
 
-    | Delete(_)
-    | Construct(_) => failwith("todo")
+    | Delete(_) =>
+      // upgrade tesserae in prefix/suffix into selections
+      // upgrade current selection into list of selections
+      //  and put in restructuring mode, side depending on delete direction
+      failwith("todo")
+
+    | Construct(_) =>
+      // if current selection not whole:
+      //   fail
+      // else:
+      //   open/close shapes will return a left/right-focused list of tesserae
+      //   if unfocused list empty:
+      //     overwrite current selection
+      //   else:
+      //     position the two tesserae wrapping the first open child
+      //      around the current selection
+      //     insert other tesserae and fix empty holes
+      //     prepend current level of tiles/tesserae on frame
+      //     finish with same selection
+      failwith("todo")
     };
 
   exception Invalid_restructure;
