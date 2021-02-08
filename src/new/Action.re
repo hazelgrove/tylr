@@ -321,8 +321,20 @@ module Make =
         }
       };
 
-    | Delete(_)
-    | Construct(_) => failwith("todo")
+    | Delete(_) =>
+      let delete_selections = affix =>
+        affix
+        |> List.map(
+             fun
+             | L(tile) => [tile]
+             | R(_) => [],
+           )
+        |> List.flatten;
+      let (prefix, suffix) =
+        TupleUtil.map2(delete_selections, (prefix, suffix));
+      Some(I.mk(Pointing((prefix, (), suffix), frame)));
+
+    | Construct(_) => None
     };
 
   let perform = (a: t, (subject, frame): Z.t): option(Zipper.t) =>

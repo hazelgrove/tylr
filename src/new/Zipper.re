@@ -1,6 +1,6 @@
 module type S = {
-  module Term: HTerm.S;
-  module Frame: HFrame.S;
+  module Term: Term.S;
+  module Frame: Frame.S;
 
   module Subject: {
     // 1 | + (2 _ 3): {prefix: [1], z: (), suffix: [+, (2 _ 3)]}
@@ -26,7 +26,7 @@ module type S = {
   type t = (Subject.t, Frame.bidelimited);
 };
 
-module Make = (Term: HTerm.S, Frame: HFrame.S) => {
+module Make = (Term: Term.S, Frame: Frame.S) => {
   module Subject = {
     type pointing = ZList.t(unit, Term.tile);
     type selecting =
@@ -45,9 +45,9 @@ module Make = (Term: HTerm.S, Frame: HFrame.S) => {
   type t = (Subject.t, Frame.bidelimited);
 };
 
-module Typ = Make(HTyp, HTypFrame);
-module Pat = Make(HPat, HPatFrame);
-module Exp = Make(HExp, HExpFrame);
+module Typ = Make(Term.Typ, Frame.Typ);
+module Pat = Make(Term.Pat, Frame.Pat);
+module Exp = Make(Term.Exp, Frame.Exp);
 
 type t =
   | Typ(Typ.t)

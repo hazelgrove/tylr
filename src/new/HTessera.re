@@ -31,7 +31,6 @@ let mk_tile = (open_: open_, ts: HTile.s, close: close): option(HTile.t) =>
   };
 
 module Shape = {
-  [@deriving sexp]
   type t =
     | Text(string)
     | Paren_l
