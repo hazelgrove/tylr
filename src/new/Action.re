@@ -58,17 +58,17 @@ module Make =
   let perform_pointing =
       (
         a: Action.t,
-        {prefix, z: (), suffix} as pointing: Z.Subject.pointing,
+        (prefix, (), suffix) as pointing: Z.Subject.pointing,
         frame: Frame.bidelimited,
       )
       : option(Zipper.t) =>
     switch (a) {
     | Mark =>
-      let selecting = {
-        prefix: List.map(Either.l, prefix),
-        z: (Left, []),
-        suffix: List.map(Either.l, suffix),
-      };
+      let selecting = (
+        List.map(Either.l, prefix),
+        (Left, []),
+        List.map(Either.l, suffix),
+      );
       Some(I.mk((Selecting(selecting), frame)));
     | Move(d) =>
       let j = List.length(prefix);
@@ -93,18 +93,69 @@ module Make =
           Some(I.mk((Pointing({prefix, z: (), suffix}), frame)));
         };
       };
-    | Delete(d) =>
+    | Delete(Left) =>
       let subject = prefix @ suffix;
-      let n = d == Left ? j - 1 : j;
+      let (prefix, tile, suffix) =
+        ListUtil.split_nth(List.length(prefix) - 1, subject);
       // break up nth tile into alternating sequence of tesserae + open children
-      // if consists of a single tessera:
-      //   remove, fix empty holes, reassemble into pointing mode
-      // else:
-      //   enter restructuring mode on one of the end tesserae:
-      //   flatten the open children into tiles
-      //   convert the tesserae into selections
-      //   put the other tesserae and tiles on prefix or suffix
-      failwith("todo");
+      let A(hd, tl) = AltList.rev(Term.flatten_tile(tile));
+      switch (tl) {
+      | None =>
+        // if consists of a single tessera:
+        //   remove, fix empty holes, reassemble into pointing mode
+        let (prefix, suffix) =
+          ListUtil.take_2(Term.Selection.fix_empty_holes([prefix, suffix]));
+        Some(I.mk((Pointing((prefix, (), suffix)), frame)));
+      | Some(tl) =>
+        // else:
+        //   enter restructuring mode on one of the end tesserae:
+        //   flatten the open children into tiles
+        //   convert the tesserae into selections
+        //   put the other tesserae and tiles on prefix or suffix
+        let inner_prefix =
+          tl
+          |> AltList.even_to_list(
+               open_child => List.map(Either.l, Term.flatten(open_child)),
+               tessera => [Either.R([tessera])],
+             )
+          |> List.rev
+          |> List.flatten;
+        let prefix = List.map(Either.l, prefix) @ inner_prefix;
+        let suffix = List.map(Either.l, suffix);
+        let z = (Left, [[Selection.Tessera(hd)]]);
+        Some(I.mk((Restructuring((prefix, z, suffix)), frame)));
+      };
+    | Delete(Right) =>
+      let subject = prefix @ suffix;
+      let (prefix, tile, suffix) =
+        ListUtil.split_nth(List.length(prefix), subject);
+      // break up nth tile into alternating sequence of tesserae + open children
+      let A(hd, tl) = Term.flatten_tile(tile);
+      switch (tl) {
+      | None =>
+        // if consists of a single tessera:
+        //   remove, fix empty holes, reassemble into pointing mode
+        let (prefix, suffix) =
+          ListUtil.take_2(Term.Selection.fix_empty_holes([prefix, suffix]));
+        Some(I.mk((Pointing((prefix, (), suffix)), frame)));
+      | Some(tl) =>
+        // else:
+        //   enter restructuring mode on one of the end tesserae:
+        //   flatten the open children into tiles
+        //   convert the tesserae into selections
+        //   put the other tesserae and tiles on prefix or suffix
+        let inner_suffix =
+          tl
+          |> AltList.even_to_list(
+               open_child => List.map(Either.l, Term.flatten(open_child)),
+               tessera => [Either.R([Selection.Tessera(tessera)])],
+             )
+          |> List.flatten;
+        let prefix = List.map(Either.l, prefix);
+        let suffix = inner_suffix @ List.map(Either.l, suffix);
+        let z = (Right, [[Selection.Tessera(hd)]]);
+        Some(I.mk((Restructuring((prefix, z, suffix)), frame)));
+      };
 
     | Construct(_shape) =>
       // open and close tesserae will return either a left or right focused list of tesserae

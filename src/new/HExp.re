@@ -20,6 +20,27 @@ type tiles = list(tile);
 
 type selection = HSelection.t(tile);
 
+let flatten_tile: tile => AltList.t(HTessera.t, t) =
+  Tile.get(
+    fun
+    | OpHole => A(OpHole, None)
+    | Num(n) => A(Num(n), None)
+    | Var(x) => A(Var(x), None)
+    | Paren(body) => A(Paren_l, Some(B(body, A(Paren_r, None)))),
+    fun
+    | Lam(p) => A(Lam(HPat.to_utiles(HPat.flatten(p))), None)
+    | Let(p, def) =>
+      A(
+        Let_eq(HPat.to_utiles(HPat.flatten(p))),
+        Some(B(def, A(Let_in, None))),
+      ),
+    fun
+    | Ap(_) => failwith("todo"),
+    fun
+    | Plus => A(Plus, None)
+    | Arrow => A(Arrow, None),
+  );
+
 let precedence: tile => int =
   Tile.get(
     _ => 0,

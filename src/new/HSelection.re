@@ -18,6 +18,12 @@ let is_whole = (selection: t('tile)): option(list('tile)) =>
      )
   |> OptUtil.sequence;
 
+let get_whole = selection =>
+  OptUtil.get_or_fail(
+    "Selection.get_whole: expected selection to be whole",
+    is_whole(selection),
+  );
+
 module Make = (Tile: Tile.S) => {
   type nonrec t = t(Tile.t);
 
