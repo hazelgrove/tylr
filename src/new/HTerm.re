@@ -1,3 +1,5 @@
+open Util;
+
 type t('op, 'pre, 'post, 'bin) =
   | Op('op)
   | Pre('pre, t('op, 'pre, 'post, 'bin))

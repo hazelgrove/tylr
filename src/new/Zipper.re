@@ -33,7 +33,7 @@ module Make = (Term: Term.S, Frame: Frame.S) => {
       ZList.t((Direction.t, HSelection.t), Either.t(Term.tile, HTessera.t));
     type restructuring =
       ZList.t(
-        (Direction.t, list(HSelection.t)),
+        ZList.t(HSelection.t, HSelection.t),
         Either.t(Term.tile, HSelection.t),
       );
     type t =

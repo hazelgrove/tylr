@@ -1,34 +1,26 @@
-// TODO may need to extend with OpHole/BinHole
-type singleton =
+open Util;
+
+type t =
+  | OpHole
+  | BinHole
   | Text(string)
   | Lam(HTile.s)
   | Ann(HTile.s)
   | Plus
-  | Arrow;
-
-// TODO rename to avoid clash with open/closed children
-type open_ =
+  | Arrow
   | Paren_l
-  | Let_eq(/* pattern */ HTile.s);
-
-type close =
   | Paren_r
+  | Let_eq(/* pattern */ HTile.s)
   | Let_in;
-
-// TODO add Mid
-type t =
-  | Singleton(singleton)
-  | Open(open_)
-  | Close(close);
 
 // TODO review and consider making
 // HTile and HTessera mutually recursive
-let mk_tile = (open_: open_, ts: HTile.s, close: close): option(HTile.t) =>
-  switch (open_, close) {
-  | (Paren_l, Paren_r) => Some(Op(Paren(ts)))
-  | (Let_eq(p), Let_in) => Some(Pre(Let(p, ts)))
-  | _ => None
-  };
+let mk_tile: AltList.t(t, HTile.s) => option(HTile.t) =
+  fun
+  | A(Paren_l, Some(B(body, A(Paren_r, None)))) => Some(Op(Paren(body)))
+  | A(Let_eq(p), Some(B(def, A(Let_in, None)))) =>
+    Some(Pre(Let(p, def)))
+  | _ => None;
 
 module Shape = {
   type t =
@@ -42,15 +34,3 @@ module Shape = {
     | Plus
     | Arrow;
 };
-
-let of_shape: Shape.t => t =
-  fun
-  | Text(s) => Singleton(Text(s))
-  | Paren_l => Open(Paren_l)
-  | Paren_r => Close(Paren_r)
-  | Lam => Singleton(Lam([Op(OpHole)]))
-  | Let_eq => Open(Let_eq([Op(OpHole)]))
-  | Let_in => Close(Let_in)
-  | Ann => Singleton(Ann([Op(OpHole)]))
-  | Plus => Singleton(Plus)
-  | Arrow => Singleton(Arrow);

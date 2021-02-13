@@ -55,6 +55,70 @@ module Make =
     go(HExp.associate(ts), frame);
   };
 
+  let tesserae_of_shape: HTessera.Shape.t => ZList.t(HTessera.t, HTessera.t) =
+    fun
+    | Text(s) => ZList.mk(~z=Text(s), ())
+    | Paren_l => ZList.mk(~z=Paren_l, ~suffix=[Paren_r], ())
+    | Paren_r => ZList.mk(~prefix=[Paren_l], ~z=Paren_r, ())
+    | Lam => ZList.mk(~z=Lam([Op(OpHole)]), ())
+    | Let_eq => ZList.mk(~z=Let_eq([Op(OpHole)]), ~suffix=[Let_in], ())
+    | Let_in => ZList.mk(~prefix=[Let_eq([Op(OpHole)])], ~z=Let_in, ())
+    | Ann => ZList.mk(~z=Ann([Op(OpHole)]), ())
+    | Plus => ZList.mk(~z=Plus, ())
+    | Arrow => ZList.mk(~z=Arrow, ());
+
+  // focused tessera is the one just constructed if parsing
+  // directly after restructured
+  exception Invalid_restructure;
+  let parse_restructured =
+      (
+        (prefix, z, suffix):
+          ZList.t(option(HTessera.t), Term.Selection.elem),
+      )
+      : Zipper.t => {
+    let rec go =
+            (~rev_prefix=[], (prefix, z, suffix): 'ss)
+            : (Zipper.t, HTerm.Selection.t) =>
+      switch (prefix) {
+      | [Tile(tile), ...prefix] =>
+        go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
+      | [Tessera(tessera), ...prefix] =>
+        let open_ = Tessera.get_open(tessera);
+        let (zipper, tail) = go((prefix, suffix));
+        let (close, tail) = ListUtil.split_first(tail);
+        let close = Tessera.get_close(close);
+        let (suffix, tail) =
+          ListUtil.take_while(
+            fun
+            | Tile(_) => true
+            | Tessera(_) => false,
+            tail,
+          );
+        let zipper =
+          append_frame(
+            zipper,
+            (List.rev(rev_prefix), (open_, close), suffix),
+          );
+        (zipper, tail);
+      | [] =>
+        // TODO handle z...
+        let (suffix, tail) =
+          ListUtil.take_while(
+            fun
+            | Tile(_) => true
+            | Tessera(_) => false,
+            suffix,
+          );
+        let zipper = I.mk(((List.rev(rev_prefix), (), suffix), None));
+        (zipper, tail);
+      };
+    let (prefix, suffix) =
+      TupleUtil.map2(Term.Selection.parse, (prefix, suffix));
+    let (zipper, tail) = go((prefix, z, suffix));
+    assert(tail == []);
+    zipper;
+  };
+
   let perform_pointing =
       (
         a: Action.t,
@@ -157,16 +221,37 @@ module Make =
         Some(I.mk((Restructuring((prefix, z, suffix)), frame)));
       };
 
-    | Construct(_shape) =>
-      // open and close tesserae will return either a left or right focused list of tesserae
-      // compute the focused list from the shape
-      // depending on whether it's a left or right focused,
-      //  put the constructed tessera in prefix or suffix respectively
-      // if no more remaining tesserae:
-      //   fix empty holes and finish in pointing
-      // else:
-      //   remaining tesserae are restructuring mode focus
-      failwith("todo")
+    | Construct(shape) =>
+      let (ts_before, tessera, ts_after) = tesserae_of_shape(shape);
+      if (HTessera.has_child(z)) {
+        let (ts_before, ts_after) =
+          TupleUtil.map2(List.map(Either.r), (ts_before, ts_after));
+        let (prefix, suffix) =
+          TupleUtil.map2(List.map(Either.l), (prefix, suffix));
+        parse_restructured((
+          prefix @ ts_before,
+          Some(tessera),
+          ts_after @ suffix,
+        ));
+      } else {
+        switch (ts_before, ts_after) {
+        | ([], []) =>
+          let (prefix, suffix) =
+            TupleUtil.map2(List.map(Either.l), (prefix, suffix));
+          parse_restructured((prefix, Some(tessera), suffix));
+        | _ =>
+          // need to repeat this because different either types
+          let (prefix, suffix) =
+            TupleUtil.map2(List.map(Either.l), (prefix, suffix));
+          let (ss_before, ss_after) =
+            TupleUtil.map2(
+              List.map(tessera => [Tessera(tessera)]),
+              (ts_before, ts_after),
+            );
+          let selections = (ss_before, [Tessera(tessera)], ss_after);
+          Some(I.mk((Restructuring((prefix, selections, suffix)), frame)));
+        };
+      };
     };
 
   let perform_selecting =
@@ -280,51 +365,6 @@ module Make =
       //     finish with same selection
       failwith("todo")
     };
-
-  exception Invalid_restructure;
-  let parse_restructured =
-      ((prefix, suffix): (Term.Selection.t, Term.Selection.t) as 'ss)
-      : Zipper.t => {
-    let ss = TupleUtil.map2(Term.Selection.parse, (prefix, suffix));
-    let rec go =
-            (~rev_prefix=[], (prefix, suffix): 'ss)
-            : (Zipper.t, HTerm.Selection.t) =>
-      switch (prefix) {
-      | [Tile(tile), ...prefix] =>
-        go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
-      | [Tessera(tessera), ...prefix] =>
-        let open_ = Tessera.get_open(tessera);
-        let (zipper, tail) = go((prefix, suffix));
-        let (close, tail) = ListUtil.split_first(tail);
-        let close = Tessera.get_close(close);
-        let (suffix, tail) =
-          ListUtil.take_while(
-            fun
-            | Tile(_) => true
-            | Tessera(_) => false,
-            tail,
-          );
-        let zipper =
-          append_frame(
-            zipper,
-            (List.rev(rev_prefix), (open_, close), suffix),
-          );
-        (zipper, tail);
-      | [] =>
-        let (suffix, tail) =
-          ListUtil.take_while(
-            fun
-            | Tile(_) => true
-            | Tessera(_) => false,
-            suffix,
-          );
-        let zipper = I.mk(((List.rev(rev_prefix), (), suffix), None));
-        (zipper, tail);
-      };
-    let (zipper, tail) = go(ss);
-    assert(tail == []);
-    zipper;
-  };
 
   let perform_restructuring =
       (
