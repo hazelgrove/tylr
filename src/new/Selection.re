@@ -3,7 +3,7 @@ open OptUtil.Syntax;
 
 type elem('tile) =
   | Tile('tile)
-  | Tessera(HTessera.t)
+  | Tessera(Unsorted.Tessera.t)
 constraint 'tile = Tile.t('op, 'pre, 'post, 'bin);
 type t('tile) = list(elem('tile));
 
@@ -27,38 +27,42 @@ let get_whole = selection =>
 module Make = (Tile: Tile.S) => {
   type nonrec t = t(Tile.t);
 
-  let parse = (selection: t('tile)): t('tile) => {
-    let rec go = (selection: t('tile)): t('tile) =>
+  let parse = (selection: t): t => {
+    let rec go = (selection: t): t =>
       switch (selection) {
       | [] => []
-      | [(Tile(_) | Tessera(Close(_))) as elem, ...selection] => [
-          elem,
-          ...go(selection),
-        ]
-      | [Tessera(Open(open_)), ...selection'] =>
-        switch (go_open(open_, selection')) {
-        | None => selection
-        | Some((tile, selection)) => [Tile(tile), ...go(selection)]
+      | [Tile(_) as elem, ...selection] => [elem, ...go(selection)]
+      | [Tessera(tessera) as elem, ...selection'] =>
+        if (Unsorted.Tessera.is_closing(tessera)) {
+          [elem, ...go(selection')];
+        } else {
+          // TODO handle mid
+          switch (go_opening(tessera, selection')) {
+          | None => selection
+          | Some((tile, selection)) => [Tile(tile), ...go(selection)]
+          };
         }
       }
-    and go_open =
+    and go_opening =
         (
-          ~rev_tiles: list('tile)=[],
-          open_: HTessera.open_,
-          selection: t('tile),
+          ~rev_tiles: list(Tile.t)=[],
+          open_: Unsorted.Tessera.t,
+          selection: t,
         )
-        : option(('tile, t('tile))) =>
+        : option((Tile.t, t)) =>
       switch (selection) {
       | [] => None
       | [Tile(tile), ...selection] =>
-        go_open(~rev_tiles=[tile, ...rev_tiles], open_, selection)
-      | [Tessera(Open(open_)), ...selection] =>
-        let* (tile, selection) = go_open(open_, selection);
-        go_open(~rev_tiles=[tile, ...rev_tiles], open_, selection);
-      | [Tessera(Close(close)), ...selection] =>
-        let ts = List.rev(rev_tiles);
-        let+ tile = Tile.mk(open_, ts, close);
-        (tile, selection);
+        go_opening(~rev_tiles=[tile, ...rev_tiles], open_, selection)
+      | [Tessera(tessera), ...selection] =>
+        if (Unsorted.Tessera.is_closing(tessera)) {
+          let ts = List.rev(rev_tiles);
+          let+ tile = Tile.mk(open_, ts, close);
+          (tile, selection);
+        } else {
+          let* (tile, selection) = go_opening(open_, selection);
+          go_opening(~rev_tiles=[tile, ...rev_tiles], open_, selection);
+        }
       };
     go(selection);
   };
@@ -134,9 +138,9 @@ module Make = (Tile: Tile.S) => {
   let fix_empty_holes_left = fix_empty_holes_end(~side=Left);
   let fix_empty_holes_right = selections =>
     selections
-    |> List.rev_map(Prototile.rev)
+    |> List.rev_map(Tile.rev)
     |> fix_empty_holes_end(~side=Right)
-    |> List.rev_map(Prototile.rev);
+    |> List.rev_map(Tile.rev);
 
   let fix_empty_holes = (selections: list(t)): list(t) => {
     let rec fix = (selection: t, selections: list(t)): list(t) => {
