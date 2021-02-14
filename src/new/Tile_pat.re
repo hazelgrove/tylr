@@ -1,13 +1,14 @@
-module Input: Tile.SORTED_INPUT with module Term := Term_pat = {
-  module Term = Term_pat;
+open Util;
 
-  type t = Tile.t(Term_pat.op, Term_pat.pre, Term_pat.post, Term_pat.bin);
-  type s = list(t);
+module Input: Tile.SORTED_INPUT with module Term := Term_pat = {
+  open Term_pat;
+
+  type t = Tile.t(op, pre, post, bin);
 
   let precedence: t => int =
     Tile.get(
       _ => 0,
-      () => raise(Term_pat.Void_pre),
+      () => raise(Void_pre),
       fun
       | Ann(_) => 2,
       fun

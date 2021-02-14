@@ -1,6 +1,7 @@
 module Input: Tile.SORTED_INPUT with module Term := Term_exp = {
-  type t = Tile.t(Term_exp.op, Term_exp.pre, Term_exp.post, Term_exp.bin);
-  type s = list(t);
+  open Term_exp;
+
+  type t = Tile.t(op, pre, post, bin);
 
   let precedence: t => int =
     Tile.get(

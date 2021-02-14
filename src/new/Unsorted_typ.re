@@ -1,12 +1,16 @@
-let flatten_tile: Tile_typ.t => AltList.t(Tessera.t, Term_typ.t) =
-  T.get(
+open Util;
+
+open Term_typ;
+
+let flatten_tile: Tile_typ.t => AltList.t(Unsorted.Tessera.t, Term_typ.t) =
+  Tile.get(
     fun
     | OpHole => A(OpHole, None)
     | Num => A(Num, None)
     | Bool => A(Bool, None)
     | Paren(body) => A(Paren_l, Some(B(body, A(Paren_r, None)))),
-    () => raise(Term_typ.Void_pre),
-    () => raise(Term_typ.Void_post),
+    () => raise(Void_pre),
+    () => raise(Void_post),
     fun
     | BinHole => A(BinHole, None)
     | Arrow => A(Arrow, None),
