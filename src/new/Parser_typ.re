@@ -2,7 +2,7 @@ open Util;
 open OptUtil.Syntax;
 
 module Input:
-  Parser.S_INPUT with module Term := Term_typ and module Tile := Tile_typ = {
+  Parser.S_INPUT with module Tm := Term_typ and module T := Tile_typ = {
   let sort = (~sort_and_associate) =>
     Tile.get(
       fun

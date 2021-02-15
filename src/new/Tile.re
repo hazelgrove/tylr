@@ -48,9 +48,9 @@ let get =
   | Bin(bin) => get_bin(bin);
 
 module type S = {
-  module Term: Term.S;
+  module Tm: Term.S;
 
-  type nonrec t = t(Term.op, Term.pre, Term.post, Term.bin);
+  type nonrec t = t(Tm.op, Tm.pre, Tm.post, Tm.bin);
 
   let precedence: t => int;
   let associativity: IntMap.t(Associativity.t);

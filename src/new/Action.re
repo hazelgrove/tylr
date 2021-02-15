@@ -1,23 +1,31 @@
+open Util;
+
 [@deriving sexp]
 type t =
   | Mark
   | Move(Direction.t)
   | Delete(Direction.t)
-  | Construct(HTessera.Shape.t);
+  | Construct(Unsorted.Tessera.Shape.t);
+
+module type S_INPUT = {
+  module Tm: Term.S;
+  module T: Tile.S with module Tm := Tm;
+  module F: Frame.S with module Tm := Tm;
+  module Z: Zipper.S with module Tm := Tm and module T := T and module F := F;
+
+  let mk_zipper: Z.t => Zipper.t;
+
+  let move_into_root: (Direction.t, Tm.t, F.t) => option(Z.t);
+  let move_into_frame: (Direction.t, Tm.t, F.bidelimited) => option(Z.t);
+};
 
 module Make =
        (
-         Term: HTerm.S,
-         Frame: HFrame.S,
-         Z: Zipper.S with module Term := Term and module Frame := Frame,
-         I: {
-           let mk: Z.t => Zipper.t;
-
-           let move_into_root:
-             (Direction.t, Term.t, Frame.t) => option(Zipper.t);
-           let move_into_frame:
-             (Direction.t, Term.t, Frame.bidelimited) => option(Zipper.t);
-         },
+         Tm: Term.S,
+         T: Tile.S with module Tm := Tm,
+         F: Frame.S with module Tm := Tm,
+         Z: Zipper.S with module Tm := Tm and module T := T and module F := F,
+         I: S_INPUT,
        ) => {
   // TODO use append_frame here
   let move_into_tile =

@@ -1,3 +1,5 @@
+open Sexplib.Std;
+
 module Tile = {
   type s = list(t)
   and t = Tile.t(op, pre, post, bin)
@@ -32,6 +34,7 @@ module Tessera = {
     | Let_in;
 
   module Shape = {
+    [@deriving sexp]
     type t =
       | Text(string)
       | Paren_l

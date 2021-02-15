@@ -1,4 +1,4 @@
-// Frame.S with module Term := Term_exp;
+// Frame.S with module Tm := Term_exp;
 
 type t =
   | Bidelimited(bidelimited)

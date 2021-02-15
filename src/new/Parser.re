@@ -2,43 +2,38 @@ open Util;
 open OptUtil.Syntax;
 
 module type S_INPUT = {
-  module Term: Term.S;
-  module Tile: Tile.S with module Term := Term;
+  module Tm: Term.S;
+  module T: Tile.S with module Tm := Tm;
 
   let sort:
-    (
-      ~sort_and_associate: Unsorted.Tile.s => option(Term.t),
-      Unsorted.Tile.t
-    ) =>
-    option(Tile.t);
+    (~sort_and_associate: Unsorted.Tile.s => option(Tm.t), Unsorted.Tile.t) =>
+    option(T.t);
   let unsort:
-    (~dissociate_and_unsort: Term.t => Unsorted.Tile.s, Tile.t) =>
-    Unsorted.Tile.t;
+    (~dissociate_and_unsort: Tm.t => Unsorted.Tile.s, T.t) => Unsorted.Tile.t;
 
   // TODO return option?
-  let connect: AltList.t(Unsorted.Tessera.t, Term.t) => Tile.t;
-  let disconnect: Tile.t => AltList.t(Unsorted.Tessera.t, Term.t);
+  let connect: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
+  let disconnect: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 };
 
 module type S = {
-  module Term: Term.S;
-  module Tile: Tile.S with module Term := Term;
+  module Tm: Term.S;
+  module T: Tile.S with module Tm := Tm;
 
-  let associate: list(Tile.t) => Term.t;
-  let dissociate: Term.t => list(Tile.t);
+  let associate: list(T.t) => Tm.t;
+  let dissociate: Tm.t => list(T.t);
 
-  let sort: Unsorted.Tile.t => option(Tile.t);
-  let unsort: Tile.t => Unsorted.Tile.t;
+  let sort: Unsorted.Tile.t => option(T.t);
+  let unsort: T.t => Unsorted.Tile.t;
 
-  let sort_and_associate: Unsorted.Tile.s => option(Term.t);
-  let dissociate_and_unsort: Term.t => Unsorted.Tile.s;
+  let sort_and_associate: Unsorted.Tile.s => option(Tm.t);
+  let dissociate_and_unsort: Tm.t => Unsorted.Tile.s;
 
-  let connect: AltList.t(Unsorted.Tessera.t, Term.t) => Tile.t;
-  let disconnect: Tile.t => AltList.t(Unsorted.Tessera.t, Term.t);
+  let connect: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
+  let disconnect: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
-  let connect_selection: Selection.t(Tile.t) => Selection.t(Tile.t);
-  let fix_empty_holes:
-    list(Selection.t(Tile.t)) => list(Selection.t(Tile.t));
+  let connect_selection: Selection.t(T.t) => Selection.t(T.t);
+  let fix_empty_holes: list(Selection.t(T.t)) => list(Selection.t(T.t));
 };
 
 // outside of functor for use by unsorted selections
@@ -88,19 +83,17 @@ let connect_selection =
   go(selection);
 };
 
-// TODO resolve this awkwardness
-module T = Tile;
 module Make =
        (
-         Term: Term.S,
-         Tile: Tile.S with module Term := Term,
-         Input: S_INPUT with module Term := Term and module Tile := Tile,
+         Tm: Term.S,
+         T: Tile.S with module Tm := Tm,
+         Input: S_INPUT with module Tm := Tm and module T := T,
        )
-       : (S with module Term := Term and module Tile := Tile) => {
-  type selection = Selection.t(Tile.t);
-  type tiles = list(Tile.t);
+       : (S with module Tm := Tm and module T := T) => {
+  type selection = Selection.t(T.t);
+  type tiles = list(T.t);
 
-  type itile = (int, Tile.t);
+  type itile = (int, T.t);
   let mk_skel = (tiles: tiles): Skel.t => {
     let push_output =
         ((i, tile): itile, output_stack: list(Skel.t)): list(Skel.t) =>
@@ -173,7 +166,7 @@ module Make =
           )
         | Pre(_)
         | Bin(_) =>
-          Tile.precedence(tile) <= Tile.precedence(post)
+          T.precedence(tile) <= T.precedence(post)
             ? process_postop(
                 ~output_stack=push_output(itile, output_stack),
                 ~shunted_stack=itiles,
@@ -204,7 +197,7 @@ module Make =
           )
         | Pre(_)
         | Bin(_) =>
-          Tile.precedence(tile) <= Tile.precedence(bin)
+          T.precedence(tile) <= T.precedence(bin)
             ? process_binop(
                 ~output_stack=push_output(itile, output_stack),
                 ~shunted_stack=itiles,
@@ -244,19 +237,19 @@ module Make =
 
     tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
   };
-  let associate = (tiles: tiles): Term.t => {
-    let rec go = (skel: Skel.t): Term.t => {
+  let associate = (tiles: tiles): Tm.t => {
+    let rec go = (skel: Skel.t): Tm.t => {
       let root = List.nth(tiles, Skel.root_index(skel));
       switch (skel) {
-      | Op(_) => Op(T.get_op(root))
-      | Pre(_, r) => Pre(T.get_pre(root), go(r))
-      | Post(l, _) => Post(go(l), T.get_post(root))
-      | Bin(l, _, r) => Bin(go(l), T.get_bin(root), go(r))
+      | Op(_) => Op(Tile.get_op(root))
+      | Pre(_, r) => Pre(Tile.get_pre(root), go(r))
+      | Post(l, _) => Post(go(l), Tile.get_post(root))
+      | Bin(l, _, r) => Bin(go(l), Tile.get_bin(root), go(r))
       };
     };
     go(mk_skel(tiles));
   };
-  let rec dissociate = (tm: Term.t): tiles =>
+  let rec dissociate = (tm: Tm.t): tiles =>
     switch (tm) {
     | Op(op) => [Op(op)]
     | Pre(pre, r) => [Pre(pre), ...dissociate(r)]
@@ -264,7 +257,7 @@ module Make =
     | Bin(l, bin, r) => dissociate(l) @ [Bin(bin), ...dissociate(r)]
     };
 
-  let rec sort_s = (tiles: Unsorted.Tile.s): option(list(Tile.t)) =>
+  let rec sort_s = (tiles: Unsorted.Tile.s): option(list(T.t)) =>
     tiles |> List.map(sort) |> OptUtil.sequence
   and sort = (tile: Unsorted.Tile.t) => Input.sort(~sort_and_associate, tile)
   and sort_and_associate = ts => {
@@ -272,9 +265,9 @@ module Make =
     associate(sorted);
   };
 
-  let rec unsort_s = (tiles: list(Tile.t)): Unsorted.Tile.s =>
+  let rec unsort_s = (tiles: list(T.t)): Unsorted.Tile.s =>
     List.map(unsort, tiles)
-  and unsort = (tile: Tile.t): Unsorted.Tile.t =>
+  and unsort = (tile: T.t): Unsorted.Tile.t =>
     Input.unsort(~dissociate_and_unsort, tile)
   and dissociate_and_unsort = term => unsort_s(dissociate(term));
 
@@ -286,12 +279,12 @@ module Make =
 
   let is_convex = (d: Direction.t) =>
     fun
-    | Selection.Tile(tile) => Tile.is_convex(d, tile)
+    | Selection.Tile(tile) => T.is_convex(d, tile)
     | Tessera(tessera) => Unsorted.Tessera.is_convex(d, tessera);
   let is_hole =
     fun
-    | Selection.Tile(Op(op)) => Term.is_op_hole(op)
-    | Tile(Bin(bin)) => Term.is_bin_hole(bin)
+    | Selection.Tile(Op(op)) => Tm.is_op_hole(op)
+    | Tile(Bin(bin)) => Tm.is_bin_hole(bin)
     | _ => false;
 
   let fix_empty_holes_between =
@@ -312,7 +305,7 @@ module Make =
       } else {
         let hole =
           Selection.Tile(
-            last_is_convex ? Bin(Term.mk_bin_hole()) : Op(Term.mk_op_hole()),
+            last_is_convex ? Bin(Tm.mk_bin_hole()) : Op(Tm.mk_op_hole()),
           );
         (prefix, [hole, ...suffix]);
       };
@@ -323,7 +316,7 @@ module Make =
     | [] => []
     | [[], ...selections] =>
       switch (selections) {
-      | [] => [[Selection.Tile(Op(Term.mk_op_hole()))]]
+      | [] => [[Selection.Tile(Op(Tm.mk_op_hole()))]]
       | [_, ..._] => [[], ...fix_empty_holes_end(~side, selections)]
       }
     | [[elem, ...selection'] as selection, ...selections] =>
@@ -338,7 +331,7 @@ module Make =
       } else {
         let cap =
           is_convex(side, elem)
-            ? [] : [Selection.Tile(Op(Term.mk_op_hole()))];
+            ? [] : [Selection.Tile(Op(Tm.mk_op_hole()))];
         switch (side) {
         | Left => [cap @ selection, ...selections]
         | Right => [cap, selection, ...selections]
