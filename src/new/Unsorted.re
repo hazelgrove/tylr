@@ -57,4 +57,6 @@ module Tessera = {
     | Let_eq(_) => false
     | Paren_r
     | Let_in => true;
+
+  let is_convex = (_, _) => failwith("todo");
 };

@@ -7,7 +7,6 @@ module type S = {
   type bin;
   type tile =
     Tile.t(op, (pre, Term.t), (Term.t, post), (Term.t, bin, Term.t));
-
   type bidelimited = option(tile);
   type t =
     | Bidelimited(bidelimited)

@@ -2,7 +2,7 @@ open Util;
 
 module type S = {
   module Term: Term.S;
-  module Tile: Tile.SORTED with module Term := Term;
+  module Tile: Tile.S with module Term := Term;
   module Frame: Frame.S with module Term := Term;
 
   module Subject: {
@@ -11,13 +11,16 @@ module type S = {
     // 1 + [(] 2 _ 3 )
     // {prefix: [L(1), L(+)], z: (L, [(])), suffix: [L(2), L(_), L(3), R(`)`)]}
     type selecting =
-      ZList.t((Direction.t, Selection.t), Either.t(Term.tile, HTessera.t));
+      ZList.t(
+        (Direction.t, Selection.t(Unsorted.Tile.t)),
+        Either.t(Tile.t, Unsorted.Tessera.t),
+      );
     // 1 + [( 2 _] 3 ) + 4
     // {prefix: [L(1), L(+)], z: (L, [[`(`]]), suffix: [L(2), L(_), L(3), R(`)`)]}
     type restructuring =
       ZList.t(
-        (Direction.t, list(Selection.t)),
-        Either.t(Term.tile, Selection.t),
+        (Direction.t, list(Selection.t(Unsorted.Tile.t) as 'selection)),
+        Either.t(Tile.t, 'selection),
       );
 
     type t =
@@ -29,15 +32,23 @@ module type S = {
   type t = (Subject.t, Frame.bidelimited);
 };
 
-module Make = (Term: Term.S, Frame: Frame.S) => {
+module Make =
+       (
+         Term: Term.S,
+         Tile: Tile.S with module Term := Term,
+         Frame: Frame.S with module Term := Term,
+       ) => {
   module Subject = {
-    type pointing = ZList.t(unit, Term.tile);
+    type pointing = ZList.t(unit, Tile.t);
     type selecting =
-      ZList.t((Direction.t, Selection.t), Either.t(Term.tile, HTessera.t));
+      ZList.t(
+        (Direction.t, Selection.t(Unsorted.Tile.t)),
+        Either.t(Tile.t, Unsorted.Tessera.t),
+      );
     type restructuring =
       ZList.t(
-        ZList.t(Selection.t, Selection.t),
-        Either.t(Term.tile, Selection.t),
+        (Direction.t, list(Selection.t(Unsorted.Tile.t) as 'selection)),
+        Either.t(Tile.t, 'selection),
       );
     type t =
       | Pointing(pointing)
@@ -48,9 +59,9 @@ module Make = (Term: Term.S, Frame: Frame.S) => {
   type t = (Subject.t, Frame.bidelimited);
 };
 
-module Typ = Make(Term.Typ, Frame.Typ);
-module Pat = Make(Term.Pat, Frame.Pat);
-module Exp = Make(Term.Exp, Frame.Exp);
+module Typ = Make(Term_typ, Tile_typ, Frame_typ);
+module Pat = Make(Term_pat, Tile_pat, Frame_pat);
+module Exp = Make(Term_exp, Tile_exp, Frame_exp);
 
 type t =
   | Typ(Typ.t)
