@@ -56,17 +56,17 @@ module Input:
   let disconnect =
     Tile.get(
       fun
-      | Term_pat.OpHole => AltList.singleton(Unsorted.Tessera.OpHole)
-      | Var(x) => AltList.singleton(Unsorted.Tessera.Text(x))
+      | Term_pat.OpHole => (Unsorted.Tessera.OpHole, [])
+      | Var(x) => (Unsorted.Tessera.Text(x), [])
       | Paren(body) => (Paren_l, [(body, Unsorted.Tessera.Paren_r)]),
       () => raise(Term_pat.Void_pre),
       fun
-      | Term_pat.Ann(ann) =>
-        AltList.singleton(
+      | Term_pat.Ann(ann) => (
           Unsorted.Tessera.Ann(Parser_typ.dissociate_and_unsort(ann)),
+          [],
         ),
       fun
-      | Term_pat.BinHole => AltList.singleton(Unsorted.Tessera.BinHole),
+      | Term_pat.BinHole => (Unsorted.Tessera.BinHole, []),
     );
 };
 

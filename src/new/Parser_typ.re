@@ -53,15 +53,15 @@ module Input:
   let disconnect =
     Tile.get(
       fun
-      | Term_typ.OpHole => AltList.singleton(Unsorted.Tessera.OpHole)
-      | Num => AltList.singleton(Unsorted.Tessera.Text("Num"))
-      | Bool => AltList.singleton(Unsorted.Tessera.Text("Bool"))
+      | Term_typ.OpHole => (Unsorted.Tessera.OpHole, [])
+      | Num => (Unsorted.Tessera.Text("Num"), [])
+      | Bool => (Unsorted.Tessera.Text("Bool"), [])
       | Paren(body) => (Paren_l, [(body, Unsorted.Tessera.Paren_r)]),
       () => raise(Term_typ.Void_pre),
       () => raise(Term_typ.Void_post),
       fun
-      | Term_typ.BinHole => AltList.singleton(Unsorted.Tessera.BinHole)
-      | Arrow => AltList.singleton(Unsorted.Tessera.Arrow),
+      | Term_typ.BinHole => (Unsorted.Tessera.BinHole, [])
+      | Arrow => (Unsorted.Tessera.Arrow, []),
     );
 };
 

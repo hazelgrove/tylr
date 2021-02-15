@@ -70,17 +70,17 @@ module Input:
   let disconnect =
     Tile.get(
       fun
-      | Term_exp.OpHole => AltList.singleton(Unsorted.Tessera.OpHole)
-      | Num(n) => AltList.singleton(Unsorted.Tessera.Text(string_of_int(n)))
-      | Var(x) => AltList.singleton(Unsorted.Tessera.Text(x))
+      | Term_exp.OpHole => (Unsorted.Tessera.OpHole, [])
+      | Num(n) => (Unsorted.Tessera.Text(string_of_int(n)), [])
+      | Var(x) => (Unsorted.Tessera.Text(x), [])
       | Paren(body) => (
           Unsorted.Tessera.Paren_l,
           [(body, Unsorted.Tessera.Paren_r)],
         ),
       fun
-      | Term_exp.Lam(p) =>
-        AltList.singleton(
+      | Term_exp.Lam(p) => (
           Unsorted.Tessera.Lam(Parser_pat.dissociate_and_unsort(p)),
+          [],
         )
       | Let(p, def) => (
           Let_eq(Parser_pat.dissociate_and_unsort(p)),
@@ -89,8 +89,8 @@ module Input:
       fun
       | Term_exp.Ap(_) => failwith("ap todo"),
       fun
-      | Term_exp.Plus => AltList.singleton(Unsorted.Tessera.Plus)
-      | BinHole => AltList.singleton(Unsorted.Tessera.BinHole),
+      | Term_exp.Plus => (Unsorted.Tessera.Plus, [])
+      | BinHole => (Unsorted.Tessera.BinHole, []),
     );
 };
 
