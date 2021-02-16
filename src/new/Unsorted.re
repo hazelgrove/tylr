@@ -62,4 +62,6 @@ module Tessera = {
     | Let_in => true;
 
   let is_convex = (_, _) => failwith("todo");
+
+  let has_child = _ => failwith("todo");
 };

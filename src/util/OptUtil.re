@@ -4,6 +4,7 @@ let get = (if_none, o) =>
   | Some(a) => a
   };
 let get_or_fail = s => get(() => failwith(s));
+let get_or_raise = e => get(() => raise(e));
 
 let map2 = (f, o1, o2) =>
   switch (o1, o2) {

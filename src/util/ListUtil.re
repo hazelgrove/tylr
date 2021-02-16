@@ -77,7 +77,7 @@ let split_sublist =
   | None => raise(Invalid_argument("ListUtil.split_sublist"))
   | Some(r) => r
   };
-let sublist = (i: int, j: int, xs: list('x)): list('x) => {
+let sublist = ((i, j), xs: list('x)): list('x) => {
   let (_, sublist, _) = split_sublist(i, j, xs);
   sublist;
 };
@@ -142,6 +142,8 @@ let rec fold_left_map =
     let (final, ys) = fold_left_map(f, new_acc, xs);
     (final, [y, ...ys]);
   };
+
+let take_while = (_, _) => failwith("todo");
 
 let take_2 =
   fun

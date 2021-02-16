@@ -4,6 +4,7 @@ open OptUtil.Syntax;
 module type S_INPUT = {
   module Tm: Term.S;
   module T: Tile.S with module Tm := Tm;
+  module F: Frame.S with module Tm := Tm;
 
   let sort:
     (~sort_and_associate: Unsorted.Tile.s => option(Tm.t), Unsorted.Tile.t) =>
@@ -12,34 +13,50 @@ module type S_INPUT = {
     (~dissociate_and_unsort: Tm.t => Unsorted.Tile.s, T.t) => Unsorted.Tile.t;
 
   // TODO return option?
-  let connect: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
-  let disconnect: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
+  let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
+  let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
+
+  let assemble_open_bidelimited_frame:
+    (
+      ~associate: list(T.t) => Tm.t,
+      ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      F.t
+    ) =>
+    F.bidelimited;
 };
 
 module type S = {
   module Tm: Term.S;
   module T: Tile.S with module Tm := Tm;
+  module F: Frame.S with module Tm := Tm;
+
+  let mk_skel: list(T.t) => Skel.t;
+  let term_of_skel: (Skel.t, list(T.t)) => Tm.t;
 
   let associate: list(T.t) => Tm.t;
   let dissociate: Tm.t => list(T.t);
 
+  let sort_s: Unsorted.Tile.s => option(list(T.t));
   let sort: Unsorted.Tile.t => option(T.t);
   let unsort: T.t => Unsorted.Tile.t;
 
   let sort_and_associate: Unsorted.Tile.s => option(Tm.t);
   let dissociate_and_unsort: Tm.t => Unsorted.Tile.s;
 
-  let connect: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
-  let disconnect: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
+  let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
+  let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
-  let connect_selection: Selection.t(T.t) => Selection.t(T.t);
+  let assemble_tiles_in_selection: Selection.t(T.t) => Selection.t(T.t);
   let fix_empty_holes: list(Selection.t(T.t)) => list(Selection.t(T.t));
+
+  let assemble_open_bidelimited_frame:
+    ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t) => F.bidelimited;
 };
 
 // outside of functor for use by unsorted selections
-let connect_selection =
+let assemble_tiles_in_selection =
     (
-      ~connect: AltList.t(Unsorted.Tessera.t, list('tile)) => 'tile,
+      ~assemble_tile: AltList.t(Unsorted.Tessera.t, list('tile)) => 'tile,
       selection: Selection.t('tile) as 'selection,
     )
     : 'selection => {
@@ -73,7 +90,7 @@ let connect_selection =
       // TODO handle mid tesserae
       if (Unsorted.Tessera.is_closing(tessera)) {
         let ts = List.rev(rev_tiles);
-        let tile = connect((open_, [(ts, tessera)]));
+        let tile = assemble_tile((open_, [(ts, tessera)]));
         Some((tile, selection));
       } else {
         let* (tile, selection) = go_opening(open_, selection);
@@ -87,9 +104,11 @@ module Make =
        (
          Tm: Term.S,
          T: Tile.S with module Tm := Tm,
-         Input: S_INPUT with module Tm := Tm and module T := T,
+         F: Frame.S with module Tm := Tm,
+         Input:
+           S_INPUT with module Tm := Tm and module T := T and module F := F,
        )
-       : (S with module Tm := Tm and module T := T) => {
+       : (S with module Tm := Tm and module T := T and module F := F) => {
   type selection = Selection.t(T.t);
   type tiles = list(T.t);
 
@@ -237,9 +256,10 @@ module Make =
 
     tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
   };
-  let associate = (tiles: tiles): Tm.t => {
+
+  let term_of_skel = (skel: Skel.t, ts: tiles): Tm.t => {
     let rec go = (skel: Skel.t): Tm.t => {
-      let root = List.nth(tiles, Skel.root_index(skel));
+      let root = List.nth(ts, Skel.root_index(skel));
       switch (skel) {
       | Op(_) => Op(Tile.get_op(root))
       | Pre(_, r) => Pre(Tile.get_pre(root), go(r))
@@ -247,8 +267,11 @@ module Make =
       | Bin(l, _, r) => Bin(go(l), Tile.get_bin(root), go(r))
       };
     };
-    go(mk_skel(tiles));
+    go(skel);
   };
+
+  let associate = (tiles: tiles): Tm.t =>
+    term_of_skel(mk_skel(tiles), tiles);
   let rec dissociate = (tm: Tm.t): tiles =>
     switch (tm) {
     | Op(op) => [Op(op)]
@@ -271,11 +294,13 @@ module Make =
     Input.unsort(~dissociate_and_unsort, tile)
   and dissociate_and_unsort = term => unsort_s(dissociate(term));
 
-  let connect = Input.connect;
-  let disconnect = Input.disconnect;
+  let assemble_tile = Input.assemble_tile;
+  let disassemble_tile = Input.disassemble_tile;
 
-  let connect_selection =
-    connect_selection(~connect=ts => connect(AltList.map_b(associate, ts)));
+  let assemble_tiles_in_selection =
+    assemble_tiles_in_selection(~assemble_tile=ts =>
+      assemble_tile(AltList.map_b(associate, ts))
+    );
 
   let is_convex = (d: Direction.t) =>
     fun
@@ -368,5 +393,54 @@ module Make =
     };
     let fixed_between = List.fold_right(fix, selections, []);
     fix_empty_holes_left(fix_empty_holes_right(fixed_between));
+  };
+
+  let assemble_open_bidelimited_frame =
+      (
+        (prefix, ts, suffix):
+          ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      )
+      : F.bidelimited => {
+    let dummy_tile = {
+      let dummy_hole = Term.Op(Tm.mk_op_hole());
+      assemble_tile(AltList.fill_b_frame(dummy_hole, ts));
+    };
+    let n = List.length(prefix);
+    let tiles = prefix @ [dummy_tile, ...suffix];
+    let assemble = Input.assemble_open_bidelimited_frame(~associate);
+    let rec go = (skel: Skel.t, frame: F.t) => {
+      let t = List.nth(tiles, Skel.root_index(skel));
+      switch (skel) {
+      | Op(m) =>
+        assert(n == m);
+        assemble(([], ts, []), frame);
+      | Pre(m, r) =>
+        if (n == m) {
+          let r = ListUtil.sublist(Skel.range(r), tiles);
+          assemble(([], ts, r), frame);
+        } else {
+          go(r, Uni(Pre_r(Tile.get_pre(t), frame)));
+        }
+      | Post(l, m) =>
+        if (n == m) {
+          let l = ListUtil.sublist(Skel.range(l), tiles);
+          assemble((l, ts, []), frame);
+        } else {
+          go(l, Uni(Post_l(frame, Tile.get_post(t))));
+        }
+      | Bin(l, m, r) =>
+        let bin = Tile.get_bin(t);
+        if (n < m) {
+          go(l, Uni(Bin_l(frame, bin, term_of_skel(r, tiles))));
+        } else if (n > m) {
+          go(r, Uni(Bin_r(term_of_skel(l, tiles), bin, frame)));
+        } else {
+          let l = ListUtil.sublist(Skel.range(l), tiles);
+          let r = ListUtil.sublist(Skel.range(r), tiles);
+          assemble((l, ts, r), frame);
+        };
+      };
+    };
+    go(mk_skel(tiles), Bi(None));
   };
 };

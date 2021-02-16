@@ -3,10 +3,16 @@ open Util;
 type elem('tile) =
   | Tile('tile)
   | Tessera(Unsorted.Tessera.t)
-constraint 'tile = Tile.t('op, 'pre, 'post, 'bin);
+constraint 'tile = Tile.t(_);
 type t('tile) = list(elem('tile));
 
-exception Invalid_selection;
+let tile = t => Tile(t);
+let tessera = t => Tessera(t);
+
+let get_tessera =
+  fun
+  | Tessera(tessera) => tessera
+  | Tile(_) => raise(Invalid_argument("Selection.get_tessera"));
 
 let is_whole = (selection: t('tile)): option(list('tile)) =>
   selection

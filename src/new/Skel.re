@@ -20,3 +20,11 @@ let root_index =
   | Pre(n, _)
   | Post(_, n)
   | Bin(_, n, _) => n;
+
+// returns inclusive lower bound, exclusive upper bound
+let rec range =
+  fun
+  | Op(n) => (n, n + 1)
+  | Pre(n, r) => (n, snd(range(r)))
+  | Post(l, n) => (fst(range(l)), n + 1)
+  | Bin(l, _, r) => (fst(range(l)), snd(range(r)));

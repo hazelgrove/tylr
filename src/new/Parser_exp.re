@@ -2,7 +2,8 @@ open Util;
 open OptUtil.Syntax;
 
 module Input:
-  Parser.S_INPUT with module Tm := Term_exp and module T := Tile_exp = {
+  Parser.S_INPUT with
+    module Tm := Term_exp and module T := Tile_exp and module F := Frame_exp = {
   let sort = (~sort_and_associate) =>
     Tile.get(
       fun
@@ -61,13 +62,13 @@ module Input:
       | Plus => Bin(Unsorted.Tile.Plus),
     );
 
-  let connect: AltList.t(Unsorted.Tessera.t, Term_exp.t) => Tile_exp.t =
+  let assemble_tile: AltList.t(Unsorted.Tessera.t, Term_exp.t) => Tile_exp.t =
     fun
     | (Paren_l, [(body, Paren_r)]) => Op(Paren(body))
     // TODO singleton tessera cases?
-    | _ => raise(Invalid_argument("Parser_typ.connect"));
+    | _ => raise(Invalid_argument("Parser_typ.assemble_tile"));
 
-  let disconnect =
+  let disassemble_tile =
     Tile.get(
       fun
       | Term_exp.OpHole => (Unsorted.Tessera.OpHole, [])
@@ -92,6 +93,28 @@ module Input:
       | Term_exp.Plus => (Unsorted.Tessera.Plus, [])
       | BinHole => (Unsorted.Tessera.BinHole, []),
     );
+
+  let assemble_open_bidelimited_frame =
+      (
+        ~associate: list(Tile_exp.t) => Term_exp.t,
+        (_prefix, ts, suffix):
+          ZZList.t(
+            AltList.b_frame(Unsorted.Tessera.t, Term_exp.t),
+            Tile_exp.t,
+          ),
+        frame: Frame_exp.t,
+      )
+      : Frame_exp.bidelimited => {
+    let e = Invalid_argument("Parser_exp.assemble_open_bidelimited_frame");
+    switch (ts) {
+    | ((Paren_l, []), (Paren_r, [])) => Paren_body(frame)
+    | ((Let_eq(p), []), (Let_in, [])) =>
+      let p = OptUtil.get_or_raise(e, Parser_pat.sort_and_associate(p));
+      let body = associate(suffix);
+      Let_def(p, frame, body);
+    | _ => raise(e)
+    };
+  };
 };
 
-include Parser.Make(Term_exp, Tile_exp, Input);
+include Parser.Make(Term_exp, Tile_exp, Frame_exp, Input);
