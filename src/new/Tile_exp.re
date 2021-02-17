@@ -1,3 +1,5 @@
+// Tile.S with module Tm := Term_exp
+
 open Util;
 open Term_exp;
 
@@ -7,8 +9,8 @@ let precedence: t => int =
   Tile.get(
     _ => 0,
     fun
-    | Lam(_) => 10
-    | Let(_) => 11,
+    | Lam(_) => 4
+    | Let(_) => 5,
     fun
     | Ap(_) => 1,
     fun

@@ -12,14 +12,15 @@ module type S_INPUT = {
   module Tm: Term.S;
   module T: Tile.S with module Tm := Tm;
   module F: Frame.S with module Tm := Tm;
-  module Z:
-    Zipper_intf.S with module Tm := Tm and module T := T and module F := F;
+  module Z: Zipper.S with module Tm := Tm and module T := T and module F := F;
 
-  let mk_zipper: Z.t => Zipper.t;
-  let append_frame: (Zipper.t, F.bidelimited) => option(Zipper.t);
+  let mk_pointing: Z.pointing => EditState.pointing;
+  let mk_edit_state: Z.t => EditState.t;
+  let append_frame: (Z.t, F.bidelimited) => option(Z.t);
 
-  let move_into_root: (Direction.t, Tm.t, F.t) => option(Zipper.t);
-  let move_into_frame: (Direction.t, Tm.t, F.bidelimited) => option(Zipper.t);
+  let move_into_root: (Direction.t, Tm.t, F.t) => option(EditState.pointing);
+  let move_into_frame:
+    (Direction.t, Tm.t, F.bidelimited) => option(EditState.pointing);
 };
 
 module Make =
@@ -40,7 +41,7 @@ module Make =
 
   let move_into_tile =
       (d: Direction.t, (prefix, z, suffix): ZZList.t(T.t, T.t), frame: F.t)
-      : option(Zipper.t) => {
+      : option(EditState.pointing) => {
     let n = List.length(prefix);
     let ts = prefix @ [z, ...suffix];
     let rec go = (skel: Skel.t, frame: F.t) => {
@@ -91,10 +92,9 @@ module Make =
   // directly after restructured
   exception Invalid_restructure;
   let parse_restructured =
-      (prefix: Selection.t(T.t), suffix: Selection.t(T.t)): Zipper.t => {
+      (prefix: Selection.t(T.t), suffix: Selection.t(T.t)): Z.t => {
     let rec go =
-            (~rev_prefix=[], (prefix, suffix))
-            : (Zipper.t, Selection.t(T.t)) =>
+            (~rev_prefix=[], (prefix, suffix)): (Z.t, Selection.t(T.t)) =>
       switch (prefix) {
       | [Selection.Tile(tile), ...prefix] =>
         go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
@@ -139,8 +139,31 @@ module Make =
     zipper;
   };
 
+  let move_pointing =
+      (d: Direction.t, ((prefix, (), suffix), frame): Z.pointing)
+      : option(EditState.pointing) => {
+    let j = List.length(prefix);
+    let tiles = prefix @ suffix;
+    let exit = () =>
+      // TODO first try moving to next child
+      I.move_into_frame(d, P.associate(tiles), frame);
+    switch (d) {
+    | Left when j == 0 => exit()
+    | Right when j == List.length(tiles) => exit()
+    | _ =>
+      let n = d == Left ? j - 1 : j;
+      switch (move_into_tile(d, ZZList.split_at(n, tiles), Bi(frame))) {
+      | Some(_) as entered => entered
+      | None =>
+        let j = d == Left ? j - 1 : j + 1;
+        let (prefix, suffix) = ListUtil.split_n(j, tiles);
+        Some(I.mk_pointing(((prefix, (), suffix), frame)));
+      };
+    };
+  };
+
   // recursive to support action chaining
-  let rec perform = (a: t, (subject, frame): Z.t): option(Zipper.t) =>
+  let rec perform = (a: t, (subject, frame): Z.t): option(EditState.t) =>
     switch (subject) {
     | Pointing(pointing) => perform_pointing(a, pointing, frame)
     | Selecting(selecting) => perform_selecting(a, selecting, frame)
@@ -153,7 +176,7 @@ module Make =
         (prefix, (), suffix) as pointing: Subject.pointing(T.t),
         frame: F.bidelimited,
       )
-      : option(Zipper.t) =>
+      : option(EditState.t) =>
     switch (a) {
     | Mark =>
       let selecting = (
@@ -161,26 +184,9 @@ module Make =
         (Direction.Left, []),
         List.map(Selection.tile, suffix),
       );
-      Some(I.mk_zipper((Selecting(selecting), frame)));
+      Some(I.mk_edit_state((Selecting(selecting), frame)));
     | Move(d) =>
-      let j = List.length(prefix);
-      let tiles = prefix @ suffix;
-      let exit = () =>
-        // TODO first try moving to next child
-        I.move_into_frame(d, P.associate(tiles), frame);
-      switch (d) {
-      | Left when j == 0 => exit()
-      | Right when j == List.length(tiles) => exit()
-      | _ =>
-        let n = d == Left ? j - 1 : j;
-        switch (move_into_tile(d, ZZList.split_at(n, tiles), Bi(frame))) {
-        | Some(_) as entered => entered
-        | None =>
-          let j = d == Left ? j - 1 : j + 1;
-          let (prefix, suffix) = ListUtil.split_n(j, tiles);
-          Some(I.mk_zipper((Pointing((prefix, (), suffix)), frame)));
-        };
-      };
+      Option.map(EditState.of_pointing, move_pointing(d, (pointing, frame)))
     | Delete(Left) =>
       let subject = prefix @ suffix;
       let (prefix, tile, suffix) =
@@ -197,7 +203,7 @@ module Make =
           |> P.fix_empty_holes
           |> ListUtil.take_2
           |> TupleUtil.map2(Selection.get_whole);
-        Some(I.mk_zipper((Pointing((prefix, (), suffix)), frame)));
+        Some(I.mk_edit_state((Pointing((prefix, (), suffix)), frame)));
       | [_, ..._] =>
         // else:
         //   enter restructuring mode on one of the end tesserae:
@@ -215,7 +221,7 @@ module Make =
         let prefix = List.map(Either.l, prefix) @ inner_prefix;
         let suffix = List.map(Either.l, suffix);
         let z = ([], [Selection.Tessera(hd)], []);
-        Some(I.mk_zipper((Restructuring((prefix, z, suffix)), frame)));
+        Some(I.mk_edit_state((Restructuring((prefix, z, suffix)), frame)));
       };
     | Delete(Right) =>
       let subject = prefix @ suffix;
@@ -233,7 +239,7 @@ module Make =
           |> P.fix_empty_holes
           |> ListUtil.take_2
           |> TupleUtil.map2(Selection.get_whole);
-        Some(I.mk_zipper((Pointing((prefix, (), suffix)), frame)));
+        Some(I.mk_edit_state((Pointing((prefix, (), suffix)), frame)));
       | [_, ..._] =>
         // else:
         //   enter restructuring mode on one of the end tesserae:
@@ -252,7 +258,7 @@ module Make =
         let prefix = List.map(Either.l, prefix);
         let suffix = inner_suffix @ List.map(Either.l, suffix);
         let z = ([], [Selection.Tessera(hd)], []);
-        Some(I.mk_zipper((Restructuring((prefix, z, suffix)), frame)));
+        Some(I.mk_edit_state((Restructuring((prefix, z, suffix)), frame)));
       };
 
     | Construct(shape) =>
@@ -269,7 +275,7 @@ module Make =
         let constructed =
           parse_restructured(
             prefix @ ts_before,
-            [Selection.Tessera(tessera), ...ts_after] @ ts_after,
+            [Selection.Tessera(tessera), ...ts_after] @ ts_after @ suffix,
           );
         perform(Move(Right), constructed);
       } else {
@@ -278,18 +284,26 @@ module Make =
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
           // TODO need to connect to existing frame
-          Some(parse_restructured(prefix @ [Tessera(tessera)], suffix));
+          Some(
+            I.mk_edit_state(
+              parse_restructured(prefix @ [Tessera(tessera)], suffix),
+            ),
+          );
         | _ =>
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Either.l), (prefix, suffix));
           let (ss_before, ss_after) =
             TupleUtil.map2(
-              List.map(tessera => Either.R([Tessera(tessera)])),
+              List.map(tessera => [Selection.Tessera(tessera)]),
               (ts_before, ts_after),
             );
-          let selections = (ss_before, [Tessera(tessera)], ss_after);
+          let selections = (
+            ss_before,
+            [Selection.Tessera(tessera)],
+            ss_after,
+          );
           Some(
-            I.mk_zipper((
+            I.mk_edit_state((
               Restructuring((prefix, selections, suffix)),
               frame,
             )),
@@ -298,55 +312,88 @@ module Make =
       };
     }
   and perform_selecting =
-      (a: t, {prefix, z: (side, selection), suffix} as selecting, frame) =>
+      (
+        a: t,
+        (prefix, (side, selection), suffix): Subject.selecting(T.t),
+        frame,
+      ) =>
     switch (a) {
     | Mark =>
       let upgrade =
         List.map(
           fun
-          | L(tile) => L(tile)
-          | R(tessera) => R([tessera]),
+          | Selection.Tile(tile) => Either.L(tile)
+          | Tessera(tessera) => R([Selection.Tessera(tessera)]),
         );
-      let restructuring = {
-        prefix: upgrade(prefix),
-        z: (side, [selection]),
-        suffix: upgrade(suffix),
-      };
-      Some(I.mk((Restructuring(restructuring), frame)));
+      let restructuring = (
+        upgrade(prefix),
+        ([], selection, []),
+        upgrade(suffix),
+      );
+      Some(I.mk_edit_state((Restructuring(restructuring), frame)));
 
     | Move(d) =>
-      let moved_within_zipped = (~prefix=prefix, ~suffix=suffix, selection) =>
+      let adjust_subject = (~prefix=prefix, ~suffix=suffix, selection) =>
         Some(
-          I.mk((Selecting({prefix, z: (side, selection), suffix}), frame)),
+          I.mk_edit_state((
+            Selecting((prefix, (side, selection), suffix)),
+            frame,
+          )),
         );
       if (d != side) {
         if (selection == []) {
-          move_selecting(d, {prefix, z: (d, selection), suffix}, frame);
+          perform_selecting(
+            Move(d),
+            (prefix, (d, selection), suffix),
+            frame,
+          );
         } else {
           switch (side) {
           | Left =>
             let (first, trailing) = ListUtil.split_first(selection);
             switch (first) {
-            | R(_) =>
-              let prefix = Term.parse_selection(prefix @ [first]);
-              moved_within_zipped(~prefix, trailing);
-            | L(tile) =>
-              let (open_, body, close) = HTile.flatten_tile(tile);
-              let prefix = prefix @ [R(open_)];
-              let selection = body @ [R(close), ...trailing];
-              moved_within_zipped(~prefix, selection);
+            | Tessera(t) =>
+              let prefix =
+                P.assemble_tiles_in_selection(prefix @ [Tessera(t)]);
+              adjust_subject(~prefix, trailing);
+            | Tile(tile) =>
+              let (hd, tl) = Parser_unsorted.disassemble_tile(tile);
+              let prefix = prefix @ Selection.[Tessera(hd)];
+              let selection =
+                (
+                  tl
+                  |> List.map(((open_child, tessera)) =>
+                       List.map(Selection.tile, open_child)
+                       @ [Selection.Tessera(tessera)]
+                     )
+                  |> List.flatten
+                )
+                @ trailing;
+              adjust_subject(~prefix, selection);
             };
           | Right =>
             let (leading, last) = ListUtil.split_last(selection);
             switch (last) {
-            | R(_) =>
-              let suffix = Term.parse_selection([last, ...suffix]);
-              moved_within_zipped(~suffix, selection);
-            | L(tile) =>
-              let (open_, body, close) = HTile.flatten_tile(tile);
-              let suffix = [R(close), ...suffix];
-              let selection = leading @ [R(open_), ...body];
-              moved_within_zipped(~suffix, selection);
+            | Tessera(t) =>
+              let suffix =
+                P.assemble_tiles_in_selection([Tessera(t), ...suffix]);
+              adjust_subject(~suffix, selection);
+            | Tile(tile) =>
+              let (hd, tl) =
+                AltList.rev(Parser_unsorted.disassemble_tile(tile));
+              let suffix = Selection.[Tessera(hd), ...suffix];
+              let selection =
+                leading
+                @ (
+                  tl
+                  |> List.map(((open_child, tessera)) =>
+                       List.rev_map(Selection.tile, open_child)
+                       @ [Selection.Tessera(tessera)]
+                     )
+                  |> List.flatten
+                  |> List.rev
+                );
+              adjust_subject(~suffix, selection);
             };
           };
         };
@@ -355,30 +402,52 @@ module Make =
         | Left =>
           switch (ListUtil.split_last_opt(prefix)) {
           | None => failwith("todo: move into frame")
-          | Some((leading, R(tessera))) =>
-            let selection = Term.parse_selection([R(tessera), ...selection]);
-            moved_within_zipped(~suffix=leading, selection);
-          | Some((leading, L(tile))) =>
-            let (open_, body, close) = T.flatten_tile(tile);
+          | Some((leading, Tessera(t))) =>
+            let selection =
+              Parser_unsorted.assemble_tiles_in_selection([
+                Selection.Tessera(t),
+                ...selection,
+              ]);
+            adjust_subject(~suffix=leading, selection);
+          | Some((leading, Tile(tile))) =>
+            let (hd, tl) = AltList.rev(P.disassemble_tile(tile));
             let prefix =
-              prefix
-              @ [R(Open(open_)), ...List.map(Either.l, T.flatten(body))];
-            let selection = [R(Close(close)), ...selection];
-            moved_within_zipped(~prefix, selection);
+              leading
+              @ (
+                tl
+                |> List.map(((open_child, tessera)) =>
+                     List.rev_map(Selection.tile, P.dissociate(open_child))
+                     @ [Selection.Tessera(tessera)]
+                   )
+                |> List.flatten
+                |> List.rev
+              );
+            let selection = Selection.[Tessera(hd), ...selection];
+            adjust_subject(~prefix, selection);
           }
         | Right =>
           switch (suffix) {
           | [] => failwith("todo: move into frame")
-          | [R(tessera), ...trailing] =>
-            let selection = Term.parse_selection(selection @ [R(tessera)]);
-            moved_within_zipped(~suffix=trailing, selection);
-          | [L(tile), ...trailing] =>
-            let (open_, body, close) = T.flatten_tile(tile);
+          | [Tessera(t), ...trailing] =>
+            let selection =
+              Parser_unsorted.assemble_tiles_in_selection(
+                selection @ [Tessera(t)],
+              );
+            adjust_subject(~suffix=trailing, selection);
+          | [Tile(tile), ...trailing] =>
+            let (hd, tl) = P.disassemble_tile(tile);
             let suffix =
-              List.map(Either.l, T.flatten(body))
-              @ [R(Close(close)), ...suffix];
-            let selection = selection @ [R(Open(open_))];
-            moved_within_zipped(~suffix, selection);
+              (
+                tl
+                |> List.map(((open_child, tessera)) =>
+                     List.map(Selection.tile, P.dissociate(open_child))
+                     @ [Selection.Tessera(tessera)]
+                   )
+                |> List.flatten
+              )
+              @ trailing;
+            let selection = selection @ [Tessera(hd)];
+            adjust_subject(~suffix, selection);
           }
         };
       };
@@ -407,85 +476,108 @@ module Make =
   and perform_restructuring =
       (
         a: t,
-        (prefix, (side, selections), suffix): Z.Subject.restructuring,
+        (prefix, selections, suffix): Subject.restructuring(T.t),
         frame: F.bidelimited,
       )
-      : option(Zipper.t) =>
+      : option(EditState.t) =>
     switch (a) {
     | Mark =>
       let flatten = elems =>
         elems
         |> List.map(
              fun
-             | L(tile) => [L(tile)]
+             | Either.L(tile) => [Selection.Tile(tile)]
              | R(selection) => selection,
            )
         |> List.flatten;
-      switch (side) {
-      | Left =>
-        let (first, trailing) = ListUtil.split_first(selections);
-        let suffix = [Either.R(first), ...suffix];
-        switch (trailing) {
-        | [] => Some(parse_restructured((prefix, suffix)))
-        | [_, ..._] =>
-          Some(
-            mk((Restructuring((prefix, (side, trailing), suffix)), frame)),
-          )
-        };
-      | Right =>
-        let (leading, last) = ListUtil.split_last(selections);
-        let prefix = prefix @ [Either.R(last)];
-        switch (leading) {
-        | [] => Some(parse_restructured((prefix, suffix)))
-        | [_, ..._] =>
-          Some(
-            mk((Restructuring((prefix, (side, leading), suffix)), frame)),
-          )
-        };
+      let (ss_before, selection, ss_after) = selections;
+      let+ selection =
+        selection
+        |> List.map(
+             fun
+             | Selection.Tile(tile) =>
+               Option.map(Selection.tile, P.sort(tile))
+             | Tessera(t) => Some(Tessera(t)),
+           )
+        |> OptUtil.sequence;
+      // TODO add side to focused selection in restructuring
+      let suffix = [Either.R(selection), ...suffix];
+      switch (ss_before, ss_after) {
+      | ([], []) =>
+        I.mk_edit_state(
+          parse_restructured(flatten(prefix), flatten(suffix)),
+        )
+      | ([s, ...ss_before], _) =>
+        let restructuring = (prefix, ([], s, ss_before @ ss_after), suffix);
+        I.mk_edit_state((Restructuring(restructuring), frame));
+      | ([], [s, ...ss_after]) =>
+        let restructuring = (prefix, ([], s, ss_after), suffix);
+        I.mk_edit_state((Restructuring(restructuring), frame));
       };
 
     | Move(d) =>
-      let picked_up_selection = (~prefix=prefix, ~suffix=suffix, selections) =>
-        Some(I.mk((Restructuring({prefix, z: selections, suffix}), frame)));
-      let picked_up_all_selections =
-        List.for_all(Either.is_L, prefix)
-        && List.for_all(Either.is_L, suffix);
-      let move_through_tile = (prefix, tile, suffix) =>
-        if (picked_up_all_selections) {
-          let prefix = List.filter_map(Either.get_L, prefix);
-          let suffix = List.filter_map(Either.get_L, suffix);
-          let+ pointing = move_pointing(d, {prefix, z: (), suffix}, frame);
-          G.restructuring_of_pointing(pointing);
-        } else {
+      let move_through_tile = (prefix, tile, suffix) => {
+        let prefix_is_all_tiles =
+          OptUtil.sequence(List.map(Either.get_L, prefix));
+        let suffix_is_all_tiles =
+          OptUtil.sequence(List.map(Either.get_L, suffix));
+        switch (prefix_is_all_tiles, suffix_is_all_tiles) {
+        | (None, _)
+        | (_, None) =>
+          let tile = Either.L(tile);
           let (prefix, suffix) =
             switch (d) {
             | Left => (prefix, [tile, ...suffix])
             | Right => (prefix @ [tile], suffix)
             };
-          Some(I.mk_g({prefix, z, suffix}, frame));
+          Some(
+            I.mk_edit_state((
+              Restructuring((prefix, selections, suffix)),
+              frame,
+            )),
+          );
+        | (Some(prefix), Some(suffix)) =>
+          let (prefix, suffix) =
+            switch (d) {
+            | Left => (prefix @ [tile], suffix)
+            | Right => (prefix, [tile, ...suffix])
+            };
+          let+ moved = move_pointing(d, ((prefix, (), suffix), frame));
+          EditState.restructuring_of_pointing(selections, moved);
         };
+      };
+      let pick_up_selection = (~prefix=prefix, ~suffix=suffix, selection) => {
+        let selection = Selection.map_tile(P.unsort, selection);
+        let selections = {
+          let ss = ZZList.erase(s => s, selections);
+          switch (d) {
+          | Left => ([], selection, ss)
+          | Right => (ss, selection, [])
+          };
+        };
+        Some(
+          I.mk_edit_state((
+            Restructuring((prefix, selections, suffix)),
+            frame,
+          )),
+        );
+      };
       switch (d) {
       | Left =>
         switch (ListUtil.split_last_opt(prefix)) {
         | None => failwith("todo")
-        | Some((leading, L(_) as tile)) =>
+        | Some((leading, L(tile))) =>
           move_through_tile(leading, tile, suffix)
-        | Some((leading, R(_) as selection)) =>
-          picked_up_selection(
-            ~prefix=leading,
-            (Left, [selection, ...selections]),
-          )
+        | Some((leading, R(selection))) =>
+          pick_up_selection(~prefix=leading, selection)
         }
       | Right =>
         switch (suffix) {
         | [] => failwith("todo")
-        | [L(_) as tile, ...trailing] =>
-          move_through_tile(prefix, tile, suffix)
+        | [L(tile), ...trailing] =>
+          move_through_tile(prefix, tile, trailing)
         | [R(selection), ...trailing] =>
-          picked_up_selection(
-            ~suffix=trailing,
-            (Right, selections @ [selection]),
-          )
+          pick_up_selection(~suffix=trailing, selection)
         }
       };
 
@@ -494,13 +586,16 @@ module Make =
         affix
         |> List.map(
              fun
-             | L(tile) => [tile]
+             | Either.L(tile) => [tile]
              | R(_) => [],
            )
         |> List.flatten;
       let (prefix, suffix) =
         TupleUtil.map2(delete_selections, (prefix, suffix));
-      Some(I.mk(Pointing((prefix, (), suffix), frame)));
+      let _ = failwith("need to fix empty holes");
+      Some(
+        I.mk_edit_state((Subject.Pointing((prefix, (), suffix)), frame)),
+      );
 
     | Construct(_) => None
     };

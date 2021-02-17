@@ -1,41 +1,31 @@
-open Util.OptUtil.Syntax;
+module type S = {
+  module Tm: Term.S;
+  module T: Tile.S with module Tm := Tm;
+  module F: Frame.S with module Tm := Tm;
 
-module type S = Zipper_intf.S;
+  type t = (Subject.t(T.t), F.bidelimited);
+  type pointing = (Subject.pointing(T.t), F.bidelimited);
+};
 
-type t =
-  | Typ(Zipper_typ.t)
-  | Pat(Zipper_pat.t)
-  | Exp(Zipper_exp.t);
-
-let append_frame_typ = (zipper: t, frame_typ: Frame_typ.bidelimited) =>
-  switch (zipper) {
-  | Typ((subj, frame)) =>
-    let+ frame = Frame_typ.bidelimited_append_typ(frame, frame_typ);
-    Typ((subj, frame));
-  | Pat(_)
-  | Exp(_) => None
-  };
-
-let append_frame_pat = (zipper: t, frame_pat: Frame_pat.bidelimited) =>
-  switch (zipper) {
-  | Typ((subj, frame)) =>
-    let+ frame = Frame_typ.bidelimited_append_pat(frame, frame_pat);
-    Typ((subj, frame));
-  | Pat((subj, frame)) =>
-    let+ frame = Frame_pat.bidelimited_append_pat(frame, frame_pat);
-    Pat((subj, frame));
-  | Exp(_) => None
-  };
-
-let append_frame_exp = (zipper: t, frame_exp: Frame_exp.bidelimited) =>
-  switch (zipper) {
-  | Typ((subj, frame)) =>
-    let+ frame = Frame_typ.bidelimited_append_exp(frame, frame_exp);
-    Typ((subj, frame));
-  | Pat((subj, frame)) =>
-    let+ frame = Frame_pat.bidelimited_append_exp(frame, frame_exp);
-    Pat((subj, frame));
-  | Exp((subj, frame)) =>
-    let+ frame = Frame_exp.bidelimited_append_exp(frame, frame_exp);
-    Exp((subj, frame));
-  };
+/*
+   let rec zip_to_nearest_bidelim =-
+           (zipped: Zipped.tiles, unzipped: Unzipped.t): I.t => {
+     switch (unzipped) {
+     | Bidelimited(bidelim) => (zipped, bidelim)
+     | Pre_r(pre, unzipped) =>
+       zip_to_nearest_bidelim([Tile.Pre(pre), ...zipped], unzipped)
+     | Post_l(unzipped, post) =>
+       zip_to_nearest_bidelim(zipped @ [Tile.Post(post)], unzipped)
+     | Bin_l(unzipped, bin, r) =>
+       zip_to_nearest_bidelim(
+         zipped @ [Tile.Bin(bin), ...HExp.to_htiles(r)],
+         unzipped,
+       )
+     | Bin_r(l, bin, unzipped) =>
+       zip_to_nearest_bidelim(
+         HExp.to_htiles(l) @ [Tile.Bin(bin), ...zipped],
+         unzipped,
+       )
+     };
+   };
+ */

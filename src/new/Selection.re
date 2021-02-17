@@ -9,6 +9,13 @@ type t('tile) = list(elem('tile));
 let tile = t => Tile(t);
 let tessera = t => Tessera(t);
 
+let map_tile = f =>
+  List.map(
+    fun
+    | Tessera(t) => Tessera(t)
+    | Tile(tile) => Tile(f(tile)),
+  );
+
 let get_tessera =
   fun
   | Tessera(tessera) => tessera

@@ -43,12 +43,15 @@ module type S = {
   let sort_and_associate: Unsorted.Tile.s => option(Tm.t);
   let dissociate_and_unsort: Tm.t => Unsorted.Tile.s;
 
+  // raises Invalid_argument if ...
   let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
   let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
+  // legit total, may return same selection back
   let assemble_tiles_in_selection: Selection.t(T.t) => Selection.t(T.t);
   let fix_empty_holes: list(Selection.t(T.t)) => list(Selection.t(T.t));
 
+  // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
   let assemble_open_bidelimited_frame:
     ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t) => F.bidelimited;
 };
