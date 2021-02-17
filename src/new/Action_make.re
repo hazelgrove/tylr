@@ -126,8 +126,10 @@ module Make =
             | Tessera(_) => false,
             suffix,
           );
-        let zipper =
-          I.mk_zipper((Pointing((List.rev(rev_prefix), (), suffix)), None));
+        let zipper = (
+          Subject.Pointing((List.rev(rev_prefix), (), suffix)),
+          F.root,
+        );
         (zipper, tail);
       };
     let (prefix, suffix) =
@@ -149,7 +151,7 @@ module Make =
       (
         a: t,
         (prefix, (), suffix) as pointing: Subject.pointing(T.t),
-        frame: option(F.bidelimited),
+        frame: F.bidelimited,
       )
       : option(Zipper.t) =>
     switch (a) {
@@ -163,11 +165,9 @@ module Make =
     | Move(d) =>
       let j = List.length(prefix);
       let tiles = prefix @ suffix;
-      let exit = () => {
-        let* bidelimited = frame;
+      let exit = () =>
         // TODO first try moving to next child
-        I.move_into_frame(d, P.associate(tiles), bidelimited);
-      };
+        I.move_into_frame(d, P.associate(tiles), frame);
       switch (d) {
       | Left when j == 0 => exit()
       | Right when j == List.length(tiles) => exit()

@@ -1,1 +1,1 @@
-type t = (Subject.t(Tile_typ.t), option(Frame_typ.bidelimited));
+type t = (Subject.t(Tile_typ.t), Frame_typ.bidelimited);

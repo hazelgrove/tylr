@@ -2,16 +2,19 @@ open Util.OptUtil.Syntax;
 
 type t =
   | Uni(unidelimited)
-  | Bi(option(bidelimited))
+  | Bi(bidelimited)
 and unidelimited =
   | Pre_r(Term_pat.pre, t)
   | Post_l(t, Term_pat.post)
   | Bin_l(t, Term_pat.bin, Term_pat.t)
   | Bin_r(Term_pat.t, Term_pat.bin, t)
 and bidelimited =
+  | Root
   | Paren_body(t)
   | Lam_pat(Frame_exp.t, Term_exp.t)
   | Let_pat(Frame_exp.t, Term_exp.t, Term_exp.t);
+
+let root = Root;
 
 let rec append_pat = (frame: t, frame_pat: bidelimited): option(t) =>
   switch (frame) {
@@ -27,13 +30,13 @@ let rec append_pat = (frame: t, frame_pat: bidelimited): option(t) =>
   | Uni(Bin_r(l, bin, frame)) =>
     let+ frame = append_pat(frame, frame_pat);
     Uni(Bin_r(l, bin, frame));
-  | Bi(None) => Some(Bi(Some(frame_pat)))
-  | Bi(Some(bidelimited)) =>
+  | Bi(bidelimited) =>
     let+ bidelimited = bidelimited_append_pat(bidelimited, frame_pat);
-    Bi(Some(bidelimited));
+    Bi(bidelimited);
   }
 and bidelimited_append_pat = (frame: bidelimited, frame_pat) =>
   switch (frame) {
+  | Root => Some(frame_pat)
   | Paren_body(frame) =>
     let+ frame = append_pat(frame, frame_pat);
     Paren_body(frame);
@@ -55,13 +58,13 @@ let rec append_exp = (frame: t, frame_exp: Frame_exp.bidelimited): option(t) =>
   | Uni(Bin_r(l, bin, frame)) =>
     let+ frame = append_exp(frame, frame_exp);
     Uni(Bin_r(l, bin, frame));
-  | Bi(bi) =>
-    let* bidelimited = bi;
+  | Bi(bidelimited) =>
     let+ bidelimited = bidelimited_append_exp(bidelimited, frame_exp);
-    Bi(Some(bidelimited));
+    Bi(bidelimited);
   }
 and bidelimited_append_exp = (frame: bidelimited, frame_exp) =>
   switch (frame) {
+  | Root => None
   | Paren_body(frame) =>
     let+ frame = append_exp(frame, frame_exp);
     Paren_body(frame);

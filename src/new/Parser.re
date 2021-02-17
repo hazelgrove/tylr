@@ -441,6 +441,6 @@ module Make =
         };
       };
     };
-    go(mk_skel(tiles), Bi(None));
+    go(mk_skel(tiles), Bi(F.root));
   };
 };
