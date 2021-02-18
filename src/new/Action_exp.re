@@ -2,15 +2,19 @@ open Util;
 open OptUtil.Syntax;
 
 module Input = {
-  let mk_zipper = z => Zipper.Exp(z);
-  let append_frame = Zipper.append_frame_exp;
+  let mk_pointing = p => EditState.Exp_p(p);
+  let mk_edit_state = z => EditState.Exp(z);
+  let append_frame = ((subj, frm), frame) => {
+    let+ frame = Frame_exp.bidelimited_append_exp(frm, frame);
+    (subj, frame);
+  };
 
   let move_into_root =
       (d: Direction.t, subject: Term_exp.t, frame: Frame_exp.t) => {
     let mk_pointing = tiles =>
       switch (d) {
-      | Left => Subject.Pointing(ZList.mk(~prefix=tiles, ~z=(), ()))
-      | Right => Pointing(ZList.mk(~z=(), ~suffix=tiles, ()))
+      | Left => (tiles, (), [])
+      | Right => ([], (), tiles)
       };
     subject
     |> Term.get(
@@ -20,25 +24,25 @@ module Input = {
          | Var(_) => None
          | Paren(body) => {
              let subject = mk_pointing(Parser_exp.dissociate(body));
-             let frame = Some(Frame_exp.Paren_body(frame));
-             Some(Zipper.Exp((subject, frame)));
+             let frame = Frame_exp.Paren_body(frame);
+             Some(EditState.Exp_p((subject, frame)));
            },
          fun
          | (Term_exp.Lam(p), body) => {
              let subject = mk_pointing(Parser_pat.dissociate(p));
-             let frame = Some(Frame_pat.Lam_pat(frame, body));
-             Some(Zipper.Pat((subject, frame)));
+             let frame = Frame_pat.Lam_pat(frame, body);
+             Some(EditState.Pat_p((subject, frame)));
            }
          | (Let(p, def), body) =>
            switch (d) {
            | Left =>
              let subject = mk_pointing(Parser_exp.dissociate(def));
-             let frame = Some(Frame_exp.Let_def(p, frame, body));
-             Some(Zipper.Exp((subject, frame)));
+             let frame = Frame_exp.Let_def(p, frame, body);
+             Some(EditState.Exp_p((subject, frame)));
            | Right =>
              let subject = mk_pointing(Parser_pat.dissociate(p));
-             let frame = Some(Frame_pat.Let_pat(frame, def, body));
-             Some(Zipper.Pat((subject, frame)));
+             let frame = Frame_pat.Let_pat(frame, def, body);
+             Some(EditState.Pat_p((subject, frame)));
            },
          fun
          | (_, Term_exp.Ap(_)) => failwith("todo"),
@@ -49,31 +53,45 @@ module Input = {
 
   let move_into_frame =
       (d: Direction.t, subject: Term_exp.t, frame: Frame_exp.bidelimited) => {
-    open Term_exp;
-    open Frame_exp;
+    open Frame_exp; // open Term_exp;
+
+    // TODO rename to something like escaped_tile
     let mk_pointing = (prefix, tile, suffix) =>
       switch (d) {
-      | Left =>
-        Subject.Pointing(
-          ZList.mk(~prefix, ~z=(), ~suffix=[tile, ...suffix], ()),
-        )
-      | Right =>
-        Pointing(ZList.mk(~prefix=prefix @ [tile], ~z=(), ~suffix, ()))
+      | Left => (prefix, (), [tile, ...suffix])
+      | Right => (prefix @ [tile], (), suffix)
       };
     switch (frame) {
+    | Root => None
     | Paren_body(frame) =>
       let tile = Tile.Op(Term_exp.Paren(subject));
       let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
       let subject = mk_pointing(prefix, tile, suffix);
-      Zipper.Exp((subject, frame));
-    | Let_def(p, frame, body) =>
-      let tile = Tile.Pre(Term_exp.Let(p, subject));
-      let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
-      let subject = mk_pointing(prefix, tile, suffix);
-      Zipper.Exp((subject, frame));
+      Some(EditState.Exp_p((subject, frame)));
+    | Let_def(_p, _frame, _body) =>
+      /*
+       switch (d) {
+       | Right =>
+         let tile = Tile.Pre(Term_exp.Let(p, subject));
+         let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
+         let subject = mk_pointing(prefix, tile, suffix);
+         Some(EditState.Exp_p((subject, frame)));
+       }
+       */
+      failwith("todo")
     | Ap_arg(_) => failwith("ap todo")
     };
   };
+
+  let assemble_open_bidelimited_frame = (~associate as _, _, _e) =>
+    failwith("todo");
 };
 
-include Action_make(Term_exp, Tile_exp, Frame_exp, Zipper_exp, Input);
+include Action_make.Make(
+          Term_exp,
+          Tile_exp,
+          Frame_exp,
+          Zipper_exp,
+          Parser_exp,
+          Input,
+        );

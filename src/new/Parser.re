@@ -54,6 +54,8 @@ module type S = {
   // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
   let assemble_open_bidelimited_frame:
     ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t) => F.bidelimited;
+
+  let dissociate_frame: F.t => ((list(T.t), list(T.t)), F.bidelimited);
 };
 
 // outside of functor for use by unsorted selections
@@ -446,4 +448,6 @@ module Make =
     };
     go(mk_skel(tiles), Bi(F.root));
   };
+
+  let dissociate_frame = _ => failwith("todo");
 };

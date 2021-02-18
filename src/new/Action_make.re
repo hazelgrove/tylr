@@ -37,8 +37,6 @@ module Make =
              module F := F and
              module Z := Z,
        ) => {
-  let append_frame = I.append_frame;
-
   let move_into_tile =
       (d: Direction.t, (prefix, z, suffix): ZZList.t(T.t, T.t), frame: F.t)
       : option(EditState.pointing) => {
@@ -116,7 +114,10 @@ module Make =
             suffix,
           ));
         let zipper =
-          OptUtil.get(() => failwith("blah"), append_frame(zipper, frame));
+          OptUtil.get(
+            () => failwith("blah"),
+            I.append_frame(zipper, frame),
+          );
         (zipper, tail);
       | [] =>
         let (suffix, tail) =
