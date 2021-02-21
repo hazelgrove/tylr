@@ -78,7 +78,7 @@
   vertical-align: middle;
   z-index: var(--code-text-z);
   /* deviate from font-specimen as hack to vertically center */
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 #font-specimen, #logo-font-specimen {
@@ -91,7 +91,7 @@
 
 #logo-font-specimen, #logo {
   font-family: "Fira Code", monospace;
-  font-size: 14pt;
+  font-size: 16pt;
 }
 #font-specimen, #code-container {
   font-family: "Source Code Pro", monospace;
