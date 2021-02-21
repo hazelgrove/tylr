@@ -77,7 +77,8 @@
   position: relative;
   vertical-align: middle;
   z-index: var(--code-text-z);
-  line-height: 1.45;
+  /* deviate from font-specimen as hack to vertically center */
+  line-height: 1.65;
 }
 
 #font-specimen, #logo-font-specimen {
