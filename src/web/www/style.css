@@ -30,8 +30,8 @@
   --hole-stroke-color: #dc322f;
   --empty-hole-fill-color: #ffef00;
 
-  --exp-bg-color: #ddff9f;
-  --exp-shadow-color: #709900;
+  --exp-bg-color: #dbf6de; /*#ddff9f;*/
+  --exp-shadow-color: #2aa13d; /* #709900; */
 
   --pat-bg-color: #c4e6ff;
   --pat-shadow-color: #268bd2;
