@@ -90,7 +90,7 @@ let focus_code = () => {
 let logo = (~font_metrics) => {
   open Decoration.Tile;
   let tile = Code.view_of_tile(~font_metrics);
-  let style = mk_style(~highlighted=true, ~raised=true);
+  let style = mk_style(~highlighted=true, ~raised=true, ~stretched=true);
   let profile = mk_profile(~len=1);
   let t_profile =
     profile(~style=style(~sort=Exp, ()), ~shape=Op(false), ());

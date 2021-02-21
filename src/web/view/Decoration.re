@@ -380,6 +380,7 @@ module Tile = {
     highlighted: bool,
     show_children: bool,
     raised: bool,
+    stretched: bool,
   };
   [@deriving sexp]
   type profile = {
@@ -392,11 +393,19 @@ module Tile = {
   };
 
   let mk_style =
-      (~highlighted=false, ~show_children=false, ~raised=false, ~sort=?, ()) => {
+      (
+        ~highlighted=false,
+        ~show_children=false,
+        ~raised=false,
+        ~stretched=false,
+        ~sort=?,
+        (),
+      ) => {
     sort,
     highlighted,
     show_children,
     raised,
+    stretched,
   };
   let mk_profile =
       (
@@ -549,10 +558,16 @@ module Tile = {
              ])
            )
         |> List.concat;
+      let stretch_dx = 0.125;
+      let start = profile.style.stretched ? Float.neg(stretch_dx) : 0.;
+      let end_ =
+        profile.style.stretched
+          ? Float.of_int(profile.len) +. stretch_dx
+          : Float.of_int(profile.len);
       List.concat([
-        [M({x: 0., y: 1.}), ...left_tip],
+        [M({x: start, y: 1.}), ...left_tip],
         open_child_contours,
-        [H({x: Float.of_int(profile.len)}), ...right_tip],
+        [H({x: end_}), ...right_tip],
         [Z],
       ]);
     };
@@ -775,15 +790,14 @@ let container =
     )
     : Node.t => {
   let buffered_height = 2;
-  let buffered_width = length + 1;
+  let buffered_width = length + 2;
 
   let buffered_height_px =
     Float.of_int(buffered_height) *. font_metrics.row_height;
   let buffered_width_px =
     Float.of_int(buffered_width) *. font_metrics.col_width;
 
-  let container_origin_x =
-    (Float.of_int(origin) -. 0.5) *. font_metrics.col_width;
+  let container_origin_x = Float.of_int(origin - 1) *. font_metrics.col_width;
   let container_origin_y = (-0.5) *. font_metrics.row_height;
 
   Node.div(
@@ -808,11 +822,7 @@ let container =
           Attr.classes([cls]),
           Attr.create(
             "viewBox",
-            Printf.sprintf(
-              "-0.5 -0.5 %d %d",
-              buffered_width,
-              buffered_height,
-            ),
+            Printf.sprintf("-1 -0.5 %d %d", buffered_width, buffered_height),
           ),
           Attr.create("width", Printf.sprintf("%fpx", buffered_width_px)),
           Attr.create("height", Printf.sprintf("%fpx", buffered_height_px)),
