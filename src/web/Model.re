@@ -3,6 +3,7 @@ open Core;
 type t = {
   edit_state: EditState.t,
   font_metrics: FontMetrics.t,
+  logo_font_metrics: FontMetrics.t,
 };
 
 let cutoff = (===);
@@ -26,4 +27,5 @@ let init = () => {
     )),
   ),
   font_metrics: FontMetrics.init,
+  logo_font_metrics: FontMetrics.init,
 };

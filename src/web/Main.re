@@ -23,6 +23,22 @@ module App = {
           },
         (),
       );
+    let _ =
+      ResizeObserver.observe(
+        ~node=JsUtil.get_elem_by_id("logo-font-specimen"),
+        ~f=
+          (entries, _) => {
+            let specimen = Js_of_ocaml.Js.to_array(entries)[0];
+            let rect = specimen##.contentRect;
+            schedule_action(
+              Update.SetLogoFontMetrics({
+                row_height: rect##.bottom -. rect##.top,
+                col_width: rect##.right -. rect##.left,
+              }),
+            );
+          },
+        (),
+      );
 
     // preserve editor focus across window focus/blur
     Dom_html.window##.onfocus :=

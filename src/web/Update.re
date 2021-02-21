@@ -3,12 +3,14 @@ open Sexplib.Std;
 [@deriving sexp]
 type t =
   | SetFontMetrics(FontMetrics.t)
+  | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Core.Action.t)
   | Escape;
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   switch (update) {
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
+  | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) =>
     switch (Core.Action.perform(a, model.edit_state)) {
     | None =>

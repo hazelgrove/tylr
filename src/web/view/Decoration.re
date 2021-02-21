@@ -7,10 +7,10 @@ module Direction = Core.Direction;
 let tip = 0.3;
 let child_border_thickness = 0.1;
 
-let shadow_dx = "0.1";
-let shadow_dy = "0.03";
-let thin_shadow_dx = "0.06";
-let thin_shadow_dy = "0.024";
+let raised_shadow_dx = "0.1";
+let raised_shadow_dy = "0.03";
+let shadow_dx = "0.06";
+let shadow_dy = "0.024";
 
 let hole_radii = (~font_metrics: FontMetrics.t) => {
   let r = 3.5;
@@ -105,8 +105,8 @@ module EmptyHole = {
           "feOffset",
           Attr.[
             create("in", "SourceAlpha"),
-            create("dx", shadow_dx),
-            create("dy", shadow_dy),
+            create("dx", raised_shadow_dx),
+            create("dy", raised_shadow_dy),
             create("result", "offset-alpha"),
           ],
           [],
@@ -168,8 +168,8 @@ module EmptyHole = {
           "feOffset",
           Attr.[
             create("in", "SourceAlpha"),
-            create("dx", thin_shadow_dx),
-            create("dy", thin_shadow_dy),
+            create("dx", shadow_dx),
+            create("dy", shadow_dy),
             create("result", "offset-alpha"),
           ],
           [],
@@ -375,13 +375,12 @@ module OpenChild = {
 
 module Tile = {
   [@deriving sexp]
-  type style =
-    | Highlighted
-    | Unhighlighted({
-        show_children: bool,
-        selected: bool,
-      });
-
+  type style = {
+    sort: option(Sort.t),
+    highlighted: bool,
+    show_children: bool,
+    raised: bool,
+  };
   [@deriving sexp]
   type profile = {
     shape: Core.Tile.t(bool, unit, unit, bool),
@@ -389,7 +388,31 @@ module Tile = {
     open_children: list((int, int)),
     closed_children: list((int, int)),
     empty_holes: list(int),
-    sort: Sort.t,
+    style,
+  };
+
+  let mk_style =
+      (~highlighted=false, ~show_children=false, ~raised=false, ~sort=?, ()) => {
+    sort,
+    highlighted,
+    show_children,
+    raised,
+  };
+  let mk_profile =
+      (
+        ~open_children=[],
+        ~closed_children=[],
+        ~empty_holes=[],
+        ~style=mk_style(),
+        ~len,
+        ~shape,
+        (),
+      ) => {
+    shape,
+    len,
+    open_children,
+    closed_children,
+    empty_holes,
     style,
   };
 
@@ -533,14 +556,16 @@ module Tile = {
         [Z],
       ]);
     };
-    let clss =
-      List.concat([
-        ["tile-path", Sort.to_string(profile.sort)],
-        switch (profile.style) {
-        | Highlighted => ["highlighted"]
-        | Unhighlighted({selected, _}) => selected ? ["selected"] : []
-        },
-      ]);
+    let clss = {
+      let sort =
+        switch (profile.style.sort) {
+        | None => "unsorted"
+        | Some(s) => Sort.to_string(s)
+        };
+      let highlighted = profile.style.highlighted ? ["highlighted"] : [];
+      let raised = profile.style.raised ? ["raised"] : [];
+      List.concat([["tile-path", sort], highlighted, raised]);
+    };
     SvgUtil.Path.view(
       ~attrs=
         Attr.[
@@ -552,10 +577,39 @@ module Tile = {
     );
   };
 
-  let shadow_filter = (~sort: Sort.t) =>
+  let raised_shadow_filter = (~sort: option(Sort.t)=?, ()) => {
+    let s =
+      switch (sort) {
+      | None => "unsorted"
+      | Some(s) => Sort.to_string(s)
+      };
     Node.create_svg(
       "filter",
-      [Attr.id("outer-drop-shadow-" ++ Sort.to_string(sort))],
+      [Attr.id("raised-drop-shadow-" ++ s)],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tile-drop-shadow"]),
+            Attr.create("dx", raised_shadow_dx),
+            Attr.create("dy", raised_shadow_dy),
+            Attr.create("stdDeviation", "0"),
+          ],
+          [],
+        ),
+      ],
+    );
+  };
+
+  let shadow_filter = (~sort: option(Sort.t)=?, ()) => {
+    let s =
+      switch (sort) {
+      | None => "unsorted"
+      | Some(s) => Sort.to_string(s)
+      };
+    Node.create_svg(
+      "filter",
+      [Attr.id("drop-shadow-" ++ s)],
       [
         Node.create_svg(
           "feDropShadow",
@@ -569,24 +623,7 @@ module Tile = {
         ),
       ],
     );
-
-  let thin_shadow_filter = (~sort: Sort.t) =>
-    Node.create_svg(
-      "filter",
-      [Attr.id("thin-outer-drop-shadow-" ++ Sort.to_string(sort))],
-      [
-        Node.create_svg(
-          "feDropShadow",
-          [
-            Attr.classes(["tile-drop-shadow"]),
-            Attr.create("dx", thin_shadow_dx),
-            Attr.create("dy", thin_shadow_dy),
-            Attr.create("stdDeviation", "0"),
-          ],
-          [],
-        ),
-      ],
-    );
+  };
 
   let view =
       (
@@ -599,11 +636,7 @@ module Tile = {
       switch (profile.shape) {
       | Op(true)
       | Bin(true) =>
-        let inset_style =
-          switch (profile.style) {
-          | Highlighted => `Thick
-          | Unhighlighted(_) => `Thin
-          };
+        let inset_style = profile.style.raised ? `Thick : `Thin;
         EmptyHole.view(
           ~offset=0,
           ~font_metrics,
@@ -611,27 +644,30 @@ module Tile = {
           (),
         );
       | _ =>
-        switch (profile.style) {
-        | Unhighlighted({show_children: false, _}) =>
-          profile.empty_holes
-          |> List.map(offset =>
-               EmptyHole.view(~offset, ~font_metrics, ~inset=Some(`Thin), ())
-             )
-          |> List.flatten
-        | _ => []
-        }
+        // TODO review this behavior and check if empty holes getting rendered
+        profile.style.show_children
+          ? []
+          : profile.empty_holes
+            |> List.map(offset =>
+                 EmptyHole.view(
+                   ~offset,
+                   ~font_metrics,
+                   ~inset=Some(`Thin),
+                   (),
+                 )
+               )
+            |> List.flatten
       };
+    // TODO maybe remove this flag and just specify via children fields?
     let profile =
-      switch (profile.style) {
-      | Unhighlighted({show_children: false, _}) => {
-          ...profile,
-          open_children: [],
-          closed_children: [],
-        }
-      | _ => profile
+      profile.style.show_children
+        ? profile : {...profile, open_children: [], closed_children: []};
+    let open_child_paths =
+      switch (profile.style.sort) {
+      | None => []
+      | Some(sort) => open_child_paths(~sort, profile.open_children)
       };
-    open_child_paths(~sort=profile.sort, profile.open_children)
-    @ [contour_path(~attrs, profile), ...empty_holes];
+    open_child_paths @ [contour_path(~attrs, profile), ...empty_holes];
   };
 };
 

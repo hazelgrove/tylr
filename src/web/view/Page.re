@@ -87,20 +87,47 @@ let focus_code = () => {
   JsUtil.get_elem_by_id("code-container")##focus;
 };
 
-let view = (~inject, model: Model.t) => {
+let logo = (~font_metrics) => {
+  open Decoration.Tile;
+  let tile = Code.view_of_tile(~font_metrics);
+  let style = mk_style(~highlighted=true, ~raised=true);
+  let profile = mk_profile(~len=1);
+  let t_profile =
+    profile(~style=style(~sort=Exp, ()), ~shape=Op(false), ());
+  let y_profile = profile(~style=style(~sort=Pat, ()), ~shape=Post(), ());
+  let l_profile =
+    profile(~style=style(~sort=Typ, ()), ~shape=Bin(false), ());
+  let r_profile = profile(~style=style(), ~shape=Pre(), ());
+  Node.div(
+    Attr.[id("logo")],
+    [
+      tile((0, t_profile)),
+      tile((2, y_profile)),
+      tile((4, l_profile)),
+      tile((6, r_profile)),
+      Node.span([Attr.id("logo-text")], [Node.text("t y l r")]),
+    ],
+  );
+};
+
+let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
   Node.div(
     [Attr.id("page")],
     [
+      logo(~font_metrics=logo_font_metrics),
       FontSpecimen.view(),
+      LogoFontSpecimen.view(),
       NodeUtil.svg(
-        [],
+        Attr.[id("filters")],
         Decoration.[
-          Tile.shadow_filter(~sort=Exp),
-          Tile.thin_shadow_filter(~sort=Exp),
-          Tile.shadow_filter(~sort=Pat),
-          Tile.thin_shadow_filter(~sort=Pat),
-          Tile.shadow_filter(~sort=Typ),
-          Tile.thin_shadow_filter(~sort=Typ),
+          Tile.raised_shadow_filter(~sort=Exp, ()),
+          Tile.shadow_filter(~sort=Exp, ()),
+          Tile.raised_shadow_filter(~sort=Pat, ()),
+          Tile.shadow_filter(~sort=Pat, ()),
+          Tile.raised_shadow_filter(~sort=Typ, ()),
+          Tile.shadow_filter(~sort=Typ, ()),
+          Tile.raised_shadow_filter(),
+          Tile.shadow_filter(),
           EmptyHole.inset_shadow_filter,
           EmptyHole.thin_inset_shadow_filter,
         ],
@@ -114,10 +141,9 @@ let view = (~inject, model: Model.t) => {
             focus_code();
             Event.Prevent_default;
           }),
-          ...key_handlers(~inject, ~edit_state=model.edit_state),
+          ...key_handlers(~inject, ~edit_state),
         ],
-        [Code.view(~font_metrics=model.font_metrics, model.edit_state)],
+        [Code.view(~font_metrics, edit_state)],
       ),
     ],
   );
-};

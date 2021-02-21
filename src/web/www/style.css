@@ -39,6 +39,9 @@
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6c71c4;
 
+  --unsorted-bg-color: #ffd0e6;
+  --unsorted-shadow-color: #db649d;
+
   --action-text-color: rgb(82, 82, 82);
   --action-key-color: whitesmoke;
 
@@ -55,8 +58,6 @@
 }
 
 #page {
-  font-family: "Source Code Pro", monospace;
-  font-size: 14pt;
   height: 100vh;
   width: 100vw;
   position: fixed;
@@ -66,12 +67,34 @@
   color: var(--light-text-color);
 }
 
-#font-specimen {
+#logo {
+  position: fixed;
+  top: 5%;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+#logo-text {
+  position: relative;
+  vertical-align: middle;
+  z-index: var(--code-text-z);
+  line-height: 1.45;
+}
+
+#font-specimen, #logo-font-specimen {
   position: fixed;
   top: 0;
   left: 100%;
   line-height: 1.45;
   vertical-align: middle;
+}
+
+#logo-font-specimen, #logo {
+  font-family: "Fira Code", monospace;
+  font-size: 14pt;
+}
+#font-specimen, #code-container {
+  font-family: "Source Code Pro", monospace;
+  font-size: 14pt;
 }
 
 #code-container {
@@ -210,46 +233,70 @@
   fill-rule: evenodd;
   fill: var(--light-page-color);
 }
-.tile-path.highlighted {
+.tile-path.raised {
   stroke-width: 0.3;
 }
 .tile-path.selected {
   fill: var(--selection-color);
 }
-.Exp.tile-path {
+
+.tile-path.unsorted {
+  stroke: var(--unsorted-shadow-color);
+  filter: url(#drop-shadow-unsorted);
+}
+.tile-path.unsorted.highlighted {
+  fill: var(--unsorted-bg-color);
+}
+.tile-path.unsorted.raised {
+  filter: url(#raised-drop-shadow-unsorted)
+}
+#drop-shadow-unsorted .tile-drop-shadow,
+#raised-drop-shadow-unsorted .tile-drop-shadow {
+  flood-color: var(--unsorted-shadow-color);
+}
+
+.tile-path.Exp {
   stroke: var(--exp-shadow-color);
-  filter: url(#thin-outer-drop-shadow-Exp);
+  filter: url(#drop-shadow-Exp);
 }
-.Exp.tile-path.highlighted {
+.tile-path.Exp.highlighted {
   fill: var(--exp-bg-color);
-  filter: url(#outer-drop-shadow-Exp);
 }
-#outer-drop-shadow-Exp .tile-drop-shadow,
-#thin-outer-drop-shadow-Exp .tile-drop-shadow {
+.tile-path.Exp.raised {
+  filter: url(#raised-drop-shadow-Exp);
+}
+#drop-shadow-Exp .tile-drop-shadow,
+#raised-drop-shadow-Exp .tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
 }
-.Pat.tile-path {
+
+.tile-path.Pat {
   stroke: var(--pat-shadow-color);
-  filter: url(#thin-outer-drop-shadow-Pat);
+  filter: url(#drop-shadow-Pat);
 }
-.Pat.tile-path.highlighted {
+.tile-path.Pat.highlighted {
   fill: var(--pat-bg-color);
-  filter: url(#outer-drop-shadow-Pat);
 }
-#outer-drop-shadow-Pat .tile-drop-shadow,
-#thin-outer-drop-shadow-Pat .tile-drop-shadow {
+.tile-path.Pat.raised {
+  filter: url(#raised-drop-shadow-Pat);
+}
+#drop-shadow-Pat .tile-drop-shadow,
+#raised-drop-shadow-Pat .tile-drop-shadow {
   flood-color: var(--pat-shadow-color);
 }
-.Typ.tile-path {
+
+.tile-path.Typ {
   stroke: var(--typ-shadow-color);
-  filter: url(#thin-outer-drop-shadow-Typ);
+  filter: url(#drop-shadow-Typ);
 }
-.Typ.tile-path.highlighted {
+.tile-path.Typ.highlighted {
   fill: var(--typ-bg-color);
-  filter: url(#outer-drop-shadow-Typ);
 }
-#outer-drop-shadow-Typ .tile-drop-shadow,
-#thin-outer-drop-shadow-Typ .tile-drop-shadow {
+.tile-path.Typ.raised {
+  filter: url(#raised-drop-shadow-Typ);
+}
+#drop-shadow-Typ .tile-drop-shadow,
+#raised-drop-shadow-Typ .tile-drop-shadow {
   flood-color: var(--typ-shadow-color);
 }
 
