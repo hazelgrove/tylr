@@ -143,7 +143,17 @@ let rec fold_left_map =
     (final, [y, ...ys]);
   };
 
-let take_while = (_, _) => failwith("todo");
+let rec take_while = (p: 'x => bool, xs: list('x)): (list('x), list('x)) =>
+  switch (xs) {
+  | [] => ([], [])
+  | [hd, ...tl] =>
+    if (p(hd)) {
+      let (taken, rest) = take_while(p, tl);
+      ([hd, ...taken], rest);
+    } else {
+      ([], xs);
+    }
+  };
 
 let take_2 =
   fun

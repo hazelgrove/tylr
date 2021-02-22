@@ -111,7 +111,7 @@ module Make =
           P.assemble_open_bidelimited_frame((
             List.rev(rev_prefix),
             ((open_, []), (close, [])),
-            suffix,
+            Selection.get_whole(suffix),
           ));
         let zipper =
           OptUtil.get(
@@ -128,7 +128,11 @@ module Make =
             suffix,
           );
         let zipper = (
-          Subject.Pointing((List.rev(rev_prefix), (), suffix)),
+          Subject.Pointing((
+            List.rev(rev_prefix),
+            (),
+            Selection.get_whole(suffix),
+          )),
           F.root,
         );
         (zipper, tail);
