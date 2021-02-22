@@ -82,9 +82,6 @@ module Input = {
     | Ap_arg(_) => failwith("ap todo")
     };
   };
-
-  let assemble_open_bidelimited_frame = (~associate as _, _, _e) =>
-    failwith("todo");
 };
 
 include Action_make.Make(

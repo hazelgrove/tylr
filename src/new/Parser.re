@@ -449,5 +449,20 @@ module Make =
     go(mk_skel(tiles), Bi(F.root));
   };
 
-  let dissociate_frame = _ => failwith("todo");
+  let dissociate_frame = (frame: F.t) => {
+    let rec go = (~prefix=[], ~suffix=[], frame: F.t) =>
+      switch (frame) {
+      | Bi(bidelimited) => ((prefix, suffix), bidelimited)
+      | Uni(unidelimited) =>
+        switch (unidelimited) {
+        | Pre_r(pre, frame) => go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
+        | Post_l(frame, post) => go(~prefix, ~suffix=[Tile.Post(post), ...suffix], frame)
+        | Bin_l(frame, bin, r) =>
+          go(~prefix, ~suffix=[Tile.Bin(bin), ...dissociate(r)] @ suffix, frame)
+        | Bin_r(l, bin, frame) =>
+          go(~prefix=prefix @ dissociate(l) @ [Tile.Bin(bin)], ~suffix, frame)
+        }
+      };
+    go(frame);
+  };
 };
