@@ -191,7 +191,7 @@
 .err-hole-container {
   z-index: var(--err-hole-z);
 }
-.tile-container {
+.tile-container, .tessera-container {
   z-index: var(--tile-z);
 }
 .open-child-container {
