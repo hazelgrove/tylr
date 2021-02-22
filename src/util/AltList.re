@@ -26,11 +26,6 @@ type a_frame('a, 'b) = (even('b, 'a), even('b, 'a));
  */
 type b_frame('a, 'b) = (odd('a, 'b), odd('a, 'b));
 
-/*
- let rev_odd = (_: odd('a, 'b)): odd('b, 'a) =>
-   failwith("todo");
- */
-
 let rec prepend = (prefix: even('b, 'a), abs: t('a, 'b)): t('a, 'b) =>
   switch (prefix) {
   | [] => abs
