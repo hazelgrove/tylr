@@ -146,6 +146,7 @@ let filters =
       Tile.raised_shadow_filter(),
       Tile.shadow_filter(),
       Tessera.raised_shadow_filter,
+      Tessera.shadow_filter,
       EmptyHole.inset_shadow_filter,
       EmptyHole.thin_inset_shadow_filter,
     ],

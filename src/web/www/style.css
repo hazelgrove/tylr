@@ -235,6 +235,11 @@
   fill-rule: evenodd;
 }
 
+.tessera-path {
+  /*stroke-width: 0.3; */
+  filter: url(#drop-shadow-tessera);
+}
+
 .tile-path {
   fill: var(--light-page-color);
 }

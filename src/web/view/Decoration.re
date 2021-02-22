@@ -11,6 +11,8 @@ let t = child_border_thickness /. 0.5;
 let short_tip_width = (1. -. t) *. tip_width;
 let short_tip_height = (1. -. t) *. 0.5;
 
+let stretch_dx = 0.15;
+
 let raised_shadow_dx = "0.1";
 let raised_shadow_dy = "0.03";
 let shadow_dx = "0.06";
@@ -404,9 +406,7 @@ module Tessera = {
     style,
   };
 
-  let stretch_dx = 0.125;
-
-  let extra_tail = 0.25;
+  let extra_tail = 0.2;
 
   let gradient = (id, color, profile) => {
     let (x1, x2) = {
@@ -495,6 +495,25 @@ module Tessera = {
       ],
     );
   };
+  let shadow_filter = {
+    Node.create_svg(
+      "filter",
+      [Attr.id("drop-shadow-tessera")],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tessera-drop-shadow"]),
+            Attr.create("dx", shadow_dx),
+            Attr.create("dy", shadow_dy),
+            Attr.create("stdDeviation", "0"),
+            Attr.create("flood-color", "var(--unsorted-shadow-color)"),
+          ],
+          [],
+        ),
+      ],
+    );
+  };
 
   let view = (profile: profile): list(Node.t) => {
     open SvgUtil.Path;
@@ -502,7 +521,7 @@ module Tessera = {
     let closed_child_paths =
       List.map(closed_child_path, profile.closed_children);
     let jagged_edge_h = child_border_thickness /. 3.;
-    let jagged_edge_w = child_border_thickness /. 2.;
+    let jagged_edge_w = child_border_thickness /. 1.;
     let (left_tip, right_tip) = {
       let left_tip = connects_left => {
         let bottom_half =
@@ -522,11 +541,11 @@ module Tessera = {
             ? tl_br(~child_border=`South, ())
               @ [
                 H_({dx: extra_tail}),
+                L_({dx: jagged_edge_w, dy: jagged_edge_h}),
                 L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
-                L_({dx: 2. *. jagged_edge_w, dy: jagged_edge_h}),
-                L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
+                L_({dx: jagged_edge_w, dy: jagged_edge_h}),
                 // V_({dy: child_border_thickness}),
-                H_({dx: Float.neg(extra_tail +. 0.5)}),
+                H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)}),
               ]
             : tl_br() @ [H_({dx: Float.neg(tip_width)})];
         [H_({dx: tip_width}), ...tr_bl()] @ bottom_half;
@@ -754,7 +773,6 @@ module Tile = {
              ])
            )
         |> List.concat;
-      let stretch_dx = 0.125;
       let start = profile.style.stretched ? Float.neg(stretch_dx) : 0.;
       let end_ =
         profile.style.stretched
@@ -986,14 +1004,15 @@ let container =
     )
     : Node.t => {
   let buffered_height = 2;
-  let buffered_width = length + 2;
+  let buffered_width = length + 3;
 
   let buffered_height_px =
     Float.of_int(buffered_height) *. font_metrics.row_height;
   let buffered_width_px =
     Float.of_int(buffered_width) *. font_metrics.col_width;
 
-  let container_origin_x = Float.of_int(origin - 1) *. font_metrics.col_width;
+  let container_origin_x =
+    (Float.of_int(origin) -. 1.5) *. font_metrics.col_width;
   let container_origin_y = (-0.5) *. font_metrics.row_height;
 
   Node.div(
@@ -1018,7 +1037,11 @@ let container =
           Attr.classes([cls]),
           Attr.create(
             "viewBox",
-            Printf.sprintf("-1 -0.5 %d %d", buffered_width, buffered_height),
+            Printf.sprintf(
+              "-1.5 -0.5 %d %d",
+              buffered_width,
+              buffered_height,
+            ),
           ),
           Attr.create("width", Printf.sprintf("%fpx", buffered_width_px)),
           Attr.create("height", Printf.sprintf("%fpx", buffered_height_px)),
