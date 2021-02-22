@@ -47,6 +47,14 @@ let get =
   | Post(post) => get_post(post)
   | Bin(bin) => get_bin(bin);
 
+let is_convex = (d: Direction.t, t: t(_)) =>
+  switch (d, t) {
+  | (_, Op(_))
+  | (Left, Pre(_))
+  | (Right, Post(_)) => true
+  | _ => false
+  };
+
 module type S = {
   module Tm: Term.S;
 
@@ -54,6 +62,4 @@ module type S = {
 
   let precedence: t => int;
   let associativity: IntMap.t(Associativity.t);
-
-  let is_convex: (Direction.t, t) => bool;
 };

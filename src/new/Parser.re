@@ -309,7 +309,7 @@ module Make =
 
   let is_convex = (d: Direction.t) =>
     fun
-    | Selection.Tile(tile) => T.is_convex(d, tile)
+    | Selection.Tile(tile) => Tile.is_convex(d, tile)
     | Tessera(tessera) => Unsorted.Tessera.is_convex(d, tessera);
   let is_hole =
     fun
@@ -455,12 +455,22 @@ module Make =
       | Bi(bidelimited) => ((prefix, suffix), bidelimited)
       | Uni(unidelimited) =>
         switch (unidelimited) {
-        | Pre_r(pre, frame) => go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
-        | Post_l(frame, post) => go(~prefix, ~suffix=[Tile.Post(post), ...suffix], frame)
+        | Pre_r(pre, frame) =>
+          go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
+        | Post_l(frame, post) =>
+          go(~prefix, ~suffix=[Tile.Post(post), ...suffix], frame)
         | Bin_l(frame, bin, r) =>
-          go(~prefix, ~suffix=[Tile.Bin(bin), ...dissociate(r)] @ suffix, frame)
+          go(
+            ~prefix,
+            ~suffix=[Tile.Bin(bin), ...dissociate(r)] @ suffix,
+            frame,
+          )
         | Bin_r(l, bin, frame) =>
-          go(~prefix=prefix @ dissociate(l) @ [Tile.Bin(bin)], ~suffix, frame)
+          go(
+            ~prefix=prefix @ dissociate(l) @ [Tile.Bin(bin)],
+            ~suffix,
+            frame,
+          )
         }
       };
     go(frame);

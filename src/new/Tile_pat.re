@@ -16,5 +16,3 @@ let precedence: t => int =
 
 let associativity =
   [(1, Associativity.Left)] |> List.to_seq |> IntMap.of_seq;
-
-let is_convex = failwith("todo");
