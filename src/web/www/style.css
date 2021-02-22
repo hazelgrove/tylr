@@ -24,23 +24,23 @@
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
 
-  --selection-color: #fde2ef;
+  --selection-color: #ffe4f1;
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
   --empty-hole-fill-color: #ffef00;
 
   --exp-bg-color: #dbf6de; /*#ddff9f;*/
-  --exp-shadow-color: #2aa13d; /* #709900; */
+  --exp-shadow-color: #329f43; /* #709900; */
 
   --pat-bg-color: #c4e6ff;
   --pat-shadow-color: #268bd2;
 
   --typ-bg-color: #caccf4;
-  --typ-shadow-color: #6c71c4;
+  --typ-shadow-color: #6168d4; /* #6c71c4; */
 
   --unsorted-bg-color: #ffd0e6;
-  --unsorted-shadow-color: #db649d;
+  --unsorted-shadow-color: #c76695;
 
   --action-text-color: rgb(82, 82, 82);
   --action-key-color: whitesmoke;
