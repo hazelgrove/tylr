@@ -61,7 +61,31 @@ module Tessera = {
     | Paren_r
     | Let_in => true;
 
-  let is_convex = (_, _) => failwith("todo");
+  let is_convex = (d: Direction.t) =>
+    fun
+    | OpHole
+    | Text(_) => true
+    | Lam(_)
+    | Paren_l
+    | Let_eq(_) => d == Left
+    | Ann(_)
+    | Paren_r => d == Right
+    | BinHole
+    | Plus
+    | Arrow
+    | Let_in => false;
 
-  let has_child = _ => failwith("todo");
+  let has_child =
+    fun
+    | OpHole
+    | Text(_)
+    | Paren_l
+    | Paren_r
+    | BinHole
+    | Plus
+    | Arrow
+    | Let_in => false
+    | Lam(_)
+    | Let_eq(_)
+    | Ann(_) => true;
 };
