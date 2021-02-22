@@ -12,7 +12,9 @@ type pointing =
 
 let of_pointing =
   fun
-  | _ => failwith("todo");
+  | Typ_p((pointing, frame)) => Typ((Pointing(pointing), frame))
+  | Pat_p((pointing, frame)) => Pat((Pointing(pointing), frame))
+  | Exp_p((pointing, frame)) => Exp((Pointing(pointing), frame));
 
 let restructuring_of_pointing = selections =>
   fun
