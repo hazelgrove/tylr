@@ -31,10 +31,13 @@ type b_frame('a, 'b) = (odd('a, 'b), odd('a, 'b));
    failwith("todo");
  */
 
-let prepend = (_: even('b, 'a), _: t('a, 'b)): t('a, 'b) =>
-  failwith("todo");
-let append = (_: t('a, 'b), _: even('b, 'a)): t('a, 'b) =>
-  failwith("todo");
+let rec prepend = (prefix: even('b, 'a), abs: t('a, 'b)): t('a, 'b) =>
+  switch (prefix) {
+  | [] => abs
+  | [(b', a'), ...prefix] =>
+    let (a, bas) = abs;
+    prepend(prefix, (a', [(b', a), ...bas]));
+  };
 
 let fill_b_frame = (b: 'b, (prefix, suffix): b_frame('a, 'b)) => {
   let prefix = {
