@@ -4,8 +4,14 @@ open Virtual_dom.Vdom;
 module Sort = Core.Sort;
 module Direction = Core.Direction;
 
-let tip = 0.3;
+let tip_width = 0.3;
 let child_border_thickness = 0.1;
+
+let t = child_border_thickness /. 0.5;
+let short_tip_width = (1. -. t) *. tip_width;
+let short_tip_height = (1. -. t) *. 0.5;
+
+let tessera_tail = 0.25;
 
 let raised_shadow_dx = "0.1";
 let raised_shadow_dy = "0.03";
@@ -22,13 +28,12 @@ module Diag = {
     SvgUtil.Path.(
       switch (child_border) {
       | None =>
-        let diag = L_({dx: Float.neg(tip), dy: 0.5});
+        let diag = L_({dx: Float.neg(tip_width), dy: 0.5});
         [diag];
       | Some(d) =>
-        let t = child_border_thickness /. 0.5;
-        let dx = (1. -. t) *. tip;
-        let diag = L_({dx: Float.neg(dx), dy: (1. -. t) *. 0.5});
-        let border = H_({dx: Float.neg(1. -. dx)});
+        let diag =
+          L_({dx: Float.neg(short_tip_width), dy: short_tip_height});
+        let border = H_({dx: Float.neg(0.5 -. short_tip_width)});
         switch (d) {
         | `North => [border, diag]
         | `South => [diag, border]
@@ -42,13 +47,11 @@ module Diag = {
     SvgUtil.Path.(
       switch (child_border) {
       | None =>
-        let diag = L_({dx: tip, dy: 0.5});
+        let diag = L_({dx: tip_width, dy: 0.5});
         [diag];
       | Some(d) =>
-        let t = child_border_thickness /. 0.5;
-        let dx = (1. -. t) *. tip;
-        let diag = L_({dx, dy: (1. -. t) *. 0.5});
-        let border = H_({dx: 1. -. dx});
+        let diag = L_({dx: short_tip_width, dy: short_tip_height});
+        let border = H_({dx: 0.5 -. short_tip_width});
         switch (d) {
         | `North => [border, diag]
         | `South => [diag, border]
@@ -373,6 +376,65 @@ module OpenChild = {
   };
 };
 
+let closed_child_path = ((start, len)) =>
+  List.concat(
+    SvgUtil.Path.[
+      [
+        M({x: Float.of_int(start), y: child_border_thickness}),
+        H_({dx: (-0.5)}),
+      ],
+      Diag.tr_bl(~child_border=`North, ()),
+      Diag.tl_br(~child_border=`South, ()),
+      [H_({dx: 0.5}), H_({dx: Float.of_int(len)}), H_({dx: 0.5})],
+      Diag.bl_tr(~child_border=`South, ()),
+      Diag.br_tl(~child_border=`North, ()),
+      [Z],
+    ],
+  );
+
+module Tessera = {
+  type profile = {
+    shape: Core.Tile.t(unit, bool, bool, (bool, bool)),
+    len: int,
+    closed_children: list((int, int)),
+    highlighted: bool,
+    stretched: bool,
+  };
+  /*
+   let contour_path = (profile: profile): Node.t => {
+     open SvgUtil.Path;
+     open Diag;
+     let closed_child_paths =
+       List.map(closed_child_path, profile.closed_children);
+     let (left_tip, right_tip) =
+       switch (profile.shape) {
+       | Op() => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+       | Pre(connects_right) =>
+         let right_tip_bottom =
+           connects_right
+           ? tl_br() @ [H_({dx: Float.neg(tip_width)})]
+           : tl_br(~child_border=`South, ())
+             @ [H_({dx: }), V_({dy: child_border_thickness}), H_({dx: Float.neg(child_border_thickness)})]
+
+
+         let right_tip =
+           connects_right
+           ? [H_({dx: tip_width}), ...tr_bl()]
+           @ tl_br()
+           @ [H_({dx: Float.neg(tip_width)})]
+         (
+           br_tl() @ bl_tr(),
+           [H_({dx: tip_width}), ...tr_bl()]
+           @ tl_br()
+           @ [H_({dx: Float.neg(tip_width)})],
+         )
+
+
+       }
+   }
+   */
+};
+
 module Tile = {
   [@deriving sexp]
   type style = {
@@ -508,51 +570,44 @@ module Tile = {
     open SvgUtil.Path;
     open Diag;
     let closed_child_paths =
-      profile.closed_children
-      |> List.map(((start, len)) =>
-           List.concat([
-             [M({x: Float.of_int(start), y: child_border_thickness})],
-             tr_bl(~child_border=`North, ()),
-             tl_br(~child_border=`South, ()),
-             [H_({dx: Float.of_int(len)})],
-             bl_tr(~child_border=`South, ()),
-             br_tl(~child_border=`North, ()),
-             [Z],
-           ])
-         );
+      List.map(closed_child_path, profile.closed_children);
     let outer_path = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
         | Op(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
         | Pre () => (
             br_tl() @ bl_tr(),
-            [H_({dx: tip}), ...tr_bl()]
+            [H_({dx: tip_width}), ...tr_bl()]
             @ tl_br()
-            @ [H_({dx: Float.neg(tip)})],
+            @ [H_({dx: Float.neg(tip_width)})],
           )
         | Post () => (
-            [H_({dx: Float.neg(tip)}), ...bl_tr()]
+            [H_({dx: Float.neg(tip_width)}), ...bl_tr()]
             @ br_tl()
-            @ [H_({dx: tip})],
+            @ [H_({dx: tip_width})],
             tl_br() @ tr_bl(),
           )
         | Bin(_) => (
-            [H_({dx: Float.neg(tip)}), ...bl_tr()]
+            [H_({dx: Float.neg(tip_width)}), ...bl_tr()]
             @ br_tl()
-            @ [H_({dx: tip})],
-            [H_({dx: tip}), ...tr_bl()]
+            @ [H_({dx: tip_width})],
+            [H_({dx: tip_width}), ...tr_bl()]
             @ tl_br()
-            @ [H_({dx: Float.neg(tip)})],
+            @ [H_({dx: Float.neg(tip_width)})],
           )
         };
       let open_child_contours =
         profile.open_children
         |> List.map(((start, len)) =>
              List.concat([
-               [H({x: Float.of_int(start - 1) +. tip})],
+               [H({x: Float.of_int(start - 1) +. tip_width})],
                tr_bl(),
                tl_br(~child_border=`South, ()),
-               [H_({dx: Float.of_int(len)})],
+               [
+                 H_({dx: 0.5}),
+                 H_({dx: Float.of_int(len)}),
+                 H_({dx: 0.5}),
+               ],
                bl_tr(~child_border=`South, ()),
                br_tl(),
              ])
