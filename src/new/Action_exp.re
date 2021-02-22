@@ -45,7 +45,7 @@ module Input = {
              Some(EditState.Pat_p((subject, frame)));
            },
          fun
-         | (_, Term_exp.Ap(_)) => failwith("todo"),
+         | (_, Term_exp.Ap(_)) => failwith("ap todo"),
          fun
          | (_, Plus | BinHole, _) => None,
        );
