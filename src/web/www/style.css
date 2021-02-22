@@ -91,6 +91,7 @@
 
 #logo-font-specimen, #logo {
   font-family: "Fira Code", monospace;
+  font-weight: bold;
   font-size: 16pt;
 }
 #font-specimen, #code-container {
