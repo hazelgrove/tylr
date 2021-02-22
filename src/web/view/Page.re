@@ -88,27 +88,68 @@ let focus_code = () => {
 };
 
 let logo = (~font_metrics) => {
-  open Decoration.Tile;
   let tile = Code.view_of_tile(~font_metrics);
-  let style = mk_style(~highlighted=true, ~raised=true, ~stretched=true);
-  let profile = mk_profile(~len=1);
+  let style =
+    Decoration.Tile.mk_style(
+      ~highlighted=true,
+      ~raised=true,
+      ~stretched=true,
+    );
+  let profile = Decoration.Tile.mk_profile(~len=1);
   let t_profile =
     profile(~style=style(~sort=Exp, ()), ~shape=Op(false), ());
   let y_profile = profile(~style=style(~sort=Pat, ()), ~shape=Post(), ());
   let l_profile =
     profile(~style=style(~sort=Typ, ()), ~shape=Bin(false), ());
-  let r_profile = profile(~style=style(), ~shape=Pre(), ());
+  let r_profile =
+    Decoration.Tessera.{
+      shape: Pre(true),
+      len: 1,
+      closed_children: [],
+      style: {
+        highlighted: true,
+        stretched: true,
+        raised: true,
+      },
+    };
+  let r_tessera =
+    Decoration.container(
+      ~font_metrics,
+      ~length=r_profile.len,
+      ~cls="tessera",
+      ~origin=6,
+      Decoration.Tessera.view(r_profile),
+    );
+  // profile(~style=style(), ~shape=Pre(), ());
   Node.div(
     Attr.[id("logo")],
     [
       tile((0, t_profile)),
       tile((2, y_profile)),
       tile((4, l_profile)),
-      tile((6, r_profile)),
+      r_tessera,
       Node.span([Attr.id("logo-text")], [Node.text("t y l r")]),
     ],
   );
 };
+
+let filters =
+  NodeUtil.svg(
+    Attr.[id("filters")],
+    Decoration.[
+      Tile.raised_shadow_filter(~sort=Exp, ()),
+      Tile.shadow_filter(~sort=Exp, ()),
+      Tile.raised_shadow_filter(~sort=Pat, ()),
+      Tile.shadow_filter(~sort=Pat, ()),
+      Tile.raised_shadow_filter(~sort=Typ, ()),
+      Tile.shadow_filter(~sort=Typ, ()),
+      Tile.raised_shadow_filter(),
+      Tile.shadow_filter(),
+      Tessera.raised_shadow_filter,
+      EmptyHole.inset_shadow_filter,
+      EmptyHole.thin_inset_shadow_filter,
+    ],
+  );
 
 let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
   Node.div(
@@ -117,21 +158,7 @@ let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
       logo(~font_metrics=logo_font_metrics),
       FontSpecimen.view(),
       LogoFontSpecimen.view(),
-      NodeUtil.svg(
-        Attr.[id("filters")],
-        Decoration.[
-          Tile.raised_shadow_filter(~sort=Exp, ()),
-          Tile.shadow_filter(~sort=Exp, ()),
-          Tile.raised_shadow_filter(~sort=Pat, ()),
-          Tile.shadow_filter(~sort=Pat, ()),
-          Tile.raised_shadow_filter(~sort=Typ, ()),
-          Tile.shadow_filter(~sort=Typ, ()),
-          Tile.raised_shadow_filter(),
-          Tile.shadow_filter(),
-          EmptyHole.inset_shadow_filter,
-          EmptyHole.thin_inset_shadow_filter,
-        ],
-      ),
+      filters,
       Node.div(
         [
           Attr.id("code-container"),

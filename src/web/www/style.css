@@ -230,12 +230,15 @@
 }
 */
 
-.tile-path {
+.tile-path, .tessera-path {
   stroke-width: 0.4;
   fill-rule: evenodd;
+}
+
+.tile-path {
   fill: var(--light-page-color);
 }
-.tile-path.raised {
+.tile-path.raised, .tessera-path.raised {
   stroke-width: 0.3;
 }
 .tile-path.selected {
@@ -250,7 +253,10 @@
   fill: var(--unsorted-bg-color);
 }
 .tile-path.unsorted.raised {
-  filter: url(#raised-drop-shadow-unsorted)
+  filter: url(#raised-drop-shadow-unsorted);
+}
+.tessera-path.raised {
+  filter: url(#raised-drop-shadow-tessera);
 }
 #drop-shadow-unsorted .tile-drop-shadow,
 #raised-drop-shadow-unsorted .tile-drop-shadow {

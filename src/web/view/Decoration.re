@@ -11,8 +11,6 @@ let t = child_border_thickness /. 0.5;
 let short_tip_width = (1. -. t) *. tip_width;
 let short_tip_height = (1. -. t) *. 0.5;
 
-let tessera_tail = 0.25;
-
 let raised_shadow_dx = "0.1";
 let raised_shadow_dy = "0.03";
 let shadow_dx = "0.06";
@@ -393,46 +391,189 @@ let closed_child_path = ((start, len)) =>
   );
 
 module Tessera = {
-  type profile = {
-    shape: Core.Tile.t(unit, bool, bool, (bool, bool)),
-    len: int,
-    closed_children: list((int, int)),
+  type style = {
     highlighted: bool,
     stretched: bool,
+    raised: bool,
   };
-  /*
-   let contour_path = (profile: profile): Node.t => {
-     open SvgUtil.Path;
-     open Diag;
-     let closed_child_paths =
-       List.map(closed_child_path, profile.closed_children);
-     let (left_tip, right_tip) =
-       switch (profile.shape) {
-       | Op() => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
-       | Pre(connects_right) =>
-         let right_tip_bottom =
-           connects_right
-           ? tl_br() @ [H_({dx: Float.neg(tip_width)})]
-           : tl_br(~child_border=`South, ())
-             @ [H_({dx: }), V_({dy: child_border_thickness}), H_({dx: Float.neg(child_border_thickness)})]
+  type shape = Core.Tile.t(unit, bool, bool, (bool, bool));
+  type profile = {
+    shape,
+    len: int,
+    closed_children: list((int, int)),
+    style,
+  };
 
+  let stretch_dx = 0.125;
 
-         let right_tip =
-           connects_right
-           ? [H_({dx: tip_width}), ...tr_bl()]
-           @ tl_br()
-           @ [H_({dx: Float.neg(tip_width)})]
-         (
-           br_tl() @ bl_tr(),
-           [H_({dx: tip_width}), ...tr_bl()]
-           @ tl_br()
-           @ [H_({dx: Float.neg(tip_width)})],
-         )
+  let extra_tail = 0.25;
 
+  let gradient = (id, color, profile) => {
+    let (x1, x2) = {
+      let dx = 0.5 +. extra_tail;
+      let dx = profile.style.stretched ? dx +. stretch_dx : dx;
+      (-. dx, Float.of_int(profile.len) +. dx);
+    };
+    let range = x2 -. x1;
+    let (x1, x2) = (Printf.sprintf("%f", x1), Printf.sprintf("%f", x2));
+    let gradient =
+      Node.create_svg(
+        "linearGradient",
+        [
+          Attr.id(id),
+          Attr.create("gradientUnits", "userSpaceOnUse"),
+          Attr.create("x1", x1),
+          Attr.create("x2", x2),
+        ],
+        Node.[
+          create_svg(
+            "stop",
+            [
+              Attr.create("offset", "0%"),
+              AttrUtil.stop_color(color),
+              AttrUtil.stop_opacity("0"),
+            ],
+            [],
+          ),
+          create_svg(
+            "stop",
+            [
+              Attr.create(
+                "offset",
+                Printf.sprintf("%f%%", 100. *. extra_tail /. range),
+              ),
+              AttrUtil.stop_color(color),
+            ],
+            [],
+          ),
+          create_svg(
+            "stop",
+            [
+              Attr.create(
+                "offset",
+                Printf.sprintf("%f%%", 100. *. (1. -. extra_tail /. range)),
+              ),
+              AttrUtil.stop_color(color),
+            ],
+            [],
+          ),
+          create_svg(
+            "stop",
+            [
+              Attr.create("offset", "100%"),
+              AttrUtil.stop_color(color),
+              AttrUtil.stop_opacity("0"),
+            ],
+            [],
+          ),
+        ],
+      );
+    (id, gradient);
+  };
 
-       }
-   }
-   */
+  let fill_gradient =
+    gradient("tessera-fill-gradient", "var(--unsorted-bg-color)");
+  let stroke_gradient =
+    gradient("tessera-stroke-gradient", "var(--unsorted-shadow-color)");
+
+  let raised_shadow_filter = {
+    Node.create_svg(
+      "filter",
+      [Attr.id("raised-drop-shadow-tessera")],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tessera-drop-shadow"]),
+            Attr.create("dx", raised_shadow_dx),
+            Attr.create("dy", raised_shadow_dy),
+            Attr.create("stdDeviation", "0"),
+            Attr.create("flood-color", "var(--unsorted-shadow-color)"),
+          ],
+          [],
+        ),
+      ],
+    );
+  };
+
+  let view = (profile: profile): list(Node.t) => {
+    open SvgUtil.Path;
+    open Diag;
+    let closed_child_paths =
+      List.map(closed_child_path, profile.closed_children);
+    let jagged_edge_h = child_border_thickness /. 3.;
+    let jagged_edge_w = child_border_thickness /. 2.;
+    let (left_tip, right_tip) = {
+      let left_tip = connects_left => {
+        let bottom_half =
+          connects_left
+            ? [
+                H_({dx: -. (extra_tail +. 0.5)}),
+                V_({dy: -. child_border_thickness}),
+                H_({dx: extra_tail}),
+              ]
+              @ bl_tr(~child_border=`South, ())
+            : [H_({dx: Float.neg(tip_width)}), ...bl_tr()];
+        bottom_half @ br_tl() @ [H_({dx: tip_width})];
+      };
+      let right_tip = connects_right => {
+        let bottom_half =
+          connects_right
+            ? tl_br(~child_border=`South, ())
+              @ [
+                H_({dx: extra_tail}),
+                L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
+                L_({dx: 2. *. jagged_edge_w, dy: jagged_edge_h}),
+                L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
+                // V_({dy: child_border_thickness}),
+                H_({dx: Float.neg(extra_tail +. 0.5)}),
+              ]
+            : tl_br() @ [H_({dx: Float.neg(tip_width)})];
+        [H_({dx: tip_width}), ...tr_bl()] @ bottom_half;
+      };
+      switch (profile.shape) {
+      | Op () => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+      | Pre(connects_right) => (
+          br_tl() @ bl_tr(),
+          right_tip(connects_right),
+        )
+      | Post(connects_left) => (left_tip(connects_left), tl_br() @ tr_bl())
+      | Bin((connects_left, connects_right)) => (
+          left_tip(connects_left),
+          right_tip(connects_right),
+        )
+      };
+    };
+    let start = profile.style.stretched ? Float.neg(stretch_dx) : 0.;
+    let end_ =
+      profile.style.stretched
+        ? Float.of_int(profile.len) +. stretch_dx : Float.of_int(profile.len);
+    let outer_path =
+      List.concat([
+        [M({x: start, y: 1.}), ...left_tip],
+        [H({x: end_}), ...right_tip],
+        [Z],
+      ]);
+    let clss = {
+      let highlighted = profile.style.highlighted ? ["highlighted"] : [];
+      let raised = profile.style.raised ? ["raised"] : [];
+      List.concat([["tessera-path"], highlighted, raised]);
+    };
+    let (_fill_gradient_id, fill_gradient) = fill_gradient(profile);
+    let (_stroke_gradient_id, stroke_gradient) = stroke_gradient(profile);
+    let path =
+      SvgUtil.Path.view(
+        ~attrs=
+          Attr.[
+            classes(clss),
+            create("vector-effect", "non-scaling-stroke"),
+            create("fill", "var(--unsorted-bg-color)"),
+            create("stroke", "var(--unsorted-shadow-color)"),
+          ],
+        outer_path @ List.concat(closed_child_paths),
+      );
+    [fill_gradient, stroke_gradient, path];
+  };
 };
 
 module Tile = {
