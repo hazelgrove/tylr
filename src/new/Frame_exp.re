@@ -1,5 +1,3 @@
-open Util.OptUtil.Syntax;
-
 type t =
   | Uni(unidelimited)
   | Bi(bidelimited)
@@ -10,41 +8,45 @@ and unidelimited =
   | Bin_r(Term_exp.t, Term_exp.bin, t)
 and bidelimited =
   | Root
-  // (_) == Paren_body(Bi(None))
+  | Open(open_)
+  | Closed(closed)
+and open_ =
+  // (_) == Paren_body(Bi(Root))
   | Paren_body(t)
   // ( let x = _ in x )
-  // == Let_def(Var(x), Bi(Some(Paren_body(Bi(None)))), Var(x))
+  // == Let_def(Var(x), Bi(Open(Paren_body(Bi(Root)))), Var(x))
   | Let_def(Term_pat.t, t, Term_exp.t)
-  | Ap_arg(Term_exp.t, t);
+  | Ap_arg(Term_exp.t, t)
+and closed = unit; // empty
 
-let root = Root;
+exception Void_closed;
 
-let rec append_exp = (frame: t, frame_exp: bidelimited): option(t) =>
-  switch (frame) {
-  | Uni(Pre_r(pre, frame)) =>
-    let+ frame = append_exp(frame, frame_exp);
-    Uni(Pre_r(pre, frame));
-  | Uni(Post_l(frame, post)) =>
-    let+ frame = append_exp(frame, frame_exp);
-    Uni(Post_l(frame, post));
-  | Uni(Bin_l(frame, bin, r)) =>
-    let+ frame = append_exp(frame, frame_exp);
-    Uni(Bin_l(frame, bin, r));
-  | Uni(Bin_r(l, bin, frame)) =>
-    let+ frame = append_exp(frame, frame_exp);
-    Uni(Bin_r(l, bin, frame));
-  | Bi(bidelimited) =>
-    let+ bidelimited = bidelimited_append_exp(bidelimited, frame_exp);
-    Bi(bidelimited);
+let rec append = (frame1: t, frame2: bidelimited): t =>
+  switch (frame1) {
+  | Uni(uni) => Uni(uni_append(uni, frame2))
+  | Bi(bi) => Bi(bi_append(bi, frame2))
   }
-and bidelimited_append_exp = (frame: bidelimited, frame_exp) =>
-  switch (frame) {
-  | Root => Some(frame_exp)
-  | Paren_body(frame) =>
-    let+ frame = append_exp(frame, frame_exp);
-    Paren_body(frame);
-  | Let_def(p, frame, body) =>
-    let+ frame = append_exp(frame, frame_exp);
-    Let_def(p, frame, body);
-  | Ap_arg(_) => failwith("ap todo")
+and uni_append = (frame1: unidelimited, frame2: bidelimited): unidelimited =>
+  switch (frame1) {
+  | Pre_r(pre, frame) => Pre_r(pre, append(frame, frame2))
+  | Post_l(frame, post) => Post_l(append(frame, frame2), post)
+  | Bin_l(frame, bin, r) => Bin_l(append(frame, frame2), bin, r)
+  | Bin_r(l, bin, frame) => Bin_r(l, bin, append(frame, frame2))
+  }
+and bi_append = (frame1: bidelimited, frame2: bidelimited): bidelimited =>
+  switch (frame1) {
+  | Closed(_) =>
+    raise(
+      Invalid_argument(
+        "Frame_exp.open_append: expected first argument to be fully open",
+      ),
+    )
+  | Root => frame2
+  | Open(open_) =>
+    switch (open_) {
+    | Paren_body(frame) => Open(Paren_body(append(frame, frame2)))
+    | Let_def(p, frame, body) =>
+      Open(Let_def(p, append(frame, frame2), body))
+    | Ap_arg(_) => failwith("ap todo")
+    }
   };

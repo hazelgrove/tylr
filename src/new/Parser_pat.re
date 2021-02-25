@@ -70,7 +70,7 @@ module Input:
       | Term_pat.BinHole => (Unsorted.Tessera.BinHole, []),
     );
 
-  let assemble_open_bidelimited_frame =
+  let assemble_open_frame =
       (
         ~associate as _,
         (_prefix, ts, _suffix):
@@ -80,13 +80,22 @@ module Input:
           ),
         frame: Frame_pat.t,
       )
-      : Frame_pat.bidelimited => {
+      : Frame_pat.open_ => {
     switch (ts) {
     | ((Paren_l, []), (Paren_r, [])) => Paren_body(frame)
-    | _ =>
-      raise(Invalid_argument("Parser_exp.assemble_open_bidelimited_frame"))
+    | _ => raise(Invalid_argument("Parser_exp.assemble_open_frame"))
     };
   };
+
+  let disassemble_open_frame = (~dissociate as _, frame: Frame_pat.open_) =>
+    switch (frame) {
+    | Paren_body(frame) =>
+      let ts = (
+        (Unsorted.Tessera.Paren_l, []),
+        (Unsorted.Tessera.Paren_r, []),
+      );
+      (([], ts, []), frame);
+    };
 };
 
 include Parser.Make(Term_pat, Tile_pat, Frame_pat, Input);

@@ -16,13 +16,16 @@ module type S_INPUT = {
   let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
   let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
-  let assemble_open_bidelimited_frame:
+  let assemble_open_frame:
     (
       ~associate: list(T.t) => Tm.t,
       ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
       F.t
     ) =>
-    F.bidelimited;
+    F.open_;
+  let disassemble_open_frame:
+    (~dissociate: Tm.t => list(T.t), F.open_) =>
+    (ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t), F.t);
 };
 
 module type S = {
@@ -38,6 +41,7 @@ module type S = {
 
   let sort_s: Unsorted.Tile.s => option(list(T.t));
   let sort: Unsorted.Tile.t => option(T.t);
+  let unsort_s: list(T.t) => Unsorted.Tile.s;
   let unsort: T.t => Unsorted.Tile.t;
 
   let sort_and_associate: Unsorted.Tile.s => option(Tm.t);
@@ -51,11 +55,21 @@ module type S = {
   let assemble_tiles_in_selection: Selection.t(T.t) => Selection.t(T.t);
   let fix_empty_holes: list(Selection.t(T.t)) => list(Selection.t(T.t));
 
-  // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
-  let assemble_open_bidelimited_frame:
-    ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t) => F.bidelimited;
-
   let dissociate_frame: F.t => ((list(T.t), list(T.t)), F.bidelimited);
+
+  // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
+  let assemble_open_frame:
+    (
+      ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      F.bidelimited
+    ) =>
+    F.open_;
+  let disassemble_open_frame:
+    F.open_ =>
+    (
+      ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      F.bidelimited,
+    );
 };
 
 // outside of functor for use by unsorted selections
@@ -400,19 +414,47 @@ module Make =
     fix_empty_holes_left(fix_empty_holes_right(fixed_between));
   };
 
-  let assemble_open_bidelimited_frame =
+  let dissociate_frame = (frame: F.t) => {
+    let rec go = (~prefix=[], ~suffix=[], frame: F.t) =>
+      switch (frame) {
+      | Bi(bidelimited) => ((prefix, suffix), bidelimited)
+      | Uni(unidelimited) =>
+        switch (unidelimited) {
+        | Pre_r(pre, frame) =>
+          go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
+        | Post_l(frame, post) =>
+          go(~prefix, ~suffix=[Tile.Post(post), ...suffix], frame)
+        | Bin_l(frame, bin, r) =>
+          go(
+            ~prefix,
+            ~suffix=[Tile.Bin(bin), ...dissociate(r)] @ suffix,
+            frame,
+          )
+        | Bin_r(l, bin, frame) =>
+          go(
+            ~prefix=prefix @ dissociate(l) @ [Tile.Bin(bin)],
+            ~suffix,
+            frame,
+          )
+        }
+      };
+    go(frame);
+  };
+
+  let assemble_open_frame =
       (
         (prefix, ts, suffix):
           ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+        frame: F.bidelimited,
       )
-      : F.bidelimited => {
+      : F.open_ => {
     let dummy_tile = {
       let dummy_hole = Term.Op(Tm.mk_op_hole());
       assemble_tile(AltList.fill_b_frame(dummy_hole, ts));
     };
     let n = List.length(prefix);
     let tiles = prefix @ [dummy_tile, ...suffix];
-    let assemble = Input.assemble_open_bidelimited_frame(~associate);
+    let assemble = Input.assemble_open_frame(~associate);
     let rec go = (skel: Skel.t, frame: F.t) => {
       let t = List.nth(tiles, Skel.root_index(skel));
       switch (skel) {
@@ -446,33 +488,13 @@ module Make =
         };
       };
     };
-    go(mk_skel(tiles), Bi(F.root));
+    go(mk_skel(tiles), Bi(frame));
   };
 
-  let dissociate_frame = (frame: F.t) => {
-    let rec go = (~prefix=[], ~suffix=[], frame: F.t) =>
-      switch (frame) {
-      | Bi(bidelimited) => ((prefix, suffix), bidelimited)
-      | Uni(unidelimited) =>
-        switch (unidelimited) {
-        | Pre_r(pre, frame) =>
-          go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
-        | Post_l(frame, post) =>
-          go(~prefix, ~suffix=[Tile.Post(post), ...suffix], frame)
-        | Bin_l(frame, bin, r) =>
-          go(
-            ~prefix,
-            ~suffix=[Tile.Bin(bin), ...dissociate(r)] @ suffix,
-            frame,
-          )
-        | Bin_r(l, bin, frame) =>
-          go(
-            ~prefix=prefix @ dissociate(l) @ [Tile.Bin(bin)],
-            ~suffix,
-            frame,
-          )
-        }
-      };
-    go(frame);
+  let disassemble_open_frame = (frame: F.open_) => {
+    let ((prefix, disassembled, suffix), frame) =
+      Input.disassemble_open_frame(~dissociate, frame);
+    let ((outer_prefix, outer_suffix), frame) = dissociate_frame(frame);
+    ((outer_prefix @ prefix, disassembled, suffix @ outer_suffix), frame);
   };
 };

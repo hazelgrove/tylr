@@ -65,7 +65,7 @@ module Input:
       | Arrow => (Unsorted.Tessera.Arrow, []),
     );
 
-  let assemble_open_bidelimited_frame =
+  let assemble_open_frame =
       (
         ~associate as _,
         (_prefix, ts, _suffix):
@@ -75,13 +75,23 @@ module Input:
           ),
         frame: Frame_typ.t,
       )
-      : Frame_typ.bidelimited => {
+      : Frame_typ.open_ => {
     switch (ts) {
     | ((Paren_l, []), (Paren_r, [])) => Paren_body(frame)
     | _ =>
       raise(Invalid_argument("Parser_typ.assemble_open_bidelimited_frame"))
     };
   };
+
+  let disassemble_open_frame = (~dissociate as _, frame: Frame_typ.open_) =>
+    switch (frame) {
+    | Paren_body(frame) =>
+      let ts = (
+        (Unsorted.Tessera.Paren_l, []),
+        (Unsorted.Tessera.Paren_r, []),
+      );
+      (([], ts, []), frame);
+    };
 };
 
 include Parser.Make(Term_typ, Tile_typ, Frame_typ, Input);

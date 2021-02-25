@@ -16,11 +16,12 @@ module type S_INPUT = {
 
   let mk_pointing: Z.pointing => EditState.pointing;
   let mk_edit_state: Z.t => EditState.t;
-  let append_frame: (Z.t, F.bidelimited) => option(Z.t);
 
   let move_into_root: (Direction.t, Tm.t, F.t) => option(EditState.pointing);
   let move_into_frame:
     (Direction.t, Tm.t, F.bidelimited) => option(EditState.pointing);
+
+  let select_into_frame: Z.selecting => option(EditState.selecting);
 };
 
 module Make =
@@ -97,7 +98,7 @@ module Make =
       | [Selection.Tile(tile), ...prefix] =>
         go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
       | [Tessera(open_), ...prefix] =>
-        let (zipper, tail) = go((prefix, suffix));
+        let ((subject, inner_frame), tail) = go((prefix, suffix));
         let (close, tail) = ListUtil.split_first(tail);
         let close = Selection.get_tessera(close);
         let (suffix, tail) =
@@ -107,17 +108,16 @@ module Make =
             | Tessera(_) => false,
             tail,
           );
-        let frame =
-          P.assemble_open_bidelimited_frame((
-            List.rev(rev_prefix),
-            ((open_, []), (close, [])),
-            Selection.get_whole(suffix),
-          ));
-        let zipper =
-          OptUtil.get(
-            () => failwith("blah"),
-            I.append_frame(zipper, frame),
+        let outer_frame =
+          P.assemble_open_frame(
+            (
+              List.rev(rev_prefix),
+              ((open_, []), (close, [])),
+              Selection.get_whole(suffix),
+            ),
+            Root,
           );
+        let zipper = (subject, F.bi_append(inner_frame, Open(outer_frame)));
         (zipper, tail);
       | [] =>
         let (suffix, tail) =
@@ -133,7 +133,7 @@ module Make =
             (),
             Selection.get_whole(suffix),
           )),
-          F.root,
+          F.Root,
         );
         (zipper, tail);
       };
@@ -276,24 +276,22 @@ module Make =
           );
         let (prefix, suffix) =
           TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
-        // TODO need to connect to existing frame
-        let constructed =
+        let (subject, inner_frame) =
           parse_restructured(
             prefix @ ts_before,
             [Selection.Tessera(tessera), ...ts_after] @ ts_after @ suffix,
           );
-        perform(Move(Right), constructed);
+        let frame = F.bi_append(inner_frame, frame);
+        perform(Move(Right), (subject, frame));
       } else {
         switch (ts_before, ts_after) {
         | ([], []) =>
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
-          // TODO need to connect to existing frame
-          Some(
-            I.mk_edit_state(
-              parse_restructured(prefix @ [Tessera(tessera)], suffix),
-            ),
-          );
+          let (subject, inner_frame) =
+            parse_restructured(prefix @ [Tessera(tessera)], suffix);
+          let frame = F.bi_append(inner_frame, frame);
+          Some(I.mk_edit_state((subject, frame)));
         | _ =>
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Either.l), (prefix, suffix));
@@ -319,7 +317,8 @@ module Make =
   and perform_selecting =
       (
         a: t,
-        (prefix, (side, selection), suffix): Subject.selecting(T.t),
+        (prefix, (side, selection), suffix) as selecting:
+          Subject.selecting(T.t),
         frame,
       ) =>
     switch (a) {
@@ -406,7 +405,11 @@ module Make =
         switch (side) {
         | Left =>
           switch (ListUtil.split_last_opt(prefix)) {
-          | None => failwith("todo: move into frame")
+          | None =>
+            Option.map(
+              EditState.of_selecting,
+              I.select_into_frame((selecting, frame)),
+            )
           | Some((leading, Tessera(t))) =>
             let selection =
               Parser_unsorted.assemble_tiles_in_selection([
@@ -432,7 +435,11 @@ module Make =
           }
         | Right =>
           switch (suffix) {
-          | [] => failwith("todo: move into frame")
+          | [] =>
+            Option.map(
+              EditState.of_selecting,
+              I.select_into_frame((selecting, frame)),
+            )
           | [Tessera(t), ...trailing] =>
             let selection =
               Parser_unsorted.assemble_tiles_in_selection(
@@ -509,9 +516,10 @@ module Make =
       let suffix = [Either.R(selection), ...suffix];
       switch (ss_before, ss_after) {
       | ([], []) =>
-        I.mk_edit_state(
-          parse_restructured(flatten(prefix), flatten(suffix)),
-        )
+        let (subject, inner_frame) =
+          parse_restructured(flatten(prefix), flatten(suffix));
+        let frame = F.bi_append(inner_frame, frame);
+        I.mk_edit_state((subject, frame));
       | ([s, ...ss_before], _) =>
         let restructuring = (prefix, ([], s, ss_before @ ss_after), suffix);
         I.mk_edit_state((Restructuring(restructuring), frame));

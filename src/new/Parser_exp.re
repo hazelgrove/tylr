@@ -94,7 +94,7 @@ module Input:
       | BinHole => (Unsorted.Tessera.BinHole, []),
     );
 
-  let assemble_open_bidelimited_frame =
+  let assemble_open_frame =
       (
         ~associate: list(Tile_exp.t) => Term_exp.t,
         (_prefix, ts, suffix):
@@ -104,7 +104,7 @@ module Input:
           ),
         frame: Frame_exp.t,
       )
-      : Frame_exp.bidelimited => {
+      : Frame_exp.open_ => {
     let e = Invalid_argument("Parser_exp.assemble_open_bidelimited_frame");
     switch (ts) {
     | ((Paren_l, []), (Paren_r, [])) => Paren_body(frame)
@@ -115,6 +115,23 @@ module Input:
     | _ => raise(e)
     };
   };
+
+  let disassemble_open_frame = (~dissociate, frame: Frame_exp.open_) =>
+    switch (frame) {
+    | Paren_body(frame) =>
+      let ts = (
+        (Unsorted.Tessera.Paren_l, []),
+        (Unsorted.Tessera.Paren_r, []),
+      );
+      (([], ts, []), frame);
+    | Let_def(p, frame, body) =>
+      let ts = (
+        (Unsorted.Tessera.Let_eq(Parser_pat.dissociate_and_unsort(p)), []),
+        (Unsorted.Tessera.Let_in, []),
+      );
+      (([], ts, dissociate(body)), frame);
+    | Ap_arg(_) => failwith("ap todo")
+    };
 };
 
 include Parser.Make(Term_exp, Tile_exp, Frame_exp, Input);

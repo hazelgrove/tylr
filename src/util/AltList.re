@@ -46,3 +46,9 @@ let map_b = (f: 'b1 => 'b2, (hd, tl): t('a, 'b1)): t('a, 'b2) => (
   hd,
   List.map(((b, a)) => (f(b), a), tl),
 );
+
+let even_to_list = (f: 'x => 'a, g: 'y => 'a, xys: even('x, 'y)) =>
+  xys |> List.map(((x, y)) => [f(x), g(y)]) |> List.flatten;
+
+let odd_to_list = (f: 'x => 'a, g: 'y => 'a, (x, yxs): odd('x, 'y)) =>
+  yxs |> even_to_list(g, f) |> List.cons(f(x));

@@ -1,13 +1,8 @@
 open Util;
-open OptUtil.Syntax;
 
 module Input = {
   let mk_pointing = p => EditState.Exp_p(p);
   let mk_edit_state = z => EditState.Exp(z);
-  let append_frame = ((subj, frm), frame) => {
-    let+ frame = Frame_exp.bidelimited_append_exp(frm, frame);
-    (subj, frame);
-  };
 
   let move_into_root =
       (d: Direction.t, subject: Term_exp.t, frame: Frame_exp.t) => {
@@ -24,24 +19,24 @@ module Input = {
          | Var(_) => None
          | Paren(body) => {
              let subject = mk_pointing(Parser_exp.dissociate(body));
-             let frame = Frame_exp.Paren_body(frame);
+             let frame = Frame_exp.Open(Paren_body(frame));
              Some(EditState.Exp_p((subject, frame)));
            },
          fun
          | (Term_exp.Lam(p), body) => {
              let subject = mk_pointing(Parser_pat.dissociate(p));
-             let frame = Frame_pat.Lam_pat(frame, body);
+             let frame = Frame_pat.Closed(Lam_pat(frame, body));
              Some(EditState.Pat_p((subject, frame)));
            }
          | (Let(p, def), body) =>
            switch (d) {
            | Left =>
              let subject = mk_pointing(Parser_exp.dissociate(def));
-             let frame = Frame_exp.Let_def(p, frame, body);
+             let frame = Frame_exp.Open(Let_def(p, frame, body));
              Some(EditState.Exp_p((subject, frame)));
            | Right =>
              let subject = mk_pointing(Parser_pat.dissociate(p));
-             let frame = Frame_pat.Let_pat(frame, def, body);
+             let frame = Frame_pat.Closed(Let_pat(frame, def, body));
              Some(EditState.Pat_p((subject, frame)));
            },
          fun
@@ -61,15 +56,16 @@ module Input = {
       };
     switch (frame) {
     | Root => None
-    | Paren_body(frame) =>
+    | Closed () => raise(Frame_exp.Void_closed)
+    | Open(Paren_body(frame)) =>
       let tile = Tile.Op(Term_exp.Paren(subject));
       let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
       let subject = escaped_tile(prefix, tile, suffix);
       Some(EditState.Exp_p((subject, frame)));
-    | Let_def(p, frame, body) =>
+    | Open(Let_def(p, frame, body)) =>
       switch (d) {
       | Left =>
-        let frame = Frame_pat.Let_pat(frame, subject, body);
+        let frame = Frame_pat.Closed(Let_pat(frame, subject, body));
         let subject = (Parser_pat.dissociate(p), (), []);
         Some(EditState.Pat_p((subject, frame)));
       | Right =>
@@ -79,7 +75,83 @@ module Input = {
         let subject = escaped_tile(prefix, let_tile, body_tiles @ suffix);
         Some(EditState.Exp_p((subject, frame)));
       }
-    | Ap_arg(_) => failwith("ap todo")
+    | Open(Ap_arg(_)) => failwith("ap todo")
+    };
+  };
+
+  let select_into_frame = ((selecting, frame): Zipper_exp.selecting) => {
+    let (prefix, (side, selection), suffix) = selecting;
+    switch (frame) {
+    | Root => None
+    | Closed () => raise(Frame_exp.Void_closed)
+    | Open(open_) =>
+      // TODO abstract open logic into Action_make
+      let ((outer_prefix, (ts_before, ts_after), outer_suffix), frame) =
+        Parser_exp.disassemble_open_frame(open_);
+      let (outer_prefix, outer_suffix) =
+        TupleUtil.map2(
+          List.map(Selection.tile),
+          (outer_prefix, outer_suffix),
+        );
+      switch (side) {
+      | Left =>
+        // assume prefix empty
+        let (tessera, ts_before) = ts_before;
+        let ts_before =
+          ts_before
+          |> AltList.even_to_list(
+               open_child =>
+                 List.map(Selection.tile, Parser_exp.dissociate(open_child)),
+               tessera => [Tessera(tessera)],
+             )
+          |> List.rev
+          |> List.flatten;
+        let ts_after =
+          ts_after
+          |> AltList.odd_to_list(
+               tessera => [Selection.Tessera(tessera)],
+               open_child =>
+                 List.map(Selection.tile, Parser_exp.dissociate(open_child)),
+             )
+          |> List.flatten;
+        let selection = (
+          Direction.Left,
+          [Selection.Tessera(tessera), ...selection],
+        );
+        let selecting = (
+          outer_prefix @ ts_before,
+          selection,
+          suffix @ ts_after @ outer_suffix,
+        );
+        Some(EditState.Exp_s((selecting, frame)));
+      | Right =>
+        // assume suffix empty
+        let (tessera, ts_after) = ts_after;
+        let ts_after =
+          ts_after
+          |> AltList.even_to_list(
+               open_child =>
+                 List.map(Selection.tile, Parser_exp.dissociate(open_child)),
+               tessera => [Tessera(tessera)],
+             )
+          |> List.flatten;
+        let ts_before =
+          ts_before
+          |> AltList.odd_to_list(
+               tessera => [Selection.Tessera(tessera)],
+               open_child =>
+                 List.map(Selection.tile, Parser_exp.dissociate(open_child)),
+             )
+          |> List.rev
+          |> List.flatten;
+        let selection = (Direction.Right, selection @ [Tessera(tessera)]);
+        let selecting = (
+          outer_prefix @ ts_before @ prefix,
+          selection,
+          ts_after @ outer_suffix,
+        );
+        Some(EditState.Exp_s((selecting, frame)));
+      };
     };
   };
 };
