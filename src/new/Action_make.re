@@ -529,14 +529,18 @@ module Make =
       };
 
     | Move(d) =>
+      let picked_up_all_selections = (prefix, suffix) => {
+        let+ whole_prefix = OptUtil.sequence(List.map(Either.get_L, prefix))
+        and+ whole_suffix = OptUtil.sequence(List.map(Either.get_L, suffix));
+        (whole_prefix, whole_suffix);
+      };
+      let move_via_pointing = (prefix, suffix) => {
+        let+ moved = move_pointing(d, ((prefix, (), suffix), frame));
+        EditState.restructuring_of_pointing(selections, moved);
+      };
       let move_through_tile = (prefix, tile, suffix) => {
-        let prefix_is_all_tiles =
-          OptUtil.sequence(List.map(Either.get_L, prefix));
-        let suffix_is_all_tiles =
-          OptUtil.sequence(List.map(Either.get_L, suffix));
-        switch (prefix_is_all_tiles, suffix_is_all_tiles) {
-        | (None, _)
-        | (_, None) =>
+        switch (picked_up_all_selections(prefix, suffix)) {
+        | None =>
           let tile = Either.L(tile);
           let (prefix, suffix) =
             switch (d) {
@@ -549,14 +553,13 @@ module Make =
               frame,
             )),
           );
-        | (Some(prefix), Some(suffix)) =>
+        | Some((prefix, suffix)) =>
           let (prefix, suffix) =
             switch (d) {
             | Left => (prefix @ [tile], suffix)
             | Right => (prefix, [tile, ...suffix])
             };
-          let+ moved = move_pointing(d, ((prefix, (), suffix), frame));
-          EditState.restructuring_of_pointing(selections, moved);
+          move_via_pointing(prefix, suffix);
         };
       };
       let pick_up_selection = (~prefix=prefix, ~suffix=suffix, selection) => {
@@ -578,7 +581,9 @@ module Make =
       switch (d) {
       | Left =>
         switch (ListUtil.split_last_opt(prefix)) {
-        | None => failwith("todo")
+        | None =>
+          let* (prefix, suffix) = picked_up_all_selections(prefix, suffix);
+          move_via_pointing(prefix, suffix);
         | Some((leading, L(tile))) =>
           move_through_tile(leading, tile, suffix)
         | Some((leading, R(selection))) =>
@@ -586,7 +591,9 @@ module Make =
         }
       | Right =>
         switch (suffix) {
-        | [] => failwith("todo")
+        | [] =>
+          let* (prefix, suffix) = picked_up_all_selections(prefix, suffix);
+          move_via_pointing(prefix, suffix);
         | [L(tile), ...trailing] =>
           move_through_tile(prefix, tile, trailing)
         | [R(selection), ...trailing] =>
