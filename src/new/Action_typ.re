@@ -27,8 +27,10 @@ module Input = {
              let frame = Frame_typ.Paren_body(frame);
              Some(EditState.Typ_p((subject, frame)));
            },
-         (((), _)) => raise(Term_typ.Void_pre),
-         ((_, ())) => raise(Term_typ.Void_post),
+         fun
+         | ((), _) => raise(Term_typ.Void_pre),
+         fun
+         | (_, ()) => raise(Term_typ.Void_post),
          fun
          | (_, Term_typ.BinHole | Arrow, _) => None,
        );
