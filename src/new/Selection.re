@@ -16,6 +16,13 @@ let map_tile = f =>
     | Tile(tile) => Tile(f(tile)),
   );
 
+let to_list = (f_tile, f_tessera) =>
+  List.map(
+    fun
+    | Tile(tile) => f_tile(tile)
+    | Tessera(tessera) => f_tessera(tessera),
+  );
+
 let get_tessera =
   fun
   | Tessera(tessera) => tessera

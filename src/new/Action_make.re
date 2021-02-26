@@ -464,11 +464,18 @@ module Make =
         };
       };
 
-    | Delete(_) =>
+    | Delete(d) =>
       // upgrade tesserae in prefix/suffix into selections
-      // upgrade current selection into list of selections
-      //  and put in restructuring mode, side depending on delete direction
-      failwith("todo")
+      let (prefix, suffix) =
+        TupleUtil.map2(
+          Selection.to_list(Either.l, t => Either.R([Selection.Tessera(t)])),
+          (prefix, suffix),
+        );
+      // upgrade current selection into zlist of selections
+      //  and put in restructuring mode
+      //  TODO side depending on delete direction
+      let subject = Subject.Restructuring((prefix, ([], selection, []), suffix));
+      Some(I.mk_edit_state((subject, frame)));
 
     | Construct(_) =>
       // if current selection not whole:

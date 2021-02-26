@@ -8,6 +8,7 @@ type selecting('tile) =
     Selection.elem('tile),
   );
 
+// TODO add side to focused selection
 type restructuring('tile) =
   ZZList.t(
     ZZList.t(Selection.t(Unsorted.Tile.t) as 's, 's),
