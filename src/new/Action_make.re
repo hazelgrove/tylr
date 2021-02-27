@@ -116,7 +116,8 @@ module Make =
               Selection.get_whole(suffix),
             ),
             Root,
-          );
+          )
+          |> OptUtil.get_or_raise(Invalid_argument("parse_restructured"));
         let zipper = (subject, F.bi_append(inner_frame, Open(outer_frame)));
         (zipper, tail);
       | [] =>
@@ -464,7 +465,7 @@ module Make =
         };
       };
 
-    | Delete(d) =>
+    | Delete(_) =>
       // upgrade tesserae in prefix/suffix into selections
       let (prefix, suffix) =
         TupleUtil.map2(
@@ -474,10 +475,44 @@ module Make =
       // upgrade current selection into zlist of selections
       //  and put in restructuring mode
       //  TODO side depending on delete direction
-      let subject = Subject.Restructuring((prefix, ([], selection, []), suffix));
+      let subject =
+        Subject.Restructuring((prefix, ([], selection, []), suffix));
       Some(I.mk_edit_state((subject, frame)));
 
-    | Construct(_) =>
+    | Construct(shape) =>
+      // TODO unify with hole fixing logic in Parser
+      let fix_prefix = (prefix: list(T.t), t) => {
+        let convex_left = Unsorted.Tessera.is_convex(Left, t);
+        switch (ListUtil.split_last_opt(prefix)) {
+        | None => convex_left ? prefix : [Op(Tm.mk_op_hole())]
+        | Some((leading, Op(op))) when Tm.is_op_hole(op) && convex_left => leading
+        | Some((leading, Bin(bin))) when Tm.is_bin_hole(bin) && !convex_left => leading
+        | Some((_, last)) =>
+          if (Tile.is_convex(Right, last) != convex_left) {
+            prefix;
+          } else if (convex_left) {
+            prefix @ [Tile.Bin(Tm.mk_bin_hole())];
+          } else {
+            prefix @ [Tile.Op(Tm.mk_op_hole())];
+          }
+        };
+      };
+      let fix_suffix = (t, suffix: list(T.t)) => {
+        let convex_right = Unsorted.Tessera.is_convex(Right, t);
+        switch (suffix) {
+        | [] => convex_right ? suffix : [Op(Tm.mk_op_hole())]
+        | [Op(op), ...trailing] when convex_right && Tm.is_op_hole(op) => trailing
+        | [Bin(bin), ...trailing] when !convex_right && Tm.is_bin_hole(bin) => trailing
+        | [first, ..._] =>
+          if (Tile.is_convex(Left, first) != convex_right) {
+            suffix;
+          } else if (convex_right) {
+            suffix @ [Tile.Bin(Tm.mk_bin_hole())];
+          } else {
+            suffix @ [Tile.Op(Tm.mk_op_hole())];
+          }
+        };
+      };
       // if current selection not whole:
       //   fail
       // else:
@@ -490,7 +525,46 @@ module Make =
       //     insert other tesserae and fix empty holes
       //     prepend current level of tiles/tesserae on frame
       //     finish with same selection
-      failwith("todo")
+      let* _ = Selection.is_whole(selection);
+      let (prefix_tiles, suffix_tiles) =
+        TupleUtil.map2(Selection.get_whole, (prefix, suffix));
+      let (ts_before, t, ts_after) = tesserae_of_shape(shape);
+      switch (ts_before) {
+      | [_, ..._] => None
+      | [] =>
+        switch (ts_after) {
+        | [hd, ...tl] =>
+          let frame_prefix = (t, []);
+          let frame_suffix = (
+            hd,
+            List.map(t => (Term.Op(Tm.mk_op_hole()), t), tl),
+          );
+          let prefix_tiles = fix_prefix(prefix_tiles, t);
+          let suffix_tiles = {
+            let last_t =
+              switch (ListUtil.split_last_opt(tl)) {
+              | None => hd
+              | Some((_, last)) => last
+              };
+            fix_suffix(last_t, suffix_tiles);
+          };
+          let+ frame =
+            P.assemble_open_frame(
+              (prefix_tiles, (frame_prefix, frame_suffix), suffix_tiles),
+              frame,
+            );
+          I.mk_edit_state((Selecting(selecting), Open(frame)));
+        | [] =>
+          let tile = P.assemble_tile((t, []));
+          let (prefix, tile, suffix) =
+            [prefix, [Selection.Tile(tile)], suffix]
+            |> P.fix_empty_holes
+            |> List.map(Selection.get_whole)
+            |> ListUtil.take_3;
+          let subject = Subject.Pointing((prefix @ tile, (), suffix));
+          Some(I.mk_edit_state((subject, frame)));
+        }
+      };
     }
   and perform_restructuring =
       (

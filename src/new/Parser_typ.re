@@ -75,11 +75,10 @@ module Input:
           ),
         frame: Frame_typ.t,
       )
-      : Frame_typ.open_ => {
+      : option(Frame_typ.open_) => {
     switch (ts) {
-    | ((Paren_l, []), (Paren_r, [])) => Paren_body(frame)
-    | _ =>
-      raise(Invalid_argument("Parser_typ.assemble_open_bidelimited_frame"))
+    | ((Paren_l, []), (Paren_r, [])) => Some(Paren_body(frame))
+    | _ => None
     };
   };
 

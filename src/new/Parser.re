@@ -22,7 +22,7 @@ module type S_INPUT = {
       ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
       F.t
     ) =>
-    F.open_;
+    option(F.open_);
   let disassemble_open_frame:
     (~dissociate: Tm.t => list(T.t), F.open_) =>
     (ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t), F.t);
@@ -63,7 +63,7 @@ module type S = {
       ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
       F.bidelimited
     ) =>
-    F.open_;
+    option(F.open_);
   let disassemble_open_frame:
     F.open_ =>
     (
@@ -71,6 +71,32 @@ module type S = {
       F.bidelimited,
     );
 };
+
+type hole_patch =
+  | RemoveBoth
+  | RemoveLeft
+  | RemoveRight
+  | InsertOp
+  | InsertBin;
+
+let fix_holes_at_juncture =
+    (
+      ~left_is_hole=false,
+      ~right_is_hole=false,
+      ~left_is_convex: bool,
+      ~right_is_convex: bool,
+      (),
+    )
+    : option(hole_patch) =>
+  if (left_is_convex != right_is_convex) {
+    left_is_hole && right_is_hole ? Some(RemoveBoth) : None;
+  } else if (left_is_hole) {
+    Some(RemoveLeft);
+  } else if (right_is_hole) {
+    Some(RemoveRight);
+  } else {
+    left_is_convex ? Some(InsertBin) : Some(InsertOp);
+  };
 
 // outside of functor for use by unsorted selections
 let assemble_tiles_in_selection =
@@ -337,22 +363,28 @@ module Make =
     | (None, _)
     | (_, []) => (prefix, suffix)
     | (Some((leading, last)), [first, ...trailing]) =>
-      let last_is_convex = is_convex(Right, last);
-      let first_is_convex = is_convex(Left, first);
-      if (last_is_convex != first_is_convex) {
-        is_hole(last) && is_hole(first)
-          ? (leading, trailing) : (prefix, suffix);
-      } else if (is_hole(last)) {
-        (leading, suffix);
-      } else if (is_hole(first)) {
-        (prefix, trailing);
-      } else {
-        let hole =
-          Selection.Tile(
-            last_is_convex ? Bin(Tm.mk_bin_hole()) : Op(Tm.mk_op_hole()),
-          );
-        (prefix, [hole, ...suffix]);
-      };
+      switch (
+        fix_holes_at_juncture(
+          ~left_is_hole=is_hole(last),
+          ~right_is_hole=is_hole(first),
+          ~left_is_convex=is_convex(Right, last),
+          ~right_is_convex=is_convex(Left, first),
+          (),
+        )
+      ) {
+      | None => (prefix, suffix)
+      | Some(RemoveBoth) => (leading, trailing)
+      | Some(RemoveLeft) => (leading, suffix)
+      | Some(RemoveRight) => (prefix, trailing)
+      | Some(InsertOp) => (
+          prefix,
+          [Selection.Tile(Op(Tm.mk_op_hole())), ...suffix],
+        )
+      | Some(InsertBin) => (
+          prefix,
+          [Selection.Tile(Bin(Tm.mk_bin_hole())), ...suffix],
+        )
+      }
     };
 
   let rec fix_empty_holes_end = (~side: Direction.t) =>
@@ -447,7 +479,7 @@ module Make =
           ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
         frame: F.bidelimited,
       )
-      : F.open_ => {
+      : option(F.open_) => {
     let dummy_tile = {
       let dummy_hole = Term.Op(Tm.mk_op_hole());
       assemble_tile(AltList.fill_b_frame(dummy_hole, ts));

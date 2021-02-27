@@ -104,15 +104,15 @@ module Input:
           ),
         frame: Frame_exp.t,
       )
-      : Frame_exp.open_ => {
+      : option(Frame_exp.open_) => {
     let e = Invalid_argument("Parser_exp.assemble_open_bidelimited_frame");
     switch (ts) {
-    | ((Paren_l, []), (Paren_r, [])) => Paren_body(frame)
+    | ((Paren_l, []), (Paren_r, [])) => Some(Paren_body(frame))
     | ((Let_eq(p), []), (Let_in, [])) =>
       let p = OptUtil.get_or_raise(e, Parser_pat.sort_and_associate(p));
       let body = associate(suffix);
-      Let_def(p, frame, body);
-    | _ => raise(e)
+      Some(Let_def(p, frame, body));
+    | _ => None
     };
   };
 
