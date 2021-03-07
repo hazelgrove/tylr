@@ -87,8 +87,6 @@ module Make =
       | Arrow => ([], Arrow, [])
     );
 
-  // focused tessera is the one just constructed if parsing
-  // directly after restructured
   exception Invalid_restructure;
   let parse_restructured =
       (prefix: Selection.t(T.t), suffix: Selection.t(T.t)): Z.t => {
