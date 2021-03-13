@@ -14,14 +14,15 @@ module type S_INPUT = {
   module F: Frame.S with module Tm := Tm;
   module Z: Zipper.S with module Tm := Tm and module T := T and module F := F;
 
-  let mk_pointing: Z.pointing => EditState.pointing;
+  let mk_pointing: Z.pointing => EditState_pointing.t;
   let mk_edit_state: Z.t => EditState.t;
 
-  let move_into_root: (Direction.t, Tm.t, F.t) => option(EditState.pointing);
+  let move_into_root:
+    (Direction.t, Tm.t, F.t) => option(EditState_pointing.t);
   let move_into_frame:
-    (Direction.t, Tm.t, F.bidelimited) => option(EditState.pointing);
+    (Direction.t, Tm.t, F.bidelimited) => option(EditState_pointing.t);
 
-  let select_into_frame: Z.selecting => option(EditState.selecting);
+  let select_into_frame: Z.selecting => option(EditState_selecting.t);
 };
 
 module Make =
@@ -40,13 +41,15 @@ module Make =
        ) => {
   let move_into_tile =
       (d: Direction.t, (prefix, z, suffix): ZZList.t(T.t, T.t), frame: F.t)
-      : option(EditState.pointing) => {
+      : option(EditState_pointing.t) => {
     let n = List.length(prefix);
     let ts = prefix @ [z, ...suffix];
     let rec go = (skel: Skel.t, frame: F.t) => {
       let t = List.nth(ts, Skel.root_index(skel));
-      let move_into_root = () =>
-        I.move_into_root(d, P.term_of_skel(skel, ts), frame);
+      let move_into_root = () => {
+        let (_, term, _) = P.term_of_skel(skel, ts);
+        I.move_into_root(d, term, frame);
+      };
       switch (skel) {
       | Op(m) =>
         assert(n == m);
@@ -60,9 +63,11 @@ module Make =
       | Bin(l, m, r) =>
         let bin = Tile.get_bin(t);
         if (n < m) {
-          go(l, Uni(Bin_l(frame, bin, P.term_of_skel(r, ts))));
+          let (_, r, _) = P.term_of_skel(r, ts);
+          go(l, Uni(Bin_l(frame, bin, r)));
         } else if (n > m) {
-          go(r, Uni(Bin_r(P.term_of_skel(l, ts), bin, frame)));
+          let (_, l, _) = P.term_of_skel(l, ts);
+          go(r, Uni(Bin_r(l, bin, frame)));
         } else {
           move_into_root();
         };
@@ -145,7 +150,7 @@ module Make =
 
   let move_pointing =
       (d: Direction.t, ((prefix, (), suffix), frame): Z.pointing)
-      : option(EditState.pointing) => {
+      : option(EditState_pointing.t) => {
     let j = List.length(prefix);
     let tiles = prefix @ suffix;
     let exit = () =>
@@ -615,7 +620,9 @@ module Make =
       };
       let move_via_pointing = (prefix, suffix) => {
         let+ moved = move_pointing(d, ((prefix, (), suffix), frame));
-        EditState.restructuring_of_pointing(selections, moved);
+        EditState.of_restructuring(
+          EditState_restructuring.of_pointing(selections, moved),
+        );
       };
       let move_through_tile = (prefix, tile, suffix) => {
         switch (picked_up_all_selections(prefix, suffix)) {

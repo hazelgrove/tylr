@@ -1,7 +1,7 @@
 open Util;
 
 module Input = {
-  let mk_pointing = p => EditState.Typ_p(p);
+  let mk_pointing = p => EditState_pointing.Typ(p);
   let mk_edit_state = z => EditState.Typ(z);
 
   let move_into_root =
@@ -20,7 +20,7 @@ module Input = {
          | Paren(body) => {
              let subject = mk_pointing(Parser_typ.dissociate(body));
              let frame = Frame_typ.Open(Paren_body(frame));
-             Some(EditState.Typ_p((subject, frame)));
+             Some(EditState_pointing.Typ((subject, frame)));
            },
          fun
          | ((), _) => raise(Term_typ.Void_pre),
@@ -45,13 +45,13 @@ module Input = {
       let tile = Tile.Op(Term_typ.Paren(subject));
       let ((prefix, suffix), frame) = Parser_typ.dissociate_frame(frame);
       let subject = escaped_tile(prefix, tile, suffix);
-      Some(EditState.Typ_p((subject, frame)));
+      Some(EditState_pointing.Typ((subject, frame)));
     | Closed(Ann_ann(p, frame)) =>
       let p_tiles = Parser_pat.dissociate(p);
       let ann_tile = Tile.Post(Term_pat.Ann(subject));
       let ((prefix, suffix), frame) = Parser_pat.dissociate_frame(frame);
       let subject = escaped_tile(prefix @ p_tiles, ann_tile, suffix);
-      Some(EditState.Pat_p((subject, frame)));
+      Some(EditState_pointing.Pat((subject, frame)));
     };
   };
 
@@ -85,7 +85,7 @@ module Input = {
           (side, [Selection.Tessera(selected_t)]),
           suffix,
         );
-        Some(EditState.Pat_s((selecting, frame)));
+        Some(EditState_selecting.Pat((selecting, frame)));
       };
     | Open(open_) =>
       let ((outer_prefix, (ts_before, ts_after), outer_suffix), frame) =
@@ -125,7 +125,7 @@ module Input = {
           selection,
           suffix @ ts_after @ outer_suffix,
         );
-        Some(EditState.Typ_s((selecting, frame)));
+        Some(EditState_selecting.Typ((selecting, frame)));
       | Right =>
         // assume suffix empty
         let (tessera, ts_after) = ts_after;
@@ -152,7 +152,7 @@ module Input = {
           selection,
           ts_after @ outer_suffix,
         );
-        Some(EditState.Typ_s((selecting, frame)));
+        Some(EditState_selecting.Typ((selecting, frame)));
       };
     };
   };

@@ -1,9 +1,9 @@
 type annot =
-  | Step(Step.t)
   | Tile
   | Tessera
   | OpenChild
-  | Term;
+  | Term
+  | ErrHole;
 
 type t =
   | Text(string)
@@ -26,3 +26,5 @@ let seps =
   fun
   | [] => empty
   | [l, ...ls] => List.fold_left(sep, l, ls);
+
+let err_hole = (has_err: bool, l: t) => has_err ? Annot(ErrHole, l) : l;

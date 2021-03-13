@@ -1,7 +1,7 @@
 open Util;
 
 module Input = {
-  let mk_pointing = p => EditState.Exp_p(p);
+  let mk_pointing = p => EditState_pointing.Exp(p);
   let mk_edit_state = z => EditState.Exp(z);
 
   let move_into_root =
@@ -20,24 +20,24 @@ module Input = {
          | Paren(body) => {
              let subject = mk_pointing(Parser_exp.dissociate(body));
              let frame = Frame_exp.Open(Paren_body(frame));
-             Some(EditState.Exp_p((subject, frame)));
+             Some(EditState_pointing.Exp((subject, frame)));
            },
          fun
          | (Term_exp.Lam(p), body) => {
              let subject = mk_pointing(Parser_pat.dissociate(p));
              let frame = Frame_pat.Closed(Lam_pat(frame, body));
-             Some(EditState.Pat_p((subject, frame)));
+             Some(EditState_pointing.Pat((subject, frame)));
            }
          | (Let(p, def), body) =>
            switch (d) {
            | Left =>
              let subject = mk_pointing(Parser_exp.dissociate(def));
              let frame = Frame_exp.Open(Let_def(p, frame, body));
-             Some(EditState.Exp_p((subject, frame)));
+             Some(EditState_pointing.Exp((subject, frame)));
            | Right =>
              let subject = mk_pointing(Parser_pat.dissociate(p));
              let frame = Frame_pat.Closed(Let_pat(frame, def, body));
-             Some(EditState.Pat_p((subject, frame)));
+             Some(EditState_pointing.Pat((subject, frame)));
            },
          fun
          | (_, Term_exp.Ap(_)) => failwith("ap todo"),
@@ -61,19 +61,19 @@ module Input = {
       let tile = Tile.Op(Term_exp.Paren(subject));
       let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
       let subject = escaped_tile(prefix, tile, suffix);
-      Some(EditState.Exp_p((subject, frame)));
+      Some(EditState_pointing.Exp((subject, frame)));
     | Open(Let_def(p, frame, body)) =>
       switch (d) {
       | Left =>
         let frame = Frame_pat.Closed(Let_pat(frame, subject, body));
         let subject = (Parser_pat.dissociate(p), (), []);
-        Some(EditState.Pat_p((subject, frame)));
+        Some(EditState_pointing.Pat((subject, frame)));
       | Right =>
         let let_tile = Tile.Pre(Term_exp.Let(p, subject));
         let body_tiles = Parser_exp.dissociate(body);
         let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
         let subject = escaped_tile(prefix, let_tile, body_tiles @ suffix);
-        Some(EditState.Exp_p((subject, frame)));
+        Some(EditState_pointing.Exp((subject, frame)));
       }
     | Open(Ap_arg(_)) => failwith("ap todo")
     };
@@ -123,7 +123,7 @@ module Input = {
           selection,
           suffix @ ts_after @ outer_suffix,
         );
-        Some(EditState.Exp_s((selecting, frame)));
+        Some(EditState_selecting.Exp((selecting, frame)));
       | Right =>
         // assume suffix empty
         let (tessera, ts_after) = ts_after;
@@ -150,7 +150,7 @@ module Input = {
           selection,
           ts_after @ outer_suffix,
         );
-        Some(EditState.Exp_s((selecting, frame)));
+        Some(EditState_selecting.Exp((selecting, frame)));
       };
     };
   };

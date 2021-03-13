@@ -1,7 +1,7 @@
 open Util;
 
 module Input = {
-  let mk_pointing = p => EditState.Pat_p(p);
+  let mk_pointing = p => EditState_pointing.Pat(p);
   let mk_edit_state = z => EditState.Pat(z);
 
   let move_into_root =
@@ -19,7 +19,7 @@ module Input = {
          | Paren(body) => {
              let subject = mk_pointing(Parser_pat.dissociate(body));
              let frame = Frame_pat.Open(Paren_body(frame));
-             Some(EditState.Pat_p((subject, frame)));
+             Some(EditState_pointing.Pat((subject, frame)));
            },
          fun
          | ((), _) => raise(Term_pat.Void_pre),
@@ -27,7 +27,7 @@ module Input = {
          | (subj, Term_pat.Ann(ann)) => {
              let subject = mk_pointing(Parser_typ.dissociate(ann));
              let frame = Frame_typ.Closed(Ann_ann(subj, frame));
-             Some(EditState.Typ_p((subject, frame)));
+             Some(EditState_pointing.Typ((subject, frame)));
            },
          fun
          | (_, BinHole, _) => None,
@@ -48,13 +48,13 @@ module Input = {
       let tile = Tile.Op(Term_pat.Paren(subject));
       let ((prefix, suffix), frame) = Parser_pat.dissociate_frame(frame);
       let subject = escaped_tile(prefix, tile, suffix);
-      Some(EditState.Pat_p((subject, frame)));
+      Some(EditState_pointing.Pat((subject, frame)));
     | Closed(Lam_pat(frame, body)) =>
       let lam_tile = Tile.Pre(Term_exp.Lam(subject));
       let body_tiles = Parser_exp.dissociate(body);
       let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
       let subject = escaped_tile(prefix, lam_tile, body_tiles @ suffix);
-      Some(EditState.Exp_p((subject, frame)));
+      Some(EditState_pointing.Exp((subject, frame)));
     | Closed(Let_pat(frame, def, body)) =>
       switch (d) {
       | Left =>
@@ -62,11 +62,11 @@ module Input = {
         let body_tiles = Parser_exp.dissociate(body);
         let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
         let subject = escaped_tile(prefix, let_tile, body_tiles @ suffix);
-        Some(EditState.Exp_p((subject, frame)));
+        Some(EditState_pointing.Exp((subject, frame)));
       | Right =>
         let frame = Frame_exp.Open(Let_def(subject, frame, body));
         let subject = ([], (), Parser_exp.dissociate(def));
-        Some(EditState.Exp_p((subject, frame)));
+        Some(EditState_pointing.Exp((subject, frame)));
       }
     };
   };
@@ -101,7 +101,7 @@ module Input = {
           (side, [Selection.Tessera(selected_t)]),
           body_tiles @ suffix,
         );
-        Some(EditState.Exp_s((selecting, frame)));
+        Some(EditState_selecting.Exp((selecting, frame)));
       | Let_pat(frame, def, body) =>
         let selected_t = Unsorted.Tessera.Let_eq(tiles);
         let def_tiles = Parser_exp.dissociate(def);
@@ -116,7 +116,7 @@ module Input = {
           (side, [Selection.Tessera(selected_t)]),
           def_tiles @ [Selection.Tessera(Let_in)] @ body_tiles @ suffix,
         );
-        Some(EditState.Exp_s((selecting, frame)));
+        Some(EditState_selecting.Exp((selecting, frame)));
       };
     | Open(open_) =>
       let ((outer_prefix, (ts_before, ts_after), outer_suffix), frame) =
@@ -156,7 +156,7 @@ module Input = {
           selection,
           suffix @ ts_after @ outer_suffix,
         );
-        Some(EditState.Pat_s((selecting, frame)));
+        Some(EditState_selecting.Pat((selecting, frame)));
       | Right =>
         // assume suffix empty
         let (tessera, ts_after) = ts_after;
@@ -183,7 +183,7 @@ module Input = {
           selection,
           ts_after @ outer_suffix,
         );
-        Some(EditState.Pat_s((selecting, frame)));
+        Some(EditState_selecting.Pat((selecting, frame)));
       };
     };
   };

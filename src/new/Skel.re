@@ -28,3 +28,18 @@ let rec range =
   | Pre(n, r) => (n, snd(range(r)))
   | Post(l, n) => (fst(range(l)), n + 1)
   | Bin(l, _, r) => (fst(range(l)), snd(range(r)));
+
+let rec skel_at = (n, skel) =>
+  switch (skel) {
+  | Op(m) => n == m ? skel : raise(Invalid_argument("Skel.skel_at"))
+  | Pre(m, r) => n == m ? skel : skel_at(n, r)
+  | Post(l, m) => n == m ? skel : skel_at(n, l)
+  | Bin(l, m, r) =>
+    if (n < m) {
+      skel_at(n, l);
+    } else if (n > m) {
+      skel_at(n, r);
+    } else {
+      skel;
+    }
+  };

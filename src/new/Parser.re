@@ -34,7 +34,7 @@ module type S = {
   module F: Frame.S with module Tm := Tm;
 
   let mk_skel: list(T.t) => Skel.t;
-  let term_of_skel: (Skel.t, list(T.t)) => Tm.t;
+  let term_of_skel: (Skel.t, list(T.t)) => ZZList.t(Tm.t, T.t);
 
   let associate: list(T.t) => Tm.t;
   let dissociate: Tm.t => list(T.t);
@@ -55,6 +55,7 @@ module type S = {
   let assemble_tiles_in_selection: Selection.t(T.t) => Selection.t(T.t);
   let fix_empty_holes: list(Selection.t(T.t)) => list(Selection.t(T.t));
 
+  let associate_frame: ((list(T.t), list(T.t)), F.bidelimited) => F.t;
   let dissociate_frame: F.t => ((list(T.t), list(T.t)), F.bidelimited);
 
   // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
@@ -302,7 +303,10 @@ module Make =
     tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
   };
 
-  let term_of_skel = (skel: Skel.t, ts: tiles): Tm.t => {
+  let term_of_skel = (skel: Skel.t, ts: tiles): ZZList.t(Tm.t, T.t) => {
+    let (a, b) = Skel.range(skel);
+    let prefix = ListUtil.sublist((0, a), ts);
+    let suffix = ListUtil.sublist((b, List.length(ts)), ts);
     let rec go = (skel: Skel.t): Tm.t => {
       let root = List.nth(ts, Skel.root_index(skel));
       switch (skel) {
@@ -312,11 +316,13 @@ module Make =
       | Bin(l, _, r) => Bin(go(l), Tile.get_bin(root), go(r))
       };
     };
-    go(skel);
+    (prefix, go(skel), suffix);
   };
 
-  let associate = (tiles: tiles): Tm.t =>
-    term_of_skel(mk_skel(tiles), tiles);
+  let associate = (tiles: tiles): Tm.t => {
+    let (_, term, _) = term_of_skel(mk_skel(tiles), tiles);
+    term;
+  };
   let rec dissociate = (tm: Tm.t): tiles =>
     switch (tm) {
     | Op(op) => [Op(op)]
@@ -446,6 +452,29 @@ module Make =
     fix_empty_holes_left(fix_empty_holes_right(fixed_between));
   };
 
+  let associate_frame = ((prefix, suffix), frame: F.bidelimited) => {
+    let n = List.length(prefix);
+    let dummy_hole = Tile.Op(Tm.mk_op_hole());
+    let tiles = prefix @ [dummy_hole, ...suffix];
+    let rec go = (skel, frame: F.t) => {
+      let tile = List.nth(tiles, Skel.root_index(skel));
+      switch (skel) {
+      | Skel.Op(_) => frame
+      | Pre(_, r) => go(r, Uni(Pre_r(Tile.get_pre(tile), frame)))
+      | Post(l, _) => go(l, Uni(Post_l(frame, Tile.get_post(tile))))
+      | Bin(l, m, r) =>
+        if (n < m) {
+          let (_, r, _) = term_of_skel(r, tiles);
+          go(l, Uni(Bin_l(frame, Tile.get_bin(tile), r)));
+        } else {
+          let (_, l, _) = term_of_skel(l, tiles);
+          go(r, Uni(Bin_r(l, Tile.get_bin(tile), frame)));
+        }
+      };
+    };
+    go(mk_skel(tiles), Bi(frame));
+  };
+
   let dissociate_frame = (frame: F.t) => {
     let rec go = (~prefix=[], ~suffix=[], frame: F.t) =>
       switch (frame) {
@@ -510,9 +539,11 @@ module Make =
       | Bin(l, m, r) =>
         let bin = Tile.get_bin(t);
         if (n < m) {
-          go(l, Uni(Bin_l(frame, bin, term_of_skel(r, tiles))));
+          let (_, r, _) = term_of_skel(r, tiles);
+          go(l, Uni(Bin_l(frame, bin, r)));
         } else if (n > m) {
-          go(r, Uni(Bin_r(term_of_skel(l, tiles), bin, frame)));
+          let (_, l, _) = term_of_skel(l, tiles);
+          go(r, Uni(Bin_r(l, bin, frame)));
         } else {
           let l = ListUtil.sublist(Skel.range(l), tiles);
           let r = ListUtil.sublist(Skel.range(r), tiles);

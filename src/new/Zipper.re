@@ -6,6 +6,7 @@ module type S = {
   type t = (Subject.t(T.t), F.bidelimited);
   type pointing = (Subject.pointing(T.t), F.bidelimited);
   type selecting = (Subject.selecting(T.t), F.bidelimited);
+  type restructuring = (Subject.restructuring(T.t), F.bidelimited);
 };
 
 /*
