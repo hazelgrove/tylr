@@ -106,6 +106,9 @@ let rec mk_frame =
   go(frame);
 };
 
+let root_tile = root_tile(~sort=Exp);
+let uni_child = uni_child(~sort=Exp);
+
 let rec mk_term =
         (
           ~has_caret: option(CaretPosition.t)=?,
@@ -114,56 +117,97 @@ let rec mk_term =
         )
         : Layout.t => {
   open Term_exp;
-  let has_err = TypeInfo_exp.has_err(info, e);
-  let get_with_grout = (f_op, f_pre, f_post, f_bin) =>
+  let caret = Pointing(info);
+  let has_caret = Option.map(pos => (caret, pos), has_caret);
+  let decorate = (f_op, f_pre, f_post, f_bin) =>
     Term.get(
-      op => grouts([f_op(op)]),
+      op => {
+        let root_tile = root_tile(~shape=Op(Term_exp.is_op_hole(op)));
+        let (op, dangling_caret) = f_op(op);
+        switch (dangling_caret) {
+        | None => grouts([op])
+        | Some(Before) => grouts_z(([], (), [root_tile(op)]))
+        | Some(After) => grouts_z(([root_tile(op)], (), []))
+        };
+      },
       pre => {
-        let (pre, r) = f_pre(pre);
-        cat(grouts_l([pre]), r);
+        let root_tile = root_tile(~shape=Pre());
+        let ((pre, dangling_caret), r) = f_pre(pre);
+        switch (dangling_caret) {
+        | None => cat(grouts_l([pre]), r)
+        | Some(side) =>
+          let r = uni_child(~side=Right, r);
+          switch (side) {
+          | Left => cats([grout(~caret, ()), root_tile(pre), r])
+          | Right =>
+            cat(grouts_l([root_tile(pre)]), place_caret_before(caret, r))
+          };
+        };
       },
       post => {
-        let (l, post) = f_post(post);
-        cat(l, grouts_r([post]));
+        let root_tile = root_tile(~shape=Post());
+        let (l, (post, dangling_caret)) = f_post(post);
+        switch (dangling_caret) {
+        | None => cat(l, grouts_r([post]))
+        | Some(side) =>
+          let l = uni_child(~side=Left, l);
+          switch (side) {
+          | Before =>
+            cat(place_caret_after(caret, l), grouts_r([root_tile(post)]))
+          | After => cats([l, root_tile(post), grout(~caret, ())])
+          };
+        };
       },
       bin => {
-        let (l, bin, r) = f_bin(bin);
-        cats([l, bin, r]);
+        let root_tile = root_tile(~shape=Bin(Term_exp.is_bin_hole(bin)));
+        let (l, (bin, dangling_caret), r) = f_bin(bin);
+        switch (dangling_caret) {
+        | None => cats([l, bin, r])
+        | Some(side) =>
+          let l = uni_child(~side=Left, l);
+          let r = uni_child(~side=Right, r);
+          switch (side) {
+          | Before => cats([place_caret_after(caret, l), root_tile(bin), r])
+          | After => cats([l, root_tile(bin), place_caret_before(r)])
+          };
+        };
       },
     );
-  e
-  |> get_with_grout(
-       fun
-       | OpHole => Text(Unicode.nbsp)
-       | Var(x) => Text(x)
-       | Num(n) => Text(string_of_int(n))
-       | Paren(body) => mk_Paren(mk_term(info, body)),
-       fun
-       | (Lam(p), body) => {
-           let l_p = Layout_pat.mk_term(TypeInfo_exp.lam_pat(info), p);
-           let l_body = mk_term(TypeInfo_exp.lam_body(info, p), body);
-           (mk_Lam(l_p), l_body);
-         }
-       | (Let(p, def), body) => {
-           let l_p = Layout_pat.mk_term(TypeInfo_exp.let_pat(info));
-           let l_def = mk_term(TypeInfo_exp.let_def(info, p), def);
-           let l_body = mk_term(TypeInfo_exp.let_body(info, p, def), body);
-           (mk_Let(l_p, l_def), l_body);
-         },
-       fun
-       | (_, Ap(_)) => failwith("ap todo"),
-       fun
-       | (l, Plus, r) => {
-           let l_l = mk_term(TypeInfo_exp.plus_l(info), l);
-           let l_r = mk_term(TypeInfo_exp.plus_r(info), r);
-           (l_l, mk_Plus(), l_r);
-         }
-       | (l, BinHole, r) => {
-           let l_l = mk_term(TypeInfo_exp.binhole_l(info), l);
-           let l_r = mk_term(TypeInfo_exp.binhole_r(info), r);
-           (l_l, mk_BinHole, l_r);
-         },
-     );
+  let l =
+    e
+    |> decorate(
+         fun
+         | OpHole => mk_OpHole(~has_caret?, ())
+         | Var(x) => mk_text(~has_caret?, x)
+         | Num(n) => mk_text(~has_caret?, string_of_int(n))
+         | Paren(body) => mk_Paren(mk_term(info, body)),
+         fun
+         | (Lam(p), body) => {
+             let l_p = Layout_pat.mk_term(TypeInfo_exp.lam_pat(info), p);
+             let l_body = mk_term(TypeInfo_exp.lam_body(info, p), body);
+             (mk_Lam(l_p), l_body);
+           }
+         | (Let(p, def), body) => {
+             let l_p = Layout_pat.mk_term(TypeInfo_exp.let_pat(info));
+             let l_def = mk_term(TypeInfo_exp.let_def(info, p), def);
+             let l_body = mk_term(TypeInfo_exp.let_body(info, p, def), body);
+             (mk_Let(l_p, l_def), l_body);
+           },
+         fun
+         | (_, Ap(_)) => failwith("ap todo"),
+         fun
+         | (l, Plus, r) => {
+             let l_l = mk_term(TypeInfo_exp.plus_l(info), l);
+             let l_r = mk_term(TypeInfo_exp.plus_r(info), r);
+             (l_l, mk_Plus(), l_r);
+           }
+         | (l, BinHole, r) => {
+             let l_l = mk_term(TypeInfo_exp.binhole_l(info), l);
+             let l_r = mk_term(TypeInfo_exp.binhole_r(info), r);
+             (l_l, mk_BinHole, l_r);
+           },
+       );
+  err_hole(TypeInfo_exp.has_err(info, e), l);
 };
 
 let mk_selection =
