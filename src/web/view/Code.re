@@ -219,3 +219,14 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
     };
   Node.div([Attr.id("code")], vs);
 };
+
+let view_of_layout = (~font_metrics: FontMetrics.t, l: Layout.t) => {
+  let (text, decorations) =
+    l
+    |> Layout.measured_fold(
+         ~text=(_, s) => ([Node.text(s)], []),
+         ~cat=(_, (txt1, ds1), (txt2, ds2)) => (txt1 @ txt2, ds1 @ ds2),
+         ~annot=({start, len}, annot, (txt, ds)) => failwith("todo"),
+       );
+  failwith("todo");
+};

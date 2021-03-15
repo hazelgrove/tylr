@@ -20,6 +20,24 @@ let fn_pos = Fn_pos((_, _) => ());
 
 let of_t' = info => {...info, mode: map_mode(_ => (), info.mode)};
 
+let num_has_err = (info_num: t) =>
+  switch (info_num.mode) {
+  | Syn(_) => false
+  | Ana(ty, _) => !Type.consistent(ty, Num)
+  | Fn_pos(_) => true
+  };
+
+let var_has_err = (x, info_var: t) =>
+  switch (Ctx.find_opt(x, info_var.ctx)) {
+  | None => true
+  | Some(ty) =>
+    switch (info_var.mode) {
+    | Syn(_) => false
+    | Ana(ty', _) => !Type.consistent(ty, ty')
+    | Fn_pos(_) => Option.is_none(Type.matches_arrow(ty))
+    }
+  };
+
 let lam_has_err = (info_lam: t) =>
   switch (info_lam.mode) {
   | Ana(ty, _) => Option.is_none(Type.matches_arrow(ty))
@@ -39,7 +57,7 @@ let lam_pat = (info_lam: t) => {
     };
   TypeInfo_pat.{ctx: info_lam.ctx, mode};
 };
-let lam_body = (info_lam: t, p: Term_pat.t) => {
+let lam_body = (p: Term_pat.t, info_lam: t) => {
   let info_p = lam_pat(info_lam);
   let (_, ctx_body) = Statics_pat.syn(info_p, p);
   let mode_body =

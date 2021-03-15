@@ -148,3 +148,65 @@ let rec mk_term =
            seps([l_l, mk_BinHole(), l_r]);
          },
      );
+
+let shape_of_tessera: Unsorted.Tessera.t => Decoration.Tessera.shape =
+  fun
+  | OpHole
+  | Text(_) => Op()
+  | Lam(_) => Pre(false)
+  | Paren_l
+  | Let_eq(_) => Pre(true)
+  | Ann(_) => Post(false)
+  | Paren_r => Post(true)
+  | BinHole
+  | Plus
+  | Arrow => Bin(false)
+  | Let_in => Bin(true);
+
+let shape_of_tile: Unsorted.Tile.t => Decoration.Tile.shape =
+  fun
+  | Op(OpHole) => Op(true)
+  | Op(_) => Op(false)
+  | Pre(_) => Pre()
+  | Post(_) => Post()
+  | Bin(BinHole) => Bin(true)
+  | Bin(_) => Bin(false);
+
+let mk_selecting =
+    ((prefix, (side, selection), suffix): Subject_exp.selecting) => {
+  let mk_tessera = (selected, tessera) => {
+    let style =
+      Decoration.Tessera.mk_style(~highlighted=true, ~raised=selected, ());
+    Annot(
+      Tessera(shape_of_tessera(tessera), style),
+      Layout_unsorted.mk_tessera(tessera),
+    );
+  };
+  let mk_tile = (selected, tile) => {
+    let style =
+      Decoration.Tile.mk_style(
+        ~highlighted=true,
+        ~show_children=!selected,
+        ~raised=selected,
+        ~sort=Exp,
+        (),
+      );
+    Annot(Tile(shape_of_tile(tile), style), Layout_unsorted.mk_tile(tile));
+  };
+  let mk_affix =
+    List.map(
+      fun
+      | Selection.Tessera(tessera) => mk_tessera(false, tessera)
+      | Tile(tile) => mk_tile(false, tile),
+    );
+  let selection =
+    selection
+    |> List.map(
+         fun
+         | Selection.Tessera(tessera) => mk_tessera(true, tessera)
+         | Tile(tile) => mk_tile(true, tile),
+       );
+  seps(
+    mk_affix(prefix) @ Annot(Selection, seps(selection)) @ mk_affix(suffix),
+  );
+};

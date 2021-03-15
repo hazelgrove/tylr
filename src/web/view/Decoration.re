@@ -406,6 +406,12 @@ module Tessera = {
     style,
   };
 
+  let mk_style = (~stretched=false, ~raised=false, ~highlighted=false, ()) => {
+    stretched,
+    raised,
+    highlighted,
+  };
+
   let extra_tail = 0.2;
 
   let gradient = (id, color, profile) => {
@@ -597,6 +603,8 @@ module Tessera = {
 
 module Tile = {
   [@deriving sexp]
+  type shape = Core.Tile.t(bool, unit, unit, bool);
+  [@deriving sexp]
   type style = {
     sort: option(Sort.t),
     highlighted: bool,
@@ -606,12 +614,12 @@ module Tile = {
   };
   [@deriving sexp]
   type profile = {
-    shape: Core.Tile.t(bool, unit, unit, bool),
+    shape,
+    style,
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
     empty_holes: list(int),
-    style,
   };
 
   let mk_style =
