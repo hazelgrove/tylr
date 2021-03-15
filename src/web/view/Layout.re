@@ -1,24 +1,46 @@
-type annot =
+open Util;
+open New;
+
+type t =
+  | Text(string)
+  | Cat(t, t)
+  | Annot(annot, t)
+and annot =
   | Tile(Decoration.Tile.shape, Decoration.Tile.style)
   | Tessera(Decoration.Tessera.shape, Decoration.Tessera.style)
   | OpenChild
   | ErrHole
   | Delim
-  | Selection;
-
-type t =
-  | Text(string)
-  | Cat(t, t)
-  | Annot(annot, t);
+  | Selection(Decoration.Selection.style)
+  | Grout(option(caret))
+and caret =
+  // TODO generalize to other sorts
+  | Pointing(TypeInfo_exp.t)
+  | Selecting
+  | Restructuring(ZZList.t(t, t));
 
 let empty = Text("");
 let space = Text(Unicode.nbsp);
 
-let sep = (l1, l2) => Cat(Cat(l1, space), l2);
-let seps =
+let cat = (l1, l2) => Cat(l1, l2);
+let cats =
   fun
   | [] => empty
-  | [l, ...ls] => List.fold_left(sep, l, ls);
+  | [l, ...ls] => List.fold_left(cat, l, ls);
+
+let grout = (~caret=?, ()) => Annot(Grout(caret), space);
+let grouts = ls =>
+  ls
+  |> List.map(l => [l, grout()])
+  |> List.flatten
+  |> List.cons(grout())
+  |> cats;
+let grouts_l = ls =>
+  ls |> List.map(l => [grout(), l]) |> List.flatten |> cats;
+let grouts_r = ls =>
+  ls |> List.map(l => [l, grout()]) |> List.flatten |> cats;
+let grouts_z = (ls_pre, caret, ls_suf) =>
+  cats([grouts_l(ls_pre), grout(~caret, ()), grouts_r(ls_suf)]);
 
 let err_hole = (has_err: bool, l: t) => has_err ? Annot(ErrHole, l) : l;
 
@@ -67,11 +89,11 @@ let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
 
 let delim = s => Annot(Delim, Text(s));
 
-let mk_Paren = body => seps([delim("("), body, delim(")")]);
-let mk_Lam = p => seps([delim(Unicode.lam), p, delim(".")]);
+let mk_Paren = body => cats([delim("("), body, delim(")")]);
+let mk_Lam = p => cats([delim(Unicode.lam), p, delim(".")]);
 let mk_Let = (p, def) =>
-  seps([delim("let"), p, delim("="), def, delim("in")]);
-let mk_Ann = ann => seps([delim(":"), ann, delim("")]);
+  cats([delim("let"), p, delim("="), def, delim("in")]);
+let mk_Ann = ann => cats([delim(":"), ann, delim("")]);
 let mk_Plus = () => delim("+");
 let mk_Arrow = () => delim(Unicode.right_arrow);
 let mk_OpHole = () => Text(Unicode.nbsp);

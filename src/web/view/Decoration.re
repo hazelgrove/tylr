@@ -908,6 +908,10 @@ module Tile = {
   };
 };
 
+module Selection = {
+  type style = {tranparent: bool};
+};
+
 module Caret = {
   let action_type = txt =>
     Node.div([Attr.classes(["action-type"])], [Node.text(txt)]);

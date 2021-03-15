@@ -91,3 +91,22 @@ let plus_r = plus_l;
 
 let binhole_l = (info_binhole: t) => {...info_binhole, mode: syn};
 let binhole_r = binhole_l;
+
+let has_err = (info: t) =>
+  Term_exp.(
+    Term.get(
+      fun
+      | OpHole
+      | Paren(_) => false
+      | Var(x) => var_has_err(x, info)
+      | Num(_) => num_has_err(info),
+      fun
+      | (Lam(_), _) => lam_has_err(info)
+      | (Let(_), _) => false,
+      fun
+      | (_, Ap(_)) => failwith("ap todo"),
+      fun
+      | (_, BinHole, _) => false
+      | (_, Plus, _) => plus_has_err(info),
+    )
+  );

@@ -16,7 +16,7 @@ let rec mk_frame =
       let l_p = Layout_pat.mk(info_p, p);
       let (ty_p, ctx_body) = Statics_pat.syn(info_p, p);
       let mode_body: TypeInfo_exp.mode(_) = {
-        let l_lam = l_body => sep(mk_Lam(l_p), l_body);
+        let l_lam = l_body => cat(grouts_l([mk_Lam(l_p)]), l_body);
         switch (info.mode) {
         | Syn(l_frame) =>
           Syn((ty_body, l_body) => l_frame(ty_body, l_lam(l_body)))
@@ -46,16 +46,16 @@ let rec mk_frame =
       let mode_body =
         info.mode
         |> TypeInfo_exp.map_mode(
-             (l_frame, l_subject) =>
-               l_frame(sep(mk_Let(l_p, l_def), l_subject)),
+             (l_frame, l_body) =>
+               l_frame(cat(grouts_l([mk_Let(l_p, l_def)]), l_body)),
              {ctx: ctx_body, mode: mode_body},
            );
-      ();
+      {ctx: ctx_body, mode: mode_body};
     | Post_r(_, Ap(_)) => failwith("ap todo")
     | Bin_l(frame, Plus, r) =>
       let info = mk_frame(frame);
       let l_r = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, r);
-      let l_plus = l_l => sep(l_l, mk_Plus(), l_r);
+      let l_plus = l_l => cats([l_l, mk_Plus(), l_r]);
       let mode_l =
         switch (info.mode) {
         | Syn(l_frame) => Ana(Num, l_l => l_frame(Num, l_plus(l_l)))
@@ -79,7 +79,7 @@ let rec mk_frame =
     | Bin_r(l, Plus, frame) =>
       let info = mk_frame(frame);
       let l_l = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, l);
-      let l_plus = l_r => sep(l_l, mk_Plus(), l_r);
+      let l_plus = l_r => cats([l_l, mk_Plus(), l_r]);
       let mode_r =
         switch (info.mode) {
         | Syn(l_frame) => Ana(Num, l_r => l_frame(Num, l_plus(l_r)))
@@ -112,9 +112,27 @@ let rec mk_term =
           info: TypeInfo_exp.t,
           e: Term_exp.t,
         )
-        : Layout.t =>
+        : Layout.t => {
+  open Term_exp;
+  let has_err = TypeInfo_exp.has_err(info, e);
+  let get_with_grout = (f_op, f_pre, f_post, f_bin) =>
+    Term.get(
+      op => grouts([f_op(op)]),
+      pre => {
+        let (pre, r) = f_pre(pre);
+        cat(grouts_l([pre]), r);
+      },
+      post => {
+        let (l, post) = f_post(post);
+        cat(l, grouts_r([post]));
+      },
+      bin => {
+        let (l, bin, r) = f_bin(bin);
+        cats([l, bin, r]);
+      },
+    );
   e
-  |> Term.get(
+  |> get_with_grout(
        fun
        | OpHole => Text(Unicode.nbsp)
        | Var(x) => Text(x)
@@ -122,91 +140,111 @@ let rec mk_term =
        | Paren(body) => mk_Paren(mk_term(info, body)),
        fun
        | (Lam(p), body) => {
-           let has_err = TypeInfo_exp.lam_has_err(info);
            let l_p = Layout_pat.mk_term(TypeInfo_exp.lam_pat(info), p);
            let l_body = mk_term(TypeInfo_exp.lam_body(info, p), body);
-           err_hole(has_err, sep(mk_Lam(l_p), l_body));
+           (mk_Lam(l_p), l_body);
          }
        | (Let(p, def), body) => {
            let l_p = Layout_pat.mk_term(TypeInfo_exp.let_pat(info));
            let l_def = mk_term(TypeInfo_exp.let_def(info, p), def);
            let l_body = mk_term(TypeInfo_exp.let_body(info, p, def), body);
-           sep(mk_Let(l_p, l_def), l_body);
+           (mk_Let(l_p, l_def), l_body);
          },
        fun
        | (_, Ap(_)) => failwith("ap todo"),
        fun
        | (l, Plus, r) => {
-           let has_err = TypeInfo_exp.plus_has_err(info);
            let l_l = mk_term(TypeInfo_exp.plus_l(info), l);
            let l_r = mk_term(TypeInfo_exp.plus_r(info), r);
-           err_hole(has_err, seps([l_l, mk_Plus(), l_r]));
+           (l_l, mk_Plus(), l_r);
          }
        | (l, BinHole, r) => {
            let l_l = mk_term(TypeInfo_exp.binhole_l(info), l);
            let l_r = mk_term(TypeInfo_exp.binhole_r(info), r);
-           seps([l_l, mk_BinHole(), l_r]);
+           (l_l, mk_BinHole, l_r);
          },
      );
+};
 
-let shape_of_tessera: Unsorted.Tessera.t => Decoration.Tessera.shape =
-  fun
-  | OpHole
-  | Text(_) => Op()
-  | Lam(_) => Pre(false)
-  | Paren_l
-  | Let_eq(_) => Pre(true)
-  | Ann(_) => Post(false)
-  | Paren_r => Post(true)
-  | BinHole
-  | Plus
-  | Arrow => Bin(false)
-  | Let_in => Bin(true);
-
-let shape_of_tile: Unsorted.Tile.t => Decoration.Tile.shape =
-  fun
-  | Op(OpHole) => Op(true)
-  | Op(_) => Op(false)
-  | Pre(_) => Pre()
-  | Post(_) => Post()
-  | Bin(BinHole) => Bin(true)
-  | Bin(_) => Bin(false);
+let mk_selection =
+    (
+      ~style: option(Decoration.Selection.style)=?,
+      ~grouts: list(t) => t,
+      selection,
+    ) => {
+  let mk_tessera = selected =>
+    Layout_unsorted.mk_tessera(
+      ~style=
+        Decoration.Tessera.mk_style(~highlighted=true, ~raised=selected, ()),
+    );
+  let mk_tile = selected =>
+    Layout_unsorted.mk_tile(
+      ~style=
+        Decoration.Tile.mk_style(
+          ~highlighted=selected,
+          ~show_children=!selected,
+          ~raised=selected,
+          ~sort=?selected ? None : Some(Exp),
+          (),
+        ),
+    );
+  let selection =
+    grouts(
+      Selection.to_list(mk_tile(selected), mk_tessera(selected), selection),
+    );
+  switch (style) {
+  | None => selection
+  | Some(style) => Annot(Selection(style), selection)
+  };
+};
 
 let mk_selecting =
-    ((prefix, (side, selection), suffix): Subject_exp.selecting) => {
-  let mk_tessera = (selected, tessera) => {
-    let style =
-      Decoration.Tessera.mk_style(~highlighted=true, ~raised=selected, ());
-    Annot(
-      Tessera(shape_of_tessera(tessera), style),
-      Layout_unsorted.mk_tessera(tessera),
-    );
-  };
-  let mk_tile = (selected, tile) => {
-    let style =
-      Decoration.Tile.mk_style(
-        ~highlighted=true,
-        ~show_children=!selected,
-        ~raised=selected,
-        ~sort=Exp,
-        (),
-      );
-    Annot(Tile(shape_of_tile(tile), style), Layout_unsorted.mk_tile(tile));
+    ((prefix, (side, selection), suffix): Subject.selecting(Tile_exp.t)) => {
+  let prefix = mk_selection(~grouts=grouts_l, prefix);
+  let selection =
+    mk_selection(~grouts, ~style={transparent: false}, selection);
+  let suffix = mk_selection(~grouts=grouts_r, suffix);
+  let caret = caret(Selecting);
+  let (prefix, selection) =
+    switch (side) {
+    | Left => (Cat(prefix, caret), selection)
+    | Right => (prefix, Cat(selection, caret))
+    };
+  seps([prefix, selection, suffix]);
+};
+
+let mk_restructuring =
+    ((prefix, selections, suffix): Subject.restructuring(Tile_exp.t)) => {
+  let picked_up_all_selections = {
+    let whole_prefix = OptUtil.sequence(List.map(Either.get_L, prefix))
+    and whole_suffix = OptUtil.sequence(List.map(Either.get_L, suffix));
+    Option.is_some(whole_prefix) && Option.is_some(whole_suffix);
   };
   let mk_affix =
     List.map(
       fun
-      | Selection.Tessera(tessera) => mk_tessera(false, tessera)
-      | Tile(tile) => mk_tile(false, tile),
+      | Either.L(tile) =>
+        Layout_unsorted.mk_tile(
+          ~style=
+            Decoration.Tile.mk_style(
+              ~show_children=picked_up_all_selections,
+              ~sort=Exp,
+              (),
+            ),
+          tile,
+        )
+      | R(selection) =>
+        mk_selection(~style={transparent: false}, selection),
     );
-  let selection =
-    selection
-    |> List.map(
-         fun
-         | Selection.Tessera(tessera) => mk_tessera(true, tessera)
-         | Tile(tile) => mk_tile(true, tile),
-       );
-  seps(
-    mk_affix(prefix) @ Annot(Selection, seps(selection)) @ mk_affix(suffix),
-  );
+  let caret = {
+    let mk_tranparent_selections =
+      List.map(mk_selection(~style={transparent: true}));
+    let (before, selection, after) = selections;
+    Restructuring((
+      mk_transparent_selections(before),
+      mk_selection(~style={transparent: false}, selection),
+      mk_transparent_selections(after),
+    ));
+  };
+  grout_z(mk_affix(prefix), caret, mk_affix(suffix));
 };
