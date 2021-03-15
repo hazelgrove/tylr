@@ -56,13 +56,14 @@ let mk_tessera = (style, tessera: Unsorted.Tessera.t): t => {
     | OpHole => mk_OpHole()
     | BinHole => mk_BinHole()
     | Text(s) => Text(s)
-    | Lam(p) => mk_Lam(mk_tiles(p))
-    | Ann(ann) => mk_Ann(mk_tiles(ann))
+    | Lam(p) => mk_Lam(closed_child(mk_tiles(p)))
+    | Ann(ann) => mk_Ann(closed_child(mk_tiles(ann)))
     | Plus => mk_Plus()
     | Arrow => mk_Arrow()
     | Paren_l => delim("(")
     | Paren_r => delim(")")
-    | Let_eq(p) => cats([delim("let"), mk_tiles(p), delim("=")])
+    | Let_eq(p) =>
+      cats([delim("let"), closed_child(mk_tiles(p)), delim("=")])
     | Let_in => delim("in")
     };
   Annot(Tessera(shape_of_tessera(tessera), style), l);
