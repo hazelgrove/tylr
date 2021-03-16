@@ -2,8 +2,13 @@ open Util;
 open Core;
 open Layout;
 
-let root_tile = root_tile(~sort=Exp);
 let uni_child = uni_child(~sort=Exp);
+
+let root_tile = (~has_caret, ~shape, l) =>
+  switch (has_caret) {
+  | None => l
+  | Some(_) => root_tile(~sort=Exp, ~shape, l)
+  };
 
 let rec mk_term =
         (
@@ -18,54 +23,54 @@ let rec mk_term =
   let decorate = (f_op, f_pre, f_post, f_bin) =>
     Term.get(
       op => {
-        let root_tile = root_tile(~shape=Op(Term_exp.is_op_hole(op)));
+        let is_op_hole = Term_exp.is_op_hole(op);
         let (op, dangling_caret) = f_op(op);
+        let op = root_tile(~has_caret, ~shape=Op(is_op_hole), op);
         switch (dangling_caret) {
         | None => grouts([op])
-        | Some(Direction.Left) => grouts_z([], caret, [root_tile(op)])
-        | Some(Right) => grouts_z([root_tile(op)], caret, [])
+        | Some(Direction.Left) => grouts_z([], caret, [op])
+        | Some(Right) => grouts_z([op], caret, [])
         };
       },
       ((pre, r)) => {
-        let root_tile = root_tile(~shape=Pre());
         let ((pre, dangling_caret), r) = f_pre((pre, r));
+        let pre = root_tile(~has_caret, ~shape=Pre(), pre);
         switch (dangling_caret) {
         | None => cat(grouts_l([pre]), r)
         | Some(side) =>
           let r = uni_child(~side=Right, r);
           switch ((side: Direction.t)) {
-          | Direction.Left => cats([grout(~caret, ()), root_tile(pre), r])
-          | Right =>
-            cat(grouts_l([root_tile(pre)]), place_caret(Left, caret, r))
+          | Direction.Left => cats([grout(~caret, ()), pre, r])
+          | Right => cat(grouts_l([pre]), place_caret(Left, caret, r))
           };
         };
       },
       ((l, post)) => {
-        let root_tile = root_tile(~shape=Post());
         let (l, (post, dangling_caret)) = f_post((l, post));
+        let post = root_tile(~has_caret, ~shape=Post(), post);
         switch (dangling_caret) {
         | None => cat(l, grouts_r([post]))
         | Some(side) =>
           let l = uni_child(~side=Left, l);
           switch (side) {
           | Direction.Left =>
-            cat(place_caret(Right, caret, l), grouts_r([root_tile(post)]))
-          | Right => cats([l, root_tile(post), grout(~caret, ())])
+            cat(place_caret(Right, caret, l), grouts_r([post]))
+          | Right => cats([l, post, grout(~caret, ())])
           };
         };
       },
       ((l, bin, r)) => {
-        let root_tile = root_tile(~shape=Bin(Term_exp.is_bin_hole(bin)));
+        let is_bin_hole = Term_exp.is_bin_hole(bin);
         let (l, (bin, dangling_caret), r) = f_bin((l, bin, r));
+        let bin = root_tile(~has_caret, ~shape=Bin(is_bin_hole), bin);
         switch (dangling_caret) {
         | None => cats([l, bin, r])
         | Some(side) =>
           let l = uni_child(~side=Left, l);
           let r = uni_child(~side=Right, r);
           switch (side) {
-          | Direction.Left =>
-            cats([place_caret(Right, caret, l), root_tile(bin), r])
-          | Right => cats([l, root_tile(bin), place_caret(Left, caret, r)])
+          | Direction.Left => cats([place_caret(Right, caret, l), bin, r])
+          | Right => cats([l, bin, place_caret(Left, caret, r)])
           };
         };
       },
