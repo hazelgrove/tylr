@@ -103,7 +103,7 @@ let logo = (~font_metrics) => {
         ),
       ])
     );
-  Code.view_of_layout(~id="logo", ~font_metrics, l);
+  Code.view_of_layout(~id="logo", ~text_id="logo-text", ~font_metrics, l);
 };
 
 let filters =

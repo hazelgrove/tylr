@@ -40,7 +40,8 @@ let tile_holes =
         },
   );
 
-let rec view_of_layout = (~id=?, ~font_metrics: FontMetrics.t, l: Layout.t) => {
+let rec view_of_layout =
+        (~id=?, ~text_id=?, ~font_metrics: FontMetrics.t, l: Layout.t) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let (text, decorations) =
     l
@@ -140,9 +141,9 @@ let rec view_of_layout = (~id=?, ~font_metrics: FontMetrics.t, l: Layout.t) => {
            },
        );
   let attrs =
-    switch (id) {
+    fun
     | None => []
-    | Some(id) => [Attr.id(id)]
-    };
-  Node.div(attrs, text @ decorations);
+    | Some(id) => [Attr.id(id)];
+  let text = Node.span(attrs(text_id), text);
+  Node.div(attrs(id), [text, ...decorations]);
 };
