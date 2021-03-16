@@ -25,7 +25,12 @@ let rec mk_term =
       op => {
         let is_op_hole = Term_exp.is_op_hole(op);
         let (op, dangling_caret) = f_op(op);
-        let op = root_tile(~has_caret, ~shape=Op(is_op_hole), op);
+        let op =
+          root_tile(
+            ~has_caret,
+            ~shape=Op(is_op_hole),
+            is_op_hole ? empty_hole(op) : op,
+          );
         switch (dangling_caret) {
         | None => grouts([op])
         | Some(Direction.Left) => grouts_z([], caret, [op])
@@ -62,7 +67,12 @@ let rec mk_term =
       ((l, bin, r)) => {
         let is_bin_hole = Term_exp.is_bin_hole(bin);
         let (l, (bin, dangling_caret), r) = f_bin((l, bin, r));
-        let bin = root_tile(~has_caret, ~shape=Bin(is_bin_hole), bin);
+        let bin =
+          root_tile(
+            ~has_caret,
+            ~shape=Bin(is_bin_hole),
+            is_bin_hole ? empty_hole(bin) : bin,
+          );
         switch (dangling_caret) {
         | None => cats([l, bin, r])
         | Some(side) =>

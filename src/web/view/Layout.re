@@ -76,6 +76,8 @@ let uni_child = (~sort, ~side) => annot(UniChild(sort, side));
 let open_child = annot(OpenChild);
 let closed_child = annot(ClosedChild);
 
+let empty_hole = annot(EmptyHole);
+
 let root_tile = (~shape, ~sort) =>
   annot(
     Tile(
