@@ -147,6 +147,7 @@ let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
         [
           Code.view_of_layout(
             ~id="code",
+            ~text_id="code-text",
             ~font_metrics,
             Layout_edit_state.mk(edit_state),
           ),
