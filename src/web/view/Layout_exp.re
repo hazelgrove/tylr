@@ -207,7 +207,8 @@ let rec mk_term =
              (l_l, mk_BinHole, l_r);
            },
        );
-  err_hole(TypeInfo_exp.has_err(info, e), l);
+  TypeInfo_exp.has_err(info, e)
+    ? Annot(ErrHole(Option.is_some(has_caret)), l) : l;
 };
 
 let mk_selection =

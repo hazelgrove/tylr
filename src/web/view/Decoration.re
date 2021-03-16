@@ -261,7 +261,7 @@ module EmptyHole = {
   };
 };
 
-module OpenChild = {
+module UniChild = {
   type profile = {
     sort: Sort.t,
     side: Direction.t,

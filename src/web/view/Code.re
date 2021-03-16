@@ -49,8 +49,7 @@ let view_of_normal = (~font_metrics, path, e) => {
     let root_tile = view_of_tile(~font_metrics, root_tile);
     let open_children =
       open_children
-      |> List.map(
-           ((offset, Decoration.OpenChild.{side, len, _} as profile)) => {
+      |> List.map(((offset, Decoration.UniChild.{side, len, _} as profile)) => {
            Decoration.container(
              ~font_metrics,
              ~length=len + 1,
@@ -60,7 +59,7 @@ let view_of_normal = (~font_metrics, path, e) => {
                | Right => offset - 1
                },
              ~cls="open-child",
-             Decoration.OpenChild.view(profile),
+             Decoration.UniChild.view(profile),
            )
          });
     [root_tile, ...open_children];
@@ -220,13 +219,134 @@ let view = (~font_metrics: FontMetrics.t, edit_state: EditState.t) => {
   Node.div([Attr.id("code")], vs);
 };
 
-let view_of_layout = (~font_metrics: FontMetrics.t, l: Layout.t) => {
+open New;
+
+let tessera_children =
+  Layout.measured_fold'(
+    ~text=(_, _) => [],
+    ~cat=_ => (@),
+    ~annot=
+      (_k, {start, len}, annot, _l) =>
+        switch (annot) {
+        | ClosedChild => [(start, len)]
+        | _ => []
+        },
+  );
+
+let tile_children =
+  Layout.measured_fold'(
+    ~text=(_, _) => ([], []),
+    ~cat=
+      (_, (open1, closed1), (open2, closed2)) =>
+        (open1 @ open2, closed1 @ closed2),
+    ~annot=
+      (_k, {start, len}, annot, _l) =>
+        switch (annot) {
+        | OpenChild => ([(start, len)], [])
+        | ClosedChild => ([], [(start, len)])
+        | _ => ([], [])
+        },
+  );
+let tile_holes =
+  Layout.measured_fold(
+    ~text=(_, _) => [],
+    ~cat=_ => (@),
+    ~annot=
+      ({start, _}, annot, holes) =>
+        switch (annot) {
+        | EmptyHole => [start, ...holes]
+        | _ => holes
+        },
+  );
+
+let rec view_of_layout = (~font_metrics: FontMetrics.t, l: Layout.t) => {
+  let with_cls = cls => Node.span([Attr.classes([cls])]);
+  let d_container = Decoration.container(~font_metrics);
   let (text, decorations) =
     l
-    |> Layout.measured_fold(
+    |> Layout.measured_fold'(
          ~text=(_, s) => ([Node.text(s)], []),
          ~cat=(_, (txt1, ds1), (txt2, ds2)) => (txt1 @ txt2, ds1 @ ds2),
-         ~annot=({start, len}, annot, (txt, ds)) => failwith("todo"),
+         ~annot=
+           (k, {start, len}, annot, l) => {
+             let (txt, ds) = k(l);
+             let d_container =
+               Decoration.container(
+                 ~font_metrics,
+                 ~origin=start,
+                 ~length=len,
+               );
+             switch (annot) {
+             | Delim => ([with_cls("delim", txt)], ds)
+             | UniChild(sort, side) =>
+               let d =
+                 d_container(
+                   ~cls="uni-child",
+                   Decoration.UniChild.view({sort, side, len}),
+                 );
+               (txt, [d, ...ds]);
+             | Tessera(shape, style) =>
+               let closed_children = tessera_children(l);
+               let d =
+                 d_container(
+                   ~cls="tessera",
+                   Decoration.Tessera.view({
+                     shape,
+                     style,
+                     closed_children,
+                     len,
+                   }),
+                 );
+               (txt, [d, ...ds]);
+             | Tile(shape, style) =>
+               let empty_holes = tile_holes(l);
+               let (open_children, closed_children) = tile_children(l);
+               let d =
+                 d_container(
+                   ~cls="tile",
+                   Decoration.Tile.view({
+                     shape,
+                     style,
+                     len,
+                     open_children,
+                     closed_children,
+                     empty_holes,
+                   }),
+                 );
+               (txt, [d, ...ds]);
+             | EmptyHole =>
+               let d =
+                 d_container(
+                   ~cls="empty-hole",
+                   Decoration.EmptyHole.view(~font_metrics, ~inset=None, ()),
+                 );
+               (txt, [d, ...ds]);
+             | ErrHole(expanded) =>
+               let d =
+                 d_container(
+                   ~cls="err-hole",
+                   Decoration.ErrHole.view({expanded, len}),
+                 );
+               (txt, [d, ...ds]);
+             | Selection(style) =>
+               let d =
+                 d_container(
+                   ~cls="selection",
+                   Decoration.Selection.view(style, len),
+                 );
+               (txt, [d, ...ds]);
+             | Grout(Some(caret)) =>
+               let d =
+                 d_container(
+                   ~cls="caret",
+                   Decoration.Caret.view(~view_of_layout, start, caret),
+                 );
+               ();
+             | Grout(None)
+             | OpenChild
+             | ClosedChild => (txt, ds)
+             };
+           },
        );
   failwith("todo");
 };

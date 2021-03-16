@@ -14,7 +14,7 @@ and annot =
   | Tile(Decoration.Tile.shape, Decoration.Tile.style)
   | Grout(option(caret))
   | EmptyHole
-  | ErrHole
+  | ErrHole(bool)
   | Selection(Decoration.Selection.style)
 and caret =
   // TODO generalize to other sorts
@@ -66,7 +66,7 @@ let grouts_r = ls =>
 let grouts_z = (ls_pre, caret, ls_suf) =>
   cats([grouts_l(ls_pre), grout(~caret, ()), grouts_r(ls_suf)]);
 
-let err_hole = (has_err: bool, l: t) => has_err ? Annot(ErrHole, l) : l;
+// let err_hole = (has_err: bool, l: t) => has_err ? Annot(ErrHole, l) : l;
 
 let length = {
   let rec go =

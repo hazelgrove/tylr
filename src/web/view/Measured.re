@@ -4,7 +4,7 @@ open Core;
 // TODO unify
 let space = 1;
 
-type open_child_profile = (int, Decoration.OpenChild.profile);
+type open_child_profile = (int, Decoration.UniChild.profile);
 type tile_profile = (int, Decoration.Tile.profile);
 type tile_profiles = list(tile_profile);
 
@@ -209,7 +209,7 @@ module Common =
           ),
       );
     let open_child_profile = (side, len) =>
-      Decoration.OpenChild.{sort: T.sort, side, len};
+      Decoration.UniChild.{sort: T.sort, side, len};
     Tile.get(
       op => ((0, profile_of_tile(Op(op))), []),
       ((pre, r)) => {
