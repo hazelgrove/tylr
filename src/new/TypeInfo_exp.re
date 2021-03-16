@@ -75,9 +75,13 @@ let lam_body = (p: Term_pat.t, info_lam: t) => {
 
 let let_pat = (info_let: t) =>
   TypeInfo_pat.{ctx: info_let.ctx, mode: TypeInfo_pat.syn};
-let let_def = (info_let: t, p: Term_pat.t) => {
+let let_def = (p: Term_pat.t, info_let: t) => {
   let (ty_p, _) = Statics_pat.syn(let_pat, p);
   {ctx: info_let.ctx, mode: ana(ty_p)};
+};
+let let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t) => {
+  let ctx_body = Statics_exp.extend_ctx_let_body(info_let.ctx, p, def);
+  {...info_let, ctx: ctx_body};
 };
 
 let plus_has_err = (info_plus: t) =>

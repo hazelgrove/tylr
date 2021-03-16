@@ -1,8 +1,8 @@
 open Sexplib.Std;
 open Virtual_dom.Vdom;
 
-module Sort = Core.Sort;
-module Direction = Core.Direction;
+module Sort = New.Sort;
+module Direction = New.Direction;
 
 let tip_width = 0.3;
 let child_border_thickness = 0.1;
@@ -393,23 +393,11 @@ let closed_child_path = ((start, len)) =>
   );
 
 module Tessera = {
-  type style = {
-    highlighted: bool,
-    stretched: bool,
-    raised: bool,
-  };
-  type shape = Core.Tile.t(unit, bool, bool, (bool, bool));
   type profile = {
-    shape,
+    shape: Layout.tessera_shape,
     len: int,
     closed_children: list((int, int)),
-    style,
-  };
-
-  let mk_style = (~stretched=false, ~raised=false, ~highlighted=false, ()) => {
-    stretched,
-    raised,
-    highlighted,
+    style: Layout.tessera_style,
   };
 
   let extra_tail = 0.2;
@@ -603,46 +591,21 @@ module Tessera = {
 
 module Tile = {
   [@deriving sexp]
-  type shape = Core.Tile.t(bool, unit, unit, bool);
-  [@deriving sexp]
-  type style = {
-    sort: option(Sort.t),
-    highlighted: bool,
-    show_children: bool,
-    raised: bool,
-    stretched: bool,
-  };
-  [@deriving sexp]
   type profile = {
-    shape,
-    style,
+    shape: Layout.tile_shape,
+    style: Layout.tile_style,
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
     empty_holes: list(int),
   };
 
-  let mk_style =
-      (
-        ~highlighted=false,
-        ~show_children=false,
-        ~raised=false,
-        ~stretched=false,
-        ~sort=?,
-        (),
-      ) => {
-    sort,
-    highlighted,
-    show_children,
-    raised,
-    stretched,
-  };
   let mk_profile =
       (
         ~open_children=[],
         ~closed_children=[],
         ~empty_holes=[],
-        ~style=mk_style(),
+        ~style=Layout.mk_tile_style(),
         ~len,
         ~shape,
         (),
@@ -909,7 +872,7 @@ module Tile = {
 };
 
 module Selection = {
-  type style = {tranparent: bool};
+  let view = (_, _) => failwith("selection todo");
 };
 
 module Caret = {
@@ -977,7 +940,13 @@ module Caret = {
       ),
     );
 
-  let view = (~font_metrics: FontMetrics.t, offset: int, _) =>
+  let view =
+      (
+        ~font_metrics: FontMetrics.t,
+        ~view_of_layout as _: Layout.t => Node.t,
+        offset: int,
+        _,
+      ) =>
     Node.div(
       [
         Attr.id("caret"),

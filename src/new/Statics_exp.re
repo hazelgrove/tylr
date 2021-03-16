@@ -1,4 +1,4 @@
-let extend_let_body_ctx = (_, _, _) => failwith("todo");
+let extend_ctx_let_body = (_, _, _) => failwith("todo");
 
 /*
  open Term_exp;

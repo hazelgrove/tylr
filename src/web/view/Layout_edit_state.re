@@ -64,6 +64,7 @@ let mk = (edit_state: EditState.t) =>
   | Pat((Pointing(pointing), frame)) => mk_pointing(Pat((pointing, frame)))
   | Exp((Pointing(pointing), frame)) => mk_pointing(Exp((pointing, frame)))
   | Typ((Selecting(_) | Restructuring(_), _))
-  | Pat((Selecting(_) | Restructuring(_), _)) => failwith("todo")
+  | Pat((Selecting(_) | Restructuring(_), _))
+  | Exp((Selecting(_) | Restructuring(_), _)) => failwith("todo")
   // | Exp((Selecting(selecting), frame)) =>
   };

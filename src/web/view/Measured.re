@@ -200,7 +200,7 @@ module Common =
     let profile_of_tile =
       profile_of_tile(
         ~style=
-          Decoration.Tile.mk_style(
+          Layout.mk_tile_style(
             ~highlighted=true,
             ~show_children=true,
             ~raised=true,
@@ -266,9 +266,7 @@ module Common =
   let selecting_tiles = (((steps_l, j_l), (steps_r, j_r)), ts) => {
     let tile_profiles = (~sort=?) => {
       let highlighted = Option.is_none(sort);
-      tile_profiles(
-        ~style=Decoration.Tile.mk_style(~highlighted, ~sort?, ()),
-      );
+      tile_profiles(~style=Layout.mk_tile_style(~highlighted, ~sort?, ()));
     };
     switch (steps_l, steps_r) {
     | ([], []) =>
@@ -381,8 +379,7 @@ module Common =
       let (selected_tiles, _) = selecting_tiles(selection, ts);
       let target_tiles =
         tile_profiles_at(
-          ~style=
-            Decoration.Tile.mk_style(~show_children=true, ~sort=T.sort, ()),
+          ~style=Layout.mk_tile_style(~show_children=true, ~sort=T.sort, ()),
           fst(target),
           ts,
         );

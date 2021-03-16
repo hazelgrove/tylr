@@ -90,11 +90,7 @@ let focus_code = () => {
 let logo = (~font_metrics) => {
   let tile = Code.view_of_tile(~font_metrics);
   let style =
-    Decoration.Tile.mk_style(
-      ~highlighted=true,
-      ~raised=true,
-      ~stretched=true,
-    );
+    Layout.mk_tile_style(~highlighted=true, ~raised=true, ~stretched=true);
   let profile = Decoration.Tile.mk_profile(~len=1);
   let t_profile =
     profile(~style=style(~sort=Exp, ()), ~shape=Op(false), ());
@@ -171,7 +167,7 @@ let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
           }),
           ...key_handlers(~inject, ~edit_state),
         ],
-        [Code.view(~font_metrics, edit_state)],
+        [Code.view(~font_metrics, Layout_edit_state.mk(edit_state))],
       ),
     ],
   );

@@ -1,5 +1,47 @@
+open Sexplib.Std;
 open Util;
 open New;
+
+[@deriving sexp]
+type tile_shape = Tile.t(bool, unit, unit, bool);
+[@deriving sexp]
+type tile_style = {
+  sort: option(Sort.t),
+  highlighted: bool,
+  show_children: bool,
+  raised: bool,
+  stretched: bool,
+};
+let mk_tile_style =
+    (
+      ~highlighted=false,
+      ~show_children=false,
+      ~raised=false,
+      ~stretched=false,
+      ~sort=?,
+      (),
+    ) => {
+  sort,
+  highlighted,
+  show_children,
+  raised,
+  stretched,
+};
+
+type tessera_shape = Tile.t(unit, bool, bool, (bool, bool));
+type tessera_style = {
+  highlighted: bool,
+  stretched: bool,
+  raised: bool,
+};
+let mk_tessera_style =
+    (~stretched=false, ~raised=false, ~highlighted=false, ()) => {
+  stretched,
+  raised,
+  highlighted,
+};
+
+type selection_style = {transparent: bool};
 
 type t =
   | Text(string)
@@ -10,17 +52,19 @@ and annot =
   | UniChild(Sort.t, Direction.t)
   | OpenChild
   | ClosedChild
-  | Tessera(Decoration.Tessera.shape, Decoration.Tessera.style)
-  | Tile(Decoration.Tile.shape, Decoration.Tile.style)
+  | Tessera(tessera_shape, tessera_style)
+  | Tile(tile_shape, tile_style)
   | Grout(option(caret))
   | EmptyHole
   | ErrHole(bool)
-  | Selection(Decoration.Selection.style)
+  | Selection(selection_style)
 and caret =
   // TODO generalize to other sorts
   | Pointing(TypeInfo_exp.t)
   | Selecting
   | Restructuring(ZZList.t(t, t));
+
+type frame = t => t;
 
 let empty = Text("");
 let space = Text(Unicode.nbsp);
@@ -36,7 +80,7 @@ let root_tile = (~shape, ~sort) =>
   annot(
     Tile(
       shape,
-      Decoration.Tile.mk_style(
+      mk_tile_style(
         ~highlighted=true,
         ~show_children=true,
         ~raised=true,
@@ -66,7 +110,8 @@ let grouts_r = ls =>
 let grouts_z = (ls_pre, caret, ls_suf) =>
   cats([grouts_l(ls_pre), grout(~caret, ()), grouts_r(ls_suf)]);
 
-// let err_hole = (has_err: bool, l: t) => has_err ? Annot(ErrHole, l) : l;
+let err_hole = (has_err: bool, expanded: bool, l: t) =>
+  has_err ? Annot(ErrHole(expanded), l) : l;
 
 let length = {
   let rec go =
@@ -116,11 +161,11 @@ let place_caret_after = (_, _) => failwith("todo");
 
 type with_dangling_caret = (t, option(Direction.t));
 
-let place_caret_0 =
+let place_caret_0: option((caret, CaretPosition.t)) => option(Direction.t) =
   Option.map(
     fun
-    | CaretPosition.Before(_) => Direction.Left
-    | After => Right,
+    | (_, CaretPosition.Before(_)) => Direction.Left
+    | (_, After) => Right,
   );
 let place_caret_1 = (has_caret, child1) =>
   switch (has_caret) {
@@ -198,4 +243,4 @@ let mk_BinHole = (~has_caret=?, ()) => (
   place_caret_0(has_caret),
 );
 
-let mk_text = (~has_caret=?, s, ()) => (Text(s), place_caret_0(has_caret));
+let mk_text = (~has_caret=?, s) => (Text(s), place_caret_0(has_caret));
