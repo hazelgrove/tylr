@@ -121,17 +121,11 @@ let rec view_of_layout =
                (txt, [d, ...ds]);
              | Grout(Some(caret)) =>
                let d =
-                 d_container(
-                   ~cls="caret",
-                   [
-                     Decoration.Caret.view(
-                       ~font_metrics,
-                       ~view_of_layout=
-                         view_of_layout(~id=?None, ~font_metrics),
-                       start,
-                       caret,
-                     ),
-                   ],
+                 Decoration.Caret.view(
+                   ~font_metrics,
+                   ~view_of_layout=view_of_layout(~id=?None, ~font_metrics),
+                   start,
+                   caret,
                  );
                (txt, [d, ...ds]);
              | Grout(None)
