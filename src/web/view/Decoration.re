@@ -633,38 +633,33 @@ module Tile = {
         [
           Attr.id(id),
           Attr.create("gradientUnits", "userSpaceOnUse"),
-          Attr.create("x1", string_of_int(start - 1)),
+          Attr.create("x1", string_of_int(start)),
           // TODO unify with space
-          Attr.create("x2", string_of_int(start + len + 1)),
+          Attr.create("x2", string_of_int(start + len)),
         ],
         NodeUtil.[
           stop(
             AttrUtil.[
-              // TODO unify with space
-              offset(0.6 /. Float.of_int(len + 2)),
+              offset(0.6 /. Float.of_int(len)),
               stop_color(color),
               stop_opacity("0"),
             ],
           ),
           stop(
             AttrUtil.[
-              offset(1.25 /. Float.of_int(len + 2)),
+              offset(1.25 /. Float.of_int(len)),
               stop_color(color),
             ],
           ),
           stop(
             AttrUtil.[
-              offset(
-                (Float.of_int(len + 2) -. 1.25) /. Float.of_int(len + 2),
-              ),
+              offset((Float.of_int(len) -. 1.25) /. Float.of_int(len)),
               stop_color(color),
             ],
           ),
           stop(
             AttrUtil.[
-              offset(
-                (Float.of_int(len + 2) -. 0.6) /. Float.of_int(len + 2),
-              ),
+              offset((Float.of_int(len) -. 0.6) /. Float.of_int(len)),
               stop_color(color),
               stop_opacity("0"),
             ],
@@ -688,8 +683,8 @@ module Tile = {
                  create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
                ],
              [
-               M({x: Float.of_int(start - 1), y: 0.}),
-               H_({dx: Float.of_int(len + 2)}),
+               M({x: Float.of_int(start), y: 0.}),
+               H_({dx: Float.of_int(len)}),
              ],
            ),
          ];
@@ -731,14 +726,10 @@ module Tile = {
         profile.open_children
         |> List.map(((start, len)) =>
              List.concat([
-               [H({x: Float.of_int(start - 1) +. tip_width})],
+               [H({x: Float.of_int(start) +. tip_width})],
                tr_bl(),
                tl_br(~child_border=`South, ()),
-               [
-                 H_({dx: 0.5}),
-                 H_({dx: Float.of_int(len)}),
-                 H_({dx: 0.5}),
-               ],
+               [H_({dx: Float.of_int(len - 1)})],
                bl_tr(~child_border=`South, ()),
                br_tl(),
              ])
