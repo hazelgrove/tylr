@@ -950,6 +950,7 @@ module Caret = {
         ),
       ],
       [
+        Node.div([Attr.id("caret-bar")], []),
         Node.div(
           [Attr.id("action-table")],
           List.concat([
