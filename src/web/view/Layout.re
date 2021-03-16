@@ -156,7 +156,17 @@ let measured_fold' =
 let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~start);
 
-let place_caret = (_: Direction.t, _, _) => failwith("todo");
+let rec place_caret = (d: Direction.t, caret, l) =>
+  switch (l) {
+  | Text(_) => l
+  | Cat(l1, l2) =>
+    switch (d) {
+    | Left => Cat(place_caret(d, caret, l1), l2)
+    | Right => Cat(l1, place_caret(d, caret, l2))
+    }
+  | Annot(Grout(_), l) => Annot(Grout(Some(caret)), l)
+  | Annot(annot, l) => Annot(annot, place_caret(d, caret, l))
+  };
 
 type with_dangling_caret = (t, option(Direction.t));
 
