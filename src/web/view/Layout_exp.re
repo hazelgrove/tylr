@@ -220,7 +220,22 @@ let mk_frame =
     | Bin_l(_, BinHole, _)
     | Bin_r(_, BinHole, _) => failwith("binhole todo")
     }
-  and go_bidelimited = (_: Frame_exp.bidelimited) => failwith("todo");
+  and go_bidelimited = (bi: Frame_exp.bidelimited) =>
+    switch (bi) {
+    | Root => TypeInfo_exp.{ctx: Ctx.empty, mode: Syn((_, l) => l)}
+    | Closed () => raise(Frame_exp.Void_closed)
+    | Open(Paren_body(frame)) =>
+      let info = go(frame);
+      {
+        ...info,
+        mode:
+          TypeInfo_exp.map_mode(
+            (l_frame, l_body) => l_frame(grouts([fst(mk_Paren(l_body))])),
+            info.mode,
+          ),
+      };
+    | Open(_) => failwith("go_bidelimited todo")
+    };
   go(frame);
 };
 
