@@ -127,7 +127,7 @@ let mk_frame =
       let info: TypeInfo_exp.t'(Layout.frame) = go(frame);
       let info_p = TypeInfo_exp.(lam_pat(of_t'(info)));
       let l_p = Layout_pat.mk_term(info_p, p);
-      let (ty_p, ctx_body) = Statics_pat.syn(info_p, p);
+      let (ty_p, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
       let mode_body: TypeInfo_exp.mode(_) = {
         let l_lam = l_body => cat(grouts_l([fst(mk_Lam(l_p))]), l_body);
         switch (info.mode) {
@@ -152,11 +152,11 @@ let mk_frame =
       let info_p = TypeInfo_pat.{ctx: info.ctx, mode: syn};
       let l_p = Layout_pat.mk_term(info_p, p);
       let l_def = {
-        let (p_ty, _) = Statics_pat.syn(info_p, p);
+        let (p_ty, _) = TypeInfo_pat.synthesize(info_p, p);
         let info_def = TypeInfo_exp.{ctx: info.ctx, mode: Ana(p_ty, ())};
         mk_term(info_def, def);
       };
-      let ctx_body = Statics_exp.extend_ctx_let_body(info.ctx, p, def);
+      let ctx_body = TypeInfo_exp.extend_ctx_let_body(info.ctx, p, def);
       let mode_body =
         info.mode
         |> TypeInfo_exp.map_mode((l_frame, l_body) =>

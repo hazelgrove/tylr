@@ -9,3 +9,5 @@ and mode('a) =
 type t = t'(unit);
 let syn = Syn((_, _) => ());
 let ana = ty => Ana(ty, _ => ());
+
+let synthesize = (_, _) => failwith("todo TypeInfo_pat.synthesize");

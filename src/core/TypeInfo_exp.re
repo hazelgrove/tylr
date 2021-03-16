@@ -59,7 +59,7 @@ let lam_pat = (info_lam: t) => {
 };
 let lam_body = (p: Term_pat.t, info_lam: t) => {
   let info_p = lam_pat(info_lam);
-  let (_, ctx_body) = Statics_pat.syn(info_p, p);
+  let (_, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
   let mode_body =
     switch (info_lam.mode) {
     | Syn(_)
@@ -73,14 +73,16 @@ let lam_body = (p: Term_pat.t, info_lam: t) => {
   {ctx: ctx_body, mode: mode_body};
 };
 
+let extend_ctx_let_body = (_, _, _) => failwith("todo extend_ctx_let_body");
+
 let let_pat = (info_let: t) =>
   TypeInfo_pat.{ctx: info_let.ctx, mode: TypeInfo_pat.syn};
 let let_def = (p: Term_pat.t, info_let: t) => {
-  let (ty_p, _) = Statics_pat.syn(let_pat, p);
+  let (ty_p, _) = TypeInfo_pat.synthesize(let_pat, p);
   {ctx: info_let.ctx, mode: ana(ty_p)};
 };
 let let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t) => {
-  let ctx_body = Statics_exp.extend_ctx_let_body(info_let.ctx, p, def);
+  let ctx_body = extend_ctx_let_body(info_let.ctx, p, def);
   {...info_let, ctx: ctx_body};
 };
 
@@ -114,3 +116,37 @@ let has_err = (info: t) =>
       | (_, Plus, _) => plus_has_err(info),
     )
   );
+
+let rec synthesize = (info: t, e: Term_exp.t) => {
+  open Term_exp;
+  let ty_under_info = ty =>
+    switch (info.mode) {
+    | Syn(_) => ty
+    | Ana(ty', _) => Type.consistent(ty, ty') ? ty : Hole
+    | Fn_pos(_) => Option.is_some(Type.matches_arrow(ty)) ? ty : Hole
+    };
+  e
+  |> Term.get(
+       fun
+       | OpHole => Type.Hole
+       | Num(_) => ty_under_info(Num)
+       | Var(x) =>
+         switch (Ctx.find_opt(x, info.ctx)) {
+         | None => Hole
+         | Some(ty) => ty_under_info(ty)
+         }
+       | Paren(body) => synthesize(info, body),
+       fun
+       | (Lam(p), body) => {
+           let (ty_in, _) = TypeInfo_pat.synthesize(lam_pat(info), p);
+           let ty_out = synthesize(lam_body(p, info), body);
+           ty_under_info(Arrow(ty_in, ty_out));
+         }
+       | (Let(p, def), body) => synthesize(let_body(p, def, info), body),
+       fun
+       | (_, Ap(_)) => failwith("ap todo"),
+       fun
+       | (_, BinHole, _) => Hole
+       | (_, Plus, _) => ty_under_info(Num),
+     );
+};

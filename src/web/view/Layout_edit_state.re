@@ -6,7 +6,7 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
           (~caret=CaretPosition.Before(0), pointing: EditState_pointing.t) =>
     switch (pointing) {
     | Typ(_)
-    | Pat(_) => failwith("todo")
+    | Pat(_) => failwith("todo Layout_edit_state.mk_pointing")
     | Exp(((prefix, (), []), frame)) =>
       let subject = Parser_exp.associate(prefix);
       switch (frame) {
@@ -49,12 +49,14 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
       let l_term = Layout_exp.mk_term(~has_caret=caret, info_term, term);
       switch (l_frame.mode) {
       | Syn(l_frame) =>
-        let ty = Statics_exp.syn(info_term, term);
+        let ty = TypeInfo_exp.synthesize(info_term, term);
         l_frame(ty, l_term);
       | Ana(_, l_frame) => l_frame(l_term)
       | Fn_pos(l_frame) =>
         let (ty_in, ty_out) =
-          Option.get(Type.matches_arrow(Statics_exp.syn(info_term, term)));
+          Option.get(
+            Type.matches_arrow(TypeInfo_exp.synthesize(info_term, term)),
+          );
         l_frame(ty_in, ty_out, l_term);
       };
     };
@@ -68,6 +70,7 @@ let mk = (edit_state: EditState.t) =>
   | Exp((Pointing(pointing), frame)) => mk_pointing(Exp((pointing, frame)))
   | Typ((Selecting(_) | Restructuring(_), _))
   | Pat((Selecting(_) | Restructuring(_), _))
-  | Exp((Selecting(_) | Restructuring(_), _)) => failwith("todo")
+  | Exp((Selecting(_) | Restructuring(_), _)) =>
+    failwith("todo Layout_edit_state.mk")
   // | Exp((Selecting(selecting), frame)) =>
   };
