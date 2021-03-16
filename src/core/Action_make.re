@@ -288,11 +288,18 @@ module Make =
           );
         let (prefix, suffix) =
           TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
+        let (prefix, ts_before, tessera, ts_after, suffix) =
+          [
+            prefix,
+            ts_before,
+            [Selection.Tessera(tessera)],
+            ts_after,
+            suffix,
+          ]
+          |> P.fix_empty_holes
+          |> ListUtil.take_5;
         let (subject, inner_frame) =
-          parse_restructured(
-            prefix @ ts_before,
-            [Selection.Tessera(tessera), ...ts_after] @ ts_after @ suffix,
-          );
+          parse_restructured(prefix @ ts_before, tessera @ ts_after @ suffix);
         let frame = F.bi_append(inner_frame, frame);
         perform(Move(Right), (subject, frame));
       } else {
@@ -300,8 +307,12 @@ module Make =
         | ([], []) =>
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
+          let (prefix, tessera, suffix) =
+            [prefix, [Selection.Tessera(tessera)], suffix]
+            |> P.fix_empty_holes
+            |> ListUtil.take_3;
           let (subject, inner_frame) =
-            parse_restructured(prefix @ [Tessera(tessera)], suffix);
+            parse_restructured(prefix @ tessera, suffix);
           let frame = F.bi_append(inner_frame, frame);
           Some(I.mk_edit_state((subject, frame)));
         | _ =>
@@ -610,6 +621,7 @@ module Make =
       | ([], []) =>
         let+ prefix = flatten(prefix)
         and+ suffix = flatten(suffix);
+        // TODO fix empty holes
         let (subject, inner_frame) = parse_restructured(prefix, suffix);
         let frame = F.bi_append(inner_frame, frame);
         I.mk_edit_state((subject, frame));
