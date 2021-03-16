@@ -127,136 +127,134 @@ let rec mk_term =
     ? Annot(ErrHole(Option.is_some(has_caret)), l) : l;
 };
 
-let mk_frame =
-    (~show_err_holes: bool, frame: Frame_exp.t)
-    : TypeInfo_exp.t'(Layout.frame) => {
-  let rec go = (frame: Frame_exp.t) =>
-    switch (frame) {
-    | Uni(uni) => go_unidelimited(uni)
-    | Bi(bi) => go_bidelimited(bi)
-    }
-  and go_unidelimited = (uni: Frame_exp.unidelimited) =>
-    switch (uni) {
-    | Pre_r(Lam(p), frame) =>
-      let info: TypeInfo_exp.t'(Layout.frame) = go(frame);
-      let info_p = TypeInfo_exp.(lam_pat(of_t'(info)));
-      let l_p = Layout_pat.mk_term(info_p, p);
-      let (ty_p, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
-      let mode_body: TypeInfo_exp.mode(_) = {
-        let l_lam = l_body => cat(grouts_l([fst(mk_Lam(l_p))]), l_body);
-        switch (info.mode) {
-        | Syn(l_frame) =>
-          Syn((ty_body, l_body) => l_frame(ty_body, l_lam(l_body)))
-        | Fn_pos(l_frame) =>
-          Syn((ty_body, l_body) => l_frame(ty_p, ty_body, l_lam(l_body)))
-        | Ana(ty, l_frame) =>
-          switch (Type.matches_arrow(ty)) {
-          | None =>
-            Syn(
-              (_ty_body, l_body) =>
-                l_frame(Annot(ErrHole(true), l_lam(l_body))),
-            )
-          | Some((_, ty_out)) => Ana(ty_out, l_frame)
-          }
-        };
+let rec mk_frame =
+        (~show_err_holes: bool, frame: Frame_exp.t)
+        : TypeInfo_exp.t'(Layout.frame) =>
+  switch (frame) {
+  | Uni(uni) => mk_uniframe(~show_err_holes, uni)
+  | Bi(bi) => mk_biframe(~show_err_holes, bi)
+  }
+and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
+  switch (uni) {
+  | Pre_r(Lam(p), frame) =>
+    let info: TypeInfo_exp.t'(Layout.frame) =
+      mk_frame(~show_err_holes, frame);
+    let info_p = TypeInfo_exp.(lam_pat(of_t'(info)));
+    let l_p = Layout_pat.mk_term(info_p, p);
+    let (ty_p, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
+    let mode_body: TypeInfo_exp.mode(_) = {
+      let l_lam = l_body => cat(grouts_l([fst(mk_Lam(l_p))]), l_body);
+      switch (info.mode) {
+      | Syn(l_frame) =>
+        Syn((ty_body, l_body) => l_frame(ty_body, l_lam(l_body)))
+      | Fn_pos(l_frame) =>
+        Syn((ty_body, l_body) => l_frame(ty_p, ty_body, l_lam(l_body)))
+      | Ana(ty, l_frame) =>
+        switch (Type.matches_arrow(ty)) {
+        | None =>
+          Syn(
+            (_ty_body, l_body) =>
+              l_frame(Annot(ErrHole(true), l_lam(l_body))),
+          )
+        | Some((_, ty_out)) => Ana(ty_out, l_frame)
+        }
       };
-      {ctx: ctx_body, mode: mode_body};
-    | Pre_r(Let(p, def), frame) =>
-      let info = go(frame);
-      let info_p = TypeInfo_pat.{ctx: info.ctx, mode: syn};
-      let l_p = Layout_pat.mk_term(info_p, p);
-      let l_def = {
-        let (p_ty, _) = TypeInfo_pat.synthesize(info_p, p);
-        let info_def = TypeInfo_exp.{ctx: info.ctx, mode: Ana(p_ty, ())};
-        mk_term(info_def, def);
-      };
-      let ctx_body = TypeInfo_exp.extend_ctx_let_body(info.ctx, p, def);
-      let mode_body =
-        info.mode
-        |> TypeInfo_exp.map_mode((l_frame, l_body) =>
-             l_frame(cat(grouts_l([fst(mk_Let(l_p, l_def))]), l_body))
-           );
-      {ctx: ctx_body, mode: mode_body};
-    | Post_l(_, Ap(_)) => failwith("ap todo")
-    | Bin_l(frame, Plus, r) =>
-      let info = go(frame);
-      let l_r = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, r);
-      let l_plus = l_l => cats([l_l, fst(mk_Plus()), l_r]);
-      let mode_l: TypeInfo_exp.mode(_) =
-        switch (info.mode) {
-        | Syn(l_frame) => Ana(Num, l_l => l_frame(Num, l_plus(l_l)))
-        | Ana(ty, l_frame) =>
-          Ana(
-            Num,
-            l_l =>
-              err_hole(
-                show_err_holes && !Type.consistent(ty, Num),
-                true,
-                l_frame(l_plus(l_l)),
-              ),
-          )
-        | Fn_pos(l_frame) =>
-          Ana(
-            Num,
-            l_l =>
-              err_hole(
-                show_err_holes,
-                true,
-                l_frame(Hole, Hole, l_plus(l_l)),
-              ),
-          )
-        };
-      {...info, mode: mode_l};
-    | Bin_r(l, Plus, frame) =>
-      let info = go(frame);
-      let l_l = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, l);
-      let l_plus = l_r => cats([l_l, fst(mk_Plus()), l_r]);
-      let mode_r: TypeInfo_exp.mode(_) =
-        switch (info.mode) {
-        | Syn(l_frame) => Ana(Num, l_r => l_frame(Num, l_plus(l_r)))
-        | Ana(ty, l_frame) =>
-          Ana(
-            Num,
-            l_r =>
-              err_hole(
-                show_err_holes && !Type.consistent(ty, Num),
-                true,
-                l_frame(l_plus(l_r)),
-              ),
-          )
-        | Fn_pos(l_frame) =>
-          Ana(
-            Num,
-            l_r =>
-              err_hole(
-                show_err_holes,
-                true,
-                l_frame(Hole, Hole, l_plus(l_r)),
-              ),
-          )
-        };
-      {...info, mode: mode_r};
-    | Bin_l(_, BinHole, _)
-    | Bin_r(_, BinHole, _) => failwith("binhole todo")
-    }
-  and go_bidelimited = (bi: Frame_exp.bidelimited) =>
-    switch (bi) {
-    | Root => TypeInfo_exp.{ctx: Ctx.empty, mode: Syn((_, l) => l)}
-    | Closed () => raise(Frame_exp.Void_closed)
-    | Open(Paren_body(frame)) =>
-      let info = go(frame);
-      {
-        ...info,
-        mode:
-          TypeInfo_exp.map_mode(
-            (l_frame, l_body) => l_frame(grouts([fst(mk_Paren(l_body))])),
-            info.mode,
-          ),
-      };
-    | Open(_) => failwith("go_bidelimited todo")
     };
-  go(frame);
-};
+    {ctx: ctx_body, mode: mode_body};
+  | Pre_r(Let(p, def), frame) =>
+    let info = mk_frame(~show_err_holes, frame);
+    let info_p = TypeInfo_pat.{ctx: info.ctx, mode: syn};
+    let l_p = Layout_pat.mk_term(info_p, p);
+    let l_def = {
+      let (p_ty, _) = TypeInfo_pat.synthesize(info_p, p);
+      let info_def = TypeInfo_exp.{ctx: info.ctx, mode: Ana(p_ty, ())};
+      mk_term(info_def, def);
+    };
+    let ctx_body = TypeInfo_exp.extend_ctx_let_body(info.ctx, p, def);
+    let mode_body =
+      info.mode
+      |> TypeInfo_exp.map_mode((l_frame, l_body) =>
+           l_frame(cat(grouts_l([fst(mk_Let(l_p, l_def))]), l_body))
+         );
+    {ctx: ctx_body, mode: mode_body};
+  | Post_l(_, Ap(_)) => failwith("ap todo")
+  | Bin_l(frame, Plus, r) =>
+    let info = mk_frame(~show_err_holes, frame);
+    let l_r = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, r);
+    let l_plus = l_l => cats([l_l, fst(mk_Plus()), l_r]);
+    let mode_l: TypeInfo_exp.mode(_) =
+      switch (info.mode) {
+      | Syn(l_frame) => Ana(Num, l_l => l_frame(Num, l_plus(l_l)))
+      | Ana(ty, l_frame) =>
+        Ana(
+          Num,
+          l_l =>
+            err_hole(
+              show_err_holes && !Type.consistent(ty, Num),
+              true,
+              l_frame(l_plus(l_l)),
+            ),
+        )
+      | Fn_pos(l_frame) =>
+        Ana(
+          Num,
+          l_l =>
+            err_hole(
+              show_err_holes,
+              true,
+              l_frame(Hole, Hole, l_plus(l_l)),
+            ),
+        )
+      };
+    {...info, mode: mode_l};
+  | Bin_r(l, Plus, frame) =>
+    let info = mk_frame(~show_err_holes, frame);
+    let l_l = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, l);
+    let l_plus = l_r => cats([l_l, fst(mk_Plus()), l_r]);
+    let mode_r: TypeInfo_exp.mode(_) =
+      switch (info.mode) {
+      | Syn(l_frame) => Ana(Num, l_r => l_frame(Num, l_plus(l_r)))
+      | Ana(ty, l_frame) =>
+        Ana(
+          Num,
+          l_r =>
+            err_hole(
+              show_err_holes && !Type.consistent(ty, Num),
+              true,
+              l_frame(l_plus(l_r)),
+            ),
+        )
+      | Fn_pos(l_frame) =>
+        Ana(
+          Num,
+          l_r =>
+            err_hole(
+              show_err_holes,
+              true,
+              l_frame(Hole, Hole, l_plus(l_r)),
+            ),
+        )
+      };
+    {...info, mode: mode_r};
+  | Bin_l(_, BinHole, _)
+  | Bin_r(_, BinHole, _) => failwith("binhole todo")
+  }
+and mk_biframe = (~show_err_holes, bi: Frame_exp.bidelimited) =>
+  switch (bi) {
+  | Root => TypeInfo_exp.{ctx: Ctx.empty, mode: Syn((_, l) => l)}
+  | Closed () => raise(Frame_exp.Void_closed)
+  | Open(Paren_body(frame)) =>
+    let info = mk_frame(~show_err_holes, frame);
+    {
+      ...info,
+      mode:
+        TypeInfo_exp.map_mode(
+          (l_frame, l_body) => l_frame(grouts([fst(mk_Paren(l_body))])),
+          info.mode,
+        ),
+    };
+  | Open(_) => failwith("go_bidelimited todo")
+  };
 
 // TODO clean up function args
 let mk_selection =

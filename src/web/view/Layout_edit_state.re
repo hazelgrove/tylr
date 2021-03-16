@@ -63,14 +63,25 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
   go(pointing);
 };
 
+let mk_framed_subject = (l_subject, l_frame: TypeInfo_exp.t'(Layout.frame)) =>
+  switch (l_frame.mode) {
+  | Syn(l_frame) => l_frame(Hole, l_subject)
+  | Ana(_, l_frame) => l_frame(l_subject)
+  | Fn_pos(l_frame) => l_frame(Hole, Hole, l_subject)
+  };
+
 let mk = (edit_state: EditState.t) =>
   switch (edit_state) {
   | Typ((Pointing(pointing), frame)) => mk_pointing(Typ((pointing, frame)))
   | Pat((Pointing(pointing), frame)) => mk_pointing(Pat((pointing, frame)))
   | Exp((Pointing(pointing), frame)) => mk_pointing(Exp((pointing, frame)))
   | Typ((Selecting(_) | Restructuring(_), _))
-  | Pat((Selecting(_) | Restructuring(_), _))
-  | Exp((Selecting(_) | Restructuring(_), _)) =>
+  | Pat((Selecting(_) | Restructuring(_), _)) =>
     failwith("todo Layout_edit_state.mk")
-  // | Exp((Selecting(selecting), frame)) =>
+  | Exp((Selecting(selecting), frame)) =>
+    let l_frame = Layout_exp.mk_biframe(~show_err_holes=false, frame);
+    let l_selecting = Layout_exp.mk_selecting(selecting);
+    mk_framed_subject(l_selecting, l_frame);
+  | Exp((Restructuring(_), _)) =>
+    failwith("todo Layout_edit_state restructuring")
   };
