@@ -117,6 +117,9 @@ let has_err = (info: t) =>
     )
   );
 
+// synthesize(info, e) where info.mode == Syn  ==>  (same as normal syn)
+// synthesize(info, e) where info.mode == Ana(ty, _)  ==>  ty' consistent with ty (ty' same as normal syn after ana_fix_holes)
+// synthesize(info, e) where info.mode == Fn_pos(_)  ==>  ty' s.t. Option.is_some(Type.matches_arrow(ty')) (ty' same as normal syn after syn_fix_holes + matched_arrow fix)
 let rec synthesize = (info: t, e: Term_exp.t) => {
   open Term_exp;
   let ty_under_info = ty =>
@@ -149,4 +152,11 @@ let rec synthesize = (info: t, e: Term_exp.t) => {
        | (_, BinHole, _) => Hole
        | (_, Plus, _) => ty_under_info(Num),
      );
+};
+
+let ap_fn = (info_ap: t) => {ctx: info_ap.ctx, mode: fn_pos};
+let ap_arg = (fn, info_ap: t) => {
+  let fn_ty = synthesize(ap_fn(info_ap), fn);
+  let (ty_in, _) = Option.get(Type.matches_arrow(fn_ty));
+  {ctx: info_ap.ctx, mode: ana(ty_in)};
 };

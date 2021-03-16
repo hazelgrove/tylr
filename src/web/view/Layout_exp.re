@@ -96,7 +96,11 @@ let rec mk_term =
              (mk_Let(~has_caret?, l_p, l_def), l_body);
            },
          fun
-         | (_, Ap(_)) => failwith("ap todo"),
+         | (fn, Ap(arg)) => {
+             let _l_fn = mk_term(TypeInfo_exp.ap_fn(info), fn);
+             let _l_arg = mk_term(TypeInfo_exp.ap_arg(fn, info), arg);
+             failwith("ap todo");
+           },
          fun
          | (l, Plus, r) => {
              let l_l = mk_term(TypeInfo_exp.plus_l(info), l);
