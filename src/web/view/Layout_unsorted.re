@@ -1,4 +1,4 @@
-open New;
+open Core;
 open Layout;
 
 let shape_of_tile: Unsorted.Tile.t => Layout.tile_shape =

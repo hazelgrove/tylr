@@ -1,6 +1,6 @@
 open Virtual_dom.Vdom;
 open Util;
-open New;
+open Core;
 
 let tessera_children =
   Layout.measured_fold'(

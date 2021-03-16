@@ -1,8 +1,8 @@
 open Sexplib.Std;
 open Virtual_dom.Vdom;
 
-module Sort = New.Sort;
-module Direction = New.Direction;
+module Sort = Core.Sort;
+module Direction = Core.Direction;
 
 let tip_width = 0.3;
 let child_border_thickness = 0.1;

@@ -1,3 +1,5 @@
+open Util;
+
 [@deriving sexp]
 type t('op, 'pre, 'post, 'bin) =
   | Op('op)
@@ -5,66 +7,59 @@ type t('op, 'pre, 'post, 'bin) =
   | Post('post)
   | Bin('bin);
 
-let get_operand: t('op, _, _, _) => 'op =
+let get_op: t('op, _, _, _) => 'op =
   fun
   | Op(op) => op
-  | _ => raise(Invalid_argument("Tile.get_operand"));
-let get_preop: t(_, 'pre, _, _) => 'pre =
+  | _ => raise(Invalid_argument("Tile.get_op"));
+let get_pre: t(_, 'pre, _, _) => 'pre =
   fun
   | Pre(pre) => pre
-  | _ => raise(Invalid_argument("Tile.get_preop"));
-let get_postop: t(_, _, 'post, _) => 'post =
+  | _ => raise(Invalid_argument("Tile.get_pre"));
+let get_post: t(_, _, 'post, _) => 'post =
   fun
   | Post(post) => post
-  | _ => raise(Invalid_argument("Tile.get_postop"));
-let get_binop: t(_, _, _, 'bin) => 'bin =
+  | _ => raise(Invalid_argument("Tile.get_post"));
+let get_bin: t(_, _, _, 'bin) => 'bin =
   fun
   | Bin(bin) => bin
-  | _ => raise(Invalid_argument("Tile.get_binop"));
+  | _ => raise(Invalid_argument("Tile.get_bin"));
 
-let is_operand =
+let is_op =
   fun
   | Op(_) => true
   | _ => false;
-let is_binop =
+let is_bin =
   fun
   | Bin(_) => true
   | _ => false;
 
 let get =
     (
-      get_operand: 'op => 'a,
-      get_preop: 'pre => 'a,
-      get_postop: 'post => 'a,
-      get_binop: 'bin => 'a,
+      get_op: 'op => 'a,
+      get_pre: 'pre => 'a,
+      get_post: 'post => 'a,
+      get_bin: 'bin => 'a,
     )
     : (t('op, 'pre, 'post, 'bin) => 'a) =>
   fun
-  | Op(op) => get_operand(op)
-  | Pre(pre) => get_preop(pre)
-  | Post(post) => get_postop(post)
-  | Bin(bin) => get_binop(bin);
+  | Op(op) => get_op(op)
+  | Pre(pre) => get_pre(pre)
+  | Post(post) => get_post(post)
+  | Bin(bin) => get_bin(bin);
+
+let is_convex = (d: Direction.t, t: t(_)) =>
+  switch (d, t) {
+  | (_, Op(_))
+  | (Left, Pre(_))
+  | (Right, Post(_)) => true
+  | _ => false
+  };
 
 module type S = {
-  let sort: Sort.t;
+  module Tm: Term.S;
 
-  type op;
-  type pre;
-  type post;
-  type bin;
-  type nonrec t = t(op, pre, post, bin);
-  type s = list(t);
-
-  let mk_op_hole: unit => op;
-  let mk_bin_hole: unit => bin;
-
-  let is_op_hole: op => bool;
-  let is_bin_hole: bin => bool;
+  type nonrec t = t(Tm.op, Tm.pre, Tm.post, Tm.bin);
 
   let precedence: t => int;
-  let associativity: Util.IntMap.t(Associativity.t);
-
-  type closed_descendant;
-  type descendant = Descendant.t(s, closed_descendant);
-  let get_open_children: t => list(s);
+  let associativity: IntMap.t(Associativity.t);
 };

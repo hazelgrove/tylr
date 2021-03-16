@@ -13,7 +13,7 @@ let rec consistent = (ty, ty') =>
   | _ => ty == ty'
   };
 
-let matched_arrow =
+let matches_arrow =
   fun
   | Hole => Some((Hole, Hole))
   | Num

@@ -1,6 +1,6 @@
 open Sexplib.Std;
 open Util;
-open New;
+open Core;
 
 [@deriving sexp]
 type tile_shape = Tile.t(bool, unit, unit, bool);

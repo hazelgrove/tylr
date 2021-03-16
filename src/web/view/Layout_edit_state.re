@@ -1,5 +1,5 @@
 open Util;
-open New;
+open Core;
 
 let mk_pointing = (pointing: EditState_pointing.t) => {
   let rec go =

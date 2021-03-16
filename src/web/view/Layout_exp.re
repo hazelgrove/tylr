@@ -1,5 +1,5 @@
 open Util;
-open New;
+open Core;
 open Layout;
 
 let root_tile = root_tile(~sort=Exp);

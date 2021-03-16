@@ -1,15 +1,15 @@
 open Sexplib.Std;
-open New;
+open Core;
 
 [@deriving sexp]
 type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
-  | PerformAction(New.Action.t)
+  | PerformAction(Core.Action.t)
   | Escape;
 
 let perform = (a, model: Model.t) =>
-  switch (New.Action.perform(a, model.edit_state)) {
+  switch (Core.Action.perform(a, model.edit_state)) {
   | None =>
     print_endline("failed action");
     model;
