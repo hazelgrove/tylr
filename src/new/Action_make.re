@@ -100,29 +100,37 @@ module Make =
       switch (prefix) {
       | [Selection.Tile(tile), ...prefix] =>
         go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
-      | [Tessera(open_), ...prefix] =>
-        let ((subject, inner_frame), tail) = go((prefix, suffix));
-        let (close, tail) = ListUtil.split_first(tail);
-        let close = Selection.get_tessera(close);
-        let (suffix, tail) =
-          ListUtil.take_while(
-            fun
-            | Selection.Tile(_) => true
-            | Tessera(_) => false,
-            tail,
+      | [Tessera(t), ...prefix] =>
+        switch (P.assemble_tile((t, []))) {
+        | Some(tile) =>
+          go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
+        | None =>
+          let ((subject, inner_frame), tail) = go((prefix, suffix));
+          let (close, tail) = ListUtil.split_first(tail);
+          let close = Selection.get_tessera(close);
+          let (suffix, tail) =
+            ListUtil.take_while(
+              fun
+              | Selection.Tile(_) => true
+              | Tessera(_) => false,
+              tail,
+            );
+          let outer_frame =
+            P.assemble_open_frame(
+              (
+                List.rev(rev_prefix),
+                ((t, []), (close, [])),
+                Selection.get_whole(suffix),
+              ),
+              Root,
+            )
+            |> OptUtil.get_or_raise(Invalid_argument("parse_restructured"));
+          let zipper = (
+            subject,
+            F.bi_append(inner_frame, Open(outer_frame)),
           );
-        let outer_frame =
-          P.assemble_open_frame(
-            (
-              List.rev(rev_prefix),
-              ((open_, []), (close, [])),
-              Selection.get_whole(suffix),
-            ),
-            Root,
-          )
-          |> OptUtil.get_or_raise(Invalid_argument("parse_restructured"));
-        let zipper = (subject, F.bi_append(inner_frame, Open(outer_frame)));
-        (zipper, tail);
+          (zipper, tail);
+        }
       | [] =>
         let (suffix, tail) =
           ListUtil.take_while(
@@ -558,14 +566,14 @@ module Make =
             );
           I.mk_edit_state((Selecting(selecting), Open(frame)));
         | [] =>
-          let tile = P.assemble_tile((t, []));
+          let+ tile = P.assemble_tile((t, []));
           let (prefix, tile, suffix) =
             [prefix, [Selection.Tile(tile)], suffix]
             |> P.fix_empty_holes
             |> List.map(Selection.get_whole)
             |> ListUtil.take_3;
           let subject = Subject.Pointing((prefix @ tile, (), suffix));
-          Some(I.mk_edit_state((subject, frame)));
+          I.mk_edit_state((subject, frame));
         }
       };
     }
@@ -582,34 +590,35 @@ module Make =
         elems
         |> List.map(
              fun
-             | Either.L(tile) => [Selection.Tile(tile)]
-             | R(selection) => selection,
+             | Either.L(tile) => Some([Selection.Tile(tile)])
+             | R(selection) =>
+               selection
+               |> List.map(
+                    fun
+                    | Selection.Tile(tile) =>
+                      Option.map(Selection.tile, P.sort(tile))
+                    | Tessera(t) => Some(Tessera(t)),
+                  )
+               |> OptUtil.sequence,
            )
-        |> List.flatten;
+        |> OptUtil.sequence
+        |> Option.map(List.flatten);
       let (ss_before, selection, ss_after) = selections;
-      let+ selection =
-        selection
-        |> List.map(
-             fun
-             | Selection.Tile(tile) =>
-               Option.map(Selection.tile, P.sort(tile))
-             | Tessera(t) => Some(Tessera(t)),
-           )
-        |> OptUtil.sequence;
       // TODO add side to focused selection in restructuring
       let suffix = [Either.R(selection), ...suffix];
       switch (ss_before, ss_after) {
       | ([], []) =>
-        let (subject, inner_frame) =
-          parse_restructured(flatten(prefix), flatten(suffix));
+        let+ prefix = flatten(prefix)
+        and+ suffix = flatten(suffix);
+        let (subject, inner_frame) = parse_restructured(prefix, suffix);
         let frame = F.bi_append(inner_frame, frame);
         I.mk_edit_state((subject, frame));
       | ([s, ...ss_before], _) =>
         let restructuring = (prefix, ([], s, ss_before @ ss_after), suffix);
-        I.mk_edit_state((Restructuring(restructuring), frame));
+        Some(I.mk_edit_state((Restructuring(restructuring), frame)));
       | ([], [s, ...ss_after]) =>
         let restructuring = (prefix, ([], s, ss_after), suffix);
-        I.mk_edit_state((Restructuring(restructuring), frame));
+        Some(I.mk_edit_state((Restructuring(restructuring), frame)));
       };
 
     | Move(d) =>
@@ -649,7 +658,6 @@ module Make =
         };
       };
       let pick_up_selection = (~prefix=prefix, ~suffix=suffix, selection) => {
-        let selection = Selection.map_tile(P.unsort, selection);
         let selections = {
           let ss = ZZList.erase(s => s, selections);
           switch (d) {

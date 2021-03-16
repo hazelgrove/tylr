@@ -10,8 +10,8 @@ module Input:
       | Unsorted.Tile.OpHole => Some(Tile.Op(Term_typ.OpHole))
       | Text(s) =>
         switch (s) {
-        | "Num" => Some(Op(Num))
-        | "Bool" => Some(Op(Bool))
+        | "num" => Some(Op(Num))
+        | "bool" => Some(Op(Bool))
         | _ => None
         }
       | Paren(body) => {
@@ -44,12 +44,6 @@ module Input:
       | Term_typ.BinHole => Tile.Bin(Unsorted.Tile.BinHole)
       | Arrow => Tile.Bin(Unsorted.Tile.Arrow),
     );
-
-  let assemble_tile: AltList.t(Unsorted.Tessera.t, Term_typ.t) => Tile_typ.t =
-    fun
-    | (Paren_l, [(body, Paren_r)]) => Op(Paren(body))
-    // TODO singleton tessera cases?
-    | _ => raise(Invalid_argument("Parser_typ.assemble_tile"));
 
   let disassemble_tile =
     Tile.get(

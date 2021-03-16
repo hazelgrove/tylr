@@ -62,12 +62,6 @@ module Input:
       | Plus => Bin(Unsorted.Tile.Plus),
     );
 
-  let assemble_tile: AltList.t(Unsorted.Tessera.t, Term_exp.t) => Tile_exp.t =
-    fun
-    | (Paren_l, [(body, Paren_r)]) => Op(Paren(body))
-    // TODO singleton tessera cases?
-    | _ => raise(Invalid_argument("Parser_typ.assemble_tile"));
-
   let disassemble_tile =
     Tile.get(
       fun

@@ -1,3 +1,4 @@
+open Util;
 open New;
 open Layout;
 
@@ -35,7 +36,7 @@ let rec mk_term =
           switch ((side: Direction.t)) {
           | Direction.Left => cats([grout(~caret, ()), root_tile(pre), r])
           | Right =>
-            cat(grouts_l([root_tile(pre)]), place_caret_before(caret, r))
+            cat(grouts_l([root_tile(pre)]), place_caret(Left, caret, r))
           };
         };
       },
@@ -48,7 +49,7 @@ let rec mk_term =
           let l = uni_child(~side=Left, l);
           switch (side) {
           | Direction.Left =>
-            cat(place_caret_after(caret, l), grouts_r([root_tile(post)]))
+            cat(place_caret(Right, caret, l), grouts_r([root_tile(post)]))
           | Right => cats([l, root_tile(post), grout(~caret, ())])
           };
         };
@@ -63,8 +64,8 @@ let rec mk_term =
           let r = uni_child(~side=Right, r);
           switch (side) {
           | Direction.Left =>
-            cats([place_caret_after(caret, l), root_tile(bin), r])
-          | Right => cats([l, root_tile(bin), place_caret_before(caret, r)])
+            cats([place_caret(Right, caret, l), root_tile(bin), r])
+          | Right => cats([l, root_tile(bin), place_caret(Left, caret, r)])
           };
         };
       },
@@ -255,28 +256,15 @@ let mk_selection =
 
 let mk_selecting =
     ((prefix, (side, selection), suffix): Subject.selecting(Tile_exp.t)) => {
-  let prefix =
-    prefix
-    |> Selection.map_tile(Parser_exp.unsort)
-    |> mk_selection(~grouts=grouts_l, ~selected=false);
+  let (prefix, suffix) =
+    (prefix, suffix)
+    |> TupleUtil.map2(Selection.map_tile(Parser_exp.unsort))
+    |> TupleUtil.map2(mk_selection(~grouts=grouts_l, ~selected=false));
   let selection =
-    mk_selection(
-      ~grouts,
-      ~style={transparent: false},
-      ~selected=true,
-      selection,
-    );
-  let suffix =
-    suffix
-    |> Selection.map_tile(Parser_exp.unsort)
-    |> mk_selection(~grouts=grouts_l, ~selected=false);
-  let caret = caret(Selecting);
-  let (prefix, selection) =
-    switch (side) {
-    | Left => (Cat(prefix, caret), selection)
-    | Right => (prefix, Cat(selection, caret))
-    };
-  seps([prefix, selection, suffix]);
+    selection
+    |> mk_selection(~grouts, ~style={transparent: false}, ~selected=true)
+    |> place_caret(side, Selecting);
+  cats([prefix, selection, suffix]);
 };
 
 let mk_restructuring =
@@ -286,31 +274,47 @@ let mk_restructuring =
     and whole_suffix = OptUtil.sequence(List.map(Either.get_L, suffix));
     Option.is_some(whole_prefix) && Option.is_some(whole_suffix);
   };
-  let mk_affix =
-    List.map(
-      fun
-      | Either.L(tile) =>
-        Layout_unsorted.mk_tile(
-          ~style=
-            Layout.mk_tile_style(
-              ~show_children=picked_up_all_selections,
-              ~sort=Exp,
-              (),
-            ),
-          tile,
-        )
-      | R(selection) =>
-        mk_selection(~style={transparent: false}, selection),
-    );
+  let (prefix, suffix) =
+    (prefix, suffix)
+    |> TupleUtil.map2(
+         List.map(
+           fun
+           | Either.L(tile) =>
+             tile
+             |> Parser_exp.unsort
+             |> Layout_unsorted.mk_tile(
+                  ~style=
+                    Layout.mk_tile_style(
+                      ~show_children=picked_up_all_selections,
+                      ~sort=Exp,
+                      (),
+                    ),
+                )
+           | R(selection) =>
+             mk_selection(
+               ~style={transparent: false},
+               ~grouts,
+               ~selected=true,
+               selection,
+             ),
+         ),
+       );
   let caret = {
-    let mk_tranparent_selections =
-      List.map(mk_selection(~style={transparent: true}));
+    let mk_transparent_selections =
+      List.map(
+        mk_selection(~style={transparent: true}, ~grouts, ~selected=true),
+      );
     let (before, selection, after) = selections;
     Restructuring((
       mk_transparent_selections(before),
-      mk_selection(~style={transparent: false}, selection),
+      mk_selection(
+        ~style={transparent: false},
+        ~grouts,
+        ~selected=true,
+        selection,
+      ),
       mk_transparent_selections(after),
     ));
   };
-  grout_z(mk_affix(prefix), caret, mk_affix(suffix));
+  grouts_z(prefix, caret, suffix);
 };

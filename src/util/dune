@@ -1,5 +1,5 @@
 (library
  (name util)
- (libraries sexplib)
+ (libraries sexplib re)
  (preprocess
   (pps ppx_let ppx_sexp_conv)))

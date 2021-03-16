@@ -40,7 +40,7 @@ let tile_holes =
         },
   );
 
-let rec view_of_layout = (~font_metrics: FontMetrics.t, l: Layout.t) => {
+let rec view_of_layout = (~id=?, ~font_metrics: FontMetrics.t, l: Layout.t) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let (text, decorations) =
     l
@@ -125,7 +125,8 @@ let rec view_of_layout = (~font_metrics: FontMetrics.t, l: Layout.t) => {
                    [
                      Decoration.Caret.view(
                        ~font_metrics,
-                       ~view_of_layout=view_of_layout(~font_metrics),
+                       ~view_of_layout=
+                         view_of_layout(~id=?None, ~font_metrics),
                        start,
                        caret,
                      ),
@@ -138,5 +139,10 @@ let rec view_of_layout = (~font_metrics: FontMetrics.t, l: Layout.t) => {
              };
            },
        );
-  Node.div([Attr.id("code")], text @ decorations);
+  let attrs =
+    switch (id) {
+    | None => []
+    | Some(id) => [Attr.id(id)]
+    };
+  Node.div(attrs, text @ decorations);
 };

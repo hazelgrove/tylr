@@ -25,3 +25,17 @@ let of_restructuring =
     Pat((Restructuring(restructuring), frame))
   | Exp((restructuring, frame)) =>
     Exp((Restructuring(restructuring), frame));
+
+let is_pointing =
+  fun
+  | Typ((Pointing(_), _))
+  | Pat((Pointing(_), _))
+  | Exp((Pointing(_), _)) => true
+  | _ => false;
+
+let is_selecting =
+  fun
+  | Typ((Selecting(_), _))
+  | Pat((Selecting(_), _))
+  | Exp((Selecting(_), _)) => true
+  | _ => false;

@@ -12,8 +12,6 @@ module type S_INPUT = {
   let unsort:
     (~dissociate_and_unsort: Tm.t => Unsorted.Tile.s, T.t) => Unsorted.Tile.t;
 
-  // TODO return option?
-  let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
   let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
   let assemble_open_frame:
@@ -47,8 +45,7 @@ module type S = {
   let sort_and_associate: Unsorted.Tile.s => option(Tm.t);
   let dissociate_and_unsort: Tm.t => Unsorted.Tile.s;
 
-  // raises Invalid_argument if ...
-  let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => T.t;
+  let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => option(T.t);
   let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
   // legit total, may return same selection back
@@ -98,53 +95,6 @@ let fix_holes_at_juncture =
   } else {
     left_is_convex ? Some(InsertBin) : Some(InsertOp);
   };
-
-// outside of functor for use by unsorted selections
-let assemble_tiles_in_selection =
-    (
-      ~assemble_tile: AltList.t(Unsorted.Tessera.t, list('tile)) => 'tile,
-      selection: Selection.t('tile) as 'selection,
-    )
-    : 'selection => {
-  let rec go = (selection: 'selection): 'selection =>
-    switch (selection) {
-    | [] => []
-    | [Tile(_) as elem, ...selection] => [elem, ...go(selection)]
-    | [Tessera(tessera) as elem, ...selection'] =>
-      if (Unsorted.Tessera.is_closing(tessera)) {
-        [elem, ...go(selection')];
-      } else {
-        // TODO handle mid
-        switch (go_opening(tessera, selection')) {
-        | None => selection
-        | Some((tile, selection)) => [Tile(tile), ...go(selection)]
-        };
-      }
-    }
-  and go_opening =
-      (
-        ~rev_tiles: list('tile)=[],
-        open_: Unsorted.Tessera.t,
-        selection: 'selection,
-      )
-      : option(('tile, 'selection)) =>
-    switch (selection) {
-    | [] => None
-    | [Tile(tile), ...selection] =>
-      go_opening(~rev_tiles=[tile, ...rev_tiles], open_, selection)
-    | [Tessera(tessera), ...selection] =>
-      // TODO handle mid tesserae
-      if (Unsorted.Tessera.is_closing(tessera)) {
-        let ts = List.rev(rev_tiles);
-        let tile = assemble_tile((open_, [(ts, tessera)]));
-        Some((tile, selection));
-      } else {
-        let* (tile, selection) = go_opening(open_, selection);
-        go_opening(~rev_tiles=[tile, ...rev_tiles], open_, selection);
-      }
-    };
-  go(selection);
-};
 
 module Make =
        (
@@ -345,11 +295,15 @@ module Make =
     Input.unsort(~dissociate_and_unsort, tile)
   and dissociate_and_unsort = term => unsort_s(dissociate(term));
 
-  let assemble_tile = Input.assemble_tile;
+  let assemble_tile = (ts: AltList.t(Unsorted.Tessera.t, Tm.t)): option(T.t) => {
+    let ts = AltList.map_b(dissociate_and_unsort, ts);
+    let* tile = Parser_unsorted.assemble_tile(ts);
+    sort(tile);
+  };
   let disassemble_tile = Input.disassemble_tile;
 
   let assemble_tiles_in_selection =
-    assemble_tiles_in_selection(~assemble_tile=ts =>
+    Parser_unsorted.assemble_tiles_in_selection'(~assemble_tile=ts =>
       assemble_tile(AltList.map_b(associate, ts))
     );
 
@@ -509,7 +463,7 @@ module Make =
         frame: F.bidelimited,
       )
       : option(F.open_) => {
-    let dummy_tile = {
+    let* dummy_tile = {
       let dummy_hole = Term.Op(Tm.mk_op_hole());
       assemble_tile(AltList.fill_b_frame(dummy_hole, ts));
     };

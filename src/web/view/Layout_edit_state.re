@@ -1,5 +1,9 @@
+open Util;
+open New;
+
 let mk_pointing = (pointing: EditState_pointing.t) => {
-  let rec go = (~caret=CaretPosition.Before(0), pointing) =>
+  let rec go =
+          (~caret=CaretPosition.Before(0), pointing: EditState_pointing.t) =>
     switch (pointing) {
     | Typ(_)
     | Pat(_) => failwith("todo")
@@ -40,10 +44,9 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
         Parser_exp.term_of_skel(skel, tiles);
       };
       let frame = Parser_exp.associate_frame((prefix, suffix), frame);
-      let l_frame = Layout_exp.mk_frame(frame);
+      let l_frame = Layout_exp.mk_frame(~show_err_holes=true, frame);
       let info_term = TypeInfo_exp.of_t'(l_frame);
-      let l_term =
-        Layout_exp.mk_term(~has_caret=Some(caret), info_term, term);
+      let l_term = Layout_exp.mk_term(~has_caret=caret, info_term, term);
       switch (l_frame.mode) {
       | Syn(l_frame) =>
         let ty = Statics_exp.syn(info_term, term);

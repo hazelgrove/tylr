@@ -48,12 +48,6 @@ module Input:
       | Term_pat.BinHole => Tile.Bin(Unsorted.Tile.BinHole),
     );
 
-  let assemble_tile: AltList.t(Unsorted.Tessera.t, Term_pat.t) => Tile_pat.t =
-    fun
-    | (Paren_l, [(body, Paren_r)]) => Op(Paren(body))
-    // TODO singleton tessera cases?
-    | _ => raise(Invalid_argument("Parser_typ.assemble_tile"));
-
   let disassemble_tile =
     Tile.get(
       fun

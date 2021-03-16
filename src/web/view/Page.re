@@ -1,15 +1,11 @@
 open Js_of_ocaml;
 open Virtual_dom.Vdom;
-open Core;
+open New;
 
 let is_var = s => Re.Str.string_match(Re.Str.regexp("[a-z]"), s, 0);
 let is_num = s => Re.Str.string_match(Re.Str.regexp("[0-9]"), s, 0);
 
-let key_handlers =
-    (
-      ~inject: Update.t => Event.t,
-      ~edit_state as (mode, zipper): EditState.t,
-    ) => {
+let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
   [
     Attr.on_keypress(_ => Event.Prevent_default),
     Attr.on_keydown(evt => {
@@ -25,43 +21,43 @@ let key_handlers =
           | "ArrowLeft"
           | "ArrowRight" =>
             let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-            switch (mode) {
-            | Normal(_) =>
-              held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))]
-            | Selecting(_) =>
-              held_shift ? [p(Move(d))] : [Escape, p(Move(d))]
-            | Restructuring(_) => [p(Move(d))]
+            if (EditState.is_pointing(edit_state)) {
+              held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))];
+            } else if (EditState.is_selecting(edit_state)) {
+              held_shift ? [p(Move(d))] : [Escape, p(Move(d))];
+            } else {
+              [p(Move(d))];
             };
           | "Backspace" => [p(Delete(Left))]
           | "Delete" => [p(Delete(Right))]
           | "+" => [p(Construct(Plus))]
-          | "(" => [p(Construct(Paren))]
+          | "(" => [p(Construct(Paren_l))]
           | "\\" => [p(Construct(Lam))]
-          | "=" => [p(Construct(Let))]
+          | "=" => [p(Construct(Let_eq))]
           | ":" => [p(Construct(Ann))]
           | "Escape" => [Escape]
           | "Enter" =>
-            switch (mode) {
-            | Normal(_) => []
-            | Selecting(_) => [Escape]
-            | Restructuring(_) => [p(Mark)]
+            if (EditState.is_pointing(edit_state)) {
+              [];
+            } else if (EditState.is_selecting(edit_state)) {
+              [Escape];
+            } else {
+              [p(Mark)];
             }
           | _ =>
-            switch (zipper) {
-            | `Typ(_) =>
+            switch (edit_state) {
+            | Typ(_) =>
               if (key == "n") {
-                [p(Construct(Num))];
+                [p(Construct(Text("num")))];
               } else if (key == "b") {
-                [p(Construct(Bool))];
+                [p(Construct(Text("bool")))];
               } else {
                 [];
               }
-            | `Pat(_)
-            | `Exp(_) =>
-              if (is_var(key)) {
-                [p(Construct(Var(key)))];
-              } else if (is_num(key)) {
-                [p(Construct(NumLit(int_of_string(key))))];
+            | Pat(_)
+            | Exp(_) =>
+              if (is_var(key) || is_num(key)) {
+                [p(Construct(Text(key)))];
               } else {
                 [];
               }
@@ -88,45 +84,26 @@ let focus_code = () => {
 };
 
 let logo = (~font_metrics) => {
-  let tile = Code.view_of_tile(~font_metrics);
+  let tile = (shape: Layout.tile_shape, style: Layout.tile_style, s) =>
+    Layout.annot(Tile(shape, style), Text(s));
   let style =
     Layout.mk_tile_style(~highlighted=true, ~raised=true, ~stretched=true);
-  let profile = Decoration.Tile.mk_profile(~len=1);
-  let t_profile =
-    profile(~style=style(~sort=Exp, ()), ~shape=Op(false), ());
-  let y_profile = profile(~style=style(~sort=Pat, ()), ~shape=Post(), ());
-  let l_profile =
-    profile(~style=style(~sort=Typ, ()), ~shape=Bin(false), ());
-  let r_profile =
-    Decoration.Tessera.{
-      shape: Pre(true),
-      len: 1,
-      closed_children: [],
-      style: {
-        highlighted: true,
-        stretched: true,
-        raised: true,
-      },
-    };
-  let r_tessera =
-    Decoration.container(
-      ~font_metrics,
-      ~length=r_profile.len,
-      ~cls="tessera",
-      ~origin=6,
-      Decoration.Tessera.view(r_profile),
+  let l =
+    Layout.(
+      grouts([
+        tile(Op(false), style(~sort=Exp, ()), "t"),
+        tile(Post(), style(~sort=Pat, ()), "y"),
+        tile(Bin(false), style(~sort=Typ, ()), "l"),
+        Annot(
+          Tessera(
+            Pre(true),
+            {highlighted: true, stretched: true, raised: true},
+          ),
+          Text("r"),
+        ),
+      ])
     );
-  // profile(~style=style(), ~shape=Pre(), ());
-  Node.div(
-    Attr.[id("logo")],
-    [
-      tile((0, t_profile)),
-      tile((2, y_profile)),
-      tile((4, l_profile)),
-      r_tessera,
-      Node.span([Attr.id("logo-text")], [Node.text("t y l r")]),
-    ],
-  );
+  Code.view_of_layout(~id="logo", ~font_metrics, l);
 };
 
 let filters =
@@ -167,7 +144,13 @@ let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
           }),
           ...key_handlers(~inject, ~edit_state),
         ],
-        [Code.view(~font_metrics, Layout_edit_state.mk(edit_state))],
+        [
+          Code.view_of_layout(
+            ~id="code",
+            ~font_metrics,
+            Layout_edit_state.mk(edit_state),
+          ),
+        ],
       ),
     ],
   );

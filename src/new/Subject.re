@@ -12,7 +12,7 @@ type selecting('tile) =
 type restructuring('tile) =
   ZZList.t(
     ZZList.t(Selection.t(Unsorted.Tile.t) as 's, 's),
-    Either.t('tile, Selection.t('tile)),
+    Either.t('tile, 's),
   );
 
 type t('tile) =

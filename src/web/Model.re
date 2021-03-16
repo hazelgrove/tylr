@@ -1,4 +1,4 @@
-open Core;
+open New;
 
 type t = {
   edit_state: EditState.t,
@@ -9,23 +9,21 @@ type t = {
 let cutoff = (===);
 
 let init = () => {
-  edit_state: (
-    EditState.Mode.Normal(([], 1)),
-    `Exp((
-      Tile.[
-        Op(
-          Paren([
-            Op(HExp.Num(NotInHole, 1)),
-            Bin(HExp.Plus(NotInHole)),
-            Op(HExp.Num(NotInHole, 2)),
-          ]),
-        ),
-        Bin(HExp.Plus(NotInHole)),
-        Op(HExp.Num(NotInHole, 3)),
-      ],
-      None,
-    )),
-  ),
+  edit_state:
+    Term_exp.(
+      Exp((
+        Pointing((
+          [],
+          (),
+          Tile.[
+            Op(Paren(Bin(Op(Num(1)), Plus, Op(Num(2))))),
+            Bin(Plus),
+            Op(Num(3)),
+          ],
+        )),
+        Frame_exp.Root,
+      ))
+    ),
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
 };

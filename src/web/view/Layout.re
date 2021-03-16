@@ -156,8 +156,7 @@ let measured_fold' =
 let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~start);
 
-let place_caret_before = (_, _) => failwith("todo");
-let place_caret_after = (_, _) => failwith("todo");
+let place_caret = (_: Direction.t, _, _) => failwith("todo");
 
 type with_dangling_caret = (t, option(Direction.t));
 
@@ -171,7 +170,10 @@ let place_caret_1 = (has_caret, child1) =>
   switch (has_caret) {
   | None => (child1, None)
   | Some((_, CaretPosition.Before(0))) => (child1, Some(Direction.Left))
-  | Some((caret, Before(_one))) => (place_caret_after(caret, child1), None)
+  | Some((caret, Before(_one))) => (
+      place_caret(Right, caret, child1),
+      None,
+    )
   | Some((_, After)) => (child1, Some(Right))
   };
 let place_caret_2 = (has_caret, child1, child2) =>
@@ -183,13 +185,13 @@ let place_caret_2 = (has_caret, child1, child2) =>
       Some(Direction.Left),
     )
   | Some((caret, Before(1))) => (
-      place_caret_after(caret, child1),
+      place_caret(Right, caret, child1),
       child2,
       None,
     )
   | Some((caret, Before(_two))) => (
       child1,
-      place_caret_after(caret, child2),
+      place_caret(Right, caret, child2),
       None,
     )
   | Some((_, After)) => (child1, child2, Some(Right))
