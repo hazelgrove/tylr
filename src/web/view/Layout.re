@@ -28,7 +28,9 @@ let mk_tile_style =
   stretched,
 };
 
+[@deriving sexp]
 type tessera_shape = Tile.t(unit, bool, bool, (bool, bool));
+[@deriving sexp]
 type tessera_style = {
   highlighted: bool,
   stretched: bool,
@@ -41,8 +43,10 @@ let mk_tessera_style =
   highlighted,
 };
 
-type selection_style = {transparent: bool};
+[@deriving sexp]
+type selection_style = {unfocused: bool};
 
+[@deriving sexp]
 type t =
   | Text(string)
   | Cat(t, t)

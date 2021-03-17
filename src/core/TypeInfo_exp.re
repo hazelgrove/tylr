@@ -1,3 +1,6 @@
+open Sexplib.Std;
+
+[@deriving sexp]
 type t'('a) = {
   ctx: Ctx.t,
   mode: mode('a),
@@ -13,6 +16,7 @@ let map_mode = (f: 'a => 'b) =>
   | Ana(ty, a) => Ana(ty, f(a))
   | Fn_pos(g) => Fn_pos((ty_in, ty_out) => f(g(ty_in, ty_out)));
 
+[@deriving sexp]
 type t = t'(unit);
 let syn = Syn(_ => ());
 let ana = ty => Ana(ty, ());

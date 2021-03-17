@@ -1,3 +1,4 @@
+[@deriving sexp]
 type t =
   | Hole
   | Num

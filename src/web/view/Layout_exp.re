@@ -288,13 +288,17 @@ let mk_selection =
 
 let mk_selecting =
     ((prefix, (side, selection), suffix): Subject.selecting(Tile_exp.t)) => {
-  let (prefix, suffix) =
-    (prefix, suffix)
-    |> TupleUtil.map2(Selection.map_tile(Parser_exp.unsort))
-    |> TupleUtil.map2(mk_selection(~grouts=grouts_l, ~selected=false));
+  let prefix =
+    prefix
+    |> Selection.map_tile(Parser_exp.unsort)
+    |> mk_selection(~grouts=grouts_l, ~selected=false);
+  let suffix =
+    suffix
+    |> Selection.map_tile(Parser_exp.unsort)
+    |> mk_selection(~grouts=grouts_r, ~selected=false);
   let selection =
     selection
-    |> mk_selection(~grouts, ~style={transparent: false}, ~selected=true)
+    |> mk_selection(~grouts, ~style={unfocused: false}, ~selected=true)
     |> place_caret(side, Selecting);
   cats([prefix, selection, suffix]);
 };
@@ -324,7 +328,7 @@ let mk_restructuring =
                 )
            | R(selection) =>
              mk_selection(
-               ~style={transparent: false},
+               ~style={unfocused: false},
                ~grouts,
                ~selected=true,
                selection,
@@ -332,20 +336,20 @@ let mk_restructuring =
          ),
        );
   let caret = {
-    let mk_transparent_selections =
+    let mk_unfocused_selections =
       List.map(
-        mk_selection(~style={transparent: true}, ~grouts, ~selected=true),
+        mk_selection(~style={unfocused: true}, ~grouts, ~selected=true),
       );
     let (before, selection, after) = selections;
     Restructuring((
-      mk_transparent_selections(before),
+      mk_unfocused_selections(before),
       mk_selection(
-        ~style={transparent: false},
+        ~style={unfocused: false},
         ~grouts,
         ~selected=true,
         selection,
       ),
-      mk_transparent_selections(after),
+      mk_unfocused_selections(after),
     ));
   };
   grouts_z(prefix, caret, suffix);
