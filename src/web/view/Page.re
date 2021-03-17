@@ -8,8 +8,18 @@ let is_num = s => Re.Str.string_match(Re.Str.regexp("[0-9]"), s, 0);
 let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
   [
     Attr.on_keypress(_ => Event.Prevent_default),
+    Attr.on_keyup(evt =>
+      Event.Many(
+        switch (JsUtil.get_key(evt)) {
+        | "Shift" when EditState.is_selecting(edit_state) => [
+            inject(Escape),
+          ]
+        | _ => []
+        },
+      )
+    ),
     Attr.on_keydown(evt => {
-      let key = Js.to_string(Js.Optdef.get(evt##.key, () => assert(false)));
+      let key = JsUtil.get_key(evt);
       let no_ctrl_alt_meta = JsUtil.no_ctrl_alt_meta(evt);
       let held_shift = JsUtil.held_shift(evt);
       let p = a => Update.PerformAction(a);
@@ -18,6 +28,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
           [];
         } else {
           switch (key) {
+          | "Shift" => EditState.is_pointing(edit_state) ? [p(Mark)] : []
           | "ArrowLeft"
           | "ArrowRight" =>
             let d: Direction.t = key == "ArrowLeft" ? Left : Right;

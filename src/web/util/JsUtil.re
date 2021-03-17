@@ -32,3 +32,6 @@ let no_ctrl_alt_meta = evt => {
 };
 
 let held_shift = evt => List.mem(Shift, held_mod_keys(evt));
+
+let get_key = evt =>
+  Js.to_string(Js.Optdef.get(evt##.key, () => failwith("JsUtil.get_key")));
