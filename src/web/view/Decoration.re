@@ -875,7 +875,11 @@ module Caret = {
 
   let key = txt => Node.div([Attr.classes(["key"])], [Node.text(txt)]);
 
-  let keys_container = Node.div([Attr.classes(["keys"])]);
+  let keys_container = keys =>
+    Node.div(
+      [Attr.classes(["keys-container"])],
+      [Node.div([Attr.classes(["keys"])], keys)],
+    );
   let keys = ks => keys_container(List.map(key, ks));
 
   let move_row = [
