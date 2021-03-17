@@ -863,7 +863,33 @@ module Tile = {
 };
 
 module Selection = {
-  let view = (_, _) => failwith("selection todo");
+  let view =
+      (
+        ~font_metrics: FontMetrics.t,
+        style: Layout.selection_style,
+        start,
+        len,
+      ) =>
+    Node.div(
+      [
+        Attr.classes([
+          "selection-box",
+          ...style.unfocused ? ["unfocused"] : [],
+        ]),
+        Attr.create(
+          "style",
+          Printf.sprintf(
+            "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+            (Float.of_int(start) +. 0.5) *. font_metrics.col_width,
+            (-0.1) *. font_metrics.row_height,
+            Float.of_int(len - 1) *. font_metrics.col_width,
+            // not sure why this needs to be 1.3 and not 1.2
+            1.3 *. font_metrics.row_height,
+          ),
+        ),
+      ],
+      [],
+    );
 };
 
 module Caret = {

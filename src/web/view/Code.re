@@ -114,10 +114,7 @@ let rec view_of_layout =
                (txt, [d, ...ds]);
              | Selection(style) =>
                let d =
-                 d_container(
-                   ~cls="selection",
-                   Decoration.Selection.view(style, len),
-                 );
+                 Decoration.Selection.view(~font_metrics, style, start, len);
                (txt, [d, ...ds]);
              | Grout(Some(caret)) =>
                let d =
