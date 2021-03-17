@@ -3,6 +3,7 @@
 open Util;
 open Term_exp;
 
+[@deriving sexp]
 type t = Tile.t(op, pre, post, bin);
 
 let precedence: t => int =

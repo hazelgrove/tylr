@@ -1,3 +1,6 @@
+open Sexplib.Std;
+
+[@deriving sexp]
 type t = Term.t(op, pre, post, bin)
 and op =
   | OpHole

@@ -1,6 +1,7 @@
 open Sexplib.Std;
 
 module Tile = {
+  [@deriving sexp]
   type s = list(t)
   and t = Tile.t(op, pre, post, bin)
   and op =
@@ -20,6 +21,7 @@ module Tile = {
 };
 
 module Tessera = {
+  [@deriving sexp]
   type t =
     | OpHole
     | BinHole

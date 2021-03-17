@@ -1,8 +1,9 @@
+[@deriving sexp]
 type t('op, 'pre, 'post, 'bin) =
   | Op('op)
-  | Pre('pre, t('op, 'pre, 'post, 'bin) as 't)
-  | Post('t, 'post)
-  | Bin('t, 'bin, 't);
+  | Pre('pre, t('op, 'pre, 'post, 'bin))
+  | Post(t('op, 'pre, 'post, 'bin), 'post)
+  | Bin(t('op, 'pre, 'post, 'bin), 'bin, t('op, 'pre, 'post, 'bin));
 
 let get =
     (
@@ -20,10 +21,15 @@ let get =
   };
 
 module type S = {
+  [@deriving sexp]
   type op;
+  [@deriving sexp]
   type pre;
+  [@deriving sexp]
   type post;
+  [@deriving sexp]
   type bin;
+  [@deriving sexp]
   type nonrec t = t(op, pre, post, bin);
 
   let mk_op_hole: unit => op;

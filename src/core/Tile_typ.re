@@ -1,6 +1,7 @@
 open Util;
 open Term_typ;
 
+[@deriving sexp]
 type t = Tile.t(op, pre, post, bin);
 
 let precedence: t => int =

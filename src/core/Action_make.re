@@ -442,19 +442,26 @@ module Make =
             adjust_subject(~suffix=leading, selection);
           | Some((leading, Tile(tile))) =>
             let (hd, tl) = AltList.rev(P.disassemble_tile(tile));
-            let prefix =
-              leading
-              @ (
-                tl
-                |> List.map(((open_child, tessera)) =>
-                     List.rev_map(Selection.tile, P.dissociate(open_child))
-                     @ [Selection.Tessera(tessera)]
-                   )
-                |> List.flatten
-                |> List.rev
-              );
-            let selection = Selection.[Tessera(hd), ...selection];
-            adjust_subject(~prefix, selection);
+            switch (tl) {
+            | [] =>
+              // maintain maximum structure in selection
+              let tile = P.unsort(tile);
+              adjust_subject(~prefix=leading, [Tile(tile), ...selection]);
+            | [_, ..._] =>
+              let prefix =
+                leading
+                @ (
+                  tl
+                  |> List.map(((open_child, tessera)) =>
+                       List.rev_map(Selection.tile, P.dissociate(open_child))
+                       @ [Selection.Tessera(tessera)]
+                     )
+                  |> List.flatten
+                  |> List.rev
+                );
+              let selection = Selection.[Tessera(hd), ...selection];
+              adjust_subject(~prefix, selection);
+            };
           }
         | Right =>
           switch (suffix) {
@@ -471,18 +478,25 @@ module Make =
             adjust_subject(~suffix=trailing, selection);
           | [Tile(tile), ...trailing] =>
             let (hd, tl) = P.disassemble_tile(tile);
-            let suffix =
-              (
-                tl
-                |> List.map(((open_child, tessera)) =>
-                     List.map(Selection.tile, P.dissociate(open_child))
-                     @ [Selection.Tessera(tessera)]
-                   )
-                |> List.flatten
-              )
-              @ trailing;
-            let selection = selection @ [Tessera(hd)];
-            adjust_subject(~suffix, selection);
+            switch (tl) {
+            | [] =>
+              // maintain maximum structure in selection
+              let tile = P.unsort(tile);
+              adjust_subject(~suffix=trailing, selection @ [Tile(tile)]);
+            | [_, ..._] =>
+              let suffix =
+                (
+                  tl
+                  |> List.map(((open_child, tessera)) =>
+                       List.map(Selection.tile, P.dissociate(open_child))
+                       @ [Selection.Tessera(tessera)]
+                     )
+                  |> List.flatten
+                )
+                @ trailing;
+              let selection = selection @ [Tessera(hd)];
+              adjust_subject(~suffix, selection);
+            };
           }
         };
       };

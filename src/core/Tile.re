@@ -58,6 +58,7 @@ let is_convex = (d: Direction.t, t: t(_)) =>
 module type S = {
   module Tm: Term.S;
 
+  [@deriving sexp]
   type nonrec t = t(Tm.op, Tm.pre, Tm.post, Tm.bin);
 
   let precedence: t => int;

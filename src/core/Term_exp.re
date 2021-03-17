@@ -1,4 +1,7 @@
+open Sexplib.Std;
+
 // ex: 1 + 2 _ 3 // Bin(Op(1), Plus, Bin(Op(2), BinHole, Op(3)))
+[@deriving sexp]
 type t = Term.t(op, pre, post, bin)
 and op =
   | OpHole
