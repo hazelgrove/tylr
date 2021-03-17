@@ -9,7 +9,13 @@ type odd('x, 'y) = ('x, even('y, 'x));
 
 type t('a, 'b) = odd('a, 'b);
 
-let rev = _ => failwith("AltList.rev todo");
+let rec rev = ((hd, tl): t('a, 'b)) =>
+  switch (tl) {
+  | [] => (hd, [])
+  | [(b, a), ...tl] =>
+    let (hd', tl') = rev((a, tl));
+    (hd', tl' @ [(b, hd)]);
+  };
 
 /**
  * The surrounding elements of a subject element of
