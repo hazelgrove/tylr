@@ -400,7 +400,7 @@ module Tessera = {
     style: Layout.tessera_style,
   };
 
-  let extra_tail = 0.2;
+  let extra_tail = 0.;
 
   let gradient = (id, color, profile) => {
     let (x1, x2) = {
