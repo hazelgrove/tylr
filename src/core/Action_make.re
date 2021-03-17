@@ -410,7 +410,7 @@ module Make =
             | Tessera(t) =>
               let suffix =
                 P.assemble_tiles_in_selection([Tessera(t), ...suffix]);
-              adjust_subject(~suffix, selection);
+              adjust_subject(~suffix, leading);
             | Tile(tile) =>
               let (hd, tl) =
                 AltList.rev(Parser_unsorted.disassemble_tile(tile));
