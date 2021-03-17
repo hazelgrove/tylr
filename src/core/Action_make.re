@@ -385,18 +385,24 @@ module Make =
               adjust_subject(~prefix, trailing);
             | Tile(tile) =>
               let (hd, tl) = Parser_unsorted.disassemble_tile(tile);
-              let prefix = prefix @ Selection.[Tessera(hd)];
-              let selection =
-                (
-                  tl
-                  |> List.map(((open_child, tessera)) =>
-                       List.map(Selection.tile, open_child)
-                       @ [Selection.Tessera(tessera)]
-                     )
-                  |> List.flatten
-                )
-                @ trailing;
-              adjust_subject(~prefix, selection);
+              switch (tl) {
+              | [] =>
+                let* tile = P.sort(tile);
+                adjust_subject(~prefix=prefix @ [Tile(tile)], trailing);
+              | [_, ..._] =>
+                let prefix = prefix @ Selection.[Tessera(hd)];
+                let selection =
+                  (
+                    tl
+                    |> List.map(((open_child, tessera)) =>
+                         List.map(Selection.tile, open_child)
+                         @ [Selection.Tessera(tessera)]
+                       )
+                    |> List.flatten
+                  )
+                  @ trailing;
+                adjust_subject(~prefix, selection);
+              };
             };
           | Right =>
             let (leading, last) = ListUtil.split_last(selection);
@@ -408,19 +414,25 @@ module Make =
             | Tile(tile) =>
               let (hd, tl) =
                 AltList.rev(Parser_unsorted.disassemble_tile(tile));
-              let suffix = Selection.[Tessera(hd), ...suffix];
-              let selection =
-                leading
-                @ (
-                  tl
-                  |> List.map(((open_child, tessera)) =>
-                       List.rev_map(Selection.tile, open_child)
-                       @ [Selection.Tessera(tessera)]
-                     )
-                  |> List.flatten
-                  |> List.rev
-                );
-              adjust_subject(~suffix, selection);
+              switch (tl) {
+              | [] =>
+                let* tile = P.sort(tile);
+                adjust_subject(~suffix=[Tile(tile), ...suffix], leading);
+              | [_, ..._] =>
+                let suffix = Selection.[Tessera(hd), ...suffix];
+                let selection =
+                  leading
+                  @ (
+                    tl
+                    |> List.map(((open_child, tessera)) =>
+                         List.rev_map(Selection.tile, open_child)
+                         @ [Selection.Tessera(tessera)]
+                       )
+                    |> List.flatten
+                    |> List.rev
+                  );
+                adjust_subject(~suffix, selection);
+              };
             };
           };
         };
