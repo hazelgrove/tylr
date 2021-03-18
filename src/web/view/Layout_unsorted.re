@@ -19,10 +19,11 @@ and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
          fun
          | Unsorted.Tile.OpHole => mk_OpHole()
          | Text(s) => mk_text(s)
-         | Paren(body) => mk_Paren(mk_tiles(body)),
+         | Paren(body) => mk_Paren(open_child(mk_tiles(body))),
          fun
-         | Unsorted.Tile.Lam(p) => mk_Lam(mk_tiles(p))
-         | Let(p, def) => mk_Let(mk_tiles(p), mk_tiles(def)),
+         | Unsorted.Tile.Lam(p) => mk_Lam(closed_child(mk_tiles(p)))
+         | Let(p, def) =>
+           mk_Let(closed_child(mk_tiles(p)), open_child(mk_tiles(def))),
          fun
          | Unsorted.Tile.Ap(_) => failwith("ap todo")
          | Ann(ann) => mk_Ann(mk_tiles(ann)),
