@@ -274,7 +274,7 @@ let mk_selection =
       ~style=
         Layout.mk_tile_style(
           ~highlighted=selected,
-          ~show_children=!selected,
+          ~show_children=true,
           ~raised=selected,
           ~sort=?selected ? None : Some(Exp),
           (),
