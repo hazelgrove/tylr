@@ -11,7 +11,10 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
     Attr.on_keyup(evt =>
       Event.Many(
         switch (JsUtil.get_key(evt)) {
-        | "Shift" when EditState.is_selecting(edit_state) => [
+        | "Shift"
+            when
+              EditState.is_selecting(edit_state)
+              && EditState.has_no_selection(edit_state) => [
             inject(Escape),
           ]
         | _ => []
