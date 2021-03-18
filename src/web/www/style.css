@@ -24,6 +24,7 @@
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
 
+  --unselected-tessera-color: #fff1f7;
   --selection-color: #ffe4f1;
   --selection-shadow-color: rosybrown;
 
@@ -245,6 +246,11 @@
 .tessera-path {
   /*stroke-width: 0.3; */
   filter: url(#drop-shadow-tessera);
+  fill: var(--unselected-tessera-color);
+  stroke: var(--unsorted-shadow-color);
+}
+.tessera-path.highlighted {
+  fill: var(--unsorted-bg-color);
 }
 
 .tile-path {

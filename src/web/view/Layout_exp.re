@@ -266,7 +266,8 @@ let mk_selection =
     ) => {
   let mk_tessera =
     Layout_unsorted.mk_tessera(
-      ~style=Layout.mk_tessera_style(~highlighted=true, ~raised=selected, ()),
+      ~style=
+        Layout.mk_tessera_style(~highlighted=selected, ~raised=selected, ()),
     );
   let mk_tile =
     Layout_unsorted.mk_tile(

@@ -580,9 +580,9 @@ module Tessera = {
           Attr.[
             classes(clss),
             create("vector-effect", "non-scaling-stroke"),
-            create("fill", "var(--unsorted-bg-color)"),
-            create("stroke", "var(--unsorted-shadow-color)"),
           ],
+        /*create("fill", "var(--unsorted-bg-color)"),*/
+        /*create("stroke", "var(--unsorted-shadow-color)"),*/
         outer_path @ List.concat(closed_child_paths),
       );
     [fill_gradient, stroke_gradient, path];
