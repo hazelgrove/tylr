@@ -522,8 +522,11 @@ module Tessera = {
           connects_left
             ? [
                 H_({dx: -. (extra_tail +. 0.5)}),
-                V_({dy: -. child_border_thickness}),
-                H_({dx: extra_tail}),
+                L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+                L_({dx: jagged_edge_w, dy: -. jagged_edge_h}),
+                L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+                // V_({dy: -. child_border_thickness}),
+                H_({dx: jagged_edge_w +. extra_tail}),
               ]
               @ bl_tr(~child_border=`South, ())
             : [H_({dx: Float.neg(tip_width)}), ...bl_tr()];
