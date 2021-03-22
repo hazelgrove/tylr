@@ -2,10 +2,13 @@ module type S = {
   module Tm: Term.S;
 
   // TODO rename to same
+  [@deriving sexp]
   type open_;
   // TODO rename to different
+  [@deriving sexp]
   type closed;
 
+  [@deriving sexp]
   type t =
     | Uni(unidelimited)
     | Bi(bidelimited)

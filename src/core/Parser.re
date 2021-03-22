@@ -440,16 +440,16 @@ module Make =
         | Pre_r(pre, frame) =>
           go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
         | Post_l(frame, post) =>
-          go(~prefix, ~suffix=[Tile.Post(post), ...suffix], frame)
+          go(~prefix, ~suffix=suffix @ [Tile.Post(post)], frame)
         | Bin_l(frame, bin, r) =>
           go(
             ~prefix,
-            ~suffix=[Tile.Bin(bin), ...dissociate(r)] @ suffix,
+            ~suffix=suffix @ [Tile.Bin(bin), ...dissociate(r)],
             frame,
           )
         | Bin_r(l, bin, frame) =>
           go(
-            ~prefix=prefix @ dissociate(l) @ [Tile.Bin(bin)],
+            ~prefix=prefix @ [Tile.Bin(bin), ...List.rev(dissociate(l))],
             ~suffix,
             frame,
           )
