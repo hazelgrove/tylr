@@ -597,7 +597,7 @@ module Make =
         : option(EditState.t) =>
       switch (a) {
       | Mark =>
-        let flatten = elems =>
+        let sort = elems =>
           elems
           |> List.map(
                fun
@@ -612,15 +612,15 @@ module Make =
                     )
                  |> OptUtil.sequence,
              )
-          |> OptUtil.sequence
-          |> Option.map(List.flatten);
+          |> OptUtil.sequence;
         // TODO add side to focused selection in restructuring
         let suffix = [Either.R(selection), ...suffix];
         switch (List.rev(ss_before), ss_after) {
         | ([], []) =>
-          let+ prefix = flatten(prefix)
-          and+ suffix = flatten(suffix);
+          let+ prefix = sort(prefix)
+          and+ suffix = sort(suffix);
           // TODO fix empty holes
+          let (prefix, suffix) = P.fix_empty_holes((prefix, suffix));
           let (subject, frame) =
             parse_pointing((prefix, suffix), frame)
             |> OptUtil.get_or_raise(Impossible);
