@@ -1,3 +1,5 @@
+// (let . = 1 in x + 2) + 3
+//    Bi(Closed(Let_pat(<pointer up to an expression frame>, 1, x + 2)))
 [@deriving sexp]
 type t =
   | Uni(unidelimited)

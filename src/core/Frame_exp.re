@@ -1,5 +1,8 @@
 open Sexplib.Std;
 
+// unidelimited frame: . + 2
+// bidelimited frame: (.) + 2
+//    Bi(Open(Paren_body(Uni(Bin_l(Bi(Root), Plus, Num(2))))))
 [@deriving sexp]
 type t =
   | Uni(unidelimited)
