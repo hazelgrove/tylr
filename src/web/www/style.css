@@ -330,7 +330,7 @@
 
 #caret {
   position: absolute;
-  height: 60vh;
+  height: 80vh;
   z-index: var(--caret-z);
 }
 #caret-bar {
