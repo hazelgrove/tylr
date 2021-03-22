@@ -32,6 +32,12 @@ let rec split_frame = (n: int, xs: list('x)): ('x, frame('x)) =>
 let of_frame = (~subject: list('x)=[], (prefix, suffix): frame('x)) =>
   List.concat([List.rev(prefix), subject, suffix]);
 
+let combine_opt = (xs, ys) =>
+  switch (List.combine(xs, ys)) {
+  | exception (Invalid_argument(_)) => None
+  | xys => Some(xys)
+  };
+
 let is_empty =
   fun
   | [] => true

@@ -99,47 +99,52 @@ module Make =
     );
 
   let parse_pointing =
-      (prefix: Selection.t(T.t), suffix: Selection.t(T.t)): Z.pointing => {
-    let invalid_arg = Invalid_argument("Action_make.parse_pointing");
+      (
+        (prefix, suffix): ListUtil.frame(Selection.elem(T.t)),
+        frame: F.bidelimited,
+      )
+      : option(Z.pointing) => {
     let rec go =
             (d, affix)
-            : AltList.t(
-                list(T.t),
-                AltList.t(Unsorted.Tessera.t, list(T.t)),
+            : option(
+                AltList.t(
+                  list(T.t),
+                  AltList.t(Unsorted.Tessera.t, list(T.t)),
+                ),
               ) =>
       switch (affix) {
-      | [] => ([], [])
+      | [] => Some(([], []))
       | [Selection.Tile(tile), ...affix] =>
-        let (inner_affix, tile_halves__affixes) = go(d, affix);
+        let+ (inner_affix, tile_halves__affixes) = go(d, affix);
         ([tile, ...inner_affix], tile_halves__affixes);
       | [Tessera(tessera), ...affix] =>
-        let (rest_of_tile, affix) =
-          Parser_unsorted.find_rest_of_tile(d, tessera, affix)
-          |> OptUtil.get_or_raise(invalid_arg);
-        let (inner_affix, tile_halves__affixes) = go(d, affix);
+        let* (rest_of_tile, affix) =
+          Parser_unsorted.find_rest_of_tile(d, tessera, affix);
+        let+ (inner_affix, tile_halves__affixes) = go(d, affix);
         (
           [],
           [((tessera, rest_of_tile), inner_affix), ...tile_halves__affixes],
         );
       };
-    let (inner_prefix, tile_halves_l__prefixes) =
+    let* (inner_prefix, tile_halves_l__prefixes) =
       go(Left, P.assemble_tiles_in_selection(~direction=Left, prefix));
-    let (inner_suffix, tile_halves_r__suffixes) =
+    let* (inner_suffix, tile_halves_r__suffixes) =
       go(Right, P.assemble_tiles_in_selection(~direction=Right, suffix));
-    let frame =
+    let* tiles_affixes =
+      ListUtil.combine_opt(tile_halves_l__prefixes, tile_halves_r__suffixes);
+    let+ frame =
       List.fold_right(
         (((tile_half_l, prefix), (tile_half_r, suffix)), frame) => {
+          let* frame = frame;
           let tile_halves =
             (tile_half_l, tile_half_r)
             |> TupleUtil.map2(AltList.map_b(P.associate));
-          let open_frame =
-            P.assemble_open_frame(tile_halves, (prefix, suffix), frame)
-            |> OptUtil.get_or_raise(invalid_arg);
-          Open(open_frame);
+          let+ open_frame =
+            P.assemble_open_frame(tile_halves, (prefix, suffix), frame);
+          F.Open(open_frame);
         },
-        List.combine(tile_halves_l__prefixes, tile_halves_r__suffixes),
-        // TODO thread in frame
-        Root,
+        tiles_affixes,
+        Some(frame),
       );
     ((inner_prefix, inner_suffix), frame);
   };
@@ -168,6 +173,7 @@ module Make =
     };
   };
 
+  exception Impossible;
   // recursive to support action chaining
   let rec perform = (a: t, (subject, frame): Z.t): option(EditState.t) =>
     switch (subject) {
@@ -293,8 +299,9 @@ module Make =
             [ts_before, prefix],
             [[Selection.Tessera(tessera)], ts_after, suffix],
           ));
-        let (subject, inner_frame) = parse_pointing(prefix, suffix);
-        let frame = F.bi_append(inner_frame, frame);
+        let (subject, frame) =
+          parse_pointing((prefix, suffix), frame)
+          |> OptUtil.get_or_raise(Impossible);
         perform(Move(Right), (Pointing(subject), frame));
       } else {
         switch (ts_before, ts_after) {
@@ -306,8 +313,9 @@ module Make =
               [[Selection.Tessera(tessera)], prefix],
               [suffix],
             ));
-          let (subject, inner_frame) = parse_pointing(prefix, suffix);
-          let frame = F.bi_append(inner_frame, frame);
+          let (subject, frame) =
+            parse_pointing((prefix, suffix), frame)
+            |> OptUtil.get_or_raise(Impossible);
           Some(I.mk_edit_state((Pointing(subject), frame)));
         | _ =>
           let (prefix, suffix) =
@@ -355,12 +363,20 @@ module Make =
 
     | Move(d) =>
       let adjust_subject = (~prefix=prefix, ~suffix=suffix, selection) => {
-        Some(
-          I.mk_edit_state((
-            Selecting(((side, selection), (prefix, suffix))),
-            frame,
-          )),
-        );
+        let mk_edit_state = ((prefix, suffix), frame) =>
+          Some(
+            I.mk_edit_state((
+              Selecting(((side, selection), (prefix, suffix))),
+              frame,
+            )),
+          );
+        switch (parse_pointing((prefix, suffix), frame)) {
+        | None => mk_edit_state((prefix, suffix), frame)
+        | Some(((prefix, suffix), frame)) =>
+          let (prefix, suffix) =
+            TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
+          mk_edit_state((prefix, suffix), frame);
+        };
       };
       if (d != side) {
         if (selection == []) {
@@ -650,8 +666,9 @@ module Make =
         let+ prefix = flatten(prefix)
         and+ suffix = flatten(suffix);
         // TODO fix empty holes
-        let (subject, inner_frame) = parse_pointing(prefix, suffix);
-        let frame = F.bi_append(inner_frame, frame);
+        let (subject, frame) =
+          parse_pointing((prefix, suffix), frame)
+          |> OptUtil.get_or_raise(Impossible);
         I.mk_edit_state((Pointing(subject), frame));
       | ([s, ...ss_before], _) =>
         let restructuring = (
