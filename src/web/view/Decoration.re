@@ -1,5 +1,6 @@
 open Sexplib.Std;
 open Virtual_dom.Vdom;
+open Util;
 
 module Sort = Core.Sort;
 module Direction = Core.Direction;
@@ -963,17 +964,28 @@ module Caret = {
   let view =
       (
         ~font_metrics: FontMetrics.t,
-        ~view_of_layout as _: Layout.t => Node.t,
+        ~view_of_layout: Layout.t => Node.t,
         offset: int,
-        _,
-      ) =>
+        caret: Layout.caret,
+      ) => {
+    let (top, (ss_before, ss_after)) =
+      switch (caret) {
+      | Pointing(_todo) => (0., ([], []))
+      | Selecting => (0., ([], []))
+      | Restructuring(selection, (prefix, suffix)) =>
+        let ss =
+          (List.rev(prefix), [selection, ...suffix])
+          |> TupleUtil.map2(List.map(view_of_layout));
+        ((-1.4) *. font_metrics.row_height, ss);
+      };
     Node.div(
       [
         Attr.id("caret"),
         Attr.create(
           "style",
           Printf.sprintf(
-            "top: 0; left: %fpx",
+            "top: %fpx; left: %fpx",
+            top,
             (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
           ),
         ),
@@ -981,7 +993,13 @@ module Caret = {
       [
         Node.div([Attr.id("caret-bar")], []),
         Node.div(
-          [Attr.id("action-table")],
+          [
+            Attr.id("action-table"),
+            Attr.create(
+              "style",
+              Printf.sprintf("top: %fpx;", Float.of_int(80) -. top),
+            ),
+          ],
           List.concat([
             move_row,
             buffer_row,
@@ -992,8 +1010,29 @@ module Caret = {
             construct_rows,
           ]),
         ),
+        Node.div(
+          [
+            Attr.id("backpack-pre"),
+            Attr.create("style", Printf.sprintf("top: 0; right: 100%%;")),
+          ],
+          ss_before,
+        ),
+        Node.div(
+          [
+            Attr.id("backpack-suf"),
+            Attr.create(
+              "style",
+              Printf.sprintf(
+                "top: 0; left: %fpx;",
+                (-0.5) *. font_metrics.col_width,
+              ),
+            ),
+          ],
+          ss_after,
+        ),
       ],
     );
+  };
 };
 
 let container =

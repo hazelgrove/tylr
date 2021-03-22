@@ -120,7 +120,8 @@ let rec view_of_layout =
                let d =
                  Decoration.Caret.view(
                    ~font_metrics,
-                   ~view_of_layout=view_of_layout(~id=?None, ~font_metrics),
+                   ~view_of_layout=
+                     view_of_layout(~id=?None, ~text_id=?None, ~font_metrics),
                    start,
                    caret,
                  );
@@ -131,10 +132,14 @@ let rec view_of_layout =
              };
            },
        );
-  let attrs =
+  let with_id =
     fun
     | None => []
     | Some(id) => [Attr.id(id)];
-  let text = Node.span(attrs(text_id), text);
-  Node.div(attrs(id), [text, ...decorations]);
+  let text =
+    Node.span([Attr.classes(["code-text"]), ...with_id(text_id)], text);
+  Node.div(
+    [Attr.classes(["code"]), ...with_id(id)],
+    [text, ...decorations],
+  );
 };
