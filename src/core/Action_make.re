@@ -720,13 +720,14 @@ module Make =
           affix
           |> List.map(
                fun
-               | Either.L(tile) => [tile]
+               | Either.L(tile) => [Selection.Tile(tile)]
                | R(_) => [],
-             )
-          |> List.flatten;
+             );
         let (prefix, suffix) =
-          TupleUtil.map2(delete_selections, (prefix, suffix));
-        let _ = failwith("need to fix empty holes");
+          (prefix, suffix)
+          |> TupleUtil.map2(delete_selections)
+          |> P.fix_empty_holes
+          |> TupleUtil.map2(Selection.get_whole);
         Some(I.mk_edit_state((Subject.Pointing((prefix, suffix)), frame)));
 
       | Construct(_) => None
