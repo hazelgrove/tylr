@@ -315,7 +315,7 @@ let mk_restructuring =
     Option.is_some(whole_prefix) && Option.is_some(whole_suffix);
   };
   let (prefix, suffix) =
-    (prefix, suffix)
+    (List.rev(prefix), suffix)
     |> TupleUtil.map2(
          List.map(
            fun
