@@ -178,6 +178,8 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
          );
     {ctx: ctx_body, mode: mode_body};
   | Post_l(_, Ap(_)) => failwith("ap todo")
+
+  // TODO extract shared logic in bin cases
   | Bin_l(frame, Plus, r) =>
     let info = mk_frame(~show_err_holes, frame);
     let l_r = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, r);
@@ -236,8 +238,31 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
         )
       };
     {...info, mode: mode_r};
-  | Bin_l(_, BinHole, _)
-  | Bin_r(_, BinHole, _) => failwith("binhole todo")
+
+  | Bin_l(frame, BinHole, r) =>
+    let info = mk_frame(~show_err_holes, frame);
+    let l_r = mk_term({ctx: info.ctx, mode: TypeInfo_exp.syn}, r);
+    let l_binhole = l_l => cats([l_l, empty_hole(fst(mk_BinHole())), l_r]);
+    let mode_l: TypeInfo_exp.mode(_) =
+      switch (info.mode) {
+      | Syn(l_frame) => Syn((_, l_l) => l_frame(Hole, l_binhole(l_l)))
+      | Ana(_, l_frame) => Syn((_, l_l) => l_frame(l_binhole(l_l)))
+      | Fn_pos(l_frame) =>
+        Syn((_, l_l) => l_frame(Hole, Hole, l_binhole(l_l)))
+      };
+    {...info, mode: mode_l};
+  | Bin_r(l, BinHole, frame) =>
+    let info = mk_frame(~show_err_holes, frame);
+    let l_l = mk_term({ctx: info.ctx, mode: TypeInfo_exp.syn}, l);
+    let l_binhole = l_r => cats([l_l, empty_hole(fst(mk_BinHole())), l_r]);
+    let mode_l: TypeInfo_exp.mode(_) =
+      switch (info.mode) {
+      | Syn(l_frame) => Syn((_, l_r) => l_frame(Hole, l_binhole(l_r)))
+      | Ana(_, l_frame) => Syn((_, l_r) => l_frame(l_binhole(l_r)))
+      | Fn_pos(l_frame) =>
+        Syn((_, l_r) => l_frame(Hole, Hole, l_binhole(l_r)))
+      };
+    {...info, mode: mode_l};
   }
 and mk_biframe = (~show_err_holes, bi: Frame_exp.bidelimited) =>
   switch (bi) {
