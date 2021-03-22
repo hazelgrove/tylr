@@ -741,14 +741,14 @@ module Make =
       };
       switch (d) {
       | Left =>
-        switch (ListUtil.split_last_opt(prefix)) {
-        | None =>
+        switch (prefix) {
+        | [] =>
           let* (prefix, suffix) = picked_up_all_selections(prefix, suffix);
           move_via_pointing(prefix, suffix);
-        | Some((leading, L(tile))) =>
-          move_through_tile(leading, tile, suffix)
-        | Some((leading, R(selection))) =>
-          pick_up_selection(~prefix=leading, selection)
+        | [L(tile), ...trailing] =>
+          move_through_tile(trailing, tile, suffix)
+        | [R(selection), ...trailing] =>
+          pick_up_selection(~prefix=trailing, selection)
         }
       | Right =>
         switch (suffix) {
