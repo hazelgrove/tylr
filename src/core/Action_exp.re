@@ -7,10 +7,7 @@ module Input = {
   let move_into_root =
       (d: Direction.t, subject: Term_exp.t, frame: Frame_exp.t) => {
     let mk_pointing = tiles =>
-      switch (d) {
-      | Left => (tiles, (), [])
-      | Right => ([], (), tiles)
-      };
+      ListUtil.mk_frame(d == Left ? List.length(tiles) : 0, tiles);
     subject
     |> Term.get(
          fun
@@ -51,8 +48,8 @@ module Input = {
     open Frame_exp;
     let escaped_tile = (prefix, tile, suffix) =>
       switch (d) {
-      | Left => (prefix, (), [tile, ...suffix])
-      | Right => (prefix @ [tile], (), suffix)
+      | Left => (prefix, [tile, ...suffix])
+      | Right => ([tile, ...prefix], suffix)
       };
     switch (frame) {
     | Root => None
@@ -66,7 +63,7 @@ module Input = {
       switch (d) {
       | Left =>
         let frame = Frame_pat.Closed(Let_pat(frame, subject, body));
-        let subject = (Parser_pat.dissociate(p), (), []);
+        let subject = (List.rev(Parser_pat.dissociate(p)), []);
         Some(EditState_pointing.Pat((subject, frame)));
       | Right =>
         let let_tile = Tile.Pre(Term_exp.Let(p, subject));
@@ -80,13 +77,13 @@ module Input = {
   };
 
   let select_into_frame = ((selecting, frame): Zipper_exp.selecting) => {
-    let (prefix, (side, selection), suffix) = selecting;
+    let ((side, selection), (prefix, suffix)) = selecting;
     switch (frame) {
     | Root => None
     | Closed () => raise(Frame_exp.Void_closed)
     | Open(open_) =>
       // TODO abstract open logic into Action_make
-      let ((outer_prefix, (ts_before, ts_after), outer_suffix), frame) =
+      let ((ts_before, ts_after), (outer_prefix, outer_suffix), frame) =
         Parser_exp.disassemble_open_frame(open_);
       let (outer_prefix, outer_suffix) =
         TupleUtil.map2(
@@ -119,9 +116,8 @@ module Input = {
           [Selection.Tessera(tessera), ...selection],
         );
         let selecting = (
-          outer_prefix @ ts_before,
           selection,
-          suffix @ ts_after @ outer_suffix,
+          (ts_before @ outer_prefix, suffix @ ts_after @ outer_suffix),
         );
         Some(EditState_selecting.Exp((selecting, frame)));
       | Right =>
@@ -146,9 +142,8 @@ module Input = {
           |> List.flatten;
         let selection = (Direction.Right, selection @ [Tessera(tessera)]);
         let selecting = (
-          outer_prefix @ ts_before @ prefix,
           selection,
-          ts_after @ outer_suffix,
+          (prefix @ ts_before @ outer_prefix, ts_after @ outer_suffix),
         );
         Some(EditState_selecting.Exp((selecting, frame)));
       };

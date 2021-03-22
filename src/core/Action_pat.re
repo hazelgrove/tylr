@@ -7,10 +7,7 @@ module Input = {
   let move_into_root =
       (d: Direction.t, subject: Term_pat.t, frame: Frame_pat.t) => {
     let mk_pointing = tiles =>
-      switch (d) {
-      | Left => (tiles, (), [])
-      | Right => ([], (), tiles)
-      };
+      ListUtil.mk_frame(d == Left ? List.length(tiles) : 0, tiles);
     subject
     |> Term.get(
          fun
@@ -39,8 +36,8 @@ module Input = {
     open Frame_pat;
     let escaped_tile = (prefix, tile, suffix) =>
       switch (d) {
-      | Left => (prefix, (), [tile, ...suffix])
-      | Right => (prefix @ [tile], (), suffix)
+      | Left => (prefix, [tile, ...suffix])
+      | Right => ([tile, ...prefix], suffix)
       };
     switch (frame) {
     | Root => None
@@ -65,14 +62,14 @@ module Input = {
         Some(EditState_pointing.Exp((subject, frame)));
       | Right =>
         let frame = Frame_exp.Open(Let_def(subject, frame, body));
-        let subject = ([], (), Parser_exp.dissociate(def));
+        let subject = ([], Parser_exp.dissociate(def));
         Some(EditState_pointing.Exp((subject, frame)));
       }
     };
   };
 
   let select_into_frame = ((selecting, frame): Zipper_pat.selecting) => {
-    let (prefix, (side, selection), suffix) = selecting;
+    let ((side, selection), (prefix, suffix)) = selecting;
     switch (frame) {
     | Root => None
     | Closed(closed) =>
@@ -82,7 +79,11 @@ module Input = {
         |> TupleUtil.map2(Selection.map_tile(Parser_pat.unsort));
       let selection = prefix @ selection @ suffix;
       // call assemble_tiles_in_selection
-      let selection = Parser_unsorted.assemble_tiles_in_selection(selection);
+      let selection =
+        Parser_unsorted.assemble_tiles_in_selection(
+          ~direction=Right,
+          selection,
+        );
       // call get_whole on assembled selection
       let tiles = Selection.get_whole(selection);
       // convert frame with tiles into tessera
@@ -97,9 +98,8 @@ module Input = {
             (prefix, body_tiles, suffix),
           );
         let selecting = (
-          prefix,
           (side, [Selection.Tessera(selected_t)]),
-          body_tiles @ suffix,
+          (prefix, body_tiles @ suffix),
         );
         Some(EditState_selecting.Exp((selecting, frame)));
       | Let_pat(frame, def, body) =>
@@ -112,14 +112,16 @@ module Input = {
           |> List.map(List.map(Selection.tile))
           |> ListUtil.take_4;
         let selecting = (
-          prefix,
           (side, [Selection.Tessera(selected_t)]),
-          def_tiles @ [Selection.Tessera(Let_in)] @ body_tiles @ suffix,
+          (
+            prefix,
+            def_tiles @ [Selection.Tessera(Let_in)] @ body_tiles @ suffix,
+          ),
         );
         Some(EditState_selecting.Exp((selecting, frame)));
       };
     | Open(open_) =>
-      let ((outer_prefix, (ts_before, ts_after), outer_suffix), frame) =
+      let ((ts_before, ts_after), (outer_prefix, outer_suffix), frame) =
         Parser_pat.disassemble_open_frame(open_);
       let (outer_prefix, outer_suffix) =
         TupleUtil.map2(
@@ -152,9 +154,8 @@ module Input = {
           [Selection.Tessera(tessera), ...selection],
         );
         let selecting = (
-          outer_prefix @ ts_before,
           selection,
-          suffix @ ts_after @ outer_suffix,
+          (ts_before @ outer_prefix, suffix @ ts_after @ outer_suffix),
         );
         Some(EditState_selecting.Pat((selecting, frame)));
       | Right =>
@@ -179,9 +180,8 @@ module Input = {
           |> List.flatten;
         let selection = (Direction.Right, selection @ [Tessera(tessera)]);
         let selecting = (
-          outer_prefix @ ts_before @ prefix,
           selection,
-          ts_after @ outer_suffix,
+          (prefix @ ts_before @ outer_prefix, ts_after @ outer_suffix),
         );
         Some(EditState_selecting.Pat((selecting, frame)));
       };

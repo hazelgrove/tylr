@@ -42,7 +42,7 @@ let is_selecting =
 
 let has_no_selection =
   fun
-  | Typ((Pointing(_) | Selecting((_, (_, []), _)), _))
-  | Pat((Pointing(_) | Selecting((_, (_, []), _)), _))
-  | Exp((Pointing(_) | Selecting((_, (_, []), _)), _)) => true
+  | Typ((Pointing(_) | Selecting(((_, []), _)), _))
+  | Pat((Pointing(_) | Selecting(((_, []), _)), _))
+  | Exp((Pointing(_) | Selecting(((_, []), _)), _)) => true
   | _ => false;

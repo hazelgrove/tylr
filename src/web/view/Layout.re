@@ -66,7 +66,7 @@ and caret =
   // TODO generalize to other sorts
   | Pointing(TypeInfo_exp.t)
   | Selecting
-  | Restructuring(ZZList.t(t, t));
+  | Restructuring(t, ListUtil.frame(t));
 
 type frame = t => t;
 

@@ -14,7 +14,6 @@ let init = () => {
       Exp((
         Pointing((
           [],
-          (),
           Tile.[
             Op(Paren(Bin(Op(Num(1)), Plus, Op(Num(2))))),
             Bin(Plus),

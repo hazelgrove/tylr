@@ -17,13 +17,14 @@ module type S_INPUT = {
   let assemble_open_frame:
     (
       ~associate: list(T.t) => Tm.t,
-      ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      AltList.b_frame(Unsorted.Tessera.t, Tm.t),
+      ListUtil.frame(T.t),
       F.t
     ) =>
     option(F.open_);
   let disassemble_open_frame:
     (~dissociate: Tm.t => list(T.t), F.open_) =>
-    (ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t), F.t);
+    (AltList.b_frame(Unsorted.Tessera.t, Tm.t), ListUtil.frame(T.t), F.t);
 };
 
 module type S = {
@@ -32,7 +33,7 @@ module type S = {
   module F: Frame.S with module Tm := Tm;
 
   let mk_skel: list(T.t) => Skel.t;
-  let term_of_skel: (Skel.t, list(T.t)) => ZZList.t(Tm.t, T.t);
+  let term_of_skel: (Skel.t, list(T.t)) => (Tm.t, ListUtil.frame(T.t));
 
   let associate: list(T.t) => Tm.t;
   let dissociate: Tm.t => list(T.t);
@@ -49,23 +50,28 @@ module type S = {
   let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
 
   // legit total, may return same selection back
-  let assemble_tiles_in_selection: Selection.t(T.t) => Selection.t(T.t);
-  let fix_empty_holes: list(Selection.t(T.t)) => list(Selection.t(T.t));
+  let assemble_tiles_in_selection:
+    (~direction: Direction.t, Selection.t(T.t)) => Selection.t(T.t);
 
-  let associate_frame: ((list(T.t), list(T.t)), F.bidelimited) => F.t;
-  let dissociate_frame: F.t => ((list(T.t), list(T.t)), F.bidelimited);
+  let fix_empty_holes:
+    ListUtil.frame(Selection.t(T.t)) => ListUtil.frame(Selection.elem(T.t));
+
+  let associate_frame: (ListUtil.frame(T.t), F.bidelimited) => F.t;
+  let dissociate_frame: F.t => (ListUtil.frame(T.t), F.bidelimited);
 
   // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
   let assemble_open_frame:
     (
-      ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      AltList.b_frame(Unsorted.Tessera.t, Tm.t),
+      ListUtil.frame(T.t),
       F.bidelimited
     ) =>
     option(F.open_);
   let disassemble_open_frame:
     F.open_ =>
     (
-      ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+      AltList.b_frame(Unsorted.Tessera.t, Tm.t),
+      ListUtil.frame(T.t),
       F.bidelimited,
     );
 };
@@ -253,9 +259,9 @@ module Make =
     tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
   };
 
-  let term_of_skel = (skel: Skel.t, ts: tiles): ZZList.t(Tm.t, T.t) => {
+  let term_of_skel = (skel: Skel.t, ts: tiles): (Tm.t, ListUtil.frame(T.t)) => {
     let (a, b) = Skel.range(skel);
-    let prefix = ListUtil.sublist((0, a), ts);
+    let prefix = List.rev(ListUtil.sublist((0, a), ts));
     let suffix = ListUtil.sublist((b, List.length(ts)), ts);
     let rec go = (skel: Skel.t): Tm.t => {
       let root = List.nth(ts, Skel.root_index(skel));
@@ -266,11 +272,11 @@ module Make =
       | Bin(l, _, r) => Bin(go(l), Tile.get_bin(root), go(r))
       };
     };
-    (prefix, go(skel), suffix);
+    (go(skel), (prefix, suffix));
   };
 
   let associate = (tiles: tiles): Tm.t => {
-    let (_, term, _) = term_of_skel(mk_skel(tiles), tiles);
+    let (term, _) = term_of_skel(mk_skel(tiles), tiles);
     term;
   };
   let rec dissociate = (tm: Tm.t): tiles =>
@@ -313,7 +319,7 @@ module Make =
     | Tessera(tessera) => Unsorted.Tessera.is_convex(d, tessera);
   let is_hole =
     fun
-    | Selection.Tile(Op(op)) => Tm.is_op_hole(op)
+    | Selection.Tile(Tile.Op(op)) => Tm.is_op_hole(op)
     | Tile(Bin(bin)) => Tm.is_bin_hole(bin)
     | _ => false;
 
@@ -347,69 +353,65 @@ module Make =
       }
     };
 
-  let rec fix_empty_holes_end = (~side: Direction.t) =>
-    fun
-    | [] => []
-    | [[], ...selections] =>
-      switch (selections) {
-      | [] => [[Selection.Tile(Op(Tm.mk_op_hole()))]]
-      | [_, ..._] => [[], ...fix_empty_holes_end(~side, selections)]
-      }
-    | [[elem, ...selection'] as selection, ...selections] =>
-      if (!is_convex(side, elem) && is_hole(elem)) {
-        [
-          selection',
-          ...switch (selection') {
-             | [] => fix_empty_holes_end(~side, selections)
-             | [_, ..._] => selections
-             },
-        ];
+  let fix_empty_holes_end = (~side, affix) =>
+    switch (ListUtil.split_last_opt(affix)) {
+    | None => [Selection.Tile(Tile.Op(Tm.mk_op_hole()))]
+    | Some((leading, last)) =>
+      if (!is_convex(side, last) && is_hole(last)) {
+        leading;
       } else {
         let cap =
-          is_convex(side, elem)
-            ? [] : [Selection.Tile(Op(Tm.mk_op_hole()))];
-        switch (side) {
-        | Left => [cap @ selection, ...selections]
-        | Right => [cap, selection, ...selections]
-        };
-      };
-
-  let fix_empty_holes_left = fix_empty_holes_end(~side=Left);
-  let fix_empty_holes_right = selections =>
-    selections
-    |> List.rev_map(List.rev)
-    |> fix_empty_holes_end(~side=Right)
-    |> List.rev_map(List.rev);
-
-  let fix_empty_holes = (selections: list(selection)): list(selection) => {
-    let rec fix =
-            (selection: selection, selections: list(selection))
-            : list(selection) => {
-      let skip_empty = (selection, selections) => {
-        let (selection, selections) =
-          ListUtil.split_first(fix(selection, selections));
-        [selection, [], ...selections];
-      };
-      switch (selections) {
-      | [] => [selection]
-      | [[], ...selections] => skip_empty(selection, selections)
-      | [[_, ..._] as selection', ...selections] =>
-        let (selection, selection') =
-          fix_empty_holes_between(selection, selection');
-        switch (selection') {
-        | [] => skip_empty(selection, selections)
-        | [_, ..._] => [selection, selection', ...selections]
-        };
-      };
+          is_convex(side, last)
+            ? [] : [Selection.Tile(Tile.Op(Tm.mk_op_hole()))];
+        affix @ cap;
+      }
     };
-    let fixed_between = List.fold_right(fix, selections, []);
-    fix_empty_holes_left(fix_empty_holes_right(fixed_between));
+
+  let fix_empty_holes_affix =
+      (~side: Direction.t, affix: list(selection)): selection => {
+    let fixed_between =
+      List.fold_right(
+        (selection, fixed_so_far) => {
+          // TODO consider how fix_empty_holes_between could
+          // not depend on fixed orientation
+          let (selection, fixed_so_far) =
+            switch (side) {
+            | Left =>
+              let (fixed_so_far, selection) =
+                fix_empty_holes_between(
+                  List.rev(fixed_so_far),
+                  List.rev(selection),
+                );
+              (List.rev(selection), List.rev(fixed_so_far));
+            | Right => fix_empty_holes_between(selection, fixed_so_far)
+            };
+          selection @ fixed_so_far;
+        },
+        affix,
+        [],
+      );
+    fix_empty_holes_end(~side, fixed_between);
+  };
+
+  let fix_empty_holes = ((prefix, suffix): ListUtil.frame(selection)) => {
+    let suffix = fix_empty_holes_affix(~side=Right, suffix);
+    let (prefix, suffix) =
+      if (List.for_all((==)([]), prefix)) {
+        let suffix =
+          suffix |> List.rev |> fix_empty_holes_end(~side=Left) |> List.rev;
+        ([], suffix);
+      } else {
+        (fix_empty_holes_affix(~side=Left, prefix), suffix);
+      };
+    let (rev_prefix, suffix) =
+      fix_empty_holes_between(List.rev(prefix), suffix);
+    (List.rev(rev_prefix), suffix);
   };
 
   let associate_frame = ((prefix, suffix), frame: F.bidelimited) => {
     let n = List.length(prefix);
     let dummy_hole = Tile.Op(Tm.mk_op_hole());
-    let tiles = prefix @ [dummy_hole, ...suffix];
+    let tiles = ListUtil.of_frame(~subject=[dummy_hole], (prefix, suffix));
     let rec go = (skel, frame: F.t) => {
       let tile = List.nth(tiles, Skel.root_index(skel));
       switch (skel) {
@@ -418,10 +420,10 @@ module Make =
       | Post(l, _) => go(l, Uni(Post_l(frame, Tile.get_post(tile))))
       | Bin(l, m, r) =>
         if (n < m) {
-          let (_, r, _) = term_of_skel(r, tiles);
+          let (r, _) = term_of_skel(r, tiles);
           go(l, Uni(Bin_l(frame, Tile.get_bin(tile), r)));
         } else {
-          let (_, l, _) = term_of_skel(l, tiles);
+          let (l, _) = term_of_skel(l, tiles);
           go(r, Uni(Bin_r(l, Tile.get_bin(tile), frame)));
         }
       };
@@ -456,10 +458,57 @@ module Make =
     go(frame);
   };
 
+  let associate_frame_around_root =
+      (
+        tile: T.t,
+        (prefix, _) as tile_frame: ListUtil.frame(T.t),
+        frame: F.bidelimited,
+      )
+      : (T.t, ListUtil.frame(T.t), F.t) => {
+    let n = List.length(prefix);
+    let tiles = ListUtil.of_frame(~subject=[tile], tile_frame);
+    let rec go = (skel: Skel.t, frame: F.t) => {
+      let t = List.nth(tiles, Skel.root_index(skel));
+      switch (skel) {
+      | Op(m) =>
+        assert(n == m);
+        (tile, ([], []), frame);
+      | Pre(m, r) =>
+        if (n == m) {
+          let r = ListUtil.sublist(Skel.range(r), tiles);
+          (t, ([], r), frame);
+        } else {
+          go(r, Uni(Pre_r(Tile.get_pre(t), frame)));
+        }
+      | Post(l, m) =>
+        if (n == m) {
+          let l = ListUtil.sublist(Skel.range(l), tiles);
+          (t, (l, []), frame);
+        } else {
+          go(l, Uni(Post_l(frame, Tile.get_post(t))));
+        }
+      | Bin(l, m, r) =>
+        let bin = Tile.get_bin(t);
+        if (n < m) {
+          let (r, _) = term_of_skel(r, tiles);
+          go(l, Uni(Bin_l(frame, bin, r)));
+        } else if (n > m) {
+          let (l, _) = term_of_skel(l, tiles);
+          go(r, Uni(Bin_r(l, bin, frame)));
+        } else {
+          let l = ListUtil.sublist(Skel.range(l), tiles);
+          let r = ListUtil.sublist(Skel.range(r), tiles);
+          (t, (l, r), frame);
+        };
+      };
+    };
+    go(mk_skel(tiles), Bi(frame));
+  };
+
   let assemble_open_frame =
       (
-        (prefix, ts, suffix):
-          ZZList.t(AltList.b_frame(Unsorted.Tessera.t, Tm.t), T.t),
+        ts: AltList.b_frame(Unsorted.Tessera.t, Tm.t),
+        tile_frame: ListUtil.frame(T.t),
         frame: F.bidelimited,
       )
       : option(F.open_) => {
@@ -467,51 +516,15 @@ module Make =
       let dummy_hole = Term.Op(Tm.mk_op_hole());
       assemble_tile(AltList.fill_b_frame(dummy_hole, ts));
     };
-    let n = List.length(prefix);
-    let tiles = prefix @ [dummy_tile, ...suffix];
-    let assemble = Input.assemble_open_frame(~associate);
-    let rec go = (skel: Skel.t, frame: F.t) => {
-      let t = List.nth(tiles, Skel.root_index(skel));
-      switch (skel) {
-      | Op(m) =>
-        assert(n == m);
-        assemble(([], ts, []), frame);
-      | Pre(m, r) =>
-        if (n == m) {
-          let r = ListUtil.sublist(Skel.range(r), tiles);
-          assemble(([], ts, r), frame);
-        } else {
-          go(r, Uni(Pre_r(Tile.get_pre(t), frame)));
-        }
-      | Post(l, m) =>
-        if (n == m) {
-          let l = ListUtil.sublist(Skel.range(l), tiles);
-          assemble((l, ts, []), frame);
-        } else {
-          go(l, Uni(Post_l(frame, Tile.get_post(t))));
-        }
-      | Bin(l, m, r) =>
-        let bin = Tile.get_bin(t);
-        if (n < m) {
-          let (_, r, _) = term_of_skel(r, tiles);
-          go(l, Uni(Bin_l(frame, bin, r)));
-        } else if (n > m) {
-          let (_, l, _) = term_of_skel(l, tiles);
-          go(r, Uni(Bin_r(l, bin, frame)));
-        } else {
-          let l = ListUtil.sublist(Skel.range(l), tiles);
-          let r = ListUtil.sublist(Skel.range(r), tiles);
-          assemble((l, ts, r), frame);
-        };
-      };
-    };
-    go(mk_skel(tiles), Bi(frame));
+    let (_, tile_frame, frame) =
+      associate_frame_around_root(dummy_tile, tile_frame, frame);
+    Input.assemble_open_frame(~associate, ts, tile_frame, frame);
   };
 
   let disassemble_open_frame = (frame: F.open_) => {
-    let ((prefix, disassembled, suffix), frame) =
+    let (disassembled, (prefix, suffix), frame) =
       Input.disassemble_open_frame(~dissociate, frame);
     let ((outer_prefix, outer_suffix), frame) = dissociate_frame(frame);
-    ((outer_prefix @ prefix, disassembled, suffix @ outer_suffix), frame);
+    (disassembled, (prefix @ outer_prefix, suffix @ outer_suffix), frame);
   };
 };

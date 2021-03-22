@@ -1,20 +1,23 @@
 open Util;
 
-type pointing('tile) = ZZList.t(unit, 'tile) constraint 'tile = Tile.t(_);
+[@deriving sexp]
+type pointing('tile) = ListUtil.frame('tile);
 
-type selecting('tile) =
-  ZZList.t(
-    (Direction.t, Selection.t(Unsorted.Tile.t)),
-    Selection.elem('tile),
-  );
+[@deriving sexp]
+type selecting('tile) = (
+  (Direction.t, Selection.t(Unsorted.Tile.t)),
+  ListUtil.frame(Selection.elem('tile)),
+);
 
 // TODO add side to focused selection
-type restructuring('tile) =
-  ZZList.t(
-    ZZList.t(Selection.t(Unsorted.Tile.t) as 's, 's),
-    Either.t('tile, 's),
-  );
+[@deriving sexp]
+type restructuring('tile) = (
+  Selection.t(Unsorted.Tile.t),
+  ListUtil.frame(Selection.t(Unsorted.Tile.t)),
+  ListUtil.frame(Either.t('tile, Selection.t(Unsorted.Tile.t))),
+);
 
+[@deriving sexp]
 type t('tile) =
   | Pointing(pointing('tile))
   | Selecting(selecting('tile))
@@ -22,11 +25,12 @@ type t('tile) =
 
 let restructuring_of_pointing =
     (
-      selections: ZZList.t(Selection.t(Unsorted.Tile.t) as 's, 's),
-      (prefix, (), suffix): pointing('tile),
+      selection: Selection.t(Unsorted.Tile.t) as 's,
+      selections: ListUtil.frame('s),
+      pointing: pointing('tile),
     )
-    : restructuring('tile) => {
-  let (prefix, suffix) =
-    TupleUtil.map2(List.map(Either.l), (prefix, suffix));
-  (prefix, selections, suffix);
-};
+    : restructuring('tile) => (
+  selection,
+  selections,
+  TupleUtil.map2(List.map(Either.l), pointing),
+);

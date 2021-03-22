@@ -1,23 +1,12 @@
 open Util;
+open Sexplib.Std;
 
+[@deriving sexp]
 type elem('tile) =
   | Tile('tile)
-  | Tessera(Unsorted.Tessera.t)
-constraint 'tile = Tile.t(_);
+  | Tessera(Unsorted.Tessera.t);
+[@deriving sexp]
 type t('tile) = list(elem('tile));
-
-let sexp_of_t = (sexp_of_tile, selection) =>
-  Sexplib.Sexp.(
-    List(
-      List.map(
-        fun
-        | Tessera(tessera) =>
-          List([Atom("Tessera"), Unsorted.Tessera.sexp_of_t(tessera)])
-        | Tile(tile) => List([Atom("Tile"), sexp_of_tile(tile)]),
-        selection,
-      ),
-    )
-  );
 
 let tile = t => Tile(t);
 let tessera = t => Tessera(t);

@@ -1,3 +1,4 @@
+[@deriving sexp]
 type t =
   | Uni(unidelimited)
   | Bi(bidelimited)

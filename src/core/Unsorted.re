@@ -90,4 +90,27 @@ module Tessera = {
     | Lam(_)
     | Let_eq(_)
     | Ann(_) => true;
+
+  let is_end_of_tile = (side: Direction.t) =>
+    fun
+    | OpHole
+    | Text(_)
+    | Lam(_)
+    | Ann(_)
+    | BinHole
+    | Plus
+    | Arrow => true
+    | Paren_l
+    | Let_eq(_) => side == Left
+    | Paren_r
+    | Let_in => side == Right;
+
+  let is_next = (d: Direction.t, t, t') =>
+    switch (d, t, t') {
+    | (Right, Paren_l, Paren_r)
+    | (Left, Paren_r, Paren_l)
+    | (Right, Let_eq(_), Let_in)
+    | (Left, Let_in, Let_eq(_)) => true
+    | _ => false
+    };
 };

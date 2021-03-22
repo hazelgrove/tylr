@@ -1,3 +1,37 @@
+open Sexplib.Std;
+
+// heads of prefix and suffix neighbor the subject
+[@deriving sexp]
+type frame('x) = (list('x), list('x));
+
+let rec mk_frame = (n: int, xs: list('x)): frame('x) => {
+  let invalid_arg = () => raise(Invalid_argument("ListUtil.mk_frame"));
+  if (n < 0) {
+    invalid_arg();
+  } else if (n == 0) {
+    ([], xs);
+  } else {
+    switch (xs) {
+    | [] => invalid_arg()
+    | [x, ...xs] =>
+      let (prefix, suffix) = mk_frame(n - 1, xs);
+      (prefix @ [x], suffix);
+    };
+  };
+};
+
+let rec split_frame = (n: int, xs: list('x)): ('x, frame('x)) =>
+  switch (n, xs) {
+  | (_, []) => failwith("list index out of bounds")
+  | (0, [x, ...xs]) => (x, ([], xs))
+  | (_, [x, ...xs]) =>
+    let (subj, (prefix, suffix)) = split_frame(n - 1, xs);
+    (subj, (prefix @ [x], suffix));
+  };
+
+let of_frame = (~subject: list('x)=[], (prefix, suffix): frame('x)) =>
+  List.concat([List.rev(prefix), subject, suffix]);
+
 let is_empty =
   fun
   | [] => true

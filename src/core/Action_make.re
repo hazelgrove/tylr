@@ -39,15 +39,21 @@ module Make =
              module F := F and
              module Z := Z,
        ) => {
+  // TODO reuse Parser.associate_frame_around_root
   let move_into_tile =
-      (d: Direction.t, (prefix, z, suffix): ZZList.t(T.t, T.t), frame: F.t)
+      (
+        d: Direction.t,
+        z: T.t,
+        (prefix, suffix): ListUtil.frame(T.t),
+        frame: F.t,
+      )
       : option(EditState_pointing.t) => {
     let n = List.length(prefix);
-    let ts = prefix @ [z, ...suffix];
+    let ts = ListUtil.of_frame(~subject=[z], (prefix, suffix));
     let rec go = (skel: Skel.t, frame: F.t) => {
       let t = List.nth(ts, Skel.root_index(skel));
       let move_into_root = () => {
-        let (_, term, _) = P.term_of_skel(skel, ts);
+        let (term, _) = P.term_of_skel(skel, ts);
         I.move_into_root(d, term, frame);
       };
       switch (skel) {
@@ -63,10 +69,10 @@ module Make =
       | Bin(l, m, r) =>
         let bin = Tile.get_bin(t);
         if (n < m) {
-          let (_, r, _) = P.term_of_skel(r, ts);
+          let (r, _) = P.term_of_skel(r, ts);
           go(l, Uni(Bin_l(frame, bin, r)));
         } else if (n > m) {
-          let (_, l, _) = P.term_of_skel(l, ts);
+          let (l, _) = P.term_of_skel(l, ts);
           go(r, Uni(Bin_r(l, bin, frame)));
         } else {
           move_into_root();
@@ -78,89 +84,71 @@ module Make =
 
   let tesserae_of_shape:
     Unsorted.Tessera.Shape.t =>
-    ZZList.t(Unsorted.Tessera.t, Unsorted.Tessera.t) =
+    (Unsorted.Tessera.t, ListUtil.frame(Unsorted.Tessera.t)) =
     Unsorted.Tessera.(
       fun
-      | Text(s) => ([], Text(s), [])
-      | Paren_l => ([], Paren_l, [Paren_r])
-      | Paren_r => ([Paren_l], Paren_r, [])
-      | Lam => ([], Lam([Op(OpHole)]), [])
-      | Let_eq => ([], Let_eq([Op(OpHole)]), [Let_in])
-      | Let_in => ([Let_eq([Op(OpHole)])], Let_in, [])
-      | Ann => ([], Ann([Op(OpHole)]), [])
-      | Plus => ([], Plus, [])
-      | Arrow => ([], Arrow, [])
+      | Text(s) => (Text(s), ([], []))
+      | Paren_l => (Paren_l, ([], [Paren_r]))
+      | Paren_r => (Paren_r, ([Paren_l], []))
+      | Lam => (Lam([Op(OpHole)]), ([], []))
+      | Let_eq => (Let_eq([Op(OpHole)]), ([], [Let_in]))
+      | Let_in => (Let_in, ([Let_eq([Op(OpHole)])], []))
+      | Ann => (Ann([Op(OpHole)]), ([], []))
+      | Plus => (Plus, ([], []))
+      | Arrow => (Arrow, ([], []))
     );
 
-  exception Invalid_restructure;
-  let parse_restructured =
-      (prefix: Selection.t(T.t), suffix: Selection.t(T.t)): Z.t => {
+  let parse_pointing =
+      (prefix: Selection.t(T.t), suffix: Selection.t(T.t)): Z.pointing => {
+    let invalid_arg = Invalid_argument("Action_make.parse_pointing");
     let rec go =
-            (~rev_prefix=[], (prefix, suffix)): (Z.t, Selection.t(T.t)) =>
-      switch (prefix) {
-      | [Selection.Tile(tile), ...prefix] =>
-        go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
-      | [Tessera(t), ...prefix] =>
-        switch (P.assemble_tile((t, []))) {
-        | Some(tile) =>
-          go(~rev_prefix=[tile, ...rev_prefix], (prefix, suffix))
-        | None =>
-          let ((subject, inner_frame), tail) = go((prefix, suffix));
-          let (close, tail) = ListUtil.split_first(tail);
-          let close = Selection.get_tessera(close);
-          let (suffix, tail) =
-            ListUtil.take_while(
-              fun
-              | Selection.Tile(_) => true
-              | Tessera(_) => false,
-              tail,
-            );
-          let outer_frame =
-            P.assemble_open_frame(
-              (
-                List.rev(rev_prefix),
-                ((t, []), (close, [])),
-                Selection.get_whole(suffix),
-              ),
-              Root,
-            )
-            |> OptUtil.get_or_raise(Invalid_argument("parse_restructured"));
-          let zipper = (
-            subject,
-            F.bi_append(inner_frame, Open(outer_frame)),
-          );
-          (zipper, tail);
-        }
-      | [] =>
-        let (suffix, tail) =
-          ListUtil.take_while(
-            fun
-            | Selection.Tile(_) => true
-            | Tessera(_) => false,
-            suffix,
-          );
-        let zipper = (
-          Subject.Pointing((
-            List.rev(rev_prefix),
-            (),
-            Selection.get_whole(suffix),
-          )),
-          F.Root,
+            (d, affix)
+            : AltList.t(
+                list(T.t),
+                AltList.t(Unsorted.Tessera.t, list(T.t)),
+              ) =>
+      switch (affix) {
+      | [] => ([], [])
+      | [Selection.Tile(tile), ...affix] =>
+        let (inner_affix, tile_halves__affixes) = go(d, affix);
+        ([tile, ...inner_affix], tile_halves__affixes);
+      | [Tessera(tessera), ...affix] =>
+        let (rest_of_tile, affix) =
+          Parser_unsorted.find_rest_of_tile(d, tessera, affix)
+          |> OptUtil.get_or_raise(invalid_arg);
+        let (inner_affix, tile_halves__affixes) = go(d, affix);
+        (
+          [],
+          [((tessera, rest_of_tile), inner_affix), ...tile_halves__affixes],
         );
-        (zipper, tail);
       };
-    let (prefix, suffix) =
-      TupleUtil.map2(P.assemble_tiles_in_selection, (prefix, suffix));
-    let (zipper, tail) = go((prefix, suffix));
-    assert(tail == []);
-    zipper;
+    let (inner_prefix, tile_halves_l__prefixes) =
+      go(Left, P.assemble_tiles_in_selection(~direction=Left, prefix));
+    let (inner_suffix, tile_halves_r__suffixes) =
+      go(Right, P.assemble_tiles_in_selection(~direction=Right, suffix));
+    let frame =
+      List.fold_right(
+        (((tile_half_l, prefix), (tile_half_r, suffix)), frame) => {
+          let tile_halves =
+            (tile_half_l, tile_half_r)
+            |> TupleUtil.map2(AltList.map_b(P.associate));
+          let open_frame =
+            P.assemble_open_frame(tile_halves, (prefix, suffix), frame)
+            |> OptUtil.get_or_raise(invalid_arg);
+          Open(open_frame);
+        },
+        List.combine(tile_halves_l__prefixes, tile_halves_r__suffixes),
+        // TODO thread in frame
+        Root,
+      );
+    ((inner_prefix, inner_suffix), frame);
   };
 
   let move_pointing =
-      (d: Direction.t, ((prefix, (), suffix), frame): Z.pointing)
+      (d: Direction.t, ((prefix, suffix), frame): Z.pointing)
       : option(EditState_pointing.t) => {
     let j = List.length(prefix);
-    let tiles = prefix @ suffix;
+    let tiles = ListUtil.of_frame((prefix, suffix));
     let exit = () =>
       // TODO first try moving to next child
       I.move_into_frame(d, P.associate(tiles), frame);
@@ -169,12 +157,13 @@ module Make =
     | Right when j == List.length(tiles) => exit()
     | _ =>
       let n = d == Left ? j - 1 : j;
-      switch (move_into_tile(d, ZZList.split_at(n, tiles), Bi(frame))) {
+      let (tile, tile_frame) = ListUtil.split_frame(n, tiles);
+      switch (move_into_tile(d, tile, tile_frame, Bi(frame))) {
       | Some(_) as entered => entered
       | None =>
         let j = d == Left ? j - 1 : j + 1;
-        let (prefix, suffix) = ListUtil.split_n(j, tiles);
-        Some(I.mk_pointing(((prefix, (), suffix), frame)));
+        let (prefix, suffix) = ListUtil.mk_frame(j, tiles);
+        Some(I.mk_pointing(((prefix, suffix), frame)));
       };
     };
   };
@@ -190,24 +179,27 @@ module Make =
   and perform_pointing =
       (
         a: t,
-        (prefix, (), suffix) as pointing: Subject.pointing(T.t),
+        (prefix, suffix) as pointing: Subject.pointing(T.t),
         frame: F.bidelimited,
       )
       : option(EditState.t) =>
     switch (a) {
     | Mark =>
       let selecting = (
-        List.map(Selection.tile, prefix),
         (Direction.Left, []),
-        List.map(Selection.tile, suffix),
+        (
+          List.map(Selection.tile, prefix),
+          List.map(Selection.tile, suffix),
+        ),
       );
       Some(I.mk_edit_state((Selecting(selecting), frame)));
     | Move(d) =>
       Option.map(EditState.of_pointing, move_pointing(d, (pointing, frame)))
     | Delete(Left) =>
-      let subject = prefix @ suffix;
-      let (prefix, tile, suffix) =
-        ListUtil.split_nth(List.length(prefix) - 1, subject);
+      let subject = ListUtil.of_frame(pointing);
+      // TODO handle empty prefix
+      let (tile, (prefix, suffix)) =
+        ListUtil.split_frame(List.length(prefix) - 1, subject);
       // break up nth tile into alternating sequence of tesserae + open children
       let (hd, tl) = AltList.rev(P.disassemble_tile(tile));
       switch (tl) {
@@ -215,12 +207,11 @@ module Make =
         // if consists of a single tessera:
         //   remove, fix empty holes, reassemble into pointing mode
         let (prefix, suffix) =
-          [prefix, suffix]
-          |> List.map(List.map(Selection.tile))
+          (prefix, suffix)
+          |> TupleUtil.map2(affix => [List.map(Selection.tile, affix)])
           |> P.fix_empty_holes
-          |> ListUtil.take_2
           |> TupleUtil.map2(Selection.get_whole);
-        Some(I.mk_edit_state((Pointing((prefix, (), suffix)), frame)));
+        Some(I.mk_edit_state((Pointing((prefix, suffix)), frame)));
       | [_, ..._] =>
         // else:
         //   enter restructuring mode on one of the end tesserae:
@@ -233,17 +224,22 @@ module Make =
                List.rev_map(Either.l, P.dissociate(open_child))
                @ [Either.R([Selection.Tessera(tessera)])]
              )
-          |> List.flatten
-          |> List.rev;
-        let prefix = List.map(Either.l, prefix) @ inner_prefix;
+          |> List.flatten;
+        let prefix = inner_prefix @ List.map(Either.l, prefix);
         let suffix = List.map(Either.l, suffix);
-        let z = ([], [Selection.Tessera(hd)], []);
-        Some(I.mk_edit_state((Restructuring((prefix, z, suffix)), frame)));
+        let focused_selection = [Selection.Tessera(hd)];
+        Some(
+          I.mk_edit_state((
+            Restructuring((focused_selection, ([], []), (prefix, suffix))),
+            frame,
+          )),
+        );
       };
     | Delete(Right) =>
-      let subject = prefix @ suffix;
-      let (prefix, tile, suffix) =
-        ListUtil.split_nth(List.length(prefix), subject);
+      let subject = ListUtil.of_frame(pointing);
+      // TODO handle empty suffix
+      let (tile, (prefix, suffix)) =
+        ListUtil.split_frame(List.length(prefix), subject);
       // break up nth tile into alternating sequence of tesserae + open children
       let (hd, tl) = P.disassemble_tile(tile);
       switch (tl) {
@@ -251,12 +247,11 @@ module Make =
         // if consists of a single tessera:
         //   remove, fix empty holes, reassemble into pointing mode
         let (prefix, suffix) =
-          [prefix, suffix]
-          |> List.map(List.map(Selection.tile))
+          (prefix, suffix)
+          |> TupleUtil.map2(affix => [List.map(Selection.tile, affix)])
           |> P.fix_empty_holes
-          |> ListUtil.take_2
           |> TupleUtil.map2(Selection.get_whole);
-        Some(I.mk_edit_state((Pointing((prefix, (), suffix)), frame)));
+        Some(I.mk_edit_state((Pointing((prefix, suffix)), frame)));
       | [_, ..._] =>
         // else:
         //   enter restructuring mode on one of the end tesserae:
@@ -274,12 +269,17 @@ module Make =
           |> List.flatten;
         let prefix = List.map(Either.l, prefix);
         let suffix = inner_suffix @ List.map(Either.l, suffix);
-        let z = ([], [Selection.Tessera(hd)], []);
-        Some(I.mk_edit_state((Restructuring((prefix, z, suffix)), frame)));
+        let focused_selection = [Selection.Tessera(hd)];
+        Some(
+          I.mk_edit_state((
+            Restructuring((focused_selection, ([], []), (prefix, suffix))),
+            frame,
+          )),
+        );
       };
 
     | Construct(shape) =>
-      let (ts_before, tessera, ts_after) = tesserae_of_shape(shape);
+      let (tessera, (ts_before, ts_after)) = tesserae_of_shape(shape);
       if (Unsorted.Tessera.has_child(tessera)) {
         let (ts_before, ts_after) =
           TupleUtil.map2(
@@ -288,33 +288,27 @@ module Make =
           );
         let (prefix, suffix) =
           TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
-        let (prefix, ts_before, tessera, ts_after, suffix) =
-          [
-            prefix,
-            ts_before,
-            [Selection.Tessera(tessera)],
-            ts_after,
-            suffix,
-          ]
-          |> P.fix_empty_holes
-          |> ListUtil.take_5;
-        let (subject, inner_frame) =
-          parse_restructured(prefix @ ts_before, tessera @ ts_after @ suffix);
+        let (prefix, suffix) =
+          P.fix_empty_holes((
+            [ts_before, prefix],
+            [[Selection.Tessera(tessera)], ts_after, suffix],
+          ));
+        let (subject, inner_frame) = parse_pointing(prefix, suffix);
         let frame = F.bi_append(inner_frame, frame);
-        perform(Move(Right), (subject, frame));
+        perform(Move(Right), (Pointing(subject), frame));
       } else {
         switch (ts_before, ts_after) {
         | ([], []) =>
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
-          let (prefix, tessera, suffix) =
-            [prefix, [Selection.Tessera(tessera)], suffix]
-            |> P.fix_empty_holes
-            |> ListUtil.take_3;
-          let (subject, inner_frame) =
-            parse_restructured(prefix @ tessera, suffix);
+          let (prefix, suffix) =
+            P.fix_empty_holes((
+              [[Selection.Tessera(tessera)], prefix],
+              [suffix],
+            ));
+          let (subject, inner_frame) = parse_pointing(prefix, suffix);
           let frame = F.bi_append(inner_frame, frame);
-          Some(I.mk_edit_state((subject, frame)));
+          Some(I.mk_edit_state((Pointing(subject), frame)));
         | _ =>
           let (prefix, suffix) =
             TupleUtil.map2(List.map(Either.l), (prefix, suffix));
@@ -323,14 +317,14 @@ module Make =
               List.map(tessera => [Selection.Tessera(tessera)]),
               (ts_before, ts_after),
             );
-          let selections = (
-            ss_before,
-            [Selection.Tessera(tessera)],
-            ss_after,
-          );
+          let selection = [Selection.Tessera(tessera)];
           Some(
             I.mk_edit_state((
-              Restructuring((prefix, selections, suffix)),
+              Restructuring((
+                selection,
+                (ss_before, ss_after),
+                (prefix, suffix),
+              )),
               frame,
             )),
           );
@@ -340,7 +334,7 @@ module Make =
   and perform_selecting =
       (
         a: t,
-        (prefix, (side, selection), suffix) as selecting:
+        ((side, selection), (prefix, suffix)) as selecting:
           Subject.selecting(T.t),
         frame,
       ) =>
@@ -353,25 +347,26 @@ module Make =
           | Tessera(tessera) => R([Selection.Tessera(tessera)]),
         );
       let restructuring = (
-        upgrade(prefix),
-        ([], selection, []),
-        upgrade(suffix),
+        selection,
+        ([], []),
+        TupleUtil.map2(upgrade, (prefix, suffix)),
       );
       Some(I.mk_edit_state((Restructuring(restructuring), frame)));
 
     | Move(d) =>
-      let adjust_subject = (~prefix=prefix, ~suffix=suffix, selection) =>
+      let adjust_subject = (~prefix=prefix, ~suffix=suffix, selection) => {
         Some(
           I.mk_edit_state((
-            Selecting((prefix, (side, selection), suffix)),
+            Selecting(((side, selection), (prefix, suffix))),
             frame,
           )),
         );
+      };
       if (d != side) {
         if (selection == []) {
           perform_selecting(
             Move(d),
-            (prefix, (d, selection), suffix),
+            ((d, selection), (prefix, suffix)),
             frame,
           );
         } else {
@@ -381,16 +376,19 @@ module Make =
             switch (first) {
             | Tessera(t) =>
               let prefix =
-                P.assemble_tiles_in_selection(prefix @ [Tessera(t)]);
+                P.assemble_tiles_in_selection(
+                  ~direction=Left,
+                  [Selection.Tessera(t), ...prefix],
+                );
               adjust_subject(~prefix, trailing);
             | Tile(tile) =>
               let (hd, tl) = Parser_unsorted.disassemble_tile(tile);
               switch (tl) {
               | [] =>
                 let* tile = P.sort(tile);
-                adjust_subject(~prefix=prefix @ [Tile(tile)], trailing);
+                adjust_subject(~prefix=[Tile(tile), ...prefix], trailing);
               | [_, ..._] =>
-                let prefix = prefix @ Selection.[Tessera(hd)];
+                let prefix = Selection.[Tessera(hd), ...prefix];
                 let selection =
                   (
                     tl
@@ -409,7 +407,10 @@ module Make =
             switch (last) {
             | Tessera(t) =>
               let suffix =
-                P.assemble_tiles_in_selection([Tessera(t), ...suffix]);
+                P.assemble_tiles_in_selection(
+                  ~direction=Right,
+                  [Tessera(t), ...suffix],
+                );
               adjust_subject(~suffix, leading);
             | Tile(tile) =>
               let (hd, tl) =
@@ -439,38 +440,37 @@ module Make =
       } else {
         switch (side) {
         | Left =>
-          switch (ListUtil.split_last_opt(prefix)) {
-          | None =>
+          switch (prefix) {
+          | [] =>
             Option.map(
               EditState.of_selecting,
               I.select_into_frame((selecting, frame)),
             )
-          | Some((leading, Tessera(t))) =>
+          | [Tessera(t), ...trailing] =>
             let selection =
-              Parser_unsorted.assemble_tiles_in_selection([
-                Selection.Tessera(t),
-                ...selection,
-              ]);
-            adjust_subject(~suffix=leading, selection);
-          | Some((leading, Tile(tile))) =>
+              Parser_unsorted.assemble_tiles_in_selection(
+                ~direction=Right,
+                [Selection.Tessera(t), ...selection],
+              );
+            adjust_subject(~prefix=trailing, selection);
+          | [Tile(tile), ...trailing] =>
             let (hd, tl) = AltList.rev(P.disassemble_tile(tile));
             switch (tl) {
             | [] =>
               // maintain maximum structure in selection
               let tile = P.unsort(tile);
-              adjust_subject(~prefix=leading, [Tile(tile), ...selection]);
+              adjust_subject(~prefix=trailing, [Tile(tile), ...selection]);
             | [_, ..._] =>
               let prefix =
-                leading
-                @ (
+                (
                   tl
                   |> List.map(((open_child, tessera)) =>
                        List.rev_map(Selection.tile, P.dissociate(open_child))
                        @ [Selection.Tessera(tessera)]
                      )
                   |> List.flatten
-                  |> List.rev
-                );
+                )
+                @ trailing;
               let selection = Selection.[Tessera(hd), ...selection];
               adjust_subject(~prefix, selection);
             };
@@ -485,6 +485,7 @@ module Make =
           | [Tessera(t), ...trailing] =>
             let selection =
               Parser_unsorted.assemble_tiles_in_selection(
+                ~direction=Right,
                 selection @ [Tessera(t)],
               );
             adjust_subject(~suffix=trailing, selection);
@@ -524,11 +525,12 @@ module Make =
       //  and put in restructuring mode
       //  TODO side depending on delete direction
       let subject =
-        Subject.Restructuring((prefix, ([], selection, []), suffix));
+        Subject.Restructuring((selection, ([], []), (prefix, suffix)));
       Some(I.mk_edit_state((subject, frame)));
 
     | Construct(shape) =>
       // TODO unify with hole fixing logic in Parser
+      // TODO REVERSE
       let fix_prefix = (prefix: list(T.t), t) => {
         let convex_left = Unsorted.Tessera.is_convex(Left, t);
         switch (ListUtil.split_last_opt(prefix)) {
@@ -576,7 +578,7 @@ module Make =
       let* _ = Selection.is_whole(selection);
       let (prefix_tiles, suffix_tiles) =
         TupleUtil.map2(Selection.get_whole, (prefix, suffix));
-      let (ts_before, t, ts_after) = tesserae_of_shape(shape);
+      let (t, (ts_before, ts_after)) = tesserae_of_shape(shape);
       switch (ts_before) {
       | [_, ..._] => None
       | [] =>
@@ -598,18 +600,18 @@ module Make =
           };
           let+ frame =
             P.assemble_open_frame(
-              (prefix_tiles, (frame_prefix, frame_suffix), suffix_tiles),
+              (frame_prefix, frame_suffix),
+              (prefix_tiles, suffix_tiles),
               frame,
             );
           I.mk_edit_state((Selecting(selecting), Open(frame)));
         | [] =>
           let+ tile = P.assemble_tile((t, []));
-          let (prefix, tile, suffix) =
-            [prefix, [Selection.Tile(tile)], suffix]
+          let (prefix, suffix) =
+            ([[Selection.Tile(tile)], prefix], [suffix])
             |> P.fix_empty_holes
-            |> List.map(Selection.get_whole)
-            |> ListUtil.take_3;
-          let subject = Subject.Pointing((prefix @ tile, (), suffix));
+            |> TupleUtil.map2(Selection.get_whole);
+          let subject = Subject.Pointing((prefix, suffix));
           I.mk_edit_state((subject, frame));
         }
       };
@@ -617,7 +619,8 @@ module Make =
   and perform_restructuring =
       (
         a: t,
-        (prefix, selections, suffix): Subject.restructuring(T.t),
+        (selection, (ss_before, ss_after), (prefix, suffix)):
+          Subject.restructuring(T.t),
         frame: F.bidelimited,
       )
       : option(EditState.t) =>
@@ -640,22 +643,25 @@ module Make =
            )
         |> OptUtil.sequence
         |> Option.map(List.flatten);
-      let (ss_before, selection, ss_after) = selections;
       // TODO add side to focused selection in restructuring
       let suffix = [Either.R(selection), ...suffix];
-      switch (ss_before, ss_after) {
+      switch (List.rev(ss_before), ss_after) {
       | ([], []) =>
         let+ prefix = flatten(prefix)
         and+ suffix = flatten(suffix);
         // TODO fix empty holes
-        let (subject, inner_frame) = parse_restructured(prefix, suffix);
+        let (subject, inner_frame) = parse_pointing(prefix, suffix);
         let frame = F.bi_append(inner_frame, frame);
-        I.mk_edit_state((subject, frame));
+        I.mk_edit_state((Pointing(subject), frame));
       | ([s, ...ss_before], _) =>
-        let restructuring = (prefix, ([], s, ss_before @ ss_after), suffix);
+        let restructuring = (
+          s,
+          ([], ss_before @ ss_after),
+          (prefix, suffix),
+        );
         Some(I.mk_edit_state((Restructuring(restructuring), frame)));
       | ([], [s, ...ss_after]) =>
-        let restructuring = (prefix, ([], s, ss_after), suffix);
+        let restructuring = (s, ([], ss_after), (prefix, suffix));
         Some(I.mk_edit_state((Restructuring(restructuring), frame)));
       };
 
@@ -666,9 +672,13 @@ module Make =
         (whole_prefix, whole_suffix);
       };
       let move_via_pointing = (prefix, suffix) => {
-        let+ moved = move_pointing(d, ((prefix, (), suffix), frame));
+        let+ moved = move_pointing(d, ((prefix, suffix), frame));
         EditState.of_restructuring(
-          EditState_restructuring.of_pointing(selections, moved),
+          EditState_restructuring.of_pointing(
+            selection,
+            (ss_before, ss_after),
+            moved,
+          ),
         );
       };
       let move_through_tile = (prefix, tile, suffix) => {
@@ -678,18 +688,18 @@ module Make =
           let (prefix, suffix) =
             switch (d) {
             | Left => (prefix, [tile, ...suffix])
-            | Right => (prefix @ [tile], suffix)
+            | Right => ([tile, ...prefix], suffix)
             };
-          Some(
-            I.mk_edit_state((
-              Restructuring((prefix, selections, suffix)),
-              frame,
-            )),
+          let restructuring = (
+            selection,
+            (ss_before, ss_after),
+            (prefix, suffix),
           );
+          Some(I.mk_edit_state((Restructuring(restructuring), frame)));
         | Some((prefix, suffix)) =>
           let (prefix, suffix) =
             switch (d) {
-            | Left => (prefix @ [tile], suffix)
+            | Left => ([tile, ...prefix], suffix)
             | Right => (prefix, [tile, ...suffix])
             };
           move_via_pointing(prefix, suffix);
@@ -697,15 +707,15 @@ module Make =
       };
       let pick_up_selection = (~prefix=prefix, ~suffix=suffix, selection) => {
         let selections = {
-          let ss = ZZList.erase(s => s, selections);
+          let ss = ListUtil.of_frame((ss_before, ss_after));
           switch (d) {
-          | Left => ([], selection, ss)
-          | Right => (ss, selection, [])
+          | Left => ([], ss)
+          | Right => (List.rev(ss), [])
           };
         };
         Some(
           I.mk_edit_state((
-            Restructuring((prefix, selections, suffix)),
+            Restructuring((selection, selections, (prefix, suffix))),
             frame,
           )),
         );
@@ -745,9 +755,7 @@ module Make =
       let (prefix, suffix) =
         TupleUtil.map2(delete_selections, (prefix, suffix));
       let _ = failwith("need to fix empty holes");
-      Some(
-        I.mk_edit_state((Subject.Pointing((prefix, (), suffix)), frame)),
-      );
+      Some(I.mk_edit_state((Subject.Pointing((prefix, suffix)), frame)));
 
     | Construct(_) => None
     };

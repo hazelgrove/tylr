@@ -36,51 +36,65 @@ let assemble_tile:
   | (Ann(ann), []) => Some(Post(Ann(ann)))
   | _ => None;
 
-let assemble_tiles_in_selection' =
-    (
-      ~assemble_tile:
-         AltList.t(Unsorted.Tessera.t, list('tile)) => option('tile),
-      selection: Selection.t('tile) as 'selection,
-    )
-    : 'selection => {
-  let rec go = (selection: 'selection): 'selection =>
-    switch (selection) {
-    | [] => []
-    | [Tile(_) as elem, ...selection] => [elem, ...go(selection)]
-    | [Tessera(tessera) as elem, ...selection'] =>
-      if (Unsorted.Tessera.is_closing(tessera)) {
-        [elem, ...go(selection')];
-      } else {
-        // TODO handle mid
-        switch (go_opening(tessera, selection')) {
-        | None => selection
-        | Some((tile, selection)) => [Tile(tile), ...go(selection)]
-        };
-      }
-    }
-  and go_opening =
-      (
-        ~rev_tiles: list('tile)=[],
-        open_: Unsorted.Tessera.t,
-        selection: 'selection,
-      )
-      : option(('tile, 'selection)) =>
+let rec find_rest_of_tile =
+        (
+          d: Direction.t,
+          tessera: Unsorted.Tessera.t as 't,
+          selection: Selection.t('tile) as 's,
+        )
+        : option((AltList.even(list('tile), 't), 's)) =>
+  if (Unsorted.Tessera.is_end_of_tile(d, tessera)) {
+    Some(([], selection));
+  } else {
     switch (selection) {
     | [] => None
-    | [Tile(tile), ...selection] =>
-      go_opening(~rev_tiles=[tile, ...rev_tiles], open_, selection)
-    | [Tessera(tessera), ...selection] =>
-      // TODO handle mid tesserae
-      if (Unsorted.Tessera.is_closing(tessera)) {
-        let ts = List.rev(rev_tiles);
-        let+ tile = assemble_tile((open_, [(ts, tessera)]));
-        (tile, selection);
+    | [Tessera(next), ...selection] =>
+      if (Unsorted.Tessera.is_next(d, tessera, next)) {
+        let+ (rest, remaining) = find_rest_of_tile(d, next, selection);
+        ([([], next), ...rest], remaining);
       } else {
-        let* (tile, selection) = go_opening(open_, selection);
-        go_opening(~rev_tiles=[tile, ...rev_tiles], open_, selection);
+        None;
       }
+    | [Tile(tile), ...selection] =>
+      let+ (rest, remaining) = find_rest_of_tile(d, tessera, selection);
+      let ((open_child, tessera), tl) = ListUtil.split_first(rest);
+      let open_child =
+        switch (d) {
+        | Left => open_child @ [tile]
+        | Right => [tile, ...open_child]
+        };
+      ([(open_child, tessera), ...tl], remaining);
     };
-  go(selection);
+  };
+
+let rec assemble_tiles_in_selection' =
+        (
+          ~direction: Direction.t,
+          ~assemble_tile:
+             AltList.t(Unsorted.Tessera.t, list('tile)) => option('tile),
+          selection: Selection.t('tile) as 'selection,
+        )
+        : 'selection => {
+  let go = assemble_tiles_in_selection'(~direction, ~assemble_tile);
+  switch (selection) {
+  | [] => []
+  | [Tile(_) as elem, ...selection] => [elem, ...go(selection)]
+  | [Tessera(tessera) as elem, ...selection'] =>
+    let cannot_assemble = () => [elem, ...go(selection')];
+    switch (find_rest_of_tile(direction, tessera, selection')) {
+    | None => cannot_assemble()
+    | Some((rest, selection')) =>
+      let disassembled =
+        switch (direction) {
+        | Left => AltList.rev((tessera, rest))
+        | Right => (tessera, rest)
+        };
+      switch (assemble_tile(disassembled)) {
+      | None => cannot_assemble()
+      | Some(tile) => [Tile(tile), ...go(selection')]
+      };
+    };
+  };
 };
 let assemble_tiles_in_selection =
   assemble_tiles_in_selection'(~assemble_tile);

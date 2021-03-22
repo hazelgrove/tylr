@@ -3,9 +3,13 @@ module type S = {
   module T: Tile.S with module Tm := Tm;
   module F: Frame.S with module Tm := Tm;
 
+  [@deriving sexp]
   type t = (Subject.t(T.t), F.bidelimited);
+  [@deriving sexp]
   type pointing = (Subject.pointing(T.t), F.bidelimited);
+  [@deriving sexp]
   type selecting = (Subject.selecting(T.t), F.bidelimited);
+  [@deriving sexp]
   type restructuring = (Subject.restructuring(T.t), F.bidelimited);
 };
 

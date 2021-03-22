@@ -91,11 +91,8 @@ module Input:
   let assemble_open_frame =
       (
         ~associate: list(Tile_exp.t) => Term_exp.t,
-        (_prefix, ts, suffix):
-          ZZList.t(
-            AltList.b_frame(Unsorted.Tessera.t, Term_exp.t),
-            Tile_exp.t,
-          ),
+        ts: AltList.b_frame(Unsorted.Tessera.t, Term_exp.t),
+        (_prefix, suffix): ListUtil.frame(Tile_exp.t),
         frame: Frame_exp.t,
       )
       : option(Frame_exp.open_) => {
@@ -117,13 +114,13 @@ module Input:
         (Unsorted.Tessera.Paren_l, []),
         (Unsorted.Tessera.Paren_r, []),
       );
-      (([], ts, []), frame);
+      (ts, ([], []), frame);
     | Let_def(p, frame, body) =>
       let ts = (
         (Unsorted.Tessera.Let_eq(Parser_pat.dissociate_and_unsort(p)), []),
         (Unsorted.Tessera.Let_in, []),
       );
-      (([], ts, dissociate(body)), frame);
+      (ts, ([], dissociate(body)), frame);
     | Ap_arg(_) => failwith("ap todo")
     };
 };

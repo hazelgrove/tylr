@@ -62,11 +62,8 @@ module Input:
   let assemble_open_frame =
       (
         ~associate as _,
-        (_prefix, ts, _suffix):
-          ZZList.t(
-            AltList.b_frame(Unsorted.Tessera.t, Term_typ.t),
-            Tile_typ.t,
-          ),
+        ts: AltList.b_frame(Unsorted.Tessera.t, Term_typ.t),
+        _: ListUtil.frame(Tile_typ.t),
         frame: Frame_typ.t,
       )
       : option(Frame_typ.open_) => {
@@ -83,7 +80,7 @@ module Input:
         (Unsorted.Tessera.Paren_l, []),
         (Unsorted.Tessera.Paren_r, []),
       );
-      (([], ts, []), frame);
+      (ts, ([], []), frame);
     };
 };
 

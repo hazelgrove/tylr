@@ -1,12 +1,17 @@
+open Sexplib.Std;
+
 /**
  * An alternating list with an even number of elements
  */
+[@deriving sexp]
 type even('x, 'y) = list(('x, 'y));
 /**
  * An alternating list with an odd number of elements
  */
+[@deriving sexp]
 type odd('x, 'y) = ('x, even('y, 'x));
 
+[@deriving sexp]
 type t('a, 'b) = odd('a, 'b);
 
 let rec rev = ((hd, tl): t('a, 'b)) =>
@@ -23,6 +28,7 @@ let rec rev = ((hd, tl): t('a, 'b)) =>
  * The head elements of both prefix and suffix are
  * the ones closest to the subject.
  */
+[@deriving sexp]
 type a_frame('a, 'b) = (even('b, 'a), even('b, 'a));
 /**
  * The surrounding elements of an element of
@@ -30,6 +36,7 @@ type a_frame('a, 'b) = (even('b, 'a), even('b, 'a));
  * The head elements of both prefix and suffix are
  * the ones closest to the subject.
  */
+[@deriving sexp]
 type b_frame('a, 'b) = (odd('a, 'b), odd('a, 'b));
 
 let rec prepend = (prefix: even('b, 'a), abs: t('a, 'b)): t('a, 'b) =>

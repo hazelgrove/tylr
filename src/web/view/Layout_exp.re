@@ -288,9 +288,9 @@ let mk_selection =
 };
 
 let mk_selecting =
-    ((prefix, (side, selection), suffix): Subject.selecting(Tile_exp.t)) => {
+    (((side, selection), (prefix, suffix)): Subject.selecting(Tile_exp.t)) => {
   let prefix =
-    prefix
+    List.rev(prefix)
     |> Selection.map_tile(Parser_exp.unsort)
     |> mk_selection(~grouts=grouts_l, ~selected=false);
   let suffix =
@@ -305,7 +305,10 @@ let mk_selecting =
 };
 
 let mk_restructuring =
-    ((prefix, selections, suffix): Subject.restructuring(Tile_exp.t)) => {
+    (
+      (selection, selections, (prefix, suffix)):
+        Subject.restructuring(Tile_exp.t),
+    ) => {
   let picked_up_all_selections = {
     let whole_prefix = OptUtil.sequence(List.map(Either.get_L, prefix))
     and whole_suffix = OptUtil.sequence(List.map(Either.get_L, suffix));
@@ -341,17 +344,16 @@ let mk_restructuring =
       List.map(
         mk_selection(~style={unfocused: true}, ~grouts, ~selected=true),
       );
-    let (before, selection, after) = selections;
-    Restructuring((
-      mk_unfocused_selections(before),
+    let (before, after) = selections;
+    Restructuring(
       mk_selection(
         ~style={unfocused: false},
         ~grouts,
         ~selected=true,
         selection,
       ),
-      mk_unfocused_selections(after),
-    ));
+      (mk_unfocused_selections(before), mk_unfocused_selections(after)),
+    );
   };
   grouts_z(prefix, caret, suffix);
 };

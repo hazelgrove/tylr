@@ -7,17 +7,17 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
     switch (pointing) {
     | Typ(_)
     | Pat(_) => failwith("todo Layout_edit_state.mk_pointing")
-    | Exp(((prefix, (), []), frame)) =>
-      let subject = Parser_exp.associate(prefix);
+    | Exp(((prefix, []), frame)) =>
+      let subject = Parser_exp.associate(List.rev(prefix));
       switch (frame) {
       | Root =>
-        let (leading, last) = ListUtil.split_last(prefix);
-        go(~caret=After, Exp(((leading, (), [last]), frame)));
+        let (first, trailing) = ListUtil.split_first(prefix);
+        go(~caret=After, Exp(((trailing, [first]), frame)));
       | Open(Paren_body(frame)) =>
         let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
         go(
           ~caret=Before(1),
-          Exp(((prefix, (), [Op(Paren(subject)), ...suffix]), frame)),
+          Exp(((prefix, [Op(Paren(subject)), ...suffix]), frame)),
         );
       | Open(Let_def(p, frame, body)) =>
         let inner_suffix = Parser_exp.dissociate(body);
@@ -27,7 +27,6 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
           Exp((
             (
               prefix,
-              (),
               [Tile.Pre(Term_exp.Let(p, subject)), ...inner_suffix] @ suffix,
             ),
             frame,
@@ -36,10 +35,10 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
       | Open(Ap_arg(_)) => failwith("ap todo")
       | Closed () => raise(Frame_exp.Void_closed)
       };
-    | Exp(((prefix, (), [_, ..._] as suffix), frame)) =>
-      let (prefix, term, suffix) = {
+    | Exp(((prefix, [_, ..._] as suffix), frame)) =>
+      let (term, (prefix, suffix)) = {
         let n = List.length(prefix);
-        let tiles = prefix @ suffix;
+        let tiles = ListUtil.of_frame((prefix, suffix));
         let skel = Skel.skel_at(n, Parser_exp.mk_skel(tiles));
         Parser_exp.term_of_skel(skel, tiles);
       };

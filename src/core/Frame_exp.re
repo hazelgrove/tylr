@@ -1,3 +1,6 @@
+open Sexplib.Std;
+
+[@deriving sexp]
 type t =
   | Uni(unidelimited)
   | Bi(bidelimited)
