@@ -333,7 +333,7 @@ let mk_restructuring =
            | R(selection) =>
              mk_selection(
                ~style={unfocused: false},
-               ~grouts,
+               ~grouts=grouts_inner,
                ~selected=true,
                selection,
              ),

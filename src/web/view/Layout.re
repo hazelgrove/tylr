@@ -116,6 +116,8 @@ let grouts_r = ls =>
 let grouts_z = (ls_pre, caret, ls_suf) =>
   cats([grouts_l(ls_pre), grout(~caret, ()), grouts_r(ls_suf)]);
 
+let grouts_inner = ls => cats(ListUtil.join(grout(), ls));
+
 let err_hole = (has_err: bool, expanded: bool, l: t) =>
   has_err ? Annot(ErrHole(expanded), l) : l;
 
