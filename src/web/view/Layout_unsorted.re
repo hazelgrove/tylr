@@ -17,7 +17,7 @@ and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
     tile
     |> Tile.get(
          fun
-         | Unsorted.Tile.OpHole => mk_OpHole()
+         | Unsorted.Tile.OpHole => (empty_hole(fst(mk_OpHole())), None)
          | Text(s) => mk_text(s)
          | Paren(body) => mk_Paren(open_child(mk_tiles(body))),
          fun
@@ -28,7 +28,7 @@ and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
          | Unsorted.Tile.Ap(_) => failwith("ap todo")
          | Ann(ann) => mk_Ann(mk_tiles(ann)),
          fun
-         | Unsorted.Tile.BinHole => mk_BinHole()
+         | Unsorted.Tile.BinHole => (empty_hole(fst(mk_BinHole())), None)
          | Plus => mk_Plus()
          | Arrow => mk_Arrow(),
        );
