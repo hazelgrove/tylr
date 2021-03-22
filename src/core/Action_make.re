@@ -236,7 +236,10 @@ module Make =
         let focused_selection = [Selection.Tessera(hd)];
         Some(
           I.mk_edit_state((
-            Restructuring((focused_selection, ([], []), (prefix, suffix))),
+            Restructuring((
+              (focused_selection, ([], [])),
+              (prefix, suffix),
+            )),
             frame,
           )),
         );
@@ -278,7 +281,10 @@ module Make =
         let focused_selection = [Selection.Tessera(hd)];
         Some(
           I.mk_edit_state((
-            Restructuring((focused_selection, ([], []), (prefix, suffix))),
+            Restructuring((
+              (focused_selection, ([], [])),
+              (prefix, suffix),
+            )),
             frame,
           )),
         );
@@ -329,8 +335,7 @@ module Make =
           Some(
             I.mk_edit_state((
               Restructuring((
-                selection,
-                (ss_before, ss_after),
+                (selection, (ss_before, ss_after)),
                 (prefix, suffix),
               )),
               frame,
@@ -355,8 +360,7 @@ module Make =
           | Tessera(tessera) => R([Selection.Tessera(tessera)]),
         );
       let restructuring = (
-        selection,
-        ([], []),
+        (selection, ([], [])),
         TupleUtil.map2(upgrade, (prefix, suffix)),
       );
       Some(I.mk_edit_state((Restructuring(restructuring), frame)));
@@ -541,7 +545,7 @@ module Make =
       //  and put in restructuring mode
       //  TODO side depending on delete direction
       let subject =
-        Subject.Restructuring((selection, ([], []), (prefix, suffix)));
+        Subject.Restructuring(((selection, ([], [])), (prefix, suffix)));
       Some(I.mk_edit_state((subject, frame)));
 
     | Construct(shape) =>
@@ -635,7 +639,7 @@ module Make =
   and perform_restructuring =
       (
         a: t,
-        (selection, (ss_before, ss_after), (prefix, suffix)):
+        ((selection, (ss_before, ss_after)), (prefix, suffix)):
           Subject.restructuring(T.t),
         frame: F.bidelimited,
       )
@@ -672,13 +676,12 @@ module Make =
         I.mk_edit_state((Pointing(subject), frame));
       | ([s, ...ss_before], _) =>
         let restructuring = (
-          s,
-          ([], ss_before @ ss_after),
+          (s, ([], ss_before @ ss_after)),
           (prefix, suffix),
         );
         Some(I.mk_edit_state((Restructuring(restructuring), frame)));
       | ([], [s, ...ss_after]) =>
-        let restructuring = (s, ([], ss_after), (prefix, suffix));
+        let restructuring = ((s, ([], ss_after)), (prefix, suffix));
         Some(I.mk_edit_state((Restructuring(restructuring), frame)));
       };
 
@@ -708,8 +711,7 @@ module Make =
             | Right => ([tile, ...prefix], suffix)
             };
           let restructuring = (
-            selection,
-            (ss_before, ss_after),
+            (selection, (ss_before, ss_after)),
             (prefix, suffix),
           );
           Some(I.mk_edit_state((Restructuring(restructuring), frame)));
@@ -732,7 +734,7 @@ module Make =
         };
         Some(
           I.mk_edit_state((
-            Restructuring((selection, selections, (prefix, suffix))),
+            Restructuring(((selection, selections), (prefix, suffix))),
             frame,
           )),
         );

@@ -306,7 +306,7 @@ let mk_selecting =
 
 let mk_restructuring =
     (
-      (selection, selections, (prefix, suffix)):
+      ((selection, selections), (prefix, suffix)):
         Subject.restructuring(Tile_exp.t),
     ) => {
   let picked_up_all_selections = {

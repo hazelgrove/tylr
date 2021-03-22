@@ -12,8 +12,10 @@ type selecting('tile) = (
 // TODO add side to focused selection
 [@deriving sexp]
 type restructuring('tile) = (
-  Selection.t(Unsorted.Tile.t),
-  ListUtil.frame(Selection.t(Unsorted.Tile.t)),
+  (
+    Selection.t(Unsorted.Tile.t),
+    ListUtil.frame(Selection.t(Unsorted.Tile.t)),
+  ),
   ListUtil.frame(Either.t('tile, Selection.t(Unsorted.Tile.t))),
 );
 
@@ -30,7 +32,6 @@ let restructuring_of_pointing =
       pointing: pointing('tile),
     )
     : restructuring('tile) => (
-  selection,
-  selections,
+  (selection, selections),
   TupleUtil.map2(List.map(Either.l), pointing),
 );
