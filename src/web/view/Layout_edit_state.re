@@ -81,6 +81,8 @@ let mk = (edit_state: EditState.t) =>
     let l_frame = Layout_exp.mk_biframe(~show_err_holes=false, frame);
     let l_selecting = Layout_exp.mk_selecting(selecting);
     mk_framed_subject(l_selecting, l_frame);
-  | Exp((Restructuring(_), _)) =>
-    failwith("todo Layout_edit_state restructuring")
+  | Exp((Restructuring(restructuring), frame)) =>
+    let l_frame = Layout_exp.mk_biframe(~show_err_holes=false, frame);
+    let l_restructuring = Layout_exp.mk_restructuring(restructuring);
+    mk_framed_subject(l_restructuring, l_frame);
   };
