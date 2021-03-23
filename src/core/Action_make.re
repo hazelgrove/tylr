@@ -254,18 +254,26 @@ module Make =
           | _ =>
             let (prefix, suffix) =
               TupleUtil.map2(List.map(Either.l), (prefix, suffix));
-            let (ss_before, ss_after) =
-              TupleUtil.map2(
-                List.map(tessera => [Selection.Tessera(tessera)]),
-                (ts_before, ts_after),
-              );
-            let selection = [Selection.Tessera(tessera)];
+            let prefix = [
+              Either.R([Selection.Tessera(tessera)]),
+              ...prefix,
+            ];
+            let backpack = {
+              let (ss_before, ss_after) =
+                TupleUtil.map2(
+                  List.map(tessera => [Selection.Tessera(tessera)]),
+                  (ts_before, ts_after),
+                );
+              switch (ss_after) {
+              | [focus, ...ss_after] => (focus, (ss_before, ss_after))
+              | [] =>
+                let (focus, ss_before) = ListUtil.split_first(ss_before);
+                (focus, (ss_before, ss_after));
+              };
+            };
             Some(
               I.mk_edit_state((
-                Restructuring((
-                  (selection, (ss_before, ss_after)),
-                  (prefix, suffix),
-                )),
+                Restructuring((backpack, (prefix, suffix))),
                 frame,
               )),
             );
