@@ -629,10 +629,9 @@ module Make =
                  |> OptUtil.sequence,
              )
           |> OptUtil.sequence;
-        // TODO add side to focused selection in restructuring
-        let suffix = [Either.R(selection), ...suffix];
         switch (List.rev(ss_before), ss_after) {
         | ([], []) =>
+          let suffix = [Either.R(selection), ...suffix];
           let+ prefix = sort(prefix)
           and+ suffix = sort(suffix);
           // TODO fix empty holes
@@ -642,12 +641,14 @@ module Make =
             |> OptUtil.get_or_raise(Impossible);
           I.mk_edit_state((Pointing(subject), frame));
         | ([s, ...ss_before], _) =>
+          let suffix = [Either.R(selection), ...suffix];
           let restructuring = (
-            (s, ([], ss_before @ ss_after)),
+            (s, ([], ListUtil.of_frame((ss_before, ss_after)))),
             (prefix, suffix),
           );
           Some(I.mk_edit_state((Restructuring(restructuring), frame)));
         | ([], [s, ...ss_after]) =>
+          let prefix = [Either.R(selection), ...prefix];
           let restructuring = ((s, ([], ss_after)), (prefix, suffix));
           Some(I.mk_edit_state((Restructuring(restructuring), frame)));
         };
