@@ -43,29 +43,32 @@ let tile_holes =
 let rec view_of_layout =
         (~id=?, ~text_id=?, ~font_metrics: FontMetrics.t, l: Layout.t) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
-  let (text, decorations) =
+  let (text, decorations, filler) =
     l
     |> Layout.measured_fold'(
-         ~text=(_, s) => ([Node.text(s)], []),
-         ~cat=(_, (txt1, ds1), (txt2, ds2)) => (txt1 @ txt2, ds1 @ ds2),
+         ~text=(_, s) => ([Node.text(s)], [], 0),
+         ~cat=
+           (_, (txt1, ds1, n1), (txt2, ds2, n2)) =>
+             (txt1 @ txt2, ds1 @ ds2, n1 + n2),
          ~annot=
            (k, {start, len}, annot, l) => {
-             let (txt, ds) = k(l);
+             let (txt, ds, filler) = k(l);
              let d_container =
                Decoration.container(
                  ~font_metrics,
                  ~origin=start,
                  ~length=len,
                );
+             let add_decoration = d => (txt, [d, ...ds], filler);
              switch (annot) {
-             | Delim => ([with_cls("delim", txt)], ds)
+             | Delim => ([with_cls("delim", txt)], ds, filler)
              | UniChild(sort, side) =>
-               let d =
+               add_decoration(
                  d_container(
                    ~cls="uni-child",
                    Decoration.UniChild.view({sort, side, len}),
-                 );
-               (txt, [d, ...ds]);
+                 ),
+               )
              | Tessera(shape, style) =>
                let closed_children = tessera_children(l);
                let d =
@@ -78,7 +81,7 @@ let rec view_of_layout =
                      len,
                    }),
                  );
-               (txt, [d, ...ds]);
+               add_decoration(d);
              | Tile(shape, style) =>
                let empty_holes = tile_holes(l);
                let (open_children, closed_children) = tile_children(l);
@@ -97,25 +100,25 @@ let rec view_of_layout =
                      },
                    ),
                  );
-               (txt, [d, ...ds]);
+               add_decoration(d);
              | EmptyHole =>
                let d =
                  d_container(
                    ~cls="empty-hole",
                    Decoration.EmptyHole.view(~font_metrics, ~inset=None, ()),
                  );
-               (txt, [d, ...ds]);
+               add_decoration(d);
              | ErrHole(expanded) =>
                let d =
                  d_container(
                    ~cls="err-hole",
                    Decoration.ErrHole.view({expanded, len}),
                  );
-               (txt, [d, ...ds]);
+               add_decoration(d);
              | Selection(style) =>
                let d =
                  Decoration.Selection.view(~font_metrics, style, start, len);
-               (txt, [d, ...ds]);
+               add_decoration(d);
              | Grout(Some(caret)) =>
                let d =
                  Decoration.Caret.view(
@@ -125,10 +128,22 @@ let rec view_of_layout =
                    start,
                    caret,
                  );
-               (txt, [d, ...ds]);
+               let filler =
+                 switch (caret) {
+                 | Pointing(_)
+                 | Selecting => filler
+                 | Restructuring(selection, (prefix, suffix)) =>
+                   let len = s => Layout.length(s) - 1;
+                   let len_affix = List.fold_left((l, s) => l + len(s), 0);
+                   filler
+                   + len(selection)
+                   + len_affix(prefix)
+                   + len_affix(suffix);
+                 };
+               (txt, [d, ...ds], filler);
              | Grout(None)
              | OpenChild
-             | ClosedChild => (txt, ds)
+             | ClosedChild => (txt, ds, filler)
              };
            },
        );
@@ -136,8 +151,16 @@ let rec view_of_layout =
     fun
     | None => []
     | Some(id) => [Attr.id(id)];
+  let filler =
+    Node.span(
+      [Attr.classes(["filler"])],
+      [Node.text(String.concat("", List.init(filler, _ => Unicode.nbsp)))],
+    );
   let text =
-    Node.span([Attr.classes(["code-text"]), ...with_id(text_id)], text);
+    Node.span(
+      [Attr.classes(["code-text"]), ...with_id(text_id)],
+      text @ [filler],
+    );
   Node.div(
     [Attr.classes(["code"]), ...with_id(id)],
     [text, ...decorations],
