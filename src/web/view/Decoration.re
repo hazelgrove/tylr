@@ -973,10 +973,39 @@ module Caret = {
       | Pointing(_todo) => (0., ([], []))
       | Selecting => (0., ([], []))
       | Restructuring(selection, (prefix, suffix)) =>
-        let ss =
-          (List.rev(prefix), [selection, ...suffix])
-          |> TupleUtil.map2(List.map(view_of_layout));
-        ((-1.4) *. font_metrics.row_height, ss);
+        let ss_before =
+          List.rev(prefix)
+          |> List.map(s =>
+               Node.span(
+                 [
+                   Attr.create(
+                     "style",
+                     Printf.sprintf(
+                       "margin-left: %fpx;",
+                       (-0.5) *. font_metrics.col_width,
+                     ),
+                   ),
+                 ],
+                 [view_of_layout(s)],
+               )
+             );
+        let ss_after =
+          [selection, ...suffix]
+          |> List.map(s =>
+               Node.span(
+                 [
+                   Attr.create(
+                     "style",
+                     Printf.sprintf(
+                       "margin-right: %fpx;",
+                       (-0.5) *. font_metrics.col_width,
+                     ),
+                   ),
+                 ],
+                 [view_of_layout(s)],
+               )
+             );
+        ((-1.4) *. font_metrics.row_height, (ss_before, ss_after));
       };
     Node.div(
       [
