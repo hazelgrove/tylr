@@ -359,7 +359,7 @@ let mk_restructuring =
              mk_selection(
                ~style={unfocused: false},
                ~grouts=grouts_inner,
-               ~selected=true,
+               ~selected=false,
                selection,
              ),
          ),
