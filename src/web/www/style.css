@@ -346,7 +346,7 @@
 #backpack-pre, #backpack-suf {
   position: absolute;
   display: grid;
-  grid-template-rows: 1fr;
+  grid-auto-flow: column;
 }
 
 #action-table {
