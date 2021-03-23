@@ -693,9 +693,10 @@ module Make =
             move_via_pointing(prefix, suffix);
           };
         };
-        let pick_up_selection = (~prefix=prefix, ~suffix=suffix, selection) => {
+        let pick_up_selection = (~prefix=prefix, ~suffix=suffix, new_focus) => {
           let selections = {
-            let ss = ListUtil.of_frame((ss_before, ss_after));
+            let ss =
+              ListUtil.of_frame((ss_before, [selection, ...ss_after]));
             switch (d) {
             | Left => ([], ss)
             | Right => (List.rev(ss), [])
@@ -703,7 +704,7 @@ module Make =
           };
           Some(
             I.mk_edit_state((
-              Restructuring(((selection, selections), (prefix, suffix))),
+              Restructuring(((new_focus, selections), (prefix, suffix))),
               frame,
             )),
           );
