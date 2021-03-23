@@ -27,3 +27,18 @@ let is_bin_hole =
   fun
   | BinHole => true
   | _ => false;
+
+let rec to_type = ty =>
+  ty
+  |> Term.get(
+       fun
+       | OpHole => Type.Hole
+       | Num => Num
+       | Bool => Bool
+       | Paren(body) => to_type(body),
+       (((), _)) => raise(Void_pre),
+       ((_, ())) => raise(Void_post),
+       fun
+       | (_, BinHole, _) => Type.Hole
+       | (l, Arrow, r) => Arrow(to_type(l), to_type(r)),
+     );

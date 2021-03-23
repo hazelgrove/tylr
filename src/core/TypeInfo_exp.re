@@ -82,7 +82,7 @@ let extend_ctx_let_body = (_, _, _) => failwith("todo extend_ctx_let_body");
 let let_pat = (info_let: t) =>
   TypeInfo_pat.{ctx: info_let.ctx, mode: TypeInfo_pat.syn};
 let let_def = (p: Term_pat.t, info_let: t) => {
-  let (ty_p, _) = TypeInfo_pat.synthesize(let_pat, p);
+  let (ty_p, _) = TypeInfo_pat.synthesize(let_pat(info_let), p);
   {ctx: info_let.ctx, mode: ana(ty_p)};
 };
 let let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t) => {
