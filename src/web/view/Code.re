@@ -41,7 +41,13 @@ let tile_holes =
   );
 
 let rec view_of_layout =
-        (~id=?, ~text_id=?, ~font_metrics: FontMetrics.t, l: Layout.t) => {
+        (
+          ~id=?,
+          ~text_id=?,
+          ~font_metrics: FontMetrics.t,
+          ~transparent=false,
+          l: Layout.t,
+        ) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let (text, decorations, filler) =
     l
@@ -74,6 +80,7 @@ let rec view_of_layout =
                let d =
                  d_container(
                    ~cls="tessera",
+                   ~container_clss=transparent ? ["transparent"] : [],
                    Decoration.Tessera.view({
                      shape,
                      style,
@@ -88,6 +95,7 @@ let rec view_of_layout =
                let d =
                  d_container(
                    ~cls="tile",
+                   ~container_clss=transparent ? ["transparent"] : [],
                    Decoration.Tile.view(
                      ~font_metrics,
                      {
@@ -105,6 +113,7 @@ let rec view_of_layout =
                let d =
                  d_container(
                    ~cls="empty-hole",
+                   ~container_clss=transparent ? ["transparent"] : [],
                    Decoration.EmptyHole.view(~font_metrics, ~inset=None, ()),
                  );
                add_decoration(d);
@@ -158,7 +167,10 @@ let rec view_of_layout =
     );
   let text =
     Node.span(
-      [Attr.classes(["code-text"]), ...with_id(text_id)],
+      [
+        Attr.classes(["code-text", ...transparent ? ["transparent"] : []]),
+        ...with_id(text_id),
+      ],
       text @ [filler],
     );
   Node.div(

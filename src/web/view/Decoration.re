@@ -964,7 +964,7 @@ module Caret = {
   let view =
       (
         ~font_metrics: FontMetrics.t,
-        ~view_of_layout: Layout.t => Node.t,
+        ~view_of_layout: (~transparent: bool=?, Layout.t) => Node.t,
         offset: int,
         caret: Layout.caret,
       ) => {
@@ -986,12 +986,12 @@ module Caret = {
                      ),
                    ),
                  ],
-                 [view_of_layout(s)],
+                 [view_of_layout(~transparent=true, s)],
                )
              );
         let ss_after =
           [selection, ...suffix]
-          |> List.map(s =>
+          |> List.mapi((i, s) =>
                Node.span(
                  [
                    Attr.create(
@@ -1002,7 +1002,7 @@ module Caret = {
                      ),
                    ),
                  ],
-                 [view_of_layout(s)],
+                 [view_of_layout(~transparent=i != 0, s)],
                )
              );
         ((-1.4) *. font_metrics.row_height, (ss_before, ss_after));
@@ -1070,6 +1070,7 @@ let container =
       ~origin: int=0,
       ~length: int,
       ~cls: string,
+      ~container_clss=[],
       svgs: list(Node.t),
     )
     : Node.t => {
@@ -1090,6 +1091,7 @@ let container =
       Attr.classes([
         "decoration-container",
         Printf.sprintf("%s-container", cls),
+        ...container_clss,
       ]),
       Attr.create(
         "style",

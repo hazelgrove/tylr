@@ -129,6 +129,9 @@
   z-index: var(--code-text-z);
   vertical-align: middle;
 }
+.code-text.transparent {
+  opacity: 50%;
+}
 
 .term {
   position: relative;
@@ -170,6 +173,9 @@
   box-sizing: border-box;
   border-radius: 3px;
 }
+.selection-box.unfocused {
+  opacity: 50%;
+}
 .selection-box.moving {
   box-shadow: 0.5px 0.5px 2px var(--selection-shadow-color);
 }
@@ -194,6 +200,9 @@
 
 .decoration-container {
   position: absolute;
+}
+.decoration-container.transparent {
+  opacity: 50%;
 }
 .empty-hole-container {
   z-index: var(--empty-hole-z);
