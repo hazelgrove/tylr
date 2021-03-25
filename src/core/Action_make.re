@@ -238,14 +238,30 @@ module Make =
             |> OptUtil.get_or_raise(Impossible);
           perform(Move(Right), (Pointing(subject), frame));
         } else {
-          switch (ts_before, ts_after) {
-          | ([], []) =>
+          switch (ts_before, ts_after, suffix) {
+          | ([], [], _) =>
             let (prefix, suffix) =
               TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
             let (prefix, suffix) =
               P.fix_empty_holes((
                 [[Selection.Tessera(tessera)], prefix],
                 [suffix],
+              ));
+            let (subject, frame) =
+              parse_pointing((prefix, suffix), frame)
+              |> OptUtil.get_or_raise(Impossible);
+            Some(I.mk_edit_state((Pointing(subject), frame)));
+          // only consider suffix atm because of assumption that
+          // constructed tessera will be opening tessera
+          // TODO generalize
+          | ([], [_, ..._], [_]) =>
+            let (prefix, suffix) =
+              TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
+            let ts_after = List.map(t => [Selection.Tessera(t)], ts_after);
+            let (prefix, suffix) =
+              P.fix_empty_holes((
+                [[Selection.Tessera(tessera)], prefix],
+                [suffix, ...ts_after],
               ));
             let (subject, frame) =
               parse_pointing((prefix, suffix), frame)
