@@ -2,13 +2,12 @@ open Util;
 open Core;
 open Layout;
 
-let uni_child = uni_child(~sort=Exp);
-
-let root_tile = (~has_caret, ~shape, l) =>
-  switch (has_caret) {
-  | None => l
-  | Some(_) => root_tile(~sort=Exp, ~shape, l)
-  };
+let decorate_term =
+  decorate_term(
+    ~sort=Exp,
+    ~is_op_hole=Term_exp.is_op_hole,
+    ~is_bin_hole=Term_exp.is_bin_hole,
+  );
 
 let rec mk_term =
         (
@@ -18,76 +17,12 @@ let rec mk_term =
         )
         : Layout.t => {
   open Term_exp;
-  let caret = Pointing(info);
-  let has_caret = Option.map(pos => (caret, pos), has_caret);
-  let decorate = (f_op, f_pre, f_post, f_bin) =>
-    Term.get(
-      op => {
-        let is_op_hole = Term_exp.is_op_hole(op);
-        let (op, dangling_caret) = f_op(op);
-        let op =
-          root_tile(
-            ~has_caret,
-            ~shape=Op(is_op_hole),
-            is_op_hole ? empty_hole(op) : op,
-          );
-        switch (dangling_caret) {
-        | None => grouts([op])
-        | Some(Direction.Left) => grouts_z([], caret, [op])
-        | Some(Right) => grouts_z([op], caret, [])
-        };
-      },
-      ((pre, r)) => {
-        let ((pre, dangling_caret), r) = f_pre((pre, r));
-        let pre = root_tile(~has_caret, ~shape=Pre(), pre);
-        switch (dangling_caret) {
-        | None => cat(grouts_l([pre]), r)
-        | Some(side) =>
-          let r = uni_child(~side=Right, r);
-          switch ((side: Direction.t)) {
-          | Direction.Left => cats([grout(~caret, ()), pre, r])
-          | Right => cat(grouts_l([pre]), place_caret(Left, caret, r))
-          };
-        };
-      },
-      ((l, post)) => {
-        let (l, (post, dangling_caret)) = f_post((l, post));
-        let post = root_tile(~has_caret, ~shape=Post(), post);
-        switch (dangling_caret) {
-        | None => cat(l, grouts_r([post]))
-        | Some(side) =>
-          let l = uni_child(~side=Left, l);
-          switch (side) {
-          | Direction.Left =>
-            cat(place_caret(Right, caret, l), grouts_r([post]))
-          | Right => cats([l, post, grout(~caret, ())])
-          };
-        };
-      },
-      ((l, bin, r)) => {
-        let is_bin_hole = Term_exp.is_bin_hole(bin);
-        let (l, (bin, dangling_caret), r) = f_bin((l, bin, r));
-        let bin =
-          root_tile(
-            ~has_caret,
-            ~shape=Bin(is_bin_hole),
-            is_bin_hole ? empty_hole(bin) : bin,
-          );
-        switch (dangling_caret) {
-        | None => cats([l, bin, r])
-        | Some(side) =>
-          let l = uni_child(~side=Left, l);
-          let r = uni_child(~side=Right, r);
-          switch (side) {
-          | Direction.Left => cats([place_caret(Right, caret, l), bin, r])
-          | Right => cats([l, bin, place_caret(Left, caret, r)])
-          };
-        };
-      },
-    );
+  let has_caret = Option.map(pos => (Pointing(Exp(info)), pos), has_caret);
   let l =
     e
-    |> decorate(
+    |> decorate_term(
+         ~has_caret,
+         ~type_info=Exp(info),
          fun
          | OpHole => mk_OpHole(~has_caret?, ())
          | Var(x) => mk_text(~has_caret?, x)
@@ -100,7 +35,8 @@ let rec mk_term =
              (mk_Lam(~has_caret?, l_p), l_body);
            }
          | (Let(p, def), body) => {
-             let l_p = Layout_pat.mk_term(TypeInfo_exp.let_pat(info), p);
+             let l_p =
+               Layout_pat.mk_term(TypeInfo_exp.let_pat(def, info), p);
              let l_def = mk_term(TypeInfo_exp.let_def(p, info), def);
              let l_body = mk_term(TypeInfo_exp.let_body(p, def, info), body);
              (mk_Let(~has_caret?, l_p, l_def), l_body);
@@ -137,30 +73,20 @@ let rec mk_frame =
 and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
   switch (uni) {
   | Pre_r(Lam(p), frame) =>
-    let info: TypeInfo_exp.t'(Layout.frame) =
-      mk_frame(~show_err_holes, frame);
-    let info_p = TypeInfo_exp.(lam_pat(of_t'(info)));
+    let info_lam = mk_frame(~show_err_holes, frame);
+    let info_p = TypeInfo_exp.(lam_pat(of_t'(info_lam)));
     let l_p = Layout_pat.mk_term(info_p, p);
-    let (ty_p, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
-    let mode_body: TypeInfo_exp.mode(_) = {
-      let l_lam = l_body => cat(grouts_l([fst(mk_Lam(l_p))]), l_body);
-      switch (info.mode) {
-      | Syn(l_frame) =>
-        Syn((ty_body, l_body) => l_frame(ty_body, l_lam(l_body)))
-      | Fn_pos(l_frame) =>
-        Syn((ty_body, l_body) => l_frame(ty_p, ty_body, l_lam(l_body)))
-      | Ana(ty, l_frame) =>
-        switch (Type.matches_arrow(ty)) {
-        | None =>
-          Syn(
-            (_ty_body, l_body) =>
-              l_frame(Annot(ErrHole(true), l_lam(l_body))),
-          )
-        | Some((_, ty_out)) => Ana(ty_out, l_frame)
-        }
-      };
-    };
-    {ctx: ctx_body, mode: mode_body};
+    let l_lam = l_body => cat(grouts_l([fst(mk_Lam(l_p))]), l_body);
+    TypeInfo_exp.lam_body'(
+      (l_frame, l_body) => {
+        let l_lam =
+          TypeInfo_exp.lam_has_err(info_lam)
+            ? l_lam(l_body) : Annot(ErrHole(true), l_lam(l_body));
+        l_frame(l_lam);
+      },
+      p,
+      info_lam,
+    );
   | Pre_r(Let(p, def), frame) =>
     let info = mk_frame(~show_err_holes, frame);
     let info_p = TypeInfo_pat.{ctx: info.ctx, mode: syn};
@@ -170,7 +96,7 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
       let info_def = TypeInfo_exp.{ctx: info.ctx, mode: Ana(p_ty, ())};
       mk_term(info_def, def);
     };
-    let ctx_body = TypeInfo_exp.extend_ctx_let_body(info.ctx, p, def);
+    let ctx_body = TypeInfo_exp.extend_ctx_let_body(p, def, info.ctx);
     let mode_body =
       info.mode
       |> TypeInfo_exp.map_mode((l_frame, l_body) =>

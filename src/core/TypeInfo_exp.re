@@ -42,13 +42,13 @@ let var_has_err = (x, info_var: t) =>
     }
   };
 
-let lam_has_err = (info_lam: t) =>
+let lam_has_err = (info_lam: t'(_)) =>
   switch (info_lam.mode) {
   | Ana(ty, _) => Option.is_none(Type.matches_arrow(ty))
   | Syn(_)
   | Fn_pos(_) => false
   };
-let lam_pat = (info_lam: t) => {
+let lam_pat = (info_lam: t'(_)): TypeInfo_pat.t => {
   let mode =
     switch (info_lam.mode) {
     | Syn(_)
@@ -61,7 +61,7 @@ let lam_pat = (info_lam: t) => {
     };
   TypeInfo_pat.{ctx: info_lam.ctx, mode};
 };
-let lam_body = (p: Term_pat.t, info_lam: t) => {
+let lam_body = (p: Term_pat.t, info_lam: t'(_)): t => {
   let info_p = lam_pat(info_lam);
   let (_, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
   let mode_body =
@@ -77,32 +77,25 @@ let lam_body = (p: Term_pat.t, info_lam: t) => {
   {ctx: ctx_body, mode: mode_body};
 };
 
-let extend_ctx_let_body = (_, _, _) => failwith("todo extend_ctx_let_body");
-
-let let_pat = (info_let: t) =>
-  TypeInfo_pat.{ctx: info_let.ctx, mode: TypeInfo_pat.syn};
-let let_def = (p: Term_pat.t, info_let: t) => {
-  let (ty_p, _) = TypeInfo_pat.synthesize(let_pat(info_let), p);
+let let_def = (p: Term_pat.t, info_let: t'(_)): t => {
+  let (ty_p, _) =
+    TypeInfo_pat.synthesize({ctx: info_let.ctx, mode: TypeInfo_pat.syn}, p);
   {ctx: info_let.ctx, mode: ana(ty_p)};
 };
-let let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t) => {
-  let ctx_body = extend_ctx_let_body(info_let.ctx, p, def);
-  {...info_let, ctx: ctx_body};
-};
 
-let plus_has_err = (info_plus: t) =>
+let plus_has_err = (info_plus: t'(_)) =>
   switch (info_plus.mode) {
   | Syn(_) => false
   | Ana(ty, _) => !Type.consistent(ty, Num)
   | Fn_pos(_) => true
   };
-let plus_l = (info_plus: t) => {...info_plus, mode: ana(Num)};
+let plus_l = (info_plus: t'(_)): t => {...info_plus, mode: ana(Num)};
 let plus_r = plus_l;
 
-let binhole_l = (info_binhole: t) => {...info_binhole, mode: syn};
+let binhole_l = (info_binhole: t'(_)): t => {...info_binhole, mode: syn};
 let binhole_r = binhole_l;
 
-let has_err = (info: t) =>
+let has_err = (info: t'(_)) =>
   Term_exp.(
     Term.get(
       fun
@@ -124,7 +117,7 @@ let has_err = (info: t) =>
 // synthesize(info, e) where info.mode == Syn  ==>  (same as normal syn)
 // synthesize(info, e) where info.mode == Ana(ty, _)  ==>  ty' consistent with ty (ty' same as normal syn after ana_fix_holes)
 // synthesize(info, e) where info.mode == Fn_pos(_)  ==>  ty' s.t. Option.is_some(Type.matches_arrow(ty')) (ty' same as normal syn after syn_fix_holes + matched_arrow fix)
-let rec synthesize = (info: t, e: Term_exp.t) => {
+let rec synthesize = (info: t'(_), e: Term_exp.t): Type.t => {
   open Term_exp;
   let ty_under_info = ty =>
     switch (info.mode) {
@@ -156,6 +149,61 @@ let rec synthesize = (info: t, e: Term_exp.t) => {
        | (_, BinHole, _) => Hole
        | (_, Plus, _) => ty_under_info(Num),
      );
+}
+and let_pat = (def, info_let: t'(_)): TypeInfo_pat.t => {
+  let ty_def = synthesize({ctx: info_let.ctx, mode: syn}, def);
+  TypeInfo_pat.{ctx: info_let.ctx, mode: TypeInfo_pat.let_pat(ty_def)};
+}
+and let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t'(_)): t => {
+  let ctx_body = extend_ctx_let_body(p, def, info_let.ctx);
+  {...info_let, ctx: ctx_body};
+}
+and extend_ctx_let_body = (p: Term_pat.t, def: Term_exp.t, ctx: Ctx.t) => {
+  let ty_def = synthesize({ctx, mode: syn}, def);
+  let (_, ctx) =
+    TypeInfo_pat.synthesize({ctx, mode: TypeInfo_pat.ana(ty_def)}, p);
+  ctx;
+};
+
+let lam_pat' =
+    (f: 'a => 'a, body: Term_exp.t, info_lam: t'('a)): TypeInfo_pat.t'('a) => {
+  let mode =
+    switch (info_lam.mode) {
+    | Syn(a) =>
+      TypeInfo_pat.Syn(
+        (ty_p, ctx) => {
+          let ty_body = synthesize({ctx, mode: syn}, body);
+          f(a(Arrow(ty_p, ty_body)));
+        },
+      )
+    | Fn_pos(a) =>
+      Syn(
+        (ty_p, ctx) => {
+          let ty_body = synthesize({ctx, mode: syn}, body);
+          f(a(ty_p, ty_body));
+        },
+      )
+    | Ana(ty, a) =>
+      switch (Type.matches_arrow(ty)) {
+      | None => Syn((_, _) => f(a))
+      | Some((ty_in, _)) => Ana(ty_in, _ => f(a))
+      }
+    };
+  TypeInfo_pat.{ctx: info_lam.ctx, mode};
+};
+let lam_body' = (f: 'a => 'a, p: Term_pat.t, info_lam: t'('a)): t'('a) => {
+  let (ty_p, ctx_body) = TypeInfo_pat.synthesize(lam_pat(info_lam), p);
+  let mode_body =
+    switch (info_lam.mode) {
+    | Syn(a) => Syn(ty_body => f(a(Arrow(ty_p, ty_body))))
+    | Fn_pos(a) => Syn(ty_body => f(a(ty_p, ty_body)))
+    | Ana(ty, a) =>
+      switch (Type.matches_arrow(ty)) {
+      | None => Syn(_ => f(a))
+      | Some((_, ty_out)) => Ana(ty_out, f(a))
+      }
+    };
+  {ctx: ctx_body, mode: mode_body};
 };
 
 let ap_fn = (info_ap: t) => {ctx: info_ap.ctx, mode: fn_pos};
@@ -163,4 +211,30 @@ let ap_arg = (fn, info_ap: t) => {
   let fn_ty = synthesize(ap_fn(info_ap), fn);
   let (ty_in, _) = Option.get(Type.matches_arrow(fn_ty));
   {ctx: info_ap.ctx, mode: ana(ty_in)};
+};
+
+let let_pat' =
+    (f: (Type.t, Ctx.t, 'a) => 'a, def, body, info_let: t'('a))
+    : TypeInfo_pat.t'('a) => {
+  let ty_def = synthesize({ctx: info_let.ctx, mode: syn}, def);
+  {
+    ctx: info_let.ctx,
+    mode:
+      Let_pat(
+        ty_def,
+        (ty_p, ctx_body) => {
+          let f = f(ty_p, ctx_body);
+          switch (info_let.mode) {
+          | Syn(a) =>
+            let ty_body = synthesize({ctx: info_let.ctx, mode: syn}, body);
+            f(a(ty_body));
+          | Ana(_, a) => f(a)
+          | Fn_pos(a) =>
+            let ty = synthesize({ctx: info_let.ctx, mode: fn_pos}, body);
+            let (ty_in, ty_out) = Option.get(Type.matches_arrow(ty));
+            f(a(ty_in, ty_out));
+          };
+        },
+      ),
+  };
 };
