@@ -9,15 +9,14 @@ and mode('a) =
   | Syn((Type.t, Ctx.t) => 'a)
   | Ana(Type.t, Ctx.t => 'a)
   | Let_pat(
-      Type.t /* ana in */,
-      (Type.t /* syn out */, Ctx.t /* ana out */) => 'a,
+      Type.t => Type.t /* p ty => consistent def ty */,
+      (Type.t /* p ty */, Ctx.t /* ctx body */) => 'a,
     );
 
 [@deriving sexp]
 type t = t'(unit);
 let syn = Syn((_, _) => ());
 let ana = ty => Ana(ty, _ => ());
-let let_pat = ty => Let_pat(ty, (_, _) => ());
 
 let rec synthesize = ({ctx, mode} as info: t, p: Term_pat.t) =>
   Term_pat.(
@@ -30,7 +29,7 @@ let rec synthesize = ({ctx, mode} as info: t, p: Term_pat.t) =>
                switch (mode) {
                | Syn(_) => Type.Hole
                | Ana(ty, _) => ty
-               | Let_pat(ty_def, _) => ty_def
+               | Let_pat(ty_def, _) => ty_def(Hole)
                };
              (Hole, Ctx.add(x, ty_ctx, ctx));
            }

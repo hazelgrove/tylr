@@ -35,8 +35,7 @@ let rec mk_term =
              (mk_Lam(~has_caret?, l_p), l_body);
            }
          | (Let(p, def), body) => {
-             let l_p =
-               Layout_pat.mk_term(TypeInfo_exp.let_pat(def, info), p);
+             let l_p = Layout_pat.mk_term(TypeInfo_exp.let_pat(info), p);
              let l_def = mk_term(TypeInfo_exp.let_def(p, info), def);
              let l_body = mk_term(TypeInfo_exp.let_body(p, def, info), body);
              (mk_Let(~has_caret?, l_p, l_def), l_body);

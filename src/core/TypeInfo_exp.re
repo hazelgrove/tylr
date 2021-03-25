@@ -77,6 +77,8 @@ let lam_body = (p: Term_pat.t, info_lam: t'(_)): t => {
   {ctx: ctx_body, mode: mode_body};
 };
 
+let let_pat = (info_let: t'(_)): TypeInfo_pat.t =>
+  TypeInfo_pat.{ctx: info_let.ctx, mode: syn};
 let let_def = (p: Term_pat.t, info_let: t'(_)): t => {
   let (ty_p, _) =
     TypeInfo_pat.synthesize({ctx: info_let.ctx, mode: TypeInfo_pat.syn}, p);
@@ -150,16 +152,13 @@ let rec synthesize = (info: t'(_), e: Term_exp.t): Type.t => {
        | (_, Plus, _) => ty_under_info(Num),
      );
 }
-and let_pat = (def, info_let: t'(_)): TypeInfo_pat.t => {
-  let ty_def = synthesize({ctx: info_let.ctx, mode: syn}, def);
-  TypeInfo_pat.{ctx: info_let.ctx, mode: TypeInfo_pat.let_pat(ty_def)};
-}
 and let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t'(_)): t => {
   let ctx_body = extend_ctx_let_body(p, def, info_let.ctx);
   {...info_let, ctx: ctx_body};
 }
 and extend_ctx_let_body = (p: Term_pat.t, def: Term_exp.t, ctx: Ctx.t) => {
-  let ty_def = synthesize({ctx, mode: syn}, def);
+  let (ty_p, _) = TypeInfo_pat.(synthesize({ctx, mode: syn}, p));
+  let ty_def = synthesize({ctx, mode: ana(ty_p)}, def);
   let (_, ctx) =
     TypeInfo_pat.synthesize({ctx, mode: TypeInfo_pat.ana(ty_def)}, p);
   ctx;
@@ -216,12 +215,11 @@ let ap_arg = (fn, info_ap: t) => {
 let let_pat' =
     (f: (Type.t, Ctx.t, 'a) => 'a, def, body, info_let: t'('a))
     : TypeInfo_pat.t'('a) => {
-  let ty_def = synthesize({ctx: info_let.ctx, mode: syn}, def);
   {
     ctx: info_let.ctx,
     mode:
       Let_pat(
-        ty_def,
+        ty_p => synthesize({ctx: info_let.ctx, mode: ana(ty_p)}, def),
         (ty_p, ctx_body) => {
           let f = f(ty_p, ctx_body);
           switch (info_let.mode) {
