@@ -9,7 +9,7 @@ and mode('a) =
   | Syn((Type.t, Ctx.t) => 'a)
   | Ana(Type.t, Ctx.t => 'a)
   | Let_pat(
-      Type.t => Type.t /* p ty => consistent def ty */,
+      Type.t /* p ty */ => Type.t /* consistent def ty */,
       (Type.t /* p ty */, Ctx.t /* ctx body */) => 'a,
     );
 
@@ -17,6 +17,26 @@ and mode('a) =
 type t = t'(unit);
 let syn = Syn((_, _) => ());
 let ana = ty => Ana(ty, _ => ());
+
+let has_err = (info: t'(_)) =>
+  Term_pat.(
+    Term.get(
+      fun
+      | OpHole
+      | Var(_)
+      | Paren(_) => false,
+      (((), _)) => raise(Term_pat.Void_pre),
+      fun
+      | (_, Ann(ann)) =>
+        switch (info.mode) {
+        | Ana(ty, _) => !Type.consistent(ty, Term_typ.to_type(ann))
+        | Syn(_)
+        | Let_pat(_) => false
+        },
+      fun
+      | (_, BinHole, _) => false,
+    )
+  );
 
 let rec synthesize = ({ctx, mode} as info: t, p: Term_pat.t) =>
   Term_pat.(
@@ -50,3 +70,11 @@ let rec synthesize = ({ctx, mode} as info: t, p: Term_pat.t) =>
            },
        )
   );
+
+let ann_subj = (ann: Term_typ.t, info_ann: t'(_)): t => {
+  let ty = Term_typ.to_type(ann);
+  {ctx: info_ann.ctx, mode: ana(ty)};
+};
+
+let binhole_l = (info_binhole: t'(_)): t => {...info_binhole, mode: syn};
+let binhole_r = binhole_l;
