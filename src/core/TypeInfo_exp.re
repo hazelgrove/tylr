@@ -7,19 +7,20 @@ type t'('a) = {
 }
 and mode('a) =
   | Syn(Type.t => 'a)
-  | Ana(Type.t, 'a)
-  | Fn_pos((Type.t, Type.t) => 'a);
+  // maybe todo: split into ana proper and ana_syn
+  | Ana(Type.t /* expected ty */, Type.t /* consistent ty */ => 'a)
+  | Fn_pos((Type.t /* ty in */, Type.t /* ty out */) => 'a);
 
 let map_mode = (f: 'a => 'b) =>
   fun
-  | Syn(g) => Syn(ty => f(g(ty)))
-  | Ana(ty, a) => Ana(ty, f(a))
-  | Fn_pos(g) => Fn_pos((ty_in, ty_out) => f(g(ty_in, ty_out)));
+  | Syn(a) => Syn(ty => f(a(ty)))
+  | Ana(ty, a) => Ana(ty, ty' => f(a(ty')))
+  | Fn_pos(a) => Fn_pos((ty_in, ty_out) => f(a(ty_in, ty_out)));
 
 [@deriving sexp]
 type t = t'(unit);
 let syn = Syn(_ => ());
-let ana = ty => Ana(ty, ());
+let ana = ty => Ana(ty, _ => ());
 let fn_pos = Fn_pos((_, _) => ());
 
 let of_t' = info => {...info, mode: map_mode(_ => (), info.mode)};
@@ -68,7 +69,7 @@ let lam_body = (p: Term_pat.t, info_lam: t'(_)): t => {
     switch (info_lam.mode) {
     | Syn(_)
     | Fn_pos(_) => syn
-    | Ana(ty, ()) =>
+    | Ana(ty, _) =>
       switch (Type.matches_arrow(ty)) {
       | None => syn
       | Some((_, ty_out)) => ana(ty_out)
@@ -184,8 +185,15 @@ let lam_pat' =
       )
     | Ana(ty, a) =>
       switch (Type.matches_arrow(ty)) {
-      | None => Syn((_, _) => f(a))
-      | Some((ty_in, _)) => Ana(ty_in, _ => f(a))
+      | None => Syn((_, _) => f(a(Hole)))
+      | Some((ty_in, ty_out)) =>
+        Ana(
+          ty_in,
+          (ty_p, ctx) => {
+            let ty_body = synthesize({ctx, mode: ana(ty_out)}, body);
+            f(a(Arrow(ty_p, ty_body)));
+          },
+        )
       }
     };
   TypeInfo_pat.{ctx: info_lam.ctx, mode};
@@ -198,8 +206,9 @@ let lam_body' = (f: 'a => 'a, p: Term_pat.t, info_lam: t'('a)): t'('a) => {
     | Fn_pos(a) => Syn(ty_body => f(a(ty_p, ty_body)))
     | Ana(ty, a) =>
       switch (Type.matches_arrow(ty)) {
-      | None => Syn(_ => f(a))
-      | Some((_, ty_out)) => Ana(ty_out, f(a))
+      | None => Syn(_ => f(a(Hole)))
+      | Some((_, ty_out)) =>
+        Ana(ty_out, ty_body => f(a(Arrow(ty_p, ty_body))))
       }
     };
   {ctx: ctx_body, mode: mode_body};
@@ -213,7 +222,12 @@ let ap_arg = (fn, info_ap: t) => {
 };
 
 let let_pat' =
-    (f: (Type.t, Ctx.t, 'a) => 'a, def, body, info_let: t'('a))
+    (
+      f: (Type.t /* ty pat */, Ctx.t /* ctx body */, 'a) => 'a,
+      def,
+      body,
+      info_let: t'('a),
+    )
     : TypeInfo_pat.t'('a) => {
   {
     ctx: info_let.ctx,
@@ -224,11 +238,50 @@ let let_pat' =
           let f = f(ty_p, ctx_body);
           switch (info_let.mode) {
           | Syn(a) =>
-            let ty_body = synthesize({ctx: info_let.ctx, mode: syn}, body);
+            let ty_body = synthesize({ctx: ctx_body, mode: syn}, body);
             f(a(ty_body));
-          | Ana(_, a) => f(a)
+          | Ana(ty, a) =>
+            let ty_body = synthesize({ctx: ctx_body, mode: ana(ty)}, body);
+            f(a(ty_body));
           | Fn_pos(a) =>
-            let ty = synthesize({ctx: info_let.ctx, mode: fn_pos}, body);
+            let ty = synthesize({ctx: ctx_body, mode: fn_pos}, body);
+            let (ty_in, ty_out) = Option.get(Type.matches_arrow(ty));
+            f(a(ty_in, ty_out));
+          };
+        },
+      ),
+  };
+};
+let let_def' =
+    (f: (t /* info body */, 'a) => 'a, p, body, info_let: t'('a)): t'('a) => {
+  let (ty_p, _) =
+    TypeInfo_pat.(synthesize({ctx: info_let.ctx, mode: syn}, p));
+  {
+    ctx: info_let.ctx,
+    mode:
+      Ana(
+        ty_p,
+        ty_def => {
+          let f = {
+            let (_, ctx_body) =
+              TypeInfo_pat.(
+                synthesize({ctx: info_let.ctx, mode: ana(ty_def)}, p)
+              );
+            f(of_t'({ctx: ctx_body, mode: info_let.mode}));
+          };
+          let (_, ctx_body) =
+            TypeInfo_pat.(
+              synthesize({ctx: info_let.ctx, mode: ana(ty_def)}, p)
+            );
+          switch (info_let.mode) {
+          | Syn(a) =>
+            let ty_body = synthesize({ctx: ctx_body, mode: syn}, body);
+            f(a(ty_body));
+          | Ana(ty, a) =>
+            let ty_body = synthesize({ctx: ctx_body, mode: ana(ty)}, body);
+            f(a(ty_body));
+          | Fn_pos(a) =>
+            let ty = synthesize({ctx: ctx_body, mode: fn_pos}, body);
             let (ty_in, ty_out) = Option.get(Type.matches_arrow(ty));
             f(a(ty_in, ty_out));
           };

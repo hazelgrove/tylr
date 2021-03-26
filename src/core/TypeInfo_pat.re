@@ -7,7 +7,7 @@ type t'('a) = {
 }
 and mode('a) =
   | Syn((Type.t, Ctx.t) => 'a)
-  | Ana(Type.t, Ctx.t => 'a)
+  | Ana(Type.t /* expected ty */, (Type.t /* consistent ty */, Ctx.t) => 'a)
   | Let_pat(
       Type.t /* p ty */ => Type.t /* consistent def ty */,
       (Type.t /* p ty */, Ctx.t /* ctx body */) => 'a,
@@ -16,7 +16,7 @@ and mode('a) =
 [@deriving sexp]
 type t = t'(unit);
 let syn = Syn((_, _) => ());
-let ana = ty => Ana(ty, _ => ());
+let ana = ty => Ana(ty, (_, _) => ());
 
 let has_err = (info: t'(_)) =>
   Term_pat.(

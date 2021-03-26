@@ -47,10 +47,10 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
       let info_term = TypeInfo_exp.of_t'(l_frame);
       let l_term = Layout_exp.mk_term(~has_caret=caret, info_term, term);
       switch (l_frame.mode) {
-      | Syn(l_frame) =>
+      | Syn(l_frame)
+      | Ana(_, l_frame) =>
         let ty = TypeInfo_exp.synthesize(info_term, term);
         l_frame(ty, l_term);
-      | Ana(_, l_frame) => l_frame(l_term)
       | Fn_pos(l_frame) =>
         let (ty_in, ty_out) =
           Option.get(
@@ -64,8 +64,8 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
 
 let mk_framed_subject = (l_subject, l_frame: TypeInfo_exp.t'(Layout.frame)) =>
   switch (l_frame.mode) {
-  | Syn(l_frame) => l_frame(Hole, l_subject)
-  | Ana(_, l_frame) => l_frame(l_subject)
+  | Syn(l_frame)
+  | Ana(_, l_frame) => l_frame(Hole, l_subject)
   | Fn_pos(l_frame) => l_frame(Hole, Hole, l_subject)
   };
 

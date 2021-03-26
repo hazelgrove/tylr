@@ -12,7 +12,7 @@ let decorate_term =
 let rec mk_term =
         (
           ~has_caret: option(CaretPosition.t)=?,
-          info: TypeInfo_exp.t,
+          info: TypeInfo_exp.t'(_),
           e: Term_exp.t,
         )
         : Layout.t => {
@@ -92,7 +92,7 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
     let l_p = Layout_pat.mk_term(info_p, p);
     let l_def = {
       let (p_ty, _) = TypeInfo_pat.synthesize(info_p, p);
-      let info_def = TypeInfo_exp.{ctx: info.ctx, mode: Ana(p_ty, ())};
+      let info_def = TypeInfo_exp.{ctx: info.ctx, mode: Ana(p_ty, _ => ())};
       mk_term(info_def, def);
     };
     let ctx_body = TypeInfo_exp.extend_ctx_let_body(p, def, info.ctx);
@@ -107,25 +107,27 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
   // TODO extract shared logic in bin cases
   | Bin_l(frame, Plus, r) =>
     let info = mk_frame(~show_err_holes, frame);
-    let l_r = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, r);
+    let l_r = mk_term({ctx: info.ctx, mode: Ana(Num, _ => ())}, r);
     let l_plus = l_l => cats([l_l, fst(mk_Plus()), l_r]);
     let mode_l: TypeInfo_exp.mode(_) =
       switch (info.mode) {
-      | Syn(l_frame) => Ana(Num, l_l => l_frame(Num, l_plus(l_l)))
+      | Syn(l_frame) => Ana(Num, (_, l_l) => l_frame(Num, l_plus(l_l)))
       | Ana(ty, l_frame) =>
+        let is_consistent = Type.consistent(ty, Num);
+        let ty = is_consistent ? Type.Num : Hole;
         Ana(
           Num,
-          l_l =>
+          (_, l_l) =>
             err_hole(
-              show_err_holes && !Type.consistent(ty, Num),
+              show_err_holes && !is_consistent,
               true,
-              l_frame(l_plus(l_l)),
+              l_frame(ty, l_plus(l_l)),
             ),
-        )
+        );
       | Fn_pos(l_frame) =>
         Ana(
           Num,
-          l_l =>
+          (_, l_l) =>
             err_hole(
               show_err_holes,
               true,
@@ -136,25 +138,27 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
     {...info, mode: mode_l};
   | Bin_r(l, Plus, frame) =>
     let info = mk_frame(~show_err_holes, frame);
-    let l_l = mk_term({ctx: info.ctx, mode: Ana(Num, ())}, l);
+    let l_l = mk_term({ctx: info.ctx, mode: Ana(Num, _ => ())}, l);
     let l_plus = l_r => cats([l_l, fst(mk_Plus()), l_r]);
     let mode_r: TypeInfo_exp.mode(_) =
       switch (info.mode) {
-      | Syn(l_frame) => Ana(Num, l_r => l_frame(Num, l_plus(l_r)))
+      | Syn(l_frame) => Ana(Num, (_, l_r) => l_frame(Num, l_plus(l_r)))
       | Ana(ty, l_frame) =>
+        let is_consistent = Type.consistent(ty, Num);
+        let ty = is_consistent ? Type.Num : Hole;
         Ana(
           Num,
-          l_r =>
+          (_, l_r) =>
             err_hole(
               show_err_holes && !Type.consistent(ty, Num),
               true,
-              l_frame(l_plus(l_r)),
+              l_frame(ty, l_plus(l_r)),
             ),
-        )
+        );
       | Fn_pos(l_frame) =>
         Ana(
           Num,
-          l_r =>
+          (_, l_r) =>
             err_hole(
               show_err_holes,
               true,
@@ -171,7 +175,7 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
     let mode_l: TypeInfo_exp.mode(_) =
       switch (info.mode) {
       | Syn(l_frame) => Syn((_, l_l) => l_frame(Hole, l_binhole(l_l)))
-      | Ana(_, l_frame) => Syn((_, l_l) => l_frame(l_binhole(l_l)))
+      | Ana(_, l_frame) => Syn((_, l_l) => l_frame(Hole, l_binhole(l_l)))
       | Fn_pos(l_frame) =>
         Syn((_, l_l) => l_frame(Hole, Hole, l_binhole(l_l)))
       };
@@ -183,7 +187,7 @@ and mk_uniframe = (~show_err_holes, uni: Frame_exp.unidelimited) =>
     let mode_l: TypeInfo_exp.mode(_) =
       switch (info.mode) {
       | Syn(l_frame) => Syn((_, l_r) => l_frame(Hole, l_binhole(l_r)))
-      | Ana(_, l_frame) => Syn((_, l_r) => l_frame(l_binhole(l_r)))
+      | Ana(_, l_frame) => Syn((_, l_r) => l_frame(Hole, l_binhole(l_r)))
       | Fn_pos(l_frame) =>
         Syn((_, l_r) => l_frame(Hole, Hole, l_binhole(l_r)))
       };
@@ -203,7 +207,20 @@ and mk_biframe = (~show_err_holes, bi: Frame_exp.bidelimited) =>
           info.mode,
         ),
     };
-  | Open(_) => failwith("go_bidelimited todo")
+  | Open(Let_def(p, frame, body)) =>
+    let info: TypeInfo_exp.t'(Layout.frame) =
+      mk_frame(~show_err_holes, frame);
+    let l_p = Layout_pat.mk_term(TypeInfo_exp.let_pat(info), p);
+    TypeInfo_exp.let_def'(
+      (info_body, l_frame, l_def) => {
+        let l_body = mk_term(info_body, body);
+        l_frame(cat(grouts_l([fst(mk_Let(l_p, l_def))]), l_body));
+      },
+      p,
+      body,
+      info,
+    );
+  | Open(Ap_arg(_)) => failwith("ap todo")
   };
 
 // TODO clean up function args
