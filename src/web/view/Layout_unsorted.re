@@ -50,7 +50,7 @@ let shape_of_tessera: Unsorted.Tessera.t => Layout.tessera_shape =
   | BinHole
   | Plus
   | Arrow => Bin((false, false))
-  | Let_in => Bin((true, true));
+  | Let_in => Bin((true, false));
 
 let mk_tessera = (~style, tessera: Unsorted.Tessera.t): t => {
   let l =
