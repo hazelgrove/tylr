@@ -23,6 +23,8 @@ let syn = Syn(_ => ());
 let ana = ty => Ana(ty, _ => ());
 let fn_pos = Fn_pos((_, _) => ());
 
+let root' = a => {ctx: Ctx.empty, mode: Syn(a)};
+
 let of_t' = info => {...info, mode: map_mode(_ => (), info.mode)};
 
 let num_has_err = (info_num: t) =>
@@ -289,3 +291,27 @@ let let_def' =
       ),
   };
 };
+
+let binhole_l' = (f: 'a => 'b, info_binhole: t'('a)): t'('b) => {
+  let mode =
+    switch (info_binhole.mode) {
+    | Syn(a)
+    | Ana(_, a) => Syn(_ => f(a(Hole)))
+    | Fn_pos(a) => Syn(_ => f(a(Hole, Hole)))
+    };
+  {mode, ctx: info_binhole.ctx};
+};
+let binhole_r' = binhole_l';
+
+let plus_l' = (f: 'a => 'b, info_plus: t'('a)): t'('b) => {
+  let mode =
+    switch (info_plus.mode) {
+    | Syn(a) => Ana(Num, _ => f(a(Num)))
+    | Ana(ty, a) =>
+      let ty = Type.consistent(ty, Num) ? Type.Num : Hole;
+      Ana(Num, _ => f(a(ty)));
+    | Fn_pos(a) => Ana(Num, _ => f(a(Hole, Hole)))
+    };
+  {mode, ctx: info_plus.ctx};
+};
+let plus_r' = plus_l';
