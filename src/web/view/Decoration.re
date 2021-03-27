@@ -80,12 +80,12 @@ module ErrHole = {
     let path =
       List.concat([
         [
-          M({x: 0., y: expanded ? 0. : child_border_thickness}),
-          H_({dx: len}),
+          M({x: 1., y: expanded ? 0. : child_border_thickness}),
+          H_({dx: len -. 2.}),
         ],
         tl_br,
         tr_bl,
-        [H_({dx: Float.neg(len)})],
+        [H_({dx: Float.neg(len -. 2.)})],
         br_tl,
         bl_tr,
         [Z],
