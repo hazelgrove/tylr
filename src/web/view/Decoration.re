@@ -380,13 +380,10 @@ module UniChild = {
 let closed_child_path = ((start, len)) =>
   List.concat(
     SvgUtil.Path.[
-      [
-        M({x: Float.of_int(start), y: child_border_thickness}),
-        H_({dx: (-0.5)}),
-      ],
+      [M({x: Float.of_int(start) +. 0.5, y: child_border_thickness})],
       Diag.tr_bl(~child_border=`North, ()),
       Diag.tl_br(~child_border=`South, ()),
-      [H_({dx: 0.5}), H_({dx: Float.of_int(len)}), H_({dx: 0.5})],
+      [H_({dx: Float.of_int(len - 1)})],
       Diag.bl_tr(~child_border=`South, ()),
       Diag.br_tl(~child_border=`North, ()),
       [Z],
