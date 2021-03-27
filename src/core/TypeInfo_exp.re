@@ -3,15 +3,15 @@ open Sexplib.Std;
 [@deriving sexp]
 type t'('a) = {
   ctx: Ctx.t,
-  mode: mode('a),
+  mode: mode'('a),
 }
-and mode('a) =
+and mode'('a) =
   | Syn(Type.t => 'a)
   // maybe todo: split into ana proper and ana_syn
   | Ana(Type.t /* expected ty */, Type.t /* consistent ty */ => 'a)
   | Fn_pos((Type.t /* ty in */, Type.t /* ty out */) => 'a);
 
-let map_mode = (f: 'a => 'b) =>
+let map_mode' = (f: 'a => 'b) =>
   fun
   | Syn(a) => Syn(ty => f(a(ty)))
   | Ana(ty, a) => Ana(ty, ty' => f(a(ty')))
@@ -19,13 +19,14 @@ let map_mode = (f: 'a => 'b) =>
 
 [@deriving sexp]
 type t = t'(unit);
+type mode = mode'(unit);
 let syn = Syn(_ => ());
 let ana = ty => Ana(ty, _ => ());
 let fn_pos = Fn_pos((_, _) => ());
 
 let root' = a => {ctx: Ctx.empty, mode: Syn(a)};
 
-let of_t' = info => {...info, mode: map_mode(_ => (), info.mode)};
+let of_t' = info => {...info, mode: map_mode'(_ => (), info.mode)};
 
 let num_has_err = (info_num: t) =>
   switch (info_num.mode) {
@@ -64,19 +65,21 @@ let lam_pat = (info_lam: t'(_)): TypeInfo_pat.t => {
     };
   TypeInfo_pat.{ctx: info_lam.ctx, mode};
 };
+
+let lam_body_mode = (mode_lam: mode'(_)): mode =>
+  switch (mode_lam) {
+  | Syn(_)
+  | Fn_pos(_) => syn
+  | Ana(ty, _) =>
+    switch (Type.matches_arrow(ty)) {
+    | None => syn
+    | Some((_, ty_out)) => ana(ty_out)
+    }
+  };
 let lam_body = (p: Term_pat.t, info_lam: t'(_)): t => {
   let info_p = lam_pat(info_lam);
   let (_, ctx_body) = TypeInfo_pat.synthesize(info_p, p);
-  let mode_body =
-    switch (info_lam.mode) {
-    | Syn(_)
-    | Fn_pos(_) => syn
-    | Ana(ty, _) =>
-      switch (Type.matches_arrow(ty)) {
-      | None => syn
-      | Some((_, ty_out)) => ana(ty_out)
-      }
-    };
+  let mode_body = lam_body_mode(info_lam.mode);
   {ctx: ctx_body, mode: mode_body};
 };
 
@@ -168,32 +171,33 @@ and extend_ctx_let_body = (p: Term_pat.t, def: Term_exp.t, ctx: Ctx.t) => {
 };
 
 let lam_pat' =
-    (f: 'a => 'a, body: Term_exp.t, info_lam: t'('a)): TypeInfo_pat.t'('a) => {
+    (f: (Ctx.t, 'a) => 'b, body: Term_exp.t, info_lam: t'('a))
+    : TypeInfo_pat.t'('b) => {
   let mode =
     switch (info_lam.mode) {
     | Syn(a) =>
       TypeInfo_pat.Syn(
         (ty_p, ctx) => {
           let ty_body = synthesize({ctx, mode: syn}, body);
-          f(a(Arrow(ty_p, ty_body)));
+          f(ctx, a(Arrow(ty_p, ty_body)));
         },
       )
     | Fn_pos(a) =>
       Syn(
         (ty_p, ctx) => {
           let ty_body = synthesize({ctx, mode: syn}, body);
-          f(a(ty_p, ty_body));
+          f(ctx, a(ty_p, ty_body));
         },
       )
     | Ana(ty, a) =>
       switch (Type.matches_arrow(ty)) {
-      | None => Syn((_, _) => f(a(Hole)))
+      | None => Syn((_, ctx) => f(ctx, a(Hole)))
       | Some((ty_in, ty_out)) =>
         Ana(
           ty_in,
           (ty_p, ctx) => {
             let ty_body = synthesize({ctx, mode: ana(ty_out)}, body);
-            f(a(Arrow(ty_p, ty_body)));
+            f(ctx, a(Arrow(ty_p, ty_body)));
           },
         )
       }

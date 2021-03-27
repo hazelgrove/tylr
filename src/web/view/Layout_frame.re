@@ -39,7 +39,7 @@ module Exp = {
       let ctx_body = TypeInfo_exp.extend_ctx_let_body(p, def, info.ctx);
       let mode_body =
         info.mode
-        |> TypeInfo_exp.map_mode((l_frame, l_body) =>
+        |> TypeInfo_exp.map_mode'((l_frame, l_body) =>
              l_frame(cat(grouts_l([fst(mk_Let(l_p, l_def))]), l_body))
            );
       {ctx: ctx_body, mode: mode_body};
@@ -108,7 +108,7 @@ module Exp = {
       {
         ...info,
         mode:
-          TypeInfo_exp.map_mode(
+          TypeInfo_exp.map_mode'(
             (l_frame, l_body) => l_frame(grouts([fst(mk_Paren(l_body))])),
             info.mode,
           ),
@@ -174,10 +174,56 @@ module Pat = {
         info,
       );
     }
-  and mk_bi = (~show_err_holes as _, bi: Frame_pat.bidelimited) =>
+  and mk_bi = (~show_err_holes, bi: Frame_pat.bidelimited) =>
     switch (bi) {
     | Root => TypeInfo_pat.root'((_, _, l) => l)
-    // | Closed(Let_pat(frame, def, body)) =>
-    | _ => failwith("todo")
+    | Open(Paren_body(frame)) =>
+      let info = mk(~show_err_holes, frame);
+      {
+        ...info,
+        mode:
+          TypeInfo_pat.map_mode'(
+            (l_frame, l_body) => l_frame(grouts([fst(mk_Paren(l_body))])),
+            info.mode,
+          ),
+      };
+    | Closed(Let_pat(frame, def, body)) =>
+      let info = Exp.mk(~show_err_holes, frame);
+      TypeInfo_exp.let_pat'(
+        (ty_p, ctx_body, l_frame, l_p) => {
+          let l_def =
+            Layout_term.Exp.mk(
+              {ctx: info.ctx, mode: TypeInfo_exp.ana(ty_p)},
+              def,
+            );
+          let l_body =
+            Layout_term.Exp.mk(
+              {...TypeInfo_exp.of_t'(info), ctx: ctx_body},
+              body,
+            );
+          l_frame(cat(grouts_l([fst(mk_Let(l_p, l_def))]), l_body));
+        },
+        def,
+        body,
+        info,
+      );
+    | Closed(Lam_pat(frame, body)) =>
+      let info = Exp.mk(~show_err_holes, frame);
+      TypeInfo_exp.lam_pat'(
+        (ctx_body, l_frame, l_p) => {
+          let l_body =
+            Layout_term.Exp.mk(
+              {ctx: ctx_body, mode: TypeInfo_exp.lam_body_mode(info.mode)},
+              body,
+            );
+          let l_lam = cat(grouts_l([fst(mk_Lam(l_p))]), l_body);
+          let l_lam =
+            TypeInfo_exp.lam_has_err(info)
+              ? l_lam : Annot(ErrHole(true), l_lam);
+          l_frame(l_lam);
+        },
+        body,
+        info,
+      );
     };
 };

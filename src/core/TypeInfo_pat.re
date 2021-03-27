@@ -3,9 +3,9 @@ open Sexplib.Std;
 [@deriving sexp]
 type t'('a) = {
   ctx: Ctx.t,
-  mode: mode('a),
+  mode: mode'('a),
 }
-and mode('a) =
+and mode'('a) =
   | Syn((Type.t, Ctx.t) => 'a)
   | Ana(Type.t /* expected ty */, (Type.t /* consistent ty */, Ctx.t) => 'a)
   | Let_pat(
@@ -13,7 +13,7 @@ and mode('a) =
       (Type.t /* p ty */, Ctx.t /* ctx body */) => 'a,
     );
 
-let map_mode = (f: 'a => 'b) =>
+let map_mode' = (f: 'a => 'b) =>
   fun
   | Syn(a) => Syn((ty, ctx) => f(a(ty, ctx)))
   | Ana(ty, a) => Ana(ty, (ty', ctx) => f(a(ty', ctx)))
@@ -21,10 +21,11 @@ let map_mode = (f: 'a => 'b) =>
 
 [@deriving sexp]
 type t = t'(unit);
+type mode = mode'(unit);
 let syn = Syn((_, _) => ());
 let ana = ty => Ana(ty, (_, _) => ());
 
-let of_t' = info => {...info, mode: map_mode(_ => (), info.mode)};
+let of_t' = info => {...info, mode: map_mode'(_ => (), info.mode)};
 
 let root' = a => {ctx: Ctx.empty, mode: Syn(a)};
 
