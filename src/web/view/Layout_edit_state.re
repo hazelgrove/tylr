@@ -137,7 +137,7 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
         let inner_suffix = Parser_exp.dissociate(body);
         let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
         go(
-          ~caret=Before(2),
+          ~caret=Before(1),
           Exp((
             (
               prefix,
@@ -150,7 +150,7 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
         let inner_suffix = Parser_exp.dissociate(body);
         let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
         go(
-          ~caret=Before(2),
+          ~caret=Before(1),
           Exp((
             (
               prefix,
