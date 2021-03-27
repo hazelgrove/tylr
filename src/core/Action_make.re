@@ -507,6 +507,7 @@ module Make =
 
       | Delete(_) =>
         switch (Selection.is_whole(selection)) {
+        | Some([]) => None
         | Some(_) when delete_whole_selection =>
           // remove, fix empty holes, reassemble into pointing mode
           let (prefix, suffix) =
