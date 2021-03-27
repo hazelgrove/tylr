@@ -150,13 +150,29 @@ module Make =
   };
 
   let move_pointing =
-      (d: Direction.t, ((prefix, suffix), frame): Z.pointing)
+      (
+        ~fix_empty_holes=false,
+        d: Direction.t,
+        ((prefix, suffix), frame): Z.pointing,
+      )
       : option(EditState_pointing.t) => {
     let j = List.length(prefix);
     let tiles = ListUtil.of_frame((prefix, suffix));
     let exit = () =>
-      // TODO first try moving to next child
-      I.move_into_frame(d, P.associate(tiles), frame);
+      if (fix_empty_holes) {
+        let (prefix, suffix) =
+          TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
+        let (prefix, suffix) = P.fix_empty_holes(([prefix], [suffix]));
+        let (prefix, suffix) =
+          TupleUtil.map2(Selection.get_whole, (prefix, suffix));
+        I.move_into_frame(
+          d,
+          P.associate(ListUtil.of_frame((prefix, suffix))),
+          frame,
+        );
+      } else {
+        I.move_into_frame(d, P.associate(tiles), frame);
+      };
     switch (d) {
     | Left when j == 0 => exit()
     | Right when j == List.length(tiles) => exit()
@@ -678,7 +694,12 @@ module Make =
           (whole_prefix, whole_suffix);
         };
         let move_via_pointing = (prefix, suffix) => {
-          let+ moved = move_pointing(d, ((prefix, suffix), frame));
+          let+ moved =
+            move_pointing(
+              ~fix_empty_holes=true,
+              d,
+              ((prefix, suffix), frame),
+            );
           EditState.of_restructuring(
             EditState_restructuring.of_pointing(
               selection,
