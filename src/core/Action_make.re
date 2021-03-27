@@ -157,25 +157,21 @@ module Make =
       )
       : option(EditState_pointing.t) => {
     let j = List.length(prefix);
-    let tiles = ListUtil.of_frame((prefix, suffix));
-    let exit = () =>
-      if (fix_empty_holes) {
-        let (prefix, suffix) =
-          TupleUtil.map2(List.map(Selection.tile), (prefix, suffix));
-        let (prefix, suffix) = P.fix_empty_holes(([prefix], [suffix]));
-        let (prefix, suffix) =
-          TupleUtil.map2(Selection.get_whole, (prefix, suffix));
-        I.move_into_frame(
-          d,
-          P.associate(ListUtil.of_frame((prefix, suffix))),
-          frame,
+    let fix_holes = () => {
+      let (prefix, suffix) =
+        TupleUtil.map2(
+          List.map(tile => [Selection.tile(tile)]),
+          (prefix, suffix),
         );
-      } else {
-        I.move_into_frame(d, P.associate(tiles), frame);
-      };
+      let (prefix, suffix) = P.fix_empty_holes((prefix, suffix));
+      TupleUtil.map2(Selection.get_whole, (prefix, suffix));
+    };
+    let tiles =
+      ListUtil.of_frame(fix_empty_holes ? fix_holes() : (prefix, suffix));
+    let exit = () => I.move_into_frame(d, P.associate(tiles), frame);
     switch (d) {
     | Left when j == 0 => exit()
-    | Right when j == List.length(tiles) => exit()
+    | Right when j == List.length(prefix) + List.length(suffix) => exit()
     | _ =>
       let n = d == Left ? j - 1 : j;
       let (tile, tile_frame) = ListUtil.split_frame(n, tiles);
@@ -183,7 +179,8 @@ module Make =
       | Some(_) as entered => entered
       | None =>
         let j = d == Left ? j - 1 : j + 1;
-        let (prefix, suffix) = ListUtil.mk_frame(j, tiles);
+        let tiles_orig = ListUtil.of_frame((prefix, suffix));
+        let (prefix, suffix) = ListUtil.mk_frame(j, tiles_orig);
         Some(I.mk_pointing(((prefix, suffix), frame)));
       };
     };
