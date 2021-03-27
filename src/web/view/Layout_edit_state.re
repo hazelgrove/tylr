@@ -120,6 +120,47 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
           (~caret=CaretPosition.Before(0), pointing: EditState_pointing.t) =>
     switch (pointing) {
     | Typ(_) => failwith("todo Layout_edit_state.mk_pointing")
+
+    | Pat(((prefix, []) as tiles, frame)) =>
+      let subject = Parser_pat.associate(ListUtil.of_frame(tiles));
+      switch (frame) {
+      | Root =>
+        let (first, trailing) = ListUtil.split_first(prefix);
+        go(~caret=After, Pat(((trailing, [first]), frame)));
+      | Open(Paren_body(frame)) =>
+        let ((prefix, suffix), frame) = Parser_pat.dissociate_frame(frame);
+        go(
+          ~caret=Before(1),
+          Pat(((prefix, [Op(Paren(subject)), ...suffix]), frame)),
+        );
+      | Closed(Lam_pat(frame, body)) =>
+        let inner_suffix = Parser_exp.dissociate(body);
+        let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
+        go(
+          ~caret=Before(2),
+          Exp((
+            (
+              prefix,
+              [Tile.Pre(Term_exp.Lam(subject)), ...inner_suffix] @ suffix,
+            ),
+            frame,
+          )),
+        );
+      | Closed(Let_pat(frame, def, body)) =>
+        let inner_suffix = Parser_exp.dissociate(body);
+        let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
+        go(
+          ~caret=Before(2),
+          Exp((
+            (
+              prefix,
+              [Tile.Pre(Term_exp.Let(subject, def)), ...inner_suffix]
+              @ suffix,
+            ),
+            frame,
+          )),
+        );
+      };
     | Pat(((prefix, [_, ..._] as suffix), frame)) =>
       let (term, (prefix, suffix)) = {
         let n = List.length(prefix);
@@ -144,7 +185,6 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
           );
         l_frame(ty_p, ctx_body, l_term);
       };
-    | Pat(_) => failwith("todo Layout_edit_state.mk_pointing")
 
     | Exp(((prefix, []), frame)) =>
       let subject = Parser_exp.associate(List.rev(prefix));
