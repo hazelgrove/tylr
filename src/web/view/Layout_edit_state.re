@@ -136,7 +136,13 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
       | Ana(_, l_frame) =>
         let (ty, ctx) = TypeInfo_pat.synthesize(info_term, term);
         l_frame(ty, ctx, l_term);
-      | Let_pat(_) => failwith("todo")
+      | Let_pat(ty_def, l_frame) =>
+        let (ty_p, _) = TypeInfo_pat.synthesize(info_term, term);
+        let (_, ctx_body) =
+          TypeInfo_pat.(
+            synthesize({ctx: info_term.ctx, mode: ana(ty_def(ty_p))}, term)
+          );
+        l_frame(ty_p, ctx_body, l_term);
       };
     | Pat(_) => failwith("todo Layout_edit_state.mk_pointing")
 
