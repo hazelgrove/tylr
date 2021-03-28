@@ -2,116 +2,151 @@ open Util;
 open Core;
 open Layout;
 
-module Exp = {
-  // TODO clean up function args
-  let mk_selection =
-      (
-        ~style: option(Layout.selection_style)=?,
-        ~selected: bool,
-        ~grouts: list(t) => t,
-        selection,
-      ) => {
-    let mk_tessera =
-      Layout_unsorted.mk_tessera(
-        ~style=
-          Layout.mk_tessera_style(
-            ~highlighted=selected,
-            ~raised=selected,
-            (),
-          ),
-      );
-    let mk_tile =
-      Layout_unsorted.mk_tile(
-        ~style=
-          Layout.mk_tile_style(
-            ~highlighted=selected,
-            ~show_children=true,
-            ~raised=selected,
-            ~sort=?selected ? None : Some(Exp),
-            (),
-          ),
-      );
-    let selection =
-      grouts(Selection.to_list(mk_tile, mk_tessera, selection));
-    switch (style) {
-    | None => selection
-    | Some(style) => Annot(Selection(style), selection)
-    };
-  };
-
-  let mk_selecting =
-      (
-        ((side, selection), (prefix, suffix)):
-          Subject.selecting(Tile_exp.t),
-      ) => {
-    let prefix =
-      List.rev(prefix)
-      |> Selection.map_tile(Parser_exp.unsort)
-      |> mk_selection(~grouts=grouts_l, ~selected=false);
-    let suffix =
-      suffix
-      |> Selection.map_tile(Parser_exp.unsort)
-      |> mk_selection(~grouts=grouts_r, ~selected=false);
-    let selection =
-      selection
-      |> mk_selection(~grouts, ~style={unfocused: false}, ~selected=true)
-      |> place_caret(side, Selecting);
-    cats([prefix, selection, suffix]);
-  };
-
-  let mk_restructuring =
-      (
-        ((selection, selections), (prefix, suffix)):
-          Subject.restructuring(Tile_exp.t),
-      ) => {
-    let picked_up_all_selections = {
-      let whole_prefix = OptUtil.sequence(List.map(Either.get_L, prefix))
-      and whole_suffix = OptUtil.sequence(List.map(Either.get_L, suffix));
-      Option.is_some(whole_prefix) && Option.is_some(whole_suffix);
-    };
-    let (prefix, suffix) =
-      (List.rev(prefix), suffix)
-      |> TupleUtil.map2(
-           List.map(
-             fun
-             | Either.L(tile) =>
-               tile
-               |> Parser_exp.unsort
-               |> Layout_unsorted.mk_tile(
-                    ~style=
-                      Layout.mk_tile_style(
-                        ~show_children=picked_up_all_selections,
-                        ~sort=Exp,
-                        (),
-                      ),
-                  )
-             | R(selection) =>
-               mk_selection(
-                 ~style={unfocused: false},
-                 ~grouts=grouts_inner,
-                 ~selected=false,
-                 selection,
-               ),
-           ),
-         );
-    let caret = {
-      let mk_unfocused_selections =
-        List.map(
-          mk_selection(~style={unfocused: true}, ~grouts, ~selected=true),
-        );
-      let (before, after) = selections;
-      Restructuring(
-        mk_selection(
-          ~style={unfocused: false},
-          ~grouts,
-          ~selected=true,
-          selection,
+// TODO clean up function args
+let mk_selection =
+    (
+      ~sort=?,
+      ~style: option(Layout.selection_style)=?,
+      ~selected: bool,
+      ~grouts: list(t) => t,
+      selection,
+    ) => {
+  let mk_tessera =
+    Layout_unsorted.mk_tessera(
+      ~style=
+        Layout.mk_tessera_style(~highlighted=selected, ~raised=selected, ()),
+    );
+  let mk_tile =
+    Layout_unsorted.mk_tile(
+      ~style=
+        Layout.mk_tile_style(
+          ~highlighted=selected,
+          ~show_children=true,
+          ~raised=selected,
+          ~sort=?selected ? None : sort,
+          (),
         ),
-        (mk_unfocused_selections(before), mk_unfocused_selections(after)),
-      );
-    };
-    grouts_z(prefix, caret, suffix);
+    );
+  let selection = grouts(Selection.to_list(mk_tile, mk_tessera, selection));
+  switch (style) {
+  | None => selection
+  | Some(style) => Annot(Selection(style), selection)
   };
+};
+
+let mk_selecting =
+    (
+      ~unsort: 'tile => Unsorted.Tile.t,
+      ~sort,
+      ((side, selection), (prefix, suffix)): Subject.selecting('tile),
+    ) => {
+  let prefix =
+    List.rev(prefix)
+    |> Selection.map_tile(unsort)
+    |> mk_selection(~sort, ~grouts=grouts_l, ~selected=false);
+  let suffix =
+    suffix
+    |> Selection.map_tile(unsort)
+    |> mk_selection(~sort, ~grouts=grouts_r, ~selected=false);
+  let selection =
+    selection
+    |> mk_selection(~grouts, ~style={unfocused: false}, ~selected=true)
+    |> place_caret(side, Selecting);
+  cats([prefix, selection, suffix]);
+};
+
+let mk_restructuring =
+    (
+      ~sort,
+      ~unsort: 'tile => Unsorted.Tile.t,
+      ((selection, selections), (prefix, suffix)):
+        Subject.restructuring('tile),
+    ) => {
+  let picked_up_all_selections = {
+    let whole_prefix = OptUtil.sequence(List.map(Either.get_L, prefix))
+    and whole_suffix = OptUtil.sequence(List.map(Either.get_L, suffix));
+    Option.is_some(whole_prefix) && Option.is_some(whole_suffix);
+  };
+  let (prefix, suffix) =
+    (List.rev(prefix), suffix)
+    |> TupleUtil.map2(
+         List.map(
+           fun
+           | Either.L(tile) =>
+             tile
+             |> unsort
+             |> Layout_unsorted.mk_tile(
+                  ~style=
+                    Layout.mk_tile_style(
+                      ~show_children=picked_up_all_selections,
+                      ~sort,
+                      (),
+                    ),
+                )
+           | R(selection) =>
+             mk_selection(
+               ~style={unfocused: false},
+               ~grouts=grouts_inner,
+               ~selected=false,
+               selection,
+             ),
+         ),
+       );
+  let caret = {
+    let mk_unfocused_selections =
+      List.map(
+        mk_selection(~style={unfocused: true}, ~grouts, ~selected=true),
+      );
+    let (before, after) = selections;
+    Restructuring(
+      mk_selection(
+        ~style={unfocused: false},
+        ~grouts,
+        ~selected=true,
+        selection,
+      ),
+      (mk_unfocused_selections(before), mk_unfocused_selections(after)),
+    );
+  };
+  grouts_z(prefix, caret, suffix);
+};
+
+module Typ = {
+  let mk_selecting = mk_selecting(~sort=Typ, ~unsort=Parser_typ.unsort);
+  let mk_restructuring =
+    mk_restructuring(~sort=Typ, ~unsort=Parser_typ.unsort);
+
+  let mk_untyped_framed_subject = (l_subject, l_frame) =>
+    // only called in non-pointing mode
+    l_frame(Type.Hole, l_subject);
+};
+
+module Pat = {
+  let mk_selecting = mk_selecting(~sort=Pat, ~unsort=Parser_pat.unsort);
+  let mk_restructuring =
+    mk_restructuring(~sort=Pat, ~unsort=Parser_pat.unsort);
+
+  let mk_untyped_framed_subject =
+      (l_subject, l_frame: TypeInfo_pat.t'(Layout.frame)) =>
+    switch (l_frame.mode) {
+    | Syn(l_frame)
+    | Ana(_, l_frame)
+    | Let_pat(_, l_frame) => l_frame(Hole, Ctx.empty, l_subject)
+    };
+};
+
+module Exp = {
+  let mk_selecting = mk_selecting(~sort=Exp, ~unsort=Parser_exp.unsort);
+  let mk_restructuring =
+    mk_restructuring(~sort=Exp, ~unsort=Parser_exp.unsort);
+
+  let mk_untyped_framed_subject =
+      (l_subject, l_frame: TypeInfo_exp.t'(Layout.frame)) =>
+    switch (l_frame.mode) {
+    | Syn(l_frame)
+    | Ana(_, l_frame) => l_frame(Hole, l_subject)
+    | Fn_pos(l_frame) => l_frame(Hole, Hole, l_subject)
+    };
 };
 
 let mk_pointing = (pointing: EditState_pointing.t) => {
@@ -277,27 +312,35 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
   go(pointing);
 };
 
-let mk_framed_subject = (l_subject, l_frame: TypeInfo_exp.t'(Layout.frame)) =>
-  switch (l_frame.mode) {
-  | Syn(l_frame)
-  | Ana(_, l_frame) => l_frame(Hole, l_subject)
-  | Fn_pos(l_frame) => l_frame(Hole, Hole, l_subject)
-  };
-
 let mk = (edit_state: EditState.t) =>
   switch (edit_state) {
   | Typ((Pointing(pointing), frame)) => mk_pointing(Typ((pointing, frame)))
   | Pat((Pointing(pointing), frame)) => mk_pointing(Pat((pointing, frame)))
   | Exp((Pointing(pointing), frame)) => mk_pointing(Exp((pointing, frame)))
-  | Typ((Selecting(_) | Restructuring(_), _))
-  | Pat((Selecting(_) | Restructuring(_), _)) =>
-    failwith("todo Layout_edit_state.mk")
+
+  | Typ((Selecting(selecting), frame)) =>
+    let l_frame = Layout_frame.Typ.mk_bi(frame);
+    let l_selecting = Typ.mk_selecting(selecting);
+    Typ.mk_untyped_framed_subject(l_selecting, l_frame);
+  | Pat((Selecting(selecting), frame)) =>
+    let l_frame = Layout_frame.Pat.mk_bi(~show_err_holes=false, frame);
+    let l_selecting = Pat.mk_selecting(selecting);
+    Pat.mk_untyped_framed_subject(l_selecting, l_frame);
   | Exp((Selecting(selecting), frame)) =>
     let l_frame = Layout_frame.Exp.mk_bi(~show_err_holes=false, frame);
     let l_selecting = Exp.mk_selecting(selecting);
-    mk_framed_subject(l_selecting, l_frame);
+    Exp.mk_untyped_framed_subject(l_selecting, l_frame);
+
+  | Typ((Restructuring(restructuring), frame)) =>
+    let l_frame = Layout_frame.Typ.mk_bi(frame);
+    let l_restructuring = Typ.mk_restructuring(restructuring);
+    Typ.mk_untyped_framed_subject(l_restructuring, l_frame);
+  | Pat((Restructuring(restructuring), frame)) =>
+    let l_frame = Layout_frame.Pat.mk_bi(~show_err_holes=false, frame);
+    let l_restructuring = Pat.mk_restructuring(restructuring);
+    Pat.mk_untyped_framed_subject(l_restructuring, l_frame);
   | Exp((Restructuring(restructuring), frame)) =>
     let l_frame = Layout_frame.Exp.mk_bi(~show_err_holes=false, frame);
     let l_restructuring = Exp.mk_restructuring(restructuring);
-    mk_framed_subject(l_restructuring, l_frame);
+    Exp.mk_untyped_framed_subject(l_restructuring, l_frame);
   };
