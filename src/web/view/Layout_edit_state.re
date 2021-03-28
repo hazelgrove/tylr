@@ -119,7 +119,43 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
   let rec go =
           (~caret=CaretPosition.Before(0), pointing: EditState_pointing.t) =>
     switch (pointing) {
-    | Typ(_) => failwith("todo Layout_edit_state.mk_pointing")
+    | Typ(((prefix, []) as tiles, frame)) =>
+      let subject = Parser_typ.associate(ListUtil.of_frame(tiles));
+      switch (frame) {
+      | Root =>
+        let (first, trailing) = ListUtil.split_first(prefix);
+        go(~caret=After, Typ(((trailing, [first]), frame)));
+      | Open(Paren_body(frame)) =>
+        let ((prefix, suffix), frame) = Parser_typ.dissociate_frame(frame);
+        go(
+          ~caret=Before(1),
+          Typ(((prefix, [Op(Paren(subject)), ...suffix]), frame)),
+        );
+      | Closed(Ann_ann(subj, frame)) =>
+        let inner_prefix = List.rev(Parser_pat.dissociate(subj));
+        let ((prefix, suffix), frame) = Parser_pat.dissociate_frame(frame);
+        go(
+          ~caret=Before(1),
+          Pat((
+            (
+              prefix @ inner_prefix,
+              [Tile.Post(Term_pat.Ann(subject)), ...suffix],
+            ),
+            frame,
+          )),
+        );
+      };
+    | Typ(((prefix, [_, ..._] as suffix), frame)) =>
+      let (term, (prefix, suffix)) = {
+        let n = List.length(prefix);
+        let tiles = ListUtil.of_frame((prefix, suffix));
+        let skel = Skel.skel_at(n, Parser_typ.mk_skel(tiles));
+        Parser_typ.term_of_skel(skel, tiles);
+      };
+      let frame = Parser_typ.associate_frame((prefix, suffix), frame);
+      let l_frame = Layout_frame.Typ.mk(frame);
+      let l_term = Layout_term.Typ.mk(~has_caret=caret, term);
+      l_frame(Term_typ.to_type(term), l_term);
 
     | Pat(((prefix, []) as tiles, frame)) =>
       let subject = Parser_pat.associate(ListUtil.of_frame(tiles));
