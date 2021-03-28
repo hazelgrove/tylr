@@ -227,3 +227,55 @@ module Pat = {
       );
     };
 };
+
+module Typ = {
+  let rec mk = (frame: Frame_typ.t): (Type.t => Layout.frame) =>
+    switch (frame) {
+    | Uni(uni) => mk_uni(uni)
+    | Bi(bi) => mk_bi(bi)
+    }
+  and mk_uni = (uni: Frame_typ.unidelimited) =>
+    switch (uni) {
+    | Pre_r((), _) => raise(Term_typ.Void_pre)
+    | Post_l(_, ()) => raise(Term_typ.Void_post)
+    | Bin_l(frame, bin, r) =>
+      let l_frame = mk(frame);
+      let (l_bin, _) =
+        switch (bin) {
+        | Arrow => mk_Arrow()
+        | BinHole => mk_BinHole()
+        };
+      let l_r = Layout_term.Typ.mk(r);
+      let ty = ty_l =>
+        switch (bin) {
+        | Arrow => Type.Arrow(ty_l, Term_typ.to_type(r))
+        | BinHole => Hole
+        };
+      ((ty_l, l_l) => l_frame(ty(ty_l), cats([l_l, l_bin, l_r])));
+    | Bin_r(l, bin, frame) =>
+      let l_frame = mk(frame);
+      let l_l = Layout_term.Typ.mk(l);
+      let (l_bin, _) =
+        switch (bin) {
+        | Arrow => mk_Arrow()
+        | BinHole => mk_BinHole()
+        };
+      let ty = ty_r =>
+        switch (bin) {
+        | Arrow => Type.Arrow(Term_typ.to_type(l), ty_r)
+        | BinHole => Hole
+        };
+      ((ty_r, l_r) => l_frame(ty(ty_r), cats([l_l, l_bin, l_r])));
+    }
+  and mk_bi = (bi: Frame_typ.bidelimited) =>
+    switch (bi) {
+    | Root => ((_, l) => l)
+    | Open(Paren_body(frame)) =>
+      let l_frame = mk(frame);
+      (
+        (ty_body, l_body) =>
+          l_frame(ty_body, grouts([fst(mk_Paren(l_body))]))
+      );
+    | Closed(Ann_ann(_)) => failwith("todo")
+    };
+};
