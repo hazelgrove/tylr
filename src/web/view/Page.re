@@ -23,22 +23,19 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
     ),
     Attr.on_keydown(evt => {
       let key = JsUtil.get_key(evt);
-      let no_ctrl_alt_meta = JsUtil.no_ctrl_alt_meta(evt);
-      let held_shift = JsUtil.held_shift(evt);
+      let held = m => JsUtil.held(m, evt);
       let p = a => Update.PerformAction(a);
       let updates: list(Update.t) =
-        if (!no_ctrl_alt_meta) {
-          [];
-        } else {
+        if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
           switch (key) {
           | "Shift" => EditState.is_pointing(edit_state) ? [p(Mark)] : []
           | "ArrowLeft"
           | "ArrowRight" =>
             let d: Direction.t = key == "ArrowLeft" ? Left : Right;
             if (EditState.is_pointing(edit_state)) {
-              held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))];
+              held(Shift) ? [p(Mark), p(Move(d))] : [p(Move(d))];
             } else if (EditState.is_selecting(edit_state)) {
-              held_shift ? [p(Move(d))] : [Escape];
+              held(Shift) ? [p(Move(d))] : [Escape];
             } else {
               [p(Move(d))];
             };
@@ -77,6 +74,14 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
               }
             }
           };
+        } else if (held(Ctrl) && !held(Alt)) {
+          switch (key) {
+          | "z" => [Undo]
+          | "Z" => [Redo]
+          | _ => []
+          };
+        } else {
+          [];
         };
       switch (updates) {
       | [] => Event.Many([])
