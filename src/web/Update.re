@@ -15,7 +15,13 @@ let perform = (a, model: Model.t) =>
   | None =>
     print_endline("failed action");
     model;
-  | Some(edit_state) => {...model, edit_state}
+  | Some(edit_state) =>
+    let (before, _) = model.history_frame;
+    {
+      ...model,
+      edit_state,
+      history_frame: ([(a, model.edit_state), ...before], []),
+    };
   };
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
