@@ -1,7 +1,9 @@
+open Util;
 open Core;
 
 type t = {
   edit_state: EditState.t,
+  history_frame: AltList.a_frame(EditState.t, Action.t),
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
 };
@@ -23,6 +25,7 @@ let init = () => {
         Frame_exp.Root,
       ))
     ),
+  history_frame: ([], []),
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
 };

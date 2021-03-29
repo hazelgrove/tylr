@@ -139,7 +139,11 @@ let filters =
     ],
   );
 
-let view = (~inject, {font_metrics, logo_font_metrics, edit_state}: Model.t) =>
+let view =
+    (
+      ~inject,
+      {font_metrics, logo_font_metrics, edit_state, history_frame: _}: Model.t,
+    ) =>
   Node.div(
     [Attr.id("page")],
     [

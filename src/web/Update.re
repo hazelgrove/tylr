@@ -6,6 +6,8 @@ type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Core.Action.t)
+  | Undo
+  | Redo
   | Escape;
 
 let perform = (a, model: Model.t) =>
@@ -27,5 +29,23 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
       perform(Mark, perform(Mark, model));
     } else {
       model;
+    }
+  | Undo =>
+    switch (model.history_frame) {
+    | ([], _) => model
+    | ([(a, prev), ...before], after) => {
+        ...model,
+        edit_state: prev,
+        history_frame: (before, [(a, model.edit_state), ...after]),
+      }
+    }
+  | Redo =>
+    switch (model.history_frame) {
+    | (_, []) => model
+    | (before, [(a, next), ...after]) => {
+        ...model,
+        edit_state: next,
+        history_frame: ([(a, model.edit_state), ...before], after),
+      }
     }
   };
