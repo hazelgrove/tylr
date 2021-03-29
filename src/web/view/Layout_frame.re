@@ -229,17 +229,17 @@ module Pat = {
 };
 
 module Typ = {
-  let rec mk = (frame: Frame_typ.t): (Type.t => Layout.frame) =>
+  let rec mk = (~show_err_holes, frame: Frame_typ.t): (Type.t => Layout.frame) =>
     switch (frame) {
-    | Uni(uni) => mk_uni(uni)
-    | Bi(bi) => mk_bi(bi)
+    | Uni(uni) => mk_uni(~show_err_holes, uni)
+    | Bi(bi) => mk_bi(~show_err_holes, bi)
     }
-  and mk_uni = (uni: Frame_typ.unidelimited) =>
+  and mk_uni = (~show_err_holes, uni: Frame_typ.unidelimited) =>
     switch (uni) {
     | Pre_r((), _) => raise(Term_typ.Void_pre)
     | Post_l(_, ()) => raise(Term_typ.Void_post)
     | Bin_l(frame, bin, r) =>
-      let l_frame = mk(frame);
+      let l_frame = mk(~show_err_holes, frame);
       let (l_bin, _) =
         switch (bin) {
         | Arrow => mk_Arrow()
@@ -253,7 +253,7 @@ module Typ = {
         };
       ((ty_l, l_l) => l_frame(ty(ty_l), cats([l_l, l_bin, l_r])));
     | Bin_r(l, bin, frame) =>
-      let l_frame = mk(frame);
+      let l_frame = mk(~show_err_holes, frame);
       let l_l = Layout_term.Typ.mk(l);
       let (l_bin, _) =
         switch (bin) {
@@ -267,15 +267,29 @@ module Typ = {
         };
       ((ty_r, l_r) => l_frame(ty(ty_r), cats([l_l, l_bin, l_r])));
     }
-  and mk_bi = (bi: Frame_typ.bidelimited) =>
+  and mk_bi = (~show_err_holes, bi: Frame_typ.bidelimited) =>
     switch (bi) {
     | Root => ((_, l) => l)
     | Open(Paren_body(frame)) =>
-      let l_frame = mk(frame);
+      let l_frame = mk(~show_err_holes, frame);
       (
         (ty_body, l_body) =>
           l_frame(ty_body, grouts([fst(mk_Paren(l_body))]))
       );
-    | Closed(Ann_ann(_)) => failwith("todo")
+    | Closed(Ann_ann(subj, frame)) =>
+      let info = Pat.mk(~show_err_holes, frame);
+      TypeInfo_pat.ann_ann'(
+        (ty_ann, l_frame: Layout.frame, l_ann: t) => {
+          let info_subj = TypeInfo_pat.{ctx: info.ctx, mode: ana(ty_ann)};
+          let l_subj = Layout_term.Pat.mk(info_subj, subj);
+          err_hole(
+            TypeInfo_pat.ann_has_err(ty_ann, info),
+            true,
+            l_frame(cat(l_subj, grouts_r([fst(mk_Ann(l_ann))]))),
+          );
+        },
+        subj,
+        info,
+      );
     };
 };

@@ -29,6 +29,12 @@ let of_t' = info => {...info, mode: map_mode'(_ => (), info.mode)};
 
 let root' = a => {ctx: Ctx.empty, mode: Syn(a)};
 
+let ann_has_err = (ty_ann: Type.t, info_ann: t'(_)): bool =>
+  switch (info_ann.mode) {
+  | Syn(_)
+  | Let_pat(_) => false
+  | Ana(ty', _) => !Type.consistent(ty_ann, ty')
+  };
 let ann_subj = (ann: Term_typ.t, info_ann: t'(_)): t => {
   let ty = Term_typ.to_type(ann);
   {ctx: info_ann.ctx, mode: ana(ty)};
@@ -110,6 +116,20 @@ let ann_subj' = (f: 'a => 'a, ann: Term_typ.t, info_ann: t'('a)): t'('a) => {
             f(a(ty, ctx))
           },
       ),
+  };
+};
+let ann_ann' =
+    (f: (Type.t, 'a) => 'b, subj: Term_pat.t, info_ann: t'('a), ty_ann) => {
+  switch (info_ann.mode) {
+  | Syn(a)
+  | Ana(_, a) =>
+    let (_, ctx) =
+      synthesize({ctx: info_ann.ctx, mode: ana(ty_ann)}, subj);
+    f(ty_ann, a(ty_ann, ctx));
+  | Let_pat(ty_def, a) =>
+    let (_, ctx_body) =
+      synthesize({ctx: info_ann.ctx, mode: ana(ty_def(ty_ann))}, subj);
+    f(ty_ann, a(ty_ann, ctx_body));
   };
 };
 

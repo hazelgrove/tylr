@@ -188,7 +188,7 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
         Parser_typ.term_of_skel(skel, tiles);
       };
       let frame = Parser_typ.associate_frame((prefix, suffix), frame);
-      let l_frame = Layout_frame.Typ.mk(frame);
+      let l_frame = Layout_frame.Typ.mk(~show_err_holes=true, frame);
       let l_term = Layout_term.Typ.mk(~has_caret=caret, term);
       l_frame(Term_typ.to_type(term), l_term);
 
@@ -319,7 +319,7 @@ let mk = (edit_state: EditState.t) =>
   | Exp((Pointing(pointing), frame)) => mk_pointing(Exp((pointing, frame)))
 
   | Typ((Selecting(selecting), frame)) =>
-    let l_frame = Layout_frame.Typ.mk_bi(frame);
+    let l_frame = Layout_frame.Typ.mk_bi(~show_err_holes=false, frame);
     let l_selecting = Typ.mk_selecting(selecting);
     Typ.mk_untyped_framed_subject(l_selecting, l_frame);
   | Pat((Selecting(selecting), frame)) =>
@@ -332,7 +332,7 @@ let mk = (edit_state: EditState.t) =>
     Exp.mk_untyped_framed_subject(l_selecting, l_frame);
 
   | Typ((Restructuring(restructuring), frame)) =>
-    let l_frame = Layout_frame.Typ.mk_bi(frame);
+    let l_frame = Layout_frame.Typ.mk_bi(~show_err_holes=false, frame);
     let l_restructuring = Typ.mk_restructuring(restructuring);
     Typ.mk_untyped_framed_subject(l_restructuring, l_frame);
   | Pat((Restructuring(restructuring), frame)) =>
