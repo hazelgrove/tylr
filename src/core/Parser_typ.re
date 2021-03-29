@@ -34,8 +34,8 @@ module Input:
     Tile.get(
       fun
       | Term_typ.OpHole => Tile.Op(Unsorted.Tile.OpHole)
-      | Num => Op(Unsorted.Tile.Text("Num"))
-      | Bool => Op(Unsorted.Tile.Text("Bool"))
+      | Num => Op(Unsorted.Tile.Text("num"))
+      | Bool => Op(Unsorted.Tile.Text("bool"))
       | Paren(body) =>
         Op(Unsorted.Tile.Paren(dissociate_and_unsort(body))),
       () => raise(Term_typ.Void_pre),
@@ -49,8 +49,8 @@ module Input:
     Tile.get(
       fun
       | Term_typ.OpHole => (Unsorted.Tessera.OpHole, [])
-      | Num => (Unsorted.Tessera.Text("Num"), [])
-      | Bool => (Unsorted.Tessera.Text("Bool"), [])
+      | Num => (Unsorted.Tessera.Text("num"), [])
+      | Bool => (Unsorted.Tessera.Text("bool"), [])
       | Paren(body) => (Paren_l, [(body, Unsorted.Tessera.Paren_r)]),
       () => raise(Term_typ.Void_pre),
       () => raise(Term_typ.Void_post),
