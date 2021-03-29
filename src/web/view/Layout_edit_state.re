@@ -84,12 +84,7 @@ let mk_restructuring =
                     ),
                 )
            | R(selection) =>
-             mk_selection(
-               ~style={unfocused: false},
-               ~grouts=grouts_inner,
-               ~selected=false,
-               selection,
-             ),
+             mk_selection(~grouts=grouts_inner, ~selected=false, selection),
          ),
        );
   let caret = {
