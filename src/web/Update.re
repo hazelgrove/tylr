@@ -44,6 +44,15 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | Undo =>
     switch (model.history_frame) {
     | ([], _) => model
+    | ([(a, prev), (a', prev'), ...before], after)
+        when EditState.is_selecting(prev) && EditState.has_no_selection(prev) => {
+        ...model,
+        edit_state: prev',
+        history_frame: (
+          before,
+          [(a', prev), (a, model.edit_state), ...after],
+        ),
+      }
     | ([(a, prev), ...before], after) => {
         ...model,
         edit_state: prev,
@@ -53,6 +62,15 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | Redo =>
     switch (model.history_frame) {
     | (_, []) => model
+    | (before, [(a, next), (a', next'), ...after])
+        when EditState.is_selecting(next) && EditState.has_no_selection(next) => {
+        ...model,
+        edit_state: next',
+        history_frame: (
+          [(a', next), (a, model.edit_state), ...before],
+          after,
+        ),
+      }
     | (before, [(a, next), ...after]) => {
         ...model,
         edit_state: next,
