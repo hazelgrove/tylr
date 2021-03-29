@@ -930,8 +930,27 @@ module Caret = {
   ];
 
   let delete_row = [
-    keys(["Backspace", "Del"]),
+    keys(["Backspace", "Delete"]),
     action_type("Delete/Restructure"),
+  ];
+
+  let undo_row = [
+    keys_container([
+      key("Ctrl"),
+      Node.div([], [Node.text("+")]),
+      key("z"),
+    ]),
+    action_type("Undo"),
+  ];
+  let redo_row = [
+    keys_container([
+      key("Ctrl"),
+      Node.div([], [Node.text("+")]),
+      key("Shift"),
+      Node.div([], [Node.text("+")]),
+      key("z"),
+    ]),
+    action_type("Redo"),
   ];
 
   let buffer_cell = Node.div([], []);
@@ -1043,6 +1062,10 @@ module Caret = {
             delete_row,
             buffer_row,
             construct_rows,
+            buffer_row,
+            undo_row,
+            buffer_row,
+            redo_row,
           ]),
         ),
         Node.div(

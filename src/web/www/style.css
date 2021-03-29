@@ -360,11 +360,11 @@
 
 #action-table {
   position: relative;
-  left: -108px;
+  left: -128px;
   font: caption;
   display: grid;
-  grid-template-columns: 100px auto;
-  grid-template-rows: repeat(3, auto 20px) auto 4px repeat(10, auto 2px);
+  grid-template-columns: 120px auto;
+  grid-template-rows: repeat(3, auto 20px) auto 4px repeat(5, auto 2px) auto 20px auto 20px auto;
   column-gap: 16px;
   color: var(--action-text-color);
   z-index: var(--action-table-z);
