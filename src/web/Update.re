@@ -6,6 +6,7 @@ type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Core.Action.t)
+  | SetTypeInfoVisibility(bool)
   | Undo
   | Redo
   | Escape;
@@ -29,6 +30,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) => perform(a, model)
+  | SetTypeInfoVisibility(b) => {...model, show_type_info: b}
   | Escape =>
     // TODO restore escape functionality on restructuring
     if (EditState.is_selecting(model.edit_state)) {

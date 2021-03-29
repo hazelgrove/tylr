@@ -358,6 +358,29 @@
   grid-auto-flow: column;
 }
 
+#type-info {
+  position: absolute;
+  left: 0;
+  font: caption;
+  background-color: var(--light-page-color);
+  box-shadow: 0 0 8px 4px var(--light-page-color);
+  border-radius: 4px;
+}
+.sort-label {
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: bold;
+}
+.sort-label.typ {
+  background-color: var(--typ-bg-color);
+}
+.sort-label.pat {
+  background-color: var(--pat-bg-color);
+}
+.sort-label.exp {
+  background-color: var(--exp-bg-color);
+}
+
 #action-table {
   position: relative;
   left: -128px;

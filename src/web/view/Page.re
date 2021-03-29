@@ -17,6 +17,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
               && EditState.has_no_selection(edit_state) => [
             inject(Escape),
           ]
+        | "Alt" => [inject(SetTypeInfoVisibility(false))]
         | _ => []
         },
       )
@@ -81,7 +82,10 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
           | _ => []
           };
         } else {
-          [];
+          switch (key) {
+          | "Alt" => [SetTypeInfoVisibility(true)]
+          | _ => []
+          };
         };
       switch (updates) {
       | [] => Event.Many([])
@@ -147,7 +151,13 @@ let filters =
 let view =
     (
       ~inject,
-      {font_metrics, logo_font_metrics, edit_state, history_frame: _}: Model.t,
+      {
+        font_metrics,
+        logo_font_metrics,
+        edit_state,
+        show_type_info,
+        history_frame: _,
+      }: Model.t,
     ) =>
   Node.div(
     [Attr.id("page")],
@@ -170,6 +180,7 @@ let view =
         [
           Code.view_of_layout(
             ~font_metrics,
+            ~show_type_info,
             Layout_edit_state.mk(edit_state),
           ),
         ],

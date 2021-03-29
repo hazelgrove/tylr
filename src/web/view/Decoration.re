@@ -986,13 +986,21 @@ module Caret = {
       ),
     );
 
+  let typ =
+    Node.span([Attr.classes(["sort-label", "typ"])], [Node.text("typ")]);
+  let pat =
+    Node.span([Attr.classes(["sort-label", "pat"])], [Node.text("pat")]);
+  let exp =
+    Node.span([Attr.classes(["sort-label", "exp"])], [Node.text("exp")]);
   let view =
       (
         ~font_metrics: FontMetrics.t,
         ~view_of_layout: (~transparent: bool=?, Layout.t) => Node.t,
+        ~show_type_info: bool,
         offset: int,
         caret: Layout.caret,
       ) => {
+    let popped_top = (-1.4) *. font_metrics.row_height;
     let (top, (ss_before, ss_after)) =
       switch (caret) {
       | Pointing(_todo) => (0., ([], []))
@@ -1030,7 +1038,54 @@ module Caret = {
                  [view_of_layout(~transparent=i != 0, s)],
                )
              );
-        ((-1.4) *. font_metrics.row_height, (ss_before, ss_after));
+        (popped_top, (ss_before, ss_after));
+      };
+
+    let type_info =
+      if (show_type_info) {
+        switch (caret) {
+        | Selecting
+        | Restructuring(_) => []
+        | Pointing(info) =>
+          let lines =
+            switch (info) {
+            | Typ => [
+                Node.div(
+                  [Attr.classes(["expecting-msg"])],
+                  [Node.text("expecting "), typ],
+                ),
+              ]
+            | Pat(_) => [
+                Node.div(
+                  [Attr.classes(["expecting-msg"])],
+                  [Node.text("expecting "), pat],
+                ),
+              ]
+            | Exp(_) => [
+                Node.div(
+                  [Attr.classes(["expecting-msg"])],
+                  [Node.text("expecting "), exp],
+                ),
+              ]
+            };
+          [
+            Node.div(
+              [
+                Attr.id("type-info"),
+                Attr.create(
+                  "style",
+                  Printf.sprintf(
+                    "top: %fpx;",
+                    (-1.2) *. font_metrics.row_height,
+                  ),
+                ),
+              ],
+              lines,
+            ),
+          ];
+        };
+      } else {
+        [];
       };
     Node.div(
       [
@@ -1088,6 +1143,7 @@ module Caret = {
           ],
           ss_after,
         ),
+        ...type_info,
       ],
     );
   };

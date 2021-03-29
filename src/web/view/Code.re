@@ -46,6 +46,7 @@ let rec view_of_layout =
           ~text_id=?,
           ~font_metrics: FontMetrics.t,
           ~transparent=false,
+          ~show_type_info=false,
           l: Layout.t,
         ) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
@@ -134,7 +135,13 @@ let rec view_of_layout =
                  Decoration.Caret.view(
                    ~font_metrics,
                    ~view_of_layout=
-                     view_of_layout(~id=?None, ~text_id=?None, ~font_metrics),
+                     view_of_layout(
+                       ~id=?None,
+                       ~text_id=?None,
+                       ~show_type_info=false,
+                       ~font_metrics,
+                     ),
+                   ~show_type_info,
                    start,
                    caret,
                  );
