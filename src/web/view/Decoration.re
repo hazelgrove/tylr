@@ -620,7 +620,7 @@ module Tile = {
   };
 
   let open_child_paths =
-      (~sort: option(Sort.t), open_children: list((int, int)))
+      (~start, ~sort: option(Sort.t), open_children: list((int, int)))
       : list(Node.t) => {
     open SvgUtil.Path;
     let color =
@@ -670,11 +670,15 @@ module Tile = {
         ],
       );
     open_children
-    |> List.map(((start, len)) => {
+    |> List.map(((start', len)) => {
          let gradient_id =
-           Printf.sprintf("bidelimited-open-child-gradient-%d", start);
+           Printf.sprintf(
+             "bidelimited-open-child-gradient-%d-%d",
+             start,
+             start',
+           );
          [
-           gradient(gradient_id, start, len),
+           gradient(gradient_id, start', len),
            view(
              ~attrs=
                Attr.[
@@ -683,7 +687,7 @@ module Tile = {
                  create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
                ],
              [
-               M({x: Float.of_int(start), y: 0.}),
+               M({x: Float.of_int(start'), y: 0.}),
                H_({dx: Float.of_int(len)}),
              ],
            ),
@@ -820,6 +824,7 @@ module Tile = {
       (
         ~attrs: list(Attr.t)=[],
         ~font_metrics: FontMetrics.t,
+        ~start: int,
         profile: profile,
       )
       : list(Node.t) => {
@@ -854,7 +859,11 @@ module Tile = {
       profile.style.show_children
         ? profile : {...profile, open_children: [], closed_children: []};
     let open_child_paths =
-      open_child_paths(~sort=profile.style.sort, profile.open_children);
+      open_child_paths(
+        ~start,
+        ~sort=profile.style.sort,
+        profile.open_children,
+      );
     open_child_paths @ [contour_path(~attrs, profile), ...empty_holes];
   };
 };

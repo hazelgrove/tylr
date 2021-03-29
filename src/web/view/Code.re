@@ -98,6 +98,7 @@ let rec view_of_layout =
                    ~container_clss=transparent ? ["transparent"] : [],
                    Decoration.Tile.view(
                      ~font_metrics,
+                     ~start,
                      {
                        shape,
                        style,
