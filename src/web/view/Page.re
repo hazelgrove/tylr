@@ -38,7 +38,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
             if (EditState.is_pointing(edit_state)) {
               held_shift ? [p(Mark), p(Move(d))] : [p(Move(d))];
             } else if (EditState.is_selecting(edit_state)) {
-              held_shift ? [p(Move(d))] : [Escape, p(Move(d))];
+              held_shift ? [p(Move(d))] : [Escape];
             } else {
               [p(Move(d))];
             };

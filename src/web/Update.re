@@ -26,7 +26,12 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | Escape =>
     // TODO restore escape functionality on restructuring
     if (EditState.is_selecting(model.edit_state)) {
-      perform(Mark, perform(Mark, model));
+      // TODO do this directly instead of via double mark
+      // in order to support moving caret to right of selection
+      perform(
+        Mark,
+        perform(Mark, model),
+      );
     } else {
       model;
     }
