@@ -60,5 +60,5 @@ let of_type = (ty: Type.t) => {
     | _ => tm
     };
   };
-  go(~parent_precedence=0, ~strict=false, ty);
+  go(~strict=false, ty);
 };
