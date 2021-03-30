@@ -113,10 +113,6 @@ let rec view_of_layout =
                  );
                add_decoration(d);
              | EmptyHole =>
-               print_endline("-- 0 --");
-               print_endline(
-                 Sexplib.Sexp.to_string(FontMetrics.sexp_of_t(font_metrics)),
-               );
                let d =
                  d_container(
                    ~cls="empty-hole",
