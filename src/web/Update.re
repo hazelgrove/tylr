@@ -5,6 +5,7 @@ open Core;
 type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
+  | SetTypeFontMetrics(FontMetrics.t)
   | PerformAction(Core.Action.t)
   | SetTypeInfoVisibility(bool)
   | Undo
@@ -29,6 +30,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   switch (update) {
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
+  | SetTypeFontMetrics(type_font_metrics) => {...model, type_font_metrics}
   | PerformAction(a) => perform(a, model)
   | SetTypeInfoVisibility(b) => {...model, show_type_info: b}
   | Escape =>

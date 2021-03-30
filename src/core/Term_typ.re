@@ -42,3 +42,23 @@ let rec to_type = ty =>
        | (_, BinHole, _) => Type.Hole
        | (l, Arrow, r) => Arrow(to_type(l), to_type(r)),
      );
+
+let of_type = (ty: Type.t) => {
+  let rec go = (~parent_precedence=?, ~strict, ty: Type.t): t => {
+    let p = Type.precedence(ty);
+    let tm =
+      switch (ty) {
+      | Hole => Term.Op(OpHole)
+      | Num => Op(Num)
+      | Bool => Op(Bool)
+      | Arrow(ty_in, ty_out) =>
+        let go = go(~parent_precedence=p);
+        Term.Bin(go(~strict=true, ty_in), Arrow, go(~strict=false, ty_out));
+      };
+    switch (parent_precedence) {
+    | Some(pp) when p > pp || !strict && p >= pp => Op(Paren(tm))
+    | _ => tm
+    };
+  };
+  go(~parent_precedence=0, ~strict=false, ty);
+};

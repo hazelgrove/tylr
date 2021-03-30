@@ -88,7 +88,7 @@
   line-height: 1.7;
 }
 
-#font-specimen, #logo-font-specimen {
+#font-specimen, #logo-font-specimen, #type-font-specimen {
   position: fixed;
   top: 0;
   left: 100%;
@@ -96,6 +96,10 @@
   vertical-align: middle;
 }
 
+#type-font-specimen, #type-info .code {
+  font-family: "Source Code Pro", monospace;
+  font-size: 10pt;
+}
 #logo-font-specimen, #logo {
   font-family: "Fira Code", monospace;
   font-weight: bold;
@@ -360,6 +364,7 @@
 
 #type-info {
   position: absolute;
+  top: -80px;
   left: 0;
   font: caption;
   background-color: var(--light-page-color);
@@ -384,7 +389,7 @@
 #action-table {
   position: relative;
   left: -128px;
-  font: caption;
+  font: 10pt "Helvetica";
   display: grid;
   grid-template-columns: 120px auto;
   grid-template-rows: repeat(3, auto 20px) auto 4px repeat(5, auto 2px) auto 20px auto 4px auto;

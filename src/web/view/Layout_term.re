@@ -5,7 +5,6 @@ module Typ = {
   let decorate_term =
     decorate_term(
       ~sort=Typ,
-      ~type_info=Typ,
       ~is_op_hole=Term_typ.is_op_hole,
       ~is_bin_hole=Term_typ.is_bin_hole,
     );
@@ -46,12 +45,18 @@ module Pat = {
           ) => {
     open Term_pat;
     let has_caret =
-      Option.map(pos => (Pointing(Pat(info)), pos), has_caret);
+      Option.map(
+        pos => {
+          let (syn_ty, _) =
+            TypeInfo_pat.(synthesize({ctx: info.ctx, mode: syn}, p));
+          (Pointing(Pat(info, syn_ty)), pos);
+        },
+        has_caret,
+      );
     let l =
       p
       |> decorate_term(
            ~has_caret,
-           ~type_info=Pat(info),
            fun
            | OpHole => mk_OpHole(~has_caret?, ())
            | Var(x) => mk_text(~has_caret?, x)
@@ -92,12 +97,18 @@ module Exp = {
           : Layout.t => {
     open Term_exp;
     let has_caret =
-      Option.map(pos => (Pointing(Exp(info)), pos), has_caret);
+      Option.map(
+        pos => {
+          let syn_ty =
+            TypeInfo_exp.(synthesize({ctx: info.ctx, mode: syn}, e));
+          (Pointing(Exp(info, syn_ty)), pos);
+        },
+        has_caret,
+      );
     let l =
       e
       |> decorate_term(
            ~has_caret,
-           ~type_info=Exp(info),
            fun
            | OpHole => mk_OpHole(~has_caret?, ())
            | Var(x) => mk_text(~has_caret?, x)

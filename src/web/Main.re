@@ -6,38 +6,35 @@ module App = {
   module Action = Update;
   module State = State;
 
+  let observe_font_specimen = (id, update) =>
+    ResizeObserver.observe(
+      ~node=JsUtil.get_elem_by_id(id),
+      ~f=
+        (entries, _) => {
+          let specimen = Js_of_ocaml.Js.to_array(entries)[0];
+          let rect = specimen##.contentRect;
+          update(
+            FontMetrics.{
+              row_height: rect##.bottom -. rect##.top,
+              col_width: rect##.right -. rect##.left,
+            },
+          );
+        },
+      (),
+    );
+
   let on_startup = (~schedule_action, _) => {
     let _ =
-      ResizeObserver.observe(
-        ~node=JsUtil.get_elem_by_id("font-specimen"),
-        ~f=
-          (entries, _) => {
-            let specimen = Js_of_ocaml.Js.to_array(entries)[0];
-            let rect = specimen##.contentRect;
-            schedule_action(
-              Update.SetFontMetrics({
-                row_height: rect##.bottom -. rect##.top,
-                col_width: rect##.right -. rect##.left,
-              }),
-            );
-          },
-        (),
+      observe_font_specimen("font-specimen", fm =>
+        schedule_action(Update.SetFontMetrics(fm))
       );
     let _ =
-      ResizeObserver.observe(
-        ~node=JsUtil.get_elem_by_id("logo-font-specimen"),
-        ~f=
-          (entries, _) => {
-            let specimen = Js_of_ocaml.Js.to_array(entries)[0];
-            let rect = specimen##.contentRect;
-            schedule_action(
-              Update.SetLogoFontMetrics({
-                row_height: rect##.bottom -. rect##.top,
-                col_width: rect##.right -. rect##.left,
-              }),
-            );
-          },
-        (),
+      observe_font_specimen("logo-font-specimen", fm =>
+        schedule_action(Update.SetLogoFontMetrics(fm))
+      );
+    let _ =
+      observe_font_specimen("type-font-specimen", fm =>
+        schedule_action(Update.SetTypeFontMetrics(fm))
       );
 
     // preserve editor focus across window focus/blur

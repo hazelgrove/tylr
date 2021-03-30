@@ -1,3 +1,3 @@
 open Virtual_dom.Vdom;
 
-let view = () => Node.span([Attr.id("font-specimen")], [Node.text("X")]);
+let view = id => Node.span([Attr.id(id)], [Node.text("X")]);

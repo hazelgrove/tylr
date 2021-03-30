@@ -987,15 +987,30 @@ module Caret = {
     );
 
   let typ =
-    Node.span([Attr.classes(["sort-label", "typ"])], [Node.text("typ")]);
+    Node.span([Attr.classes(["sort-label", "typ"])], [Node.text("type")]);
   let pat =
-    Node.span([Attr.classes(["sort-label", "pat"])], [Node.text("pat")]);
+    Node.span(
+      [Attr.classes(["sort-label", "pat"])],
+      [Node.text("pattern")],
+    );
   let exp =
-    Node.span([Attr.classes(["sort-label", "exp"])], [Node.text("exp")]);
+    Node.span(
+      [Attr.classes(["sort-label", "exp"])],
+      [Node.text("expression")],
+    );
+  let inconsistent =
+    Node.span(
+      [Attr.classes(["inconsistent"])],
+      [Node.text("inconsistent")],
+    );
+
   let view =
       (
         ~font_metrics: FontMetrics.t,
-        ~view_of_layout: (~transparent: bool=?, Layout.t) => Node.t,
+        ~type_font_metrics: FontMetrics.t,
+        ~view_of_layout:
+           (~font_metrics: FontMetrics.t, ~transparent: bool=?, Layout.t) =>
+           Node.t,
         ~show_type_info: bool,
         offset: int,
         caret: Layout.caret,
@@ -1019,7 +1034,7 @@ module Caret = {
                      ),
                    ),
                  ],
-                 [view_of_layout(~transparent=true, s)],
+                 [view_of_layout(~font_metrics, ~transparent=true, s)],
                )
              );
         let ss_after =
@@ -1035,12 +1050,51 @@ module Caret = {
                      ),
                    ),
                  ],
-                 [view_of_layout(~transparent=i != 0, s)],
+                 [view_of_layout(~font_metrics, ~transparent=i != 0, s)],
                )
              );
         (popped_top, (ss_before, ss_after));
       };
 
+    let expecting_type = (~expected=?, ()) => {
+      switch (expected) {
+      | None => Node.div([], [Node.text("expecting any type")])
+      | Some(expected) =>
+        Node.div(
+          [],
+          [
+            Node.text("expecting type "),
+            view_of_layout(
+              ~font_metrics=type_font_metrics,
+              Layout_term.Typ.mk(Core.Term_typ.of_type(expected)),
+            ),
+          ],
+        )
+      };
+    };
+    let got_type = (~expected=?, syn_ty) => {
+      let label =
+        switch (expected) {
+        | None => Node.text("got type ")
+        | Some(ty) =>
+          Core.Type.consistent(ty, syn_ty)
+            ? Node.text("got consistent type ")
+            : Node.span(
+                [],
+                [Node.text("got "), inconsistent, Node.text(" type ")],
+              )
+        };
+      Node.div(
+        [],
+        [
+          label,
+          view_of_layout(
+            ~font_metrics=type_font_metrics,
+            Layout_term.Typ.mk(Core.Term_typ.of_type(syn_ty)),
+          ),
+        ],
+      );
+    };
     let type_info =
       if (show_type_info) {
         switch (caret) {
@@ -1051,20 +1105,40 @@ module Caret = {
             switch (info) {
             | Typ => [
                 Node.div(
-                  [Attr.classes(["expecting-msg"])],
-                  [Node.text("expecting "), typ],
+                  [Attr.classes(["type-info-msg"])],
+                  [Node.div([], [typ])],
                 ),
               ]
-            | Pat(_) => [
+            | Pat(info, syn_ty) => [
                 Node.div(
-                  [Attr.classes(["expecting-msg"])],
-                  [Node.text("expecting "), pat],
+                  [Attr.classes(["type-info-msg"])],
+                  [
+                    Node.div([], [pat]),
+                    ...switch (info.mode) {
+                       | Syn(_)
+                       | Let_pat(_) => [expecting_type(), got_type(syn_ty)]
+                       | Ana(ty, _) => [
+                           expecting_type(~expected=ty, ()),
+                           got_type(~expected=ty, syn_ty),
+                         ]
+                       },
+                  ],
                 ),
               ]
-            | Exp(_) => [
+            | Exp(info, syn_ty) => [
                 Node.div(
-                  [Attr.classes(["expecting-msg"])],
-                  [Node.text("expecting "), exp],
+                  [Attr.classes(["type-info-msg"])],
+                  [
+                    Node.div([], [exp]),
+                    ...switch (info.mode) {
+                       | Syn(_) => [expecting_type(), got_type(syn_ty)]
+                       | Ana(ty, _) => [
+                           expecting_type(~expected=ty, ()),
+                           got_type(~expected=ty, syn_ty),
+                         ]
+                       | Fn_pos(_) => failwith("caret fn_pos todo")
+                       },
+                  ],
                 ),
               ]
             };
@@ -1072,13 +1146,15 @@ module Caret = {
             Node.div(
               [
                 Attr.id("type-info"),
-                Attr.create(
-                  "style",
-                  Printf.sprintf(
-                    "top: %fpx;",
-                    (-1.2) *. font_metrics.row_height,
-                  ),
-                ),
+                /*
+                 Attr.create(
+                   "style",
+                   Printf.sprintf(
+                     "top: %fpx;",
+                     (-1.2) *. font_metrics.row_height,
+                   ),
+                 ),
+                 */
               ],
               lines,
             ),

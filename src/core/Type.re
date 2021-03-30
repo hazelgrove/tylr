@@ -32,3 +32,11 @@ let rec join = (ty, ty') =>
     Arrow(ty1, ty2);
   | _ => ty == ty' ? Some(ty) : None
   };
+
+// TODO unify with Tile_typ
+let precedence =
+  fun
+  | Hole
+  | Num
+  | Bool => 0
+  | Arrow(_) => 2;

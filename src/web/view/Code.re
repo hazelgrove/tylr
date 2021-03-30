@@ -45,6 +45,7 @@ let rec view_of_layout =
           ~id=?,
           ~text_id=?,
           ~font_metrics: FontMetrics.t,
+          ~type_font_metrics: FontMetrics.t,
           ~transparent=false,
           ~show_type_info=false,
           l: Layout.t,
@@ -112,6 +113,10 @@ let rec view_of_layout =
                  );
                add_decoration(d);
              | EmptyHole =>
+               print_endline("-- 0 --");
+               print_endline(
+                 Sexplib.Sexp.to_string(FontMetrics.sexp_of_t(font_metrics)),
+               );
                let d =
                  d_container(
                    ~cls="empty-hole",
@@ -134,12 +139,13 @@ let rec view_of_layout =
                let d =
                  Decoration.Caret.view(
                    ~font_metrics,
+                   ~type_font_metrics,
                    ~view_of_layout=
                      view_of_layout(
                        ~id=?None,
                        ~text_id=?None,
                        ~show_type_info=false,
-                       ~font_metrics,
+                       ~type_font_metrics,
                      ),
                    ~show_type_info,
                    start,

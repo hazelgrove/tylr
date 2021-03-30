@@ -106,7 +106,7 @@ let focus_code = () => {
   JsUtil.get_elem_by_id("code-container")##focus;
 };
 
-let logo = (~font_metrics) => {
+let logo = (~font_metrics, ~type_font_metrics) => {
   let tile = (shape: Layout.tile_shape, style: Layout.tile_style, s) =>
     Layout.annot(Tile(shape, style), Text(s));
   let style =
@@ -126,7 +126,13 @@ let logo = (~font_metrics) => {
         ),
       ])
     );
-  Code.view_of_layout(~id="logo", ~text_id="logo-text", ~font_metrics, l);
+  Code.view_of_layout(
+    ~id="logo",
+    ~text_id="logo-text",
+    ~font_metrics,
+    ~type_font_metrics,
+    l,
+  );
 };
 
 let filters =
@@ -154,6 +160,7 @@ let view =
       {
         font_metrics,
         logo_font_metrics,
+        type_font_metrics,
         edit_state,
         show_type_info,
         history_frame: _,
@@ -162,9 +169,10 @@ let view =
   Node.div(
     [Attr.id("page")],
     [
-      logo(~font_metrics=logo_font_metrics),
-      FontSpecimen.view(),
-      LogoFontSpecimen.view(),
+      logo(~font_metrics=logo_font_metrics, ~type_font_metrics),
+      FontSpecimen.view("font-specimen"),
+      FontSpecimen.view("logo-font-specimen"),
+      FontSpecimen.view("type-font-specimen"),
       filters,
       Node.div(
         [
@@ -180,6 +188,7 @@ let view =
         [
           Code.view_of_layout(
             ~font_metrics,
+            ~type_font_metrics,
             ~show_type_info,
             Layout_edit_state.mk(edit_state),
           ),

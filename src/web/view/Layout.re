@@ -63,7 +63,7 @@ and annot =
   | ErrHole(bool)
   | Selection(selection_style)
 and caret =
-  | Pointing(TypeInfo.t)
+  | Pointing(CursorInfo.t)
   | Selecting
   | Restructuring(t, ListUtil.frame(t));
 
@@ -269,18 +269,7 @@ let mk_BinHole = (~has_caret=?, ()) => (
 let mk_text = (~has_caret=?, s) => (Text(s), place_caret_0(has_caret));
 
 let decorate_term =
-    (
-      ~sort,
-      ~is_op_hole,
-      ~is_bin_hole,
-      ~type_info,
-      ~has_caret,
-      f_op,
-      f_pre,
-      f_post,
-      f_bin,
-    ) => {
-  let caret = Pointing(type_info);
+    (~sort, ~is_op_hole, ~is_bin_hole, ~has_caret, f_op, f_pre, f_post, f_bin) => {
   let uni_child = uni_child(~sort);
   let root_tile = root_tile(~has_caret, ~sort);
   Term.get(
@@ -291,8 +280,10 @@ let decorate_term =
         root_tile(~shape=Op(is_op_hole), is_op_hole ? empty_hole(op) : op);
       switch (dangling_caret) {
       | None => grouts([op])
-      | Some(Direction.Left) => grouts_z([], caret, [op])
-      | Some(Right) => grouts_z([op], caret, [])
+      | Some(d) =>
+        let caret = fst(Option.get(has_caret));
+        d == Direction.Left
+          ? grouts_z([], caret, [op]) : grouts_z([op], caret, []);
       };
     },
     ((pre, r)) => {
@@ -302,10 +293,11 @@ let decorate_term =
       switch (dangling_caret) {
       | None => cat(grouts_l([pre]), r)
       | Some(side) =>
+        let caret = fst(Option.get(has_caret));
         switch ((side: Direction.t)) {
         | Direction.Left => cats([grout(~caret, ()), pre, r])
         | Right => cat(grouts_l([pre]), place_caret(Left, caret, r))
-        }
+        };
       };
     },
     ((l, post)) => {
@@ -315,11 +307,12 @@ let decorate_term =
       switch (dangling_caret) {
       | None => cat(l, grouts_r([post]))
       | Some(side) =>
+        let caret = fst(Option.get(has_caret));
         switch (side) {
         | Direction.Left =>
           cat(place_caret(Right, caret, l), grouts_r([post]))
         | Right => cats([l, post, grout(~caret, ())])
-        }
+        };
       };
     },
     ((l, bin, r)) => {
@@ -336,10 +329,11 @@ let decorate_term =
       switch (dangling_caret) {
       | None => cats([l, bin, r])
       | Some(side) =>
+        let caret = fst(Option.get(has_caret));
         switch (side) {
         | Direction.Left => cats([place_caret(Right, caret, l), bin, r])
         | Right => cats([l, bin, place_caret(Left, caret, r)])
-        }
+        };
       };
     },
   );

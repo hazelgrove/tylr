@@ -7,6 +7,7 @@ type t = {
   show_type_info: bool,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
+  type_font_metrics: FontMetrics.t,
 };
 
 let cutoff = (===);
@@ -30,4 +31,5 @@ let init = () => {
   show_type_info: false,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
+  type_font_metrics: FontMetrics.init,
 };
