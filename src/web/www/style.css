@@ -366,7 +366,7 @@
 
 #type-info {
   position: absolute;
-  top: -80px;
+  top: 0;
   left: 0;
   font: caption;
   background-color: var(--light-page-color);

@@ -1018,7 +1018,7 @@ module Caret = {
     let popped_top = (-1.4) *. font_metrics.row_height;
     let (top, (ss_before, ss_after)) =
       switch (caret) {
-      | Pointing(_todo) => (0., ([], []))
+      | Pointing(_todo) => (show_type_info ? (-80.) : 0., ([], []))
       | Selecting => (0., ([], []))
       | Restructuring(selection, (prefix, suffix)) =>
         let ss_before =
