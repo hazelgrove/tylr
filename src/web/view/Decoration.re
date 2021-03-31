@@ -1056,45 +1056,36 @@ module Caret = {
         (popped_top, (ss_before, ss_after));
       };
 
-    let expecting_type = (~expected=?, ()) => {
-      switch (expected) {
-      | None => Node.div([], [Node.text("expecting any type")])
-      | Some(expected) =>
-        Node.div(
-          [],
-          [
-            Node.text("expecting type "),
-            view_of_layout(
-              ~font_metrics=type_font_metrics,
-              Layout_term.Typ.mk(Core.Term_typ.of_type(expected)),
-            ),
-          ],
-        )
-      };
-    };
-    let got_type = (~expected=?, syn_ty) => {
+    let expecting_type = ty_expected => [
+      Node.span(
+        [Attr.classes(["type-info-label"])],
+        [Node.text("expecting type")],
+      ),
+      view_of_layout(
+        ~font_metrics=type_font_metrics,
+        Layout_term.Typ.mk(Core.Term_typ.of_type(ty_expected)),
+      ),
+    ];
+    let got_type = (ty_expected, ty_syn) => {
       let label =
-        switch (expected) {
-        | None => Node.text("got type ")
-        | Some(ty) =>
-          Core.Type.consistent(ty, syn_ty)
-            ? Node.text("got consistent type ")
-            : Node.span(
-                [],
-                [Node.text("got "), inconsistent, Node.text(" type ")],
-              )
-        };
-      Node.div(
-        [],
-        [
-          label,
-          view_of_layout(
-            ~font_metrics=type_font_metrics,
-            Layout_term.Typ.mk(Core.Term_typ.of_type(syn_ty)),
-          ),
-        ],
-      );
+        Core.Type.consistent(ty_expected, ty_syn)
+          ? Node.span(
+              [Attr.classes(["type-info-label"])],
+              [Node.text("got consistent type")],
+            )
+          : Node.span(
+              [Attr.classes(["type-info-label"])],
+              [Node.text("got "), inconsistent, Node.text(" type")],
+            );
+      [
+        label,
+        view_of_layout(
+          ~font_metrics=type_font_metrics,
+          Layout_term.Typ.mk(Core.Term_typ.of_type(ty_syn)),
+        ),
+      ];
     };
+
     let type_info =
       if (show_type_info) {
         switch (caret) {
@@ -1106,41 +1097,59 @@ module Caret = {
             | Typ => [
                 Node.div(
                   [Attr.classes(["type-info-msg"])],
-                  [Node.div([], [typ])],
-                ),
-              ]
-            | Pat(info, syn_ty) => [
-                Node.div(
-                  [Attr.classes(["type-info-msg"])],
                   [
-                    Node.div([], [pat]),
-                    ...switch (info.mode) {
-                       | Syn(_)
-                       | Let_pat(_) => [expecting_type(), got_type(syn_ty)]
-                       | Ana(ty, _) => [
-                           expecting_type(~expected=ty, ()),
-                           got_type(~expected=ty, syn_ty),
-                         ]
-                       },
+                    // empty element for grid flow
+                    Node.div([], []),
+                    Node.div([], [typ]),
                   ],
                 ),
               ]
-            | Exp(info, syn_ty) => [
+            | Pat(info, syn_ty) =>
+              // TODO internalize into typechecking?
+              // need to check that blanket expected type
+              // is sufficient for generating content
+              // from frames
+              let ty_expected =
+                switch (info.mode) {
+                | Syn(_)
+                | Let_pat(_) => Core.Type.Hole
+                | Ana(ty, _) => ty
+                };
+              [
                 Node.div(
                   [Attr.classes(["type-info-msg"])],
-                  [
-                    Node.div([], [exp]),
-                    ...switch (info.mode) {
-                       | Syn(_) => [expecting_type(), got_type(syn_ty)]
-                       | Ana(ty, _) => [
-                           expecting_type(~expected=ty, ()),
-                           got_type(~expected=ty, syn_ty),
-                         ]
-                       | Fn_pos(_) => failwith("caret fn_pos todo")
-                       },
-                  ],
+                  List.concat([
+                    [
+                      // empty element for grid flow
+                      Node.div([], []),
+                      Node.div([], [pat]),
+                    ],
+                    expecting_type(ty_expected),
+                    got_type(ty_expected, syn_ty),
+                  ]),
                 ),
-              ]
+              ];
+            | Exp(info, syn_ty) =>
+              let ty_expected =
+                switch (info.mode) {
+                | Syn(_) => Core.Type.Hole
+                | Fn_pos(_) => Core.Type.Arrow(Hole, Hole)
+                | Ana(ty, _) => ty
+                };
+              [
+                Node.div(
+                  [Attr.classes(["type-info-msg"])],
+                  List.concat([
+                    [
+                      // empty element for grid flow
+                      Node.div([], []),
+                      Node.div([], [exp]),
+                    ],
+                    expecting_type(ty_expected),
+                    got_type(ty_expected, syn_ty),
+                  ]),
+                ),
+              ];
             };
           [
             Node.div(

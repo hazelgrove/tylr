@@ -388,6 +388,20 @@
   background-color: var(--exp-bg-color);
 }
 
+.type-info-msg {
+  display: grid;
+  grid-template-columns: 120px auto;
+  grid-template-rows: auto auto auto;
+  column-gap: 16px;
+  position: relative;
+  left: -128px;
+  grid-auto-flow: row;
+}
+
+.type-info-msg .type-info-label {
+  justify-self: right;
+}
+
 #action-table {
   position: relative;
   left: -128px;
