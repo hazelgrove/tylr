@@ -99,6 +99,8 @@
 #type-font-specimen, #type-info .code {
   font-family: "Source Code Pro", monospace;
   font-size: 10pt;
+  background-color: none;
+  box-shadow: none;
 }
 #logo-font-specimen, #logo {
   font-family: "Fira Code", monospace;
