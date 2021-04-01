@@ -295,7 +295,7 @@
   fill: var(--light-page-color);
 }
 .tile-path.raised, .tessera-path.raised {
-  stroke-width: 0.3;
+  stroke-width: 0.4;
 }
 .tile-path.selected {
   fill: var(--selection-color);

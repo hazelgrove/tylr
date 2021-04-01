@@ -812,7 +812,7 @@ module Tile = {
         | Some(s) => Sort.to_string(s)
         };
       let highlighted = profile.style.highlighted ? ["highlighted"] : [];
-      let raised = []; // profile.style.raised ? ["raised"] : [];
+      let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
       List.concat([["tile-path", sort], highlighted, raised]);
     };
     SvgUtil.Path.view(
