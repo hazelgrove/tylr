@@ -716,9 +716,43 @@ module Tile = {
     |> List.flatten;
   };
 
-  let contour_path = (~attrs: list(Attr.t), profile: profile): Node.t => {
+  let contour_path =
+      (~attrs: list(Attr.t), ~font_metrics, profile: profile): Node.t => {
     open SvgUtil.Path;
     open Diag;
+    let empty_holes = {
+      let (rx, ry) = hole_radii(~font_metrics);
+      let empty_hole_origins =
+        switch (profile.shape) {
+        | Op(true)
+        | Bin(true) => [0]
+        | _ => profile.style.show_children ? [] : profile.empty_holes
+        };
+      empty_hole_origins
+      |> List.map(o =>
+           [
+             M({x: Float.of_int(o) +. 0.5 -. rx, y: 0.5}),
+             A_({
+               rx,
+               ry,
+               x_axis_rotation: 0.,
+               large_arc_flag: false,
+               sweep_flag: false,
+               dx: 2. *. rx,
+               dy: 0.,
+             }),
+             A_({
+               rx,
+               ry,
+               x_axis_rotation: 0.,
+               large_arc_flag: false,
+               sweep_flag: false,
+               dx: (-2.) *. rx,
+               dy: 0.,
+             }),
+           ]
+         );
+    };
     let closed_child_paths =
       List.map(closed_child_path, profile.closed_children);
     let outer_path = {
@@ -788,7 +822,7 @@ module Tile = {
           create("vector-effect", "non-scaling-stroke"),
           ...attrs,
         ],
-      outer_path @ List.concat(closed_child_paths),
+      outer_path @ List.concat(closed_child_paths) @ List.concat(empty_holes),
     );
   };
 
@@ -848,34 +882,6 @@ module Tile = {
         profile: profile,
       )
       : list(Node.t) => {
-    let empty_holes =
-      switch (profile.shape) {
-      | Op(true)
-      | Bin(true) =>
-        let inset_style = profile.style.raised ? `Thick : `Thin;
-        EmptyHole.view(
-          ~offset=0,
-          ~sort=profile.style.sort,
-          ~font_metrics,
-          ~inset=Some(inset_style),
-          (),
-        );
-      | _ =>
-        // TODO review this behavior and check if empty holes getting rendered
-        profile.style.show_children
-          ? []
-          : profile.empty_holes
-            |> List.map(offset =>
-                 EmptyHole.view(
-                   ~offset,
-                   ~sort=profile.style.sort,
-                   ~font_metrics,
-                   ~inset=Some(`Thin),
-                   (),
-                 )
-               )
-            |> List.flatten
-      };
     // TODO maybe remove this flag and just specify via children fields?
     let profile =
       profile.style.show_children
@@ -886,7 +892,7 @@ module Tile = {
         ~sort=profile.style.sort,
         profile.open_children,
       );
-    open_child_paths @ [contour_path(~attrs, profile), ...empty_holes];
+    open_child_paths @ [contour_path(~attrs, ~font_metrics, profile)];
   };
 };
 

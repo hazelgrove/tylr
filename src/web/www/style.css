@@ -144,7 +144,7 @@
 }
 
 .empty-hole-path {
-  fill: var(--light-page-color);
+  fill: none;
 }
 .empty-hole-path.unsorted {
   stroke: var(--unsorted-shadow-color);
