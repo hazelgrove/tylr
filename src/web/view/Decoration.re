@@ -261,7 +261,7 @@ module EmptyHole = {
           rx(r_x),
           ry(r_y),
           vector_effect("non-scaling-stroke"),
-          stroke_width(Option.is_some(inset) ? 0.5 : 0.9),
+          stroke_width(Option.is_some(inset) ? 0.3 : 0.9),
           filter(
             switch (inset) {
             | None => "none"
@@ -812,7 +812,7 @@ module Tile = {
         | Some(s) => Sort.to_string(s)
         };
       let highlighted = profile.style.highlighted ? ["highlighted"] : [];
-      let raised = profile.style.raised ? ["raised"] : [];
+      let raised = []; // profile.style.raised ? ["raised"] : [];
       List.concat([["tile-path", sort], highlighted, raised]);
     };
     SvgUtil.Path.view(
