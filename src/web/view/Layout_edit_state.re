@@ -18,6 +18,7 @@ let mk_selection =
     );
   let mk_tile =
     Layout_unsorted.mk_tile(
+      ~sort?,
       ~style=
         Layout.mk_tile_style(
           ~highlighted=selected,
@@ -76,6 +77,7 @@ let mk_restructuring =
              tile
              |> unsort
              |> Layout_unsorted.mk_tile(
+                  ~sort,
                   ~style=
                     Layout.mk_tile_style(
                       ~show_children=picked_up_all_selections,

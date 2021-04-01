@@ -10,10 +10,13 @@ let shape_of_tile: Unsorted.Tile.t => Layout.tile_shape =
   | Bin(BinHole) => Bin(true)
   | Bin(_) => Bin(false);
 
-let rec mk_tiles = (tiles: Unsorted.Tile.s) =>
-  grouts(List.map(mk_tile(~style=?None), tiles))
-and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
-  let sort = Option.bind(style, style => style.sort);
+// HACK sort arg present because I'm happening to
+// reuse this function for sorted tiles that are not
+// yet selected
+let rec mk_tiles = (~sort=?, tiles: Unsorted.Tile.s) =>
+  grouts(List.map(mk_tile(~style=?None, ~sort?), tiles))
+and mk_tile = (~style=?, ~sort=?, tile: Unsorted.Tile.t) => {
+  let with_sort = (s: Sort.t) => Option.map(_ => s, sort);
   let (l, _) =
     tile
     |> Tile.get(
@@ -23,14 +26,18 @@ and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
              None,
            )
          | Text(s) => mk_text(s)
-         | Paren(body) => mk_Paren(open_child(mk_tiles(body))),
+         | Paren(body) => mk_Paren(open_child(mk_tiles(~sort?, body))),
          fun
-         | Unsorted.Tile.Lam(p) => mk_Lam(closed_child(mk_tiles(p)))
+         | Unsorted.Tile.Lam(p) =>
+           mk_Lam(closed_child(mk_tiles(~sort=?with_sort(Pat), p)))
          | Let(p, def) =>
-           mk_Let(closed_child(mk_tiles(p)), open_child(mk_tiles(def))),
+           mk_Let(
+             closed_child(mk_tiles(~sort=?with_sort(Pat), p)),
+             open_child(mk_tiles(~sort?, def)),
+           ),
          fun
          | Unsorted.Tile.Ap(_) => failwith("ap todo")
-         | Ann(ann) => mk_Ann(mk_tiles(ann)),
+         | Ann(ann) => mk_Ann(mk_tiles(~sort=?with_sort(Typ), ann)),
          fun
          | Unsorted.Tile.BinHole => (
              empty_hole(~sort?, fst(mk_BinHole())),
