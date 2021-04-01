@@ -149,8 +149,14 @@ let filters =
       Tile.shadow_filter(),
       Tessera.raised_shadow_filter,
       Tessera.shadow_filter,
-      EmptyHole.inset_shadow_filter,
-      EmptyHole.thin_inset_shadow_filter,
+      EmptyHole.inset_shadow_filter(~sort=None),
+      EmptyHole.thin_inset_shadow_filter(~sort=None),
+      EmptyHole.inset_shadow_filter(~sort=Some(Exp)),
+      EmptyHole.thin_inset_shadow_filter(~sort=Some(Exp)),
+      EmptyHole.inset_shadow_filter(~sort=Some(Pat)),
+      EmptyHole.thin_inset_shadow_filter(~sort=Some(Pat)),
+      EmptyHole.inset_shadow_filter(~sort=Some(Typ)),
+      EmptyHole.thin_inset_shadow_filter(~sort=Some(Typ)),
     ],
   );
 

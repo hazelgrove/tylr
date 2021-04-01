@@ -144,11 +144,32 @@
 }
 
 .empty-hole-path {
-  fill: var(--empty-hole-fill-color);
-  stroke: var(--hole-stroke-color);
+  fill: var(--light-page-color);
 }
-.empty-hole-inset-shadow-flood {
-  flood-color: var(--hole-stroke-color);
+.empty-hole-path.unsorted {
+  stroke: var(--unsorted-shadow-color);
+}
+.empty-hole-path.Exp {
+  stroke: var(--exp-shadow-color);
+}
+.empty-hole-path.Pat {
+  stroke: var(--pat-shadow-color);
+}
+.empty-hole-path.Typ {
+  stroke: var(--typ-shadow-color);
+}
+
+.empty-hole-inset-shadow-flood.unsorted {
+  flood-color: var(--unsorted-shadow-color);
+}
+.empty-hole-inset-shadow-flood.Exp {
+  flood-color: var(--exp-shadow-color);
+}
+.empty-hole-inset-shadow-flood.Pat {
+  flood-color: var(--pat-shadow-color);
+}
+.empty-hole-inset-shadow-flood.Typ {
+  flood-color: var(--typ-shadow-color);
 }
 
 .paren {

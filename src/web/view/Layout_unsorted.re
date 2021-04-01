@@ -13,11 +13,15 @@ let shape_of_tile: Unsorted.Tile.t => Layout.tile_shape =
 let rec mk_tiles = (tiles: Unsorted.Tile.s) =>
   grouts(List.map(mk_tile(~style=?None), tiles))
 and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
+  let sort = Option.bind(style, style => style.sort);
   let (l, _) =
     tile
     |> Tile.get(
          fun
-         | Unsorted.Tile.OpHole => (empty_hole(fst(mk_OpHole())), None)
+         | Unsorted.Tile.OpHole => (
+             empty_hole(~sort?, fst(mk_OpHole())),
+             None,
+           )
          | Text(s) => mk_text(s)
          | Paren(body) => mk_Paren(open_child(mk_tiles(body))),
          fun
@@ -28,7 +32,10 @@ and mk_tile = (~style=?, tile: Unsorted.Tile.t) => {
          | Unsorted.Tile.Ap(_) => failwith("ap todo")
          | Ann(ann) => mk_Ann(mk_tiles(ann)),
          fun
-         | Unsorted.Tile.BinHole => (empty_hole(fst(mk_BinHole())), None)
+         | Unsorted.Tile.BinHole => (
+             empty_hole(~sort?, fst(mk_BinHole())),
+             None,
+           )
          | Plus => mk_Plus()
          | Arrow => mk_Arrow(),
        );

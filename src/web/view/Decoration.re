@@ -24,6 +24,11 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
+let sort_cls =
+  fun
+  | None => "unsorted"
+  | Some(s) => Sort.to_string(s);
+
 module Diag = {
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.(
@@ -100,10 +105,14 @@ module ErrHole = {
 };
 
 module EmptyHole = {
-  let inset_shadow_filter =
+  let inset_shadow_filter = (~sort) =>
     Node.create_svg(
       "filter",
-      [Attr.id("empty-hole-inset-shadow")],
+      [
+        Attr.id(
+          Printf.sprintf("empty-hole-inset-shadow-%s", sort_cls(sort)),
+        ),
+      ],
       [
         Node.create_svg(
           "feOffset",
@@ -118,7 +127,7 @@ module EmptyHole = {
         Node.create_svg(
           "feFlood",
           Attr.[
-            classes(["empty-hole-inset-shadow-flood"]),
+            classes(["empty-hole-inset-shadow-flood", sort_cls(sort)]),
             create("flood-opacity", "1"),
             create("result", "color"),
           ],
@@ -163,10 +172,14 @@ module EmptyHole = {
       ],
     );
 
-  let thin_inset_shadow_filter =
+  let thin_inset_shadow_filter = (~sort) =>
     Node.create_svg(
       "filter",
-      [Attr.id("empty-hole-thin-inset-shadow")],
+      [
+        Attr.id(
+          Printf.sprintf("empty-hole-thin-inset-shadow-%s", sort_cls(sort)),
+        ),
+      ],
       [
         Node.create_svg(
           "feOffset",
@@ -181,7 +194,7 @@ module EmptyHole = {
         Node.create_svg(
           "feFlood",
           Attr.[
-            classes(["empty-hole-inset-shadow-flood"]),
+            classes(["empty-hole-inset-shadow-flood", sort_cls(sort)]),
             create("flood-opacity", "1"),
             create("result", "color"),
           ],
@@ -229,6 +242,7 @@ module EmptyHole = {
   let view =
       (
         ~offset=0,
+        ~sort: option(Sort.t),
         ~inset: option([ | `Thick | `Thin]),
         ~font_metrics: FontMetrics.t,
         (),
@@ -237,6 +251,7 @@ module EmptyHole = {
     // necessary because of AttrUtil shadowing below
     let o = offset;
     let (r_x, r_y) = hole_radii(~font_metrics);
+    let sort_cls = sort_cls(sort);
     [
       Node.create_svg(
         "ellipse",
@@ -246,15 +261,20 @@ module EmptyHole = {
           rx(r_x),
           ry(r_y),
           vector_effect("non-scaling-stroke"),
-          stroke_width(Option.is_some(inset) ? 0.3 : 0.75),
+          stroke_width(Option.is_some(inset) ? 0.5 : 0.9),
           filter(
             switch (inset) {
             | None => "none"
-            | Some(`Thin) => "url(#empty-hole-thin-inset-shadow)"
-            | Some(`Thick) => "url(#empty-hole-inset-shadow)"
+            | Some(`Thin) =>
+              Printf.sprintf(
+                "url(#empty-hole-thin-inset-shadow-%s)",
+                sort_cls,
+              )
+            | Some(`Thick) =>
+              Printf.sprintf("url(#empty-hole-inset-shadow-%s)", sort_cls)
             },
           ),
-          Attr.classes(["empty-hole-path"]),
+          Attr.classes(["empty-hole-path", sort_cls]),
         ],
         [],
       ),
@@ -835,6 +855,7 @@ module Tile = {
         let inset_style = profile.style.raised ? `Thick : `Thin;
         EmptyHole.view(
           ~offset=0,
+          ~sort=profile.style.sort,
           ~font_metrics,
           ~inset=Some(inset_style),
           (),
@@ -847,6 +868,7 @@ module Tile = {
             |> List.map(offset =>
                  EmptyHole.view(
                    ~offset,
+                   ~sort=profile.style.sort,
                    ~font_metrics,
                    ~inset=Some(`Thin),
                    (),

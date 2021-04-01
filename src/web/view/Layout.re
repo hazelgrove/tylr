@@ -59,7 +59,7 @@ and annot =
   | Tessera(tessera_shape, tessera_style)
   | Tile(tile_shape, tile_style)
   | Grout(option(caret))
-  | EmptyHole
+  | EmptyHole(option(Sort.t))
   | ErrHole(bool)
   | Selection(selection_style)
 and caret =
@@ -79,7 +79,7 @@ let uni_child = (~sort, ~side) => annot(UniChild(sort, side));
 let open_child = annot(OpenChild);
 let closed_child = annot(ClosedChild);
 
-let empty_hole = annot(EmptyHole);
+let empty_hole = (~sort=?) => annot(EmptyHole(sort));
 
 let root_tile = (~has_caret, ~shape, ~sort) =>
   switch (has_caret) {
@@ -277,7 +277,10 @@ let decorate_term =
       let is_op_hole = is_op_hole(op);
       let (op, dangling_caret) = f_op(op);
       let op =
-        root_tile(~shape=Op(is_op_hole), is_op_hole ? empty_hole(op) : op);
+        root_tile(
+          ~shape=Op(is_op_hole),
+          is_op_hole ? empty_hole(~sort, op) : op,
+        );
       switch (dangling_caret) {
       | None => grouts([op])
       | Some(d) =>
@@ -321,7 +324,7 @@ let decorate_term =
       let bin =
         root_tile(
           ~shape=Bin(is_bin_hole),
-          is_bin_hole ? empty_hole(bin) : bin,
+          is_bin_hole ? empty_hole(~sort, bin) : bin,
         );
       let (l, r) =
         Option.is_some(has_caret)

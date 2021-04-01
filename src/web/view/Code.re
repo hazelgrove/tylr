@@ -35,7 +35,7 @@ let tile_holes =
     ~annot=
       ({start, _}, annot, holes) =>
         switch (annot) {
-        | EmptyHole => [start, ...holes]
+        | EmptyHole(_) => [start, ...holes]
         | _ => holes
         },
   );
@@ -112,12 +112,17 @@ let rec view_of_layout =
                    ),
                  );
                add_decoration(d);
-             | EmptyHole =>
+             | EmptyHole(sort) =>
                let d =
                  d_container(
                    ~cls="empty-hole",
                    ~container_clss=transparent ? ["transparent"] : [],
-                   Decoration.EmptyHole.view(~font_metrics, ~inset=None, ()),
+                   Decoration.EmptyHole.view(
+                     ~font_metrics,
+                     ~sort,
+                     ~inset=None,
+                     (),
+                   ),
                  );
                add_decoration(d);
              | ErrHole(expanded) =>
