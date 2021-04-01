@@ -166,20 +166,22 @@ module Make =
       let (prefix, suffix) = P.fix_empty_holes((prefix, suffix));
       TupleUtil.map2(Selection.get_whole, (prefix, suffix));
     };
-    let tiles =
-      ListUtil.of_frame(fix_empty_holes ? fix_holes() : (prefix, suffix));
-    let exit = () => I.move_into_frame(d, P.associate(tiles), frame);
+    let exit = () => {
+      let tiles =
+        ListUtil.of_frame(fix_empty_holes ? fix_holes() : (prefix, suffix));
+      I.move_into_frame(d, P.associate(tiles), frame);
+    };
+    let tiles_orig = ListUtil.of_frame((prefix, suffix));
     switch (d) {
     | Left when j == 0 => exit()
     | Right when j == List.length(prefix) + List.length(suffix) => exit()
     | _ =>
       let n = d == Left ? j - 1 : j;
-      let (tile, tile_frame) = ListUtil.split_frame(n, tiles);
+      let (tile, tile_frame) = ListUtil.split_frame(n, tiles_orig);
       switch (move_into_tile(d, tile, tile_frame, Bi(frame))) {
       | Some(_) as entered => entered
       | None =>
         let j = d == Left ? j - 1 : j + 1;
-        let tiles_orig = ListUtil.of_frame((prefix, suffix));
         let (prefix, suffix) = ListUtil.mk_frame(j, tiles_orig);
         Some(I.mk_pointing(((prefix, suffix), frame)));
       };
