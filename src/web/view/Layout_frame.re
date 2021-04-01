@@ -88,7 +88,9 @@ module Exp = {
       |> TypeInfo_exp.binhole_l'((l_frame, l_l) => {
            let l_r =
              Layout_term.Exp.mk({ctx: info.ctx, mode: TypeInfo_exp.syn}, r);
-           l_frame(cats([l_l, empty_hole(fst(mk_BinHole())), l_r]));
+           l_frame(
+             cats([l_l, empty_hole(~sort=Exp, fst(mk_BinHole())), l_r]),
+           );
          });
     | Bin_r(l, BinHole, frame) =>
       let info = mk(~show_err_holes, frame);
@@ -96,7 +98,9 @@ module Exp = {
       |> TypeInfo_exp.binhole_r'((l_frame, l_r) => {
            let l_l =
              Layout_term.Exp.mk({ctx: info.ctx, mode: TypeInfo_exp.syn}, l);
-           l_frame(cats([l_l, empty_hole(fst(mk_BinHole())), l_r]));
+           l_frame(
+             cats([l_l, empty_hole(~sort=Exp, fst(mk_BinHole())), l_r]),
+           );
          });
     }
   and mk_bi = (~show_err_holes, bi: Frame_exp.bidelimited) =>
@@ -155,7 +159,9 @@ module Pat = {
         (ctx_l, l_frame, l_l) => {
           let l_r =
             Layout_term.Pat.mk({ctx: ctx_l, mode: TypeInfo_pat.syn}, r);
-          l_frame(cats([l_l, empty_hole(fst(mk_BinHole())), l_r]));
+          l_frame(
+            cats([l_l, empty_hole(~sort=Pat, fst(mk_BinHole())), l_r]),
+          );
         },
         r,
         info,
@@ -168,7 +174,9 @@ module Pat = {
         (l_frame, l_r) => {
           let l_l =
             Layout_term.Pat.mk({ctx: ctx_l, mode: TypeInfo_pat.syn}, l);
-          l_frame(cats([l_l, empty_hole(fst(mk_BinHole())), l_r]));
+          l_frame(
+            cats([l_l, empty_hole(~sort=Pat, fst(mk_BinHole())), l_r]),
+          );
         },
         l,
         info,
@@ -240,10 +248,10 @@ module Typ = {
     | Post_l(_, ()) => raise(Term_typ.Void_post)
     | Bin_l(frame, bin, r) =>
       let l_frame = mk(~show_err_holes, frame);
-      let (l_bin, _) =
+      let l_bin =
         switch (bin) {
-        | Arrow => mk_Arrow()
-        | BinHole => mk_BinHole()
+        | Arrow => fst(mk_Arrow())
+        | BinHole => empty_hole(~sort=Typ, fst(mk_BinHole()))
         };
       let l_r = Layout_term.Typ.mk(r);
       let ty = ty_l =>
@@ -255,10 +263,10 @@ module Typ = {
     | Bin_r(l, bin, frame) =>
       let l_frame = mk(~show_err_holes, frame);
       let l_l = Layout_term.Typ.mk(l);
-      let (l_bin, _) =
+      let l_bin =
         switch (bin) {
-        | Arrow => mk_Arrow()
-        | BinHole => mk_BinHole()
+        | Arrow => fst(mk_Arrow())
+        | BinHole => empty_hole(~sort=Typ, fst(mk_BinHole()))
         };
       let ty = ty_r =>
         switch (bin) {
