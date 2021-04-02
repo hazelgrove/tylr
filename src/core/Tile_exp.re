@@ -16,8 +16,11 @@ let precedence: t => int =
     | Ap(_) => 1,
     fun
     | Plus => 3
-    | BinHole => 2,
+    | BinHole => 2
+    | Cond(_) => 4,
   );
 
 let associativity =
-  [(2, Associativity.Left), (3, Left)] |> List.to_seq |> IntMap.of_seq;
+  [(2, Associativity.Left), (3, Left), (4, Right)]
+  |> List.to_seq
+  |> IntMap.of_seq;

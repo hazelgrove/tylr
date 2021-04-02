@@ -19,7 +19,8 @@ and post =
 and bin =
   // ><
   | Plus
-  | BinHole;
+  | BinHole
+  | Cond(t);
 
 let mk_op_hole = () => OpHole;
 let mk_bin_hole = () => BinHole;

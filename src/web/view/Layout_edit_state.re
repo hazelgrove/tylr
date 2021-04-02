@@ -279,6 +279,7 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
             frame,
           )),
         );
+      | Open(Cond_then(_)) => failwith("cond todo")
       | Open(Ap_arg(_)) => failwith("ap todo")
       | Closed () => raise(Frame_exp.Void_closed)
       };

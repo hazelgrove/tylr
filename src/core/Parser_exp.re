@@ -36,7 +36,11 @@ module Input:
       fun
       | Unsorted.Tile.Arrow => None
       | Plus => Some(Tile.Bin(Term_exp.Plus))
-      | BinHole => Some(Bin(BinHole)),
+      | BinHole => Some(Bin(BinHole))
+      | Cond(then_) => {
+          let+ then_ = sort_and_associate(then_);
+          Tile.Bin(Term_exp.Cond(then_));
+        },
     );
 
   let unsort = (~dissociate_and_unsort) =>
@@ -59,7 +63,11 @@ module Input:
       | Term_exp.Ap(_) => failwith("ap todo"),
       fun
       | Term_exp.BinHole => Tile.Bin(Unsorted.Tile.BinHole)
-      | Plus => Bin(Unsorted.Tile.Plus),
+      | Plus => Bin(Unsorted.Tile.Plus)
+      | Cond(then_) => {
+          let then_ = dissociate_and_unsort(then_);
+          Bin(Unsorted.Tile.Cond(then_));
+        },
     );
 
   let disassemble_tile =
@@ -85,7 +93,8 @@ module Input:
       | Term_exp.Ap(_) => failwith("ap todo"),
       fun
       | Term_exp.Plus => (Unsorted.Tessera.Plus, [])
-      | BinHole => (Unsorted.Tessera.BinHole, []),
+      | BinHole => (Unsorted.Tessera.BinHole, [])
+      | Cond(then_) => (Unsorted.Tessera.Cond_then, [(then_, Cond_else)]),
     );
 
   let assemble_open_frame =
@@ -121,6 +130,12 @@ module Input:
         (Unsorted.Tessera.Let_in, []),
       );
       (ts, ([], dissociate(body)), frame);
+    | Cond_then(cond, frame, else_) =>
+      let ts = (
+        (Unsorted.Tessera.Cond_then, []),
+        (Unsorted.Tessera.Cond_else, []),
+      );
+      (ts, (List.rev(dissociate(cond)), dissociate(else_)), frame);
     | Ap_arg(_) => failwith("ap todo")
     };
 };

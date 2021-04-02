@@ -17,7 +17,8 @@ module Tile = {
   and bin =
     | BinHole
     | Plus
-    | Arrow;
+    | Arrow
+    | Cond(s);
 };
 
 module Tessera = {
@@ -33,7 +34,9 @@ module Tessera = {
     | Paren_l
     | Paren_r
     | Let_eq(Tile.s)
-    | Let_in;
+    | Let_in
+    | Cond_then
+    | Cond_else;
 
   module Shape = {
     [@deriving sexp]
@@ -61,7 +64,9 @@ module Tessera = {
     | Paren_l
     | Let_eq(_) => false
     | Paren_r
-    | Let_in => true;
+    | Let_in
+    | Cond_then
+    | Cond_else => true;
 
   let is_convex = (d: Direction.t) =>
     fun
@@ -75,7 +80,9 @@ module Tessera = {
     | BinHole
     | Plus
     | Arrow
-    | Let_in => false;
+    | Let_in
+    | Cond_then
+    | Cond_else => false;
 
   let has_child =
     fun
@@ -86,7 +93,9 @@ module Tessera = {
     | BinHole
     | Plus
     | Arrow
-    | Let_in => false
+    | Let_in
+    | Cond_then
+    | Cond_else => false
     | Lam(_)
     | Let_eq(_)
     | Ann(_) => true;
@@ -101,9 +110,11 @@ module Tessera = {
     | Plus
     | Arrow => true
     | Paren_l
-    | Let_eq(_) => side == Left
+    | Let_eq(_)
+    | Cond_then => side == Left
     | Paren_r
-    | Let_in => side == Right;
+    | Let_in
+    | Cond_else => side == Right;
 
   let is_next = (d: Direction.t, t, t') =>
     switch (d, t, t') {

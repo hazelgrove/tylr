@@ -17,6 +17,7 @@ let rec mk_tiles = (~sort=?, tiles: Unsorted.Tile.s) =>
   grouts(List.map(mk_tile(~style=?None, ~sort?), tiles))
 and mk_tile = (~style=?, ~sort=?, tile: Unsorted.Tile.t) => {
   let with_sort = (s: Sort.t) => Option.map(_ => s, sort);
+  // TODO I don't think I need to tag open/closed children here
   let (l, _) =
     tile
     |> Tile.get(
@@ -44,7 +45,8 @@ and mk_tile = (~style=?, ~sort=?, tile: Unsorted.Tile.t) => {
              None,
            )
          | Plus => mk_Plus()
-         | Arrow => mk_Arrow(),
+         | Arrow => mk_Arrow()
+         | Cond(then_) => mk_Cond(open_child(mk_tiles(~sort?, then_))),
        );
   switch (style) {
   | None => l
@@ -64,6 +66,8 @@ let shape_of_tessera: Unsorted.Tessera.t => Layout.tessera_shape =
   | BinHole
   | Plus
   | Arrow => Bin((false, false))
+  | Cond_then => Bin((false, true))
+  | Cond_else
   | Let_in => Bin((true, false));
 
 let mk_tessera = (~style, tessera: Unsorted.Tessera.t): t => {
@@ -81,6 +85,8 @@ let mk_tessera = (~style, tessera: Unsorted.Tessera.t): t => {
     | Let_eq(p) =>
       cats([delim("let"), closed_child(mk_tiles(p)), delim("=")])
     | Let_in => delim("in")
+    | Cond_then => delim("?")
+    | Cond_else => delim(":")
     };
   Annot(Tessera(shape_of_tessera(tessera), style), l);
 };

@@ -25,7 +25,8 @@ module Input:
       | Unsorted.Tile.Ann(_)
       | Ap(_) => None,
       fun
-      | Unsorted.Tile.Plus => None
+      | Unsorted.Tile.Plus
+      | Cond(_) => None
       | Arrow => Some(Tile.Bin(Term_typ.Arrow))
       | BinHole => Some(Bin(BinHole)),
     );

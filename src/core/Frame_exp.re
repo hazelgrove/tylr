@@ -23,6 +23,7 @@ and open_ =
   // == Let_def(Var(x), Bi(Open(Paren_body(Bi(Root)))), Var(x))
   | Let_def(Term_pat.t, t, Term_exp.t)
   | Ap_arg(Term_exp.t, t)
+  | Cond_then(Term_exp.t, t, Term_exp.t)
 and closed = unit; // empty
 
 exception Void_closed;

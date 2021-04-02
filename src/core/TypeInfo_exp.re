@@ -103,25 +103,6 @@ let plus_r = plus_l;
 let binhole_l = (info_binhole: t'(_)): t => {...info_binhole, mode: syn};
 let binhole_r = binhole_l;
 
-let has_err = (info: t'(_)) =>
-  Term_exp.(
-    Term.get(
-      fun
-      | OpHole
-      | Paren(_) => false
-      | Var(x) => var_has_err(x, info)
-      | Num(_) => num_has_err(info),
-      fun
-      | (Lam(_), _) => lam_has_err(info)
-      | (Let(_), _) => false,
-      fun
-      | (_, Ap(_)) => failwith("ap todo"),
-      fun
-      | (_, BinHole, _) => false
-      | (_, Plus, _) => plus_has_err(info),
-    )
-  );
-
 // synthesize(info, e) where info.mode == Syn  ==>  (same as normal syn)
 // synthesize(info, e) where info.mode == Ana(ty, _)  ==>  ty' consistent with ty (ty' same as normal syn after ana_fix_holes)
 // synthesize(info, e) where info.mode == Fn_pos(_)  ==>  ty' s.t. Option.is_some(Type.matches_arrow(ty')) (ty' same as normal syn after syn_fix_holes + matched_arrow fix)
@@ -155,7 +136,15 @@ let rec synthesize = (info: t'(_), e: Term_exp.t): Type.t => {
        | (_, Ap(_)) => failwith("ap todo"),
        fun
        | (_, BinHole, _) => Hole
-       | (_, Plus, _) => ty_under_info(Num),
+       | (_, Plus, _) => ty_under_info(Num)
+       | (_cond, Cond(then_), else_) => {
+           let ty_then = synthesize(info, then_);
+           let ty_else = synthesize(info, else_);
+           switch (Type.join(ty_then, ty_else)) {
+           | None => Hole
+           | Some(ty_joined) => ty_under_info(ty_joined)
+           };
+         },
      );
 }
 and let_body = (p: Term_pat.t, def: Term_exp.t, info_let: t'(_)): t => {
@@ -169,6 +158,30 @@ and extend_ctx_let_body = (p: Term_pat.t, def: Term_exp.t, ctx: Ctx.t) => {
     TypeInfo_pat.synthesize({ctx, mode: TypeInfo_pat.ana(ty_def)}, p);
   ctx;
 };
+
+let has_err = (info: t'(_)) =>
+  Term_exp.(
+    Term.get(
+      fun
+      | OpHole
+      | Paren(_) => false
+      | Var(x) => var_has_err(x, info)
+      | Num(_) => num_has_err(info),
+      fun
+      | (Lam(_), _) => lam_has_err(info)
+      | (Let(_), _) => false,
+      fun
+      | (_, Ap(_)) => failwith("ap todo"),
+      fun
+      | (_, BinHole, _) => false
+      | (_, Plus, _) => plus_has_err(info)
+      | (_, Cond(then_), else_) => {
+          let ty_then = synthesize({ctx: info.ctx, mode: syn}, then_);
+          let ty_else = synthesize({ctx: info.ctx, mode: syn}, else_);
+          !Type.consistent(ty_then, ty_else);
+        },
+    )
+  );
 
 let lam_pat' =
     (f: (Ctx.t, 'a) => 'b, body: Term_exp.t, info_lam: t'('a))

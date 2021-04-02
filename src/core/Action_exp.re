@@ -19,7 +19,8 @@ module Input = {
         | Ap(_) => true,
         fun
         | Plus
-        | BinHole => false,
+        | BinHole => false
+        | Cond(_) => true,
       )
     );
 
@@ -58,7 +59,12 @@ module Input = {
          fun
          | (_, Term_exp.Ap(_)) => failwith("ap todo"),
          fun
-         | (_, Plus | BinHole, _) => None,
+         | (_, Plus | BinHole, _) => None
+         | (cond, Cond(then_), else_) => {
+             let subject = mk_pointing(Parser_exp.dissociate(then_));
+             let frame = Frame_exp.Open(Cond_then(cond, frame, else_));
+             Some(EditState_pointing.Exp((subject, frame)));
+           },
        );
   };
 
@@ -91,6 +97,18 @@ module Input = {
         let subject = escaped_tile(prefix, let_tile, body_tiles @ suffix);
         Some(EditState_pointing.Exp((subject, frame)));
       }
+    | Open(Cond_then(guard, frame, else_)) =>
+      let cond_tile = Tile.Bin(Term_exp.Cond(subject));
+      let guard_tiles = Parser_exp.dissociate(guard);
+      let else_tiles = Parser_exp.dissociate(else_);
+      let ((prefix, suffix), frame) = Parser_exp.dissociate_frame(frame);
+      let subject =
+        escaped_tile(
+          List.rev(guard_tiles) @ prefix,
+          cond_tile,
+          else_tiles @ suffix,
+        );
+      Some(EditState_pointing.Exp((subject, frame)));
     | Open(Ap_arg(_)) => failwith("ap todo")
     };
   };

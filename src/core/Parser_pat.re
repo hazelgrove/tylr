@@ -29,7 +29,8 @@ module Input:
         },
       fun
       | Unsorted.Tile.Arrow
-      | Plus => None
+      | Plus
+      | Cond(_) => None
       | BinHole => Some(Tile.Bin(Term_pat.BinHole)),
     );
 

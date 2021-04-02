@@ -243,6 +243,12 @@ let mk_Let = (~has_caret=?, p, def) => {
   (l, dangling_caret);
 };
 
+let mk_Cond = (~has_caret=?, then_) => {
+  let (then_, dangling_caret) = place_caret_1(has_caret, then_);
+  let l = cats([delim("?"), open_child(then_), delim(":")]);
+  (l, dangling_caret);
+};
+
 let mk_Ann = (~has_caret=?, ann) => {
   let (ann, dangling_caret) = place_caret_1(has_caret, ann);
   let l = cats([delim(":"), closed_child(ann), delim("")]);

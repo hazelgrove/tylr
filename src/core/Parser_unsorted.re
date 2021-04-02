@@ -19,7 +19,8 @@ let disassemble_tile =
     fun
     | Unsorted.Tile.BinHole => (Unsorted.Tessera.BinHole, [])
     | Plus => (Unsorted.Tessera.Plus, [])
-    | Arrow => (Unsorted.Tessera.Arrow, []),
+    | Arrow => (Unsorted.Tessera.Arrow, [])
+    | Cond(then_) => (Cond_then, [(then_, Cond_else)]),
   );
 
 let assemble_tile:

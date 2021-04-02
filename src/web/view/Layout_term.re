@@ -142,6 +142,13 @@ module Exp = {
                let l_l = mk(TypeInfo_exp.binhole_l(info), l);
                let l_r = mk(TypeInfo_exp.binhole_r(info), r);
                (l_l, mk_BinHole(~has_caret?, ()), l_r);
+             }
+           | (guard, Cond(then_), else_) => {
+               let l_guard =
+                 mk({...info, mode: TypeInfo_exp.ana(Bool)}, guard);
+               let l_then = mk(info, then_);
+               let l_else = mk(info, else_);
+               (l_guard, mk_Cond(~has_caret?, l_then), l_else);
              },
          );
     TypeInfo_exp.has_err(info, e)

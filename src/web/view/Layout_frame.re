@@ -102,6 +102,8 @@ module Exp = {
              cats([l_l, empty_hole(~sort=Exp, fst(mk_BinHole())), l_r]),
            );
          });
+    | Bin_l(_, Cond(_), _)
+    | Bin_r(_, Cond(_), _) => failwith("cond todo")
     }
   and mk_bi = (~show_err_holes, bi: Frame_exp.bidelimited) =>
     switch (bi) {
@@ -129,6 +131,7 @@ module Exp = {
         body,
         info,
       );
+    | Open(Cond_then(_)) => failwith("cond todo")
     | Open(Ap_arg(_)) => failwith("ap todo")
     };
 };
