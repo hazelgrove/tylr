@@ -4,6 +4,25 @@ module Input = {
   let mk_pointing = p => EditState_pointing.Exp(p);
   let mk_edit_state = z => EditState.Exp(z);
 
+  let can_enter =
+    Term_exp.(
+      Tile.get(
+        fun
+        | OpHole
+        | Num(_)
+        | Var(_) => false
+        | Paren(_) => true,
+        fun
+        | Lam(_)
+        | Let(_) => true,
+        fun
+        | Ap(_) => true,
+        fun
+        | Plus
+        | BinHole => false,
+      )
+    );
+
   let move_into_root =
       (d: Direction.t, subject: Term_exp.t, frame: Frame_exp.t) => {
     let mk_pointing = tiles =>
