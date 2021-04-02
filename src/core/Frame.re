@@ -21,6 +21,4 @@ module type S = {
     | Root
     | Open(open_)
     | Closed(closed);
-
-  let bi_append: (bidelimited, bidelimited) => bidelimited;
 };
