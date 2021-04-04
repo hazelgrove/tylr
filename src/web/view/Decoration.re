@@ -1138,10 +1138,10 @@ module Caret = {
               // is sufficient for generating content
               // from frames
               let ty_expected =
-                switch (info.mode) {
-                | Syn(_)
+                switch (info) {
+                | Syn
                 | Let_pat(_) => Core.Type.Hole
-                | Ana(ty, _) => ty
+                | Ana(ty) => ty
                 };
               [
                 Node.div(
@@ -1160,9 +1160,8 @@ module Caret = {
             | Exp(info, syn_ty) =>
               let ty_expected =
                 switch (info.mode) {
-                | Syn(_) => Core.Type.Hole
-                | Fn_pos(_) => Core.Type.Arrow(Hole, Hole)
-                | Ana(ty, _) => ty
+                | Syn => Core.Type.Hole
+                | Ana(ty) => ty
                 };
               [
                 Node.div(

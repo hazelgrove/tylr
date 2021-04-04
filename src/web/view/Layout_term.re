@@ -47,8 +47,7 @@ module Pat = {
     let has_caret =
       Option.map(
         pos => {
-          let (syn_ty, _) =
-            TypeInfo_pat.(synthesize({ctx: info.ctx, mode: syn}, p));
+          let (syn_ty, _) = TypeInfo_pat.synthesize(Syn, p);
           (Pointing(Pat(info, syn_ty)), pos);
         },
         has_caret,
@@ -64,14 +63,14 @@ module Pat = {
            (((), _)) => raise(Void_pre),
            fun
            | (subj, Ann(ann)) => {
-               let l_subj = mk(TypeInfo_pat.ann_subj(ann, info), subj);
+               let l_subj = mk(Ana(Term_typ.to_type(ann)), subj);
                let l_ann = Typ.mk(ann);
                (l_subj, mk_Ann(~has_caret?, l_ann));
              },
            fun
            | (l, BinHole, r) => {
-               let l_l = mk(TypeInfo_pat.binhole_l(info), l);
-               let l_r = mk(TypeInfo_pat.binhole_r(l, info), r);
+               let l_l = mk(Syn, l);
+               let l_r = mk(Syn, r);
                (l_l, mk_BinHole(~has_caret?, ()), l_r);
              },
          );
@@ -91,7 +90,7 @@ module Exp = {
   let rec mk =
           (
             ~has_caret: option(CaretPosition.t)=?,
-            info: TypeInfo_exp.t'(_),
+            info: TypeInfo_exp.t,
             e: Term_exp.t,
           )
           : Layout.t => {
@@ -100,7 +99,7 @@ module Exp = {
       Option.map(
         pos => {
           let syn_ty =
-            TypeInfo_exp.(synthesize({ctx: info.ctx, mode: syn}, e));
+            TypeInfo_exp.(synthesize({ctx: info.ctx, mode: Syn}, e));
           (Pointing(Exp(info, syn_ty)), pos);
         },
         has_caret,
@@ -121,7 +120,7 @@ module Exp = {
                (mk_Lam(~has_caret?, l_p), l_body);
              }
            | (Let(p, def), body) => {
-               let l_p = Pat.mk(TypeInfo_exp.let_pat(info), p);
+               let l_p = Pat.mk(TypeInfo_exp.let_pat(def, info), p);
                let l_def = mk(TypeInfo_exp.let_def(p, info), def);
                let l_body = mk(TypeInfo_exp.let_body(p, def, info), body);
                (mk_Let(~has_caret?, l_p, l_def), l_body);
@@ -144,8 +143,7 @@ module Exp = {
                (l_l, mk_BinHole(~has_caret?, ()), l_r);
              }
            | (guard, Cond(then_), else_) => {
-               let l_guard =
-                 mk({...info, mode: TypeInfo_exp.ana(Bool)}, guard);
+               let l_guard = mk({...info, mode: Ana(Bool)}, guard);
                let l_then = mk(info, then_);
                let l_else = mk(info, else_);
                (l_guard, mk_Cond(~has_caret?, l_then), l_else);

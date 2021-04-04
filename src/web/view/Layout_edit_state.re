@@ -124,12 +124,8 @@ module Pat = {
     mk_restructuring(~sort=Pat, ~unsort=Parser_pat.unsort);
 
   let mk_untyped_framed_subject =
-      (l_subject, l_frame: TypeInfo_pat.t'(Layout.frame)) =>
-    switch (l_frame.mode) {
-    | Syn(l_frame)
-    | Ana(_, l_frame)
-    | Let_pat(_, l_frame) => l_frame(Hole, Ctx.empty, l_subject)
-    };
+      (l_subject, l_frame: (Type.t, Ctx.t) => Layout.frame) =>
+    l_frame(Hole, Ctx.empty, l_subject);
 };
 
 module Exp = {
@@ -137,13 +133,8 @@ module Exp = {
   let mk_restructuring =
     mk_restructuring(~sort=Exp, ~unsort=Parser_exp.unsort);
 
-  let mk_untyped_framed_subject =
-      (l_subject, l_frame: TypeInfo_exp.t'(Layout.frame)) =>
-    switch (l_frame.mode) {
-    | Syn(l_frame)
-    | Ana(_, l_frame) => l_frame(Hole, l_subject)
-    | Fn_pos(l_frame) => l_frame(Hole, Hole, l_subject)
-    };
+  let mk_untyped_framed_subject = (l_subject, l_frame: Type.t => Layout.frame) =>
+    l_frame(Hole, l_subject);
 };
 
 let mk_pointing = (pointing: EditState_pointing.t) => {
@@ -237,20 +228,19 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
         Parser_pat.term_of_skel(skel, tiles);
       };
       let frame = Parser_pat.associate_frame((prefix, suffix), frame);
-      let l_frame = Layout_frame.Pat.mk(~show_err_holes=true, frame);
-      let info_term = TypeInfo_pat.of_t'(l_frame);
+      let (info_term, l_frame) =
+        Layout_frame.Pat.mk(~show_err_holes=true, frame);
       let l_term = Layout_term.Pat.mk(~has_caret=caret, info_term, term);
-      switch (l_frame.mode) {
-      | Syn(l_frame)
-      | Ana(_, l_frame) =>
+      switch (info_term) {
+      | Syn
+      | Ana(_) =>
         let (ty, ctx) = TypeInfo_pat.synthesize(info_term, term);
         l_frame(ty, ctx, l_term);
-      | Let_pat(ty_def, l_frame) =>
+      | Let_pat(ty_def) =>
         let (ty_p, _) = TypeInfo_pat.synthesize(info_term, term);
         let (_, ctx_body) =
-          TypeInfo_pat.(
-            synthesize({ctx: info_term.ctx, mode: ana(ty_def(ty_p))}, term)
-          );
+          TypeInfo_pat.synthesize(Ana(ty_def(ty_p)), term);
+
         l_frame(ty_p, ctx_body, l_term);
       };
 
@@ -291,21 +281,10 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
         Parser_exp.term_of_skel(skel, tiles);
       };
       let frame = Parser_exp.associate_frame((prefix, suffix), frame);
-      let l_frame = Layout_frame.Exp.mk(~show_err_holes=true, frame);
-      let info_term = TypeInfo_exp.of_t'(l_frame);
+      let (info_term, l_frame) =
+        Layout_frame.Exp.mk(~show_err_holes=true, frame);
       let l_term = Layout_term.Exp.mk(~has_caret=caret, info_term, term);
-      switch (l_frame.mode) {
-      | Syn(l_frame)
-      | Ana(_, l_frame) =>
-        let ty = TypeInfo_exp.synthesize(info_term, term);
-        l_frame(ty, l_term);
-      | Fn_pos(l_frame) =>
-        let (ty_in, ty_out) =
-          Option.get(
-            Type.matches_arrow(TypeInfo_exp.synthesize(info_term, term)),
-          );
-        l_frame(ty_in, ty_out, l_term);
-      };
+      l_frame(TypeInfo_exp.synthesize(info_term, term), l_term);
     };
   go(pointing);
 };
@@ -321,11 +300,11 @@ let mk = (edit_state: EditState.t) =>
     let l_selecting = Typ.mk_selecting(selecting);
     Typ.mk_untyped_framed_subject(l_selecting, l_frame);
   | Pat((Selecting(selecting), frame)) =>
-    let l_frame = Layout_frame.Pat.mk_bi(~show_err_holes=false, frame);
+    let (_, l_frame) = Layout_frame.Pat.mk_bi(~show_err_holes=false, frame);
     let l_selecting = Pat.mk_selecting(selecting);
     Pat.mk_untyped_framed_subject(l_selecting, l_frame);
   | Exp((Selecting(selecting), frame)) =>
-    let l_frame = Layout_frame.Exp.mk_bi(~show_err_holes=false, frame);
+    let (_, l_frame) = Layout_frame.Exp.mk_bi(~show_err_holes=false, frame);
     let l_selecting = Exp.mk_selecting(selecting);
     Exp.mk_untyped_framed_subject(l_selecting, l_frame);
 
@@ -334,11 +313,11 @@ let mk = (edit_state: EditState.t) =>
     let l_restructuring = Typ.mk_restructuring(restructuring);
     Typ.mk_untyped_framed_subject(l_restructuring, l_frame);
   | Pat((Restructuring(restructuring), frame)) =>
-    let l_frame = Layout_frame.Pat.mk_bi(~show_err_holes=false, frame);
+    let (_, l_frame) = Layout_frame.Pat.mk_bi(~show_err_holes=false, frame);
     let l_restructuring = Pat.mk_restructuring(restructuring);
     Pat.mk_untyped_framed_subject(l_restructuring, l_frame);
   | Exp((Restructuring(restructuring), frame)) =>
-    let l_frame = Layout_frame.Exp.mk_bi(~show_err_holes=false, frame);
+    let (_, l_frame) = Layout_frame.Exp.mk_bi(~show_err_holes=false, frame);
     let l_restructuring = Exp.mk_restructuring(restructuring);
     Exp.mk_untyped_framed_subject(l_restructuring, l_frame);
   };
