@@ -43,6 +43,13 @@ let prod_r = (info_prod: t) =>
     }
   };
 
+let subsume = (info, ty) =>
+  switch (info) {
+  | Syn
+  | Let_pat(_) => ty
+  | Ana(ty') => Type.consistent(ty, ty') ? ty : Hole
+  };
+
 let has_err = (info: t) =>
   Term_pat.(
     Term.get(
@@ -69,7 +76,8 @@ let has_err = (info: t) =>
     )
   );
 
-let rec synthesize = (info: t, p: Term_pat.t) =>
+let rec synthesize = (info: t, p: Term_pat.t) => {
+  let subsume = subsume(info);
   Term_pat.(
     p
     |> Term.get(
@@ -90,7 +98,7 @@ let rec synthesize = (info: t, p: Term_pat.t) =>
          | (subj, Ann(ann)) => {
              let ty = Term_typ.to_type(ann);
              let (_, ctx) = synthesize(Ana(ty), subj);
-             (ty, ctx);
+             (subsume(ty), ctx);
            },
          fun
          | (l, BinHole, r) => {
@@ -101,7 +109,8 @@ let rec synthesize = (info: t, p: Term_pat.t) =>
          | (l, Prod, r) => {
              let (ty_l, ctx_l) = synthesize(prod_l(info), l);
              let (ty_r, ctx_r) = synthesize(prod_r(info), r);
-             (Prod(ty_l, ty_r), Ctx.union(ctx_l, ctx_r));
+             (subsume(Prod(ty_l, ty_r)), Ctx.union(ctx_l, ctx_r));
            },
        )
   );
+};

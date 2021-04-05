@@ -110,8 +110,36 @@ module Exp = {
       };
       (info_binhole, l_frame);
 
-    | Bin_l(_, Prod, _)
-    | Bin_r(_, Prod, _) => failwith("prod todo")
+    | Bin_l(frame, Prod, r) =>
+      let (info_prod, l_frame) = mk(~show_err_holes, frame);
+      let info_r = TypeInfo_exp.prod_r(info_prod);
+      let l_frame = (ty_l, l_l) => {
+        let ty_prod = {
+          let ty_r = TypeInfo_exp.synthesize(info_r, r);
+          TypeInfo_exp.subsume(info_prod, Prod(ty_l, ty_r));
+        };
+        let l_prod = {
+          let l_r = Layout_term.Exp.mk(info_r, r);
+          cats([l_l, fst(mk_Prod()), l_r]);
+        };
+        l_frame(ty_prod, l_prod);
+      };
+      (TypeInfo_exp.prod_l(info_prod), l_frame);
+    | Bin_r(l, Prod, frame) =>
+      let (info_prod, l_frame) = mk(~show_err_holes, frame);
+      let info_l = TypeInfo_exp.prod_l(info_prod);
+      let l_frame = (ty_r, l_r) => {
+        let ty_prod = {
+          let ty_l = TypeInfo_exp.synthesize(info_l, l);
+          TypeInfo_exp.subsume(info_prod, Prod(ty_l, ty_r));
+        };
+        let l_prod = {
+          let l_l = Layout_term.Exp.mk(info_l, l);
+          cats([l_l, fst(mk_Prod()), l_r]);
+        };
+        l_frame(ty_prod, l_prod);
+      };
+      (TypeInfo_exp.prod_l(info_prod), l_frame);
 
     | Bin_l(frame, Cond(then_), else_) =>
       let (info_cond, l_frame) = mk(~show_err_holes, frame);
@@ -256,8 +284,40 @@ module Pat = {
       };
       (Syn, l_frame);
 
-    | Bin_l(_, Prod, _)
-    | Bin_r(_, Prod, _) => failwith("prod todo")
+    | Bin_l(frame, Prod, r) =>
+      let (info_prod, l_frame) = mk(~show_err_holes, frame);
+      let info_r = TypeInfo_pat.prod_r(info_prod);
+      let l_frame = (ty_l, ctx_l, l_l) => {
+        let (ty_prod, ctx_prod) = {
+          let (ty_r, ctx_r) = TypeInfo_pat.synthesize(info_r, r);
+          let ty_prod = TypeInfo_pat.subsume(info_prod, Prod(ty_l, ty_r));
+          let ctx = Ctx.union(ctx_l, ctx_r);
+          (ty_prod, ctx);
+        };
+        let l_prod = {
+          let l_r = Layout_term.Pat.mk(info_r, r);
+          cats([l_l, fst(mk_Prod()), l_r]);
+        };
+        l_frame(ty_prod, ctx_prod, l_prod);
+      };
+      (TypeInfo_pat.prod_l(info_prod), l_frame);
+    | Bin_r(l, Prod, frame) =>
+      let (info_prod, l_frame) = mk(~show_err_holes, frame);
+      let info_l = TypeInfo_pat.prod_l(info_prod);
+      let l_frame = (ty_r, ctx_r, l_r) => {
+        let (ty_prod, ctx_prod) = {
+          let (ty_l, ctx_l) = TypeInfo_pat.synthesize(info_l, l);
+          let ty_prod = TypeInfo_pat.subsume(info_prod, Prod(ty_l, ty_r));
+          let ctx = Ctx.union(ctx_l, ctx_r);
+          (ty_prod, ctx);
+        };
+        let l_prod = {
+          let l_l = Layout_term.Pat.mk(info_l, l);
+          cats([l_l, fst(mk_Prod()), l_r]);
+        };
+        l_frame(ty_prod, ctx_prod, l_prod);
+      };
+      (TypeInfo_pat.prod_r(info_prod), l_frame);
     }
   and mk_bi = (~show_err_holes, bi: Frame_pat.bidelimited) => {
     let err_hole = (has_err, l) =>
