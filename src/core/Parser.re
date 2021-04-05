@@ -54,7 +54,8 @@ module type S = {
     (~direction: Direction.t, Selection.t(T.t)) => Selection.t(T.t);
 
   let fix_empty_holes:
-    ListUtil.frame(Selection.t(T.t)) => ListUtil.frame(Selection.elem(T.t));
+    (~subject: Selection.t(T.t)=?, ListUtil.frame(Selection.t(T.t))) =>
+    ListUtil.frame(Selection.elem(T.t));
 
   let associate_frame: (ListUtil.frame(T.t), F.bidelimited) => F.t;
   let dissociate_frame: F.t => (ListUtil.frame(T.t), F.bidelimited);
@@ -393,18 +394,27 @@ module Make =
     fix_empty_holes_end(~side, fixed_between);
   };
 
-  let fix_empty_holes = ((prefix, suffix): ListUtil.frame(selection)) => {
+  // subject should not have holes on its ends
+  let fix_empty_holes =
+      (~subject=[], (prefix, suffix): ListUtil.frame(selection)) => {
     let suffix = fix_empty_holes_affix(~side=Right, suffix);
     let (prefix, suffix) =
-      if (List.for_all((==)([]), prefix)) {
+      if (List.for_all((==)([]), prefix) && subject == []) {
         let suffix =
           suffix |> List.rev |> fix_empty_holes_end(~side=Left) |> List.rev;
         ([], suffix);
       } else {
         (fix_empty_holes_affix(~side=Left, prefix), suffix);
       };
+    let (subject, suffix) = fix_empty_holes_between(subject, suffix);
     let (rev_prefix, suffix) =
-      fix_empty_holes_between(List.rev(prefix), suffix);
+      if (subject == []) {
+        fix_empty_holes_between(List.rev(prefix), suffix);
+      } else {
+        let (rev_prefix, _) =
+          fix_empty_holes_between(List.rev(prefix), subject);
+        (rev_prefix, suffix);
+      };
     (List.rev(rev_prefix), suffix);
   };
 

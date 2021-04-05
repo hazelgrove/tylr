@@ -160,10 +160,10 @@ module Make =
       : option(EditState_pointing.t) => {
     let j = List.length(prefix);
     let tiles_orig = ListUtil.of_frame((prefix, suffix));
-    let fix_holes = pre_suf => {
+    let fix_holes = (~subject=[], pre_suf) => {
       let (prefix, suffix) =
         TupleUtil.map2(List.map(tile => [Selection.tile(tile)]), pre_suf);
-      let (prefix, suffix) = P.fix_empty_holes((prefix, suffix));
+      let (prefix, suffix) = P.fix_empty_holes(~subject, (prefix, suffix));
       TupleUtil.map2(Selection.get_whole, (prefix, suffix));
     };
     let exit = () => {
@@ -183,7 +183,8 @@ module Make =
         let (prefix, suffix) = ListUtil.mk_frame(j, tiles_orig);
         Some(I.mk_pointing(((prefix, suffix), frame)));
       } else {
-        let tile_frame = fix_holes(tile_frame);
+        let tile_frame =
+          fix_holes(~subject=[Selection.Tile(tile)], tile_frame);
         move_into_tile(d, tile, tile_frame, Bi(frame));
       };
     };
