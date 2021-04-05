@@ -33,6 +33,7 @@ let assemble_tile:
   | (OpHole, []) => Some(Op(OpHole))
   | (BinHole, []) => Some(Bin(BinHole))
   | (Plus, []) => Some(Bin(Plus))
+  | (Prod, []) => Some(Bin(Prod))
   | (Arrow, []) => Some(Bin(Arrow))
   | (Lam(p), []) => Some(Pre(Lam(p)))
   | (Ann(ann), []) => Some(Post(Ann(ann)))

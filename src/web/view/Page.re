@@ -47,6 +47,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~edit_state: EditState.t) => {
           | "\\" => [p(Construct(Lam))]
           | "=" => [p(Construct(Let_eq))]
           | ":" => [p(Construct(Ann))]
+          | "," => [p(Construct(Prod))]
           | "Escape" => [Escape]
           | "Enter" =>
             if (EditState.is_pointing(edit_state)) {

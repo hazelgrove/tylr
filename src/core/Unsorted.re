@@ -51,7 +51,8 @@ module Tessera = {
       | Let_in
       | Ann
       | Plus
-      | Arrow;
+      | Arrow
+      | Prod;
   };
 
   let is_closing =

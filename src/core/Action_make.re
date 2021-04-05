@@ -98,6 +98,7 @@ module Make =
       | Ann => (Ann([Op(OpHole)]), ([], []))
       | Plus => (Plus, ([], []))
       | Arrow => (Arrow, ([], []))
+      | Prod => (Prod, ([], []))
     );
 
   let parse_pointing =
