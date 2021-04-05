@@ -113,11 +113,49 @@ module Exp = {
     | Bin_l(_, Prod, _)
     | Bin_r(_, Prod, _) => failwith("prod todo")
 
-    | Bin_l(_, Cond(_), _)
-    | Bin_r(_, Cond(_), _) => failwith("cond todo")
+    | Bin_l(frame, Cond(then_), else_) =>
+      let (info_cond, l_frame) = mk(~show_err_holes, frame);
+      let l_frame = (_ty_guard, l_guard) => {
+        let (ty_cond, has_err) = {
+          let ty_then = TypeInfo_exp.synthesize(info_cond, then_);
+          let ty_else = TypeInfo_exp.synthesize(info_cond, else_);
+          switch (Type.join(ty_then, ty_else)) {
+          | None => (Type.Hole, true)
+          | Some(joined) => (joined, false)
+          };
+        };
+        let l_cond = {
+          let l_then = Layout_term.Exp.mk(info_cond, then_);
+          let l_else = Layout_term.Exp.mk(info_cond, else_);
+          err_hole(has_err, cats([l_guard, fst(mk_Cond(l_then)), l_else]));
+        };
+        l_frame(ty_cond, l_cond);
+      };
+      (TypeInfo_exp.cond_guard(info_cond), l_frame);
+    | Bin_r(guard, Cond(then_), frame) =>
+      let (info_cond, l_frame) = mk(~show_err_holes, frame);
+      let l_frame = (ty_else, l_else) => {
+        let (ty_cond, has_err) = {
+          let ty_then = TypeInfo_exp.synthesize(info_cond, then_);
+          switch (Type.join(ty_then, ty_else)) {
+          | None => (Type.Hole, true)
+          | Some(joined) => (joined, false)
+          };
+        };
+        let l_cond = {
+          let l_guard =
+            Layout_term.Exp.mk(TypeInfo_exp.cond_guard(info_cond), guard);
+          let l_then = Layout_term.Exp.mk(info_cond, then_);
+          err_hole(has_err, cats([l_guard, fst(mk_Cond(l_then)), l_else]));
+        };
+        l_frame(ty_cond, l_cond);
+      };
+      (info_cond, l_frame);
     };
   }
-  and mk_bi = (~show_err_holes, bi: Frame_exp.bidelimited) =>
+  and mk_bi = (~show_err_holes, bi: Frame_exp.bidelimited) => {
+    let err_hole = (has_err, l) =>
+      err_hole(has_err && show_err_holes, true, l);
     switch (bi) {
     | Root => (TypeInfo_exp.root, ((_, l) => l))
     | Closed () => raise(Frame_exp.Void_closed)
@@ -147,9 +185,28 @@ module Exp = {
       };
       (info_def, l_frame);
 
-    | Open(Cond_then(_)) => failwith("cond todo")
+    | Open(Cond_then(guard, frame, else_)) =>
+      let (info_cond, l_frame) = mk(~show_err_holes, frame);
+      let ty_else = TypeInfo_exp.synthesize(info_cond, else_);
+      let l_frame = (ty_then, l_then) => {
+        let (ty_cond, has_err) =
+          switch (Type.join(ty_then, ty_else)) {
+          | None => (Type.Hole, true)
+          | Some(joined) => (joined, false)
+          };
+        let l_cond = {
+          let l_guard =
+            Layout_term.Exp.mk(TypeInfo_exp.cond_guard(info_cond), guard);
+          let l_else = Layout_term.Exp.mk(info_cond, else_);
+          err_hole(has_err, cats([l_guard, fst(mk_Cond(l_then)), l_else]));
+        };
+        l_frame(ty_cond, l_cond);
+      };
+      (info_cond, l_frame);
+
     | Open(Ap_arg(_)) => failwith("ap todo")
     };
+  };
 };
 
 module Pat = {

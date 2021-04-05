@@ -108,6 +108,8 @@ let prod_r = (info_prod: t) => {
 let binhole_l = (info_binhole: t): t => {...info_binhole, mode: Syn};
 let binhole_r = binhole_l;
 
+let cond_guard = (info_cond: t): t => {ctx: info_cond.ctx, mode: Ana(Bool)};
+
 let subsume = (info, ty) =>
   switch (info.mode) {
   | Syn => ty
