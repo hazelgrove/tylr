@@ -16,6 +16,7 @@ module Input = {
         () => raise(Void_post),
         fun
         | Arrow
+        | Prod
         | BinHole => false,
       )
     );
@@ -40,7 +41,7 @@ module Input = {
          fun
          | (_, ()) => raise(Term_typ.Void_post),
          fun
-         | (_, Term_typ.BinHole | Arrow, _) => None,
+         | (_, Term_typ.BinHole | Arrow | Prod, _) => None,
        );
   };
 

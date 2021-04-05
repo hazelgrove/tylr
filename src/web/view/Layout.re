@@ -262,6 +262,8 @@ let mk_Arrow = (~has_caret=?, ()) => (
   place_caret_0(has_caret),
 );
 
+let mk_Prod = (~has_caret=?, ()) => (delim(","), place_caret_0(has_caret));
+
 let mk_OpHole = (~has_caret=?, ()) => (
   Text(Unicode.nbsp),
   place_caret_0(has_caret),

@@ -46,6 +46,7 @@ and mk_tile = (~style=?, ~sort=?, tile: Unsorted.Tile.t) => {
            )
          | Plus => mk_Plus()
          | Arrow => mk_Arrow()
+         | Prod => mk_Prod()
          | Cond(then_) => mk_Cond(open_child(mk_tiles(~sort?, then_))),
        );
   switch (style) {
@@ -65,7 +66,8 @@ let shape_of_tessera: Unsorted.Tessera.t => Layout.tessera_shape =
   | Paren_r => Post(true)
   | BinHole
   | Plus
-  | Arrow => Bin((false, false))
+  | Arrow
+  | Prod => Bin((false, false))
   | Cond_then => Bin((false, true))
   | Cond_else
   | Let_in => Bin((true, false));
@@ -80,6 +82,7 @@ let mk_tessera = (~style, tessera: Unsorted.Tessera.t): t => {
     | Ann(ann) => fst(mk_Ann(closed_child(mk_tiles(ann))))
     | Plus => fst(mk_Plus())
     | Arrow => fst(mk_Arrow())
+    | Prod => fst(mk_Prod())
     | Paren_l => delim("(")
     | Paren_r => delim(")")
     | Let_eq(p) =>

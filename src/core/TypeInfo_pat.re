@@ -20,6 +20,29 @@ let ann_has_err = (ty_ann: Type.t, info_ann: t): bool =>
   | Ana(ty) => !Type.consistent(ty_ann, ty)
   };
 
+let prod_l = (info_prod: t) =>
+  switch (info_prod) {
+  | Syn
+  // TODO need to review how let_pat works
+  | Let_pat(_) => Syn
+  | Ana(ty) =>
+    switch (Type.matches_prod(ty)) {
+    | None => Syn
+    | Some((ty_l, _)) => Ana(ty_l)
+    }
+  };
+let prod_r = (info_prod: t) =>
+  switch (info_prod) {
+  | Syn
+  // TODO need to review how let_pat works
+  | Let_pat(_) => Syn
+  | Ana(ty) =>
+    switch (Type.matches_prod(ty)) {
+    | None => Syn
+    | Some((_, ty_r)) => Ana(ty_r)
+    }
+  };
+
 let has_err = (info: t) =>
   Term_pat.(
     Term.get(
@@ -29,9 +52,20 @@ let has_err = (info: t) =>
       | Paren(_) => false,
       (((), _)) => raise(Term_pat.Void_pre),
       fun
-      | (_, Ann(ann)) => ann_has_err(Term_typ.to_type(ann), info),
+      | (_, Ann(ann)) =>
+        switch (info) {
+        | Ana(ty) => !Type.consistent(ty, Term_typ.to_type(ann))
+        | Syn
+        | Let_pat(_) => false
+        },
       fun
-      | (_, BinHole, _) => false,
+      | (_, BinHole, _) => false
+      | (_, Prod, _) =>
+        switch (info) {
+        | Ana(ty) => !Type.consistent(ty, Prod(Hole, Hole))
+        | Syn
+        | Let_pat(_) => false
+        },
     )
   );
 
@@ -63,6 +97,11 @@ let rec synthesize = (info: t, p: Term_pat.t) =>
              let (_, ctx_l) = synthesize(Syn, r);
              let (_, ctx_r) = synthesize(Syn, l);
              (Type.Hole, Ctx.union(ctx_l, ctx_r));
+           }
+         | (l, Prod, r) => {
+             let (ty_l, ctx_l) = synthesize(prod_l(info), l);
+             let (ty_r, ctx_r) = synthesize(prod_r(info), r);
+             (Prod(ty_l, ty_r), Ctx.union(ctx_l, ctx_r));
            },
        )
   );

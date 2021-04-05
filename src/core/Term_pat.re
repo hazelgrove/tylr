@@ -10,7 +10,8 @@ and pre = unit // empty
 and post =
   | Ann(Term_typ.t)
 and bin =
-  | BinHole;
+  | BinHole
+  | Prod;
 
 exception Void_pre;
 
@@ -23,4 +24,5 @@ let is_op_hole =
   | _ => false;
 let is_bin_hole =
   fun
-  | BinHole => true;
+  | BinHole => true
+  | _ => false;

@@ -20,6 +20,7 @@ and bin =
   // ><
   | Plus
   | BinHole
+  | Prod
   | Cond(t);
 
 let mk_op_hole = () => OpHole;

@@ -110,6 +110,9 @@ module Exp = {
       };
       (info_binhole, l_frame);
 
+    | Bin_l(_, Prod, _)
+    | Bin_r(_, Prod, _) => failwith("prod todo")
+
     | Bin_l(_, Cond(_), _)
     | Bin_r(_, Cond(_), _) => failwith("cond todo")
     };
@@ -195,6 +198,9 @@ module Pat = {
         l_frame(Hole, Ctx.union(ctx_l, ctx_r), l_binhole);
       };
       (Syn, l_frame);
+
+    | Bin_l(_, Prod, _)
+    | Bin_r(_, Prod, _) => failwith("prod todo")
     }
   and mk_bi = (~show_err_holes, bi: Frame_pat.bidelimited) => {
     let err_hole = (has_err, l) =>
@@ -260,12 +266,14 @@ module Typ = {
       let l_bin =
         switch (bin) {
         | Arrow => fst(mk_Arrow())
+        | Prod => fst(mk_Prod())
         | BinHole => empty_hole(~sort=Typ, fst(mk_BinHole()))
         };
       let l_r = Layout_term.Typ.mk(r);
       let ty = ty_l =>
         switch (bin) {
         | Arrow => Type.Arrow(ty_l, Term_typ.to_type(r))
+        | Prod => Prod(ty_l, Term_typ.to_type(r))
         | BinHole => Hole
         };
       ((ty_l, l_l) => l_frame(ty(ty_l), cats([l_l, l_bin, l_r])));
@@ -275,11 +283,13 @@ module Typ = {
       let l_bin =
         switch (bin) {
         | Arrow => fst(mk_Arrow())
+        | Prod => fst(mk_Prod())
         | BinHole => empty_hole(~sort=Typ, fst(mk_BinHole()))
         };
       let ty = ty_r =>
         switch (bin) {
         | Arrow => Type.Arrow(Term_typ.to_type(l), ty_r)
+        | Prod => Prod(Term_typ.to_type(l), ty_r)
         | BinHole => Hole
         };
       ((ty_r, l_r) => l_frame(ty(ty_r), cats([l_l, l_bin, l_r])));

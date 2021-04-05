@@ -19,7 +19,8 @@ module Input = {
         | Ap(_) => true,
         fun
         | Plus
-        | BinHole => false
+        | BinHole
+        | Prod => false
         | Cond(_) => true,
       )
     );
@@ -59,7 +60,7 @@ module Input = {
          fun
          | (_, Term_exp.Ap(_)) => failwith("ap todo"),
          fun
-         | (_, Plus | BinHole, _) => None
+         | (_, Plus | BinHole | Prod, _) => None
          | (cond, Cond(then_), else_) => {
              let subject = mk_pointing(Parser_exp.dissociate(then_));
              let frame = Frame_exp.Open(Cond_then(cond, frame, else_));

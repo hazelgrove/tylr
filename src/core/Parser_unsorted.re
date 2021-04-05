@@ -18,8 +18,9 @@ let disassemble_tile =
     | Ap(_) => failwith("ap todo"),
     fun
     | Unsorted.Tile.BinHole => (Unsorted.Tessera.BinHole, [])
-    | Plus => (Unsorted.Tessera.Plus, [])
-    | Arrow => (Unsorted.Tessera.Arrow, [])
+    | Plus => (Plus, [])
+    | Arrow => (Arrow, [])
+    | Prod => (Prod, [])
     | Cond(then_) => (Cond_then, [(then_, Cond_else)]),
   );
 

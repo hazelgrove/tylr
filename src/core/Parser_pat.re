@@ -31,7 +31,8 @@ module Input:
       | Unsorted.Tile.Arrow
       | Plus
       | Cond(_) => None
-      | BinHole => Some(Tile.Bin(Term_pat.BinHole)),
+      | BinHole => Some(Tile.Bin(Term_pat.BinHole))
+      | Prod => Some(Tile.Bin(Term_pat.Prod)),
     );
 
   let unsort = (~dissociate_and_unsort) =>
@@ -46,7 +47,8 @@ module Input:
       | Term_pat.Ann(ann) =>
         Tile.Post(Unsorted.Tile.Ann(Parser_typ.dissociate_and_unsort(ann))),
       fun
-      | Term_pat.BinHole => Tile.Bin(Unsorted.Tile.BinHole),
+      | Term_pat.BinHole => Tile.Bin(Unsorted.Tile.BinHole)
+      | Prod => Tile.Bin(Prod),
     );
 
   let disassemble_tile =
@@ -62,7 +64,8 @@ module Input:
           [],
         ),
       fun
-      | Term_pat.BinHole => (Unsorted.Tessera.BinHole, []),
+      | Term_pat.BinHole => (Unsorted.Tessera.BinHole, [])
+      | Prod => (Prod, []),
     );
 
   let assemble_open_frame =

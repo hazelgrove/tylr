@@ -28,6 +28,7 @@ module Input:
       | Unsorted.Tile.Plus
       | Cond(_) => None
       | Arrow => Some(Tile.Bin(Term_typ.Arrow))
+      | Prod => Some(Tile.Bin(Term_typ.Prod))
       | BinHole => Some(Bin(BinHole)),
     );
 
@@ -43,6 +44,7 @@ module Input:
       () => raise(Term_typ.Void_post),
       fun
       | Term_typ.BinHole => Tile.Bin(Unsorted.Tile.BinHole)
+      | Prod => Tile.Bin(Unsorted.Tile.Prod)
       | Arrow => Tile.Bin(Unsorted.Tile.Arrow),
     );
 
@@ -57,6 +59,7 @@ module Input:
       () => raise(Term_typ.Void_post),
       fun
       | Term_typ.BinHole => (Unsorted.Tessera.BinHole, [])
+      | Prod => (Unsorted.Tessera.Prod, [])
       | Arrow => (Unsorted.Tessera.Arrow, []),
     );
 

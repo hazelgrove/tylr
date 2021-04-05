@@ -75,6 +75,36 @@ let plus_has_err = (info_plus: t) =>
 let plus_l = (info_plus: t): t => {...info_plus, mode: Ana(Num)};
 let plus_r = plus_l;
 
+let prod_has_err = (info_prod: t) =>
+  switch (info_prod.mode) {
+  | Ana(ty) when Option.is_none(Type.matches_prod(ty)) => true
+  | _ => false
+  };
+let prod_l = (info_prod: t) => {
+  let mode =
+    switch (info_prod.mode) {
+    | Syn => Syn
+    | Ana(ty) =>
+      switch (Type.matches_prod(ty)) {
+      | None => Syn
+      | Some((ty_l, _)) => Ana(ty_l)
+      }
+    };
+  {ctx: info_prod.ctx, mode};
+};
+let prod_r = (info_prod: t) => {
+  let mode =
+    switch (info_prod.mode) {
+    | Syn => Syn
+    | Ana(ty) =>
+      switch (Type.matches_prod(ty)) {
+      | None => Syn
+      | Some((_, ty_r)) => Ana(ty_r)
+      }
+    };
+  {ctx: info_prod.ctx, mode};
+};
+
 let binhole_l = (info_binhole: t): t => {...info_binhole, mode: Syn};
 let binhole_r = binhole_l;
 
@@ -113,6 +143,11 @@ let rec synthesize = (info: t, e: Term_exp.t): Type.t => {
          fun
          | (_, BinHole, _) => Hole
          | (_, Plus, _) => subsume(Num)
+         | (l, Prod, r) => {
+             let ty_l = synthesize(prod_l(info), l);
+             let ty_r = synthesize(prod_r(info), r);
+             subsume(Arrow(ty_l, ty_r));
+           }
          | (_cond, Cond(then_), else_) => {
              let ty_then = synthesize(info, then_);
              let ty_else = synthesize(info, else_);
@@ -156,6 +191,7 @@ let has_err = (info: t) =>
       fun
       | (_, BinHole, _) => false
       | (_, Plus, _) => plus_has_err(info)
+      | (_, Prod, _) => prod_has_err(info)
       | (_, Cond(then_), else_) => {
           let ty_then = synthesize({ctx: info.ctx, mode: Syn}, then_);
           let ty_else = synthesize({ctx: info.ctx, mode: Syn}, else_);

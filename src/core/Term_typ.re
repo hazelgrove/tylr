@@ -11,7 +11,8 @@ and pre = unit // empty
 and post = unit // empty
 and bin =
   | BinHole
-  | Arrow;
+  | Arrow
+  | Prod;
 
 exception Void_pre;
 exception Void_post;
@@ -40,20 +41,23 @@ let rec to_type = ty =>
        ((_, ())) => raise(Void_post),
        fun
        | (_, BinHole, _) => Type.Hole
-       | (l, Arrow, r) => Arrow(to_type(l), to_type(r)),
+       | (l, Arrow, r) => Arrow(to_type(l), to_type(r))
+       | (l, Prod, r) => Prod(to_type(l), to_type(r)),
      );
 
 let of_type = (ty: Type.t) => {
   let rec go = (~parent_precedence=?, ~strict, ty: Type.t): t => {
     let p = Type.precedence(ty);
+    let go = go(~parent_precedence=p);
     let tm =
       switch (ty) {
       | Hole => Term.Op(OpHole)
       | Num => Op(Num)
       | Bool => Op(Bool)
       | Arrow(ty_in, ty_out) =>
-        let go = go(~parent_precedence=p);
-        Term.Bin(go(~strict=true, ty_in), Arrow, go(~strict=false, ty_out));
+        Term.Bin(go(~strict=true, ty_in), Arrow, go(~strict=false, ty_out))
+      | Prod(ty_l, ty_r) =>
+        Term.Bin(go(~strict=false, ty_l), Prod, go(~strict=true, ty_r))
       };
     switch (parent_precedence) {
     | Some(pp) when p > pp || !strict && p >= pp => Op(Paren(tm))

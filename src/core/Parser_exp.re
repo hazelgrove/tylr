@@ -37,6 +37,7 @@ module Input:
       | Unsorted.Tile.Arrow => None
       | Plus => Some(Tile.Bin(Term_exp.Plus))
       | BinHole => Some(Bin(BinHole))
+      | Prod => Some(Bin(Prod))
       | Cond(then_) => {
           let+ then_ = sort_and_associate(then_);
           Tile.Bin(Term_exp.Cond(then_));
@@ -63,7 +64,8 @@ module Input:
       | Term_exp.Ap(_) => failwith("ap todo"),
       fun
       | Term_exp.BinHole => Tile.Bin(Unsorted.Tile.BinHole)
-      | Plus => Bin(Unsorted.Tile.Plus)
+      | Plus => Bin(Plus)
+      | Prod => Bin(Prod)
       | Cond(then_) => {
           let then_ = dissociate_and_unsort(then_);
           Bin(Unsorted.Tile.Cond(then_));
@@ -93,8 +95,9 @@ module Input:
       | Term_exp.Ap(_) => failwith("ap todo"),
       fun
       | Term_exp.Plus => (Unsorted.Tessera.Plus, [])
-      | BinHole => (Unsorted.Tessera.BinHole, [])
-      | Cond(then_) => (Unsorted.Tessera.Cond_then, [(then_, Cond_else)]),
+      | BinHole => (BinHole, [])
+      | Prod => (Prod, [])
+      | Cond(then_) => (Cond_then, [(then_, Cond_else)]),
     );
 
   let assemble_open_frame =

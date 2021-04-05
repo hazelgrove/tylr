@@ -23,8 +23,15 @@ module Typ = {
          (((), _)) => raise(Void_pre),
          ((_, ())) => raise(Void_post),
          fun
-         | (l, BinHole, r) => (mk(l), mk_BinHole(~has_caret?, ()), mk(r))
-         | (l, Arrow, r) => (mk(l), mk_Arrow(~has_caret?, ()), mk(r)),
+         | (l, bin, r) => {
+             let l_bin =
+               switch (bin) {
+               | BinHole => mk_BinHole(~has_caret?, ())
+               | Arrow => mk_Arrow(~has_caret?, ())
+               | Prod => mk_Prod(~has_caret?, ())
+               };
+             (mk(l), l_bin, mk(r));
+           },
        );
   };
 };
@@ -68,10 +75,21 @@ module Pat = {
                (l_subj, mk_Ann(~has_caret?, l_ann));
              },
            fun
-           | (l, BinHole, r) => {
-               let l_l = mk(Syn, l);
-               let l_r = mk(Syn, r);
-               (l_l, mk_BinHole(~has_caret?, ()), l_r);
+           | (l, bin, r) => {
+               let (info_l, info_r, l_bin) =
+                 switch (bin) {
+                 | BinHole => (
+                     TypeInfo_pat.Syn,
+                     TypeInfo_pat.Syn,
+                     mk_BinHole(~has_caret?, ()),
+                   )
+                 | Prod => (
+                     TypeInfo_pat.prod_l(info),
+                     TypeInfo_pat.prod_r(info),
+                     mk_Prod(~has_caret?, ()),
+                   )
+                 };
+               (mk(info_l, l), l_bin, mk(info_r, r));
              },
          );
     TypeInfo_pat.has_err(info, p)
@@ -132,15 +150,20 @@ module Exp = {
                failwith("ap todo");
              },
            fun
+           | (l, BinHole, r) => {
+               let l_l = mk(TypeInfo_exp.binhole_l(info), l);
+               let l_r = mk(TypeInfo_exp.binhole_r(info), r);
+               (l_l, mk_BinHole(~has_caret?, ()), l_r);
+             }
            | (l, Plus, r) => {
                let l_l = mk(TypeInfo_exp.plus_l(info), l);
                let l_r = mk(TypeInfo_exp.plus_r(info), r);
                (l_l, mk_Plus(~has_caret?, ()), l_r);
              }
-           | (l, BinHole, r) => {
-               let l_l = mk(TypeInfo_exp.binhole_l(info), l);
-               let l_r = mk(TypeInfo_exp.binhole_r(info), r);
-               (l_l, mk_BinHole(~has_caret?, ()), l_r);
+           | (l, Prod, r) => {
+               let l_l = mk(TypeInfo_exp.prod_l(info), l);
+               let l_r = mk(TypeInfo_exp.prod_r(info), r);
+               (l_l, mk_Prod(~has_caret?, ()), l_r);
              }
            | (guard, Cond(then_), else_) => {
                let l_guard = mk({...info, mode: Ana(Bool)}, guard);

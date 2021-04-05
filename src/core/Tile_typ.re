@@ -11,8 +11,11 @@ let precedence: t => int =
     () => raise(Void_post),
     fun
     | BinHole => 1
-    | Arrow => 2,
+    | Arrow => 2
+    | Prod => 3,
   );
 
 let associativity =
-  [(1, Associativity.Left), (2, Right)] |> List.to_seq |> IntMap.of_seq;
+  [(1, Associativity.Left), (2, Right), (3, Left)]
+  |> List.to_seq
+  |> IntMap.of_seq;

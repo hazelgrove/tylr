@@ -18,7 +18,8 @@ module Tile = {
     | BinHole
     | Plus
     | Arrow
-    | Cond(s);
+    | Cond(s)
+    | Prod;
 };
 
 module Tessera = {
@@ -31,6 +32,7 @@ module Tessera = {
     | Ann(Tile.s)
     | Plus
     | Arrow
+    | Prod
     | Paren_l
     | Paren_r
     | Let_eq(Tile.s)
@@ -60,6 +62,7 @@ module Tessera = {
     | Lam(_)
     | Ann(_)
     | Plus
+    | Prod
     | Arrow
     | Paren_l
     | Let_eq(_) => false
@@ -78,6 +81,7 @@ module Tessera = {
     | Ann(_)
     | Paren_r => d == Right
     | BinHole
+    | Prod
     | Plus
     | Arrow
     | Let_in
@@ -93,6 +97,7 @@ module Tessera = {
     | BinHole
     | Plus
     | Arrow
+    | Prod
     | Let_in
     | Cond_then
     | Cond_else => false
@@ -108,6 +113,7 @@ module Tessera = {
     | Ann(_)
     | BinHole
     | Plus
+    | Prod
     | Arrow => true
     | Paren_l
     | Let_eq(_)

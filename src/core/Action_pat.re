@@ -15,7 +15,8 @@ module Input = {
         fun
         | Ann(_) => true,
         fun
-        | BinHole => false,
+        | BinHole
+        | Prod => false,
       )
     );
 
@@ -42,7 +43,7 @@ module Input = {
              Some(EditState_pointing.Typ((subject, frame)));
            },
          fun
-         | (_, BinHole, _) => None,
+         | (_, BinHole | Prod, _) => None,
        );
   };
 
