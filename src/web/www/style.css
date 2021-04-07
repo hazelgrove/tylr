@@ -68,7 +68,6 @@
   left: 0%;
   background-color: var(--light-page-color);
   color: var(--light-text-color);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23bc8f8f' fill-opacity='0.4' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
 }
 
 #logo {
@@ -76,9 +75,6 @@
   top: 5%;
   left: 50%;
   transform: translate(-50%, 0%);
-  background-color: var(--light-page-color);
-  box-shadow: 4px 0 24px 12px var(--light-page-color);
-  border-radius: 12px;
 }
 #logo-text {
   position: relative;
@@ -125,9 +121,6 @@
 .code {
   position: relative;
   line-height: 1.4;
-  background-color: var(--light-page-color);
-  box-shadow: 0 0 16px 8px var(--light-page-color);
-  border-radius: 8px;
 }
 
 .code-text {
@@ -427,8 +420,6 @@
 .type-info-msg .code {
   justify-self: left;
   /*margin-left: -8px;*/
-  background-color: var(--light-page-color);
-  box-shadow: 0 0 8px 4px var(--light-page-color);
 }
 
 #action-table {
@@ -456,7 +447,6 @@
   grid-auto-flow: column;
 }
 #action-table .keys {
-  background-color: var(--light-page-color);
   box-shadow: 0 0 8px -2px var(--light-page-color);
   border-radius: 3px;
   display: grid;
@@ -480,16 +470,10 @@
   font-weight: bold;
   justify-self: left;
   align-self: center;
-  background-color: var(--light-page-color);
-  box-shadow: 0 0 8px 4px var(--light-page-color);
-  border-radius: 4px;
 }
 
 #action-table .construct-shape {
   justify-self: left;
-  background-color: var(--light-page-color);
-  box-shadow: 0 0 8px 4px var(--light-page-color);
-  border-radius: 4px;
 }
 
 .emph {
