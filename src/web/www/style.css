@@ -389,9 +389,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  font: caption;
-  background-color: var(--light-page-color);
-  box-shadow: 0 0 8px 4px var(--light-page-color);
+  font: 10pt "Helvetica Neue";
   border-radius: 4px;
 }
 .sort-label {
@@ -421,12 +419,22 @@
 
 .type-info-msg .type-info-label {
   justify-self: right;
+  align-self: center;
+  background-color: var(--light-page-color);
+  box-shadow: 0 0 4px 2px var(--light-page-color);
+}
+
+.type-info-msg .code {
+  justify-self: left;
+  /*margin-left: -8px;*/
+  background-color: var(--light-page-color);
+  box-shadow: 0 0 8px 4px var(--light-page-color);
 }
 
 #action-table {
   position: relative;
   left: -128px;
-  font: 10pt "Helvetica";
+  font: 10pt "Helvetica Neue";
   display: grid;
   grid-template-columns: 120px auto;
   grid-template-rows: repeat(3, auto 20px) auto 4px repeat(5, auto 2px) auto 20px auto 4px auto;
