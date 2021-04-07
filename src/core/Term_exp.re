@@ -4,20 +4,20 @@ open Sexplib.Std;
 [@deriving sexp]
 type t = Term.t(op, pre, post, bin)
 and op =
-  // <>
+  // <_>
   | OpHole
   | Num(int)
   | Var(Var.t)
   | Paren(t)
 and pre =
-  // <<
+  // <_<
   | Lam(Term_pat.t)
   | Let(Term_pat.t, t)
 and post =
-  // >>
+  // >_>
   | Ap(t)
 and bin =
-  // ><
+  // >_<
   | Plus
   | BinHole
   | Prod
