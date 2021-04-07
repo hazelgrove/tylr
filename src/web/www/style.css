@@ -419,7 +419,7 @@
 
 .type-info-msg .code {
   justify-self: left;
-  /*margin-left: -8px;*/
+  margin-left: -6px;
 }
 
 #action-table {
