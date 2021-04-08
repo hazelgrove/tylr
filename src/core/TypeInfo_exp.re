@@ -148,7 +148,7 @@ let rec synthesize = (info: t, e: Term_exp.t): Type.t => {
          | (l, Prod, r) => {
              let ty_l = synthesize(prod_l(info), l);
              let ty_r = synthesize(prod_r(info), r);
-             subsume(Arrow(ty_l, ty_r));
+             subsume(Prod(ty_l, ty_r));
            }
          | (_cond, Cond(then_), else_) => {
              let ty_then = synthesize(info, then_);
