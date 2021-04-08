@@ -58,6 +58,7 @@ module Exp = {
 
     | Bin_l(frame, Plus, r) =>
       let (info_plus, l_frame) = mk(~show_err_holes, frame);
+      let info_l = TypeInfo_exp.plus_l(info_plus);
       let info_r = TypeInfo_exp.plus_r(info_plus);
       let l_frame = (_ty_l, l_l) => {
         let l_plus = {
@@ -70,10 +71,11 @@ module Exp = {
         let ty_plus = TypeInfo_exp.subsume(info_plus, Num);
         l_frame(ty_plus, l_plus);
       };
-      (info_plus, l_frame);
+      (info_l, l_frame);
     | Bin_r(l, Plus, frame) =>
       let (info_plus, l_frame) = mk(~show_err_holes, frame);
       let info_l = TypeInfo_exp.plus_l(info_plus);
+      let info_r = TypeInfo_exp.plus_r(info_plus);
       let l_frame = (_ty_r, l_r) => {
         let l_plus = {
           let l_l = Layout_term.Exp.mk(info_l, l);
@@ -85,7 +87,7 @@ module Exp = {
         let ty_plus = TypeInfo_exp.subsume(info_plus, Num);
         l_frame(ty_plus, l_plus);
       };
-      (info_plus, l_frame);
+      (info_r, l_frame);
 
     | Bin_l(frame, BinHole, r) =>
       let (info_binhole, l_frame) = mk(~show_err_holes, frame);
