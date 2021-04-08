@@ -64,7 +64,8 @@ module Input = {
       let p_tiles = Parser_pat.dissociate(p);
       let ann_tile = Tile.Post(Term_pat.Ann(subject));
       let ((prefix, suffix), frame) = Parser_pat.dissociate_frame(frame);
-      let subject = escaped_tile(prefix @ p_tiles, ann_tile, suffix);
+      let subject =
+        escaped_tile(List.rev(p_tiles) @ prefix, ann_tile, suffix);
       Some(EditState_pointing.Pat((subject, frame)));
     };
   };
