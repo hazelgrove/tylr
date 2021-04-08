@@ -161,7 +161,7 @@ let mk_pointing = (pointing: EditState_pointing.t) => {
           ~caret=Before(1),
           Pat((
             (
-              prefix @ inner_prefix,
+              inner_prefix @ prefix,
               [Tile.Post(Term_pat.Ann(subject)), ...suffix],
             ),
             frame,

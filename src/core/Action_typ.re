@@ -102,7 +102,7 @@ module Input = {
           );
         let selecting = (
           (side, [Selection.Tessera(selected_t)]),
-          (subj_tiles @ prefix, suffix),
+          (List.rev(subj_tiles) @ prefix, suffix),
         );
         Some(EditState_selecting.Pat((selecting, frame)));
       };
