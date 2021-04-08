@@ -141,7 +141,7 @@ module Exp = {
         };
         l_frame(ty_prod, l_prod);
       };
-      (TypeInfo_exp.prod_l(info_prod), l_frame);
+      (TypeInfo_exp.prod_r(info_prod), l_frame);
 
     | Bin_l(frame, Cond(then_), else_) =>
       let (info_cond, l_frame) = mk(~show_err_holes, frame);
