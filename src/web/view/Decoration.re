@@ -30,6 +30,7 @@ let sort_cls =
   | Some(s) => Sort.to_string(s);
 
 module Diag = {
+  // top right to bottom left
   let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.(
       switch (child_border) {
@@ -46,9 +47,11 @@ module Diag = {
         };
       }
     );
+  // bottom left to top right
   let bl_tr = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.reverse(tr_bl(~child_border?, ()));
 
+  // top left to bottom right
   let tl_br = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.(
       switch (child_border) {
@@ -64,6 +67,7 @@ module Diag = {
         };
       }
     );
+  // bottom right to top left
   let br_tl = (~child_border: option([ | `North | `South])=?, ()) =>
     SvgUtil.Path.reverse(tl_br(~child_border?, ()));
 };
@@ -83,14 +87,18 @@ module ErrHole = {
     let br_tl = expanded ? br_tl() : br_tl(~child_border=`South, ());
     let bl_tr = expanded ? bl_tr() : bl_tr(~child_border=`North, ());
     let path =
+      // 1.2 and 2.4 are hacks to get non-expanded err hole
+      // smaller and aligned with unidelimited child decorations.
+      // TODO unify these magic constants with the calculations
+      // for diagonal edges
       List.concat([
         [
-          M({x: 1., y: expanded ? 0. : child_border_thickness}),
-          H_({dx: len -. 2.}),
+          M({x: 1.2, y: expanded ? 0. : child_border_thickness}),
+          H_({dx: len -. 2.4}),
         ],
         tl_br,
         tr_bl,
-        [H_({dx: Float.neg(len -. 2.)})],
+        [H_({dx: Float.neg(len -. 2.4)})],
         br_tl,
         bl_tr,
         [Z],
