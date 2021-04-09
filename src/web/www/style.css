@@ -417,6 +417,10 @@
   box-shadow: 0 0 4px 2px var(--light-page-color);
 }
 
+.type-info-msg .inconsistent {
+  border-bottom: 1px dashed var(--hole-stroke-color);
+}
+
 .type-info-msg .code {
   justify-self: left;
   margin-left: -6px;
