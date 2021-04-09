@@ -402,11 +402,11 @@
 
 .type-info-msg {
   display: grid;
-  grid-template-columns: 120px auto;
+  grid-template-columns: 180px auto;
   grid-template-rows: auto auto auto;
   column-gap: 16px;
   position: relative;
-  left: -128px;
+  left: -188px;
   grid-auto-flow: row;
 }
 
