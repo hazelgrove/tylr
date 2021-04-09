@@ -54,7 +54,11 @@ module Pat = {
     let has_caret =
       Option.map(
         pos => {
-          let (syn_ty, _) = TypeInfo_pat.synthesize(Syn, p);
+          let (syn_ty, _) = {
+            let info =
+              TypeInfo_pat.has_err(info, p) ? TypeInfo_pat.Syn : info;
+            TypeInfo_pat.synthesize(info, p);
+          };
           (Pointing(Pat(info, syn_ty)), pos);
         },
         has_caret,
@@ -116,8 +120,12 @@ module Exp = {
     let has_caret =
       Option.map(
         pos => {
-          let syn_ty =
-            TypeInfo_exp.(synthesize({ctx: info.ctx, mode: Syn}, e));
+          let syn_ty = {
+            let info =
+              TypeInfo_exp.has_err(info, e)
+                ? TypeInfo_exp.{ctx: info.ctx, mode: Syn} : info;
+            TypeInfo_exp.(synthesize(info, e));
+          };
           (Pointing(Exp(info, syn_ty)), pos);
         },
         has_caret,
