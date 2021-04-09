@@ -316,8 +316,8 @@ module UniChild = {
     let (gradient_id, gradient) = {
       let id =
         switch (side) {
-        | Left => "open-child-gradient-left"
-        | Right => "open-child-gradient-right"
+        | Left => "uni-child-gradient-left"
+        | Right => "uni-child-gradient-right"
         };
       let (x1, x2) =
         switch (side) {
@@ -397,7 +397,7 @@ module UniChild = {
       };
     let attrs =
       Attr.[
-        classes(["open-child-path", Sort.to_string(sort)]),
+        classes(["uni-child-path", Sort.to_string(sort)]),
         create("vector-effect", "non-scaling-stroke"),
         create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
       ];
