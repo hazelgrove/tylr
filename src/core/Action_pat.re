@@ -93,7 +93,8 @@ module Input = {
       let (prefix, suffix) =
         (prefix, suffix)
         |> TupleUtil.map2(Selection.map_tile(Parser_pat.unsort));
-      let selection = prefix @ selection @ suffix;
+      let selection =
+        ListUtil.of_frame(~subject=selection, (prefix, suffix));
       // call assemble_tiles_in_selection
       let selection =
         Parser_unsorted.assemble_tiles_in_selection(
