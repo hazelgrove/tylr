@@ -7,20 +7,21 @@ module Point = {
   };
 };
 
+module Vector = {
+  type t = {
+    dx: float,
+    dy: float,
+  };
+};
+
 module Path = {
   type t = list(cmd)
   and cmd =
     | Z
     | M(Point.t)
-    | M_({
-        dx: float,
-        dy: float,
-      })
+    | M_(Vector.t)
     | L(Point.t)
-    | L_({
-        dx: float,
-        dy: float,
-      })
+    | L_(Vector.t)
     | H({x: float})
     | H_({dx: float})
     | V({y: float})
@@ -44,6 +45,15 @@ module Path = {
     | V_({dy}) => V_({dy: s *. dy});
 
   let reverse = List.rev_map(scale_cmd(-1.));
+
+  let transpose_cmd = (v: Vector.t) =>
+    fun
+    | (Z | M_(_) | L_(_) | H_(_) | V_(_) | A_(_)) as cmd => cmd
+    | M({x, y}) => M({x: x +. v.dx, y: y +. v.dy})
+    | L({x, y}) => L({x: x +. v.dx, y: y +. v.dy})
+    | H({x}) => H({x: x +. v.dx})
+    | V({y}) => V({y: y +. v.dy});
+  let transpose = v => List.map(transpose_cmd(v));
 
   let string_of_flag =
     fun

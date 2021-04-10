@@ -242,9 +242,9 @@
 
 .err-hole-path {
   fill: none;
-  stroke-dasharray: 3 2;
+  stroke-dasharray: 2 1;
   stroke: var(--hole-stroke-color);
-  stroke-width: 0.5;
+  stroke-width: 0.75;
 }
 
 .uni-child-path {

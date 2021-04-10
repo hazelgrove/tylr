@@ -31,45 +31,84 @@ let sort_cls =
 
 module Diag = {
   // top right to bottom left
-  let tr_bl = (~child_border: option([ | `North | `South])=?, ()) =>
+  let tr_bl =
+      (
+        ~hemi: [ | `North | `South],
+        ~with_child_border=false,
+        ~stretch_x=0.,
+        ~stretch_y=0.,
+        (),
+      ) =>
     SvgUtil.Path.(
-      switch (child_border) {
-      | None =>
-        let diag = L_({dx: Float.neg(tip_width), dy: 0.5});
-        [diag];
-      | Some(d) =>
-        let diag =
-          L_({dx: Float.neg(short_tip_width), dy: short_tip_height});
-        let border = H_({dx: Float.neg(0.5 -. short_tip_width)});
-        switch (d) {
-        | `North => [border, diag]
-        | `South => [diag, border]
+      {
+        let (diag, junction) =
+          with_child_border
+            ? (
+              L_({dx: Float.neg(short_tip_width), dy: short_tip_height}),
+              H_({dx: Float.neg(0.5 -. short_tip_width)}),
+            )
+            : (
+              L_({dx: Float.neg(tip_width), dy: 0.5 +. stretch_y}),
+              H_({dx: Float.neg(stretch_x)}),
+            );
+        switch (hemi) {
+        | `North => [junction, diag]
+        | `South => [diag, junction]
         };
       }
     );
   // bottom left to top right
-  let bl_tr = (~child_border: option([ | `North | `South])=?, ()) =>
-    SvgUtil.Path.reverse(tr_bl(~child_border?, ()));
+  let bl_tr =
+      (
+        ~hemi: [ | `North | `South],
+        ~with_child_border=false,
+        ~stretch_x=0.,
+        ~stretch_y=0.,
+        (),
+      ) =>
+    SvgUtil.Path.reverse(
+      tr_bl(~hemi, ~with_child_border, ~stretch_x, ~stretch_y, ()),
+    );
 
   // top left to bottom right
-  let tl_br = (~child_border: option([ | `North | `South])=?, ()) =>
+  let tl_br =
+      (
+        ~hemi: [ | `North | `South],
+        ~with_child_border=false,
+        ~stretch_x=0.,
+        ~stretch_y=0.,
+        (),
+      ) =>
     SvgUtil.Path.(
-      switch (child_border) {
-      | None =>
-        let diag = L_({dx: tip_width, dy: 0.5});
-        [diag];
-      | Some(d) =>
-        let diag = L_({dx: short_tip_width, dy: short_tip_height});
-        let border = H_({dx: 0.5 -. short_tip_width});
-        switch (d) {
-        | `North => [border, diag]
-        | `South => [diag, border]
+      {
+        let (diag, junction) =
+          with_child_border
+            ? (
+              L_({dx: short_tip_width, dy: short_tip_height}),
+              H_({dx: 0.5 -. short_tip_width}),
+            )
+            : (
+              L_({dx: tip_width, dy: 0.5 +. stretch_y}),
+              H_({dx: stretch_x}),
+            );
+        switch (hemi) {
+        | `North => [junction, diag]
+        | `South => [diag, junction]
         };
       }
     );
   // bottom right to top left
-  let br_tl = (~child_border: option([ | `North | `South])=?, ()) =>
-    SvgUtil.Path.reverse(tl_br(~child_border?, ()));
+  let br_tl =
+      (
+        ~hemi: [ | `North | `South],
+        ~with_child_border=false,
+        ~stretch_x=0.,
+        ~stretch_y=0.,
+        (),
+      ) =>
+    SvgUtil.Path.reverse(
+      tl_br(~hemi, ~with_child_border, ~stretch_x, ~stretch_y, ()),
+    );
 };
 
 module ErrHole = {
@@ -81,11 +120,40 @@ module ErrHole = {
   let view = ({expanded, len}: profile): list(Node.t) => {
     open SvgUtil.Path;
     open Diag;
+    // TODO systematize magic numbers
     let len = Float.of_int(len);
-    let tl_br = expanded ? tl_br() : tl_br(~child_border=`North, ());
-    let tr_bl = expanded ? tr_bl() : tr_bl(~child_border=`South, ());
-    let br_tl = expanded ? br_tl() : br_tl(~child_border=`South, ());
-    let bl_tr = expanded ? bl_tr() : bl_tr(~child_border=`North, ());
+    let tl_br =
+      tl_br(
+        ~hemi=`North,
+        ~with_child_border=!expanded,
+        ~stretch_x=expanded ? 0.4 : 0.,
+        ~stretch_y=expanded ? 0.09 : 0.,
+        (),
+      );
+    let tr_bl =
+      tr_bl(
+        ~hemi=`South,
+        ~with_child_border=!expanded,
+        ~stretch_x=expanded ? 0.4 : 0.,
+        ~stretch_y=expanded ? 0.09 : 0.,
+        (),
+      );
+    let br_tl =
+      br_tl(
+        ~hemi=`South,
+        ~with_child_border=!expanded,
+        ~stretch_x=expanded ? 0.4 : 0.,
+        ~stretch_y=expanded ? 0.09 : 0.,
+        (),
+      );
+    let bl_tr =
+      bl_tr(
+        ~hemi=`North,
+        ~with_child_border=!expanded,
+        ~stretch_x=expanded ? 0.4 : 0.,
+        ~stretch_y=expanded ? 0.09 : 0.,
+        (),
+      );
     let path =
       // 1.2 and 2.4 are hacks to get non-expanded err hole
       // smaller and aligned with unidelimited child decorations.
@@ -108,7 +176,12 @@ module ErrHole = {
         classes(["err-hole-path"]),
         create("vector-effect", "non-scaling-stroke"),
       ];
-    [view(~attrs, path)];
+    [
+      view(
+        ~attrs,
+        expanded ? transpose({dx: 0.03, dy: (-0.075)}, path) : path,
+      ),
+    ];
   };
 };
 
@@ -378,8 +451,8 @@ module UniChild = {
         List.concat([
           [M({x: len +. 1., y: 0.}), H_({dx: Float.neg(len)})],
           // [M({x: 0., y: 0.})],
-          tr_bl(),
-          tl_br(),
+          tr_bl(~hemi=`North, ()),
+          tl_br(~hemi=`South, ()),
           [H_({dx: len})],
           [M_({dx: 0., dy: 0.02}), H_({dx: Float.neg(len)})],
         ])
@@ -387,12 +460,12 @@ module UniChild = {
         List.concat([
           [M({x: 0., y: 0.}), H_({dx: len})],
           // [M({x: len, y: 0.})],
-          tl_br(),
-          tr_bl(),
+          tl_br(~hemi=`North, ()),
+          tr_bl(~hemi=`South, ()),
           [H_({dx: Float.neg(len)})],
           [M_({dx: 0., dy: 0.02}), H_({dx: len +. 0.03})],
-          bl_tr(),
-          br_tl(),
+          // bl_tr(),
+          // br_tl(),
         ])
       };
     let attrs =
@@ -409,11 +482,11 @@ let closed_child_path = ((start, len)) =>
   List.concat(
     SvgUtil.Path.[
       [M({x: Float.of_int(start) +. 0.5, y: child_border_thickness})],
-      Diag.tr_bl(~child_border=`North, ()),
-      Diag.tl_br(~child_border=`South, ()),
+      Diag.tr_bl(~with_child_border=true, ~hemi=`North, ()),
+      Diag.tl_br(~with_child_border=true, ~hemi=`South, ()),
       [H_({dx: Float.of_int(len - 1)})],
-      Diag.bl_tr(~child_border=`South, ()),
-      Diag.br_tl(~child_border=`North, ()),
+      Diag.bl_tr(~with_child_border=true, ~hemi=`South, ()),
+      Diag.br_tl(~with_child_border=true, ~hemi=`North, ()),
       [Z],
     ],
   );
@@ -554,14 +627,14 @@ module Tessera = {
                 // V_({dy: -. child_border_thickness}),
                 H_({dx: jagged_edge_w +. extra_tail}),
               ]
-              @ bl_tr(~child_border=`South, ())
-            : [H_({dx: Float.neg(tip_width)}), ...bl_tr()];
-        bottom_half @ br_tl() @ [H_({dx: tip_width})];
+              @ bl_tr(~with_child_border=true, ~hemi=`South, ())
+            : [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())];
+        bottom_half @ br_tl(~hemi=`North, ()) @ [H_({dx: tip_width})];
       };
       let right_tip = connects_right => {
         let bottom_half =
           connects_right
-            ? tl_br(~child_border=`South, ())
+            ? tl_br(~with_child_border=true, ~hemi=`South, ())
               @ [
                 H_({dx: extra_tail}),
                 L_({dx: jagged_edge_w, dy: jagged_edge_h}),
@@ -570,16 +643,22 @@ module Tessera = {
                 // V_({dy: child_border_thickness}),
                 H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)}),
               ]
-            : tl_br() @ [H_({dx: Float.neg(tip_width)})];
-        [H_({dx: tip_width}), ...tr_bl()] @ bottom_half;
+            : tl_br(~hemi=`South, ()) @ [H_({dx: Float.neg(tip_width)})];
+        [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())] @ bottom_half;
       };
       switch (profile.shape) {
-      | Op () => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+      | Op () => (
+          br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ()),
+          tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ()),
+        )
       | Pre(connects_right) => (
-          br_tl() @ bl_tr(),
+          br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ()),
           right_tip(connects_right),
         )
-      | Post(connects_left) => (left_tip(connects_left), tl_br() @ tr_bl())
+      | Post(connects_left) => (
+          left_tip(connects_left),
+          tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ()),
+        )
       | Bin((connects_left, connects_right)) => (
           left_tip(connects_left),
           right_tip(connects_right),
@@ -766,25 +845,28 @@ module Tile = {
     let outer_path = {
       let (left_tip, right_tip) =
         switch (profile.shape) {
-        | Op(_) => (br_tl() @ bl_tr(), tl_br() @ tr_bl())
+        | Op(_) => (
+            br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ()),
+            tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ()),
+          )
         | Pre () => (
-            br_tl() @ bl_tr(),
-            [H_({dx: tip_width}), ...tr_bl()]
-            @ tl_br()
+            br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ()),
+            [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
+            @ tl_br(~hemi=`South, ())
             @ [H_({dx: Float.neg(tip_width)})],
           )
         | Post () => (
-            [H_({dx: Float.neg(tip_width)}), ...bl_tr()]
-            @ br_tl()
+            [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
+            @ br_tl(~hemi=`North, ())
             @ [H_({dx: tip_width})],
-            tl_br() @ tr_bl(),
+            tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ()),
           )
         | Bin(_) => (
-            [H_({dx: Float.neg(tip_width)}), ...bl_tr()]
-            @ br_tl()
+            [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
+            @ br_tl(~hemi=`North, ())
             @ [H_({dx: tip_width})],
-            [H_({dx: tip_width}), ...tr_bl()]
-            @ tl_br()
+            [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
+            @ tl_br(~hemi=`South, ())
             @ [H_({dx: Float.neg(tip_width)})],
           )
         };
@@ -793,11 +875,11 @@ module Tile = {
         |> List.map(((start, len)) =>
              List.concat([
                [H({x: Float.of_int(start) +. tip_width})],
-               tr_bl(),
-               tl_br(~child_border=`South, ()),
+               tr_bl(~hemi=`North, ()),
+               tl_br(~with_child_border=true, ~hemi=`South, ()),
                [H_({dx: Float.of_int(len - 1)})],
-               bl_tr(~child_border=`South, ()),
-               br_tl(),
+               bl_tr(~with_child_border=true, ~hemi=`South, ()),
+               br_tl(~hemi=`North, ()),
              ])
            )
         |> List.concat;
