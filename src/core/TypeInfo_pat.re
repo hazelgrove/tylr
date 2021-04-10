@@ -20,6 +20,12 @@ let ann_has_err = (ty_ann: Type.t, info_ann: t): bool =>
   | Ana(ty) => !Type.consistent(ty_ann, ty)
   };
 
+let prod_has_err = (info_prod: t) =>
+  switch (info_prod) {
+  | Ana(ty) => !Type.consistent(ty, Prod(Hole, Hole))
+  | Syn
+  | Let_pat(_) => false
+  };
 let prod_l = (info_prod: t) =>
   switch (info_prod) {
   | Syn
@@ -67,12 +73,7 @@ let has_err = (info: t) =>
         },
       fun
       | (_, BinHole, _) => false
-      | (_, Prod, _) =>
-        switch (info) {
-        | Ana(ty) => !Type.consistent(ty, Prod(Hole, Hole))
-        | Syn
-        | Let_pat(_) => false
-        },
+      | (_, Prod, _) => prod_has_err(info),
     )
   );
 

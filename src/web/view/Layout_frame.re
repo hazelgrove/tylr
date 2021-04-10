@@ -121,8 +121,9 @@ module Exp = {
           TypeInfo_exp.subsume(info_prod, Prod(ty_l, ty_r));
         };
         let l_prod = {
+          let has_err = TypeInfo_exp.prod_has_err(info_prod);
           let l_r = Layout_term.Exp.mk(info_r, r);
-          cats([l_l, fst(mk_Prod()), l_r]);
+          err_hole(has_err, cats([l_l, fst(mk_Prod()), l_r]));
         };
         l_frame(ty_prod, l_prod);
       };
@@ -136,8 +137,9 @@ module Exp = {
           TypeInfo_exp.subsume(info_prod, Prod(ty_l, ty_r));
         };
         let l_prod = {
+          let has_err = TypeInfo_exp.prod_has_err(info_prod);
           let l_l = Layout_term.Exp.mk(info_l, l);
-          cats([l_l, fst(mk_Prod()), l_r]);
+          err_hole(has_err, cats([l_l, fst(mk_Prod()), l_r]));
         };
         l_frame(ty_prod, l_prod);
       };
@@ -247,7 +249,9 @@ module Pat = {
     | Uni(uni) => mk_uni(~show_err_holes, uni)
     | Bi(bi) => mk_bi(~show_err_holes, bi)
     }
-  and mk_uni = (~show_err_holes, uni: Frame_pat.unidelimited) =>
+  and mk_uni = (~show_err_holes, uni: Frame_pat.unidelimited) => {
+    let err_hole = (has_err, l) =>
+      err_hole(has_err && show_err_holes, true, l);
     switch (uni) {
     | Pre_r((), _) => raise(Term_pat.Void_pre)
 
@@ -297,8 +301,9 @@ module Pat = {
           (ty_prod, ctx);
         };
         let l_prod = {
+          let has_err = TypeInfo_pat.prod_has_err(info_prod);
           let l_r = Layout_term.Pat.mk(info_r, r);
-          cats([l_l, fst(mk_Prod()), l_r]);
+          err_hole(has_err, cats([l_l, fst(mk_Prod()), l_r]));
         };
         l_frame(ty_prod, ctx_prod, l_prod);
       };
@@ -314,13 +319,15 @@ module Pat = {
           (ty_prod, ctx);
         };
         let l_prod = {
+          let has_err = TypeInfo_pat.prod_has_err(info_prod);
           let l_l = Layout_term.Pat.mk(info_l, l);
-          cats([l_l, fst(mk_Prod()), l_r]);
+          err_hole(has_err, cats([l_l, fst(mk_Prod()), l_r]));
         };
         l_frame(ty_prod, ctx_prod, l_prod);
       };
       (TypeInfo_pat.prod_r(info_prod), l_frame);
-    }
+    };
+  }
   and mk_bi = (~show_err_holes, bi: Frame_pat.bidelimited) => {
     let err_hole = (has_err, l) =>
       err_hole(has_err && show_err_holes, true, l);
