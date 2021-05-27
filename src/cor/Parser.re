@@ -106,7 +106,7 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
   fun
   | Pat(frame) =>
     switch (frame) {
-    | Paren(((prefix, suffix), frame)) =>
+    | Paren_body(((prefix, suffix), frame)) =>
       let prefix = [
         Selem.Token(Pat(Paren_l)),
         ...Selection.of_tiles_pat(prefix),
@@ -138,7 +138,7 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
     }
   | Exp(frame) =>
     switch (frame) {
-    | Paren(((prefix, suffix), frame)) =>
+    | Paren_body(((prefix, suffix), frame)) =>
       let prefix = [
         Selem.Token(Exp(Paren_l)),
         ...Selection.of_tiles_exp(prefix),
@@ -158,6 +158,47 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
       ];
       ((prefix, suffix), Exp(frame));
     };
+
+let assemble_frame =
+    (
+      frame_t: (AltList.t(Token.t, Tiles.t) as 't, 't),
+      frame_s: (Tiles.t, Tiles.t),
+      frame: Frame.t,
+    )
+    : option(Frame.t) =>
+  switch (frame_t, frame_s, frame) {
+  | (
+      ((Pat(Paren_l), []), (Pat(Paren_r), [])),
+      (Pat(prefix), Pat(suffix)),
+      Pat(frame),
+    ) =>
+    Some(Pat(Paren_body(((prefix, suffix), frame))))
+  | (
+      ((Exp(Lam_lam), []), (Exp(Lam_dot), [])),
+      (Exp(prefix), Exp(suffix)),
+      Exp(frame),
+    ) =>
+    Some(Pat(Lam_pat(((prefix, suffix), frame))))
+  | (
+      ((Exp(Let_let), []), (Exp(Let_eq), [(Exp(def), Exp(Let_in))])),
+      (Exp(prefix), Exp(suffix)),
+      Exp(frame),
+    ) =>
+    Some(Pat(Let_pat(def, ((prefix, suffix), frame))))
+  | (
+      ((Exp(Paren_l), []), (Exp(Paren_r), [])),
+      (Exp(prefix), Exp(suffix)),
+      Exp(frame),
+    ) =>
+    Some(Exp(Paren_body(((prefix, suffix), frame))))
+  | (
+      ((Exp(Let_eq), [(Pat(p), Exp(Let_let))]), (Exp(Let_in), [])),
+      (Exp(prefix), Exp(suffix)),
+      Exp(frame),
+    ) =>
+    Some(Exp(Let_def(p, ((prefix, suffix), frame))))
+  | _ => None
+  };
 
 // let rec parse_zipper = (
 //   (prefix, suffix): Selection.frame,
