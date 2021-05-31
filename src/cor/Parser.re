@@ -40,15 +40,11 @@ let rec find_token =
         : option((Tiles.t, Token.t, Selection.t)) =>
   switch (selection) {
   | [] => None
-  | [Token(found_token), ...selection] =>
-    let (_, tile_sort) = Token.tip(Direction.toggle(d), found_token);
-    let preceding_tiles = Tiles.nil(tile_sort);
-    Some((preceding_tiles, found_token, selection));
+  | [Token(found_token), ...selection] => Some(([], found_token, selection))
   | [Tile(tile), ...selection] =>
-    let* (preceding_tiles, found_token, selection) =
+    let+ (preceding_tiles, found_token, selection) =
       find_token(d, selection);
-    let+ preceding_tiles = Tiles.cons(tile, preceding_tiles);
-    (preceding_tiles, found_token, selection);
+    ([tile, ...preceding_tiles], found_token, selection);
   };
 
 let rec find_rest_of_tile =
@@ -71,21 +67,32 @@ let rec find_rest_of_tile =
 // TODO direction
 let assemble_tile: AltList.t(Token.t, Tiles.t) => option(Tile.t) =
   fun
-  | (Pat(Paren_l), [(Pat(body), Pat(Paren_r))]) =>
-    Some(Pat(Paren(body)))
-  | (Exp(Paren_l), [(Exp(body), Exp(Paren_r))]) =>
-    Some(Exp(Paren(body)))
-  | (Exp(Lam_lam), [(Pat(p), Exp(Lam_dot))]) => Some(Exp(Lam(p)))
-  | (Exp(Let_let), [(Pat(p), Exp(Let_eq)), (Exp(def), Exp(Let_in))]) =>
-    Some(Exp(Let(p, def)))
+  | (Pat(Paren_l), [(body, Pat(Paren_r))]) => {
+      let+ body = Tiles.get_pat(body);
+      Tile.Pat(Paren(body));
+    }
+  | (Exp(Paren_l), [(body, Exp(Paren_r))]) => {
+      let+ body = Tiles.get_exp(body);
+      Tile.Exp(Paren(body));
+    }
+  | (Exp(Lam_lam), [(p, Exp(Lam_dot))]) => {
+      let+ p = Tiles.get_pat(p);
+      Tile.Exp(Lam(p));
+    }
+  | (Exp(Let_let), [(p, Exp(Let_eq)), (def, Exp(Let_in))]) => {
+      let+ p = Tiles.get_pat(p)
+      and+ def = Tiles.get_exp(def);
+      Tile.Exp(Let(p, def));
+    }
   | _ => None;
+
+let flatten = l =>
+  l
+  |> AltList.even_to_list(Selection.of_tiles, t => [Selem.Token(t)])
+  |> List.flatten;
 
 let rec parse_selection =
         (d: Direction.t, selection: Selection.t): Selection.t => {
-  let flatten = l =>
-    l
-    |> AltList.even_to_list(Selection.of_tiles, t => [Selem.Token(t)])
-    |> List.flatten;
   switch (find_token(d, selection)) {
   | None => selection
   | Some((tiles, token, selection)) =>
@@ -162,59 +169,93 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
 let assemble_frame =
     (
       frame_t: (AltList.t(Token.t, Tiles.t) as 't, 't),
-      frame_s: (Tiles.t, Tiles.t),
+      (prefix, suffix): Selection.frame,
       frame: Frame.t,
     )
-    : option(Frame.t) =>
-  switch (frame_t, frame_s, frame) {
+    : option(Frame.t) => {
+  let* prefix = Selection.get_tiles(prefix);
+  let* suffix = Selection.get_tiles(suffix);
+  switch (frame_t, frame) {
+  | (((Pat(Paren_l), []), (Pat(Paren_r), [])), Pat(frame)) =>
+    let+ prefix = Tiles.get_pat(prefix)
+    and+ suffix = Tiles.get_pat(suffix);
+    Frame.Pat(Paren_body(((prefix, suffix), frame)));
+  | (((Exp(Lam_lam), []), (Exp(Lam_dot), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Pat(Lam_pat(((prefix, suffix), frame)));
   | (
-      ((Pat(Paren_l), []), (Pat(Paren_r), [])),
-      (Pat(prefix), Pat(suffix)),
-      Pat(frame),
-    ) =>
-    Some(Pat(Paren_body(((prefix, suffix), frame))))
-  | (
-      ((Exp(Lam_lam), []), (Exp(Lam_dot), [])),
-      (Exp(prefix), Exp(suffix)),
+      ((Exp(Let_let), []), (Exp(Let_eq), [(def, Exp(Let_in))])),
       Exp(frame),
     ) =>
-    Some(Pat(Lam_pat(((prefix, suffix), frame))))
+    let+ def = Tiles.get_exp(def)
+    and+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Pat(Let_pat(def, ((prefix, suffix), frame)));
+  | (((Exp(Paren_l), []), (Exp(Paren_r), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Paren_body(((prefix, suffix), frame)));
   | (
-      ((Exp(Let_let), []), (Exp(Let_eq), [(Exp(def), Exp(Let_in))])),
-      (Exp(prefix), Exp(suffix)),
+      ((Exp(Let_eq), [(p, Exp(Let_let))]), (Exp(Let_in), [])),
       Exp(frame),
     ) =>
-    Some(Pat(Let_pat(def, ((prefix, suffix), frame))))
-  | (
-      ((Exp(Paren_l), []), (Exp(Paren_r), [])),
-      (Exp(prefix), Exp(suffix)),
-      Exp(frame),
-    ) =>
-    Some(Exp(Paren_body(((prefix, suffix), frame))))
-  | (
-      ((Exp(Let_eq), [(Pat(p), Exp(Let_let))]), (Exp(Let_in), [])),
-      (Exp(prefix), Exp(suffix)),
-      Exp(frame),
-    ) =>
-    Some(Exp(Let_def(p, ((prefix, suffix), frame))))
+    let+ p = Tiles.get_pat(p)
+    and+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Let_def(p, ((prefix, suffix), frame)));
   | _ => None
   };
+};
 
-// let rec parse_zipper = (
-//   (prefix, suffix): Selection.frame,
-//   frame: Frame.t,
-// )
-// : (Selection.frame, Frame.t) => {
-//   let* (tiles_pre, token_pre, prefix) = find_token(Left, prefix);
-//   let* (tiles_suf, token_suf, suffix) = find_token(Right, suffix);
-
-//   // let rec go = (
-//   //   d: Direction.t,
-//   //   affix: Selection.t,
-//   // )
-//   // : option(list(AltList.even(Tiles.t, Token.t)))
-// }
-let parse_zipper = _ => failwith("todo");
+let rec parse_zipper =
+        ((prefix, suffix) as sframe: Selection.frame, frame: Frame.t)
+        : (Selection.frame, Frame.t) => {
+  switch (find_token(Left, prefix), find_token(Right, suffix)) {
+  | (None, _)
+  | (_, None) => (sframe, frame)
+  | (
+      Some((tiles_pre, token_pre, prefix)),
+      Some((tiles_suf, token_suf, suffix)),
+    ) =>
+    switch (
+      find_rest_of_tile(Left, token_pre, prefix),
+      find_rest_of_tile(Right, token_suf, suffix),
+    ) {
+    | (None, _)
+    | (_, None) =>
+      let (sframe', frame') = parse_zipper((prefix, suffix), frame);
+      let sframe' =
+        ListFrame.append(
+          (
+            flatten([(tiles_pre, token_pre)]),
+            flatten([(tiles_suf, token_suf)]),
+          ),
+          sframe',
+        );
+      (sframe', frame');
+    | (Some((rest_of_tile_pre, prefix)), Some((rest_of_tile_suf, suffix))) =>
+      let ((prefix', suffix'), frame') =
+        parse_zipper((prefix, suffix), frame);
+      let tile_pre = (token_pre, rest_of_tile_pre);
+      let tile_suf = (token_suf, rest_of_tile_suf);
+      switch (
+        assemble_frame((tile_pre, tile_suf), (prefix', suffix'), frame')
+      ) {
+      | None =>
+        let prefix'' =
+          flatten([(tiles_pre, token_pre), ...rest_of_tile_pre]);
+        let suffix'' =
+          flatten([(tiles_suf, token_suf), ...rest_of_tile_suf]);
+        ((prefix'' @ prefix', suffix'' @ suffix'), frame');
+      | Some(frame'') =>
+        let prefix'' = Selection.of_tiles(tiles_pre);
+        let suffix'' = Selection.of_tiles(tiles_suf);
+        ((prefix'', suffix''), frame'');
+      };
+    }
+  };
+};
 
 let fix_holes =
     (ltip: Tip.t, (prefix, suffix): Selection.frame, rtip: Tip.t)

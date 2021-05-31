@@ -28,8 +28,9 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         switch (Parser.disassemble_selem(selem)) {
         | [] =>
           // [MoveRightAtomic]
-          let subject = Subject.Pointing((prefix @ [selem], suffix));
-          Some(Parser.parse_zipper((subject, frame)));
+          let (sframe, frame) =
+            Parser.parse_zipper(([selem, ...prefix], suffix), frame);
+          Some((Pointing(sframe), frame));
         | [_, ..._] as disassembled =>
           // [MoveRightDisassembles]
           let subject = Subject.Pointing((prefix, disassembled @ suffix));
@@ -96,7 +97,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         | [] =>
           // [SelectRightAtomic]
           let (sframe', frame') =
-            Parser.parse_zipper((([selem, ...prefix], suffix), frame));
+            Parser.parse_zipper(([selem, ...prefix], suffix), frame);
           let subject = Subject.Selecting(selection, sframe');
           Some((subject, frame'));
         | [_, ..._] as disassembled =>
@@ -109,21 +110,22 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   | Restructuring(selection, (prefix, suffix) as sframe) =>
     switch (a) {
     | Mark =>
-      switch (Selection.is_whole(selection)) {
-      | Some(tiles) when Tiles.sort(tiles) != Frame.sort(frame) => None
-      | _ =>
+      if (Selection.is_partial(selection)
+          || Selection.is_whole(Frame.sort(frame), selection)) {
         // [MarkRestructuring]
         let tip = Tip.(Convex, Frame.sort(frame));
-        let subject =
-          Subject.Pointing(
+        let (sframe, frame) =
+          Parser.parse_zipper(
             Parser.fix_holes(tip, (prefix, selection @ suffix), tip),
+            frame,
           );
-        Some(Parser.parse_zipper((subject, frame)));
+        Some((Pointing(sframe), frame));
+      } else {
+        None;
       }
     | Move(Left) => failwith("todo")
     | Move(Right) =>
-      switch (Selection.is_whole(selection)) {
-      | None =>
+      if (Selection.is_whole_any(selection)) {
         // [MoveRightRestructuringWhole]
         switch (suffix) {
         | []
@@ -132,13 +134,13 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
           let subject =
             Subject.Restructuring(selection, ([selem, ...prefix], suffix));
           Some((subject, frame));
-        }
-      | Some(_) =>
+        };
+      } else {
         switch (perform(a, (Pointing(sframe), frame))) {
         | Some((Pointing(sframe'), frame')) =>
           Some((Restructuring(selection, sframe'), frame'))
         | _ => None
-        }
+        };
       }
     | Delete =>
       let s = Frame.sort(frame);

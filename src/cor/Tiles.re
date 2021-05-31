@@ -1,22 +1,28 @@
-type t =
-  | Pat(list(Tile_pat.t))
-  | Exp(list(Tile_exp.t));
+open Sexplib.Std;
+open Util;
 
-let get = (get_pat, get_exp) =>
-  fun
-  | Pat(ts) => get_pat(ts)
-  | Exp(ts) => get_exp(ts);
+[@deriving sexp]
+type t = list(Tile.t);
 
-let sort = get(_ => Sort.Pat, _ => Sort.Exp);
+let get_pat = ts => ts |> List.map(Tile.get_pat) |> OptUtil.sequence;
+let get_exp = ts => ts |> List.map(Tile.get_exp) |> OptUtil.sequence;
+/*
+ let get = (get_pat, get_exp) =>
+   fun
+   | Pat(ts) => get_pat(ts)
+   | Exp(ts) => get_exp(ts);
 
-let nil =
-  fun
-  | Sort.Pat => Pat([])
-  | Exp => Exp([]);
+ let sort = get(_ => Sort.Pat, _ => Sort.Exp);
 
-let cons = (tile: Tile.t, tiles: t) =>
-  switch (tile, tiles) {
-  | (Pat(tile), Pat(tiles)) => Some(Pat([tile, ...tiles]))
-  | (Exp(tile), Exp(tiles)) => Some(Exp([tile, ...tiles]))
-  | _ => None
-  };
+ let nil =
+   fun
+   | Sort.Pat => Pat([])
+   | Exp => Exp([]);
+
+ let cons = (tile: Tile.t, tiles: t) =>
+   switch (tile, tiles) {
+   | (Pat(tile), Pat(tiles)) => Some(Pat([tile, ...tiles]))
+   | (Exp(tile), Exp(tiles)) => Some(Exp([tile, ...tiles]))
+   | _ => None
+   };
+ */
