@@ -3,6 +3,9 @@ type t =
   | Pat(Tile_pat.t)
   | Exp(Tile_exp.t);
 
+let pat = t => Pat(t);
+let exp = t => Exp(t);
+
 let get = (get_pat, get_exp) =>
   fun
   | Pat(t) => get_pat(t)
@@ -29,3 +32,5 @@ let mk_hole =
   | (Concave, Pat) => Pat(BinHole)
   | (Convex, Exp) => Exp(OpHole)
   | (Concave, Exp) => Exp(BinHole);
+
+let precedence = get(Tile_pat.precedence, Tile_exp.precedence);

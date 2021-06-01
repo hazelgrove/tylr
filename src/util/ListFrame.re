@@ -29,6 +29,12 @@ let rec split_nth = (n: int, xs: list('x)): ('x, t('x)) =>
     (subj, (prefix @ [x], suffix));
   };
 
+let split_sublist = ((i: int, j: int), xs: list('x)): (list('x), t('x)) => {
+  let (prefix, suffix) = mk(j, xs);
+  let (prefix, sublist) = mk(i, List.rev(prefix));
+  (sublist, (prefix, suffix));
+};
+
 let to_list = (~subject: list('x)=[], (prefix, suffix): t('x)) =>
   List.concat([List.rev(prefix), subject, suffix]);
 

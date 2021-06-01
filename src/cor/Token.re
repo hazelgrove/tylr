@@ -3,14 +3,16 @@ type t =
   | Pat(Token_pat.t)
   | Exp(Token_exp.t);
 
-let map = (f_pat, f_exp) =>
+let get = (get_pat, get_exp) =>
   fun
-  | Pat(t) => f_pat(t)
-  | Exp(t) => f_exp(t);
+  | Pat(t) => get_pat(t)
+  | Exp(t) => get_exp(t);
 
-let tip = d => map(Token_pat.tip(d), Token_exp.tip(d));
+let sort = get(_ => Sort.Pat, _ => Sort.Exp);
 
-let is_end = d => map(Token_pat.is_end(d), Token_exp.is_end(d));
+let tip = d => get(Token_pat.tip(d), Token_exp.tip(d));
+
+let is_end = d => get(Token_pat.is_end(d), Token_exp.is_end(d));
 
 let is_next = (d: Direction.t, t1: t, t2: t) =>
   switch (t1, t2) {

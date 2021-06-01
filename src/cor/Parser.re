@@ -109,7 +109,7 @@ let rec parse_selection =
   };
 };
 
-let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
+let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
   fun
   | Pat(frame) =>
     switch (frame) {
@@ -122,7 +122,7 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
         Selem.Token(Pat(Paren_r)),
         ...Selection.of_tiles_pat(suffix),
       ];
-      ((prefix, suffix), Pat(frame));
+      Some(((prefix, suffix), Pat(frame)));
     | Lam_pat(((prefix, suffix), frame)) =>
       let prefix = [
         Selem.Token(Exp(Lam_lam)),
@@ -132,7 +132,7 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
         Selem.Token(Exp(Lam_dot)),
         ...Selection.of_tiles_exp(suffix),
       ];
-      ((prefix, suffix), Exp(frame));
+      Some(((prefix, suffix), Exp(frame)));
     | Let_pat(def, ((prefix, suffix), frame)) =>
       let prefix = [
         Selem.Token(Exp(Let_let)),
@@ -141,10 +141,11 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
       let suffix =
         [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
         @ [Token(Exp(Let_in)), ...Selection.of_tiles_exp(suffix)];
-      ((prefix, suffix), Exp(frame));
+      Some(((prefix, suffix), Exp(frame)));
     }
   | Exp(frame) =>
     switch (frame) {
+    | Root => None
     | Paren_body(((prefix, suffix), frame)) =>
       let prefix = [
         Selem.Token(Exp(Paren_l)),
@@ -154,7 +155,7 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
         Selem.Token(Exp(Paren_r)),
         ...Selection.of_tiles_exp(suffix),
       ];
-      ((prefix, suffix), Exp(frame));
+      Some(((prefix, suffix), Exp(frame)));
     | Let_def(p, ((prefix, suffix), frame)) =>
       let prefix =
         [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_pat(p)]
@@ -163,7 +164,7 @@ let disassemble_frame: Frame.t => (Selection.frame, Frame.t) =
         Selem.Token(Exp(Let_in)),
         ...Selection.of_tiles_exp(suffix),
       ];
-      ((prefix, suffix), Exp(frame));
+      Some(((prefix, suffix), Exp(frame)));
     };
 
 let assemble_frame =
@@ -282,4 +283,143 @@ let fix_holes =
   let inserted_hole =
     rtip_suffix == rtip ? [] : [Selem.Tile(Tile.mk_hole(rtip))];
   (List.rev(fixed_prefix), fixed_suffix @ inserted_hole);
+};
+
+type itile = (int, Tile.t);
+let associate = (tiles: Tiles.t): Skel.t => {
+  let push_output =
+      ((i, tile): itile, output_stack: list(Skel.t)): list(Skel.t) =>
+    switch (Tile.tip(Left, tile), Tile.tip(Right, tile)) {
+    | ((Convex, _), (Convex, _)) => [Op(i), ...output_stack]
+    | ((Convex, _), (Concave, _)) =>
+      switch (output_stack) {
+      | [] => failwith("impossible: pre encountered empty stack")
+      | [skel, ...skels] => [Pre(i, skel), ...skels]
+      }
+    | ((Concave, _), (Convex, _)) =>
+      switch (output_stack) {
+      | [] => failwith("impossible: post encountered empty stack")
+      | [skel, ...skels] => [Post(skel, i), ...skels]
+      }
+    | ((Concave, _), (Concave, _)) =>
+      switch (output_stack) {
+      | []
+      | [_] =>
+        failwith("impossible: bin encountered empty or singleton stack")
+      | [skel1, skel2, ...skels] => [Bin(skel2, i, skel1), ...skels]
+      }
+    };
+
+  let process_operand = (~output_stack, ~shunted_stack, op) => (
+    output_stack,
+    [op, ...shunted_stack],
+  );
+
+  let rec process_preop =
+          (
+            ~output_stack: list(Skel.t),
+            ~shunted_stack: list(itile),
+            ipreop: itile,
+          ) => {
+    switch (shunted_stack) {
+    | [] => (output_stack, [ipreop, ...shunted_stack])
+    | [(_, tile) as itile, ...itiles] =>
+      switch (Tile.tip(Right, tile)) {
+      | (Concave, _) => (output_stack, [ipreop, ...shunted_stack])
+      | (Convex, _) =>
+        process_preop(
+          ~output_stack=push_output(itile, output_stack),
+          ~shunted_stack=itiles,
+          ipreop,
+        )
+      }
+    };
+  };
+
+  // assumes postops lose ties with preops and binops
+  let rec process_postop =
+          (
+            ~output_stack: list(Skel.t),
+            ~shunted_stack: list(itile),
+            (_, post) as ipostop: itile,
+          ) =>
+    switch (shunted_stack) {
+    | [] => (output_stack, [ipostop, ...shunted_stack])
+    | [(_, tile) as itile, ...itiles] =>
+      switch (Tile.tip(Right, tile)) {
+      | (Convex, _) =>
+        process_postop(
+          ~output_stack=push_output(itile, output_stack),
+          ~shunted_stack=itiles,
+          ipostop,
+        )
+      | (Concave, _) =>
+        Tile.precedence(tile) <= Tile.precedence(post)
+          ? process_postop(
+              ~output_stack=push_output(itile, output_stack),
+              ~shunted_stack=itiles,
+              ipostop,
+            )
+          : (output_stack, [ipostop, ...shunted_stack])
+      }
+    };
+
+  // currently assumes all binops are left-associative
+  // and binops lose ties with preops
+  let rec process_binop =
+          (
+            ~output_stack: list(Skel.t),
+            ~shunted_stack: list(itile),
+            (_, bin) as ibinop: itile,
+          ) =>
+    switch (shunted_stack) {
+    | [] => (output_stack, [ibinop, ...shunted_stack])
+    | [(_, tile) as itile, ...itiles] =>
+      switch (Tile.tip(Right, tile)) {
+      | (Convex, _) =>
+        process_binop(
+          ~output_stack=push_output(itile, output_stack),
+          ~shunted_stack=itiles,
+          ibinop,
+        )
+      | (Concave, _) =>
+        Tile.precedence(tile) <= Tile.precedence(bin)
+          ? process_binop(
+              ~output_stack=push_output(itile, output_stack),
+              ~shunted_stack=itiles,
+              ibinop,
+            )
+          : (output_stack, [ibinop, ...shunted_stack])
+      }
+    };
+
+  let rec go =
+          (
+            ~output_stack: list(Skel.t)=[],
+            ~shunted_stack: list(itile)=[],
+            itiles: list(itile),
+          )
+          : list(Skel.t) => {
+    switch (itiles) {
+    | [] =>
+      shunted_stack
+      |> List.fold_left(
+           (output_stack, t) => push_output(t, output_stack),
+           output_stack,
+         )
+    | [(_, tile) as itile, ...itiles] =>
+      let process =
+        switch (Tile.tip(Left, tile), Tile.tip(Right, tile)) {
+        | ((Convex, _), (Convex, _)) => process_operand
+        | ((Convex, _), (Concave, _)) => process_preop
+        | ((Concave, _), (Convex, _)) => process_postop
+        | ((Concave, _), (Concave, _)) => process_binop
+        };
+      let (output_stack, shunted_stack) =
+        process(~output_stack, ~shunted_stack, itile);
+      go(~output_stack, ~shunted_stack, itiles);
+    };
+  };
+
+  tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
 };

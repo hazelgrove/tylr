@@ -11,13 +11,15 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   switch (subject) {
   | Pointing((prefix, suffix) as sframe) =>
     switch (a) {
-    | Mark => Some((Selecting([], sframe), frame))
+    | Mark =>
+      // [MarkPointing]
+      Some((Selecting([], sframe), frame))
     | Move(Left) => failwith("todo")
     | Move(Right) =>
       switch (suffix) {
       | [] =>
         // [MoveRightFrame]
-        let ((prefix', suffix'), frame') = Parser.disassemble_frame(frame);
+        let* ((prefix', suffix'), frame') = Parser.disassemble_frame(frame);
         switch (suffix') {
         | [] => None
         | [_, ..._] =>
@@ -68,7 +70,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       switch (prefix) {
       | [] =>
         // [SelectLeftFrame]
-        let (sframe', frame') = Parser.disassemble_frame(frame);
+        let* (sframe', frame') = Parser.disassemble_frame(frame);
         let subject =
           Subject.Selecting(selection, ListFrame.append(sframe, sframe'));
         perform(a, (subject, frame'));
@@ -143,6 +145,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         };
       }
     | Delete =>
+      // [Delete]
       let s = Frame.sort(frame);
       let tip = Tip.(Convex, s);
       let prefix' = Selection.filter_tiles(s, prefix);
