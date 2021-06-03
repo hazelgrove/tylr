@@ -2,48 +2,8 @@ open Sexplib.Std;
 open Util;
 open Cor;
 
-[@deriving sexp]
-type tile_shape = {
-  ltip: Tip.t,
-  rtip: Tip.t,
-  is_hole: bool,
-};
-[@deriving sexp]
-type tile_style = {
-  sort: option(Sort.t),
-  highlighted: bool,
-  show_children: bool,
-  raised: bool,
-  stretched: bool,
-};
-let mk_tile_style =
-    (
-      ~highlighted=false,
-      ~show_children=false,
-      ~raised=false,
-      ~stretched=false,
-      ~sort=?,
-      (),
-    ) => {
-  sort,
-  highlighted,
-  show_children,
-  raised,
-  stretched,
-};
-
-type selem_style =
-  | Logo(option(Sort.t))
-  | Root(Sort.t)
-  | Filtered
-  | Revealed({show_children: bool})
-  | Selected;
-
 type tip_shape = (Tip.shape, int);
 type selem_shape = (tip_shape, tip_shape);
-
-[@deriving sexp]
-type selection_style = {unfocused: bool};
 
 type t =
   | Text(string)
@@ -56,9 +16,8 @@ and annot =
   | ClosedChild
   | OpenChild
   | UniChild(Sort.t, Direction.t)
-  | Tile(tile_shape, tile_style)
-  | Selem(selem_shape, selem_style)
-  | Selection(selection_style)
+  | Selem(option(Sort.t), selem_shape, SelemStyle.t)
+// | Selected
 and caret =
   | Pointing
   | Selecting
@@ -285,16 +244,16 @@ let selem_shape = selem => {
   ((lshape, ltails), (rshape, rtails));
 };
 
-let mk_selem = (~style: option(selem_style)=?, selem: Selem.t) => {
+let mk_selem = (~sort=?, ~style: option(SelemStyle.t)=?, selem: Selem.t) => {
   let l = selem |> Selem.get(mk_token, tile => fst(mk_tile(tile)));
   switch (style) {
   | None => l
-  | Some(style) => annot(Selem(selem_shape(selem), style), l)
+  | Some(style) => annot(Selem(sort, selem_shape(selem), style), l)
   };
 };
 
-let mk_selection = (~style: option(selem_style)=?, selection) =>
-  spaces(List.map(mk_selem(~style?), selection));
+let mk_selection = (~sort=?, ~style: option(SelemStyle.t)=?, selection) =>
+  spaces(List.map(mk_selem(~sort?, ~style?), selection));
 
 let zip_up =
     (subject: Selection.t, frame: Frame.t)
@@ -364,7 +323,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     let (root_tile, dangling_caret) =
       mk_tile(~caret=(Pointing, caret), root_tile)
       |> PairUtil.map_fst(
-           annot(Selem(selem_shape(Tile(root_tile)), Root(sort))),
+           annot(Selem(Some(sort), selem_shape(Tile(root_tile)), Root)),
          );
     let child_pre = uni_child(~side=Left, mk_tiles(List.rev(child_pre)));
     let child_suf = uni_child(~side=Right, mk_tiles(child_suf));

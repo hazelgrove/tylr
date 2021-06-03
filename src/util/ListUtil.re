@@ -43,6 +43,8 @@ let is_empty =
   | [] => true
   | _ => false;
 
+let flat_map = (f, l) => List.flatten(List.map(f, l));
+
 let rec join = (sep: 'x, xs: list('x)): list('x) =>
   switch (xs) {
   | [] => []

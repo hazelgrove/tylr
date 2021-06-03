@@ -2,6 +2,6 @@
 
 (library
  (name wb)
- (libraries sexplib util cor)
+ (libraries sexplib incr_dom util cor)
  (preprocess
   (pps js_of_ocaml-ppx ppx_let ppx_sexp_conv)))
