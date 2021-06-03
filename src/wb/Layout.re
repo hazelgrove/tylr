@@ -381,3 +381,9 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     );
   };
 };
+
+let mk_zipper = (zipper: Zipper.t) =>
+  switch (zipper) {
+  | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
+  | _ => failwith("todo")
+  };

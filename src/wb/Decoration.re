@@ -525,6 +525,54 @@ module Selem = {
     style,
   };
 
+  let raised_shadow_filter = (~sort: option(Sort.t)=?, ()) => {
+    let s =
+      switch (sort) {
+      | None => "unsorted"
+      | Some(s) => Sort.to_string(s)
+      };
+    Node.create_svg(
+      "filter",
+      [Attr.id("raised-drop-shadow-" ++ s)],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tile-drop-shadow"]),
+            Attr.create("dx", raised_shadow_dx),
+            Attr.create("dy", raised_shadow_dy),
+            Attr.create("stdDeviation", "0"),
+          ],
+          [],
+        ),
+      ],
+    );
+  };
+
+  let shadow_filter = (~sort: option(Sort.t)=?, ()) => {
+    let s =
+      switch (sort) {
+      | None => "unsorted"
+      | Some(s) => Sort.to_string(s)
+      };
+    Node.create_svg(
+      "filter",
+      [Attr.id("drop-shadow-" ++ s)],
+      [
+        Node.create_svg(
+          "feDropShadow",
+          [
+            Attr.classes(["tile-drop-shadow"]),
+            Attr.create("dx", shadow_dx),
+            Attr.create("dy", shadow_dy),
+            Attr.create("stdDeviation", "0"),
+          ],
+          [],
+        ),
+      ],
+    );
+  };
+
   let open_child_paths =
       (~start, ~sort: option(Sort.t), open_children: list((int, int)))
       : list(Node.t) => {

@@ -1,6 +1,7 @@
 open Util;
 open OptUtil.Syntax;
 
+[@deriving sexp]
 type t =
   | Mark
   | Move(Direction.t)
