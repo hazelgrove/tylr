@@ -308,7 +308,38 @@ let get_uni_children =
   (uni_children, tframe);
 };
 
-let mk_frame = (_frame: Frame.t): (t => t) => failwith("todo");
+let rec mk_frame = (subject: t, frame: Frame.t): t => {
+  let mk_tiles_pat = ts => mk_tiles(List.map(Tile.pat, ts));
+  let mk_tiles_exp = ts => mk_tiles(List.map(Tile.exp, ts));
+  let mk_frame_pat = (tile, ((prefix, suffix), frame): Frame_pat.s) => {
+    let prefix = mk_tiles_pat(List.rev(prefix));
+    let suffix = mk_tiles_pat(suffix);
+    mk_frame(spaces([prefix, tile, suffix]), Pat(frame));
+  };
+  let mk_frame_exp = (tile, ((prefix, suffix), frame): Frame_exp.s) => {
+    let prefix = mk_tiles_exp(List.rev(prefix));
+    let suffix = mk_tiles_exp(suffix);
+    mk_frame(spaces([prefix, tile, suffix]), Exp(frame));
+  };
+  switch (frame) {
+  | Pat(Paren_body(frame_s)) =>
+    let (tile, _) = mk_Paren(subject);
+    mk_frame_pat(tile, frame_s);
+  | Pat(Lam_pat(frame_s)) =>
+    let (tile, _) = mk_Lam(subject);
+    mk_frame_exp(tile, frame_s);
+  | Pat(Let_pat(def, frame_s)) =>
+    let (tile, _) = mk_Let(subject, mk_tiles_exp(def));
+    mk_frame_exp(tile, frame_s);
+  | Exp(Paren_body(frame_s)) =>
+    let (tile, _) = mk_Paren(subject);
+    mk_frame_exp(tile, frame_s);
+  | Exp(Let_def(p, frame_s)) =>
+    let (tile, _) = mk_Let(mk_tiles_pat(p), subject);
+    mk_frame_exp(tile, frame_s);
+  | Exp(Root) => cats([space(), subject, space()])
+  };
+};
 
 let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
   let sort = Frame.sort(frame);
@@ -357,27 +388,27 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       let (uni_children, tframe) =
         get_uni_children(root_tile, (prefix, []));
       mk_frame(
-        frame,
         mk_subject(~caret=After, root_tile, uni_children, tframe),
+        frame,
       );
     | Some((delim_index, root_tile, tframe, frame)) =>
       let (uni_children, tframe) = get_uni_children(root_tile, tframe);
       mk_frame(
-        frame,
         mk_subject(
           ~caret=Before(delim_index),
           root_tile,
           uni_children,
           tframe,
         ),
+        frame,
       );
     }
   | (prefix, [root_tile, ...suffix]) =>
     let (uni_children, tframe) =
       get_uni_children(root_tile, (prefix, suffix));
     mk_frame(
-      frame,
       mk_subject(~caret=Before(0), root_tile, uni_children, tframe),
+      frame,
     );
   };
 };
