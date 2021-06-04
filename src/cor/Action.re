@@ -113,7 +113,10 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         | [_, ..._] as disassembled =>
           // [SelectLeftDisassembles]
           let subject =
-            Subject.Selecting(selection, (disassembled @ prefix, suffix));
+            Subject.Selecting(
+              selection,
+              (List.rev(disassembled) @ prefix, suffix),
+            );
           perform(a, (subject, frame));
         }
       }
