@@ -15,7 +15,32 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
     | Mark =>
       // [MarkPointing]
       Some((Selecting([], sframe), frame))
-    | Move(Left) => failwith("todo")
+    | Move(Left) =>
+      switch (prefix) {
+      | [] =>
+        // [MoveLeftFrame]
+        let* ((prefix', suffix'), frame') = Parser.disassemble_frame(frame);
+        switch (prefix') {
+        | [] => None
+        | [_, ..._] =>
+          let subject' = Subject.Pointing((prefix', suffix @ suffix'));
+          perform(a, (subject', frame'));
+        };
+      | [selem, ...prefix] =>
+        switch (Parser.disassemble_selem(selem)) {
+        | [] =>
+          // [MoveLeftAtomic]
+          let suffix = Parser.parse_selection(Right, [selem, ...suffix]);
+          let (sframe, frame) =
+            Parser.parse_zipper((prefix, suffix), frame);
+          Some((Pointing(sframe), frame));
+        | [_, ..._] as disassembled =>
+          // [MoveLeftDisassembles]
+          let subject =
+            Subject.Pointing((List.rev(disassembled) @ prefix, suffix));
+          perform(a, (subject, frame));
+        }
+      }
     | Move(Right) =>
       switch (suffix) {
       | [] =>
