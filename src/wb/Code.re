@@ -88,10 +88,9 @@ let rec view_of_layout =
                    ),
                  );
                add_decoration(d);
-             //  | Selected =>
-             //    let d =
-             //      Decoration.Selection.view(~font_metrics, style, start, len);
-             //    add_decoration(d);
+             | Selected =>
+               let d = Decoration.SelectedBox.view(~font_metrics, start, len);
+               add_decoration(d);
              | Space(Some(caret)) =>
                let d =
                  Decoration.Caret.view(

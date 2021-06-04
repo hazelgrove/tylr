@@ -20,7 +20,7 @@ and annot =
   | OpenChild
   | UniChild(Sort.t, Direction.t)
   | Selem(option(Sort.t), selem_shape, SelemStyle.t)
-// | Selected
+  | Selected
 and caret =
   | Pointing
   | Selecting
@@ -451,7 +451,13 @@ let mk_selecting =
       frame: Frame.t,
     ) => {
   let sort = Frame.sort(frame);
-  let selection = mk_selection(~style=Selected, selection);
+  let selection =
+    switch (selection) {
+    | [] => []
+    | [_, ..._] => [
+        annot(Selected, spaces(mk_selection(~style=Selected, selection))),
+      ]
+    };
   let (prefix, suffix) = {
     let style = SelemStyle.Revealed({show_children: true});
     TupleUtil.map2(
