@@ -64,27 +64,30 @@ let rec find_rest_of_tile =
     };
   };
 
-// TODO direction
-let assemble_tile: AltList.t(Token.t, Tiles.t) => option(Tile.t) =
-  fun
-  | (Pat(Paren_l), [(body, Pat(Paren_r))]) => {
-      let+ body = Tiles.get_pat(body);
-      Tile.Pat(Paren(body));
-    }
-  | (Exp(Paren_l), [(body, Exp(Paren_r))]) => {
-      let+ body = Tiles.get_exp(body);
-      Tile.Exp(Paren(body));
-    }
-  | (Exp(Lam_lam), [(p, Exp(Lam_dot))]) => {
-      let+ p = Tiles.get_pat(p);
-      Tile.Exp(Lam(p));
-    }
-  | (Exp(Let_let), [(p, Exp(Let_eq)), (def, Exp(Let_in))]) => {
-      let+ p = Tiles.get_pat(p)
-      and+ def = Tiles.get_exp(def);
-      Tile.Exp(Let(p, def));
-    }
-  | _ => None;
+let assemble_tile =
+    (d: Direction.t, ts: AltList.t(Token.t, Tiles.t)): option(Tile.t) => {
+  let child = ts => d == Left ? List.rev(ts) : ts;
+  switch (d, ts) {
+  | (Left, (Pat(Paren_r), [(body, Pat(Paren_l))]))
+  | (Right, (Pat(Paren_l), [(body, Pat(Paren_r))])) =>
+    let+ body = Tiles.get_pat(child(body));
+    Tile.Pat(Paren(body));
+  | (Left, (Exp(Paren_r), [(body, Exp(Paren_l))]))
+  | (Right, (Exp(Paren_l), [(body, Exp(Paren_r))])) =>
+    let+ body = Tiles.get_exp(child(body));
+    Tile.Exp(Paren(body));
+  | (Left, (Exp(Lam_dot), [(p, Exp(Lam_lam))]))
+  | (Right, (Exp(Lam_lam), [(p, Exp(Lam_dot))])) =>
+    let+ p = Tiles.get_pat(child(p));
+    Tile.Exp(Lam(p));
+  | (Left, (Exp(Let_in), [(def, Exp(Let_eq)), (p, Exp(Let_let))]))
+  | (Right, (Exp(Let_let), [(p, Exp(Let_eq)), (def, Exp(Let_in))])) =>
+    let+ p = Tiles.get_pat(child(p))
+    and+ def = Tiles.get_exp(child(def));
+    Tile.Exp(Let(p, def));
+  | _ => None
+  };
+};
 
 let flatten = l =>
   l
@@ -100,7 +103,7 @@ let rec parse_selection =
     | None => flatten([(tiles, token)]) @ parse_selection(d, selection)
     | Some((rest_of_tile, selection)) =>
       let parsed =
-        switch (assemble_tile((token, rest_of_tile))) {
+        switch (assemble_tile(d, (token, rest_of_tile))) {
         | None => flatten([(tiles, token), ...rest_of_tile])
         | Some(tile) => Selection.of_tiles(tiles) @ [Tile(tile)]
         };
