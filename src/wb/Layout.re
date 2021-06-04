@@ -2,9 +2,12 @@ open Sexplib.Std;
 open Util;
 open Cor;
 
+[@deriving sexp]
 type tip_shape = (Tip.shape, int);
+[@deriving sexp]
 type selem_shape = (tip_shape, tip_shape);
 
+[@deriving sexp]
 type t =
   | Text(string)
   | Cat(t, t)
@@ -44,16 +47,17 @@ let uni_child = (~sort, ~side) => annot(UniChild(sort, side));
 
 let space = (~caret=?, ()) => Annot(Space(caret), Text(Unicode.nbsp));
 let spaces = join(space());
-
-let spaces_padded = ls => cats([space(), spaces(ls), space()]);
-let spaces_padded_l = ls => cat(space(), spaces(ls));
-let spaces_padded_r = ls => cat(spaces(ls), space());
-let spaces_padded_z = (ls_pre, caret, ls_suf) =>
-  cats([
-    spaces_padded_l(ls_pre),
-    space(~caret, ()),
-    spaces_padded_r(ls_suf),
-  ]);
+let pad = l => cats([space(), l, space()]);
+let spaces_z = (ls_pre, caret, ls_suf) => {
+  let caret = space(~caret, ());
+  switch (ls_pre, ls_suf) {
+  | ([], []) => caret
+  | ([], [_, ..._]) => cats([caret, spaces(ls_suf), space()])
+  | ([_, ..._], []) => cats([space(), spaces(ls_pre), caret])
+  | ([_, ..._], [_, ..._]) =>
+    pad(cats([spaces(ls_pre), caret, spaces(ls_suf)]))
+  };
+};
 
 let length = {
   let rec go =
@@ -206,7 +210,7 @@ let mk_token =
     | Let_in => delim("in"),
   );
 
-let rec mk_tiles = ts => spaces(List.map(t => fst(mk_tile(t)), ts))
+let rec mk_tiles = ts => List.map(t => fst(mk_tile(t)), ts)
 and mk_tile = (~caret=?, t) =>
   t
   |> Tile.get(
@@ -215,20 +219,21 @@ and mk_tile = (~caret=?, t) =>
        | Var(x) => mk_text(~caret?, x)
        | Paren(body) =>
          // TODO undo unnecessary rewrapping
-         mk_Paren(~caret?, mk_tiles(Tiles.of_pat(body)))
+         mk_Paren(~caret?, pad(spaces(mk_tiles(Tiles.of_pat(body)))))
        | BinHole => mk_BinHole(~caret?, ~sort=Pat, ())
        | Prod => mk_Prod(~caret?, ()),
        fun
        | Tile_exp.OpHole => mk_OpHole(~caret?, ~sort=Exp, ())
        | Num(n) => mk_text(~caret?, string_of_int(n))
        | Var(x) => mk_text(~caret?, x)
-       | Paren(body) => mk_Paren(~caret?, mk_tiles(Tiles.of_exp(body)))
-       | Lam(p) => mk_Lam(~caret?, mk_tiles(Tiles.of_pat(p)))
+       | Paren(body) =>
+         mk_Paren(~caret?, pad(spaces(mk_tiles(Tiles.of_exp(body)))))
+       | Lam(p) => mk_Lam(~caret?, pad(spaces(mk_tiles(Tiles.of_pat(p)))))
        | Let(p, def) =>
          mk_Let(
            ~caret?,
-           mk_tiles(Tiles.of_pat(p)),
-           mk_tiles(Tiles.of_exp(def)),
+           pad(spaces(mk_tiles(Tiles.of_pat(p)))),
+           pad(spaces(mk_tiles(Tiles.of_exp(def)))),
          )
        | BinHole => mk_BinHole(~caret?, ~sort=Exp, ())
        | Plus => mk_Plus(~caret?, ())
@@ -314,12 +319,14 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   let mk_frame_pat = (tile, ((prefix, suffix), frame): Frame_pat.s) => {
     let prefix = mk_tiles_pat(List.rev(prefix));
     let suffix = mk_tiles_pat(suffix);
-    mk_frame(spaces([prefix, tile, suffix]), Pat(frame));
+    mk_frame(pad(spaces(prefix @ [tile, ...suffix])), Pat(frame));
   };
   let mk_frame_exp = (tile, ((prefix, suffix), frame): Frame_exp.s) => {
     let prefix = mk_tiles_exp(List.rev(prefix));
+    print_endline("-- 1 --");
+    // print_endline(Sexplib.Sexp.to_string(sexp_of_t(prefix)));
     let suffix = mk_tiles_exp(suffix);
-    mk_frame(spaces([prefix, tile, suffix]), Exp(frame));
+    mk_frame(pad(spaces(prefix @ [tile, ...suffix])), Exp(frame));
   };
   switch (frame) {
   | Pat(Paren_body(frame_s)) =>
@@ -329,13 +336,13 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     let (tile, _) = mk_Lam(subject);
     mk_frame_exp(tile, frame_s);
   | Pat(Let_pat(def, frame_s)) =>
-    let (tile, _) = mk_Let(subject, mk_tiles_exp(def));
+    let (tile, _) = mk_Let(subject, pad(spaces(mk_tiles_exp(def))));
     mk_frame_exp(tile, frame_s);
   | Exp(Paren_body(frame_s)) =>
     let (tile, _) = mk_Paren(subject);
     mk_frame_exp(tile, frame_s);
   | Exp(Let_def(p, frame_s)) =>
-    let (tile, _) = mk_Let(mk_tiles_pat(p), subject);
+    let (tile, _) = mk_Let(pad(spaces(mk_tiles_pat(p))), subject);
     mk_frame_exp(tile, frame_s);
   | Exp(Root) => cats([space(), subject, space()])
   };
@@ -356,23 +363,40 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       |> PairUtil.map_fst(
            annot(Selem(Some(sort), selem_shape(Tile(root_tile)), Root)),
          );
-    let child_pre = uni_child(~side=Left, mk_tiles(List.rev(child_pre)));
-    let child_suf = uni_child(~side=Right, mk_tiles(child_suf));
+    let child_pre =
+      switch (child_pre) {
+      | [] => []
+      | [_, ..._] => [
+          uni_child(~side=Left, spaces(mk_tiles(List.rev(child_pre)))),
+        ]
+      };
+    let child_suf =
+      switch (child_suf) {
+      | [] => []
+      | [_, ..._] => [uni_child(~side=Right, spaces(mk_tiles(child_suf)))]
+      };
     let prefix = mk_tiles(List.rev(prefix));
+    print_endline("-- 0 --");
+    // print_endline(Sexplib.Sexp.to_string(sexp_of_t(prefix)));
     let suffix = mk_tiles(suffix);
     switch (dangling_caret) {
-    | None => spaces_padded([prefix, child_pre, root_tile, child_suf, suffix])
+    | None =>
+      pad(
+        spaces(
+          List.concat([prefix, child_pre, [root_tile], child_suf, suffix]),
+        ),
+      )
     | Some(Left) =>
-      spaces_padded_z(
-        [prefix, child_pre],
+      spaces_z(
+        prefix @ child_pre,
         Pointing,
-        [root_tile, child_suf, suffix],
+        [root_tile, ...child_suf] @ suffix,
       )
     | Some(Right) =>
-      spaces_padded_z(
-        [prefix, child_pre, root_tile],
+      spaces_z(
+        List.concat([prefix, child_pre, [root_tile]]),
         Pointing,
-        [child_suf, suffix],
+        child_suf @ suffix,
       )
     };
   };
