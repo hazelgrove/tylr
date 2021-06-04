@@ -347,15 +347,15 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
 };
 
 let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
-  let sort = Frame.sort(frame);
-  let uni_child = uni_child(~sort);
   let mk_subject =
       (
         ~caret: CaretPosition.t,
+        ~sort: Sort.t,
         root_tile: Tile.t,
         (child_pre, child_suf): ListFrame.t(Tile.t),
         (prefix, suffix): ListFrame.t(Tile.t),
       ) => {
+    let uni_child = uni_child(~sort);
     let (root_tile, dangling_caret) =
       mk_tile(~caret=(Pointing, caret), root_tile)
       |> PairUtil.map_fst(
@@ -408,7 +408,13 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       let (uni_children, tframe) =
         get_uni_children(root_tile, (prefix, []));
       mk_frame(
-        mk_subject(~caret=After, root_tile, uni_children, tframe),
+        mk_subject(
+          ~caret=After,
+          ~sort=Frame.sort(frame),
+          root_tile,
+          uni_children,
+          tframe,
+        ),
         frame,
       );
     | Some((delim_index, root_tile, tframe, frame)) =>
@@ -416,6 +422,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       mk_frame(
         mk_subject(
           ~caret=Before(delim_index),
+          ~sort=Frame.sort(frame),
           root_tile,
           uni_children,
           tframe,
@@ -427,7 +434,13 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     let (uni_children, tframe) =
       get_uni_children(root_tile, (prefix, suffix));
     mk_frame(
-      mk_subject(~caret=Before(0), root_tile, uni_children, tframe),
+      mk_subject(
+        ~caret=Before(0),
+        ~sort=Frame.sort(frame),
+        root_tile,
+        uni_children,
+        tframe,
+      ),
       frame,
     );
   };
