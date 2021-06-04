@@ -24,7 +24,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         switch (suffix') {
         | [] => None
         | [_, ..._] =>
-          let subject' = Subject.Pointing((prefix' @ prefix, suffix'));
+          let subject' = Subject.Pointing((prefix @ prefix', suffix'));
           perform(a, (subject', frame'));
         };
       | [selem, ...suffix] =>
