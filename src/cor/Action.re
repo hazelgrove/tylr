@@ -74,7 +74,8 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         None;
       } else {
         let tip = (Tip.Convex, sort);
-        let sframe = Parser.fix_holes(tip, sframe, tip);
+        let sframe =
+          Parser.fix_holes(tip, (prefix, [Tile(tile), ...suffix]), tip);
         Some((Pointing(sframe), frame));
       };
     }
