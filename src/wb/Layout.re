@@ -323,8 +323,6 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   };
   let mk_frame_exp = (tile, ((prefix, suffix), frame): Frame_exp.s) => {
     let prefix = mk_tiles_exp(List.rev(prefix));
-    print_endline("-- 1 --");
-    // print_endline(Sexplib.Sexp.to_string(sexp_of_t(prefix)));
     let suffix = mk_tiles_exp(suffix);
     mk_frame(pad(spaces(prefix @ [tile, ...suffix])), Exp(frame));
   };
@@ -376,8 +374,6 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       | [_, ..._] => [uni_child(~side=Right, spaces(mk_tiles(child_suf)))]
       };
     let prefix = mk_tiles(List.rev(prefix));
-    print_endline("-- 0 --");
-    // print_endline(Sexplib.Sexp.to_string(sexp_of_t(prefix)));
     let suffix = mk_tiles(suffix);
     switch (dangling_caret) {
     | None =>
