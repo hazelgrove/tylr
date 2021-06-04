@@ -465,7 +465,7 @@ module UniChild = {
           tl_br(~hemi=`North, ()),
           tr_bl(~hemi=`South, ()),
           [H_({dx: Float.neg(len)})],
-          [M_({dx: 0., dy: 0.02}), H_({dx: len +. 0.03})],
+          [M_({dx: 0., dy: 0.02}), H_({dx: len})],
           // bl_tr(),
           // br_tl(),
         ])
