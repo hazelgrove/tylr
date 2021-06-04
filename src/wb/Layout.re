@@ -48,7 +48,8 @@ let uni_child = (~sort, ~side) => annot(UniChild(sort, side));
 let space = (~caret=?, ()) => Annot(Space(caret), Text(Unicode.nbsp));
 let spaces = join(space());
 let pad = l => cats([space(), l, space()]);
-let spaces_z = (ls_pre, caret, ls_suf) => {
+let pad_spaces = ls => pad(spaces(ls));
+let pad_spaces_z = (ls_pre, caret, ls_suf) => {
   let caret = space(~caret, ());
   switch (ls_pre, ls_suf) {
   | ([], []) => caret
@@ -219,7 +220,7 @@ and mk_tile = (~caret=?, t) =>
        | Var(x) => mk_text(~caret?, x)
        | Paren(body) =>
          // TODO undo unnecessary rewrapping
-         mk_Paren(~caret?, pad(spaces(mk_tiles(Tiles.of_pat(body)))))
+         mk_Paren(~caret?, pad_spaces(mk_tiles(Tiles.of_pat(body))))
        | BinHole => mk_BinHole(~caret?, ~sort=Pat, ())
        | Prod => mk_Prod(~caret?, ()),
        fun
@@ -227,13 +228,13 @@ and mk_tile = (~caret=?, t) =>
        | Num(n) => mk_text(~caret?, string_of_int(n))
        | Var(x) => mk_text(~caret?, x)
        | Paren(body) =>
-         mk_Paren(~caret?, pad(spaces(mk_tiles(Tiles.of_exp(body)))))
-       | Lam(p) => mk_Lam(~caret?, pad(spaces(mk_tiles(Tiles.of_pat(p)))))
+         mk_Paren(~caret?, pad_spaces(mk_tiles(Tiles.of_exp(body))))
+       | Lam(p) => mk_Lam(~caret?, pad_spaces(mk_tiles(Tiles.of_pat(p))))
        | Let(p, def) =>
          mk_Let(
            ~caret?,
-           pad(spaces(mk_tiles(Tiles.of_pat(p)))),
-           pad(spaces(mk_tiles(Tiles.of_exp(def)))),
+           pad_spaces(mk_tiles(Tiles.of_pat(p))),
+           pad_spaces(mk_tiles(Tiles.of_exp(def))),
          )
        | BinHole => mk_BinHole(~caret?, ~sort=Exp, ())
        | Plus => mk_Plus(~caret?, ())
@@ -318,12 +319,12 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   let mk_frame_pat = (tile, ((prefix, suffix), frame): Frame_pat.s) => {
     let prefix = mk_tiles_pat(List.rev(prefix));
     let suffix = mk_tiles_pat(suffix);
-    mk_frame(pad(spaces(prefix @ [tile, ...suffix])), Pat(frame));
+    mk_frame(pad_spaces(prefix @ [tile, ...suffix]), Pat(frame));
   };
   let mk_frame_exp = (tile, ((prefix, suffix), frame): Frame_exp.s) => {
     let prefix = mk_tiles_exp(List.rev(prefix));
     let suffix = mk_tiles_exp(suffix);
-    mk_frame(pad(spaces(prefix @ [tile, ...suffix])), Exp(frame));
+    mk_frame(pad_spaces(prefix @ [tile, ...suffix]), Exp(frame));
   };
   switch (frame) {
   | Pat(Paren_body(frame_s)) =>
@@ -333,13 +334,13 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     let (tile, _) = mk_Lam(subject);
     mk_frame_exp(tile, frame_s);
   | Pat(Let_pat(def, frame_s)) =>
-    let (tile, _) = mk_Let(subject, pad(spaces(mk_tiles_exp(def))));
+    let (tile, _) = mk_Let(subject, pad_spaces(mk_tiles_exp(def)));
     mk_frame_exp(tile, frame_s);
   | Exp(Paren_body(frame_s)) =>
     let (tile, _) = mk_Paren(subject);
     mk_frame_exp(tile, frame_s);
   | Exp(Let_def(p, frame_s)) =>
-    let (tile, _) = mk_Let(pad(spaces(mk_tiles_pat(p))), subject);
+    let (tile, _) = mk_Let(pad_spaces(mk_tiles_pat(p)), subject);
     mk_frame_exp(tile, frame_s);
   | Exp(Root) => cats([space(), subject, space()])
   };
@@ -376,19 +377,17 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     let suffix = mk_tiles(suffix);
     switch (dangling_caret) {
     | None =>
-      pad(
-        spaces(
-          List.concat([prefix, child_pre, [root_tile], child_suf, suffix]),
-        ),
+      pad_spaces(
+        List.concat([prefix, child_pre, [root_tile], child_suf, suffix]),
       )
     | Some(Left) =>
-      spaces_z(
+      pad_spaces_z(
         prefix @ child_pre,
         Pointing,
         [root_tile, ...child_suf] @ suffix,
       )
     | Some(Right) =>
-      spaces_z(
+      pad_spaces_z(
         List.concat([prefix, child_pre, [root_tile]]),
         Pointing,
         child_suf @ suffix,
@@ -460,7 +459,7 @@ let mk_selecting =
       (List.rev(prefix), suffix),
     );
   };
-  let subject = spaces_z(prefix, Selecting, selection @ suffix);
+  let subject = pad_spaces_z(prefix, Selecting, selection @ suffix);
   mk_frame(subject, frame);
 };
 
