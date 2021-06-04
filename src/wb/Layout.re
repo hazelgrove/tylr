@@ -256,9 +256,8 @@ let mk_selem = (~sort=?, ~style: option(SelemStyle.t)=?, selem: Selem.t) => {
   | Some(style) => annot(Selem(sort, selem_shape(selem), style), l)
   };
 };
-
-let mk_selection = (~sort=?, ~style: option(SelemStyle.t)=?, selection) =>
-  spaces(List.map(mk_selem(~sort?, ~style?), selection));
+let mk_selection = (~sort=?, ~style: option(SelemStyle.t)=?) =>
+  List.map(mk_selem(~sort?, ~style?));
 
 let zip_up =
     (subject: Selection.t, frame: Frame.t)
@@ -446,8 +445,29 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
   };
 };
 
+let mk_selecting =
+    (
+      selection: Selection.t,
+      (prefix, suffix): Selection.frame,
+      frame: Frame.t,
+    ) => {
+  let sort = Frame.sort(frame);
+  let selection = mk_selection(~style=Selected, selection);
+  let (prefix, suffix) = {
+    let style = SelemStyle.Revealed({show_children: true});
+    TupleUtil.map2(
+      mk_selection(~sort, ~style),
+      (List.rev(prefix), suffix),
+    );
+  };
+  let subject = spaces_z(prefix, Selecting, selection @ suffix);
+  mk_frame(subject, frame);
+};
+
 let mk_zipper = (zipper: Zipper.t) =>
   switch (zipper) {
   | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
+  | (Selecting(selection, sframe), frame) =>
+    mk_selecting(selection, sframe, frame)
   | _ => failwith("todo")
   };
