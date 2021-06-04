@@ -31,8 +31,9 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         switch (Parser.disassemble_selem(selem)) {
         | [] =>
           // [MoveRightAtomic]
+          let prefix = Parser.parse_selection(Left, [selem, ...prefix]);
           let (sframe, frame) =
-            Parser.parse_zipper(([selem, ...prefix], suffix), frame);
+            Parser.parse_zipper((prefix, suffix), frame);
           Some((Pointing(sframe), frame));
         | [_, ..._] as disassembled =>
           // [MoveRightDisassembles]
