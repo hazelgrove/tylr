@@ -130,7 +130,12 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         | [] =>
           // [SelectRightAtomic]
           let (sframe', frame') =
-            Parser.parse_zipper(([selem, ...prefix], suffix), frame);
+            Parser.(
+              parse_zipper(
+                (parse_selection(Left, [selem, ...prefix]), suffix),
+                frame,
+              )
+            );
           let subject = Subject.Selecting(selection, sframe');
           Some((subject, frame'));
         | [_, ..._] as disassembled =>
