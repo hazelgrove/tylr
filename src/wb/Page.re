@@ -30,13 +30,17 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
           | "ArrowLeft"
           | "ArrowRight" =>
             let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-            switch (zipper) {
-            | (Pointing(_), _) when held(Shift) => [p(Mark), p(Move(d))]
-            | (Selecting(_), _) when !held(Shift) => [
-                Update.escape(~d, ()),
-              ]
-            | _ => [p(Move(d))]
-            };
+            /*
+             switch (zipper) {
+             | (Pointing(_), _) when held(Shift) => [p(Mark), p(Move(d))]
+             | (Selecting(_), _) when !held(Shift) => [
+                 Update.escape(~d, ()),
+               ]
+             | _ => [p(Move(d))]
+             };
+             */
+            [p(Move(d))];
+          | "Backspace"
           | "Delete" => [p(Delete)]
           | "+" => [p(Construct(Exp(Plus)))]
           | "(" => [p(Construct(Exp(Paren([OpHole]))))]
@@ -48,12 +52,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             | (_, Exp(_)) => [p(Construct(Exp(Prod)))]
             }
           | "Escape" => [Update.escape()]
-          | "Enter" =>
-            switch (zipper) {
-            | (Pointing(_), _) => []
-            | (Selecting(_), _) => [Update.escape()]
-            | (Restructuring(_), _) => [p(Mark)]
-            }
+          | "Enter" => [p(Mark)]
           | _ =>
             let is_var = is_var(key);
             let is_num = is_num(key);
