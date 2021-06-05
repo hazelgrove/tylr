@@ -10,7 +10,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
     Attr.on_keyup(evt =>
       Event.Many(
         switch (JsUtil.get_key(evt), zipper) {
-        | ("Shift", (Selecting([], _), _)) => [inject(Escape)]
+        | ("Shift", (Selecting([], _), _)) => [inject(Update.escape())]
         | _ => []
         },
       )
@@ -32,7 +32,9 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             let d: Direction.t = key == "ArrowLeft" ? Left : Right;
             switch (zipper) {
             | (Pointing(_), _) when held(Shift) => [p(Mark), p(Move(d))]
-            | (Selecting(_), _) when !held(Shift) => [Escape]
+            | (Selecting(_), _) when !held(Shift) => [
+                Update.escape(~d, ()),
+              ]
             | _ => [p(Move(d))]
             };
           | "Delete" => [p(Delete)]
@@ -45,11 +47,11 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             | (_, Pat(_)) => [p(Construct(Pat(Prod)))]
             | (_, Exp(_)) => [p(Construct(Exp(Prod)))]
             }
-          | "Escape" => [Escape]
+          | "Escape" => [Update.escape()]
           | "Enter" =>
             switch (zipper) {
             | (Pointing(_), _) => []
-            | (Selecting(_), _) => [Escape]
+            | (Selecting(_), _) => [Update.escape()]
             | (Restructuring(_), _) => [p(Mark)]
             }
           | _ =>

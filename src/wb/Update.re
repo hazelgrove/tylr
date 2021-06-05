@@ -7,7 +7,9 @@ type t =
   | PerformAction(Action.t)
   | Undo
   | Redo
-  | Escape;
+  | Escape(Direction.t);
+
+let escape = (~d=Direction.Left, ()) => Escape(d);
 
 let perform = (a, model: Model.t) =>
   switch (Action.perform(a, model.zipper)) {
@@ -28,13 +30,20 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) => perform(a, model)
-  | Escape =>
+  | Escape(d) =>
     // TODO restore escape functionality on restructuring
     switch (model.zipper) {
-    | (Selecting(_), _) =>
-      // TODO do this directly instead of via double mark
-      // in order to support moving caret to right of selection
-      perform(Mark, perform(Mark, model))
+    | (Selecting(selection, (prefix, suffix)), frame) =>
+      let sframe =
+        switch (d) {
+        | Left => (prefix, Parser.parse_selection(Right, selection @ suffix))
+        | Right => (
+            Parser.parse_selection(Left, List.rev(selection) @ prefix),
+            suffix,
+          )
+        };
+      let (sframe, frame) = Parser.parse_zipper(sframe, frame);
+      {...model, zipper: (Pointing(sframe), frame)};
     | _ => model
     }
   | Undo =>
