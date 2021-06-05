@@ -450,7 +450,6 @@ let mk_selecting =
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     ) => {
-  let sort = Frame.sort(frame);
   let selection =
     switch (selection) {
     | [] => []
@@ -459,11 +458,17 @@ let mk_selecting =
       ]
     };
   let (prefix, suffix) = {
-    let style = SelemStyle.Revealed({show_children: true});
-    TupleUtil.map2(
-      mk_selection(~sort, ~style),
-      (List.rev(prefix), suffix),
-    );
+    let mk_affix =
+      List.map(selem =>
+        mk_selem(
+          ~sort=Selem.sort(selem),
+          ~style=
+            Selection.filter_pred(Frame.sort(frame), selem)
+              ? Revealed({show_children: true}) : Filtered,
+          selem,
+        )
+      );
+    TupleUtil.map2(mk_affix, (List.rev(prefix), suffix));
   };
   let subject = pad_spaces_z(prefix, Selecting, selection @ suffix);
   mk_frame(subject, frame);

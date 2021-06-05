@@ -31,3 +31,8 @@ let highlighted =
   | Selected
   | Logo
   | Root => true;
+
+let filtered =
+  fun
+  | Filtered => true
+  | _ => false;

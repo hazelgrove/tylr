@@ -61,9 +61,8 @@ let is_whole_any = selection =>
      };
  */
 
-let filter_tiles = (s: Sort.t): (t => t) =>
-  List.filter(
-    fun
-    | Selem.Tile(tile) when Tile.sort(tile) == s => true
-    | _ => false,
-  );
+let filter_pred = (s: Sort.t) =>
+  fun
+  | Selem.Tile(tile) when Tile.sort(tile) == s => true
+  | _ => false;
+let filter_tiles = (s: Sort.t): (t => t) => List.filter(filter_pred(s));

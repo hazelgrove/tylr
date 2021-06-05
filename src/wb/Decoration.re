@@ -784,8 +784,9 @@ module Selem = {
         };
       let highlighted =
         SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
+      let filtered = SelemStyle.filtered(profile.style) ? ["filtered"] : [];
       let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
-      List.concat([["tile-path", sort], highlighted, raised]);
+      List.concat([["tile-path", sort], highlighted, raised, filtered]);
     };
     SvgUtil.Path.view(
       ~attrs=

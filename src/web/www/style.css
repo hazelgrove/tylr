@@ -274,6 +274,10 @@
   fill-rule: evenodd;
 }
 
+.tile-path.filtered {
+  fill: var(--selection-color);
+}
+
 .tessera-path {
   /*stroke-width: 0.3; */
   filter: url(#drop-shadow-tessera);
