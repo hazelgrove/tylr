@@ -444,6 +444,17 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
   };
 };
 
+let mk_affix = (~show_children: bool, ~sort: Sort.t) =>
+  List.map(selem =>
+    mk_selem(
+      ~sort=Selem.sort(selem),
+      ~style=
+        Selection.filter_pred(sort, selem)
+          ? Revealed({show_children: show_children}) : Filtered,
+      selem,
+    )
+  );
+
 let mk_selecting =
     (
       selection: Selection.t,
@@ -457,20 +468,32 @@ let mk_selecting =
         annot(Selected, spaces(mk_selection(~style=Selected, selection))),
       ]
     };
-  let (prefix, suffix) = {
-    let mk_affix =
-      List.map(selem =>
-        mk_selem(
-          ~sort=Selem.sort(selem),
-          ~style=
-            Selection.filter_pred(Frame.sort(frame), selem)
-              ? Revealed({show_children: true}) : Filtered,
-          selem,
-        )
-      );
-    TupleUtil.map2(mk_affix, (List.rev(prefix), suffix));
-  };
+  let (prefix, suffix) =
+    TupleUtil.map2(
+      mk_affix(~show_children=true, ~sort=Frame.sort(frame)),
+      (List.rev(prefix), suffix),
+    );
   let subject = pad_spaces_z(prefix, Selecting, selection @ suffix);
+  mk_frame(subject, frame);
+};
+
+let mk_restructuring =
+    (
+      selection: Selection.t,
+      (prefix, suffix): Selection.frame,
+      frame: Frame.t,
+    ) => {
+  let (prefix, suffix) =
+    TupleUtil.map2(
+      mk_affix(
+        ~show_children=Selection.is_whole_any(selection),
+        ~sort=Frame.sort(frame),
+      ),
+      (List.rev(prefix), suffix),
+    );
+  let selection =
+    pad(annot(Selected, spaces(mk_selection(~style=Selected, selection))));
+  let subject = pad_spaces_z(prefix, Restructuring(selection), suffix);
   mk_frame(subject, frame);
 };
 
@@ -479,5 +502,6 @@ let mk_zipper = (zipper: Zipper.t) =>
   | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
   | (Selecting(selection, sframe), frame) =>
     mk_selecting(selection, sframe, frame)
-  | _ => failwith("todo")
+  | (Restructuring(selection, sframe), frame) =>
+    mk_restructuring(selection, sframe, frame)
   };
