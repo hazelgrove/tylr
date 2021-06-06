@@ -25,21 +25,11 @@ let mk_sframe = (d: Direction.t, front, back) =>
 let rec move_pointing =
         (d: Direction.t, sframe: Selection.frame, frame: Frame.t)
         : option((Selection.frame, Frame.t)) => {
-  let (affix_toward, affix_away) =
-    switch (d) {
-    | Left => (fst, snd)
-    | Right => (snd, fst)
-    };
-  let mk_sframe = (toward, away) =>
-    switch (d) {
-    | Left => (toward, away)
-    | Right => (away, toward)
-    };
-  switch (affix_toward(sframe)) {
+  switch (front_affix(d, sframe)) {
   | [] =>
     // [Move<d>Frame]
     let* (sframe', frame') = Parser.disassemble_frame(frame);
-    switch (affix_toward(sframe')) {
+    switch (front_affix(d, sframe')) {
     | [] => None
     | [_, ..._] =>
       move_pointing(d, ListFrame.append(sframe, sframe'), frame')
@@ -51,14 +41,14 @@ let rec move_pointing =
       let away =
         Parser.parse_selection(
           Direction.toggle(d),
-          [selem, ...affix_away(sframe)],
+          [selem, ...back_affix(d, sframe)],
         );
-      Some(Parser.parse_zipper(mk_sframe(toward, away), frame));
+      Some(Parser.parse_zipper(mk_sframe(d, toward, away), frame));
     | [_, ..._] as disassembled =>
       // [Move<d>Disassembles]
       move_pointing(
         d,
-        mk_sframe(disassembled @ toward, affix_away(sframe)),
+        mk_sframe(d, disassembled @ toward, back_affix(d, sframe)),
         frame,
       )
     }
@@ -122,7 +112,29 @@ let rec move_selecting =
   };
 };
 
-let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
+let move_restructuring =
+    (
+      d: Direction.t,
+      selection: Selection.t,
+      sframe: Selection.frame,
+      frame: Frame.t,
+    )
+    : option((Selection.frame, Frame.t)) =>
+  if (Selection.is_whole_any(selection)) {
+    // [Move<d>RestructuringNotWhole]
+    switch (front_affix(d, sframe)) {
+    | []
+    | [Token(_), ..._] => None
+    | [Tile(_) as selem, ...front] =>
+      let sframe = mk_sframe(d, front, [selem, ...back_affix(d, sframe)]);
+      Some((sframe, frame));
+    };
+  } else {
+    // [Move<d>RestructuringWhole]
+    move_pointing(d, sframe, frame);
+  };
+
+let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   switch (subject) {
   | Pointing((prefix, suffix) as sframe) =>
     switch (a) {
@@ -181,25 +193,9 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       } else {
         None;
       }
-    | Move(Left) => failwith("todo")
-    | Move(Right) =>
-      if (Selection.is_whole_any(selection)) {
-        // [MoveRightRestructuringWhole]
-        switch (suffix) {
-        | []
-        | [Token(_), ..._] => None
-        | [Tile(_) as selem, ...suffix] =>
-          let subject =
-            Subject.Restructuring(selection, ([selem, ...prefix], suffix));
-          Some((subject, frame));
-        };
-      } else {
-        switch (perform(a, (Pointing(sframe), frame))) {
-        | Some((Pointing(sframe'), frame')) =>
-          Some((Restructuring(selection, sframe'), frame'))
-        | _ => None
-        };
-      }
+    | Move(d) =>
+      let+ (sframe, frame) = move_restructuring(d, selection, sframe, frame);
+      (Subject.Restructuring(selection, sframe), frame);
     | Delete =>
       // [Delete]
       let s = Frame.sort(frame);
