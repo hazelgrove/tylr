@@ -161,7 +161,7 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
       Some(((prefix, suffix), Exp(frame)));
     | Let_def(p, ((prefix, suffix), frame)) =>
       let prefix =
-        [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_pat(p)]
+        [Selem.Token(Exp(Let_eq)), ...List.rev(Selection.of_tiles_pat(p))]
         @ [Token(Exp(Let_let)), ...Selection.of_tiles_exp(prefix)];
       let suffix = [
         Selem.Token(Exp(Let_in)),
@@ -204,7 +204,7 @@ let assemble_frame =
       ((Exp(Let_eq), [(p, Exp(Let_let))]), (Exp(Let_in), [])),
       Exp(frame),
     ) =>
-    let+ p = Tiles.get_pat(p)
+    let+ p = Tiles.get_pat(List.rev(p))
     and+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
     Frame.Exp(Let_def(p, ((prefix, suffix), frame)));
