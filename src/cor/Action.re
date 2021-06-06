@@ -152,6 +152,9 @@ let move_restructuring =
     )
     : option((Selection.frame, Frame.t)) =>
   if (Selection.is_whole_any(selection)) {
+    // [Move<d>RestructuringWhole]
+    move_pointing(d, sframe, frame);
+  } else {
     // [Move<d>RestructuringNotWhole]
     switch (front_affix(d, sframe)) {
     | []
@@ -160,9 +163,6 @@ let move_restructuring =
       let sframe = mk_sframe(d, front, [selem, ...back_affix(d, sframe)]);
       Some((sframe, frame));
     };
-  } else {
-    // [Move<d>RestructuringWhole]
-    move_pointing(d, sframe, frame);
   };
 
 let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
