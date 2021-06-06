@@ -184,17 +184,10 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
           || Selection.is_whole(Frame.sort(frame), selection)) {
         // [MarkRestructuring]
         let tip = Tip.(Convex, Frame.sort(frame));
-        let (sframe, frame) =
-          Parser.(
-            parse_zipper(
-              Parser.fix_holes(
-                tip,
-                (prefix, parse_selection(Right, selection @ suffix)),
-                tip,
-              ),
-              frame,
-            )
-          );
+        let (prefix, suffix) =
+          Parser.fix_holes(tip, (prefix, selection @ suffix), tip);
+        let suffix = Parser.parse_selection(Right, suffix);
+        let (sframe, frame) = Parser.parse_zipper((prefix, suffix), frame);
         Some((Pointing(sframe), frame));
       } else {
         None;
