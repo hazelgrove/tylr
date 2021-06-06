@@ -216,9 +216,15 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         // [MarkRestructuring]
         let tip = Tip.(Convex, Frame.sort(frame));
         let (sframe, frame) =
-          Parser.parse_zipper(
-            Parser.fix_holes(tip, (prefix, selection @ suffix), tip),
-            frame,
+          Parser.(
+            parse_zipper(
+              Parser.fix_holes(
+                tip,
+                (prefix, parse_selection(Right, selection @ suffix)),
+                tip,
+              ),
+              frame,
+            )
           );
         Some((Pointing(sframe), frame));
       } else {

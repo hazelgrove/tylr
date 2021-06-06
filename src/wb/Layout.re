@@ -397,7 +397,9 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
   let tframe =
     sframe
     |> TupleUtil.map2(Selection.get_tiles)
-    |> TupleUtil.map2(Option.get);
+    |> TupleUtil.map2(
+         OptUtil.get_or_fail("expected prefix/suffix to consist of tiles"),
+       );
   switch (tframe) {
   | (prefix, []) =>
     switch (zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
