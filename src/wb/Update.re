@@ -33,7 +33,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | Escape(d) =>
     // TODO restore escape functionality on restructuring
     switch (model.zipper) {
-    | (Selecting(selection, (prefix, suffix)), frame) =>
+    | (Selecting(_, selection, (prefix, suffix)), frame) =>
       let sframe =
         switch (d) {
         | Left => (prefix, Parser.parse_selection(Right, selection @ suffix))
@@ -52,7 +52,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
     | (
         [
           (a, (Selecting(_), _) as prev),
-          (a', (Pointing(_) | Selecting([], _), _) as prev'),
+          (a', (Pointing(_) | Selecting(_, [], _), _) as prev'),
           ...before,
         ],
         after,
@@ -74,7 +74,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
         before,
         [
           (a, (Selecting(_), _) as next),
-          (a', (Pointing(_) | Selecting([], _), _) as next'),
+          (a', (Pointing(_) | Selecting(_, [], _), _) as next'),
           ...after,
         ],
       ) => {

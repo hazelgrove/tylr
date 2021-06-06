@@ -10,7 +10,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
     Attr.on_keyup(evt =>
       Event.Many(
         switch (JsUtil.get_key(evt), zipper) {
-        | ("Shift", (Selecting([], _), _)) => [inject(Update.escape())]
+        | ("Shift", (Selecting(_, [], _), _)) => [inject(Update.escape())]
         | _ => []
         },
       )

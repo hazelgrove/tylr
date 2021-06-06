@@ -457,6 +457,7 @@ let mk_affix = (~show_children: bool, ~sort: Sort.t) =>
 
 let mk_selecting =
     (
+      side: Direction.t,
       selection: Selection.t,
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
@@ -473,7 +474,11 @@ let mk_selecting =
       mk_affix(~show_children=true, ~sort=Frame.sort(frame)),
       (List.rev(prefix), suffix),
     );
-  let subject = pad_spaces_z(prefix, Selecting, selection @ suffix);
+  let subject =
+    switch (side) {
+    | Left => pad_spaces_z(prefix, Selecting, selection @ suffix)
+    | Right => pad_spaces_z(prefix @ selection, Selecting, suffix)
+    };
   mk_frame(subject, frame);
 };
 
@@ -500,8 +505,8 @@ let mk_restructuring =
 let mk_zipper = (zipper: Zipper.t) =>
   switch (zipper) {
   | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
-  | (Selecting(selection, sframe), frame) =>
-    mk_selecting(selection, sframe, frame)
+  | (Selecting(side, selection, sframe), frame) =>
+    mk_selecting(side, selection, sframe, frame)
   | (Restructuring(selection, sframe), frame) =>
     mk_restructuring(selection, sframe, frame)
   };
