@@ -8,6 +8,49 @@ type t =
   | Delete
   | Construct(Tile.t);
 
+let rec move_pointing =
+        (d: Direction.t, sframe: Selection.frame, frame: Frame.t)
+        : option((Selection.frame, Frame.t)) => {
+  let (affix_toward, affix_away) =
+    switch (d) {
+    | Left => (fst, snd)
+    | Right => (snd, fst)
+    };
+  let mk_sframe = (toward, away) =>
+    switch (d) {
+    | Left => (toward, away)
+    | Right => (away, toward)
+    };
+  switch (affix_toward(sframe)) {
+  | [] =>
+    // [Move<d>Frame]
+    let* (sframe', frame') = Parser.disassemble_frame(frame);
+    switch (affix_toward(sframe')) {
+    | [] => None
+    | [_, ..._] =>
+      move_pointing(d, ListFrame.append(sframe, sframe'), frame')
+    };
+  | [selem, ...toward] =>
+    switch (Parser.disassemble_selem(d, selem)) {
+    | [] =>
+      // [Move<d>Atomic]
+      let away =
+        Parser.parse_selection(
+          Direction.toggle(d),
+          [selem, ...affix_away(sframe)],
+        );
+      Some(Parser.parse_zipper(mk_sframe(toward, away), frame));
+    | [_, ..._] as disassembled =>
+      // [Move<d>Disassembles]
+      move_pointing(
+        d,
+        mk_sframe(disassembled @ toward, affix_away(sframe)),
+        frame,
+      )
+    }
+  };
+};
+
 let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   switch (subject) {
   | Pointing((prefix, suffix) as sframe) =>
@@ -15,57 +58,9 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
     | Mark =>
       // [MarkPointing]
       Some((Selecting([], sframe), frame))
-    | Move(Left) =>
-      switch (prefix) {
-      | [] =>
-        // [MoveLeftFrame]
-        let* ((prefix', suffix'), frame') = Parser.disassemble_frame(frame);
-        switch (prefix') {
-        | [] => None
-        | [_, ..._] =>
-          let subject' = Subject.Pointing((prefix', suffix @ suffix'));
-          perform(a, (subject', frame'));
-        };
-      | [selem, ...prefix] =>
-        switch (Parser.disassemble_selem(selem)) {
-        | [] =>
-          // [MoveLeftAtomic]
-          let suffix = Parser.parse_selection(Right, [selem, ...suffix]);
-          let (sframe, frame) =
-            Parser.parse_zipper((prefix, suffix), frame);
-          Some((Pointing(sframe), frame));
-        | [_, ..._] as disassembled =>
-          // [MoveLeftDisassembles]
-          let subject =
-            Subject.Pointing((List.rev(disassembled) @ prefix, suffix));
-          perform(a, (subject, frame));
-        }
-      }
-    | Move(Right) =>
-      switch (suffix) {
-      | [] =>
-        // [MoveRightFrame]
-        let* ((prefix', suffix'), frame') = Parser.disassemble_frame(frame);
-        switch (suffix') {
-        | [] => None
-        | [_, ..._] =>
-          let subject' = Subject.Pointing((prefix @ prefix', suffix'));
-          perform(a, (subject', frame'));
-        };
-      | [selem, ...suffix] =>
-        switch (Parser.disassemble_selem(selem)) {
-        | [] =>
-          // [MoveRightAtomic]
-          let prefix = Parser.parse_selection(Left, [selem, ...prefix]);
-          let (sframe, frame) =
-            Parser.parse_zipper((prefix, suffix), frame);
-          Some((Pointing(sframe), frame));
-        | [_, ..._] as disassembled =>
-          // [MoveRightDisassembles]
-          let subject = Subject.Pointing((prefix, disassembled @ suffix));
-          perform(a, (subject, frame));
-        }
-      }
+    | Move(d) =>
+      let+ (sframe, frame) = move_pointing(d, sframe, frame);
+      (Subject.Pointing(sframe), frame);
     | Delete => None
     | Construct(tile) =>
       // [Construct]
@@ -103,7 +98,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
           Subject.Selecting(selection, ListFrame.append(sframe, sframe'));
         perform(a, (subject, frame'));
       | [selem, ...prefix] =>
-        switch (Parser.disassemble_selem(selem)) {
+        switch (Parser.disassemble_selem(Left, selem)) {
         | [] =>
           // [SelectLeftAtomic]
           let selection' =
@@ -113,10 +108,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         | [_, ..._] as disassembled =>
           // [SelectLeftDisassembles]
           let subject =
-            Subject.Selecting(
-              selection,
-              (List.rev(disassembled) @ prefix, suffix),
-            );
+            Subject.Selecting(selection, (disassembled @ prefix, suffix));
           perform(a, (subject, frame));
         }
       }
@@ -126,7 +118,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         // disallowing left-to-right selections for simplicity
         None
       | [selem, ...selection] =>
-        switch (Parser.disassemble_selem(selem)) {
+        switch (Parser.disassemble_selem(Right, selem)) {
         | [] =>
           // [SelectRightAtomic]
           let (sframe', frame') =

@@ -1,39 +1,46 @@
 open Util;
 open OptUtil.Syntax;
 
-let disassemble_selem: Selem.t => Selection.t =
-  fun
-  | Token(_) => []
-  | Tile(Pat(tile)) =>
-    switch (tile) {
-    | OpHole
-    | Var(_)
-    | BinHole
-    | Prod => []
-    | Paren(body) =>
-      [Selem.Token(Pat(Paren_l)), ...Selection.of_tiles_pat(body)]
-      @ [Token(Pat(Paren_r))]
-    }
-  | Tile(Exp(tile)) =>
-    switch (tile) {
-    | OpHole
-    | Num(_)
-    | Var(_)
-    | BinHole
-    | Plus
-    | Times
-    | Prod => []
-    | Paren(body) =>
-      [Selem.Token(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
-      @ [Token(Exp(Paren_r))]
-    | Lam(p) =>
-      [Selem.Token(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
-      @ [Token(Exp(Lam_dot))]
-    | Let(p, def) =>
-      [Selem.Token(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
-      @ [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
-      @ [Selem.Token(Exp(Let_in))]
+let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
+  let disassembled =
+    switch (selem) {
+    | Selem.Token(_) => []
+    | Tile(Pat(tile)) =>
+      switch (tile) {
+      | OpHole
+      | Var(_)
+      | BinHole
+      | Prod => []
+      | Paren(body) =>
+        [Selem.Token(Pat(Paren_l)), ...Selection.of_tiles_pat(body)]
+        @ [Token(Pat(Paren_r))]
+      }
+    | Tile(Exp(tile)) =>
+      switch (tile) {
+      | OpHole
+      | Num(_)
+      | Var(_)
+      | BinHole
+      | Plus
+      | Times
+      | Prod => []
+      | Paren(body) =>
+        [Selem.Token(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
+        @ [Token(Exp(Paren_r))]
+      | Lam(p) =>
+        [Selem.Token(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
+        @ [Token(Exp(Lam_dot))]
+      | Let(p, def) =>
+        [Selem.Token(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
+        @ [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
+        @ [Selem.Token(Exp(Let_in))]
+      }
     };
+  switch (d) {
+  | Left => List.rev(disassembled)
+  | Right => disassembled
+  };
+};
 
 let rec find_token =
         (d: Direction.t, selection: Selection.t)
