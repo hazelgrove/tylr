@@ -348,6 +348,7 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
 };
 
 let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
+  let frame_sort = Frame.sort(frame);
   let mk_subject =
       (
         ~caret: CaretPosition.t,
@@ -358,7 +359,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       ) => {
     let uni_child = uni_child(~sort);
     let (root_tile, dangling_caret) =
-      mk_tile(~caret=(sort, Pointing, caret), root_tile)
+      mk_tile(~caret=(frame_sort, Pointing, caret), root_tile)
       |> PairUtil.map_fst(
            annot(Selem(Some(sort), selem_shape(Tile(root_tile)), Root)),
          );
@@ -384,13 +385,13 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     | Some(Left) =>
       pad_spaces_z(
         prefix @ child_pre,
-        (sort, Pointing),
+        (frame_sort, Pointing),
         [root_tile, ...child_suf] @ suffix,
       )
     | Some(Right) =>
       pad_spaces_z(
         List.concat([prefix, child_pre, [root_tile]]),
-        (sort, Pointing),
+        (frame_sort, Pointing),
         child_suf @ suffix,
       )
     };
