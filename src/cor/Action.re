@@ -8,6 +8,20 @@ type t =
   | Delete
   | Construct(Tile.t);
 
+let front_affix =
+  fun
+  | Direction.Left => fst
+  | Right => snd;
+let back_affix =
+  fun
+  | Direction.Left => snd
+  | Right => fst;
+let mk_sframe = (d: Direction.t, front, back) =>
+  switch (d) {
+  | Left => (front, back)
+  | Right => (back, front)
+  };
+
 let rec move_pointing =
         (d: Direction.t, sframe: Selection.frame, frame: Frame.t)
         : option((Selection.frame, Frame.t)) => {
@@ -51,6 +65,63 @@ let rec move_pointing =
   };
 };
 
+let rec move_selecting =
+        (
+          d: Direction.t,
+          selection: Selection.t,
+          (prefix, suffix) as sframe: Selection.frame,
+          frame: Frame.t,
+        )
+        : option((Selection.t, Selection.frame, Frame.t)) => {
+  switch (d) {
+  | Left =>
+    switch (prefix) {
+    | [] =>
+      // [SelectLeftFrame]
+      let* (sframe', frame') = Parser.disassemble_frame(frame);
+      move_selecting(
+        d,
+        selection,
+        ListFrame.append(sframe, sframe'),
+        frame',
+      );
+    | [selem, ...prefix] =>
+      switch (Parser.disassemble_selem(Left, selem)) {
+      | [] =>
+        // [SelectGrowLeftAtomic]
+        let selection' =
+          Parser.parse_selection(Right, [selem, ...selection]);
+        Some((selection', (prefix, suffix), frame));
+      | [_, ..._] as disassembled =>
+        // [SelectGrow<caret_side>Disassembles]
+        let sframe' = (disassembled @ prefix, suffix);
+        move_selecting(d, selection, sframe', frame);
+      }
+    }
+  | Right =>
+    switch (selection) {
+    | [] => None
+    | [selem, ...selection] =>
+      switch (Parser.disassemble_selem(Right, selem)) {
+      | [] =>
+        // [SelectShrinkLeftAtomic]
+        let (sframe', frame') =
+          Parser.(
+            parse_zipper(
+              (parse_selection(Left, [selem, ...prefix]), suffix),
+              frame,
+            )
+          );
+        Some((selection, sframe', frame'));
+      | [_, ..._] as disassembled =>
+        // [SelectShrink<caret_side>Disassembles]
+        let selection' = disassembled @ selection;
+        move_selecting(d, selection', sframe, frame);
+      }
+    }
+  };
+};
+
 let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   switch (subject) {
   | Pointing((prefix, suffix) as sframe) =>
@@ -74,7 +145,7 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         Some((Pointing(sframe), frame));
       };
     }
-  | Selecting(selection, (prefix, suffix) as sframe) =>
+  | Selecting(selection, sframe) =>
     switch (a) {
     | Delete
     | Construct(_) => None
@@ -89,53 +160,10 @@ let rec perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         let sframe = Parser.fix_holes(tip, sframe, tip);
         Some((Subject.Restructuring(selection, sframe), frame));
       };
-    | Move(Left) =>
-      switch (prefix) {
-      | [] =>
-        // [SelectLeftFrame]
-        let* (sframe', frame') = Parser.disassemble_frame(frame);
-        let subject =
-          Subject.Selecting(selection, ListFrame.append(sframe, sframe'));
-        perform(a, (subject, frame'));
-      | [selem, ...prefix] =>
-        switch (Parser.disassemble_selem(Left, selem)) {
-        | [] =>
-          // [SelectLeftAtomic]
-          let selection' =
-            Parser.parse_selection(Right, [selem, ...selection]);
-          let subject = Subject.Selecting(selection', (prefix, suffix));
-          Some((subject, frame));
-        | [_, ..._] as disassembled =>
-          // [SelectLeftDisassembles]
-          let subject =
-            Subject.Selecting(selection, (disassembled @ prefix, suffix));
-          perform(a, (subject, frame));
-        }
-      }
-    | Move(Right) =>
-      switch (selection) {
-      | [] =>
-        // disallowing left-to-right selections for simplicity
-        None
-      | [selem, ...selection] =>
-        switch (Parser.disassemble_selem(Right, selem)) {
-        | [] =>
-          // [SelectRightAtomic]
-          let (sframe', frame') =
-            Parser.(
-              parse_zipper(
-                (parse_selection(Left, [selem, ...prefix]), suffix),
-                frame,
-              )
-            );
-          let subject = Subject.Selecting(selection, sframe');
-          Some((subject, frame'));
-        | [_, ..._] as disassembled =>
-          // [SelectRightDisassembles]
-          let subject = Subject.Selecting(disassembled @ selection, sframe);
-          perform(a, (subject, frame));
-        }
-      }
+    | Move(d) =>
+      let+ (selection, sframe, frame) =
+        move_selecting(d, selection, sframe, frame);
+      (Subject.Selecting(selection, sframe), frame);
     }
   | Restructuring(selection, (prefix, suffix) as sframe) =>
     switch (a) {
