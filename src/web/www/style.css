@@ -192,6 +192,7 @@
   z-index: var(--selection-box-z);
   box-sizing: border-box;
   border-radius: 3px;
+  filter: blur(1px);
 }
 .selection-box.unfocused {
   opacity: 50%;
