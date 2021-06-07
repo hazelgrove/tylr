@@ -950,6 +950,7 @@ module Caret = {
       (
         ~font_metrics: FontMetrics.t,
         ~view_of_layout: (~font_metrics: FontMetrics.t, Layout.t) => Node.t,
+        ~sort: Sort.t,
         offset: int,
         caret: Layout.caret,
       ) => {
@@ -988,7 +989,10 @@ module Caret = {
         ),
       ],
       [
-        Node.div([Attr.id("caret-bar")], []),
+        Node.div(
+          [Attr.id("caret-bar"), Attr.classes([Sort.to_string(sort)])],
+          [],
+        ),
         Node.div(
           [
             Attr.id("action-table"),

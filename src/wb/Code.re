@@ -91,11 +91,12 @@ let rec view_of_layout =
              | Selected =>
                let d = Decoration.SelectedBox.view(~font_metrics, start, len);
                add_decoration(d);
-             | Space(Some(caret)) =>
+             | Space(Some((sort, caret))) =>
                let d =
                  Decoration.Caret.view(
                    ~font_metrics,
                    ~view_of_layout=view_of_layout(~id=?None, ~text_id=?None),
+                   ~sort,
                    start,
                    caret,
                  );

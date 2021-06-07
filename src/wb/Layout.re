@@ -15,7 +15,7 @@ type t =
 and annot =
   | Delim
   | EmptyHole(option(Sort.t))
-  | Space(option(caret))
+  | Space(option((Sort.t, caret)))
   | ClosedChild
   | OpenChild
   | UniChild(Sort.t, Direction.t)
@@ -103,58 +103,59 @@ let measured_fold' =
 let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~start);
 
-let rec place_caret = (d: Direction.t, caret, l) =>
+let rec place_caret = (d: Direction.t, (sort, caret), l) =>
   switch (l) {
   | Text(_) => l
   | Cat(l1, l2) =>
     switch (d) {
-    | Left => Cat(place_caret(d, caret, l1), l2)
-    | Right => Cat(l1, place_caret(d, caret, l2))
+    | Left => Cat(place_caret(d, (sort, caret), l1), l2)
+    | Right => Cat(l1, place_caret(d, (sort, caret), l2))
     }
-  | Annot(Space(_), l) => Annot(Space(Some(caret)), l)
-  | Annot(annot, l) => Annot(annot, place_caret(d, caret, l))
+  | Annot(Space(_), l) => Annot(Space(Some((sort, caret))), l)
+  | Annot(annot, l) => Annot(annot, place_caret(d, (sort, caret), l))
   };
 
 type with_dangling_caret = (t, option(Direction.t));
 
-let place_caret_0: option((caret, CaretPosition.t)) => option(Direction.t) =
+let place_caret_0:
+  option((Sort.t, caret, CaretPosition.t)) => option(Direction.t) =
   Option.map(
     fun
-    | (_, CaretPosition.Before(_)) => Direction.Left
-    | (_, After) => Right,
+    | (_, _, CaretPosition.Before(_)) => Direction.Left
+    | (_, _, After) => Right,
   );
 let place_caret_1 = (caret, child1) =>
   switch (caret) {
   | None => (child1, None)
-  | Some((_, CaretPosition.Before(0))) => (child1, Some(Direction.Left))
-  | Some((caret, Before(_one))) => (
-      place_caret(Right, caret, child1),
+  | Some((_, _, CaretPosition.Before(0))) => (child1, Some(Direction.Left))
+  | Some((sort, caret, Before(_one))) => (
+      place_caret(Right, (sort, caret), child1),
       None,
     )
-  | Some((_, After)) => (child1, Some(Right))
+  | Some((_, _, After)) => (child1, Some(Right))
   };
 let place_caret_2 = (caret, child1, child2) =>
   switch (caret) {
   | None => (child1, child2, None)
-  | Some((_, CaretPosition.Before(0))) => (
+  | Some((_, _, CaretPosition.Before(0))) => (
       child1,
       child2,
       Some(Direction.Left),
     )
-  | Some((caret, Before(1))) => (
-      place_caret(Right, caret, child1),
+  | Some((sort, caret, Before(1))) => (
+      place_caret(Right, (sort, caret), child1),
       child2,
       None,
     )
-  | Some((caret, Before(_two))) => (
+  | Some((sort, caret, Before(_two))) => (
       child1,
-      place_caret(Right, caret, child2),
+      place_caret(Right, (sort, caret), child2),
       None,
     )
-  | Some((_, After)) => (child1, child2, Some(Right))
+  | Some((_, _, After)) => (child1, child2, Some(Right))
   };
 
-let mk_Paren = (~caret: option((caret, CaretPosition.t))=?, body) => {
+let mk_Paren = (~caret=?, body) => {
   let (body, dangling_caret) = place_caret_1(caret, body);
   let l = cats([delim("("), open_child(body), delim(")")]);
   (l, dangling_caret);
@@ -357,7 +358,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       ) => {
     let uni_child = uni_child(~sort);
     let (root_tile, dangling_caret) =
-      mk_tile(~caret=(Pointing, caret), root_tile)
+      mk_tile(~caret=(sort, Pointing, caret), root_tile)
       |> PairUtil.map_fst(
            annot(Selem(Some(sort), selem_shape(Tile(root_tile)), Root)),
          );
@@ -383,13 +384,13 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     | Some(Left) =>
       pad_spaces_z(
         prefix @ child_pre,
-        Pointing,
+        (sort, Pointing),
         [root_tile, ...child_suf] @ suffix,
       )
     | Some(Right) =>
       pad_spaces_z(
         List.concat([prefix, child_pre, [root_tile]]),
-        Pointing,
+        (sort, Pointing),
         child_suf @ suffix,
       )
     };
@@ -463,6 +464,11 @@ let mk_selecting =
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     ) => {
+  let caret_sort =
+    switch (prefix) {
+    | [] => Frame.sort(frame)
+    | [selem, ..._] => snd(Selem.tip(Right, selem))
+    };
   let selection =
     switch (selection) {
     | [] => []
@@ -475,7 +481,8 @@ let mk_selecting =
       mk_affix(~show_children=true, ~sort=Frame.sort(frame)),
       (List.rev(prefix), suffix),
     );
-  let subject = pad_spaces_z(prefix, Selecting, selection @ suffix);
+  let subject =
+    pad_spaces_z(prefix, (caret_sort, Selecting), selection @ suffix);
   mk_frame(subject, frame);
 };
 
@@ -485,6 +492,11 @@ let mk_restructuring =
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     ) => {
+  let caret_sort =
+    switch (prefix) {
+    | [] => Frame.sort(frame)
+    | [selem, ..._] => snd(Selem.tip(Right, selem))
+    };
   let (prefix, suffix) =
     TupleUtil.map2(
       mk_affix(
@@ -495,7 +507,8 @@ let mk_restructuring =
     );
   let selection =
     pad(annot(Selected, spaces(mk_selection(~style=Selected, selection))));
-  let subject = pad_spaces_z(prefix, Restructuring(selection), suffix);
+  let subject =
+    pad_spaces_z(prefix, (caret_sort, Restructuring(selection)), suffix);
   mk_frame(subject, frame);
 };
 
