@@ -4,7 +4,7 @@ open Util;
 module Sort = Cor.Sort;
 module Direction = Cor.Direction;
 
-let tip_width = 0.3;
+let tip_width = 0.275;
 let child_border_thickness = 0.1;
 
 let t = child_border_thickness /. 0.5;
