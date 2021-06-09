@@ -362,6 +362,27 @@
   flood-color: var(--typ-shadow-color);
 }
 
+.caret-position-path.Exp {
+  stroke: var(--exp-shadow-color);
+  fill: var(--exp-shadow-color);
+}
+.caret-position-path.Pat {
+  stroke: var(--pat-shadow-color);
+  fill: var(--pat-shadow-color);
+}
+.caret-position-path.Typ {
+  stroke: var(--typ-shadow-color);
+  fill: var(--typ-shadow-color);
+}
+.caret-position-path.unsorted {
+  stroke: var(--unsorted-shadow-color);
+  fill: var(--unsorted-shadow-color);
+}
+
+.caret-position-path.neighbor {
+  opacity: 0.5;
+}
+
 #caret {
   position: absolute;
   height: 80vh;

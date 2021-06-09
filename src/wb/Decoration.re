@@ -1,8 +1,6 @@
 open Virtual_dom.Vdom;
 open Util;
-
-module Sort = Cor.Sort;
-module Direction = Cor.Direction;
+open Cor;
 
 let tip_width = 0.275;
 let child_border_thickness = 0.1;
@@ -26,11 +24,6 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   let r = 3.5;
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
-
-let sort_cls =
-  fun
-  | None => "unsorted"
-  | Some(s) => Sort.to_string(s);
 
 module Diag = {
   // top right to bottom left
@@ -189,14 +182,11 @@ module ErrHole = {
 };
 
 module EmptyHole = {
-  let inset_shadow_filter = (~sort) =>
+  let inset_shadow_filter = (~color) => {
+    let c_cls = Color.to_string(color);
     Node.create_svg(
       "filter",
-      [
-        Attr.id(
-          Printf.sprintf("empty-hole-inset-shadow-%s", sort_cls(sort)),
-        ),
-      ],
+      [Attr.id(Printf.sprintf("empty-hole-inset-shadow-%s", c_cls))],
       [
         Node.create_svg(
           "feOffset",
@@ -211,7 +201,7 @@ module EmptyHole = {
         Node.create_svg(
           "feFlood",
           Attr.[
-            classes(["empty-hole-inset-shadow-flood", sort_cls(sort)]),
+            classes(["empty-hole-inset-shadow-flood", c_cls]),
             create("flood-opacity", "1"),
             create("result", "color"),
           ],
@@ -255,15 +245,13 @@ module EmptyHole = {
         ),
       ],
     );
+  };
 
-  let thin_inset_shadow_filter = (~sort) =>
+  let thin_inset_shadow_filter = (~color) => {
+    let c_cls = Color.to_string(color);
     Node.create_svg(
       "filter",
-      [
-        Attr.id(
-          Printf.sprintf("empty-hole-thin-inset-shadow-%s", sort_cls(sort)),
-        ),
-      ],
+      [Attr.id(Printf.sprintf("empty-hole-thin-inset-shadow-%s", c_cls))],
       [
         Node.create_svg(
           "feOffset",
@@ -278,7 +266,7 @@ module EmptyHole = {
         Node.create_svg(
           "feFlood",
           Attr.[
-            classes(["empty-hole-inset-shadow-flood", sort_cls(sort)]),
+            classes(["empty-hole-inset-shadow-flood", c_cls]),
             create("flood-opacity", "1"),
             create("result", "color"),
           ],
@@ -322,11 +310,12 @@ module EmptyHole = {
         ),
       ],
     );
+  };
 
   let view =
       (
         ~offset=0,
-        ~sort: option(Sort.t),
+        ~color: Color.t,
         ~inset: option([ | `Thick | `Thin]),
         ~font_metrics: FontMetrics.t,
         (),
@@ -335,7 +324,7 @@ module EmptyHole = {
     // necessary because of AttrUtil shadowing below
     let o = offset;
     let (r_x, r_y) = hole_radii(~font_metrics);
-    let sort_cls = sort_cls(sort);
+    let c_cls = Color.to_string(color);
     [
       Node.create_svg(
         "ellipse",
@@ -350,15 +339,12 @@ module EmptyHole = {
             switch (inset) {
             | None => "none"
             | Some(`Thin) =>
-              Printf.sprintf(
-                "url(#empty-hole-thin-inset-shadow-%s)",
-                sort_cls,
-              )
+              Printf.sprintf("url(#empty-hole-thin-inset-shadow-%s)", c_cls)
             | Some(`Thick) =>
-              Printf.sprintf("url(#empty-hole-inset-shadow-%s)", sort_cls)
+              Printf.sprintf("url(#empty-hole-inset-shadow-%s)", c_cls)
             },
           ),
-          Attr.classes(["empty-hole-path", sort_cls]),
+          Attr.classes(["empty-hole-path", c_cls]),
         ],
         [],
       ),
@@ -497,26 +483,26 @@ module Selem = {
   open Diag;
 
   type profile = {
-    sort: option(Sort.t),
+    color: Color.t,
     shape: Layout.selem_shape,
     style: SelemStyle.t,
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
-    empty_holes: list((int, option(Sort.t))),
+    empty_holes: list((int, Color.t)),
   };
   let mk_profile =
       (
         ~open_children=[],
         ~closed_children=[],
         ~empty_holes=[],
-        ~sort=?,
+        ~color,
         ~style,
         ~len,
         ~shape,
         (),
       ) => {
-    sort,
+    color,
     shape,
     len,
     open_children,
@@ -525,12 +511,8 @@ module Selem = {
     style,
   };
 
-  let raised_shadow_filter = (~sort: option(Sort.t)=?, ()) => {
-    let s =
-      switch (sort) {
-      | None => "unsorted"
-      | Some(s) => Sort.to_string(s)
-      };
+  let raised_shadow_filter = (~color: Color.t) => {
+    let s = Color.to_string(color);
     Node.create_svg(
       "filter",
       [Attr.id("raised-drop-shadow-" ++ s)],
@@ -549,12 +531,8 @@ module Selem = {
     );
   };
 
-  let shadow_filter = (~sort: option(Sort.t)=?, ()) => {
-    let s =
-      switch (sort) {
-      | None => "unsorted"
-      | Some(s) => Sort.to_string(s)
-      };
+  let shadow_filter = (~color: Color.t) => {
+    let s = Color.to_string(color);
     Node.create_svg(
       "filter",
       [Attr.id("drop-shadow-" ++ s)],
@@ -574,14 +552,15 @@ module Selem = {
   };
 
   let open_child_paths =
-      (~start, ~sort: option(Sort.t), open_children: list((int, int)))
+      (~start, ~color: Color.t, open_children: list((int, int)))
       : list(Node.t) => {
     open SvgUtil.Path;
     let color =
-      switch (sort) {
-      | None => "var(--unsorted-shadow-color)"
-      | Some(Pat) => "var(--pat-shadow-color)"
-      | Some(Exp) => "var(--exp-shadow-color)"
+      switch (color) {
+      | Selected => "var(--unsorted-shadow-color)"
+      | Typ => "var(--typ-shadow-color)"
+      | Pat => "var(--pat-shadow-color)"
+      | Exp => "var(--exp-shadow-color)"
       };
     let gradient = (id, start, len) =>
       Node.create_svg(
@@ -650,7 +629,7 @@ module Selem = {
   };
 
   let empty_hole_path =
-      (~font_metrics, empty_hole: (int, option(Sort.t))): SvgUtil.Path.t => {
+      (~font_metrics, empty_hole: (int, Color.t)): SvgUtil.Path.t => {
     let (rx, ry) = hole_radii(~font_metrics);
     let (o, _sort_todo) = empty_hole;
     SvgUtil.Path.[
@@ -777,16 +756,12 @@ module Selem = {
       ]);
     };
     let clss = {
-      let sort =
-        switch (profile.sort) {
-        | None => "unsorted"
-        | Some(s) => Sort.to_string(s)
-        };
+      let c_cls = Color.to_string(profile.color);
       let highlighted =
         SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
       let filtered = SelemStyle.filtered(profile.style) ? ["filtered"] : [];
       let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
-      List.concat([["tile-path", sort], highlighted, raised, filtered]);
+      List.concat([["tile-path", c_cls], highlighted, raised, filtered]);
     };
     SvgUtil.Path.view(
       ~attrs=
@@ -814,7 +789,7 @@ module Selem = {
       SelemStyle.show_children(profile.style)
         ? profile : {...profile, open_children: [], closed_children: []};
     let open_child_paths =
-      open_child_paths(~start, ~sort=profile.sort, profile.open_children);
+      open_child_paths(~start, ~color=profile.color, profile.open_children);
     open_child_paths @ [contour_path(~attrs, ~font_metrics, profile)];
   };
 };
@@ -838,6 +813,51 @@ module SelectedBox = {
       ],
       [],
     );
+};
+
+module CaretPosition = {
+  let blur_filter =
+    Node.create_svg(
+      "filter",
+      [Attr.id("caret-position-neighbor-blur")],
+      [
+        Node.create_svg(
+          "feGaussianBlur",
+          [
+            Attr.create("in", "SourceGraphic"),
+            Attr.create("stdDeviation", "5"),
+            Attr.create("result", "blurred"),
+          ],
+          [],
+        ),
+      ],
+    );
+
+  let view = (~font_metrics, ~style: [ | `Anchor | `Neighbor], color: Color.t) => {
+    let (r_x, r_y) = hole_radii(~font_metrics);
+    let c_cls = Color.to_string(color);
+    let (style_cls, filter_id) =
+      switch (style) {
+      | `Anchor => ("anchor", "none")
+      | `Neighbor => ("neighbor", "url(#caret-position-neighbor-blur)")
+      };
+    [
+      Node.create_svg(
+        "ellipse",
+        AttrUtil.[
+          cx(0.5),
+          cy(0.5),
+          rx(r_x),
+          ry(r_y),
+          vector_effect("non-scaling-stroke"),
+          stroke_width(0.1),
+          filter(filter_id),
+          Attr.classes(["caret-position-path", style_cls, c_cls]),
+        ],
+        [],
+      ),
+    ];
+  };
 };
 
 module Caret = {
@@ -949,16 +969,26 @@ module Caret = {
   let view =
       (
         ~font_metrics: FontMetrics.t,
-        ~view_of_layout: (~font_metrics: FontMetrics.t, Layout.t) => Node.t,
-        ~sort: Sort.t,
+        ~view_of_layout:
+           (~font_metrics: FontMetrics.t, DecorationPaths.t, Layout.t) =>
+           Node.t,
+        ~color: Color.t,
         offset: int,
-        caret: Layout.caret,
+        mode: CaretMode.t,
       ) => {
     let (top, selection) =
-      switch (caret) {
+      switch (mode) {
       | Pointing
       | Selecting => (0., [])
-      | Restructuring(selection) => (
+      | Restructuring(selection) =>
+        let l = Layout.mk_selection(~style=Selected, Selected, selection);
+        let dpaths =
+          DecorationPaths.{
+            caret: None,
+            neighbors: (None, None),
+            anchors: [([], (0, List.length(selection)))],
+          };
+        (
           (-1.4) *. font_metrics.row_height,
           [
             Node.span(
@@ -971,10 +1001,10 @@ module Caret = {
                   ),
                 ),
               ],
-              [view_of_layout(~font_metrics, selection)],
+              [view_of_layout(~font_metrics, dpaths, l)],
             ),
           ],
-        )
+        );
       };
     Node.div(
       [
@@ -990,7 +1020,7 @@ module Caret = {
       ],
       [
         Node.div(
-          [Attr.id("caret-bar"), Attr.classes([Sort.to_string(sort)])],
+          [Attr.id("caret-bar"), Attr.classes([Color.to_string(color)])],
           [],
         ),
         Node.div(

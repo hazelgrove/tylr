@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Util;
 open Cor;
 
 let is_var = s => Re.Str.string_match(Re.Str.regexp("[a-z]"), s, 0);
@@ -94,36 +95,49 @@ let focus_code = () => {
 };
 
 let logo = (~font_metrics) => {
-  let selem = (sort, shape: Layout.selem_shape, s) =>
-    Layout.annot(Selem(sort, shape, Logo), Text(s));
+  let selem = (color: Color.t, shape: Layout.selem_shape, s): Layout.t =>
+    Layout.annot(Selem(color, shape, Logo), Text(s));
   let l =
     Layout.(
-      spaces([
-        selem(Some(Exp), ((Convex, 0), (Convex, 0)), "t"),
-        selem(Some(Pat), ((Concave, 0), (Convex, 0)), "y"),
-        selem(Some(Pat), ((Concave, 0), (Concave, 0)), "l"),
-        selem(None, ((Convex, 0), (Concave, 1)), "r"),
-      ])
+      spaces(
+        // HACK
+        Selected,
+        [
+          selem(Exp, ((Convex, 0), (Convex, 0)), "t"),
+          selem(Pat, ((Concave, 0), (Convex, 0)), "y"),
+          selem(Typ, ((Concave, 0), (Concave, 0)), "l"),
+          selem(Selected, ((Convex, 0), (Concave, 1)), "r"),
+        ],
+      )
     );
-  Code.view_of_layout(~id="logo", ~text_id="logo-text", ~font_metrics, l);
+  Code.view_of_layout(
+    ~id="logo",
+    ~text_id="logo-text",
+    ~font_metrics,
+    DecorationPaths.empty,
+    l,
+  );
 };
 
 let filters =
   NodeUtil.svg(
     Attr.[id("filters")],
     Decoration.[
-      Selem.raised_shadow_filter(~sort=Exp, ()),
-      Selem.shadow_filter(~sort=Exp, ()),
-      Selem.raised_shadow_filter(~sort=Pat, ()),
-      Selem.shadow_filter(~sort=Pat, ()),
-      Selem.raised_shadow_filter(),
-      Selem.shadow_filter(),
-      EmptyHole.inset_shadow_filter(~sort=None),
-      EmptyHole.thin_inset_shadow_filter(~sort=None),
-      EmptyHole.inset_shadow_filter(~sort=Some(Exp)),
-      EmptyHole.thin_inset_shadow_filter(~sort=Some(Exp)),
-      EmptyHole.inset_shadow_filter(~sort=Some(Pat)),
-      EmptyHole.thin_inset_shadow_filter(~sort=Some(Pat)),
+      Selem.raised_shadow_filter(~color=Exp),
+      Selem.shadow_filter(~color=Exp),
+      Selem.raised_shadow_filter(~color=Pat),
+      Selem.shadow_filter(~color=Pat),
+      Selem.raised_shadow_filter(~color=Typ),
+      Selem.shadow_filter(~color=Typ),
+      Selem.raised_shadow_filter(~color=Selected),
+      Selem.shadow_filter(~color=Selected),
+      EmptyHole.inset_shadow_filter(~color=Selected),
+      EmptyHole.thin_inset_shadow_filter(~color=Selected),
+      EmptyHole.inset_shadow_filter(~color=Exp),
+      EmptyHole.thin_inset_shadow_filter(~color=Exp),
+      EmptyHole.inset_shadow_filter(~color=Pat),
+      EmptyHole.thin_inset_shadow_filter(~color=Pat),
+      CaretPosition.blur_filter,
     ],
   );
 
@@ -131,7 +145,9 @@ let view =
     (
       ~inject,
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
-    ) =>
+    ) => {
+  let dpaths = DecorationPaths.mk(zipper);
+  let l = Layout.mk_zipper(zipper);
   Node.div(
     [Attr.id("page")],
     [
@@ -150,7 +166,8 @@ let view =
           }),
           ...key_handlers(~inject, ~zipper),
         ],
-        [Code.view_of_layout(~font_metrics, Layout.mk_zipper(zipper))],
+        [Code.view_of_layout(~font_metrics, dpaths, l)],
       ),
     ],
   );
+};
