@@ -46,7 +46,7 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
     | Annot(annot, l) =>
       let d_container = d_container(~origin=start);
       let len = () => Layout.length(l);
-      let go' = () => go(~indent, ~start, dpaths, l);
+      let go' = () => go(~tile_step?, ~indent, ~start, dpaths, l);
       let add_decoration = d => {
         let (txt, ds, n) = go'();
         (txt, [d, ...ds], n);

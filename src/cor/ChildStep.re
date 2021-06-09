@@ -1,3 +1,6 @@
+open Sexplib.Std;
+
+[@deriving sexp]
 type t = int;
 
 let paren_body = 0;

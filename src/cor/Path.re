@@ -1,12 +1,18 @@
+open Sexplib.Std;
 open Util;
 open OptUtil.Syntax;
 
+[@deriving sexp]
 type selem_step = int;
+[@deriving sexp]
 type caret_step = int;
 
+[@deriving sexp]
 type two_step = (selem_step, ChildStep.t);
+[@deriving sexp]
 type steps = list(two_step);
 
+[@deriving sexp]
 type t = (steps, caret_step);
 
 let rec mk_steps = (~steps=[], frame: Frame.t): steps => {

@@ -1,7 +1,9 @@
+open Sexplib.Std;
 open Util;
 open Cor;
 open OptUtil.Syntax;
 
+[@deriving sexp]
 type t = {
   caret: option((Path.t, CaretMode.t)),
   anchors: list(Range.t),
