@@ -383,8 +383,14 @@
   fill: var(--unsorted-shadow-color);
 }
 
-.caret-position-path.neighbor {
+/* .caret-position-path.neighbor,
+.caret-position-path.anchor {
   opacity: 0.5;
+  filter: url(#caret-position-neighbor-blur);
+} */
+
+.caret-position-path.neighbor {
+  opacity: 0.3;
 }
 
 #caret {

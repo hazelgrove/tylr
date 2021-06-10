@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 open Util;
 open Cor;
 
-let tip_width = 0.275;
+let tip_width = 0.32;
 let child_border_thickness = 0.1;
 
 let t = child_border_thickness /. 0.5;
@@ -22,6 +22,11 @@ let jagged_edge_w = child_border_thickness /. 1.;
 
 let hole_radii = (~font_metrics: FontMetrics.t) => {
   let r = 3.5;
+  (r /. font_metrics.col_width, r /. font_metrics.row_height);
+};
+
+let caret_position_radii = (~font_metrics: FontMetrics.t) => {
+  let r = 3.;
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
@@ -825,8 +830,7 @@ module CaretPosition = {
           "feGaussianBlur",
           [
             Attr.create("in", "SourceGraphic"),
-            Attr.create("stdDeviation", "5"),
-            Attr.create("result", "blurred"),
+            Attr.create("stdDeviation", "0."),
           ],
           [],
         ),
@@ -834,7 +838,7 @@ module CaretPosition = {
     );
 
   let view = (~font_metrics, ~style: [ | `Anchor | `Neighbor], color: Color.t) => {
-    let (r_x, r_y) = hole_radii(~font_metrics);
+    let (r_x, r_y) = caret_position_radii(~font_metrics);
     let c_cls = Color.to_string(color);
     let (style_cls, filter_id) =
       switch (style) {
