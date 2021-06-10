@@ -260,7 +260,7 @@ let mk_selem =
 let mk_selection =
     (~offset=0, ~style: option(SelemStyle.t)=?, color: Color.t, selection) =>
   switch (selection) {
-  | [] => empty
+  | [] => space(offset, color)
   | [hd, ..._] =>
     let (_, s) = Selem.tip(Left, hd);
     selection
