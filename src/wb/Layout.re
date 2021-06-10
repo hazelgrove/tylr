@@ -258,19 +258,29 @@ let mk_selem =
   };
 };
 let mk_selection =
-    (~offset=0, ~style: option(SelemStyle.t)=?, color: Color.t, selection) =>
+    (
+      ~offset=0,
+      ~style: option(SelemStyle.t)=?,
+      frame_color: Color.t,
+      selection,
+    ) =>
   switch (selection) {
-  | [] => space(offset, color)
+  | [] => space(offset, frame_color)
   | [hd, ..._] =>
-    let (_, s) = Selem.tip(Left, hd);
     selection
     |> List.mapi((i, selem) =>
-         step(offset + i, mk_selem(~style?, color, selem))
+         [
+           step(offset + i, mk_selem(~style?, Selected, selem)),
+           space(
+             offset + i + 1,
+             Color.of_sort(snd(Selem.tip(Right, selem))),
+           ),
+         ]
        )
-    |> spaces(~offset, Selected)
+    |> List.flatten
+    |> List.cons(space(offset, Color.of_sort(snd(Selem.tip(Left, hd)))))
+    |> cats
     |> annot(Selected)
-    // TODO allow different-sort-ended selections
-    |> pad(~offset, ~len=List.length(selection), Color.of_sort(s));
   };
 
 let zip_up =
@@ -511,7 +521,12 @@ let mk_selecting =
   let l_prefix = mk_affix(~offset, Left, prefix);
 
   let l_selection =
-    mk_selection(~offset, ~style=Selected, Selected, selection);
+    mk_selection(
+      ~offset,
+      ~style=Selected,
+      Color.of_sort(sort_frame),
+      selection,
+    );
 
   let offset = offset + List.length(selection);
   let l_suffix = mk_affix(~offset, Right, suffix);
