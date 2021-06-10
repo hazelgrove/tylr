@@ -6,25 +6,33 @@ open OptUtil.Syntax;
 [@deriving sexp]
 type t = {
   caret: option((Path.t, CaretMode.t)),
-  anchors: list(Range.t),
-  neighbors: (option(Path.t), option(Path.t)),
+  anchors: option(Range.t),
+  neighbors: option(Range.t),
 };
 
-let empty = {caret: None, anchors: [], neighbors: (None, None)};
+let empty = {caret: None, anchors: None, neighbors: None};
 
-let neighbors =
-    ((subject, frame): Zipper.t): (option(Path.t), option(Path.t)) => {
-  let sframe =
+let neighbors = ((subject, frame): Zipper.t): Range.t => {
+  let caret_steps =
     switch (subject) {
-    | Pointing(sframe)
-    | Restructuring(_, sframe) => sframe
-    | Selecting(selection, (prefix, suffix)) => (prefix, selection @ suffix)
+    | Pointing((prefix, suffix)) => (
+        0,
+        List.length(prefix) + List.length(suffix),
+      )
+    | Selecting(_, (prefix, _)) => (0, List.length(prefix))
+    | Restructuring(selection, (prefix, suffix)) =>
+      if (Selection.is_whole_any(selection)) {
+        (0, List.length(prefix) + List.length(suffix));
+      } else {
+        let (tiles_pre, prefix) = ListUtil.take_while(Selem.is_tile, prefix);
+        let (tiles_suf, _) = ListUtil.take_while(Selem.is_tile, suffix);
+        List.(
+          length(prefix),
+          length(prefix) + length(tiles_pre) + length(tiles_suf),
+        );
+      }
     };
-  let move = d => {
-    let+ (sframe, frame) = Path.move_zipper(d, sframe, frame);
-    Path.mk(sframe, frame);
-  };
-  (move(Left), move(Right));
+  (Path.mk_steps(frame), caret_steps);
 };
 
 let mk = ((subject, frame) as zipper: Zipper.t) => {
@@ -33,15 +41,18 @@ let mk = ((subject, frame) as zipper: Zipper.t) => {
     switch (subject) {
     | Pointing(sframe) =>
       let path = Path.mk(sframe, frame);
-      (Some((path, CaretMode.Pointing)), [Range.empty(path)]);
+      (Some((path, CaretMode.Pointing)), Some(Range.empty(path)));
     | Selecting(selection, sframe) =>
       let path = Path.mk(sframe, frame);
-      (Some((path, Selecting)), [Range.mk(path, List.length(selection))]);
+      (
+        Some((path, Selecting)),
+        Some(Range.mk(path, List.length(selection))),
+      );
     | Restructuring(selection, sframe) =>
       let path = Path.mk(sframe, frame);
-      (Some((path, Restructuring(selection))), [Range.empty(path)]);
+      (Some((path, Restructuring(selection))), Some(Range.empty(path)));
     };
-  let neighbors = CaretPath.neighbors(zipper);
+  let neighbors = Some(neighbors(zipper));
   {caret, anchors, neighbors};
 };
 
@@ -56,9 +67,8 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     let+ path = step_or_prune(path);
     (path, mode);
   };
-  let anchors = List.filter_map(step_or_prune, paths.anchors);
-  let neighbors =
-    paths.neighbors |> TupleUtil.map2(OptUtil.and_then(step_or_prune));
+  let anchors = Option.bind(paths.anchors, step_or_prune);
+  let neighbors = Option.bind(paths.neighbors, step_or_prune);
   {caret, anchors, neighbors};
 };
 
@@ -71,12 +81,10 @@ let current =
     | _ => None
     };
   let is_anchor =
-    paths.anchors
-    |> List.exists(
-         fun
-         | ([], (l, r)) when caret_step == l || caret_step == r => true
-         | _ => false,
-       );
+    switch (paths.anchors) {
+    | Some(([], (l, r))) when caret_step == l || caret_step == r => true
+    | _ => false
+    };
   switch (is_caret) {
   | Some(mode) => [Caret(mode), Anchor]
   | None =>
@@ -84,8 +92,9 @@ let current =
       [Anchor];
     } else {
       switch (paths.neighbors) {
-      | (Some(([], step)), _) when caret_step == step => [Neighbor]
-      | (_, Some(([], step))) when caret_step == step => [Neighbor]
+      | Some(([], (l, r))) when l <= caret_step && caret_step <= r => [
+          Neighbor,
+        ]
       | _ => []
       };
     }

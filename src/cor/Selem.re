@@ -11,6 +11,8 @@ let get = (get_token, get_tile) =>
   | Token(token) => get_token(token)
   | Tile(tile) => get_tile(tile);
 
+let is_tile = get(_ => false, _ => true);
+
 let is_hole = get(_ => false, Tile.is_hole);
 
 let tip = d => get(Token.tip(d), Tile.tip(d));

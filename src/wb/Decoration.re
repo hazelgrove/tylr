@@ -989,8 +989,8 @@ module Caret = {
         let dpaths =
           DecorationPaths.{
             caret: None,
-            neighbors: (None, None),
-            anchors: [([], (0, List.length(selection)))],
+            neighbors: None,
+            anchors: Some(([], (0, List.length(selection)))),
           };
         (
           (-1.4) *. font_metrics.row_height,
