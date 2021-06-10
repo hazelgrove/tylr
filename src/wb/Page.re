@@ -146,6 +146,7 @@ let view =
       ~inject,
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
     ) => {
+  let (_, frame) = zipper;
   let dpaths = DecorationPaths.mk(zipper);
   let l = Layout.mk_zipper(zipper);
   Node.div(
@@ -155,6 +156,7 @@ let view =
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
       filters,
+      Decoration.Rail.view(Color.of_sort(Frame.sort(frame))),
       Node.div(
         [
           Attr.id("code-container"),

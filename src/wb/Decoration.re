@@ -840,22 +840,19 @@ module CaretPosition = {
   let view = (~font_metrics, ~style: [ | `Anchor | `Neighbor], color: Color.t) => {
     let (r_x, r_y) = caret_position_radii(~font_metrics);
     let c_cls = Color.to_string(color);
-    let (style_cls, filter_id) =
+    let style_cls =
       switch (style) {
-      | `Anchor => ("anchor", "none")
-      | `Neighbor => ("neighbor", "url(#caret-position-neighbor-blur)")
+      | `Anchor => "anchor"
+      | `Neighbor => "neighbor"
       };
     [
       Node.create_svg(
         "ellipse",
         AttrUtil.[
           cx(0.5),
-          cy(0.5),
+          cy(-0.2),
           rx(r_x),
           ry(r_y),
-          vector_effect("non-scaling-stroke"),
-          stroke_width(0.1),
-          filter(filter_id),
           Attr.classes(["caret-position-path", style_cls, c_cls]),
         ],
         [],
@@ -1065,6 +1062,32 @@ module Caret = {
       ],
     );
   };
+};
+
+module Rail = {
+  let view = (c: Color.t) =>
+    Node.div(
+      [Attr.id("rail")],
+      [
+        Node.create_svg(
+          "svg",
+          Attr.[create("viewBox", "0 -1 100 2")],
+          [
+            Node.create_svg(
+              "line",
+              Attr.[
+                create("x1", "0"),
+                create("y1", "0"),
+                create("x2", "100"),
+                create("y2", "0"),
+                classes([Color.to_string(c)]),
+              ],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
 };
 
 let container =

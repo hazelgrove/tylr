@@ -33,9 +33,11 @@
 
   --exp-bg-color: #dbf6de; /*#ddff9f;*/
   --exp-shadow-color: #329f43; /* #709900; */
+  --exp-rail-color: #c4e1c8;
 
   --pat-bg-color: #c4e6ff;
   --pat-shadow-color: #268bd2;
+  --pat-rail-color: #cadce9;
 
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6168d4; /* #6c71c4; */
@@ -107,6 +109,23 @@
 #font-specimen, #code-container {
   font-family: "Source Code Pro", monospace;
   font-size: 14pt;
+}
+
+#rail {
+  position: fixed;
+  top: 38.75%;
+  left: 0%;
+  width: 100vw;
+}
+#rail line {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.5px;
+}
+#rail line.Exp {
+  stroke: var(--exp-rail-color);
+}
+#rail line.Pat {
+  stroke: var(--pat-rail-color);
 }
 
 #code-container {
@@ -366,31 +385,35 @@
   flood-color: var(--typ-shadow-color);
 }
 
-.caret-position-path.Exp {
+.caret-position-path {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 0.1px;
+}
+
+.caret-position-path.Exp.neighbor {
+  stroke: var(--exp-rail-color);
+  fill: var(--exp-rail-color);
+}
+.caret-position-path.Pat.neighbor {
+  stroke: var(--pat-rail-color);
+  fill: var(--pat-rail-color);
+}
+
+.caret-position-path.Exp.anchor {
   stroke: var(--exp-shadow-color);
   fill: var(--exp-shadow-color);
 }
-.caret-position-path.Pat {
+.caret-position-path.Pat.anchor {
   stroke: var(--pat-shadow-color);
   fill: var(--pat-shadow-color);
 }
-.caret-position-path.Typ {
+.caret-position-path.Typ.anchor {
   stroke: var(--typ-shadow-color);
   fill: var(--typ-shadow-color);
 }
 .caret-position-path.unsorted {
   stroke: var(--unsorted-shadow-color);
   fill: var(--unsorted-shadow-color);
-}
-
-/* .caret-position-path.neighbor,
-.caret-position-path.anchor {
-  opacity: 0.5;
-  filter: url(#caret-position-neighbor-blur);
-} */
-
-.caret-position-path.neighbor {
-  opacity: 0.3;
 }
 
 #caret {
