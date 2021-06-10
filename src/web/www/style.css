@@ -145,6 +145,23 @@
   fill: var(--unsorted-rail-color);
 }
 
+#selection-bar {
+  position: absolute;
+}
+#selection-bar svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+#selection-bar rect.same-sort.Exp {
+  stroke: var(--exp-shadow-color);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  fill: var(--light-page-color);
+}
+
 .code {
   position: relative;
   line-height: 1.4;
@@ -219,12 +236,17 @@
   position: relative;
 }
 .selection-box {
-  background-color: var(--selection-color);
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  border-radius: 3px;
+}
+.selection-shading {
+  background-color: var(--selection-color);
+  position: absolute;
+  height: 100%;
+  width: 100%;
   filter: blur(1px);
+  border-radius: 3px;
 }
 .selection-box.unfocused {
   opacity: 50%;
