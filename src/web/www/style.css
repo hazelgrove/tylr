@@ -44,6 +44,7 @@
 
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c76695;
+  --unsorted-rail-color: #f4dbe7;
 
   --action-text-color: rgb(82, 82, 82);
   --action-key-color: whitesmoke;
@@ -126,6 +127,9 @@
 }
 #rail line.Pat {
   stroke: var(--pat-rail-color);
+}
+#rail line.unsorted {
+  stroke: var(--unsorted-rail-color);
 }
 
 #code-container {

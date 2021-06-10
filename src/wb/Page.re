@@ -146,9 +146,19 @@ let view =
       ~inject,
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
     ) => {
-  let (_, frame) = zipper;
+  let (subject, frame) = zipper;
   let dpaths = DecorationPaths.mk(zipper);
   let l = Layout.mk_zipper(zipper);
+  let rail_color = {
+    let frame_color = Color.of_sort(Frame.sort(frame));
+    switch (subject) {
+    | Pointing(_) => frame_color
+    | Selecting(_)
+    | Restructuring(_) => Selected
+    // | Restructuring(selection, _) =>
+    //   Selection.is_whole_any(selection) ? frame_color : Selected
+    };
+  };
   Node.div(
     [Attr.id("page")],
     [
@@ -156,7 +166,7 @@ let view =
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
       filters,
-      Decoration.Rail.view(Color.of_sort(Frame.sort(frame))),
+      Decoration.Rail.view(rail_color),
       Node.div(
         [
           Attr.id("code-container"),
