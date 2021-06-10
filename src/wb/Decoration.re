@@ -1065,9 +1065,15 @@ module Caret = {
 };
 
 module Rail = {
-  let view = (c: Color.t) =>
+  let view = (~font_metrics: FontMetrics.t, c: Color.t) =>
     Node.div(
-      [Attr.id("rail")],
+      Attr.[
+        id("rail"),
+        create(
+          "style",
+          Printf.sprintf("top:%fpx;", -. (font_metrics.row_height *. 0.5)),
+        ),
+      ],
       [
         Node.create_svg(
           "svg",

@@ -112,9 +112,18 @@
   font-size: 14pt;
 }
 
-#rail {
+#code-container {
   position: fixed;
-  top: 38.75%;
+  top: 40%;
+  left: 0%;
+  width: 100vw;
+}
+#code-container:focus {
+  outline: none;
+}
+
+#rail {
+  position: absolute;
   left: 0%;
   width: 100vw;
 }
@@ -132,19 +141,15 @@
   stroke: var(--unsorted-rail-color);
 }
 
-#code-container {
-  position: fixed;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, 0%);
-}
-#code-container:focus {
-  outline: none;
-}
 
 .code {
   position: relative;
   line-height: 1.4;
+}
+.code#under-the-rail {
+  position: fixed;
+  left: 50%;
+  transform: translate(-50%, 0%);
 }
 
 .code-text {

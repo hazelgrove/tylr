@@ -166,7 +166,6 @@ let view =
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
       filters,
-      Decoration.Rail.view(rail_color),
       Node.div(
         [
           Attr.id("code-container"),
@@ -178,7 +177,16 @@ let view =
           }),
           ...key_handlers(~inject, ~zipper),
         ],
-        [Code.view_of_layout(~font_metrics, dpaths, l)],
+        [
+          Decoration.Rail.view(~font_metrics, rail_color),
+          Code.view_of_layout(
+            ~id="under-the-rail",
+            ~text_id="under-the-rail-text",
+            ~font_metrics,
+            dpaths,
+            l,
+          ),
+        ],
       ),
     ],
   );
