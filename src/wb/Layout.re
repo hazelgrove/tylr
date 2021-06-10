@@ -389,7 +389,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       | [_, ..._] => [
           uni_child(
             ~side=Left,
-            spaces(c, mk_tiles(~offset, List.rev(child_pre))),
+            spaces(~offset, c, mk_tiles(~offset, List.rev(child_pre))),
           ),
         ]
       };
@@ -409,7 +409,10 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       switch (child_suf) {
       | [] => []
       | [_, ..._] => [
-          uni_child(~side=Right, spaces(c, mk_tiles(~offset, child_suf))),
+          uni_child(
+            ~side=Right,
+            spaces(~offset, c, mk_tiles(~offset, child_suf)),
+          ),
         ]
       };
 
