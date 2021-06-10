@@ -55,9 +55,10 @@
   --code-text-z: 5;
   --placeholder-z: 6;
   --flag-z: 7;
-  --caret-z: 8;
-  --action-table-z: 9;
-  --caret-bar-z: 10;
+  --caret-position-z: 8;
+  --caret-z: 9;
+  --action-table-z: 10;
+  --caret-bar-z: 11;
 }
 
 #page {
@@ -239,6 +240,9 @@
 }
 .inset-empty-hole-container {
   z-index: var(--inset-empty-hole-z);
+}
+.anchor-container, .neighbor-container {
+  z-index: var(--caret-position-z);
 }
 
 .err-hole-path {
