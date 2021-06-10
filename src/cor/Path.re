@@ -33,7 +33,7 @@ let rec mk_steps = (~steps=[], frame: Frame.t): steps => {
        | Lam_pat(s) => mk_exp_s(ChildStep.lam_pat, s)
        | Let_pat(_, s) => mk_exp_s(ChildStep.let_pat, s),
        fun
-       | Frame_exp.Root => []
+       | Frame_exp.Root => steps
        | Paren_body(s) => mk_exp_s(ChildStep.paren_body, s)
        | Let_def(_, s) => mk_exp_s(ChildStep.let_def, s),
      );
