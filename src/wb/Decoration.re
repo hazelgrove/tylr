@@ -850,7 +850,7 @@ module CaretPosition = {
         "ellipse",
         AttrUtil.[
           cx(0.5),
-          cy(-0.2),
+          cy(-0.25),
           rx(r_x),
           ry(r_y),
           Attr.classes(["caret-position-path", style_cls, c_cls]),
@@ -1071,21 +1071,25 @@ module Rail = {
         id("rail"),
         create(
           "style",
-          Printf.sprintf("top:%fpx;", -. (font_metrics.row_height *. 0.5)),
+          Printf.sprintf(
+            "top: calc(%fpx + 1px); height: 2px;",
+            (-0.25) *. font_metrics.row_height,
+          ),
         ),
       ],
       [
         Node.create_svg(
           "svg",
-          Attr.[create("viewBox", "0 -1 100 2")],
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+          ],
           [
             Node.create_svg(
-              "line",
+              "rect",
               Attr.[
-                create("x1", "0"),
-                create("y1", "0"),
-                create("x2", "100"),
-                create("y2", "0"),
+                create("width", "1"),
+                create("height", "1"),
                 classes([Color.to_string(c)]),
               ],
               [],

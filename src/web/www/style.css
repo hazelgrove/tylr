@@ -124,23 +124,26 @@
 
 #rail {
   position: absolute;
-  left: 0%;
-  width: 100vw;
+  left: 0;
+  top: 0;
+  width: 100%;
 }
-#rail line {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 1.5px;
+#rail svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
 }
-#rail line.Exp {
-  stroke: var(--exp-rail-color);
+#rail rect.Exp {
+  fill: var(--exp-rail-color);
 }
-#rail line.Pat {
-  stroke: var(--pat-rail-color);
+#rail rect.Pat {
+  fill: var(--pat-rail-color);
 }
-#rail line.unsorted {
-  stroke: var(--unsorted-rail-color);
+#rail rect.unsorted {
+  fill: var(--unsorted-rail-color);
 }
-
 
 .code {
   position: relative;
