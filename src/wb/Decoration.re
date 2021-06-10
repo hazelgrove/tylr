@@ -367,7 +367,7 @@ module UniChild = {
   let view = ({sort, side, len}: profile): list(Node.t) => {
     open SvgUtil.Path;
     open Diag;
-    let len = Float.of_int(len + 1);
+    let len = Float.of_int(len);
     /* old raised tile path
        let path =
          List.concat([
@@ -388,7 +388,7 @@ module UniChild = {
         };
       let (x1, x2) =
         switch (side) {
-        | Left => ("0", Printf.sprintf("%f", len))
+        | Left => ("1", Printf.sprintf("%f", len +. 1.))
         | Right => (Printf.sprintf("%f", len -. 1.), "-1")
         };
       let color =
@@ -442,7 +442,7 @@ module UniChild = {
       switch (side) {
       | Left =>
         List.concat([
-          [M({x: len, y: 0.}), H_({dx: Float.neg(len)})],
+          [M({x: len +. 1., y: 0.}), H_({dx: Float.neg(len)})],
           // [M({x: 0., y: 0.})],
           tr_bl(~hemi=`North, ()),
           tl_br(~hemi=`South, ()),

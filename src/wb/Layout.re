@@ -390,47 +390,65 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     let c = Color.of_sort(sort);
     let uni_child = uni_child(~sort);
 
-    let prefix = mk_tiles(List.rev(prefix));
+    let mk_prefix = (offset, prefix) =>
+      prefix
+      |> List.rev
+      |> List.mapi((i, tile) =>
+           [space(offset + i, c), step(offset + i, mk_tile(tile))]
+         )
+      |> List.flatten;
+    let mk_suffix = (offset, suffix) =>
+      suffix
+      |> List.mapi((i, tile) =>
+           [step(offset + i, mk_tile(tile)), space(offset + i + 1, c)]
+         )
+      |> List.flatten;
 
-    let offset = List.length(prefix);
-    let child_pre =
-      switch (child_pre) {
+    let offset = 0;
+    let l_prefix = mk_prefix(offset, prefix);
+
+    let offset = offset + List.length(prefix);
+    let l_child_pre = {
+      let ls = mk_prefix(offset, child_pre);
+      switch (ls) {
       | [] => []
-      | [_, ..._] => [
-          uni_child(
-            ~side=Left,
-            spaces(~offset, c, mk_tiles(~offset, List.rev(child_pre))),
-          ),
-        ]
+      | [_, ..._] => [uni_child(~side=Left, cats(ls))]
       };
+    };
 
     let offset = offset + List.length(child_pre);
-    let root_tile =
+    let l_root_tile = [
+      space(offset, c),
       step(
         offset,
         annot(
           Selem(c, selem_shape(Tile(root_tile)), Root),
           mk_tile(root_tile),
         ),
-      );
+      ),
+      space(offset + 1, c),
+    ];
 
     let offset = offset + 1;
-    let child_suf =
-      switch (child_suf) {
+    let l_child_suf = {
+      let ls = mk_suffix(offset, child_suf);
+      switch (ls) {
       | [] => []
-      | [_, ..._] => [
-          uni_child(
-            ~side=Right,
-            spaces(~offset, c, mk_tiles(~offset, child_suf)),
-          ),
-        ]
+      | [_, ..._] => [uni_child(~side=Right, cats(ls))]
       };
+    };
 
     let offset = offset + List.length(child_suf);
-    let suffix = mk_tiles(~offset, suffix);
-    pad_spaces(
-      c,
-      List.concat([prefix, child_pre, [root_tile], child_suf, suffix]),
+    let l_suffix = mk_suffix(offset, suffix);
+
+    cats(
+      List.concat([
+        l_prefix,
+        l_child_pre,
+        l_root_tile,
+        l_child_suf,
+        l_suffix,
+      ]),
     );
   };
   let tframe =
