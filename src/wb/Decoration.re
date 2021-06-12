@@ -430,7 +430,7 @@ module UniChild = {
                   Printf.sprintf("%f%%", 100. *. (len -. 0.6) /. len),
                 ),
                 AttrUtil.stop_color(color),
-                AttrUtil.stop_opacity("0"),
+                AttrUtil.stop_opacity(0.),
               ],
               [],
             ),
@@ -582,7 +582,7 @@ module Selem = {
             AttrUtil.[
               offset(0.6 /. Float.of_int(len)),
               stop_color(color),
-              stop_opacity("0"),
+              stop_opacity(0.),
             ],
           ),
           stop(
@@ -601,7 +601,7 @@ module Selem = {
             AttrUtil.[
               offset((Float.of_int(len) -. 0.6) /. Float.of_int(len)),
               stop_color(color),
-              stop_opacity("0"),
+              stop_opacity(0.),
             ],
           ),
         ],
@@ -800,7 +800,31 @@ module Selem = {
 };
 
 module SelectedBox = {
-  let view = (~font_metrics: FontMetrics.t, start, len) =>
+  let view = (~font_metrics: FontMetrics.t, ~start, ~len, (sort_l, sort_r)) => {
+    let selection_bar_svg =
+      if (sort_l == sort_r) {
+        Node.create_svg(
+          "svg",
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+          ],
+          [
+            Node.create_svg(
+              "rect",
+              Attr.[
+                create("width", "1"),
+                create("height", "1"),
+                classes(["same-sort", Color.(to_string(of_sort(sort_l)))]),
+              ],
+              [],
+            ),
+          ],
+        );
+      } else {
+        failwith("todo");
+      };
+
     Node.div(
       [
         Attr.classes(["selection-box"]),
@@ -830,29 +854,11 @@ module SelectedBox = {
               ),
             ),
           ],
-          [
-            Node.create_svg(
-              "svg",
-              Attr.[
-                create("viewBox", "0 0 1 1"),
-                create("preserveAspectRatio", "none"),
-              ],
-              [
-                Node.create_svg(
-                  "rect",
-                  Attr.[
-                    create("width", "1"),
-                    create("height", "1"),
-                    classes(["same-sort", Color.to_string(Exp)]),
-                  ],
-                  [],
-                ),
-              ],
-            ),
-          ],
+          [selection_bar_svg],
         ),
       ],
     );
+  };
 };
 
 module CaretPosition = {
@@ -1135,6 +1141,96 @@ module Rail = {
     );
 };
 
+module TargetBounds = {
+  let gradient_id = "target-bounds-gradient";
+  let gradient =
+      (len, (l_strict, r_strict), frame_sort, mode: CaretMode.t): Node.t => {
+    let c =
+      switch (mode) {
+      | Pointing => Color.of_sort(frame_sort)
+      | Selecting
+      | Restructuring(_) => Selected
+      };
+    let stop = (offset, opacity) =>
+      Node.create_svg(
+        "stop",
+        [
+          Attr.create("offset", Printf.sprintf("%f%%", 100. *. offset)),
+          Attr.classes([Color.to_string(c)]),
+          AttrUtil.stop_opacity(opacity),
+        ],
+        [],
+      );
+    Node.create_svg(
+      "linearGradient",
+      Attr.[
+        id(gradient_id),
+        create("gradientUnits", "userSpaceOnUse"),
+        create("x1", "0"),
+        create("x2", "1"),
+      ],
+      [
+        stop(0., 0.),
+        stop(1. /. len, l_strict ? 0. : 1.),
+        stop((len -. 1.) /. len, r_strict ? 0. : 1.),
+        stop(1., 0.),
+      ],
+    );
+  };
+
+  let view =
+      (
+        ~font_metrics: FontMetrics.t,
+        ~origin: int,
+        ~len: int,
+        strict_bounds: (bool, bool),
+        frame_sort: Sort.t,
+        mode: CaretMode.t,
+      ) => {
+    let len = Float.of_int(len + 2);
+    let gradient = gradient(len, strict_bounds, frame_sort, mode);
+    Node.div(
+      Attr.[
+        id("target-bounds"),
+        create(
+          "style",
+          Printf.sprintf(
+            "top: calc(%fpx + 1px); height: 2px; left: %fpx; width: %fpx;",
+            (-0.25) *. font_metrics.row_height,
+            Float.of_int(origin - 1) *. font_metrics.col_width,
+            len *. font_metrics.col_width,
+          ),
+        ),
+      ],
+      [
+        Node.create_svg(
+          "svg",
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+            create(
+              "style",
+              "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
+            ),
+          ],
+          [
+            gradient,
+            Node.create_svg(
+              "rect",
+              Attr.[
+                create("width", "1"),
+                create("height", "1"),
+                create("fill", Printf.sprintf("url(#%s)", gradient_id)),
+              ],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
+  };
+};
+
 let container =
     (
       ~font_metrics: FontMetrics.t,
@@ -1158,13 +1254,13 @@ let container =
   let container_origin_y = (-0.5) *. font_metrics.row_height;
 
   Node.div(
-    [
-      Attr.classes([
+    Attr.[
+      classes([
         "decoration-container",
         Printf.sprintf("%s-container", cls),
         ...container_clss,
       ]),
-      Attr.create(
+      create(
         "style",
         Printf.sprintf(
           "top: calc(%fpx + 2px); left: %fpx;",
@@ -1176,9 +1272,9 @@ let container =
     [
       Node.create_svg(
         "svg",
-        [
-          Attr.classes([cls]),
-          Attr.create(
+        Attr.[
+          classes([cls]),
+          create(
             "viewBox",
             Printf.sprintf(
               "-1.5 -0.5 %d %d",
@@ -1186,9 +1282,9 @@ let container =
               buffered_height,
             ),
           ),
-          Attr.create("width", Printf.sprintf("%fpx", buffered_width_px)),
-          Attr.create("height", Printf.sprintf("%fpx", buffered_height_px)),
-          Attr.create("preserveAspectRatio", "none"),
+          create("width", Printf.sprintf("%fpx", buffered_width_px)),
+          create("height", Printf.sprintf("%fpx", buffered_height_px)),
+          create("preserveAspectRatio", "none"),
         ],
         svgs,
       ),

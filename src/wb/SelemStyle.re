@@ -8,6 +8,14 @@ type t =
   | Revealed({show_children: bool})
   | Selected;
 
+let to_string =
+  fun
+  | Logo => "Logo"
+  | Root => "Root"
+  | Filtered => "Filtered"
+  | Revealed(_) => "Revealed"
+  | Selected => "Selected";
+
 let show_children =
   fun
   | Root

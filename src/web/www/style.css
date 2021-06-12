@@ -57,11 +57,12 @@
   --inset-empty-hole-z: 4;
   --code-text-z: 5;
   --placeholder-z: 6;
-  --flag-z: 7;
-  --caret-position-z: 8;
-  --caret-z: 9;
-  --action-table-z: 10;
-  --caret-bar-z: 11;
+  --target-bounds-z: 7;
+  --flag-z: 8;
+  --caret-position-z: 9;
+  --caret-z: 10;
+  --action-table-z: 11;
+  --caret-bar-z: 12;
 }
 
 #page {
@@ -127,6 +128,7 @@
   left: 0;
   top: 0;
   width: 100%;
+  display: none;
 }
 #rail svg {
   position: absolute;
@@ -143,6 +145,20 @@
 }
 #rail rect.unsorted {
   fill: var(--unsorted-rail-color);
+}
+
+#target-bounds {
+  position: absolute;
+  z-index: var(--target-bounds-z);
+}
+#target-bounds stop.Exp {
+  stop-color: var(--exp-rail-color);
+}
+#target-bounds stop.Pat {
+  stop-color: var(--pat-rail-color);
+}
+#target-bounds stop.unsorted {
+  stop-color: var(--unsorted-rail-color);
 }
 
 #selection-bar {
@@ -326,6 +342,10 @@
   stroke: var(--typ-shadow-color);
 }
 */
+
+.tile-container.Revealed {
+  display: none;
+}
 
 .tile-path, .tessera-path {
   stroke-width: 0.4;

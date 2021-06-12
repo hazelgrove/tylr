@@ -96,7 +96,7 @@ let focus_code = () => {
 
 let logo = (~font_metrics) => {
   let selem = (color: Color.t, shape: Layout.selem_shape, s): Layout.t =>
-    Layout.annot(Selem(color, shape, Logo), Text(s));
+    Layout.annot(Selem({color, shape, style: Logo, atomic: true}), Text(s));
   let l =
     Layout.(
       spaces(

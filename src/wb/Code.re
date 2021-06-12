@@ -129,11 +129,16 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
             Decoration.UniChild.view({sort, side, len: len()}),
           ),
         )
-      | Selected =>
+      | Selected(sort_l, sort_r) =>
         add_decoration(
-          Decoration.SelectedBox.view(~font_metrics, start, len()),
+          Decoration.SelectedBox.view(
+            ~font_metrics,
+            ~start,
+            ~len=len(),
+            (sort_l, sort_r),
+          ),
         )
-      | Selem(color, shape, style) =>
+      | Selem({color, shape, style, atomic: _}) =>
         let empty_holes = selem_holes(l);
         let (open_children, closed_children) = tile_children(l);
         let len = len();
@@ -141,6 +146,7 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
           d_container(
             ~length=len,
             ~cls="tile",
+            ~container_clss=[SelemStyle.to_string(style)],
             Decoration.Selem.view(
               ~font_metrics,
               ~start,
@@ -156,6 +162,18 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
             ),
           );
         add_decoration(d);
+      | TargetBounds({sort, mode, strict_bounds}) =>
+        let len = len();
+        add_decoration(
+          Decoration.TargetBounds.view(
+            ~font_metrics,
+            ~origin=start,
+            ~len,
+            strict_bounds,
+            sort,
+            mode,
+          ),
+        );
       | OpenChild
       | ClosedChild => go'()
       };

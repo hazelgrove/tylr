@@ -41,6 +41,12 @@ let tip = (d: Direction.t, selection: t): option(Tip.t) =>
     )
   };
 
+let tip_sorts = (selection: t): option((Sort.t, Sort.t)) => {
+  let+ (_, sort_l) = tip(Left, selection)
+  and+ (_, sort_r) = tip(Right, selection);
+  (sort_l, sort_r);
+};
+
 let is_partial =
   List.exists(
     fun
