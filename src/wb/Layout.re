@@ -19,11 +19,11 @@ and annot =
   | ClosedChild
   | OpenChild
   | UniChild(Sort.t, Direction.t)
+  | Rail(RailStyle.t)
   | Selem({
       color: Color.t,
       shape: selem_shape,
       style: SelemStyle.t,
-      atomic: bool,
     })
   | Selected(Sort.t, Sort.t)
   | Step(int)
@@ -228,8 +228,23 @@ let mk_token =
     | Let_in => delim("in"),
   );
 
-let rec mk_tiles = (~offset=0, ts) =>
-  List.mapi((i, t) => step(offset + i, mk_tile(t)), ts)
+let is_atomic = (t: Tile.t) =>
+  [] == Parser.disassemble_selem(Right, Tile(t));
+
+let rec mk_tiles = (~offset=0, ~rail_color=?, ts) =>
+  List.mapi(
+    (i, tile) => {
+      let l_tile = mk_tile(tile);
+      let with_rail =
+        switch (rail_color) {
+        | None => l_tile
+        | Some(color) =>
+          annot(Rail({color, atomic: is_atomic(tile)}), l_tile)
+        };
+      step(offset + i, with_rail);
+    },
+    ts,
+  )
 and mk_tile = t =>
   t
   |> Tile.get(
@@ -274,8 +289,7 @@ let mk_selem =
   | None => l
   | Some(style) =>
     let shape = selem_shape(selem);
-    let atomic = Parser.disassemble_selem(Right, selem) == [];
-    annot(Selem({color, shape, style, atomic}), l);
+    annot(Selem({color, shape, style}), l);
   };
 };
 let mk_selection =
@@ -304,8 +318,6 @@ let mk_selection =
     |> annot(Selected(sort_l, sort_r))
   };
 
-let is_atomic = (t: Tile.t) =>
-  [] == Parser.disassemble_selem(Right, Tile(t));
 let mk_root_tile = (~offset, ~sort, tile) =>
   step(
     offset,
@@ -314,7 +326,6 @@ let mk_root_tile = (~offset, ~sort, tile) =>
         color: Color.of_sort(sort),
         shape: selem_shape(Tile(tile)),
         style: Root,
-        atomic: is_atomic(tile),
       }),
       mk_tile(tile),
     ),
@@ -323,11 +334,14 @@ let mk_root_tile = (~offset, ~sort, tile) =>
 let zip_up =
     (subject: Selection.t, frame: Frame.t)
     : option((Tile.t, t, ListFrame.t(Tile.t), Frame.t)) => {
-  let mk_ts = (sort, ts) => pad_spaces(Color.of_sort(sort), mk_tiles(ts));
+  let mk_ts = (~show_rails, sort, ts) => {
+    let rail_color = show_rails ? Some(Color.of_sort(sort)) : None;
+    pad_spaces(Color.of_sort(sort), mk_tiles(~rail_color?, ts));
+  };
   let mk_bounded_ts = (sort, ts) =>
     annot(
       TargetBounds({sort, mode: Pointing, strict_bounds: (false, false)}),
-      mk_ts(sort, ts),
+      mk_ts(~show_rails=true, sort, ts),
     );
   let mk_bounded_pat = selection => {
     let ts = Option.get(Selection.get_tiles(selection));
@@ -343,7 +357,6 @@ let zip_up =
       annot(
         Selem({
           shape: selem_shape(Tile(tile)),
-          atomic: is_atomic(tile),
           color: Color.of_sort(Tile.sort(tile)),
           style: Root,
         }),
@@ -376,7 +389,7 @@ let zip_up =
   | Pat(Let_pat(def, (tframe, frame))) =>
     let tile_step = List.length(fst(tframe));
     let (p, l_p) = mk_bounded_pat(subject);
-    let l_def = mk_ts(Exp, Tiles.of_exp(def));
+    let l_def = mk_ts(~show_rails=false, Exp, Tiles.of_exp(def));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
     let tile = Tile.Exp(Let(p, def));
     Some((
@@ -399,7 +412,7 @@ let zip_up =
   | Exp(Let_def(p, (tframe, frame))) =>
     let tile_step = List.length(fst(tframe));
     let (def, l_def) = mk_bounded_exp(subject);
-    let l_p = mk_ts(Pat, Tiles.of_pat(p));
+    let l_p = mk_ts(~show_rails=false, Pat, Tiles.of_pat(p));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
     let tile = Tile.Exp(Let(p, def));
     Some((
@@ -472,6 +485,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
   let mk_subject =
       (
         ~sort: Sort.t,
+        ~show_rails: bool,
         l_root_tile: t,
         (child_pre, child_suf): ListFrame.t(Tile.t),
         (prefix, suffix): ListFrame.t(Tile.t),
@@ -479,12 +493,17 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     let c = Color.of_sort(sort);
     let uni_child = uni_child(~sort);
 
+    let mk_tile = tile => {
+      let l = mk_tile(tile);
+      show_rails ? annot(Rail({color: c, atomic: is_atomic(tile)}), l) : l;
+    };
+
     let mk_prefix = (offset, prefix) =>
       prefix
       |> List.rev
-      |> List.mapi((i, tile) =>
+      |> List.mapi((i, tile) => {
            [space(offset + i, c), step(offset + i, mk_tile(tile))]
-         )
+         })
       |> List.flatten;
     let mk_suffix = (offset, suffix) =>
       suffix
@@ -538,6 +557,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
          OptUtil.get_or_fail("expected prefix/suffix to consist of tiles"),
        );
   let frame_sort = Frame.sort(frame);
+  let frame_color = Color.of_sort(frame_sort);
   switch (tframe) {
   | (prefix, []) =>
     switch (zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
@@ -550,9 +570,16 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
           ~offset=List.length(prefix),
           ~sort=frame_sort,
           root_tile,
-        );
+        )
+        |> annot(Rail({color: frame_color, atomic: is_atomic(root_tile)}));
       mk_frame(
-        mk_subject(~sort=frame_sort, l_root_tile, uni_children, tframe)
+        mk_subject(
+          ~sort=frame_sort,
+          ~show_rails=true,
+          l_root_tile,
+          uni_children,
+          tframe,
+        )
         |> annot(
              TargetBounds({
                sort: frame_sort,
@@ -567,6 +594,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       mk_frame(
         mk_subject(
           ~sort=Frame.sort(outer_frame),
+          ~show_rails=false,
           l_root_tile,
           uni_children,
           tframe,
@@ -578,10 +606,17 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
     let (uni_children, tframe) =
       get_uni_children(root_tile, (prefix, suffix));
     let l_root_tile =
-      mk_root_tile(~offset=List.length(prefix), ~sort=frame_sort, root_tile);
+      mk_root_tile(~offset=List.length(prefix), ~sort=frame_sort, root_tile)
+      |> annot(Rail({color: frame_color, atomic: is_atomic(root_tile)}));
     let is_root = Frame.is_root(frame);
     mk_frame(
-      mk_subject(~sort=Frame.sort(frame), l_root_tile, uni_children, tframe)
+      mk_subject(
+        ~sort=Frame.sort(frame),
+        ~show_rails=true,
+        l_root_tile,
+        uni_children,
+        tframe,
+      )
       |> annot(
            TargetBounds({
              sort: frame_sort,

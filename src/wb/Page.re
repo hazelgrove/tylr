@@ -96,7 +96,7 @@ let focus_code = () => {
 
 let logo = (~font_metrics) => {
   let selem = (color: Color.t, shape: Layout.selem_shape, s): Layout.t =>
-    Layout.annot(Selem({color, shape, style: Logo, atomic: true}), Text(s));
+    Layout.annot(Selem({color, shape, style: Logo}), Text(s));
   let l =
     Layout.(
       spaces(
@@ -146,19 +146,19 @@ let view =
       ~inject,
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
     ) => {
-  let (subject, frame) = zipper;
+  // let (subject, frame) = zipper;
   let dpaths = DecorationPaths.mk(zipper);
   let l = Layout.mk_zipper(zipper);
-  let rail_color = {
-    let frame_color = Color.of_sort(Frame.sort(frame));
-    switch (subject) {
-    | Pointing(_) => frame_color
-    | Selecting(_)
-    | Restructuring(_) => Selected
-    // | Restructuring(selection, _) =>
-    //   Selection.is_whole_any(selection) ? frame_color : Selected
-    };
-  };
+  // let rail_color = {
+  //   let frame_color = Color.of_sort(Frame.sort(frame));
+  //   switch (subject) {
+  //   | Pointing(_) => frame_color
+  //   | Selecting(_)
+  //   | Restructuring(_) => Selected
+  //   // | Restructuring(selection, _) =>
+  //   //   Selection.is_whole_any(selection) ? frame_color : Selected
+  //   };
+  // };
   Node.div(
     [Attr.id("page")],
     [
@@ -178,7 +178,7 @@ let view =
           ...key_handlers(~inject, ~zipper),
         ],
         [
-          Decoration.Rail.view(~font_metrics, rail_color),
+          // Decoration.Rail.view(~font_metrics, rail_color),
           Code.view_of_layout(
             ~id="under-the-rail",
             ~text_id="under-the-rail-text",

@@ -1106,40 +1106,60 @@ module Caret = {
 };
 
 module Rail = {
-  let view = (~font_metrics: FontMetrics.t, c: Color.t) =>
-    Node.div(
-      Attr.[
-        id("rail"),
-        create(
-          "style",
-          Printf.sprintf(
-            "top: calc(%fpx + 1px); height: 2px;",
-            (-0.25) *. font_metrics.row_height,
-          ),
-        ),
-      ],
-      [
-        Node.create_svg(
-          "svg",
-          Attr.[
-            create("viewBox", "0 0 1 1"),
-            create("preserveAspectRatio", "none"),
-          ],
-          [
-            Node.create_svg(
-              "rect",
-              Attr.[
-                create("width", "1"),
-                create("height", "1"),
-                classes([Color.to_string(c)]),
-              ],
-              [],
-            ),
-          ],
-        ),
-      ],
-    );
+  let view = (~len, {atomic, color}: RailStyle.t) => {
+    let dash_attr = atomic ? [] : [Attr.create("stroke-dasharray", "4 2")];
+    [
+      Node.create_svg(
+        "line",
+        Attr.[
+          create("x1", "-0.5"),
+          create("y1", "-0.25"),
+          create("x2", Printf.sprintf("%f", Float.of_int(len) +. 0.5)),
+          create("y2", "-0.25"),
+          classes([Color.to_string(color)]),
+          ...dash_attr,
+        ],
+        [],
+      ),
+    ];
+  };
 };
+
+// module Rail = {
+//   let view = (~font_metrics: FontMetrics.t, c: Color.t) =>
+//     Node.div(
+//       Attr.[
+//         id("rail"),
+//         create(
+//           "style",
+//           Printf.sprintf(
+//             "top: calc(%fpx + 1px); height: 2px;",
+//             (-0.25) *. font_metrics.row_height,
+//           ),
+//         ),
+//       ],
+//       [
+//         Node.create_svg(
+//           "svg",
+//           Attr.[
+//             create("viewBox", "0 0 1 1"),
+//             create("preserveAspectRatio", "none"),
+//           ],
+//           [
+//             Node.create_svg(
+//               "rect",
+//               Attr.[
+//                 create("width", "1"),
+//                 create("height", "1"),
+//                 classes([Color.to_string(c)]),
+//               ],
+//               [],
+//             ),
+//           ],
+//         ),
+//       ],
+//     );
+// };
 
 module TargetBounds = {
   let gradient_id = "target-bounds-gradient";
