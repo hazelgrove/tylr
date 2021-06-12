@@ -180,17 +180,25 @@ let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
 //   };
 
 let mk_Paren = body =>
-  cats([delim("("), open_child(step(0, body)), delim(")")]);
+  cats([
+    delim("("),
+    open_child(step(ChildStep.paren_body, body)),
+    delim(")"),
+  ]);
 
 let mk_Lam = p =>
-  cats([delim(Unicode.lam), closed_child(step(0, p)), delim(".")]);
+  cats([
+    delim(Unicode.lam),
+    closed_child(step(ChildStep.lam_pat, p)),
+    delim("."),
+  ]);
 
 let mk_Let = (p, def) => {
   cats([
     delim("let"),
-    closed_child(step(0, p)),
+    closed_child(step(ChildStep.let_pat, p)),
     delim("="),
-    open_child(step(1, def)),
+    open_child(step(ChildStep.let_def, def)),
     delim("in"),
   ]);
 };
@@ -329,51 +337,74 @@ let zip_up =
     let ts = Option.get(Selection.get_tiles(selection));
     (Option.get(Tiles.get_exp(ts)), mk_bounded_ts(Exp, ts));
   };
+  let mk_root_tile = (~tile_step, ~tile, l) =>
+    step(
+      tile_step,
+      annot(
+        Selem({
+          shape: selem_shape(Tile(tile)),
+          atomic: is_atomic(tile),
+          color: Color.of_sort(Tile.sort(tile)),
+          style: Root,
+        }),
+        l,
+      ),
+    );
   switch (frame) {
   | Pat(Paren_body((tframe, frame))) =>
+    let tile_step = List.length(fst(tframe));
     let (body, l_body) = mk_bounded_pat(subject);
     let tframe = TupleUtil.map2(Tiles.of_pat, tframe);
+    let tile = Tile.Pat(Paren(body));
     Some((
-      Pat(Paren(body)),
-      mk_Paren(step(ChildStep.paren_body, l_body)),
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Paren(l_body)),
       tframe,
       Pat(frame),
     ));
   | Pat(Lam_pat((tframe, frame))) =>
+    let tile_step = List.length(fst(tframe));
     let (p, l_p) = mk_bounded_pat(subject);
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    let tile = Tile.Exp(Lam(p));
     Some((
-      Exp(Lam(p)),
-      mk_Lam(step(ChildStep.lam_pat, l_p)),
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Lam(l_p)),
       tframe,
       Exp(frame),
     ));
   | Pat(Let_pat(def, (tframe, frame))) =>
+    let tile_step = List.length(fst(tframe));
     let (p, l_p) = mk_bounded_pat(subject);
     let l_def = mk_ts(Exp, Tiles.of_exp(def));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    let tile = Tile.Exp(Let(p, def));
     Some((
-      Exp(Let(p, def)),
-      mk_Let(step(ChildStep.let_pat, l_p), step(ChildStep.let_def, l_def)),
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Let(l_p, l_def)),
       tframe,
       Exp(frame),
     ));
   | Exp(Paren_body((tframe, frame))) =>
+    let tile_step = List.length(fst(tframe));
     let (body, l_body) = mk_bounded_exp(subject);
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    let tile = Tile.Exp(Paren(body));
     Some((
-      Exp(Paren(body)),
-      mk_Paren(step(ChildStep.paren_body, l_body)),
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Paren(l_body)),
       tframe,
       Exp(frame),
     ));
   | Exp(Let_def(p, (tframe, frame))) =>
+    let tile_step = List.length(fst(tframe));
     let (def, l_def) = mk_bounded_exp(subject);
     let l_p = mk_ts(Pat, Tiles.of_pat(p));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    let tile = Tile.Exp(Let(p, def));
     Some((
-      Exp(Let(p, def)),
-      mk_Let(step(ChildStep.let_pat, l_p), step(ChildStep.let_def, l_def)),
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Let(l_p, l_def)),
       tframe,
       Exp(frame),
     ));
