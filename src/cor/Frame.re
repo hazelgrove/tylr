@@ -20,3 +20,8 @@ let sort =
   fun
   | Pat(_) => Sort.Pat
   | Exp(_) => Exp;
+
+let is_root =
+  fun
+  | Exp(Root) => true
+  | _ => false;

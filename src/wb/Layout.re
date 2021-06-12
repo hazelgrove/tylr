@@ -548,8 +548,16 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       get_uni_children(root_tile, (prefix, suffix));
     let l_root_tile =
       mk_root_tile(~offset=List.length(prefix), ~sort=frame_sort, root_tile);
+    let is_root = Frame.is_root(frame);
     mk_frame(
-      mk_subject(~sort=Frame.sort(frame), l_root_tile, uni_children, tframe),
+      mk_subject(~sort=Frame.sort(frame), l_root_tile, uni_children, tframe)
+      |> annot(
+           TargetBounds({
+             sort: frame_sort,
+             mode: Pointing,
+             strict_bounds: (is_root, is_root),
+           }),
+         ),
       frame,
     );
   };
