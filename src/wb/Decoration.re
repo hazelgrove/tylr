@@ -1171,8 +1171,10 @@ module TargetBounds = {
       ],
       [
         stop(0., 0.),
-        stop(1. /. len, l_strict ? 0. : 1.),
-        stop((len -. 1.) /. len, r_strict ? 0. : 1.),
+        stop(1.5 /. len, l_strict ? 0. : 1.),
+        stop(1.5 /. len, 0.),
+        stop((len -. 1.5) /. len, 0.),
+        stop((len -. 1.5) /. len, r_strict ? 0. : 1.),
         stop(1., 0.),
       ],
     );
