@@ -333,25 +333,50 @@ let zip_up =
   | Pat(Paren_body((tframe, frame))) =>
     let (body, l_body) = mk_bounded_pat(subject);
     let tframe = TupleUtil.map2(Tiles.of_pat, tframe);
-    Some((Pat(Paren(body)), mk_Paren(l_body), tframe, Pat(frame)));
+    Some((
+      Pat(Paren(body)),
+      mk_Paren(step(ChildStep.paren_body, l_body)),
+      tframe,
+      Pat(frame),
+    ));
   | Pat(Lam_pat((tframe, frame))) =>
     let (p, l_p) = mk_bounded_pat(subject);
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((Exp(Lam(p)), mk_Lam(l_p), tframe, Exp(frame)));
+    Some((
+      Exp(Lam(p)),
+      mk_Lam(step(ChildStep.lam_pat, l_p)),
+      tframe,
+      Exp(frame),
+    ));
   | Pat(Let_pat(def, (tframe, frame))) =>
     let (p, l_p) = mk_bounded_pat(subject);
     let l_def = mk_ts(Exp, Tiles.of_exp(def));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((Exp(Let(p, def)), mk_Let(l_p, l_def), tframe, Exp(frame)));
+    Some((
+      Exp(Let(p, def)),
+      mk_Let(step(ChildStep.let_pat, l_p), step(ChildStep.let_def, l_def)),
+      tframe,
+      Exp(frame),
+    ));
   | Exp(Paren_body((tframe, frame))) =>
     let (body, l_body) = mk_bounded_exp(subject);
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((Exp(Paren(body)), mk_Paren(l_body), tframe, Exp(frame)));
+    Some((
+      Exp(Paren(body)),
+      mk_Paren(step(ChildStep.paren_body, l_body)),
+      tframe,
+      Exp(frame),
+    ));
   | Exp(Let_def(p, (tframe, frame))) =>
     let (def, l_def) = mk_bounded_exp(subject);
     let l_p = mk_ts(Pat, Tiles.of_pat(p));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((Exp(Let(p, def)), mk_Let(l_p, l_def), tframe, Exp(frame)));
+    Some((
+      Exp(Let(p, def)),
+      mk_Let(step(ChildStep.let_pat, l_p), step(ChildStep.let_def, l_def)),
+      tframe,
+      Exp(frame),
+    ));
   | Exp(Root) => None
   };
 };
