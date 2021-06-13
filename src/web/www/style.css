@@ -160,6 +160,13 @@ svg.rail line.unsorted {
   stroke: var(--unsorted-rail-color);
 }
 
+#rail-gradient stop.Exp {
+  stop-color: var(--exp-rail-color);
+}
+#rail-gradient stop.Pat {
+  stop-color: var(--pat-rail-color);
+}
+
 #target-bounds {
   position: absolute;
   z-index: var(--target-bounds-z);
