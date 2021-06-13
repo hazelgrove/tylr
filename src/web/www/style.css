@@ -156,7 +156,7 @@ svg.rail line.Exp {
 svg.rail line.Pat {
   stroke: var(--pat-rail-color);
 }
-svg.rail line.Pat {
+svg.rail line.unsorted {
   stroke: var(--unsorted-rail-color);
 }
 
