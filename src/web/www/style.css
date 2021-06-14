@@ -33,7 +33,7 @@
 
   --exp-bg-color: #dbf6de; /*#ddff9f;*/
   --exp-shadow-color: #329f43; /* #709900; */
-  --exp-rail-color: #c4e1c8;
+  --exp-rail-color: #a7d3ad; /*#c4e1c8;*/
 
   --pat-bg-color: #c4e6ff;
   --pat-shadow-color: #268bd2;
@@ -45,6 +45,8 @@
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c76695;
   --unsorted-rail-color: #f4dbe7;
+
+  --bar-color: #dfdacc;
 
   --action-text-color: rgb(82, 82, 82);
   --action-key-color: whitesmoke;
@@ -59,10 +61,13 @@
   --placeholder-z: 6;
   --target-bounds-z: 7;
   --flag-z: 8;
-  --caret-position-z: 9;
-  --caret-z: 10;
-  --action-table-z: 11;
-  --caret-bar-z: 12;
+  --bar-z: 0;
+  --bare-caret-position-z: 9;
+  --rail-z: 11;
+  --caret-position-z: 12;
+  --caret-z: 13;
+  --action-table-z: 14;
+  --caret-bar-z: 15;
 }
 
 #page {
@@ -123,32 +128,27 @@
   outline: none;
 }
 
-/* #rail {
+#bar {
+  z-index: var(--bar-z);
   position: absolute;
   left: 0;
-  top: 0;
   width: 100%;
-  display: none;
 }
-#rail svg {
+#bar svg {
   position: absolute;
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
 }
-#rail rect.Exp {
-  fill: var(--exp-rail-color);
+#bar rect {
+  fill: var(--bar-color);/*#586e752e;*/
+  /*filter: blur(1px);*/
 }
-#rail rect.Pat {
-  fill: var(--pat-rail-color);
-}
-#rail rect.unsorted {
-  fill: var(--unsorted-rail-color);
-} */
+
 svg.rail line {
   vector-effect: non-scaling-stroke;
-  stroke-width: 2px;
+  stroke-width: 1.5px;
 }
 svg.rail line.Exp {
   stroke: var(--exp-rail-color);
@@ -206,6 +206,7 @@ svg.rail line.unsorted {
   position: fixed;
   left: 50%;
   transform: translate(-50%, 0%);
+  z-index: 1;
 }
 
 .code-text {
@@ -332,6 +333,12 @@ svg.rail line.unsorted {
 }
 .anchor-container, .neighbor-container {
   z-index: var(--caret-position-z);
+}
+.bare-container {
+  z-index: var(--bare-caret-position-z);
+}
+.rail-container {
+  z-index: var(--rail-z);
 }
 
 .err-hole-path {
@@ -462,6 +469,15 @@ svg.rail line.unsorted {
 .caret-position-path {
   vector-effect: non-scaling-stroke;
   stroke-width: 0.1px;
+}
+
+.caret-position-path.bare {
+  stroke: var(--bar-color);
+  fill: var(--bar-color);
+  /* stroke: #586e752e;
+  fill: #586e752e; */
+  /* stroke: var(--exp-rail-color);
+  fill: var(--exp-rail-color); */
 }
 
 .caret-position-path.Exp.neighbor {

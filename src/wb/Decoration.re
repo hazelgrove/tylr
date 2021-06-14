@@ -25,8 +25,14 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let caret_position_radii = (~font_metrics: FontMetrics.t) => {
-  let r = 3.;
+let caret_position_radii =
+    (~font_metrics: FontMetrics.t, ~style: [ | `Anchor | `Neighbor | `Bare]) => {
+  let r =
+    switch (style) {
+    | `Anchor
+    | `Neighbor => 2.75
+    | `Bare => 1.75
+    };
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
@@ -878,26 +884,43 @@ module CaretPosition = {
       ],
     );
 
-  let view = (~font_metrics, ~style: [ | `Anchor | `Neighbor], color: Color.t) => {
-    let (r_x, r_y) = caret_position_radii(~font_metrics);
+  let view =
+      (
+        ~font_metrics,
+        ~style: [ | `Anchor | `Neighbor | `Bare],
+        color: Color.t,
+      ) => {
+    let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
     let c_cls = Color.to_string(color);
     let style_cls =
       switch (style) {
       | `Anchor => "anchor"
       | `Neighbor => "neighbor"
+      | `Bare => "bare"
       };
     [
       Node.create_svg(
-        "ellipse",
-        AttrUtil.[
-          cx(0.5),
-          cy(-0.25),
-          rx(r_x),
-          ry(r_y),
+        "rect",
+        Attr.[
+          create("x", Printf.sprintf("%fpx", 0.5 -. r_x)),
+          create("y", Printf.sprintf("%fpx", (-0.25) -. r_y)),
+          create("width", Printf.sprintf("%fpx", 2. *. r_x)),
+          create("height", Printf.sprintf("%fpx", 2. *. r_y)),
           Attr.classes(["caret-position-path", style_cls, c_cls]),
         ],
         [],
       ),
+      // Node.create_svg(
+      //   "ellipse",
+      //   AttrUtil.[
+      //     cx(0.5),
+      //     cy(-0.25),
+      //     rx(r_x),
+      //     ry(r_y),
+      //     Attr.classes(["caret-position-path", style_cls, c_cls]),
+      //   ],
+      //   [],
+      // ),
     ];
   };
 };
@@ -1131,26 +1154,30 @@ module Rail = {
       ],
       [
         stop(0., 1.),
-        stop(1.5 /. (len +. 1.), 0.),
-        stop((len +. 1. -. 1.5) /. (len +. 1.), 0.),
+        stop(2. /. (len +. 1.), 0.),
+        stop((len +. 1. -. 2.) /. (len +. 1.), 0.),
         stop(1., 1.),
       ],
     );
   };
 
-  let view = (~len, {color, atomic}: RailStyle.t) => {
+  let view = (~len, {color, atomic: _}: RailStyle.t) => {
     let gradient = gradient(~len, ~color);
     // ideally I would just vary the gradient based on atomicity
     // but can't get the gradient to behave...
     let stroke_attr =
       Attr.create(
         "stroke",
-        atomic
-          ? Printf.sprintf(
-              "var(--%s-rail-color",
-              String.lowercase_ascii(Color.to_string(color)),
-            )
-          : Printf.sprintf("url(#%s)", gradient_id),
+        // atomic
+        //   ? Printf.sprintf(
+        //       "var(--%s-rail-color",
+        //       String.lowercase_ascii(Color.to_string(color)),
+        //     )
+        //   : Printf.sprintf("url(#%s)", gradient_id),
+        Printf.sprintf(
+          "var(--%s-rail-color",
+          String.lowercase_ascii(Color.to_string(color)),
+        ),
       );
     [
       gradient,
@@ -1172,41 +1199,38 @@ module Rail = {
   };
 };
 
-// module Rail = {
-//   let view = (~font_metrics: FontMetrics.t, c: Color.t) =>
-//     Node.div(
-//       Attr.[
-//         id("rail"),
-//         create(
-//           "style",
-//           Printf.sprintf(
-//             "top: calc(%fpx + 1px); height: 2px;",
-//             (-0.25) *. font_metrics.row_height,
-//           ),
-//         ),
-//       ],
-//       [
-//         Node.create_svg(
-//           "svg",
-//           Attr.[
-//             create("viewBox", "0 0 1 1"),
-//             create("preserveAspectRatio", "none"),
-//           ],
-//           [
-//             Node.create_svg(
-//               "rect",
-//               Attr.[
-//                 create("width", "1"),
-//                 create("height", "1"),
-//                 classes([Color.to_string(c)]),
-//               ],
-//               [],
-//             ),
-//           ],
-//         ),
-//       ],
-//     );
-// };
+// TODO rename
+module Bar = {
+  let view = (~font_metrics: FontMetrics.t) =>
+    Node.div(
+      Attr.[
+        id("bar"),
+        create(
+          "style",
+          Printf.sprintf(
+            "top: calc(%fpx + 1.5px); height: 1.5px;",
+            (-0.25) *. font_metrics.row_height,
+          ),
+        ),
+      ],
+      [
+        Node.create_svg(
+          "svg",
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+          ],
+          [
+            Node.create_svg(
+              "rect",
+              Attr.[create("width", "1"), create("height", "1")],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
+};
 
 module TargetBounds = {
   let gradient_id = "target-bounds-gradient";

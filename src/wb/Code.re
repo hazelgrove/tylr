@@ -61,6 +61,13 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
           go(~indent, ~start, dpaths, l);
         }
       | Space(caret_step, color) =>
+        let length = len();
+        let bare_caret_position =
+          d_container(
+            ~length,
+            ~cls="bare",
+            Decoration.CaretPosition.view(~font_metrics, ~style=`Bare, color),
+          );
         let (current_ds, current_filler) =
           DecorationPaths.current(caret_step, dpaths)
           |> List.map(
@@ -109,7 +116,11 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
              )
           |> List.split;
         let (txt, ds, n) = go'();
-        (txt, current_ds @ ds, List.fold_left((+), 0, current_filler) + n);
+        (
+          txt,
+          [bare_caret_position, ...current_ds] @ ds,
+          List.fold_left((+), 0, current_filler) + n,
+        );
       | Delim =>
         let (txt, ds, n) = go'();
         ([with_cls("delim", txt)], ds, n);
