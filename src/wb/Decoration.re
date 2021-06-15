@@ -1072,6 +1072,13 @@ module Caret = {
       | Selecting => (0., [])
       | Restructuring(selection) =>
         let l = Layout.mk_selection(~style=Selected, Selected, selection);
+        let dpaths =
+          DecorationPaths.{
+            caret: None,
+            anchors: [([], 0), ([], List.length(selection))],
+            outer_cousins: [],
+            inner_cousins: [],
+          };
         (
           (-1.4) *. font_metrics.row_height,
           [
@@ -1085,7 +1092,7 @@ module Caret = {
                   ),
                 ),
               ],
-              [view_of_layout(~font_metrics, DecorationPaths.empty, l)],
+              [view_of_layout(~font_metrics, dpaths, l)],
             ),
           ],
         );
