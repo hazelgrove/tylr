@@ -1,5 +1,14 @@
 open Sexplib.Std;
 
+let rec range = (~lo=0, hi) =>
+  if (lo > hi) {
+    raise(Invalid_argument("ListUtil.range"));
+  } else if (lo == hi) {
+    [];
+  } else {
+    [lo, ...range(~lo=lo + 1, hi)];
+  };
+
 // heads of prefix and suffix neighbor the subject
 [@deriving sexp]
 type frame('x) = (list('x), list('x));

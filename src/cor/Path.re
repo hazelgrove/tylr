@@ -44,6 +44,42 @@ let mk = ((prefix, _): Selection.frame, frame: Frame.t): t => (
   List.length(prefix),
 );
 
+let get_child_steps =
+  Selem.get(
+    _ => [],
+    Tile.get(
+      fun
+      | OpHole
+      | Var(_)
+      | BinHole
+      | Prod => []
+      | Paren(_) => [ChildStep.paren_body],
+      fun
+      | OpHole
+      | Num(_)
+      | Var(_)
+      | BinHole
+      | Plus
+      | Times
+      | Prod => []
+      | Paren(_) => [ChildStep.paren_body]
+      | Lam(_) => [ChildStep.lam_pat]
+      | Let(_) => ChildStep.[let_pat, let_def],
+    ),
+  );
+
+let get_child_steps_of_frame =
+  Frame.get(
+    fun
+    | Frame_pat.Paren_body(_) => Some((ChildStep.paren_body, []))
+    | Lam_pat(_) => Some((ChildStep.lam_pat, []))
+    | Let_pat(_) => Some((ChildStep.let_pat, [ChildStep.let_def])),
+    fun
+    | Frame_exp.Paren_body(_) => Some((ChildStep.paren_body, []))
+    | Let_def(_) => Some((ChildStep.let_def, [ChildStep.let_pat]))
+    | Root => None,
+  );
+
 // let enter_tile =
 //     (d: Direction.t): (Tile.t => option((ChildStep.t, caret_step))) =>
 //   Tile.get(

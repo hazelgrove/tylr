@@ -1,4 +1,5 @@
 type t =
   | Caret(CaretMode.t)
-  | Anchor
-  | Neighbor;
+  | Sibling
+  | InnerCousin
+  | OuterCousin;

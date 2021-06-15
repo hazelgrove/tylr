@@ -62,7 +62,8 @@
   --target-bounds-z: 7;
   --flag-z: 8;
   --bar-z: 0;
-  --bare-caret-position-z: 9;
+  --inner-cousin-z: 9;
+  --outer-cousin-caret-position-z: 9;
   --rail-z: 11;
   --caret-position-z: 12;
   --caret-z: 13;
@@ -331,11 +332,14 @@ svg.rail line.unsorted {
 .inset-empty-hole-container {
   z-index: var(--inset-empty-hole-z);
 }
-.anchor-container, .neighbor-container {
+.sibling-container {
   z-index: var(--caret-position-z);
 }
-.bare-container {
-  z-index: var(--bare-caret-position-z);
+.inner-cousin-container {
+  z-index: var(--inner-cousin-z);
+}
+.outer-cousin-container {
+  z-index: var(--outer-cousin-caret-position-z);
 }
 .rail-container {
   z-index: var(--rail-z);
@@ -471,7 +475,7 @@ svg.rail line.unsorted {
   stroke-width: 0.1px;
 }
 
-.caret-position-path.bare {
+.caret-position-path.outer-cousin {
   stroke: var(--bar-color);
   fill: var(--bar-color);
   /* stroke: #586e752e;
@@ -480,11 +484,20 @@ svg.rail line.unsorted {
   fill: var(--exp-rail-color); */
 }
 
-.caret-position-path.Exp.neighbor {
+.caret-position-path.Exp.sibling {
   stroke: var(--exp-rail-color);
   fill: var(--exp-rail-color);
 }
-.caret-position-path.Pat.neighbor {
+
+.caret-position-path.Exp.inner-cousin {
+  /* stroke: var(--bar-color);
+  fill: var(--bar-color); */
+  stroke: var(--exp-rail-color);
+  fill: var(--exp-rail-color);
+}
+
+.caret-position-path.Pat.sibling,
+.caret-position-path.Pat.inner-cousin {
   stroke: var(--pat-rail-color);
   fill: var(--pat-rail-color);
 }

@@ -62,35 +62,41 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
         }
       | Space(caret_step, color) =>
         let length = len();
-        let bare_caret_position =
-          d_container(
-            ~length,
-            ~cls="bare",
-            Decoration.CaretPosition.view(~font_metrics, ~style=`Bare, color),
-          );
         let (current_ds, current_filler) =
           DecorationPaths.current(caret_step, dpaths)
           |> List.map(
                fun
-               | DecorationShape.Anchor => (
+               | DecorationShape.Sibling => (
                    d_container(
-                     ~length=len(),
-                     ~cls="anchor",
+                     ~length,
+                     ~cls="sibling",
                      Decoration.CaretPosition.view(
                        ~font_metrics,
-                       ~style=`Anchor,
+                       ~style=`Sibling,
                        color,
                      ),
                    ),
                    0,
                  )
-               | Neighbor => (
+               | OuterCousin => (
                    d_container(
-                     ~length=len(),
-                     ~cls="neighbor",
+                     ~length,
+                     ~cls="outer-cousin",
                      Decoration.CaretPosition.view(
                        ~font_metrics,
-                       ~style=`Neighbor,
+                       ~style=`OuterCousin,
+                       color,
+                     ),
+                   ),
+                   0,
+                 )
+               | InnerCousin => (
+                   d_container(
+                     ~length,
+                     ~cls="inner-cousin",
+                     Decoration.CaretPosition.view(
+                       ~font_metrics,
+                       ~style=`InnerCousin,
                        color,
                      ),
                    ),
@@ -116,11 +122,7 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
              )
           |> List.split;
         let (txt, ds, n) = go'();
-        (
-          txt,
-          [bare_caret_position, ...current_ds] @ ds,
-          List.fold_left((+), 0, current_filler) + n,
-        );
+        (txt, current_ds @ ds, List.fold_left((+), 0, current_filler) + n);
       | Delim =>
         let (txt, ds, n) = go'();
         ([with_cls("delim", txt)], ds, n);

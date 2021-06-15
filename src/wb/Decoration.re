@@ -26,12 +26,15 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
 };
 
 let caret_position_radii =
-    (~font_metrics: FontMetrics.t, ~style: [ | `Anchor | `Neighbor | `Bare]) => {
+    (
+      ~font_metrics: FontMetrics.t,
+      ~style: [ | `Sibling | `InnerCousin | `OuterCousin],
+    ) => {
   let r =
     switch (style) {
-    | `Anchor
-    | `Neighbor => 2.75
-    | `Bare => 1.75
+    | `Sibling => 2.75
+    | `InnerCousin
+    | `OuterCousin => 1.75
     };
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
@@ -887,16 +890,16 @@ module CaretPosition = {
   let view =
       (
         ~font_metrics,
-        ~style: [ | `Anchor | `Neighbor | `Bare],
+        ~style: [ | `Sibling | `InnerCousin | `OuterCousin],
         color: Color.t,
       ) => {
     let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
     let c_cls = Color.to_string(color);
     let style_cls =
       switch (style) {
-      | `Anchor => "anchor"
-      | `Neighbor => "neighbor"
-      | `Bare => "bare"
+      | `Sibling => "sibling"
+      | `InnerCousin => "inner-cousin"
+      | `OuterCousin => "outer-cousin"
       };
     [
       Node.create_svg(
@@ -1047,12 +1050,6 @@ module Caret = {
       | Selecting => (0., [])
       | Restructuring(selection) =>
         let l = Layout.mk_selection(~style=Selected, Selected, selection);
-        let dpaths =
-          DecorationPaths.{
-            caret: None,
-            neighbors: None,
-            anchors: Some(([], (0, List.length(selection)))),
-          };
         (
           (-1.4) *. font_metrics.row_height,
           [
@@ -1066,7 +1063,7 @@ module Caret = {
                   ),
                 ),
               ],
-              [view_of_layout(~font_metrics, dpaths, l)],
+              [view_of_layout(~font_metrics, DecorationPaths.empty, l)],
             ),
           ],
         );
