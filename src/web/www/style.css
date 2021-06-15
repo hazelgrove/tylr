@@ -380,9 +380,6 @@ svg.rail line.unsorted {
 }
 */
 
-.tile-container.Revealed {
-  display: none;
-}
 
 .tile-path, .tessera-path {
   stroke-width: 0.4;

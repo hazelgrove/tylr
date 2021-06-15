@@ -631,6 +631,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
 
 let mk_affix =
     (
+      ~reveal_tiles: bool,
       ~show_children: bool,
       ~sort: Sort.t,
       ~offset: int,
@@ -648,9 +649,14 @@ let mk_affix =
            step(
              n,
              mk_selem(
-               ~style=
-                 Selection.filter_pred(sort, selem)
-                   ? Revealed({show_children: show_children}) : Filtered,
+               ~style=?
+                 if (!Selection.filter_pred(sort, selem)) {
+                   Some(Filtered);
+                 } else if (reveal_tiles) {
+                   Some(Revealed({show_children: show_children}));
+                 } else {
+                   None;
+                 },
                Color.of_sort(Selem.sort(selem)),
                selem,
              ),
@@ -676,8 +682,10 @@ let mk_selecting =
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     ) => {
+  let reveal_tiles = selection == [];
   let sort_frame = Frame.sort(frame);
-  let mk_affix = mk_affix(~show_children=true, ~sort=sort_frame);
+  let mk_affix =
+    mk_affix(~reveal_tiles, ~show_children=true, ~sort=sort_frame);
 
   let offset = List.length(prefix);
   let l_prefix = mk_affix(~offset, Left, prefix);
@@ -706,6 +714,7 @@ let mk_restructuring =
   let sort_frame = Frame.sort(frame);
   let mk_affix =
     mk_affix(
+      ~reveal_tiles=false,
       ~show_children=Selection.is_whole_any(selection),
       ~sort=sort_frame,
     );
