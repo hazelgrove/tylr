@@ -832,7 +832,24 @@ module SelectedBar = {
           ],
         );
       } else {
-        failwith("todo");
+        Node.create_svg(
+          "svg",
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+          ],
+          [
+            Node.create_svg(
+              "rect",
+              Attr.[
+                create("width", "1"),
+                create("height", "1"),
+                classes(["same-sort", Color.(to_string(of_sort(sort_l)))]),
+              ],
+              [],
+            ),
+          ],
+        );
       };
     Node.div(
       Attr.[
