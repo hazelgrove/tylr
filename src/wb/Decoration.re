@@ -809,9 +809,9 @@ module Selem = {
   };
 };
 
-module SelectedBox = {
+module SelectedBar = {
   let view = (~font_metrics: FontMetrics.t, ~start, ~len, (sort_l, sort_r)) => {
-    let selection_bar_svg =
+    let svg =
       if (sort_l == sort_r) {
         Node.create_svg(
           "svg",
@@ -834,7 +834,26 @@ module SelectedBox = {
       } else {
         failwith("todo");
       };
+    Node.div(
+      Attr.[
+        id("selection-bar"),
+        create(
+          "style",
+          Printf.sprintf(
+            "left: %fpx; top: calc(%fpx + 0.75px); width: %fpx; height: 3px;",
+            (Float.of_int(start) +. 0.5) *. font_metrics.col_width,
+            (-0.25) *. font_metrics.row_height,
+            Float.of_int(len - 1) *. font_metrics.col_width,
+          ),
+        ),
+      ],
+      [svg],
+    );
+  };
+};
 
+module SelectedBox = {
+  let view = (~font_metrics: FontMetrics.t, ~start, ~len) => {
     Node.div(
       [
         Attr.classes(["selection-box"]),
@@ -850,23 +869,7 @@ module SelectedBox = {
           ),
         ),
       ],
-      [
-        Node.div(Attr.[id("selection-shading")], []),
-        Node.div(
-          Attr.[
-            id("selection-bar"),
-            create(
-              "style",
-              Printf.sprintf(
-                "left: 0; top: calc(%fpx + 3px); width: %fpx; height: 3px;",
-                (-0.25) *. font_metrics.row_height,
-                Float.of_int(len - 1) *. font_metrics.col_width,
-              ),
-            ),
-          ],
-          [selection_bar_svg],
-        ),
-      ],
+      [Node.div(Attr.[id("selection-shading")], [])],
     );
   };
 };

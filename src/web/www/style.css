@@ -65,6 +65,7 @@
   --inner-cousin-z: 9;
   --outer-cousin-caret-position-z: 9;
   --rail-z: 11;
+  --selection-bar-z: 11;
   --caret-position-z: 12;
   --anchor-z: 13;
   --caret-z: 13;
@@ -185,6 +186,7 @@ svg.rail line.unsorted {
 
 #selection-bar {
   position: absolute;
+  z-index: var(--selection-bar-z);
 }
 #selection-bar svg {
   position: absolute;

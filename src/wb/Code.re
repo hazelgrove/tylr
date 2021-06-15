@@ -47,9 +47,9 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
       let d_container = d_container(~origin=start);
       let len = () => Layout.length(l);
       let go' = () => go(~tile_step?, ~indent, ~start, dpaths, l);
-      let add_decoration = d => {
+      let add_decorations = new_ds => {
         let (txt, ds, n) = go'();
-        (txt, [d, ...ds], n);
+        (txt, new_ds @ ds, n);
       };
       switch (annot) {
       | Step(step) =>
@@ -161,39 +161,42 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
         let (txt, ds, n) = go'();
         ([with_cls("delim", txt)], ds, n);
       | EmptyHole(color) =>
-        add_decoration(
+        add_decorations([
           d_container(
             ~length=len(),
             ~cls="empty-hole",
             Decoration.EmptyHole.view(~font_metrics, ~color, ~inset=None, ()),
           ),
-        )
+        ])
       | UniChild(sort, side) =>
-        add_decoration(
+        let len = len();
+        add_decorations([
           d_container(
-            ~length=len(),
+            ~length=len,
             ~cls="uni-child",
-            Decoration.UniChild.view({sort, side, len: len()}),
+            Decoration.UniChild.view({sort, side, len}),
           ),
-        )
+        ]);
       | Selected(sort_l, sort_r) =>
-        add_decoration(
-          Decoration.SelectedBox.view(
+        let len = len();
+        add_decorations([
+          Decoration.SelectedBox.view(~font_metrics, ~start, ~len),
+          Decoration.SelectedBar.view(
             ~font_metrics,
             ~start,
-            ~len=len(),
+            ~len,
             (sort_l, sort_r),
           ),
-        )
+        ]);
       | Rail(style) =>
         let len = len();
-        add_decoration(
+        add_decorations([
           d_container(
             ~length=len,
             ~cls="rail",
             Decoration.Rail.view(~len, style),
           ),
-        );
+        ]);
       | Selem({color, shape, style}) =>
         let empty_holes = selem_holes(l);
         let (open_children, closed_children) = tile_children(l);
@@ -217,10 +220,10 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
               },
             ),
           );
-        add_decoration(d);
+        add_decorations([d]);
       | TargetBounds({sort, mode, strict_bounds}) =>
         let len = len();
-        add_decoration(
+        add_decorations([
           Decoration.TargetBounds.view(
             ~font_metrics,
             ~origin=start,
@@ -229,7 +232,7 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
             sort,
             mode,
           ),
-        );
+        ]);
       | OpenChild
       | ClosedChild => go'()
       };
