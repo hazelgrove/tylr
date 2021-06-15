@@ -146,7 +146,7 @@ let view =
       ~inject,
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
     ) => {
-  // let (subject, frame) = zipper;
+  let (subject, _) = zipper;
   let dpaths = DecorationPaths.mk(zipper);
   let l = Layout.mk_zipper(zipper);
   // let rail_color = {
@@ -183,6 +183,7 @@ let view =
             ~id="under-the-rail",
             ~text_id="under-the-rail-text",
             ~font_metrics,
+            ~subject,
             dpaths,
             l,
           ),

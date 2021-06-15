@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Cor;
 
 let tile_children =
   Layout.measured_fold'(
@@ -26,7 +27,15 @@ let selem_holes =
         },
   );
 
-let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
+let rec view_of_layout =
+        (
+          ~id=?,
+          ~text_id=?,
+          ~font_metrics,
+          ~subject: option(Subject.t)=?,
+          dpaths,
+          l,
+        ) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let d_container = Decoration.container(~font_metrics);
   let rec go = (~tile_step=?, ~indent=0, ~start=0, dpaths, l: Layout.t) => {
@@ -126,7 +135,11 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
                    Decoration.Caret.view(
                      ~font_metrics,
                      ~view_of_layout=
-                       view_of_layout(~id=?None, ~text_id=?None),
+                       view_of_layout(
+                         ~id=?None,
+                         ~text_id=?None,
+                         ~subject=?None,
+                       ),
                      ~color,
                      start,
                      mode,
@@ -142,19 +155,27 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
              )
           |> List.split;
         let bare =
-          d_container(
-            ~length,
-            ~cls="outer-cousin",
-            Decoration.CaretPosition.view(
-              ~font_metrics,
-              ~style=`OuterCousin,
-              color,
-            ),
-          );
+          switch (subject) {
+          | None => []
+          | Some(Restructuring(selection, _))
+              when !Selection.is_whole_any(selection) =>
+            []
+          | _ => [
+              d_container(
+                ~length,
+                ~cls="outer-cousin",
+                Decoration.CaretPosition.view(
+                  ~font_metrics,
+                  ~style=`OuterCousin,
+                  color,
+                ),
+              ),
+            ]
+          };
         let (txt, ds, n) = go'();
         (
           txt,
-          [bare, ...current_ds] @ ds,
+          bare @ current_ds @ ds,
           List.fold_left((+), 0, current_filler) + n,
         );
       | Delim =>
