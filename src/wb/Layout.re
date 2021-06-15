@@ -646,21 +646,20 @@ let mk_affix =
     |> List.mapi((i, selem) => {
          let n = cr(i, offset);
          let l_selem =
-           step(
-             n,
-             mk_selem(
-               ~style=?
-                 if (!Selection.filter_pred(sort, selem)) {
-                   Some(Filtered);
-                 } else if (reveal_tiles) {
-                   Some(Revealed({show_children: show_children}));
-                 } else {
-                   None;
-                 },
-               Color.of_sort(Selem.sort(selem)),
-               selem,
-             ),
-           );
+           mk_selem(
+             ~style=?
+               if (!Selection.filter_pred(sort, selem)) {
+                 Some(Filtered);
+               } else if (reveal_tiles) {
+                 Some(Revealed({show_children: show_children}));
+               } else {
+                 None;
+               },
+             Color.of_sort(Selem.sort(selem)),
+             selem,
+           )
+           |> annot(Rail({color: Selected, atomic: true}))
+           |> annot(Step(n));
          let l_space =
            space(cr(1, n), Color.of_sort(snd(Selem.tip(d, selem))));
          [l_selem, l_space];
