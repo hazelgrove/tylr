@@ -66,6 +66,7 @@
   --outer-cousin-caret-position-z: 9;
   --rail-z: 11;
   --caret-position-z: 12;
+  --anchor-z: 13;
   --caret-z: 13;
   --action-table-z: 14;
   --caret-bar-z: 15;
@@ -331,6 +332,9 @@ svg.rail line.unsorted {
 }
 .inset-empty-hole-container {
   z-index: var(--inset-empty-hole-z);
+}
+.anchor-container {
+  z-index: var(--anchor-z);
 }
 .sibling-container {
   z-index: var(--caret-position-z);

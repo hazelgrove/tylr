@@ -79,6 +79,21 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
                    ),
                    0,
                  ))
+               | Anchor => {
+                   Some((
+                     d_container(
+                       ~length,
+                       ~cls="anchor",
+                       Decoration.CaretPosition.view(
+                         ~font_metrics,
+                         ~style=`Anchor,
+                         color,
+                       ),
+                     ),
+                     0,
+                   ));
+                 }
+
                // TODO clean up cousin terminology
                | OuterCousin => None
                //    (

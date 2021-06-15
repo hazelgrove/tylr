@@ -28,10 +28,11 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
 let caret_position_radii =
     (
       ~font_metrics: FontMetrics.t,
-      ~style: [ | `Sibling | `InnerCousin | `OuterCousin],
+      ~style: [ | `Anchor | `Sibling | `InnerCousin | `OuterCousin],
     ) => {
   let r =
     switch (style) {
+    | `Anchor
     | `Sibling => 2.75
     | `InnerCousin
     | `OuterCousin => 1.75
@@ -890,13 +891,14 @@ module CaretPosition = {
   let view =
       (
         ~font_metrics,
-        ~style: [ | `Sibling | `InnerCousin | `OuterCousin],
+        ~style: [ | `Anchor | `Sibling | `InnerCousin | `OuterCousin],
         color: Color.t,
       ) => {
     let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
     let c_cls = Color.to_string(color);
     let style_cls =
       switch (style) {
+      | `Anchor => "anchor"
       | `Sibling => "sibling"
       | `InnerCousin => "inner-cousin"
       | `OuterCousin => "outer-cousin"
