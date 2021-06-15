@@ -64,9 +64,10 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
         let length = len();
         let (current_ds, current_filler) =
           DecorationPaths.current(caret_step, dpaths)
-          |> List.map(
+          |> List.filter_map(
                fun
-               | DecorationShape.Sibling => (
+               | DecorationShape.Sibling =>
+                 Some((
                    d_container(
                      ~length,
                      ~cls="sibling",
@@ -77,32 +78,36 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
                      ),
                    ),
                    0,
-                 )
-               | OuterCousin => (
-                   d_container(
-                     ~length,
-                     ~cls="outer-cousin",
-                     Decoration.CaretPosition.view(
-                       ~font_metrics,
-                       ~style=`OuterCousin,
-                       color,
-                     ),
-                   ),
-                   0,
-                 )
-               | InnerCousin => (
-                   d_container(
-                     ~length,
-                     ~cls="inner-cousin",
-                     Decoration.CaretPosition.view(
-                       ~font_metrics,
-                       ~style=`InnerCousin,
-                       color,
-                     ),
-                   ),
-                   0,
-                 )
-               | Caret(mode) => (
+                 ))
+               // TODO clean up cousin terminology
+               | OuterCousin => None
+               //    (
+               //      d_container(
+               //        ~length,
+               //        ~cls="outer-cousin",
+               //        Decoration.CaretPosition.view(
+               //          ~font_metrics,
+               //          ~style=`OuterCousin,
+               //          color,
+               //        ),
+               //      ),
+               //      0,
+               //    )
+               | InnerCousin => None
+               //   (
+               //    d_container(
+               //      ~length,
+               //      ~cls="inner-cousin",
+               //      Decoration.CaretPosition.view(
+               //        ~font_metrics,
+               //        ~style=`InnerCousin,
+               //        color,
+               //      ),
+               //    ),
+               //    0,
+               //  )
+               | Caret(mode) =>
+                 Some((
                    Decoration.Caret.view(
                      ~font_metrics,
                      ~view_of_layout=
@@ -118,11 +123,25 @@ let rec view_of_layout = (~id=?, ~text_id=?, ~font_metrics, dpaths, l) => {
                      Layout.length(Layout.mk_selection(Selected, selection))
                      - 1
                    },
-                 ),
+                 )),
              )
           |> List.split;
+        let bare =
+          d_container(
+            ~length,
+            ~cls="outer-cousin",
+            Decoration.CaretPosition.view(
+              ~font_metrics,
+              ~style=`OuterCousin,
+              color,
+            ),
+          );
         let (txt, ds, n) = go'();
-        (txt, current_ds @ ds, List.fold_left((+), 0, current_filler) + n);
+        (
+          txt,
+          [bare, ...current_ds] @ ds,
+          List.fold_left((+), 0, current_filler) + n,
+        );
       | Delim =>
         let (txt, ds, n) = go'();
         ([with_cls("delim", txt)], ds, n);
