@@ -32,7 +32,7 @@ let caret_position_radii =
     ) => {
   let r =
     switch (style) {
-    | `Anchor
+    | `Anchor => 3.5
     | `Sibling => 2.75
     | `InnerCousin
     | `OuterCousin => 1.75
@@ -859,7 +859,7 @@ module SelectedBar = {
           Printf.sprintf(
             "left: %fpx; top: calc(%fpx + 0.75px); width: %fpx; height: 3px;",
             (Float.of_int(start) +. 0.5) *. font_metrics.col_width,
-            (-0.25) *. font_metrics.row_height,
+            (-0.3) *. font_metrics.row_height,
             Float.of_int(len - 1) *. font_metrics.col_width,
           ),
         ),
@@ -928,7 +928,7 @@ module CaretPosition = {
         "rect",
         Attr.[
           create("x", Printf.sprintf("%fpx", 0.5 -. r_x)),
-          create("y", Printf.sprintf("%fpx", (-0.25) -. r_y)),
+          create("y", Printf.sprintf("%fpx", (-0.3) -. r_y)),
           create("width", Printf.sprintf("%fpx", 2. *. r_x)),
           create("height", Printf.sprintf("%fpx", 2. *. r_y)),
           Attr.classes(["caret-position-path", style_cls, c_cls]),
@@ -939,7 +939,7 @@ module CaretPosition = {
       //   "ellipse",
       //   AttrUtil.[
       //     cx(0.5),
-      //     cy(-0.25),
+      //     cy(-0.3),
       //     rx(r_x),
       //     ry(r_y),
       //     Attr.classes(["caret-position-path", style_cls, c_cls]),
@@ -1174,9 +1174,9 @@ module Rail = {
         id(gradient_id),
         create("gradientUnits", "userSpaceOnUse"),
         create("x1", "-0.5"),
-        create("y1", "-0.25"),
+        create("y1", "-0.3"),
         create("x2", Printf.sprintf("%f", len +. 0.5)),
-        create("y2", "-0.25"),
+        create("y2", "-0.3"),
       ],
       [
         stop(0., 1.),
@@ -1212,9 +1212,9 @@ module Rail = {
         "line",
         Attr.[
           create("x1", "-0.5"),
-          create("y1", "-0.25"),
+          create("y1", "-0.3"),
           create("x2", Printf.sprintf("%f", Float.of_int(len) +. 0.5)),
-          create("y2", "-0.25"),
+          create("y2", "-0.3"),
           // classes([Color.to_string(color)]),
           stroke_attr,
         ],
@@ -1235,7 +1235,7 @@ module Bar = {
           "style",
           Printf.sprintf(
             "top: calc(%fpx + 1.5px); height: 1.5px;",
-            (-0.25) *. font_metrics.row_height,
+            (-0.3) *. font_metrics.row_height,
           ),
         ),
       ],
@@ -1315,7 +1315,7 @@ module TargetBounds = {
           "style",
           Printf.sprintf(
             "top: calc(%fpx + 1px); height: 2px; left: %fpx; width: %fpx;",
-            (-0.25) *. font_metrics.row_height,
+            (-0.3) *. font_metrics.row_height,
             Float.of_int(origin - 1) *. font_metrics.col_width,
             len *. font_metrics.col_width,
           ),
