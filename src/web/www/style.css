@@ -285,8 +285,6 @@ svg.rail line.unsorted {
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-}
-.selection-shading {
   background-color: var(--selection-color);
   position: absolute;
   height: 100%;

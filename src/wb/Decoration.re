@@ -869,7 +869,7 @@ module SelectedBox = {
           ),
         ),
       ],
-      [Node.div(Attr.[id("selection-shading")], [])],
+      [],
     );
   };
 };
