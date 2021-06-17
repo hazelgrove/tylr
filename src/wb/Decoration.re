@@ -35,7 +35,7 @@ let caret_position_radii =
     | `Anchor => 3.5
     | `Sibling => 2.75
     | `InnerCousin
-    | `OuterCousin => 1.75
+    | `OuterCousin => 2.
     };
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
