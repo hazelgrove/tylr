@@ -68,8 +68,17 @@ let mk = ((subject, frame): Zipper.t) => {
         path,
         ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1),
       ))
-    | Selecting(_, (prefix, _)) =>
-      Some((Selecting, path, ListUtil.range(List.length(prefix) + 1)))
+    | Selecting(selection, (prefix, suffix)) =>
+      let len_pre = List.length(prefix);
+      let len_sel = List.length(selection);
+      let len_suf = List.length(suffix);
+      let siblings =
+        ListUtil.range(len_pre + 1)
+        @ ListUtil.range(
+            ~lo=len_pre + len_sel,
+            len_pre + len_sel + len_suf + 1,
+          );
+      Some((Selecting, path, siblings));
     | Restructuring(selection, (prefix, suffix) as sframe) =>
       let range =
         if (Selection.is_whole_any(selection)) {
