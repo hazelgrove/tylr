@@ -305,7 +305,10 @@ let mk_selection =
     selection
     |> List.mapi((i, selem) =>
          [
-           step(offset + i, mk_selem(~style?, Selected, selem)),
+           step(
+             offset + i,
+             mk_selem(~style?, Color.of_sort(Selem.sort(selem)), selem),
+           ),
            space(
              offset + i + 1,
              Color.of_sort(snd(Selem.tip(Right, selem))),
@@ -701,7 +704,7 @@ let mk_selecting =
   let l_selection =
     mk_selection(
       ~offset,
-      ~style=Selected,
+      ~style=Filtered,
       Color.of_sort(sort_frame),
       selection,
     );

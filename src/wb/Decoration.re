@@ -1054,7 +1054,7 @@ module Caret = {
       | Pointing
       | Selecting => (0., [])
       | Restructuring(selection) =>
-        let l = Layout.mk_selection(~style=Selected, Selected, selection);
+        let l = Layout.mk_selection(~style=Filtered, Selected, selection);
         let dpaths =
           DecorationPaths.{
             caret: None,
