@@ -285,7 +285,7 @@ svg.rail line.unsorted {
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  background-color: var(--selection-color);
+  background-color: #eee8d5; /*var(--selection-color);*/
   position: absolute;
   height: 100%;
   width: 100%;
@@ -394,7 +394,8 @@ svg.rail line.unsorted {
 }
 
 .tile-path.filtered {
-  fill: var(--selection-color);
+  /*fill: var(--selection-color);*/
+  fill: #eee8d5;
 }
 
 .tessera-path {
