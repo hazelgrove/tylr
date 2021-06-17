@@ -25,7 +25,7 @@
   --light-text-color: #586e75;
 
   --unselected-tessera-color: #fff1f7;
-  --selection-color: #ffe4f1;
+  --selection-color: #e7e1cd; /*#eee8d5;*/ /*#ffe4f1;*/
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
@@ -285,7 +285,7 @@ svg.rail line.unsorted {
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  background-color: #eee8d5; /*var(--selection-color);*/
+  background-color: var(--selection-color);
   position: absolute;
   height: 100%;
   width: 100%;
@@ -394,8 +394,7 @@ svg.rail line.unsorted {
 }
 
 .tile-path.filtered {
-  /*fill: var(--selection-color);*/
-  fill: #eee8d5;
+  fill: var(--selection-color);
 }
 
 .tessera-path {
