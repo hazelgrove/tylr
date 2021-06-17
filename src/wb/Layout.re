@@ -644,6 +644,7 @@ let mk_affix =
   | [_, ..._] =>
     selems
     |> List.mapi((i, selem) => {
+         let color = Color.of_sort(Selem.sort(selem));
          let n = cr(i, offset);
          let l_selem =
            mk_selem(
@@ -655,10 +656,10 @@ let mk_affix =
                } else {
                  None;
                },
-             Color.of_sort(Selem.sort(selem)),
+             color,
              selem,
            )
-           |> annot(Rail({color: Selected, atomic: true}))
+           |> annot(Rail({color, atomic: true}))
            |> annot(Step(n));
          let l_space =
            space(cr(1, n), Color.of_sort(snd(Selem.tip(d, selem))));
