@@ -1063,7 +1063,7 @@ module Caret = {
             inner_cousins: [],
           };
         (
-          (-1.4) *. font_metrics.row_height,
+          0.,
           [
             Node.span(
               [
@@ -1125,7 +1125,8 @@ module Caret = {
             Attr.create(
               "style",
               Printf.sprintf(
-                "top: 0; left: %fpx;",
+                "top: %fpx; left: %fpx;",
+                -. (0.4 +. 1. +. 0.3) *. font_metrics.row_height,
                 (-0.5) *. font_metrics.col_width,
               ),
             ),
