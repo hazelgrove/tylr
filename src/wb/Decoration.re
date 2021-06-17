@@ -810,62 +810,45 @@ module Selem = {
 };
 
 module SelectedBar = {
-  let view = (~font_metrics: FontMetrics.t, ~start, ~len, (sort_l, sort_r)) => {
-    let svg =
-      if (sort_l == sort_r) {
+  let view = (~font_metrics: FontMetrics.t, ~len: int, (sort_l, sort_r)) => {
+    let (cls_l, cls_r) =
+      TupleUtil.map2(s => Color.(to_string(of_sort(s))), (sort_l, sort_r));
+    if (sort_l == sort_r) {
+      [
         Node.create_svg(
-          "svg",
+          "line",
           Attr.[
-            create("viewBox", "0 0 1 1"),
-            create("preserveAspectRatio", "none"),
+            create("x1", "0.5"),
+            create("y1", "-0.3"),
+            create("x2", Printf.sprintf("%fpx", Float.of_int(len) -. 0.5)),
+            create("y2", "-0.3"),
+            classes(["same-sort", cls_l]),
           ],
-          [
-            Node.create_svg(
-              "rect",
-              Attr.[
-                create("width", "1"),
-                create("height", "1"),
-                classes(["same-sort", Color.(to_string(of_sort(sort_l)))]),
-              ],
-              [],
-            ),
-          ],
-        );
-      } else {
-        Node.create_svg(
-          "svg",
-          Attr.[
-            create("viewBox", "0 0 1 1"),
-            create("preserveAspectRatio", "none"),
-          ],
-          [
-            Node.create_svg(
-              "rect",
-              Attr.[
-                create("width", "1"),
-                create("height", "1"),
-                classes(["same-sort", Color.(to_string(of_sort(sort_l)))]),
-              ],
-              [],
-            ),
-          ],
-        );
-      };
-    Node.div(
-      Attr.[
-        id("selection-bar"),
-        create(
-          "style",
-          Printf.sprintf(
-            "left: %fpx; top: calc(%fpx + 0.75px); width: %fpx; height: 3px;",
-            (Float.of_int(start) +. 0.5) *. font_metrics.col_width,
-            (-0.3) *. font_metrics.row_height,
-            Float.of_int(len - 1) *. font_metrics.col_width,
-          ),
+          [],
         ),
-      ],
-      [svg],
-    );
+      ];
+    } else {
+      let skew_x = 5. /. font_metrics.col_width;
+      let skew_y = 5. /. font_metrics.row_height;
+      SvgUtil.Path.[
+        view(
+          ~attrs=Attr.[classes(["different-sort", cls_l])],
+          [
+            M({x: 0.5, y: (-0.3)}),
+            L_({dy: 0., dx: (Float.of_int(len) -. 1. -. skew_x) /. 2.}),
+            L_({dx: skew_x, dy: -. skew_y}),
+          ],
+        ),
+        view(
+          ~attrs=Attr.[classes(["different-sort", cls_r])],
+          [
+            M({x: Float.of_int(len) -. 0.5, y: (-0.3)}),
+            L_({dy: 0., dx: -. (Float.of_int(len) -. 1. -. skew_x) /. 2.}),
+            L_({dx: -. skew_x, dy: skew_y}),
+          ],
+        ),
+      ];
+    };
   };
 };
 

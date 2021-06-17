@@ -202,11 +202,14 @@ let rec view_of_layout =
         let len = len();
         add_decorations([
           Decoration.SelectedBox.view(~font_metrics, ~start, ~len),
-          Decoration.SelectedBar.view(
-            ~font_metrics,
-            ~start,
-            ~len,
-            (sort_l, sort_r),
+          d_container(
+            ~length=len,
+            ~cls="selected-bar",
+            Decoration.SelectedBar.view(
+              ~font_metrics,
+              ~len,
+              (sort_l, sort_r),
+            ),
           ),
         ]);
       | Rail(style) =>
