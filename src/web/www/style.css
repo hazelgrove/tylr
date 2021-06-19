@@ -131,6 +131,16 @@
   outline: none;
 }
 
+#spotlight {
+  position: absolute;
+}
+.spotlight-outline {
+  vector-effect: non-scaling-stroke;
+  stroke: var(--selection-color);
+  stroke-width: 0;
+  fill: var(--selection-color);
+}
+
 #bar {
   z-index: var(--bar-z);
   position: absolute;

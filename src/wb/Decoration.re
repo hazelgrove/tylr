@@ -1055,6 +1055,7 @@ module Caret = {
       | Selecting => (0., [])
       | Restructuring(selection) =>
         let l = Layout.mk_selection(~style=Filtered, Selected, selection);
+        let len = Layout.length(l);
         let dpaths =
           DecorationPaths.{
             caret: None,
@@ -1064,8 +1065,8 @@ module Caret = {
           };
         (
           0.,
-          [
-            Node.span(
+          Node.[
+            span(
               [
                 Attr.create(
                   "style",
@@ -1076,6 +1077,45 @@ module Caret = {
                 ),
               ],
               [view_of_layout(~font_metrics, dpaths, l)],
+            ),
+            div(
+              Attr.[
+                id("spotlight"),
+                create(
+                  "style",
+                  Printf.sprintf(
+                    "top: %fpx; left: 0; height: %fpx; width: %fpx;",
+                    1.4 *. font_metrics.row_height,
+                    0.2 *. font_metrics.row_height,
+                    font_metrics.col_width *. Float.of_int(len),
+                  ),
+                ),
+              ],
+              [
+                Node.create_svg(
+                  "svg",
+                  Attr.[
+                    create("viewBox", Printf.sprintf("0 0 %d 1", len)),
+                    create(
+                      "style",
+                      "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
+                    ),
+                  ],
+                  [
+                    SvgUtil.Path.(
+                      view(
+                        ~attrs=Attr.[classes(["spotlight-outline"])],
+                        [
+                          M({x: 0., y: 0.}),
+                          H_({dx: Float.of_int(len)}),
+                          L({x: 0., y: 1.}),
+                          Z,
+                        ],
+                      )
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         );
@@ -1126,7 +1166,7 @@ module Caret = {
               "style",
               Printf.sprintf(
                 "top: %fpx; left: %fpx;",
-                -. (0.4 +. 1. +. 0.3) *. font_metrics.row_height,
+                (-2.) *. font_metrics.row_height,
                 (-0.5) *. font_metrics.col_width,
               ),
             ),
