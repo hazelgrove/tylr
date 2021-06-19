@@ -77,28 +77,32 @@ let rec view_of_layout =
                fun
                | DecorationShape.Sibling =>
                  Some((
-                   d_container(
-                     ~length,
-                     ~cls="sibling",
-                     Decoration.CaretPosition.view(
-                       ~font_metrics,
-                       ~style=`Sibling,
-                       color,
+                   [
+                     d_container(
+                       ~length,
+                       ~cls="sibling",
+                       Decoration.CaretPosition.view(
+                         ~font_metrics,
+                         ~style=`Sibling,
+                         color,
+                       ),
                      ),
-                   ),
+                   ],
                    0,
                  ))
                | Anchor => {
                    Some((
-                     d_container(
-                       ~length,
-                       ~cls="anchor",
-                       Decoration.CaretPosition.view(
-                         ~font_metrics,
-                         ~style=`Anchor,
-                         color,
+                     [
+                       d_container(
+                         ~length,
+                         ~cls="anchor",
+                         Decoration.CaretPosition.view(
+                           ~font_metrics,
+                           ~style=`Anchor,
+                           color,
+                         ),
                        ),
-                     ),
+                     ],
                      0,
                    ));
                  }
@@ -130,30 +134,47 @@ let rec view_of_layout =
                //    ),
                //    0,
                //  )
-               | Caret(mode) =>
-                 Some((
-                   Decoration.Caret.view(
-                     ~font_metrics,
-                     ~view_of_layout=
-                       view_of_layout(
-                         ~id=?None,
-                         ~text_id=?None,
-                         ~subject=?None,
-                       ),
-                     ~color,
-                     start,
-                     mode,
-                   ),
+               | Caret(mode) => {
+                   let caret =
+                     Decoration.Caret.view(
+                       ~font_metrics,
+                       ~view_of_layout=
+                         view_of_layout(
+                           ~id=?None,
+                           ~text_id=?None,
+                           ~subject=?None,
+                         ),
+                       ~color,
+                       start,
+                       mode,
+                     );
                    switch (mode) {
                    | Pointing
-                   | Selecting => 0
+                   | Selecting => Some(([caret], 0))
                    | Restructuring(selection) =>
-                     Layout.length(Layout.mk_selection(Selected, selection))
-                     - 1
-                   },
-                 )),
+                     let selection_len =
+                       Layout.length(
+                         Layout.mk_selection(Selected, selection),
+                       )
+                       - 1;
+                     Some((
+                       [
+                         d_container(
+                           ~length=selection_len,
+                           ~cls="restructuring-genie",
+                           Decoration.RestructuringGenie.view(
+                             ~length=selection_len,
+                           ),
+                         ),
+                         caret,
+                       ],
+                       selection_len,
+                     ));
+                   };
+                 },
              )
-          |> List.split;
+          |> List.split
+          |> Util.PairUtil.map_fst(List.flatten);
         let bare =
           switch (subject) {
           | None => []

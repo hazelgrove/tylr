@@ -1055,7 +1055,7 @@ module Caret = {
       | Selecting => (0., [])
       | Restructuring(selection) =>
         let l = Layout.mk_selection(~style=Filtered, Selected, selection);
-        let len = Layout.length(l);
+        // let len = Layout.length(l);
         let dpaths =
           DecorationPaths.{
             caret: None,
@@ -1078,46 +1078,46 @@ module Caret = {
               ],
               [view_of_layout(~font_metrics, dpaths, l)],
             ),
-            div(
-              Attr.[
-                id("spotlight"),
-                create(
-                  "style",
-                  Printf.sprintf(
-                    "top: %fpx; left: 0; height: %fpx; width: %fpx;",
-                    1.4 *. font_metrics.row_height,
-                    0.2 *. font_metrics.row_height,
-                    font_metrics.col_width *. Float.of_int(len),
-                  ),
-                ),
-              ],
-              [
-                Node.create_svg(
-                  "svg",
-                  Attr.[
-                    create("viewBox", Printf.sprintf("0 0 %d 1", len)),
-                    create(
-                      "style",
-                      "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
-                    ),
-                  ],
-                  [
-                    SvgUtil.Path.(
-                      view(
-                        ~attrs=Attr.[classes(["spotlight-outline"])],
-                        [
-                          M({x: 0., y: 0.}),
-                          H_({dx: Float.of_int(len)}),
-                          L({x: 0., y: 1.}),
-                          Z,
-                        ],
-                      )
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ],
+          // div(
+          //   Attr.[
+          //     id("spotlight"),
+          //     create(
+          //       "style",
+          //       Printf.sprintf(
+          //         "top: %fpx; left: 0; height: %fpx; width: %fpx;",
+          //         1.4 *. font_metrics.row_height,
+          //         0.2 *. font_metrics.row_height,
+          //         font_metrics.col_width *. Float.of_int(len),
+          //       ),
+          //     ),
+          //   ],
+          //   [
+          //     Node.create_svg(
+          //       "svg",
+          //       Attr.[
+          //         create("viewBox", Printf.sprintf("0 0 %d 1", len)),
+          //         create(
+          //           "style",
+          //           "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
+          //         ),
+          //       ],
+          //       [
+          //         SvgUtil.Path.(
+          //           view(
+          //             ~attrs=Attr.[classes(["spotlight-outline"])],
+          //             [
+          //               M({x: 0., y: 0.}),
+          //               H_({dx: Float.of_int(len)}),
+          //               L({x: 0., y: 1.}),
+          //               Z,
+          //             ],
+          //           )
+          //         ),
+          //       ],
+          //     ),
+          //   ],
+          // ),
         );
       };
     Node.div(
@@ -1374,6 +1374,40 @@ module TargetBounds = {
   };
 };
 
+module RestructuringGenie = {
+  let view = (~length) => [
+    // <feGaussianBlur in="SourceAlpha"
+    //             stdDeviation="4"
+    //             result="blur"/>
+    Node.create_svg(
+      "filter",
+      Attr.[id("restructuring-genie-filter")],
+      Node.[
+        create_svg(
+          "feGaussianBlur",
+          Attr.[
+            create("in", "SourceGraphic"),
+            create("stdDeviation", "0.05"),
+          ],
+          [],
+        ),
+      ],
+    ),
+    SvgUtil.Path.(
+      view(
+        ~attrs=[Attr.classes(["restructuring-genie-path"])],
+        [
+          M({x: 0.5, y: (-0.3)}),
+          V({y: (-2.3)}),
+          H_({dx: Float.of_int(length)}),
+          V_({dy: 1.4}),
+          Z,
+        ],
+      )
+    ),
+  ];
+};
+
 let container =
     (
       ~font_metrics: FontMetrics.t,
@@ -1384,7 +1418,7 @@ let container =
       svgs: list(Node.t),
     )
     : Node.t => {
-  let buffered_height = 2;
+  let buffered_height = 8;
   let buffered_width = length + 3;
 
   let buffered_height_px =
@@ -1394,7 +1428,7 @@ let container =
 
   let container_origin_x =
     (Float.of_int(origin) -. 1.5) *. font_metrics.col_width;
-  let container_origin_y = (-0.5) *. font_metrics.row_height;
+  let container_origin_y = (-3.5) *. font_metrics.row_height;
 
   Node.div(
     Attr.[
@@ -1420,7 +1454,7 @@ let container =
           create(
             "viewBox",
             Printf.sprintf(
-              "-1.5 -0.5 %d %d",
+              "-1.5 -3.5 %d %d",
               buffered_width,
               buffered_height,
             ),

@@ -52,6 +52,7 @@
   --action-key-color: whitesmoke;
 
   --selection-box-z: 1;
+  --genie-z: 1;
   --empty-hole-z: 2;
   --err-hole-z: 2;
   --uni-child-z: 3;
@@ -362,6 +363,20 @@ svg.rail line.unsorted {
 }
 .rail-container {
   z-index: var(--rail-z);
+}
+.restructuring-genie-container {
+  z-index: var(--genie-z);
+}
+
+.restructuring-genie-path {
+  stroke-width: 0;
+  fill: var(--selection-color);
+  filter: url(#restructuring-genie-filter);
+  vector-effect: non-scaling-stroke;
+}
+
+#backpack-suf .selection-box {
+  display: none;
 }
 
 .err-hole-path {
