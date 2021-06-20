@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Util;
 
 module Tile = {
   [@deriving sexp]

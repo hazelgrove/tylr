@@ -25,7 +25,7 @@
   --light-text-color: #586e75;
 
   --unselected-tessera-color: #fff1f7;
-  --selection-color: #ffe4f1;
+  --selection-color: #e7e1cd; /*#eee8d5;*/ /*#ffe4f1;*/
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
@@ -33,20 +33,26 @@
 
   --exp-bg-color: #dbf6de; /*#ddff9f;*/
   --exp-shadow-color: #329f43; /* #709900; */
+  --exp-rail-color: #a7d3ad; /*#c4e1c8;*/
 
   --pat-bg-color: #c4e6ff;
   --pat-shadow-color: #268bd2;
+  --pat-rail-color: #a1c4dd; /*#cadce9;*/
 
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6168d4; /* #6c71c4; */
 
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c76695;
+  --unsorted-rail-color: #e7bdd0; /*#f4dbe7;*/
+
+  --bar-color: #dfdacc;
 
   --action-text-color: rgb(82, 82, 82);
   --action-key-color: whitesmoke;
 
   --selection-box-z: 1;
+  --genie-z: 1;
   --empty-hole-z: 2;
   --err-hole-z: 2;
   --uni-child-z: 3;
@@ -54,10 +60,18 @@
   --inset-empty-hole-z: 4;
   --code-text-z: 5;
   --placeholder-z: 6;
-  --flag-z: 7;
-  --caret-z: 8;
-  --action-table-z: 9;
-  --caret-bar-z: 10;
+  --target-bounds-z: 7;
+  --flag-z: 8;
+  --bar-z: 0;
+  --inner-cousin-z: 9;
+  --outer-cousin-caret-position-z: 9;
+  --rail-z: 11;
+  --selection-bar-z: 11;
+  --caret-position-z: 12;
+  --anchor-z: 13;
+  --caret-z: 13;
+  --action-table-z: 14;
+  --caret-bar-z: 15;
 }
 
 #page {
@@ -111,16 +125,108 @@
 #code-container {
   position: fixed;
   top: 40%;
-  left: 50%;
-  transform: translate(-50%, 0%);
+  left: 0%;
+  width: 100vw;
 }
 #code-container:focus {
   outline: none;
 }
 
+#spotlight {
+  position: absolute;
+}
+.spotlight-outline {
+  vector-effect: non-scaling-stroke;
+  stroke: var(--selection-color);
+  stroke-width: 0;
+  fill: var(--selection-color);
+}
+
+#bar {
+  z-index: var(--bar-z);
+  position: absolute;
+  left: 0;
+  width: 100%;
+}
+#bar svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+#bar rect {
+  fill: var(--bar-color);/*#586e752e;*/
+  /*filter: blur(1px);*/
+}
+
+svg.rail line {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2px;
+}
+svg.rail line.Exp {
+  stroke: var(--exp-rail-color);
+}
+svg.rail line.Pat {
+  stroke: var(--pat-rail-color);
+}
+svg.rail line.unsorted {
+  stroke: var(--unsorted-rail-color);
+}
+
+#rail-gradient stop.Exp {
+  stop-color: var(--exp-rail-color);
+}
+#rail-gradient stop.Pat {
+  stop-color: var(--pat-rail-color);
+}
+
+#target-bounds {
+  position: absolute;
+  z-index: var(--target-bounds-z);
+}
+#target-bounds stop.Exp {
+  stop-color: var(--exp-rail-color);
+}
+#target-bounds stop.Pat {
+  stop-color: var(--pat-rail-color);
+}
+#target-bounds stop.unsorted {
+  stop-color: var(--unsorted-rail-color);
+}
+
+.selected-bar-container {
+  z-index: var(--selection-bar-z);
+}
+
+.selected-bar-container line.same-sort {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2px;
+}
+.selected-bar-container path.different-sort {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.selected-bar-container line.same-sort.Exp,
+.selected-bar-container path.different-sort.Exp {
+  stroke: var(--exp-shadow-color);
+}
+.selected-bar-container line.same-sort.Pat,
+.selected-bar-container path.different-sort.Pat {
+  stroke: var(--pat-shadow-color);
+}
+
 .code {
   position: relative;
   line-height: 1.4;
+}
+.code#under-the-rail {
+  position: fixed;
+  left: 50%;
+  transform: translate(-50%, 0%);
+  z-index: 1;
 }
 
 .code-text {
@@ -187,10 +293,14 @@
   position: relative;
 }
 .selection-box {
-  background-color: var(--selection-color);
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
+  background-color: var(--selection-color);
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  filter: blur(1px);
   border-radius: 3px;
 }
 .selection-box.unfocused {
@@ -239,6 +349,35 @@
 .inset-empty-hole-container {
   z-index: var(--inset-empty-hole-z);
 }
+.anchor-container {
+  z-index: var(--anchor-z);
+}
+.sibling-container {
+  z-index: var(--caret-position-z);
+}
+.inner-cousin-container {
+  z-index: var(--inner-cousin-z);
+}
+.outer-cousin-container {
+  z-index: var(--outer-cousin-caret-position-z);
+}
+.rail-container {
+  z-index: var(--rail-z);
+}
+.restructuring-genie-container {
+  z-index: var(--genie-z);
+}
+
+.restructuring-genie-path {
+  stroke-width: 0;
+  fill: var(--selection-color);
+  filter: url(#restructuring-genie-filter);
+  vector-effect: non-scaling-stroke;
+}
+
+#backpack-suf .selection-box {
+  display: none;
+}
 
 .err-hole-path {
   fill: none;
@@ -268,6 +407,11 @@
   stroke: var(--typ-shadow-color);
 }
 */
+
+.tile-container.Revealed {
+  opacity: 0.6;
+}
+
 
 .tile-path, .tessera-path {
   stroke-width: 0.4;
@@ -361,19 +505,75 @@
   flood-color: var(--typ-shadow-color);
 }
 
+.caret-position-path {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 0.1px;
+}
+
+.caret-position-path.outer-cousin {
+  stroke: var(--bar-color);
+  fill: var(--bar-color);
+  /* stroke: #586e752e;
+  fill: #586e752e; */
+  /* stroke: var(--exp-rail-color);
+  fill: var(--exp-rail-color); */
+}
+
+.caret-position-path.Exp.sibling {
+  stroke: var(--exp-rail-color);
+  fill: var(--exp-rail-color);
+}
+
+.caret-position-path.Exp.inner-cousin {
+  /* stroke: var(--bar-color);
+  fill: var(--bar-color); */
+  stroke: var(--exp-rail-color);
+  fill: var(--exp-rail-color);
+}
+
+.caret-position-path.Pat.sibling,
+.caret-position-path.Pat.inner-cousin {
+  stroke: var(--pat-rail-color);
+  fill: var(--pat-rail-color);
+}
+
+.caret-position-path.Exp.anchor {
+  stroke: var(--exp-shadow-color);
+  fill: var(--exp-shadow-color);
+}
+.caret-position-path.Pat.anchor {
+  stroke: var(--pat-shadow-color);
+  fill: var(--pat-shadow-color);
+}
+.caret-position-path.Typ.anchor {
+  stroke: var(--typ-shadow-color);
+  fill: var(--typ-shadow-color);
+}
+.caret-position-path.unsorted {
+  stroke: var(--unsorted-shadow-color);
+  fill: var(--unsorted-shadow-color);
+}
+
 #caret {
   position: absolute;
   height: 80vh;
   z-index: var(--caret-z);
 }
 #caret-bar {
+  --color: var(--light-text-color);
   position: absolute;
   width: 100%;
   height: 100%;
   top: 0;
-  left: 0;
-  border-left: 1.5px solid var(--light-text-color);
+  left: -1px;
+  border-left: 2px solid var(--color);
   z-index: var(--caret-bar-z);
+}
+#caret-bar.Exp {
+  --color: var(--exp-shadow-color);
+}
+#caret-bar.Pat {
+  --color: var(--pat-shadow-color);
 }
 
 #backpack-pre, #backpack-suf {

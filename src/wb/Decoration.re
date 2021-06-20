@@ -1,10 +1,8 @@
 open Virtual_dom.Vdom;
 open Util;
+open Cor;
 
-module Sort = Cor.Sort;
-module Direction = Cor.Direction;
-
-let tip_width = 0.3;
+let tip_width = 0.32;
 let child_border_thickness = 0.1;
 
 let t = child_border_thickness /. 0.5;
@@ -27,15 +25,26 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let sort_cls =
-  fun
-  | None => "unsorted"
-  | Some(s) => Sort.to_string(s);
+let caret_position_radii =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~style: [ | `Anchor | `Sibling | `InnerCousin | `OuterCousin],
+    ) => {
+  let r =
+    switch (style) {
+    | `Anchor => 3.5
+    | `Sibling => 2.75
+    | `InnerCousin
+    | `OuterCousin => 2.
+    };
+  (r /. font_metrics.col_width, r /. font_metrics.row_height);
+};
 
 module Diag = {
   // top right to bottom left
   let tr_bl =
       (
+        ~scale as s=1.,
         ~hemi: [ | `North | `South],
         ~with_child_border=false,
         ~stretch_x=0.,
@@ -54,10 +63,12 @@ module Diag = {
               L_({dx: Float.neg(tip_width), dy: 0.5 +. stretch_y}),
               H_({dx: Float.neg(stretch_x)}),
             );
-        switch (hemi) {
-        | `North => [junction, diag]
-        | `South => [diag, junction]
-        };
+        let path =
+          switch (hemi) {
+          | `North => [junction, diag]
+          | `South => [diag, junction]
+          };
+        scale(s, path);
       }
     );
   // bottom left to top right
@@ -188,15 +199,86 @@ module ErrHole = {
   };
 };
 
+let left_tip_path =
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
+    : SvgUtil.Path.t => {
+  open SvgUtil.Path;
+  open Diag;
+  let path =
+    switch (tip) {
+    | (Convex, _) => br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ())
+    | (Concave, n) =>
+      let jag = [
+        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+        L_({dx: jagged_edge_w, dy: -. jagged_edge_h}),
+        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+      ];
+      let bottom_half =
+        n == 0
+          ? [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
+          : List.concat([
+              [H_({dx: -. (extra_tail +. 0.5)})],
+              jag,
+              [H_({dx: jagged_edge_w +. extra_tail})],
+              bl_tr(~hemi=`South, ~with_child_border=true, ()),
+            ]);
+      let top_half =
+        n == 0 || n == 1
+          ? br_tl(~hemi=`North, ()) @ [H_({dx: tip_width})]
+          : List.concat([
+              br_tl(~hemi=`North, ~with_child_border=true, ()),
+              [H_({dx: -. (jagged_edge_w +. extra_tail)})],
+              jag,
+              [H_({dx: extra_tail +. 0.5})],
+            ]);
+      bottom_half @ top_half;
+    };
+  scale_x(s_x, scale_y(s_y, path));
+};
+let right_tip_path =
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
+    : SvgUtil.Path.t => {
+  open SvgUtil.Path;
+  open Diag;
+  let path =
+    switch (tip) {
+    | (Convex, _) => tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ())
+    | (Concave, n) =>
+      open SvgUtil.Path;
+      let jag = [
+        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
+        L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
+        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
+      ];
+      let top_half =
+        n == 0 || n == 1
+          ? [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
+          : List.concat([
+              [H_({dx: 0.5 +. extra_tail})],
+              jag,
+              [H_({dx: -. (extra_tail +. jagged_edge_w)})],
+              tr_bl(~hemi=`North, ~with_child_border=true, ()),
+            ]);
+      let bottom_half =
+        n == 0
+          ? tl_br(~hemi=`South, ()) @ [H_({dx: Float.neg(tip_width)})]
+          : List.concat([
+              tl_br(~with_child_border=true, ~hemi=`South, ()),
+              [H_({dx: extra_tail})],
+              jag,
+              [H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)})],
+            ]);
+      top_half @ bottom_half;
+    };
+  scale_x(s_x, scale_y(s_y, path));
+};
+
 module EmptyHole = {
-  let inset_shadow_filter = (~sort) =>
+  let inset_shadow_filter = (~color) => {
+    let c_cls = Color.to_string(color);
     Node.create_svg(
       "filter",
-      [
-        Attr.id(
-          Printf.sprintf("empty-hole-inset-shadow-%s", sort_cls(sort)),
-        ),
-      ],
+      [Attr.id(Printf.sprintf("empty-hole-inset-shadow-%s", c_cls))],
       [
         Node.create_svg(
           "feOffset",
@@ -211,7 +293,7 @@ module EmptyHole = {
         Node.create_svg(
           "feFlood",
           Attr.[
-            classes(["empty-hole-inset-shadow-flood", sort_cls(sort)]),
+            classes(["empty-hole-inset-shadow-flood", c_cls]),
             create("flood-opacity", "1"),
             create("result", "color"),
           ],
@@ -255,15 +337,13 @@ module EmptyHole = {
         ),
       ],
     );
+  };
 
-  let thin_inset_shadow_filter = (~sort) =>
+  let thin_inset_shadow_filter = (~color) => {
+    let c_cls = Color.to_string(color);
     Node.create_svg(
       "filter",
-      [
-        Attr.id(
-          Printf.sprintf("empty-hole-thin-inset-shadow-%s", sort_cls(sort)),
-        ),
-      ],
+      [Attr.id(Printf.sprintf("empty-hole-thin-inset-shadow-%s", c_cls))],
       [
         Node.create_svg(
           "feOffset",
@@ -278,7 +358,7 @@ module EmptyHole = {
         Node.create_svg(
           "feFlood",
           Attr.[
-            classes(["empty-hole-inset-shadow-flood", sort_cls(sort)]),
+            classes(["empty-hole-inset-shadow-flood", c_cls]),
             create("flood-opacity", "1"),
             create("result", "color"),
           ],
@@ -322,45 +402,52 @@ module EmptyHole = {
         ),
       ],
     );
+  };
+
+  let path = (tip, offset, s: float) => {
+    let x_dilate = 1.5;
+    List.concat(
+      SvgUtil.Path.[
+        [
+          M({x: offset +. 0.5, y: 0.5 -. s /. 2.}),
+          H_({dx: x_dilate *. s /. 2.}),
+        ],
+        right_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (tip, 0)),
+        [H_({dx: -. s *. x_dilate})],
+        left_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (tip, 0)),
+        [Z],
+      ],
+    );
+  };
 
   let view =
       (
         ~offset=0,
-        ~sort: option(Sort.t),
+        ~color: Color.t,
+        ~tip: Tip.shape,
         ~inset: option([ | `Thick | `Thin]),
-        ~font_metrics: FontMetrics.t,
         (),
       )
       : list(Node.t) => {
-    // necessary because of AttrUtil shadowing below
-    let o = offset;
-    let (r_x, r_y) = hole_radii(~font_metrics);
-    let sort_cls = sort_cls(sort);
-    [
-      Node.create_svg(
-        "ellipse",
-        AttrUtil.[
-          cx(Float.of_int(o) +. 0.5),
-          cy(0.5),
-          rx(r_x),
-          ry(r_y),
-          vector_effect("non-scaling-stroke"),
-          stroke_width(Option.is_some(inset) ? 0.3 : 0.9),
-          filter(
-            switch (inset) {
-            | None => "none"
-            | Some(`Thin) =>
-              Printf.sprintf(
-                "url(#empty-hole-thin-inset-shadow-%s)",
-                sort_cls,
-              )
-            | Some(`Thick) =>
-              Printf.sprintf("url(#empty-hole-inset-shadow-%s)", sort_cls)
-            },
-          ),
-          Attr.classes(["empty-hole-path", sort_cls]),
-        ],
-        [],
+    let c_cls = Color.to_string(color);
+    SvgUtil.Path.[
+      view(
+        ~attrs=
+          AttrUtil.[
+            Attr.classes(["empty-hole-path", c_cls]),
+            vector_effect("non-scaling-stroke"),
+            stroke_width(Option.is_some(inset) ? 0.3 : 1.),
+            filter(
+              switch (inset) {
+              | None => "none"
+              | Some(`Thin) =>
+                Printf.sprintf("url(#empty-hole-thin-inset-shadow-%s)", c_cls)
+              | Some(`Thick) =>
+                Printf.sprintf("url(#empty-hole-inset-shadow-%s)", c_cls)
+              },
+            ),
+          ],
+        path(tip, Float.of_int(offset), 0.28),
       ),
     ];
   };
@@ -376,7 +463,7 @@ module UniChild = {
   let view = ({sort, side, len}: profile): list(Node.t) => {
     open SvgUtil.Path;
     open Diag;
-    let len = Float.of_int(len + 1);
+    let len = Float.of_int(len);
     /* old raised tile path
        let path =
          List.concat([
@@ -397,7 +484,7 @@ module UniChild = {
         };
       let (x1, x2) =
         switch (side) {
-        | Left => ("0", Printf.sprintf("%f", len))
+        | Left => ("1", Printf.sprintf("%f", len +. 1.))
         | Right => (Printf.sprintf("%f", len -. 1.), "-1")
         };
       let color =
@@ -439,7 +526,7 @@ module UniChild = {
                   Printf.sprintf("%f%%", 100. *. (len -. 0.6) /. len),
                 ),
                 AttrUtil.stop_color(color),
-                AttrUtil.stop_opacity("0"),
+                AttrUtil.stop_opacity(0.),
               ],
               [],
             ),
@@ -451,7 +538,7 @@ module UniChild = {
       switch (side) {
       | Left =>
         List.concat([
-          [M({x: len, y: 0.}), H_({dx: Float.neg(len)})],
+          [M({x: len +. 1., y: 0.}), H_({dx: Float.neg(len)})],
           // [M({x: 0., y: 0.})],
           tr_bl(~hemi=`North, ()),
           tl_br(~hemi=`South, ()),
@@ -497,26 +584,26 @@ module Selem = {
   open Diag;
 
   type profile = {
-    sort: option(Sort.t),
+    color: Color.t,
     shape: Layout.selem_shape,
     style: SelemStyle.t,
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
-    empty_holes: list((int, option(Sort.t))),
+    empty_holes: list((int, Color.t, Tip.shape)),
   };
   let mk_profile =
       (
         ~open_children=[],
         ~closed_children=[],
         ~empty_holes=[],
-        ~sort=?,
+        ~color,
         ~style,
         ~len,
         ~shape,
         (),
       ) => {
-    sort,
+    color,
     shape,
     len,
     open_children,
@@ -525,12 +612,8 @@ module Selem = {
     style,
   };
 
-  let raised_shadow_filter = (~sort: option(Sort.t)=?, ()) => {
-    let s =
-      switch (sort) {
-      | None => "unsorted"
-      | Some(s) => Sort.to_string(s)
-      };
+  let raised_shadow_filter = (~color: Color.t) => {
+    let s = Color.to_string(color);
     Node.create_svg(
       "filter",
       [Attr.id("raised-drop-shadow-" ++ s)],
@@ -549,12 +632,8 @@ module Selem = {
     );
   };
 
-  let shadow_filter = (~sort: option(Sort.t)=?, ()) => {
-    let s =
-      switch (sort) {
-      | None => "unsorted"
-      | Some(s) => Sort.to_string(s)
-      };
+  let shadow_filter = (~color: Color.t) => {
+    let s = Color.to_string(color);
     Node.create_svg(
       "filter",
       [Attr.id("drop-shadow-" ++ s)],
@@ -574,14 +653,15 @@ module Selem = {
   };
 
   let open_child_paths =
-      (~start, ~sort: option(Sort.t), open_children: list((int, int)))
+      (~start, ~color: Color.t, open_children: list((int, int)))
       : list(Node.t) => {
     open SvgUtil.Path;
     let color =
-      switch (sort) {
-      | None => "var(--unsorted-shadow-color)"
-      | Some(Pat) => "var(--pat-shadow-color)"
-      | Some(Exp) => "var(--exp-shadow-color)"
+      switch (color) {
+      | Selected => "var(--unsorted-shadow-color)"
+      | Typ => "var(--typ-shadow-color)"
+      | Pat => "var(--pat-shadow-color)"
+      | Exp => "var(--exp-shadow-color)"
       };
     let gradient = (id, start, len) =>
       Node.create_svg(
@@ -598,7 +678,7 @@ module Selem = {
             AttrUtil.[
               offset(0.6 /. Float.of_int(len)),
               stop_color(color),
-              stop_opacity("0"),
+              stop_opacity(0.),
             ],
           ),
           stop(
@@ -617,7 +697,7 @@ module Selem = {
             AttrUtil.[
               offset((Float.of_int(len) -. 0.6) /. Float.of_int(len)),
               stop_color(color),
-              stop_opacity("0"),
+              stop_opacity(0.),
             ],
           ),
         ],
@@ -650,92 +730,34 @@ module Selem = {
   };
 
   let empty_hole_path =
-      (~font_metrics, empty_hole: (int, option(Sort.t))): SvgUtil.Path.t => {
-    let (rx, ry) = hole_radii(~font_metrics);
-    let (o, _sort_todo) = empty_hole;
-    SvgUtil.Path.[
-      M({x: Float.of_int(o) +. 0.5 -. rx, y: 0.5}),
-      A_({
-        rx,
-        ry,
-        x_axis_rotation: 0.,
-        large_arc_flag: false,
-        sweep_flag: false,
-        dx: 2. *. rx,
-        dy: 0.,
-      }),
-      A_({
-        rx,
-        ry,
-        x_axis_rotation: 0.,
-        large_arc_flag: false,
-        sweep_flag: false,
-        dx: (-2.) *. rx,
-        dy: 0.,
-      }),
-    ];
+      (~font_metrics as _, empty_hole: (int, Color.t, Tip.shape))
+      : SvgUtil.Path.t => {
+    // let (rx, ry) = hole_radii(~font_metrics);
+    // let (o, _sort_todo) = empty_hole;
+    // SvgUtil.Path.[
+    //   M({x: Float.of_int(o) +. 0.5 -. rx, y: 0.5}),
+    //   A_({
+    //     rx,
+    //     ry,
+    //     x_axis_rotation: 0.,
+    //     large_arc_flag: false,
+    //     sweep_flag: false,
+    //     dx: 2. *. rx,
+    //     dy: 0.,
+    //   }),
+    //   A_({
+    //     rx,
+    //     ry,
+    //     x_axis_rotation: 0.,
+    //     large_arc_flag: false,
+    //     sweep_flag: false,
+    //     dx: (-2.) *. rx,
+    //     dy: 0.,
+    //   }),
+    // ];
+    let (offset, _color, tip) = empty_hole;
+    EmptyHole.path(tip, Float.of_int(offset), 0.28);
   };
-
-  let left_tip_path = (tip: Layout.tip_shape): SvgUtil.Path.t =>
-    switch (tip) {
-    | (Convex, _) => br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ())
-    | (Concave, n) =>
-      open SvgUtil.Path;
-      let jag = [
-        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
-        L_({dx: jagged_edge_w, dy: -. jagged_edge_h}),
-        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
-      ];
-      let bottom_half =
-        n == 0
-          ? [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
-          : List.concat([
-              [H_({dx: -. (extra_tail +. 0.5)})],
-              jag,
-              [H_({dx: jagged_edge_w +. extra_tail})],
-              bl_tr(~hemi=`South, ~with_child_border=true, ()),
-            ]);
-      let top_half =
-        n == 0 || n == 1
-          ? br_tl(~hemi=`North, ()) @ [H_({dx: tip_width})]
-          : List.concat([
-              br_tl(~hemi=`North, ~with_child_border=true, ()),
-              [H_({dx: -. (jagged_edge_w +. extra_tail)})],
-              jag,
-              [H_({dx: extra_tail +. 0.5})],
-            ]);
-      bottom_half @ top_half;
-    };
-  let right_tip_path = (tip: Layout.tip_shape): SvgUtil.Path.t =>
-    switch (tip) {
-    | (Convex, _) => tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ())
-    | (Concave, n) =>
-      open SvgUtil.Path;
-      let jag = [
-        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
-        L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
-        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
-      ];
-      let top_half =
-        n == 0 || n == 1
-          ? [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
-          : List.concat([
-              [H_({dx: 0.5 +. extra_tail})],
-              jag,
-              [H_({dx: -. (extra_tail +. jagged_edge_w)})],
-              tr_bl(~hemi=`North, ~with_child_border=true, ()),
-            ]);
-      let bottom_half =
-        n == 0
-          ? tl_br(~hemi=`South, ()) @ [H_({dx: Float.neg(tip_width)})]
-          : List.concat([
-              tl_br(~with_child_border=true, ~hemi=`South, ()),
-              [H_({dx: extra_tail})],
-              jag,
-              [H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)})],
-            ]);
-      top_half @ bottom_half;
-    };
 
   let open_child_path = ((start, len): (int, int)) =>
     List.concat(
@@ -749,14 +771,13 @@ module Selem = {
       ],
     );
 
-  let contour_path =
-      (~attrs: list(Attr.t), ~font_metrics, profile: profile): Node.t => {
+  let contour_path = (~font_metrics, profile: profile): SvgUtil.Path.t => {
     open SvgUtil.Path;
     let empty_hole_paths = {
       let raised_holes =
         SelemStyle.show_children(profile.style)
           // always show holes in empty hole tiles
-          ? List.filter(((n, _)) => n == 0, profile.empty_holes)
+          ? List.filter(((n, _, _)) => n == 0, profile.empty_holes)
           : profile.empty_holes;
       List.map(empty_hole_path(~font_metrics), raised_holes);
     };
@@ -776,29 +797,25 @@ module Selem = {
         [Z],
       ]);
     };
+    outer_path
+    @ List.concat(closed_child_paths)
+    @ List.concat(empty_hole_paths);
+  };
+
+  let contour_path_attrs = (~attrs, profile) => {
     let clss = {
-      let sort =
-        switch (profile.sort) {
-        | None => "unsorted"
-        | Some(s) => Sort.to_string(s)
-        };
+      let c_cls = Color.to_string(profile.color);
       let highlighted =
         SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
       let filtered = SelemStyle.filtered(profile.style) ? ["filtered"] : [];
       let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
-      List.concat([["tile-path", sort], highlighted, raised, filtered]);
+      List.concat([["tile-path", c_cls], highlighted, raised, filtered]);
     };
-    SvgUtil.Path.view(
-      ~attrs=
-        Attr.[
-          classes(clss),
-          create("vector-effect", "non-scaling-stroke"),
-          ...attrs,
-        ],
-      outer_path
-      @ List.concat(closed_child_paths)
-      @ List.concat(empty_hole_paths),
-    );
+    Attr.[
+      classes(clss),
+      create("vector-effect", "non-scaling-stroke"),
+      ...attrs,
+    ];
   };
 
   let view =
@@ -814,13 +831,62 @@ module Selem = {
       SelemStyle.show_children(profile.style)
         ? profile : {...profile, open_children: [], closed_children: []};
     let open_child_paths =
-      open_child_paths(~start, ~sort=profile.sort, profile.open_children);
-    open_child_paths @ [contour_path(~attrs, ~font_metrics, profile)];
+      open_child_paths(~start, ~color=profile.color, profile.open_children);
+    open_child_paths
+    @ [
+      SvgUtil.Path.view(
+        ~attrs=contour_path_attrs(~attrs, profile),
+        contour_path(~font_metrics, profile),
+      ),
+    ];
+  };
+};
+
+module SelectedBar = {
+  let view = (~font_metrics: FontMetrics.t, ~len: int, (sort_l, sort_r)) => {
+    let (cls_l, cls_r) =
+      TupleUtil.map2(s => Color.(to_string(of_sort(s))), (sort_l, sort_r));
+    if (sort_l == sort_r) {
+      [
+        Node.create_svg(
+          "line",
+          Attr.[
+            create("x1", "0.5"),
+            create("y1", "-0.3"),
+            create("x2", Printf.sprintf("%fpx", Float.of_int(len) -. 0.5)),
+            create("y2", "-0.3"),
+            classes(["same-sort", cls_l]),
+          ],
+          [],
+        ),
+      ];
+    } else {
+      let skew_x = 5. /. font_metrics.col_width;
+      let skew_y = 5. /. font_metrics.row_height;
+      SvgUtil.Path.[
+        view(
+          ~attrs=Attr.[classes(["different-sort", cls_l])],
+          [
+            M({x: 0.5, y: (-0.3)}),
+            L_({dy: 0., dx: (Float.of_int(len) -. 1. -. skew_x) /. 2.}),
+            L_({dx: skew_x, dy: -. skew_y}),
+          ],
+        ),
+        view(
+          ~attrs=Attr.[classes(["different-sort", cls_r])],
+          [
+            M({x: Float.of_int(len) -. 0.5, y: (-0.3)}),
+            L_({dy: 0., dx: -. (Float.of_int(len) -. 1. -. skew_x) /. 2.}),
+            L_({dx: -. skew_x, dy: skew_y}),
+          ],
+        ),
+      ];
+    };
   };
 };
 
 module SelectedBox = {
-  let view = (~font_metrics: FontMetrics.t, start, len) =>
+  let view = (~font_metrics: FontMetrics.t, ~start, ~len) => {
     Node.div(
       [
         Attr.classes(["selection-box"]),
@@ -828,16 +894,76 @@ module SelectedBox = {
           "style",
           Printf.sprintf(
             "left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-            (Float.of_int(start) -. 0.5) *. font_metrics.col_width,
-            (-0.1) *. font_metrics.row_height,
-            Float.of_int(len + 1) *. font_metrics.col_width,
+            (Float.of_int(start) +. 0.5) *. font_metrics.col_width,
+            (-0.2) *. font_metrics.row_height,
+            Float.of_int(len - 1) *. font_metrics.col_width,
             // not sure why this needs to be 1.3 and not 1.2
-            1.3 *. font_metrics.row_height,
+            1.6 *. font_metrics.row_height,
           ),
         ),
       ],
       [],
     );
+  };
+};
+
+module CaretPosition = {
+  let blur_filter =
+    Node.create_svg(
+      "filter",
+      [Attr.id("caret-position-neighbor-blur")],
+      [
+        Node.create_svg(
+          "feGaussianBlur",
+          [
+            Attr.create("in", "SourceGraphic"),
+            Attr.create("stdDeviation", "0."),
+          ],
+          [],
+        ),
+      ],
+    );
+
+  let view =
+      (
+        ~font_metrics,
+        ~style: [ | `Anchor | `Sibling | `InnerCousin | `OuterCousin],
+        color: Color.t,
+      ) => {
+    let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
+    let c_cls = Color.to_string(color);
+    let style_cls =
+      switch (style) {
+      | `Anchor => "anchor"
+      | `Sibling => "sibling"
+      | `InnerCousin => "inner-cousin"
+      | `OuterCousin => "outer-cousin"
+      };
+    [
+      Node.create_svg(
+        "rect",
+        Attr.[
+          create("x", Printf.sprintf("%fpx", 0.5 -. r_x)),
+          create("y", Printf.sprintf("%fpx", (-0.3) -. r_y)),
+          create("width", Printf.sprintf("%fpx", 2. *. r_x)),
+          create("height", Printf.sprintf("%fpx", 2. *. r_y)),
+          Attr.classes(["caret-position-path", style_cls, c_cls]),
+        ],
+        [],
+      ),
+      // Node.create_svg(
+      //   "ellipse",
+      //   AttrUtil.[
+      //     cx(0.5),
+      //     cy(-0.3),
+      //     rx(r_x),
+      //     ry(r_y),
+      //     Attr.classes(["caret-position-path", style_cls, c_cls]),
+      //   ],
+      //   [],
+      // ),
+    ];
+  };
 };
 
 module Caret = {
@@ -949,18 +1075,31 @@ module Caret = {
   let view =
       (
         ~font_metrics: FontMetrics.t,
-        ~view_of_layout: (~font_metrics: FontMetrics.t, Layout.t) => Node.t,
+        ~view_of_layout:
+           (~font_metrics: FontMetrics.t, DecorationPaths.t, Layout.t) =>
+           Node.t,
+        ~color: Color.t,
         offset: int,
-        caret: Layout.caret,
+        mode: CaretMode.t,
       ) => {
     let (top, selection) =
-      switch (caret) {
+      switch (mode) {
       | Pointing
       | Selecting => (0., [])
-      | Restructuring(selection) => (
-          (-1.4) *. font_metrics.row_height,
-          [
-            Node.span(
+      | Restructuring(selection) =>
+        let l = Layout.mk_selection(~style=Filtered, Selected, selection);
+        // let len = Layout.length(l);
+        let dpaths =
+          DecorationPaths.{
+            caret: None,
+            anchors: [([], 0), ([], List.length(selection))],
+            outer_cousins: [],
+            inner_cousins: [],
+          };
+        (
+          0.,
+          Node.[
+            span(
               [
                 Attr.create(
                   "style",
@@ -970,10 +1109,49 @@ module Caret = {
                   ),
                 ),
               ],
-              [view_of_layout(~font_metrics, selection)],
+              [view_of_layout(~font_metrics, dpaths, l)],
             ),
           ],
-        )
+          // div(
+          //   Attr.[
+          //     id("spotlight"),
+          //     create(
+          //       "style",
+          //       Printf.sprintf(
+          //         "top: %fpx; left: 0; height: %fpx; width: %fpx;",
+          //         1.4 *. font_metrics.row_height,
+          //         0.2 *. font_metrics.row_height,
+          //         font_metrics.col_width *. Float.of_int(len),
+          //       ),
+          //     ),
+          //   ],
+          //   [
+          //     Node.create_svg(
+          //       "svg",
+          //       Attr.[
+          //         create("viewBox", Printf.sprintf("0 0 %d 1", len)),
+          //         create(
+          //           "style",
+          //           "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
+          //         ),
+          //       ],
+          //       [
+          //         SvgUtil.Path.(
+          //           view(
+          //             ~attrs=Attr.[classes(["spotlight-outline"])],
+          //             [
+          //               M({x: 0., y: 0.}),
+          //               H_({dx: Float.of_int(len)}),
+          //               L({x: 0., y: 1.}),
+          //               Z,
+          //             ],
+          //           )
+          //         ),
+          //       ],
+          //     ),
+          //   ],
+          // ),
+        );
       };
     Node.div(
       [
@@ -988,7 +1166,10 @@ module Caret = {
         ),
       ],
       [
-        Node.div([Attr.id("caret-bar")], []),
+        Node.div(
+          [Attr.id("caret-bar"), Attr.classes([Color.to_string(color)])],
+          [],
+        ),
         Node.div(
           [
             Attr.id("action-table"),
@@ -1017,7 +1198,8 @@ module Caret = {
             Attr.create(
               "style",
               Printf.sprintf(
-                "top: 0; left: %fpx;",
+                "top: %fpx; left: %fpx;",
+                (-2.) *. font_metrics.row_height,
                 (-0.5) *. font_metrics.col_width,
               ),
             ),
@@ -1027,6 +1209,236 @@ module Caret = {
       ],
     );
   };
+};
+
+module Rail = {
+  let gradient_id = "rail-gradient";
+  let gradient = (~len, ~color: Color.t): Node.t => {
+    let len = Float.of_int(len);
+    let stop = (offset, opacity) =>
+      Node.create_svg(
+        "stop",
+        [
+          Attr.create("offset", Printf.sprintf("%f%%", 100. *. offset)),
+          Attr.classes([Color.to_string(color)]),
+          AttrUtil.stop_opacity(opacity),
+        ],
+        [],
+      );
+    Node.create_svg(
+      "linearGradient",
+      Attr.[
+        id(gradient_id),
+        create("gradientUnits", "userSpaceOnUse"),
+        create("x1", "-0.5"),
+        create("y1", "-0.3"),
+        create("x2", Printf.sprintf("%f", len +. 0.5)),
+        create("y2", "-0.3"),
+      ],
+      [
+        stop(0., 1.),
+        stop(2. /. (len +. 1.), 0.),
+        stop((len +. 1. -. 2.) /. (len +. 1.), 0.),
+        stop(1., 1.),
+      ],
+    );
+  };
+
+  let view = (~len, {color, atomic: _}: RailStyle.t) => {
+    let gradient = gradient(~len, ~color);
+    // ideally I would just vary the gradient based on atomicity
+    // but can't get the gradient to behave...
+    let stroke_attr =
+      Attr.create(
+        "stroke",
+        // atomic
+        //   ? Printf.sprintf(
+        //       "var(--%s-rail-color",
+        //       String.lowercase_ascii(Color.to_string(color)),
+        //     )
+        //   : Printf.sprintf("url(#%s)", gradient_id),
+        Printf.sprintf(
+          "var(--%s-rail-color",
+          String.lowercase_ascii(Color.to_string(color)),
+        ),
+      );
+    [
+      gradient,
+      // let dash_attr = atomic ? [] : [Attr.create("stroke-dasharray", "4 2")];
+      Node.create_svg(
+        "line",
+        Attr.[
+          create("x1", "-0.5"),
+          create("y1", "-0.3"),
+          create("x2", Printf.sprintf("%f", Float.of_int(len) +. 0.5)),
+          create("y2", "-0.3"),
+          // classes([Color.to_string(color)]),
+          stroke_attr,
+        ],
+        // ...dash_attr,
+        [],
+      ),
+    ];
+  };
+};
+
+// TODO rename
+module Bar = {
+  let view = (~font_metrics: FontMetrics.t) =>
+    Node.div(
+      Attr.[
+        id("bar"),
+        create(
+          "style",
+          Printf.sprintf(
+            "top: calc(%fpx + 1.5px); height: 1.5px;",
+            (-0.3) *. font_metrics.row_height,
+          ),
+        ),
+      ],
+      [
+        Node.create_svg(
+          "svg",
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+          ],
+          [
+            Node.create_svg(
+              "rect",
+              Attr.[create("width", "1"), create("height", "1")],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
+};
+
+module TargetBounds = {
+  let gradient_id = "target-bounds-gradient";
+  let gradient =
+      (len, (l_strict, r_strict), frame_sort, mode: CaretMode.t): Node.t => {
+    let c =
+      switch (mode) {
+      | Pointing => Color.of_sort(frame_sort)
+      | Selecting
+      | Restructuring(_) => Selected
+      };
+    let stop = (offset, opacity) =>
+      Node.create_svg(
+        "stop",
+        [
+          Attr.create("offset", Printf.sprintf("%f%%", 100. *. offset)),
+          Attr.classes([Color.to_string(c)]),
+          AttrUtil.stop_opacity(opacity),
+        ],
+        [],
+      );
+    Node.create_svg(
+      "linearGradient",
+      Attr.[
+        id(gradient_id),
+        create("gradientUnits", "userSpaceOnUse"),
+        create("x1", "0"),
+        create("x2", "1"),
+      ],
+      [
+        stop(0., 0.),
+        stop(1.5 /. len, l_strict ? 0. : 1.),
+        stop(1.5 /. len, 0.),
+        stop((len -. 1.5) /. len, 0.),
+        stop((len -. 1.5) /. len, r_strict ? 0. : 1.),
+        stop(1., 0.),
+      ],
+    );
+  };
+
+  let view =
+      (
+        ~font_metrics: FontMetrics.t,
+        ~origin: int,
+        ~len: int,
+        strict_bounds: (bool, bool),
+        frame_sort: Sort.t,
+        mode: CaretMode.t,
+      ) => {
+    let len = Float.of_int(len + 2);
+    let gradient = gradient(len, strict_bounds, frame_sort, mode);
+    Node.div(
+      Attr.[
+        id("target-bounds"),
+        create(
+          "style",
+          Printf.sprintf(
+            "top: calc(%fpx + 1px); height: 2px; left: %fpx; width: %fpx;",
+            (-0.3) *. font_metrics.row_height,
+            Float.of_int(origin - 1) *. font_metrics.col_width,
+            len *. font_metrics.col_width,
+          ),
+        ),
+      ],
+      [
+        Node.create_svg(
+          "svg",
+          Attr.[
+            create("viewBox", "0 0 1 1"),
+            create("preserveAspectRatio", "none"),
+            create(
+              "style",
+              "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
+            ),
+          ],
+          [
+            gradient,
+            Node.create_svg(
+              "rect",
+              Attr.[
+                create("width", "1"),
+                create("height", "1"),
+                create("fill", Printf.sprintf("url(#%s)", gradient_id)),
+              ],
+              [],
+            ),
+          ],
+        ),
+      ],
+    );
+  };
+};
+
+module RestructuringGenie = {
+  let view = (~length) => [
+    // <feGaussianBlur in="SourceAlpha"
+    //             stdDeviation="4"
+    //             result="blur"/>
+    Node.create_svg(
+      "filter",
+      Attr.[id("restructuring-genie-filter")],
+      Node.[
+        create_svg(
+          "feGaussianBlur",
+          Attr.[
+            create("in", "SourceGraphic"),
+            create("stdDeviation", "0.05"),
+          ],
+          [],
+        ),
+      ],
+    ),
+    SvgUtil.Path.(
+      view(
+        ~attrs=[Attr.classes(["restructuring-genie-path"])],
+        [
+          M({x: 0.5, y: (-0.3)}),
+          V({y: (-2.3)}),
+          H_({dx: Float.of_int(length)}),
+          V_({dy: 1.4}),
+          Z,
+        ],
+      )
+    ),
+  ];
 };
 
 let container =
@@ -1039,7 +1451,7 @@ let container =
       svgs: list(Node.t),
     )
     : Node.t => {
-  let buffered_height = 2;
+  let buffered_height = 8;
   let buffered_width = length + 3;
 
   let buffered_height_px =
@@ -1049,16 +1461,16 @@ let container =
 
   let container_origin_x =
     (Float.of_int(origin) -. 1.5) *. font_metrics.col_width;
-  let container_origin_y = (-0.5) *. font_metrics.row_height;
+  let container_origin_y = (-3.5) *. font_metrics.row_height;
 
   Node.div(
-    [
-      Attr.classes([
+    Attr.[
+      classes([
         "decoration-container",
         Printf.sprintf("%s-container", cls),
         ...container_clss,
       ]),
-      Attr.create(
+      create(
         "style",
         Printf.sprintf(
           "top: calc(%fpx + 2px); left: %fpx;",
@@ -1070,19 +1482,19 @@ let container =
     [
       Node.create_svg(
         "svg",
-        [
-          Attr.classes([cls]),
-          Attr.create(
+        Attr.[
+          classes([cls]),
+          create(
             "viewBox",
             Printf.sprintf(
-              "-1.5 -0.5 %d %d",
+              "-1.5 -3.5 %d %d",
               buffered_width,
               buffered_height,
             ),
           ),
-          Attr.create("width", Printf.sprintf("%fpx", buffered_width_px)),
-          Attr.create("height", Printf.sprintf("%fpx", buffered_height_px)),
-          Attr.create("preserveAspectRatio", "none"),
+          create("width", Printf.sprintf("%fpx", buffered_width_px)),
+          create("height", Printf.sprintf("%fpx", buffered_height_px)),
+          create("preserveAspectRatio", "none"),
         ],
         svgs,
       ),

@@ -1,3 +1,5 @@
+open Util;
+
 [@deriving sexp]
 type t =
   | Pat(Token_pat.t)

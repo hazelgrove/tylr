@@ -1,3 +1,5 @@
+open Util;
+
 [@deriving sexp]
 type t =
   | Pointing(Selection.frame)

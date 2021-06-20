@@ -1,5 +1,6 @@
 open Sexplib.Std;
 open Util;
+open OptUtil.Syntax;
 
 [@deriving sexp]
 type t = list(Selem.t);
@@ -18,6 +19,14 @@ let get_tiles = selection =>
        | Tile(tile) => Some(tile),
      )
   |> OptUtil.sequence;
+let get_tiles_pat = selection => {
+  let* tiles = get_tiles(selection);
+  Tiles.get_pat(tiles);
+};
+let get_tiles_exp = selection => {
+  let* tiles = get_tiles(selection);
+  Tiles.get_exp(tiles);
+};
 
 let tip = (d: Direction.t, selection: t): option(Tip.t) =>
   switch (selection, ListUtil.split_last_opt(selection)) {
@@ -31,6 +40,12 @@ let tip = (d: Direction.t, selection: t): option(Tip.t) =>
       },
     )
   };
+
+let tip_sorts = (selection: t): option((Sort.t, Sort.t)) => {
+  let+ (_, sort_l) = tip(Left, selection)
+  and+ (_, sort_r) = tip(Right, selection);
+  (sort_l, sort_r);
+};
 
 let is_partial =
   List.exists(

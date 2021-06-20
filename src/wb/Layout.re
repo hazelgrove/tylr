@@ -14,21 +14,30 @@ type t =
   | Annot(annot, t)
 and annot =
   | Delim
-  | EmptyHole(option(Sort.t))
-  | Space(option(caret))
+  | EmptyHole(Color.t, Tip.shape)
+  | Space(int, Color.t)
   | ClosedChild
   | OpenChild
   | UniChild(Sort.t, Direction.t)
-  | Selem(option(Sort.t), selem_shape, SelemStyle.t)
-  | Selected
-and caret =
-  | Pointing
-  | Selecting
-  | Restructuring(t);
+  | Rail(RailStyle.t)
+  | Selem({
+      color: Color.t,
+      shape: selem_shape,
+      style: SelemStyle.t,
+    })
+  | Selected(Sort.t, Sort.t)
+  | Step(int)
+  | TargetBounds({
+      sort: Sort.t,
+      mode: CaretMode.t,
+      strict_bounds: (bool, bool),
+    });
 
 let empty = Text("");
 
 let annot = (annot, l) => Annot(annot, l);
+
+let step = n => annot(Step(n));
 
 let cat = (l1, l2) => Cat(l1, l2);
 let cats =
@@ -39,26 +48,42 @@ let cats =
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cats;
 
 let delim = s => annot(Delim, Text(s));
-let empty_hole = (~sort=?, ()) =>
-  annot(EmptyHole(sort), Text(Unicode.nbsp));
+let empty_hole = (color, tip) =>
+  annot(EmptyHole(color, tip), Text(Unicode.nbsp));
 let open_child = annot(OpenChild);
 let closed_child = annot(ClosedChild);
 let uni_child = (~sort, ~side) => annot(UniChild(sort, side));
 
-let space = (~caret=?, ()) => Annot(Space(caret), Text(Unicode.nbsp));
-let spaces = join(space());
-let pad = l => cats([space(), l, space()]);
-let pad_spaces = ls => pad(spaces(ls));
-let pad_spaces_z = (ls_pre, caret, ls_suf) => {
-  let caret = space(~caret, ());
-  switch (ls_pre, ls_suf) {
-  | ([], []) => caret
-  | ([], [_, ..._]) => cats([caret, spaces(ls_suf), space()])
-  | ([_, ..._], []) => cats([space(), spaces(ls_pre), caret])
-  | ([_, ..._], [_, ..._]) =>
-    pad(cats([spaces(ls_pre), caret, spaces(ls_suf)]))
+let space = (n, color) => Annot(Space(n, color), Text(Unicode.nbsp));
+let space_sort = (n, sort) => space(n, Color.of_sort(sort));
+let spaces = (~offset=0, color, ls) =>
+  switch (ls) {
+  | [] => empty
+  | [hd, ...tl] =>
+    let spaced_tl =
+      tl
+      |> List.mapi((i, l) => [space(offset + 1 + i, color), l])
+      |> List.flatten;
+    cats([hd, ...spaced_tl]);
   };
-};
+let pad = (~offset, ~len, color, l) =>
+  cats([space(offset, color), l, space(offset + len, color)]);
+let pad_spaces = (~offset=0, color, ls) =>
+  switch (ls) {
+  | [] => space(offset, color)
+  | [_, ..._] =>
+    pad(~offset, ~len=List.length(ls), color, spaces(color, ls))
+  };
+// let pad_spaces_z = (ls_pre, caret, ls_suf) => {
+//   let caret = space(~caret, ());
+//   switch (ls_pre, ls_suf) {
+//   | ([], []) => caret
+//   | ([], [_, ..._]) => cats([caret, spaces(ls_suf), space()])
+//   | ([_, ..._], []) => cats([space(), spaces(ls_pre), caret])
+//   | ([_, ..._], [_, ..._]) =>
+//     pad(cats([spaces(ls_pre), caret, spaces(ls_suf)]))
+//   };
+// };
 
 let length = {
   let rec go =
@@ -103,98 +128,91 @@ let measured_fold' =
 let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~start);
 
-let rec place_caret = (d: Direction.t, caret, l) =>
-  switch (l) {
-  | Text(_) => l
-  | Cat(l1, l2) =>
-    switch (d) {
-    | Left => Cat(place_caret(d, caret, l1), l2)
-    | Right => Cat(l1, place_caret(d, caret, l2))
-    }
-  | Annot(Space(_), l) => Annot(Space(Some(caret)), l)
-  | Annot(annot, l) => Annot(annot, place_caret(d, caret, l))
-  };
+// let rec place_caret = (d: Direction.t, (sort, caret), l) =>
+//   switch (l) {
+//   | Text(_) => l
+//   | Cat(l1, l2) =>
+//     switch (d) {
+//     | Left => Cat(place_caret(d, (sort, caret), l1), l2)
+//     | Right => Cat(l1, place_caret(d, (sort, caret), l2))
+//     }
+//   | Annot(Space(_), l) => Annot(Space(Some((sort, caret))), l)
+//   | Annot(annot, l) => Annot(annot, place_caret(d, (sort, caret), l))
+//   };
 
-type with_dangling_caret = (t, option(Direction.t));
+// type with_dangling_caret = (t, option(Direction.t));
 
-let place_caret_0: option((caret, CaretPosition.t)) => option(Direction.t) =
-  Option.map(
-    fun
-    | (_, CaretPosition.Before(_)) => Direction.Left
-    | (_, After) => Right,
-  );
-let place_caret_1 = (caret, child1) =>
-  switch (caret) {
-  | None => (child1, None)
-  | Some((_, CaretPosition.Before(0))) => (child1, Some(Direction.Left))
-  | Some((caret, Before(_one))) => (
-      place_caret(Right, caret, child1),
-      None,
-    )
-  | Some((_, After)) => (child1, Some(Right))
-  };
-let place_caret_2 = (caret, child1, child2) =>
-  switch (caret) {
-  | None => (child1, child2, None)
-  | Some((_, CaretPosition.Before(0))) => (
-      child1,
-      child2,
-      Some(Direction.Left),
-    )
-  | Some((caret, Before(1))) => (
-      place_caret(Right, caret, child1),
-      child2,
-      None,
-    )
-  | Some((caret, Before(_two))) => (
-      child1,
-      place_caret(Right, caret, child2),
-      None,
-    )
-  | Some((_, After)) => (child1, child2, Some(Right))
-  };
+// let place_caret_0:
+//   option((Sort.t, caret, CaretPosition.t)) => option(Direction.t) =
+//   Option.map(
+//     fun
+//     | (_, _, CaretPosition.Before(_)) => Direction.Left
+//     | (_, _, After) => Right,
+//   );
+// let place_caret_1 = (caret, child1) =>
+//   switch (caret) {
+//   | None => (child1, None)
+//   | Some((_, _, CaretPosition.Before(0))) => (child1, Some(Direction.Left))
+//   | Some((sort, caret, Before(_one))) => (
+//       place_caret(Right, (sort, caret), child1),
+//       None,
+//     )
+//   | Some((_, _, After)) => (child1, Some(Right))
+//   };
+// let place_caret_2 = (caret, child1, child2) =>
+//   switch (caret) {
+//   | None => (child1, child2, None)
+//   | Some((_, _, CaretPosition.Before(0))) => (
+//       child1,
+//       child2,
+//       Some(Direction.Left),
+//     )
+//   | Some((sort, caret, Before(1))) => (
+//       place_caret(Right, (sort, caret), child1),
+//       child2,
+//       None,
+//     )
+//   | Some((sort, caret, Before(_two))) => (
+//       child1,
+//       place_caret(Right, (sort, caret), child2),
+//       None,
+//     )
+//   | Some((_, _, After)) => (child1, child2, Some(Right))
+//   };
 
-let mk_Paren = (~caret: option((caret, CaretPosition.t))=?, body) => {
-  let (body, dangling_caret) = place_caret_1(caret, body);
-  let l = cats([delim("("), open_child(body), delim(")")]);
-  (l, dangling_caret);
+let mk_Paren = body =>
+  cats([
+    delim("("),
+    open_child(step(ChildStep.paren_body, body)),
+    delim(")"),
+  ]);
+
+let mk_Lam = p =>
+  cats([
+    delim(Unicode.lam),
+    closed_child(step(ChildStep.lam_pat, p)),
+    delim("."),
+  ]);
+
+let mk_Let = (p, def) => {
+  cats([
+    delim("let"),
+    closed_child(step(ChildStep.let_pat, p)),
+    delim("="),
+    open_child(step(ChildStep.let_def, def)),
+    delim("in"),
+  ]);
 };
 
-let mk_Lam = (~caret=?, p) => {
-  let (p, dangling_caret) = place_caret_1(caret, p);
-  let l = cats([delim(Unicode.lam), closed_child(p), delim(".")]);
-  (l, dangling_caret);
-};
+let mk_Plus = () => delim("+");
+let mk_Times = () => delim("*");
 
-let mk_Let = (~caret=?, p, def) => {
-  let (p, def, dangling_caret) = place_caret_2(caret, p, def);
-  let l =
-    cats([
-      delim("let"),
-      closed_child(p),
-      delim("="),
-      open_child(def),
-      delim("in"),
-    ]);
-  (l, dangling_caret);
-};
+let mk_Prod = () => delim(",");
 
-let mk_Plus = (~caret=?, ()) => (delim("+"), place_caret_0(caret));
-let mk_Times = (~caret=?, ()) => (delim("*"), place_caret_0(caret));
+let mk_OpHole = empty_hole;
+let mk_BinHole = empty_hole;
 
-let mk_Prod = (~caret=?, ()) => (delim(","), place_caret_0(caret));
-
-let mk_OpHole = (~caret=?, ~sort=?, ()) => (
-  empty_hole(~sort?, ()),
-  place_caret_0(caret),
-);
-
-let mk_BinHole = (~caret=?, ~sort=?, ()) => (
-  empty_hole(~sort?, ()),
-  place_caret_0(caret),
-);
-
-let mk_text = (~caret=?, s) => (Text(s), place_caret_0(caret));
+let mk_text = s => Text(s);
 
 let mk_token =
   Token.get(
@@ -211,35 +229,50 @@ let mk_token =
     | Let_in => delim("in"),
   );
 
-let rec mk_tiles = ts => List.map(t => fst(mk_tile(t)), ts)
-and mk_tile = (~caret=?, t) =>
+let is_atomic = (t: Tile.t) =>
+  [] == Parser.disassemble_selem(Right, Tile(t));
+
+let rec mk_tiles = (~offset=0, ~rail_color=?, ts) =>
+  List.mapi(
+    (i, tile) => {
+      let l_tile = mk_tile(tile);
+      let with_rail =
+        switch (rail_color) {
+        | None => l_tile
+        | Some(color) =>
+          annot(Rail({color, atomic: is_atomic(tile)}), l_tile)
+        };
+      step(offset + i, with_rail);
+    },
+    ts,
+  )
+and mk_tile = t =>
   t
   |> Tile.get(
        fun
-       | Tile_pat.OpHole => mk_OpHole(~caret?, ~sort=Pat, ())
-       | Var(x) => mk_text(~caret?, x)
+       | Tile_pat.OpHole => mk_OpHole(Pat, Convex)
+       | Var(x) => mk_text(x)
        | Paren(body) =>
          // TODO undo unnecessary rewrapping
-         mk_Paren(~caret?, pad_spaces(mk_tiles(Tiles.of_pat(body))))
-       | BinHole => mk_BinHole(~caret?, ~sort=Pat, ())
-       | Prod => mk_Prod(~caret?, ()),
+         mk_Paren(pad_spaces(Pat, mk_tiles(Tiles.of_pat(body))))
+       | BinHole => mk_BinHole(Pat, Concave)
+       | Prod => mk_Prod(),
        fun
-       | Tile_exp.OpHole => mk_OpHole(~caret?, ~sort=Exp, ())
-       | Num(n) => mk_text(~caret?, string_of_int(n))
-       | Var(x) => mk_text(~caret?, x)
+       | Tile_exp.OpHole => mk_OpHole(Exp, Convex)
+       | Num(n) => mk_text(string_of_int(n))
+       | Var(x) => mk_text(x)
        | Paren(body) =>
-         mk_Paren(~caret?, pad_spaces(mk_tiles(Tiles.of_exp(body))))
-       | Lam(p) => mk_Lam(~caret?, pad_spaces(mk_tiles(Tiles.of_pat(p))))
+         mk_Paren(pad_spaces(Exp, mk_tiles(Tiles.of_exp(body))))
+       | Lam(p) => mk_Lam(pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))))
        | Let(p, def) =>
          mk_Let(
-           ~caret?,
-           pad_spaces(mk_tiles(Tiles.of_pat(p))),
-           pad_spaces(mk_tiles(Tiles.of_exp(def))),
+           pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
+           pad_spaces(Exp, mk_tiles(Tiles.of_exp(def))),
          )
-       | BinHole => mk_BinHole(~caret?, ~sort=Exp, ())
-       | Plus => mk_Plus(~caret?, ())
-       | Times => mk_Times(~caret?, ())
-       | Prod => mk_Prod(~caret?, ()),
+       | BinHole => mk_BinHole(Exp, Concave)
+       | Plus => mk_Plus()
+       | Times => mk_Times()
+       | Prod => mk_Prod(),
      );
 
 let selem_shape = selem => {
@@ -250,52 +283,148 @@ let selem_shape = selem => {
   ((lshape, ltails), (rshape, rtails));
 };
 
-let mk_selem = (~sort=?, ~style: option(SelemStyle.t)=?, selem: Selem.t) => {
-  let l = selem |> Selem.get(mk_token, tile => fst(mk_tile(tile)));
+let mk_selem =
+    (~style: option(SelemStyle.t)=?, color: Color.t, selem: Selem.t) => {
+  let l = selem |> Selem.get(mk_token, mk_tile);
   switch (style) {
   | None => l
-  | Some(style) => annot(Selem(sort, selem_shape(selem), style), l)
+  | Some(style) =>
+    let shape = selem_shape(selem);
+    annot(Selem({color, shape, style}), l);
   };
 };
-let mk_selection = (~sort=?, ~style: option(SelemStyle.t)=?) =>
-  List.map(mk_selem(~sort?, ~style?));
+let mk_selection =
+    (
+      ~offset=0,
+      ~style: option(SelemStyle.t)=?,
+      frame_color: Color.t,
+      selection,
+    ) =>
+  switch (Selection.tip_sorts(selection)) {
+  | None => space(offset, frame_color)
+  | Some((sort_l, sort_r)) =>
+    selection
+    |> List.mapi((i, selem) =>
+         [
+           step(
+             offset + i,
+             mk_selem(~style?, Color.of_sort(Selem.sort(selem)), selem),
+           ),
+           space(
+             offset + i + 1,
+             Color.of_sort(snd(Selem.tip(Right, selem))),
+           ),
+         ]
+       )
+    |> List.flatten
+    |> List.cons(space(offset, Color.of_sort(sort_l)))
+    |> cats
+    |> annot(Selected(sort_l, sort_r))
+  };
+
+let mk_root_tile = (~offset, ~sort, tile) =>
+  step(
+    offset,
+    annot(
+      Selem({
+        color: Color.of_sort(sort),
+        shape: selem_shape(Tile(tile)),
+        style: Root,
+      }),
+      mk_tile(tile),
+    ),
+  );
 
 let zip_up =
     (subject: Selection.t, frame: Frame.t)
-    : option((int, Tile.t, ListFrame.t(Tile.t), Frame.t)) => {
-  let get_pat = selection =>
-    selection
-    |> Selection.get_tiles
-    |> Option.get
-    |> Tiles.get_pat
-    |> Option.get;
-  let get_exp = selection =>
-    selection
-    |> Selection.get_tiles
-    |> Option.get
-    |> Tiles.get_exp
-    |> Option.get;
+    : option((Tile.t, t, ListFrame.t(Tile.t), Frame.t)) => {
+  let mk_ts = (~show_rails, sort, ts) => {
+    let rail_color = show_rails ? Some(Color.of_sort(sort)) : None;
+    pad_spaces(Color.of_sort(sort), mk_tiles(~rail_color?, ts));
+  };
+  let mk_bounded_ts = (sort, ts) =>
+    annot(
+      TargetBounds({sort, mode: Pointing, strict_bounds: (false, false)}),
+      mk_ts(~show_rails=true, sort, ts),
+    );
+  let mk_bounded_pat = selection => {
+    let ts = Option.get(Selection.get_tiles(selection));
+    (Option.get(Tiles.get_pat(ts)), mk_bounded_ts(Pat, ts));
+  };
+  let mk_bounded_exp = selection => {
+    let ts = Option.get(Selection.get_tiles(selection));
+    (Option.get(Tiles.get_exp(ts)), mk_bounded_ts(Exp, ts));
+  };
+  let mk_root_tile = (~tile_step, ~tile, l) =>
+    step(
+      tile_step,
+      annot(
+        Selem({
+          shape: selem_shape(Tile(tile)),
+          color: Color.of_sort(Tile.sort(tile)),
+          style: Root,
+        }),
+        l,
+      ),
+    );
   switch (frame) {
   | Pat(Paren_body((tframe, frame))) =>
-    let body = get_pat(subject);
+    let tile_step = List.length(fst(tframe));
+    let (body, l_body) = mk_bounded_pat(subject);
     let tframe = TupleUtil.map2(Tiles.of_pat, tframe);
-    Some((1, Pat(Paren(body)), tframe, Pat(frame)));
+    let tile = Tile.Pat(Paren(body));
+    Some((
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Paren(l_body)),
+      tframe,
+      Pat(frame),
+    ));
   | Pat(Lam_pat((tframe, frame))) =>
-    let p = get_pat(subject);
+    let tile_step = List.length(fst(tframe));
+    let (p, l_p) = mk_bounded_pat(subject);
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((1, Exp(Lam(p)), tframe, Exp(frame)));
+    let tile = Tile.Exp(Lam(p));
+    Some((
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Lam(l_p)),
+      tframe,
+      Exp(frame),
+    ));
   | Pat(Let_pat(def, (tframe, frame))) =>
-    let p = get_pat(subject);
+    let tile_step = List.length(fst(tframe));
+    let (p, l_p) = mk_bounded_pat(subject);
+    let l_def = mk_ts(~show_rails=false, Exp, Tiles.of_exp(def));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((1, Exp(Let(p, def)), tframe, Exp(frame)));
+    let tile = Tile.Exp(Let(p, def));
+    Some((
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Let(l_p, l_def)),
+      tframe,
+      Exp(frame),
+    ));
   | Exp(Paren_body((tframe, frame))) =>
-    let body = get_exp(subject);
+    let tile_step = List.length(fst(tframe));
+    let (body, l_body) = mk_bounded_exp(subject);
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((1, Exp(Paren(body)), tframe, Exp(frame)));
+    let tile = Tile.Exp(Paren(body));
+    Some((
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Paren(l_body)),
+      tframe,
+      Exp(frame),
+    ));
   | Exp(Let_def(p, (tframe, frame))) =>
-    let def = get_exp(subject);
+    let tile_step = List.length(fst(tframe));
+    let (def, l_def) = mk_bounded_exp(subject);
+    let l_p = mk_ts(~show_rails=false, Pat, Tiles.of_pat(p));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-    Some((2, Exp(Let(p, def)), tframe, Exp(frame)));
+    let tile = Tile.Exp(Let(p, def));
+    Some((
+      tile,
+      mk_root_tile(~tile_step, ~tile, mk_Let(l_p, l_def)),
+      tframe,
+      Exp(frame),
+    ));
   | Exp(Root) => None
   };
 };
@@ -314,92 +443,125 @@ let get_uni_children =
 };
 
 let rec mk_frame = (subject: t, frame: Frame.t): t => {
-  let mk_tiles_pat = ts => mk_tiles(List.map(Tile.pat, ts));
-  let mk_tiles_exp = ts => mk_tiles(List.map(Tile.exp, ts));
+  let mk_tiles_pat = (~offset=0, ts) =>
+    mk_tiles(~offset, List.map(Tile.pat, ts));
+  let mk_tiles_exp = (~offset=0, ts) =>
+    mk_tiles(~offset, List.map(Tile.exp, ts));
   let mk_frame_pat = (tile, ((prefix, suffix), frame): Frame_pat.s) => {
-    let prefix = mk_tiles_pat(List.rev(prefix));
-    let suffix = mk_tiles_pat(suffix);
-    mk_frame(pad_spaces(prefix @ [tile, ...suffix]), Pat(frame));
+    let n = List.length(prefix);
+    let ls_prefix = mk_tiles_pat(List.rev(prefix));
+    let ls_suffix = mk_tiles_pat(~offset=n + 1, suffix);
+    mk_frame(
+      pad_spaces(Pat, ls_prefix @ [step(n, tile), ...ls_suffix]),
+      Pat(frame),
+    );
   };
   let mk_frame_exp = (tile, ((prefix, suffix), frame): Frame_exp.s) => {
-    let prefix = mk_tiles_exp(List.rev(prefix));
-    let suffix = mk_tiles_exp(suffix);
-    mk_frame(pad_spaces(prefix @ [tile, ...suffix]), Exp(frame));
+    let n = List.length(prefix);
+    let ls_prefix = mk_tiles_exp(List.rev(prefix));
+    let ls_suffix = mk_tiles_exp(~offset=n + 1, suffix);
+    mk_frame(
+      pad_spaces(Exp, ls_prefix @ [step(n, tile), ...ls_suffix]),
+      Exp(frame),
+    );
   };
   switch (frame) {
   | Pat(Paren_body(frame_s)) =>
-    let (tile, _) = mk_Paren(subject);
+    let tile = mk_Paren(subject);
     mk_frame_pat(tile, frame_s);
   | Pat(Lam_pat(frame_s)) =>
-    let (tile, _) = mk_Lam(subject);
+    let tile = mk_Lam(subject);
     mk_frame_exp(tile, frame_s);
   | Pat(Let_pat(def, frame_s)) =>
-    let (tile, _) = mk_Let(subject, pad_spaces(mk_tiles_exp(def)));
+    let tile = mk_Let(subject, pad_spaces(Exp, mk_tiles_exp(def)));
     mk_frame_exp(tile, frame_s);
   | Exp(Paren_body(frame_s)) =>
-    let (tile, _) = mk_Paren(subject);
+    let tile = mk_Paren(subject);
     mk_frame_exp(tile, frame_s);
   | Exp(Let_def(p, frame_s)) =>
-    let (tile, _) = mk_Let(pad_spaces(mk_tiles_pat(p)), subject);
+    let tile = mk_Let(pad_spaces(Pat, mk_tiles_pat(p)), subject);
     mk_frame_exp(tile, frame_s);
-  | Exp(Root) => cats([space(), subject, space()])
+  | Exp(Root) => subject
   };
 };
 
 let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
   let mk_subject =
       (
-        ~caret: CaretPosition.t,
         ~sort: Sort.t,
-        root_tile: Tile.t,
+        ~show_rails: bool,
+        l_root_tile: t,
         (child_pre, child_suf): ListFrame.t(Tile.t),
         (prefix, suffix): ListFrame.t(Tile.t),
       ) => {
+    let c = Color.of_sort(sort);
     let uni_child = uni_child(~sort);
-    let (root_tile, dangling_caret) =
-      mk_tile(~caret=(Pointing, caret), root_tile)
-      |> PairUtil.map_fst(
-           annot(Selem(Some(sort), selem_shape(Tile(root_tile)), Root)),
-         );
-    let child_pre =
-      switch (child_pre) {
-      | [] => []
-      | [_, ..._] => [
-          uni_child(~side=Left, spaces(mk_tiles(List.rev(child_pre)))),
-        ]
-      };
-    let child_suf =
-      switch (child_suf) {
-      | [] => []
-      | [_, ..._] => [uni_child(~side=Right, spaces(mk_tiles(child_suf)))]
-      };
-    let prefix = mk_tiles(List.rev(prefix));
-    let suffix = mk_tiles(suffix);
-    switch (dangling_caret) {
-    | None =>
-      pad_spaces(
-        List.concat([prefix, child_pre, [root_tile], child_suf, suffix]),
-      )
-    | Some(Left) =>
-      pad_spaces_z(
-        prefix @ child_pre,
-        Pointing,
-        [root_tile, ...child_suf] @ suffix,
-      )
-    | Some(Right) =>
-      pad_spaces_z(
-        List.concat([prefix, child_pre, [root_tile]]),
-        Pointing,
-        child_suf @ suffix,
-      )
+
+    let mk_tile = tile => {
+      let l = mk_tile(tile);
+      show_rails ? annot(Rail({color: c, atomic: is_atomic(tile)}), l) : l;
     };
+
+    let mk_prefix = (offset, prefix) =>
+      prefix
+      |> List.rev
+      |> List.mapi((i, tile) => {
+           [space(offset + i, c), step(offset + i, mk_tile(tile))]
+         })
+      |> List.flatten;
+    let mk_suffix = (offset, suffix) =>
+      suffix
+      |> List.mapi((i, tile) =>
+           [step(offset + i, mk_tile(tile)), space(offset + i + 1, c)]
+         )
+      |> List.flatten;
+
+    let offset = 0;
+    let l_prefix = mk_prefix(offset, prefix);
+
+    let offset = offset + List.length(prefix);
+    let l_child_pre = {
+      let ls = mk_prefix(offset, child_pre);
+      switch (ls) {
+      | [] => []
+      | [_, ..._] => [uni_child(~side=Left, cats(ls))]
+      };
+    };
+
+    let offset = offset + List.length(child_pre);
+    let l_root_tile = [space(offset, c), l_root_tile, space(offset + 1, c)];
+
+    let offset = offset + 1;
+    let l_child_suf = {
+      let ls = mk_suffix(offset, child_suf);
+      switch (ls) {
+      | [] => []
+      | [_, ..._] => [uni_child(~side=Right, cats(ls))]
+      };
+    };
+
+    let offset = offset + List.length(child_suf);
+    let l_suffix = mk_suffix(offset, suffix);
+
+    cats(
+      List.concat([
+        l_prefix,
+        l_child_pre,
+        l_root_tile,
+        l_child_suf,
+        l_suffix,
+      ]),
+    );
   };
+
   let tframe =
     sframe
     |> TupleUtil.map2(Selection.get_tiles)
     |> TupleUtil.map2(
          OptUtil.get_or_fail("expected prefix/suffix to consist of tiles"),
        );
+  let frame_sort = Frame.sort(frame);
+  let frame_color = Color.of_sort(frame_sort);
   switch (tframe) {
   | (prefix, []) =>
     switch (zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
@@ -407,80 +569,152 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
       let (root_tile, prefix) = ListUtil.split_first(prefix);
       let (uni_children, tframe) =
         get_uni_children(root_tile, (prefix, []));
+      let l_root_tile =
+        mk_root_tile(
+          ~offset=List.length(prefix),
+          ~sort=frame_sort,
+          root_tile,
+        )
+        |> annot(Rail({color: frame_color, atomic: is_atomic(root_tile)}));
       mk_frame(
         mk_subject(
-          ~caret=After,
-          ~sort=Frame.sort(frame),
-          root_tile,
+          ~sort=frame_sort,
+          ~show_rails=true,
+          l_root_tile,
           uni_children,
           tframe,
-        ),
+        )
+        |> annot(
+             TargetBounds({
+               sort: frame_sort,
+               mode: Pointing,
+               strict_bounds: (true, true),
+             }),
+           ),
         frame,
       );
-    | Some((delim_index, root_tile, tframe, frame)) =>
+    | Some((root_tile, l_root_tile, tframe, outer_frame)) =>
       let (uni_children, tframe) = get_uni_children(root_tile, tframe);
       mk_frame(
         mk_subject(
-          ~caret=Before(delim_index),
-          ~sort=Frame.sort(frame),
-          root_tile,
+          ~sort=Frame.sort(outer_frame),
+          ~show_rails=false,
+          l_root_tile,
           uni_children,
           tframe,
         ),
-        frame,
+        outer_frame,
       );
     }
   | (prefix, [root_tile, ...suffix]) =>
     let (uni_children, tframe) =
       get_uni_children(root_tile, (prefix, suffix));
+    let l_root_tile =
+      mk_root_tile(~offset=List.length(prefix), ~sort=frame_sort, root_tile)
+      |> annot(Rail({color: frame_color, atomic: is_atomic(root_tile)}));
+    let is_root = Frame.is_root(frame);
     mk_frame(
       mk_subject(
-        ~caret=Before(0),
         ~sort=Frame.sort(frame),
-        root_tile,
+        ~show_rails=true,
+        l_root_tile,
         uni_children,
         tframe,
-      ),
+      )
+      |> annot(
+           TargetBounds({
+             sort: frame_sort,
+             mode: Pointing,
+             strict_bounds: (is_root, is_root),
+           }),
+         ),
       frame,
     );
   };
 };
 
-let mk_affix = (~show_children: bool, ~sort: Sort.t) =>
-  List.map(selem =>
-    mk_selem(
-      ~sort=Selem.sort(selem),
-      ~style=
-        Selection.filter_pred(sort, selem)
-          ? Revealed({show_children: show_children}) : Filtered,
-      selem,
-    )
-  );
+let mk_affix =
+    (
+      ~restructuring_partial: bool,
+      ~reveal_tiles: bool,
+      ~show_children: bool,
+      ~sort: Sort.t,
+      ~offset: int,
+      d: Direction.t,
+      selems,
+    ) => {
+  switch (selems) {
+  | [] => empty
+  | [_, ..._] =>
+    let rev = l => d == Left ? List.rev(l) : l;
+    let mk_selem = (~with_rail, (i, selem)) => {
+      let color = Color.of_sort(Selem.sort(selem));
+      let l_selem =
+        mk_selem(
+          ~style=?
+            if (!Selection.filter_pred(sort, selem)) {
+              Some(Filtered);
+            } else if (reveal_tiles) {
+              Some(Revealed({show_children: show_children}));
+            } else {
+              None;
+            },
+          color,
+          selem,
+        )
+        |> (l => with_rail ? annot(Rail({color, atomic: true}), l) : l)
+        |> annot(Step(i));
+      let l_space =
+        space(
+          d == Left ? i : i + 1,
+          Color.of_sort(snd(Selem.tip(d, selem))),
+        );
+      [l_selem, l_space];
+    };
+    let (ts, selems) =
+      selems
+      |> rev
+      |> List.mapi((i, selem) => (offset + i, selem))
+      |> rev
+      |> ListUtil.take_while(((_, selem)) => Selem.is_tile(selem));
+    let l_ts = ts |> List.map(mk_selem(~with_rail=true)) |> List.flatten;
+    let l_selems =
+      selems
+      |> List.map(mk_selem(~with_rail=!restructuring_partial))
+      |> List.flatten;
+    cats(rev(l_ts @ l_selems));
+  };
+};
 
 let mk_selecting =
     (
-      side: Direction.t,
       selection: Selection.t,
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     ) => {
-  let selection =
-    switch (selection) {
-    | [] => []
-    | [_, ..._] => [
-        annot(Selected, spaces(mk_selection(~style=Selected, selection))),
-      ]
-    };
-  let (prefix, suffix) =
-    TupleUtil.map2(
-      mk_affix(~show_children=true, ~sort=Frame.sort(frame)),
-      (List.rev(prefix), suffix),
+  let reveal_tiles = selection == [];
+  let sort_frame = Frame.sort(frame);
+  let mk_affix =
+    mk_affix(~reveal_tiles, ~show_children=true, ~sort=sort_frame);
+
+  let offset = 0;
+  let l_prefix =
+    mk_affix(~restructuring_partial=false, ~offset, Left, prefix);
+
+  let offset = offset + List.length(prefix);
+  let l_selection =
+    mk_selection(
+      ~offset,
+      ~style=Filtered,
+      Color.of_sort(sort_frame),
+      selection,
     );
-  let subject =
-    switch (side) {
-    | Left => pad_spaces_z(prefix, Selecting, selection @ suffix)
-    | Right => pad_spaces_z(prefix @ selection, Selecting, suffix)
-    };
+
+  let offset = offset + List.length(selection);
+  let l_suffix =
+    mk_affix(~restructuring_partial=false, ~offset, Right, suffix);
+
+  let subject = cats([l_prefix, l_selection, l_suffix]);
   mk_frame(subject, frame);
 };
 
@@ -490,25 +724,45 @@ let mk_restructuring =
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     ) => {
-  let (prefix, suffix) =
-    TupleUtil.map2(
-      mk_affix(
-        ~show_children=Selection.is_whole_any(selection),
-        ~sort=Frame.sort(frame),
-      ),
-      (List.rev(prefix), suffix),
+  let sort_frame = Frame.sort(frame);
+  let mk_affix =
+    mk_affix(
+      ~restructuring_partial=!Selection.is_whole_any(selection),
+      ~reveal_tiles=false,
+      ~show_children=Selection.is_whole_any(selection),
+      ~sort=sort_frame,
     );
-  let selection =
-    pad(annot(Selected, spaces(mk_selection(~style=Selected, selection))));
-  let subject = pad_spaces_z(prefix, Restructuring(selection), suffix);
+  // let selection =
+  //   switch (selection) {
+  //   | [] => []
+  //   | [hd, ..._] =>
+  //     let c = Color.of_sort(snd(Selem.tip(Left, hd)));
+  //     let selems =
+  //       mk_selection(~style=Selected, Selected, selection);
+  //     [annot(Selected, pad(c, spaces(Selected, selems)))];
+  //   };
+
+  let offset = 0;
+  let l_prefix = mk_affix(~offset, Left, prefix);
+
+  let offset = offset + List.length(prefix);
+  let l_suffix = mk_affix(~offset, Right, suffix);
+
+  let s =
+    switch (prefix) {
+    | [] => sort_frame
+    | [hd, ..._] => snd(Selem.tip(Right, hd))
+    };
+  let subject = cats([l_prefix, space_sort(offset, s), l_suffix]);
+
   mk_frame(subject, frame);
 };
 
 let mk_zipper = (zipper: Zipper.t) =>
   switch (zipper) {
   | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
-  | (Selecting(side, selection, sframe), frame) =>
-    mk_selecting(side, selection, sframe, frame)
+  | (Selecting(_, selection, sframe), frame) =>
+    mk_selecting(selection, sframe, frame)
   | (Restructuring(selection, sframe), frame) =>
     mk_restructuring(selection, sframe, frame)
   };
