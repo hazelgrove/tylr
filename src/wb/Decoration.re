@@ -447,7 +447,7 @@ module EmptyHole = {
               },
             ),
           ],
-        path(tip, Float.of_int(offset), 0.25),
+        path(tip, Float.of_int(offset), 0.28),
       ),
     ];
   };
@@ -756,7 +756,7 @@ module Selem = {
     //   }),
     // ];
     let (offset, _color, tip) = empty_hole;
-    EmptyHole.path(tip, Float.of_int(offset), 0.25);
+    EmptyHole.path(tip, Float.of_int(offset), 0.28);
   };
 
   let open_child_path = ((start, len): (int, int)) =>
