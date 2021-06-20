@@ -42,7 +42,11 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             | (_, Exp(_)) => [p(Construct(Exp(Prod)))]
             }
           | "Escape" => [Update.escape()]
-          | "Enter" => [p(Mark)]
+          | "Enter" =>
+            switch (zipper) {
+            | (Selecting(_) | Restructuring(_), _) => [p(Mark)]
+            | _ => []
+            }
           | _ =>
             let is_var = is_var(key);
             let is_num = is_num(key);
