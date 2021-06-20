@@ -1082,10 +1082,10 @@ module Caret = {
         offset: int,
         mode: CaretMode.t,
       ) => {
-    let (top, selection) =
+    let selection =
       switch (mode) {
       | Pointing
-      | Selecting => (0., [])
+      | Selecting => []
       | Restructuring(selection) =>
         let l = Layout.mk_selection(~style=Filtered, Selected, selection);
         // let len = Layout.length(l);
@@ -1096,63 +1096,22 @@ module Caret = {
             outer_cousins: [],
             inner_cousins: [],
           };
-        (
-          0.,
-          Node.[
-            span(
-              [
-                Attr.create(
-                  "style",
-                  Printf.sprintf(
-                    "margin-right: %fpx;",
-                    (-0.5) *. font_metrics.col_width,
-                  ),
+        Node.[
+          span(
+            [
+              Attr.create(
+                "style",
+                Printf.sprintf(
+                  "margin-right: %fpx;",
+                  (-0.5) *. font_metrics.col_width,
                 ),
-              ],
-              [view_of_layout(~font_metrics, dpaths, l)],
-            ),
-          ],
-          // div(
-          //   Attr.[
-          //     id("spotlight"),
-          //     create(
-          //       "style",
-          //       Printf.sprintf(
-          //         "top: %fpx; left: 0; height: %fpx; width: %fpx;",
-          //         1.4 *. font_metrics.row_height,
-          //         0.2 *. font_metrics.row_height,
-          //         font_metrics.col_width *. Float.of_int(len),
-          //       ),
-          //     ),
-          //   ],
-          //   [
-          //     Node.create_svg(
-          //       "svg",
-          //       Attr.[
-          //         create("viewBox", Printf.sprintf("0 0 %d 1", len)),
-          //         create(
-          //           "style",
-          //           "position: absolute; left: 0; top: 0; width: 100%; height: 100%;",
-          //         ),
-          //       ],
-          //       [
-          //         SvgUtil.Path.(
-          //           view(
-          //             ~attrs=Attr.[classes(["spotlight-outline"])],
-          //             [
-          //               M({x: 0., y: 0.}),
-          //               H_({dx: Float.of_int(len)}),
-          //               L({x: 0., y: 1.}),
-          //               Z,
-          //             ],
-          //           )
-          //         ),
-          //       ],
-          //     ),
-          //   ],
-          // ),
-        );
+              ),
+            ],
+            [view_of_layout(~font_metrics, dpaths, l)],
+          ),
+        ];
       };
+    let top = (-0.3) *. font_metrics.row_height;
     Node.div(
       [
         Attr.id("caret"),
@@ -1199,7 +1158,7 @@ module Caret = {
               "style",
               Printf.sprintf(
                 "top: %fpx; left: %fpx;",
-                (-2.) *. font_metrics.row_height,
+                (-1.8) *. font_metrics.row_height,
                 (-0.5) *. font_metrics.col_width,
               ),
             ),
@@ -1430,8 +1389,11 @@ module RestructuringGenie = {
       view(
         ~attrs=[Attr.classes(["restructuring-genie-path"])],
         [
-          M({x: 0.5, y: (-0.3)}),
-          V({y: (-2.3)}),
+          // slightly boost genie tip for better visibility
+          // when restructuring selection gets large
+          M({x: 0.5, y: (-0.3) +. (-0.05)}),
+          // TODO unify with caret height numbers (-1.8)
+          V({y: (-2.4)}),
           H_({dx: Float.of_int(length)}),
           V_({dy: 1.4}),
           Z,
