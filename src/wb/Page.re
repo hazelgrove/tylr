@@ -11,7 +11,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
     Attr.on_keyup(evt =>
       Event.Many(
         switch (JsUtil.get_key(evt), zipper) {
-        | ("Shift", (Selecting([], _), _)) => [inject(Update.escape())]
+        | ("Alt", (Selecting([], _), _)) => [inject(Update.escape())]
         | _ => []
         },
       )
@@ -23,24 +23,13 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
       let updates: list(Update.t) =
         if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
           switch (key) {
-          | "Shift" =>
-            switch (zipper) {
-            | (Pointing(_), _) => [p(Mark)]
-            | _ => []
-            }
           | "ArrowLeft"
           | "ArrowRight" =>
             let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-            /*
-             switch (zipper) {
-             | (Pointing(_), _) when held(Shift) => [p(Mark), p(Move(d))]
-             | (Selecting(_), _) when !held(Shift) => [
-                 Update.escape(~d, ()),
-               ]
-             | _ => [p(Move(d))]
-             };
-             */
-            [p(Move(d))];
+            switch (zipper) {
+            | (Selecting(_), _) => [Update.escape(~d, ())]
+            | _ => [p(Move(d))]
+            };
           | "Backspace"
           | "Delete" => [p(Delete)]
           | "+" => [p(Construct(Exp(Plus)))]
@@ -65,6 +54,19 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
               ]
             | _ => []
             };
+          };
+        } else if (!held(Ctrl) && held(Alt) && !held(Meta)) {
+          switch (key) {
+          | "Alt" => [p(Mark)]
+          | "ArrowLeft"
+          | "ArrowRight" =>
+            let d: Direction.t = key == "ArrowLeft" ? Left : Right;
+            switch (zipper) {
+            | (Pointing(_), _) => [p(Mark), p(Move(d))]
+            | (Selecting(_), _) => [p(Move(d))]
+            | (Restructuring(_), _) => []
+            };
+          | _ => []
           };
         } else if (held(Ctrl) && !held(Alt)) {
           switch (key) {
