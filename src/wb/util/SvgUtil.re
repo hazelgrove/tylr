@@ -36,15 +36,19 @@ module Path = {
         dy: float,
       });
 
-  let scale_cmd = (s: float) =>
+  let scale_cmd = (~scale_x=1., ~scale_y=1.) =>
     fun
     | (Z | M(_) | L(_) | H(_) | V(_) | A_(_)) as cmd => cmd
-    | M_({dx, dy}) => M_({dx: s *. dx, dy: s *. dy})
-    | L_({dx, dy}) => L_({dx: s *. dx, dy: s *. dy})
-    | H_({dx}) => H_({dx: s *. dx})
-    | V_({dy}) => V_({dy: s *. dy});
+    | M_({dx, dy}) => M_({dx: scale_x *. dx, dy: scale_y *. dy})
+    | L_({dx, dy}) => L_({dx: scale_x *. dx, dy: scale_y *. dy})
+    | H_({dx}) => H_({dx: scale_x *. dx})
+    | V_({dy}) => V_({dy: scale_y *. dy});
 
-  let reverse = List.rev_map(scale_cmd(-1.));
+  let scale = s => List.map(scale_cmd(~scale_x=s, ~scale_y=s));
+  let scale_x = s => List.map(scale_cmd(~scale_x=s));
+  let scale_y = s => List.map(scale_cmd(~scale_y=s));
+
+  let reverse = List.rev_map(scale_cmd(~scale_x=-1., ~scale_y=-1.));
 
   let transpose_cmd = (v: Vector.t) =>
     fun

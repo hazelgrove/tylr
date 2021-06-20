@@ -44,6 +44,7 @@ module Diag = {
   // top right to bottom left
   let tr_bl =
       (
+        ~scale as s=1.,
         ~hemi: [ | `North | `South],
         ~with_child_border=false,
         ~stretch_x=0.,
@@ -62,10 +63,12 @@ module Diag = {
               L_({dx: Float.neg(tip_width), dy: 0.5 +. stretch_y}),
               H_({dx: Float.neg(stretch_x)}),
             );
-        switch (hemi) {
-        | `North => [junction, diag]
-        | `South => [diag, junction]
-        };
+        let path =
+          switch (hemi) {
+          | `North => [junction, diag]
+          | `South => [diag, junction]
+          };
+        scale(s, path);
       }
     );
   // bottom left to top right
@@ -194,6 +197,80 @@ module ErrHole = {
       ),
     ];
   };
+};
+
+let left_tip_path =
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
+    : SvgUtil.Path.t => {
+  open SvgUtil.Path;
+  open Diag;
+  let path =
+    switch (tip) {
+    | (Convex, _) => br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ())
+    | (Concave, n) =>
+      let jag = [
+        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+        L_({dx: jagged_edge_w, dy: -. jagged_edge_h}),
+        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+      ];
+      let bottom_half =
+        n == 0
+          ? [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
+          : List.concat([
+              [H_({dx: -. (extra_tail +. 0.5)})],
+              jag,
+              [H_({dx: jagged_edge_w +. extra_tail})],
+              bl_tr(~hemi=`South, ~with_child_border=true, ()),
+            ]);
+      let top_half =
+        n == 0 || n == 1
+          ? br_tl(~hemi=`North, ()) @ [H_({dx: tip_width})]
+          : List.concat([
+              br_tl(~hemi=`North, ~with_child_border=true, ()),
+              [H_({dx: -. (jagged_edge_w +. extra_tail)})],
+              jag,
+              [H_({dx: extra_tail +. 0.5})],
+            ]);
+      bottom_half @ top_half;
+    };
+  scale_x(s_x, scale_y(s_y, path));
+};
+let right_tip_path =
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
+    : SvgUtil.Path.t => {
+  open SvgUtil.Path;
+  open Diag;
+  let path =
+    switch (tip) {
+    | (Convex, _) => tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ())
+    | (Concave, n) =>
+      open SvgUtil.Path;
+      let jag = [
+        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
+        L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
+        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
+      ];
+      let top_half =
+        n == 0 || n == 1
+          ? [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
+          : List.concat([
+              [H_({dx: 0.5 +. extra_tail})],
+              jag,
+              [H_({dx: -. (extra_tail +. jagged_edge_w)})],
+              tr_bl(~hemi=`North, ~with_child_border=true, ()),
+            ]);
+      let bottom_half =
+        n == 0
+          ? tl_br(~hemi=`South, ()) @ [H_({dx: Float.neg(tip_width)})]
+          : List.concat([
+              tl_br(~with_child_border=true, ~hemi=`South, ()),
+              [H_({dx: extra_tail})],
+              jag,
+              [H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)})],
+            ]);
+      top_half @ bottom_half;
+    };
+  scale_x(s_x, scale_y(s_y, path));
 };
 
 module EmptyHole = {
@@ -327,41 +404,44 @@ module EmptyHole = {
     );
   };
 
-  let view =
-      (
-        ~offset=0,
-        ~color: Color.t,
-        ~inset: option([ | `Thick | `Thin]),
-        ~font_metrics: FontMetrics.t,
-        (),
-      )
-      : list(Node.t) => {
-    // necessary because of AttrUtil shadowing below
-    let o = offset;
-    let (r_x, r_y) = hole_radii(~font_metrics);
-    let c_cls = Color.to_string(color);
-    [
-      Node.create_svg(
-        "ellipse",
-        AttrUtil.[
-          cx(Float.of_int(o) +. 0.5),
-          cy(0.5),
-          rx(r_x),
-          ry(r_y),
-          vector_effect("non-scaling-stroke"),
-          stroke_width(Option.is_some(inset) ? 0.3 : 0.9),
-          filter(
-            switch (inset) {
-            | None => "none"
-            | Some(`Thin) =>
-              Printf.sprintf("url(#empty-hole-thin-inset-shadow-%s)", c_cls)
-            | Some(`Thick) =>
-              Printf.sprintf("url(#empty-hole-inset-shadow-%s)", c_cls)
-            },
-          ),
-          Attr.classes(["empty-hole-path", c_cls]),
+  let path = (offset, s: float) => {
+    let x_dilate = 1.5;
+    List.concat(
+      SvgUtil.Path.[
+        [
+          M({x: offset +. 0.5, y: 0.5 -. s /. 2.}),
+          H_({dx: x_dilate *. s /. 2.}),
         ],
-        [],
+        right_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (Convex, 0)),
+        [H_({dx: -. s *. x_dilate})],
+        left_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (Convex, 0)),
+        [Z],
+      ],
+    );
+  };
+
+  let view =
+      (~offset=0, ~color: Color.t, ~inset: option([ | `Thick | `Thin]), ())
+      : list(Node.t) => {
+    let c_cls = Color.to_string(color);
+    SvgUtil.Path.[
+      view(
+        ~attrs=
+          AttrUtil.[
+            Attr.classes(["empty-hole-path", c_cls]),
+            vector_effect("non-scaling-stroke"),
+            stroke_width(Option.is_some(inset) ? 0.3 : 0.9),
+            filter(
+              switch (inset) {
+              | None => "none"
+              | Some(`Thin) =>
+                Printf.sprintf("url(#empty-hole-thin-inset-shadow-%s)", c_cls)
+              | Some(`Thick) =>
+                Printf.sprintf("url(#empty-hole-inset-shadow-%s)", c_cls)
+              },
+            ),
+          ],
+        path(Float.of_int(offset), 0.25),
       ),
     ];
   };
@@ -644,92 +724,33 @@ module Selem = {
   };
 
   let empty_hole_path =
-      (~font_metrics, empty_hole: (int, Color.t)): SvgUtil.Path.t => {
-    let (rx, ry) = hole_radii(~font_metrics);
-    let (o, _sort_todo) = empty_hole;
-    SvgUtil.Path.[
-      M({x: Float.of_int(o) +. 0.5 -. rx, y: 0.5}),
-      A_({
-        rx,
-        ry,
-        x_axis_rotation: 0.,
-        large_arc_flag: false,
-        sweep_flag: false,
-        dx: 2. *. rx,
-        dy: 0.,
-      }),
-      A_({
-        rx,
-        ry,
-        x_axis_rotation: 0.,
-        large_arc_flag: false,
-        sweep_flag: false,
-        dx: (-2.) *. rx,
-        dy: 0.,
-      }),
-    ];
+      (~font_metrics as _, empty_hole: (int, Color.t)): SvgUtil.Path.t => {
+    // let (rx, ry) = hole_radii(~font_metrics);
+    // let (o, _sort_todo) = empty_hole;
+    // SvgUtil.Path.[
+    //   M({x: Float.of_int(o) +. 0.5 -. rx, y: 0.5}),
+    //   A_({
+    //     rx,
+    //     ry,
+    //     x_axis_rotation: 0.,
+    //     large_arc_flag: false,
+    //     sweep_flag: false,
+    //     dx: 2. *. rx,
+    //     dy: 0.,
+    //   }),
+    //   A_({
+    //     rx,
+    //     ry,
+    //     x_axis_rotation: 0.,
+    //     large_arc_flag: false,
+    //     sweep_flag: false,
+    //     dx: (-2.) *. rx,
+    //     dy: 0.,
+    //   }),
+    // ];
+    let (offset, _color) = empty_hole;
+    EmptyHole.path(Float.of_int(offset), 0.25);
   };
-
-  let left_tip_path = (tip: Layout.tip_shape): SvgUtil.Path.t =>
-    switch (tip) {
-    | (Convex, _) => br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ())
-    | (Concave, n) =>
-      open SvgUtil.Path;
-      let jag = [
-        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
-        L_({dx: jagged_edge_w, dy: -. jagged_edge_h}),
-        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
-      ];
-      let bottom_half =
-        n == 0
-          ? [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
-          : List.concat([
-              [H_({dx: -. (extra_tail +. 0.5)})],
-              jag,
-              [H_({dx: jagged_edge_w +. extra_tail})],
-              bl_tr(~hemi=`South, ~with_child_border=true, ()),
-            ]);
-      let top_half =
-        n == 0 || n == 1
-          ? br_tl(~hemi=`North, ()) @ [H_({dx: tip_width})]
-          : List.concat([
-              br_tl(~hemi=`North, ~with_child_border=true, ()),
-              [H_({dx: -. (jagged_edge_w +. extra_tail)})],
-              jag,
-              [H_({dx: extra_tail +. 0.5})],
-            ]);
-      bottom_half @ top_half;
-    };
-  let right_tip_path = (tip: Layout.tip_shape): SvgUtil.Path.t =>
-    switch (tip) {
-    | (Convex, _) => tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ())
-    | (Concave, n) =>
-      open SvgUtil.Path;
-      let jag = [
-        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
-        L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
-        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
-      ];
-      let top_half =
-        n == 0 || n == 1
-          ? [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
-          : List.concat([
-              [H_({dx: 0.5 +. extra_tail})],
-              jag,
-              [H_({dx: -. (extra_tail +. jagged_edge_w)})],
-              tr_bl(~hemi=`North, ~with_child_border=true, ()),
-            ]);
-      let bottom_half =
-        n == 0
-          ? tl_br(~hemi=`South, ()) @ [H_({dx: Float.neg(tip_width)})]
-          : List.concat([
-              tl_br(~with_child_border=true, ~hemi=`South, ()),
-              [H_({dx: extra_tail})],
-              jag,
-              [H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)})],
-            ]);
-      top_half @ bottom_half;
-    };
 
   let open_child_path = ((start, len): (int, int)) =>
     List.concat(
@@ -743,8 +764,7 @@ module Selem = {
       ],
     );
 
-  let contour_path =
-      (~attrs: list(Attr.t), ~font_metrics, profile: profile): Node.t => {
+  let contour_path = (~font_metrics, profile: profile): SvgUtil.Path.t => {
     open SvgUtil.Path;
     let empty_hole_paths = {
       let raised_holes =
@@ -770,6 +790,12 @@ module Selem = {
         [Z],
       ]);
     };
+    outer_path
+    @ List.concat(closed_child_paths)
+    @ List.concat(empty_hole_paths);
+  };
+
+  let contour_path_attrs = (~attrs, profile) => {
     let clss = {
       let c_cls = Color.to_string(profile.color);
       let highlighted =
@@ -778,17 +804,11 @@ module Selem = {
       let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
       List.concat([["tile-path", c_cls], highlighted, raised, filtered]);
     };
-    SvgUtil.Path.view(
-      ~attrs=
-        Attr.[
-          classes(clss),
-          create("vector-effect", "non-scaling-stroke"),
-          ...attrs,
-        ],
-      outer_path
-      @ List.concat(closed_child_paths)
-      @ List.concat(empty_hole_paths),
-    );
+    Attr.[
+      classes(clss),
+      create("vector-effect", "non-scaling-stroke"),
+      ...attrs,
+    ];
   };
 
   let view =
@@ -805,7 +825,13 @@ module Selem = {
         ? profile : {...profile, open_children: [], closed_children: []};
     let open_child_paths =
       open_child_paths(~start, ~color=profile.color, profile.open_children);
-    open_child_paths @ [contour_path(~attrs, ~font_metrics, profile)];
+    open_child_paths
+    @ [
+      SvgUtil.Path.view(
+        ~attrs=contour_path_attrs(~attrs, profile),
+        contour_path(~font_metrics, profile),
+      ),
+    ];
   };
 };
 

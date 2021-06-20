@@ -207,7 +207,7 @@ let rec view_of_layout =
           d_container(
             ~length=len(),
             ~cls="empty-hole",
-            Decoration.EmptyHole.view(~font_metrics, ~color, ~inset=None, ()),
+            Decoration.EmptyHole.view(~color, ~inset=None, ()),
           ),
         ])
       | UniChild(sort, side) =>
