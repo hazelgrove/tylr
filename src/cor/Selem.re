@@ -1,30 +1,30 @@
 [@deriving sexp]
 type t =
-  | Token(Token.t)
+  | Shard(Shard.t)
   | Tile(Tile.t);
 
-let token = t => Token(t);
+let shard = t => Shard(t);
 let tile = t => Tile(t);
 
 let get = (get_token, get_tile) =>
   fun
-  | Token(token) => get_token(token)
+  | Shard(shard) => get_token(shard)
   | Tile(tile) => get_tile(tile);
 
 let is_tile = get(_ => false, _ => true);
 
 let is_hole = get(_ => false, Tile.is_hole);
 
-let tip = d => get(Token.tip(d), Tile.tip(d));
+let tip = d => get(Shard.tip(d), Tile.tip(d));
 
-let sort = get(Token.sort, Tile.sort);
+let sort = get(Shard.sort, Tile.sort);
 
 let tails = d =>
   get(
-    token =>
-      if (Token.is_end(d, token)) {
+    shard =>
+      if (Shard.is_end(d, shard)) {
         0;
-      } else if (Token.sort(token) == snd(Token.tip(d, token))) {
+      } else if (Shard.sort(shard) == snd(Shard.tip(d, shard))) {
         1;
       } else {
         2;

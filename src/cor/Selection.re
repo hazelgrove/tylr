@@ -15,7 +15,7 @@ let get_tiles = selection =>
   selection
   |> List.map(
        fun
-       | Selem.Token(_) => None
+       | Selem.Shard(_) => None
        | Tile(tile) => Some(tile),
      )
   |> OptUtil.sequence;
@@ -50,7 +50,7 @@ let tip_sorts = (selection: t): option((Sort.t, Sort.t)) => {
 let is_partial =
   List.exists(
     fun
-    | Selem.Token(_) => true
+    | Selem.Shard(_) => true
     | _ => false,
   );
 
@@ -69,7 +69,7 @@ let is_whole_any = selection =>
  let rec is_whole =
    fun
    | []
-   | [Selem.Token(_), ..._] => None
+   | [Selem.Shard(_), ..._] => None
    | [Tile(tile), ...selection] => {
        let* tiles = is_whole(selection);
        Tiles.cons(tile, tiles);
