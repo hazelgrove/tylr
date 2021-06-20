@@ -4,7 +4,7 @@ open OptUtil.Syntax;
 let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
   let disassembled =
     switch (selem) {
-    | Selem.Token(_) => []
+    | Selem.Shard(_) => []
     | Tile(Pat(tile)) =>
       switch (tile) {
       | OpHole
@@ -12,8 +12,8 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
       | BinHole
       | Prod => []
       | Paren(body) =>
-        [Selem.Token(Pat(Paren_l)), ...Selection.of_tiles_pat(body)]
-        @ [Token(Pat(Paren_r))]
+        [Selem.Shard(Pat(Paren_l)), ...Selection.of_tiles_pat(body)]
+        @ [Shard(Pat(Paren_r))]
       }
     | Tile(Exp(tile)) =>
       switch (tile) {
@@ -25,15 +25,15 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
       | Times
       | Prod => []
       | Paren(body) =>
-        [Selem.Token(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
-        @ [Token(Exp(Paren_r))]
+        [Selem.Shard(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
+        @ [Shard(Exp(Paren_r))]
       | Lam(p) =>
-        [Selem.Token(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
-        @ [Token(Exp(Lam_dot))]
+        [Selem.Shard(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
+        @ [Shard(Exp(Lam_dot))]
       | Let(p, def) =>
-        [Selem.Token(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
-        @ [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
-        @ [Selem.Token(Exp(Let_in))]
+        [Selem.Shard(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
+        @ [Selem.Shard(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
+        @ [Selem.Shard(Exp(Let_in))]
       }
     };
   switch (d) {
@@ -44,10 +44,10 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
 
 let rec find_token =
         (d: Direction.t, selection: Selection.t)
-        : option((Tiles.t, Token.t, Selection.t)) =>
+        : option((Tiles.t, Shard.t, Selection.t)) =>
   switch (selection) {
   | [] => None
-  | [Token(found_token), ...selection] => Some(([], found_token, selection))
+  | [Shard(found_token), ...selection] => Some(([], found_token, selection))
   | [Tile(tile), ...selection] =>
     let+ (preceding_tiles, found_token, selection) =
       find_token(d, selection);
@@ -55,14 +55,14 @@ let rec find_token =
   };
 
 let rec find_rest_of_tile =
-        (d: Direction.t, curr_token: Token.t, selection: Selection.t)
-        : option((AltList.even(Tiles.t, Token.t), Selection.t)) =>
-  if (Token.is_end(d, curr_token)) {
+        (d: Direction.t, curr_token: Shard.t, selection: Selection.t)
+        : option((AltList.even(Tiles.t, Shard.t), Selection.t)) =>
+  if (Shard.is_end(d, curr_token)) {
     Some(([], selection));
   } else {
     let* (preceding_tiles, found_token, selection) =
       find_token(d, selection);
-    if (Token.is_next(d, curr_token, found_token)) {
+    if (Shard.is_next(d, curr_token, found_token)) {
       let+ (rest_of_tile, selection) =
         find_rest_of_tile(d, found_token, selection);
       ([(preceding_tiles, found_token), ...rest_of_tile], selection);
@@ -72,7 +72,7 @@ let rec find_rest_of_tile =
   };
 
 let assemble_tile =
-    (d: Direction.t, ts: AltList.t(Token.t, Tiles.t)): option(Tile.t) => {
+    (d: Direction.t, ts: AltList.t(Shard.t, Tiles.t)): option(Tile.t) => {
   let child = ts => d == Left ? List.rev(ts) : ts;
   switch (d, ts) {
   | (Left, (Pat(Paren_r), [(body, Pat(Paren_l))]))
@@ -98,20 +98,20 @@ let assemble_tile =
 
 let flatten = l =>
   l
-  |> AltList.even_to_list(Selection.of_tiles, t => [Selem.Token(t)])
+  |> AltList.even_to_list(Selection.of_tiles, t => [Selem.Shard(t)])
   |> List.flatten;
 
 let rec parse_selection =
         (d: Direction.t, selection: Selection.t): Selection.t => {
   switch (find_token(d, selection)) {
   | None => selection
-  | Some((tiles, token, selection)) =>
-    switch (find_rest_of_tile(d, token, selection)) {
-    | None => flatten([(tiles, token)]) @ parse_selection(d, selection)
+  | Some((tiles, shard, selection)) =>
+    switch (find_rest_of_tile(d, shard, selection)) {
+    | None => flatten([(tiles, shard)]) @ parse_selection(d, selection)
     | Some((rest_of_tile, selection)) =>
       let parsed =
-        switch (assemble_tile(d, (token, rest_of_tile))) {
-        | None => flatten([(tiles, token), ...rest_of_tile])
+        switch (assemble_tile(d, (shard, rest_of_tile))) {
+        | None => flatten([(tiles, shard), ...rest_of_tile])
         | Some(tile) => Selection.of_tiles(tiles) @ [Tile(tile)]
         };
       parsed @ parse_selection(d, selection);
@@ -125,32 +125,32 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
     switch (frame) {
     | Paren_body(((prefix, suffix), frame)) =>
       let prefix = [
-        Selem.Token(Pat(Paren_l)),
+        Selem.Shard(Pat(Paren_l)),
         ...Selection.of_tiles_pat(prefix),
       ];
       let suffix = [
-        Selem.Token(Pat(Paren_r)),
+        Selem.Shard(Pat(Paren_r)),
         ...Selection.of_tiles_pat(suffix),
       ];
       Some(((prefix, suffix), Pat(frame)));
     | Lam_pat(((prefix, suffix), frame)) =>
       let prefix = [
-        Selem.Token(Exp(Lam_lam)),
+        Selem.Shard(Exp(Lam_lam)),
         ...Selection.of_tiles_exp(prefix),
       ];
       let suffix = [
-        Selem.Token(Exp(Lam_dot)),
+        Selem.Shard(Exp(Lam_dot)),
         ...Selection.of_tiles_exp(suffix),
       ];
       Some(((prefix, suffix), Exp(frame)));
     | Let_pat(def, ((prefix, suffix), frame)) =>
       let prefix = [
-        Selem.Token(Exp(Let_let)),
+        Selem.Shard(Exp(Let_let)),
         ...Selection.of_tiles_exp(prefix),
       ];
       let suffix =
-        [Selem.Token(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
-        @ [Token(Exp(Let_in)), ...Selection.of_tiles_exp(suffix)];
+        [Selem.Shard(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
+        @ [Shard(Exp(Let_in)), ...Selection.of_tiles_exp(suffix)];
       Some(((prefix, suffix), Exp(frame)));
     }
   | Exp(frame) =>
@@ -158,20 +158,20 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
     | Root => None
     | Paren_body(((prefix, suffix), frame)) =>
       let prefix = [
-        Selem.Token(Exp(Paren_l)),
+        Selem.Shard(Exp(Paren_l)),
         ...Selection.of_tiles_exp(prefix),
       ];
       let suffix = [
-        Selem.Token(Exp(Paren_r)),
+        Selem.Shard(Exp(Paren_r)),
         ...Selection.of_tiles_exp(suffix),
       ];
       Some(((prefix, suffix), Exp(frame)));
     | Let_def(p, ((prefix, suffix), frame)) =>
       let prefix =
-        [Selem.Token(Exp(Let_eq)), ...List.rev(Selection.of_tiles_pat(p))]
-        @ [Token(Exp(Let_let)), ...Selection.of_tiles_exp(prefix)];
+        [Selem.Shard(Exp(Let_eq)), ...List.rev(Selection.of_tiles_pat(p))]
+        @ [Shard(Exp(Let_let)), ...Selection.of_tiles_exp(prefix)];
       let suffix = [
-        Selem.Token(Exp(Let_in)),
+        Selem.Shard(Exp(Let_in)),
         ...Selection.of_tiles_exp(suffix),
       ];
       Some(((prefix, suffix), Exp(frame)));
@@ -179,7 +179,7 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
 
 let assemble_frame =
     (
-      frame_t: (AltList.t(Token.t, Tiles.t) as 't, 't),
+      frame_t: (AltList.t(Shard.t, Tiles.t) as 't, 't),
       (prefix, suffix): Selection.frame,
       frame: Frame.t,
     )

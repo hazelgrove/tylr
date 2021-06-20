@@ -127,7 +127,7 @@ let move_restructuring =
     // [Move<d>RestructuringNotWhole]
     switch (front_affix(d, sframe)) {
     | []
-    | [Token(_), ..._] => None
+    | [Shard(_), ..._] => None
     | [Tile(_) as selem, ...front] =>
       let sframe = mk_sframe(d, front, [selem, ...back_affix(d, sframe)]);
       Some((sframe, frame));

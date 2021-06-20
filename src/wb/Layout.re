@@ -215,12 +215,12 @@ let mk_BinHole = empty_hole;
 let mk_text = s => Text(s);
 
 let mk_token =
-  Token.get(
+  Shard.get(
     fun
-    | Token_pat.Paren_l => delim("(")
+    | Shard_pat.Paren_l => delim("(")
     | Paren_r => delim(")"),
     fun
-    | Token_exp.Paren_l => delim("(")
+    | Shard_exp.Paren_l => delim("(")
     | Paren_r => delim(")")
     | Lam_lam => delim(Unicode.lam)
     | Lam_dot => delim(".")
