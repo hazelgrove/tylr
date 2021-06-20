@@ -182,9 +182,18 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       if (sort != Frame.sort(frame)) {
         None;
       } else {
-        let tip = (Tip.Convex, sort);
         let sframe =
-          Parser.fix_holes(tip, (prefix, [Tile(tile), ...suffix]), tip);
+          switch (Parser.disassemble_selem(Right, Tile(tile))) {
+          | [] => ([Selem.Tile(tile), ...prefix], suffix)
+          | [hd, ...tl] =>
+            // TODO(shards) check if hd further disassembles
+            ([hd, ...prefix], tl @ suffix)
+          };
+        let sframe = {
+          let tip = (Tip.Convex, sort);
+          Parser.fix_holes(tip, sframe, tip);
+        };
+        let (sframe, frame) = Parser.parse_zipper(sframe, frame);
         Some((Pointing(sframe), frame));
       };
     }
