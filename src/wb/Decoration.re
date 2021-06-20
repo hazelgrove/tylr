@@ -436,7 +436,7 @@ module EmptyHole = {
           AttrUtil.[
             Attr.classes(["empty-hole-path", c_cls]),
             vector_effect("non-scaling-stroke"),
-            stroke_width(Option.is_some(inset) ? 0.3 : 0.9),
+            stroke_width(Option.is_some(inset) ? 0.3 : 1.),
             filter(
               switch (inset) {
               | None => "none"
