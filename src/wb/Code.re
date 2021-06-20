@@ -22,7 +22,7 @@ let selem_holes =
     ~annot=
       ({start, _}, annot, holes) =>
         switch (annot) {
-        | EmptyHole(sort) => [(start, sort), ...holes]
+        | EmptyHole(sort, tip) => [(start, sort, tip), ...holes]
         | _ => holes
         },
   );
@@ -202,12 +202,12 @@ let rec view_of_layout =
       | Delim =>
         let (txt, ds, n) = go'();
         ([with_cls("delim", txt)], ds, n);
-      | EmptyHole(color) =>
+      | EmptyHole(color, tip) =>
         add_decorations([
           d_container(
             ~length=len(),
             ~cls="empty-hole",
-            Decoration.EmptyHole.view(~color, ~inset=None, ()),
+            Decoration.EmptyHole.view(~color, ~inset=None, ~tip, ()),
           ),
         ])
       | UniChild(sort, side) =>

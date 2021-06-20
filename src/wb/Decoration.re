@@ -404,7 +404,7 @@ module EmptyHole = {
     );
   };
 
-  let path = (offset, s: float) => {
+  let path = (tip, offset, s: float) => {
     let x_dilate = 1.5;
     List.concat(
       SvgUtil.Path.[
@@ -412,16 +412,22 @@ module EmptyHole = {
           M({x: offset +. 0.5, y: 0.5 -. s /. 2.}),
           H_({dx: x_dilate *. s /. 2.}),
         ],
-        right_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (Convex, 0)),
+        right_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (tip, 0)),
         [H_({dx: -. s *. x_dilate})],
-        left_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (Convex, 0)),
+        left_tip_path(~scale_x=s *. x_dilate, ~scale_y=s, (tip, 0)),
         [Z],
       ],
     );
   };
 
   let view =
-      (~offset=0, ~color: Color.t, ~inset: option([ | `Thick | `Thin]), ())
+      (
+        ~offset=0,
+        ~color: Color.t,
+        ~tip: Tip.shape,
+        ~inset: option([ | `Thick | `Thin]),
+        (),
+      )
       : list(Node.t) => {
     let c_cls = Color.to_string(color);
     SvgUtil.Path.[
@@ -441,7 +447,7 @@ module EmptyHole = {
               },
             ),
           ],
-        path(Float.of_int(offset), 0.25),
+        path(tip, Float.of_int(offset), 0.25),
       ),
     ];
   };
@@ -584,7 +590,7 @@ module Selem = {
     len: int,
     open_children: list((int, int)),
     closed_children: list((int, int)),
-    empty_holes: list((int, Color.t)),
+    empty_holes: list((int, Color.t, Tip.shape)),
   };
   let mk_profile =
       (
@@ -724,7 +730,8 @@ module Selem = {
   };
 
   let empty_hole_path =
-      (~font_metrics as _, empty_hole: (int, Color.t)): SvgUtil.Path.t => {
+      (~font_metrics as _, empty_hole: (int, Color.t, Tip.shape))
+      : SvgUtil.Path.t => {
     // let (rx, ry) = hole_radii(~font_metrics);
     // let (o, _sort_todo) = empty_hole;
     // SvgUtil.Path.[
@@ -748,8 +755,8 @@ module Selem = {
     //     dy: 0.,
     //   }),
     // ];
-    let (offset, _color) = empty_hole;
-    EmptyHole.path(Float.of_int(offset), 0.25);
+    let (offset, _color, tip) = empty_hole;
+    EmptyHole.path(tip, Float.of_int(offset), 0.25);
   };
 
   let open_child_path = ((start, len): (int, int)) =>
@@ -770,7 +777,7 @@ module Selem = {
       let raised_holes =
         SelemStyle.show_children(profile.style)
           // always show holes in empty hole tiles
-          ? List.filter(((n, _)) => n == 0, profile.empty_holes)
+          ? List.filter(((n, _, _)) => n == 0, profile.empty_holes)
           : profile.empty_holes;
       List.map(empty_hole_path(~font_metrics), raised_holes);
     };

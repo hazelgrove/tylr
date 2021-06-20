@@ -14,7 +14,7 @@ type t =
   | Annot(annot, t)
 and annot =
   | Delim
-  | EmptyHole(Color.t)
+  | EmptyHole(Color.t, Tip.shape)
   | Space(int, Color.t)
   | ClosedChild
   | OpenChild
@@ -48,7 +48,8 @@ let cats =
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cats;
 
 let delim = s => annot(Delim, Text(s));
-let empty_hole = color => annot(EmptyHole(color), Text(Unicode.nbsp));
+let empty_hole = (color, tip) =>
+  annot(EmptyHole(color, tip), Text(Unicode.nbsp));
 let open_child = annot(OpenChild);
 let closed_child = annot(ClosedChild);
 let uni_child = (~sort, ~side) => annot(UniChild(sort, side));
@@ -249,15 +250,15 @@ and mk_tile = t =>
   t
   |> Tile.get(
        fun
-       | Tile_pat.OpHole => mk_OpHole(Pat)
+       | Tile_pat.OpHole => mk_OpHole(Pat, Convex)
        | Var(x) => mk_text(x)
        | Paren(body) =>
          // TODO undo unnecessary rewrapping
          mk_Paren(pad_spaces(Pat, mk_tiles(Tiles.of_pat(body))))
-       | BinHole => mk_BinHole(Pat)
+       | BinHole => mk_BinHole(Pat, Concave)
        | Prod => mk_Prod(),
        fun
-       | Tile_exp.OpHole => mk_OpHole(Exp)
+       | Tile_exp.OpHole => mk_OpHole(Exp, Convex)
        | Num(n) => mk_text(string_of_int(n))
        | Var(x) => mk_text(x)
        | Paren(body) =>
@@ -268,7 +269,7 @@ and mk_tile = t =>
            pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
            pad_spaces(Exp, mk_tiles(Tiles.of_exp(def))),
          )
-       | BinHole => mk_BinHole(Exp)
+       | BinHole => mk_BinHole(Exp, Concave)
        | Plus => mk_Plus()
        | Times => mk_Times()
        | Prod => mk_Prod(),
