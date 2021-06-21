@@ -172,6 +172,19 @@ let rec disassemble_and_enter =
   | [hd, ...tl] => disassemble_and_enter(hd, (prefix, tl @ suffix))
   };
 
+let trim_selection = (selection: Selection.t) => {
+  let trim_l =
+    fun
+    | [] => []
+    | [hd, ...tl] as selection => Selem.is_hole(hd) ? tl : selection;
+  let trim_r = selection =>
+    switch (ListUtil.split_last_opt(selection)) {
+    | None => []
+    | Some((leading, last)) => Selem.is_hole(last) ? leading : selection
+    };
+  trim_r(trim_l(selection));
+};
+
 let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   switch (subject) {
   | Pointing(sframe) =>
@@ -215,7 +228,11 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       } else {
         let tip = (Tip.Convex, Frame.sort(frame));
         let sframe = Parser.fix_holes(tip, sframe, tip);
-        Some((Subject.Restructuring(selection, sframe), frame));
+        switch (trim_selection(selection)) {
+        | [] => Some((Subject.Pointing(sframe), frame))
+        | [_, ..._] as trimmed =>
+          Some((Subject.Restructuring(trimmed, sframe), frame))
+        };
       };
     | Move(d) =>
       let+ (side, selection, sframe, frame) =
