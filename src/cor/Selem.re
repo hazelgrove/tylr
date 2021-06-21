@@ -22,7 +22,7 @@ let sort = get(Shard.sort, Tile.sort);
 let tails = d =>
   get(
     shard =>
-      if (Shard.is_end(d, shard)) {
+      if (Shard.is_end(~strict=true, d, shard)) {
         0;
       } else if (Shard.sort(shard) == snd(Shard.tip(d, shard))) {
         1;

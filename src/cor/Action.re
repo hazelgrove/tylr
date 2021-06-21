@@ -165,9 +165,16 @@ let move_restructuring =
     };
   };
 
+let rec disassemble_and_enter =
+        (selem: Selem.t, (prefix, suffix): Selection.frame) =>
+  switch (Parser.disassemble_selem(Right, selem)) {
+  | [] => ([selem, ...prefix], suffix)
+  | [hd, ...tl] => disassemble_and_enter(hd, (prefix, tl @ suffix))
+  };
+
 let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
   switch (subject) {
-  | Pointing((prefix, suffix) as sframe) =>
+  | Pointing(sframe) =>
     switch (a) {
     | Mark =>
       // [MarkPointing]
@@ -182,17 +189,15 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       if (sort != Frame.sort(frame)) {
         None;
       } else {
-        let sframe =
-          switch (Parser.disassemble_selem(Right, Tile(tile))) {
-          | [] => ([Selem.Tile(tile), ...prefix], suffix)
-          | [hd, ...tl] =>
-            // TODO(shards) check if hd further disassembles
-            ([hd, ...prefix], tl @ suffix)
-          };
-        let sframe = {
+        let sframe = disassemble_and_enter(Tile(tile), sframe);
+        let (prefix, suffix) = {
           let tip = (Tip.Convex, sort);
           Parser.fix_holes(tip, sframe, tip);
         };
+        let sframe = (
+          Parser.parse_selection(Left, prefix),
+          Parser.parse_selection(Right, suffix),
+        );
         let (sframe, frame) = Parser.parse_zipper(sframe, frame);
         Some((Pointing(sframe), frame));
       };

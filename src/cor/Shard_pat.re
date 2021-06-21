@@ -13,7 +13,7 @@ let tip = (d: Direction.t, t: t) =>
   | (Right, Paren_r) => (Convex, Pat)
   };
 
-let is_end = (d: Direction.t, t: t) =>
+let is_end = (~strict as _, d: Direction.t, t: t) =>
   switch (d, t) {
   | (Left, Paren_l)
   | (Right, Paren_r) => true

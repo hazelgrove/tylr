@@ -14,7 +14,8 @@ let sort = get(_ => Sort.Pat, _ => Sort.Exp);
 
 let tip = d => get(Shard_pat.tip(d), Shard_exp.tip(d));
 
-let is_end = d => get(Shard_pat.is_end(d), Shard_exp.is_end(d));
+let is_end = (~strict, d) =>
+  get(Shard_pat.is_end(~strict, d), Shard_exp.is_end(~strict, d));
 
 let is_next = (d: Direction.t, t1: t, t2: t) =>
   switch (t1, t2) {

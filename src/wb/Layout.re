@@ -214,21 +214,6 @@ let mk_BinHole = empty_hole;
 
 let mk_text = s => Text(s);
 
-let mk_token =
-  Shard.get(
-    fun
-    | Shard_pat.Paren_l => delim("(")
-    | Paren_r => delim(")"),
-    fun
-    | Shard_exp.Paren_l => delim("(")
-    | Paren_r => delim(")")
-    | Lam_lam => delim(Unicode.lam)
-    | Lam_dot => delim(".")
-    | Let_let => delim("let")
-    | Let_eq => delim("=")
-    | Let_in => delim("in"),
-  );
-
 let is_atomic = (t: Tile.t) =>
   [] == Parser.disassemble_selem(Right, Tile(t));
 
@@ -274,6 +259,32 @@ and mk_tile = t =>
        | Times => mk_Times()
        | Prod => mk_Prod(),
      );
+
+let mk_token =
+  Shard.get(
+    fun
+    | Shard_pat.Paren_l => delim("(")
+    | Paren_r => delim(")"),
+    fun
+    | Shard_exp.Paren_l => delim("(")
+    | Paren_r => delim(")")
+    | Lam_lam => delim(Unicode.lam)
+    | Lam_dot => delim(".")
+    | Let_let => delim("let")
+    | Let_eq => delim("=")
+    | Let_let_eq(ts) =>
+      cats([
+        delim("let"),
+        closed_child(
+          step(
+            ChildStep.let_pat,
+            pad_spaces(Pat, mk_tiles(Tiles.of_pat(ts))),
+          ),
+        ),
+        delim("="),
+      ])
+    | Let_in => delim("in"),
+  );
 
 let selem_shape = selem => {
   let (lshape, _) = Selem.tip(Left, selem);
