@@ -1093,8 +1093,6 @@ module Caret = {
           DecorationPaths.{
             caret: None,
             anchors: [([], 0), ([], List.length(selection))],
-            outer_cousins: [],
-            inner_cousins: [],
           };
         Node.[
           span(

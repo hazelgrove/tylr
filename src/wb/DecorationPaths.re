@@ -7,11 +7,9 @@ open OptUtil.Syntax;
 type t = {
   caret: option((CaretMode.t, Path.t, list(Path.caret_step))),
   anchors: list(Path.t),
-  outer_cousins: list(Path.steps),
-  inner_cousins: list(Path.steps),
 };
 
-let empty = {caret: None, anchors: [], outer_cousins: [], inner_cousins: []};
+let empty = {caret: None, anchors: []};
 
 let mk_inner_cousins =
     (steps: Path.steps, subject: Subject.t): list(Path.steps) => {
@@ -35,21 +33,6 @@ let mk_inner_cousins =
   };
 };
 
-let mk_outer_cousins = (steps: Path.steps, frame: Frame.t): list(Path.steps) => {
-  switch (
-    Path.get_child_steps_of_frame(frame),
-    ListUtil.split_last_opt(steps),
-  ) {
-  | (None, _)
-  | (_, None) => []
-  | (Some((_, others)), Some((leading_steps, _))) =>
-    let (steps, (selem_step, _)) = ListUtil.split_last(steps);
-    let same_tile_cousins =
-      others |> List.map(child_step => steps @ [(selem_step, child_step)]);
-    [leading_steps, ...same_tile_cousins];
-  };
-};
-
 let mk = ((subject, frame): Zipper.t) => {
   let sframe =
     switch (subject) {
@@ -62,8 +45,6 @@ let mk = ((subject, frame): Zipper.t) => {
       }
     };
   let (steps, caret_step) as path = Path.mk(sframe, frame);
-  let outer_cousins = mk_outer_cousins(steps, frame);
-  let inner_cousins = mk_inner_cousins(steps, subject);
   let caret =
     switch (subject) {
     | Pointing(sframe) =>
@@ -115,7 +96,7 @@ let mk = ((subject, frame): Zipper.t) => {
         ),
       ]
     };
-  {caret, anchors, outer_cousins, inner_cousins};
+  {caret, anchors};
 };
 
 // let neighbors = ((subject, frame): Zipper.t): Range.t => {
@@ -178,9 +159,7 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
          let+ steps = step_or_prune(steps);
          (steps, caret_step);
        });
-  let inner_cousins = List.filter_map(step_or_prune, paths.inner_cousins);
-  let outer_cousins = List.filter_map(step_or_prune, paths.outer_cousins);
-  {caret, anchors, inner_cousins, outer_cousins};
+  {caret, anchors};
 };
 // let take_two_step = (two_step: Path.two_step, paths: t): t => {
 //   let* (path, mode) = paths;
@@ -234,16 +213,7 @@ let current =
     };
   let anchor_ds: 'ds =
     List.mem(([], caret_step), paths.anchors) ? [Anchor] : [];
-  let outer_cousin_ds: 'ds =
-    List.mem([], paths.outer_cousins) ? [OuterCousin] : [];
-  let inner_cousin_ds: 'ds =
-    List.mem([], paths.inner_cousins) ? [InnerCousin] : [];
-  List.concat([
-    outer_cousin_ds,
-    anchor_ds,
-    caret_sibling_ds,
-    inner_cousin_ds,
-  ]);
+  List.concat([anchor_ds, caret_sibling_ds]);
 };
 
 // let mk = ((subject, _) as zipper: Zipper.t): t => {
