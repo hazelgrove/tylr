@@ -107,33 +107,6 @@ let rec view_of_layout =
                    ));
                  }
 
-               // TODO clean up cousin terminology
-               | OuterCousin => None
-               //    (
-               //      d_container(
-               //        ~length,
-               //        ~cls="outer-cousin",
-               //        Decoration.CaretPosition.view(
-               //          ~font_metrics,
-               //          ~style=`OuterCousin,
-               //          color,
-               //        ),
-               //      ),
-               //      0,
-               //    )
-               | InnerCousin => None
-               //   (
-               //    d_container(
-               //      ~length,
-               //      ~cls="inner-cousin",
-               //      Decoration.CaretPosition.view(
-               //        ~font_metrics,
-               //        ~style=`InnerCousin,
-               //        color,
-               //      ),
-               //    ),
-               //    0,
-               //  )
                | Caret(mode) => {
                    let caret =
                      Decoration.Caret.view(
