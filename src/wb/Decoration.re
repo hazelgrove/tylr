@@ -1087,6 +1087,17 @@ module Caret = {
       | Pointing
       | Selecting => ([], [])
       | Restructuring((selection, (prefix, suffix))) =>
+        print_endline("0");
+        print_endline(
+          Sexplib.Sexp.to_string(
+            Sexplib.Std.sexp_of_list(Selection.sexp_of_t, prefix),
+          ),
+        );
+        print_endline(
+          Sexplib.Sexp.to_string(
+            Sexplib.Std.sexp_of_list(Selection.sexp_of_t, suffix),
+          ),
+        );
         // let len = Layout.length(l);
         let dpaths =
           DecorationPaths.{

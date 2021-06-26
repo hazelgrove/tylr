@@ -637,7 +637,7 @@ let mk_affix =
       |> rev
       |> ListUtil.fold_left_map(
            (offset, relem) => {
-             let offset = offset + Restructuring.len(relem);
+             let offset = offset + Restructuring.len_elem(relem);
              (offset, (offset, relem));
            },
            offset,
@@ -717,7 +717,7 @@ let mk_restructuring =
   let offset = 0;
   let l_prefix = mk_affix(~offset, Left, prefix);
 
-  let offset = offset + List.length(prefix);
+  let offset = offset + Restructuring.len(prefix);
   let l_suffix = mk_affix(~offset, Right, suffix);
 
   let s =
