@@ -74,16 +74,6 @@ let pad_spaces = (~offset=0, color, ls) =>
   | [_, ..._] =>
     pad(~offset, ~len=List.length(ls), color, spaces(color, ls))
   };
-// let pad_spaces_z = (ls_pre, caret, ls_suf) => {
-//   let caret = space(~caret, ());
-//   switch (ls_pre, ls_suf) {
-//   | ([], []) => caret
-//   | ([], [_, ..._]) => cats([caret, spaces(ls_suf), space()])
-//   | ([_, ..._], []) => cats([space(), spaces(ls_pre), caret])
-//   | ([_, ..._], [_, ..._]) =>
-//     pad(cats([spaces(ls_pre), caret, spaces(ls_suf)]))
-//   };
-// };
 
 let length = {
   let rec go =
@@ -127,58 +117,6 @@ let measured_fold' =
 
 let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~start=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~start);
-
-// let rec place_caret = (d: Direction.t, (sort, caret), l) =>
-//   switch (l) {
-//   | Text(_) => l
-//   | Cat(l1, l2) =>
-//     switch (d) {
-//     | Left => Cat(place_caret(d, (sort, caret), l1), l2)
-//     | Right => Cat(l1, place_caret(d, (sort, caret), l2))
-//     }
-//   | Annot(Space(_), l) => Annot(Space(Some((sort, caret))), l)
-//   | Annot(annot, l) => Annot(annot, place_caret(d, (sort, caret), l))
-//   };
-
-// type with_dangling_caret = (t, option(Direction.t));
-
-// let place_caret_0:
-//   option((Sort.t, caret, CaretPosition.t)) => option(Direction.t) =
-//   Option.map(
-//     fun
-//     | (_, _, CaretPosition.Before(_)) => Direction.Left
-//     | (_, _, After) => Right,
-//   );
-// let place_caret_1 = (caret, child1) =>
-//   switch (caret) {
-//   | None => (child1, None)
-//   | Some((_, _, CaretPosition.Before(0))) => (child1, Some(Direction.Left))
-//   | Some((sort, caret, Before(_one))) => (
-//       place_caret(Right, (sort, caret), child1),
-//       None,
-//     )
-//   | Some((_, _, After)) => (child1, Some(Right))
-//   };
-// let place_caret_2 = (caret, child1, child2) =>
-//   switch (caret) {
-//   | None => (child1, child2, None)
-//   | Some((_, _, CaretPosition.Before(0))) => (
-//       child1,
-//       child2,
-//       Some(Direction.Left),
-//     )
-//   | Some((sort, caret, Before(1))) => (
-//       place_caret(Right, (sort, caret), child1),
-//       child2,
-//       None,
-//     )
-//   | Some((sort, caret, Before(_two))) => (
-//       child1,
-//       place_caret(Right, (sort, caret), child2),
-//       None,
-//     )
-//   | Some((_, _, After)) => (child1, child2, Some(Right))
-//   };
 
 let mk_Paren = body =>
   cats([
