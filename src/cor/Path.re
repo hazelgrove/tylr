@@ -39,6 +39,10 @@ let rec mk_steps = (~steps=[], frame: Frame.t): steps => {
      );
 };
 
+let mk' = ((prefix, _): Restructuring.frame, frame: Frame.t) => (
+  mk_steps(frame),
+  List.length(prefix),
+);
 let mk = ((prefix, _): Selection.frame, frame: Frame.t): t => (
   mk_steps(frame),
   List.length(prefix),

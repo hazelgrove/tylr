@@ -12,17 +12,18 @@ type t = {
 let empty = {caret: None, anchors: []};
 
 let mk = ((subject, frame): Zipper.t) => {
-  let sframe =
+  let (steps, caret_step) as path =
     switch (subject) {
-    | Pointing(sframe)
-    | Restructuring(_, sframe) => sframe
+    | Pointing(sframe) => Path.mk(sframe, frame)
+    | Restructuring((_, rframe)) => Path.mk'(rframe, frame)
     | Selecting(side, selection, (prefix, suffix)) =>
-      switch (side) {
-      | Left => (prefix, selection @ suffix)
-      | Right => (List.rev(selection) @ prefix, suffix)
-      }
+      let sframe =
+        switch (side) {
+        | Left => (prefix, selection @ suffix)
+        | Right => (List.rev(selection) @ prefix, suffix)
+        };
+      Path.mk(sframe, frame);
     };
-  let (steps, caret_step) as path = Path.mk(sframe, frame);
   let caret =
     switch (subject) {
     | Pointing(sframe) =>
@@ -42,14 +43,14 @@ let mk = ((subject, frame): Zipper.t) => {
             len_pre + len_sel + len_suf + 1,
           );
       Some((Selecting, path, siblings));
-    | Restructuring(selection, (prefix, suffix) as sframe) =>
+    | Restructuring((backpack, (prefix, suffix) as rframe)) =>
       let range =
-        if (Selection.is_whole_any(selection)) {
-          ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1);
+        if (Parser.is_backpack_whole(backpack)) {
+          ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
         } else {
-          let (tiles_pre, prefix) =
-            ListUtil.take_while(Selem.is_tile, prefix);
-          let (tiles_suf, _) = ListUtil.take_while(Selem.is_tile, suffix);
+          let take_tiles = ListUtil.take_while(Restructuring.is_tile);
+          let (tiles_pre, prefix) = take_tiles(prefix);
+          let (tiles_suf, _) = take_tiles(suffix);
           ListUtil.range(
             ~lo=List.length(prefix),
             List.(
@@ -57,7 +58,7 @@ let mk = ((subject, frame): Zipper.t) => {
             ),
           );
         };
-      Some((Restructuring(selection), path, range));
+      Some((Restructuring(backpack), path, range));
     };
   let anchors =
     switch (subject) {

@@ -583,6 +583,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t): t => {
 };
 
 let mk_affix =
+    // TODO consolidate flags
     (
       ~restructuring_partial: bool,
       ~reveal_tiles: bool,
@@ -590,46 +591,64 @@ let mk_affix =
       ~sort: Sort.t,
       ~offset: int,
       d: Direction.t,
-      selems,
+      relems: list(Restructuring.frame_elem),
     ) => {
-  switch (selems) {
+  switch (relems) {
   | [] => empty
   | [_, ..._] =>
     let rev = l => d == Left ? List.rev(l) : l;
-    let mk_selem = (~with_rail, (i, selem)) => {
-      let color = Color.of_sort(Selem.sort(selem));
-      let l_selem =
-        mk_selem(
-          ~style=?
-            if (!Selection.filter_pred(sort, selem)) {
-              Some(Filtered);
-            } else if (reveal_tiles) {
-              Some(Revealed({show_children: show_children}));
-            } else {
-              None;
-            },
-          color,
-          selem,
-        )
-        |> (l => with_rail ? annot(Rail({color, atomic: true}), l) : l)
-        |> annot(Step(i));
-      let l_space =
-        space(
-          d == Left ? i : i + 1,
-          Color.of_sort(snd(Selem.tip(d, selem))),
-        );
-      [l_selem, l_space];
+    let mk_relem = (~with_rail, (offset, relem: Restructuring.frame_elem)) => {
+      switch (relem) {
+      | Selem(selem) =>
+        let color = Color.of_sort(Selem.sort(selem));
+        let l_selem =
+          mk_selem(
+            ~style=?
+              if (!Selection.filter_pred(sort, selem)) {
+                Some(Filtered);
+              } else if (reveal_tiles) {
+                Some(Revealed({show_children: show_children}));
+              } else {
+                None;
+              },
+            color,
+            selem,
+          )
+          |> (l => with_rail ? annot(Rail({color, atomic: true}), l) : l)
+          |> annot(Step(offset));
+        let l_space =
+          space(
+            d == Left ? offset : offset + 1,
+            Color.of_sort(snd(Selem.tip(d, selem))),
+          );
+        [l_selem, l_space];
+      | Selec(selection) => [
+          mk_selection(
+            ~offset,
+            ~style=Selected,
+            Color.of_sort(sort),
+            selection,
+          ),
+        ]
+      };
     };
-    let (ts, selems) =
-      selems
+    let (ts, relems) =
+      relems
       |> rev
-      |> List.mapi((i, selem) => (offset + i, selem))
+      |> ListUtil.fold_left_map(
+           (offset, relem) => {
+             let offset = offset + Restructuring.len(relem);
+             (offset, (offset, relem));
+           },
+           offset,
+         )
+      |> snd
       |> rev
-      |> ListUtil.take_while(((_, selem)) => Selem.is_tile(selem));
-    let l_ts = ts |> List.map(mk_selem(~with_rail=true)) |> List.flatten;
+      |> ListUtil.take_while(((_, relem)) => Restructuring.is_tile(relem));
+    let l_ts = ts |> List.map(mk_relem(~with_rail=true)) |> List.flatten;
     let l_selems =
-      selems
-      |> List.map(mk_selem(~with_rail=!restructuring_partial))
+      relems
+      |> List.map(mk_relem(~with_rail=!restructuring_partial))
       |> List.flatten;
     cats(rev(l_ts @ l_selems));
   };
@@ -648,7 +667,9 @@ let mk_selecting =
 
   let offset = 0;
   let l_prefix =
-    mk_affix(~restructuring_partial=false, ~offset, Left, prefix);
+    prefix
+    |> List.map(selem => Restructuring.Selem(selem))
+    |> mk_affix(~restructuring_partial=false, ~offset, Left);
 
   let offset = offset + List.length(prefix);
   let l_selection =
@@ -661,7 +682,9 @@ let mk_selecting =
 
   let offset = offset + List.length(selection);
   let l_suffix =
-    mk_affix(~restructuring_partial=false, ~offset, Right, suffix);
+    suffix
+    |> List.map(selem => Restructuring.Selem(selem))
+    |> mk_affix(~restructuring_partial=false, ~offset, Right);
 
   let subject = cats([l_prefix, l_selection, l_suffix]);
   mk_frame(subject, frame);
@@ -669,16 +692,16 @@ let mk_selecting =
 
 let mk_restructuring =
     (
-      selection: Selection.t,
-      (prefix, suffix): Selection.frame,
+      backpack: Restructuring.Backpack.t,
+      (prefix, suffix): Restructuring.frame,
       frame: Frame.t,
     ) => {
   let sort_frame = Frame.sort(frame);
   let mk_affix =
     mk_affix(
-      ~restructuring_partial=!Selection.is_whole_any(selection),
+      ~restructuring_partial=!Parser.is_backpack_whole(backpack),
       ~reveal_tiles=false,
-      ~show_children=Selection.is_whole_any(selection),
+      ~show_children=Parser.is_backpack_whole(backpack),
       ~sort=sort_frame,
     );
   // let selection =
@@ -700,7 +723,7 @@ let mk_restructuring =
   let s =
     switch (prefix) {
     | [] => sort_frame
-    | [hd, ..._] => snd(Selem.tip(Right, hd))
+    | [hd, ..._] => snd(Restructuring.tip(Right, hd))
     };
   let subject = cats([l_prefix, space_sort(offset, s), l_suffix]);
 
@@ -712,6 +735,6 @@ let mk_zipper = (zipper: Zipper.t) =>
   | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
   | (Selecting(_, selection, sframe), frame) =>
     mk_selecting(selection, sframe, frame)
-  | (Restructuring(selection, sframe), frame) =>
+  | (Restructuring((selection, sframe)), frame) =>
     mk_restructuring(selection, sframe, frame)
   };

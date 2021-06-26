@@ -1082,20 +1082,19 @@ module Caret = {
         offset: int,
         mode: CaretMode.t,
       ) => {
-    let selection =
+    let (ss_before, ss_after) =
       switch (mode) {
       | Pointing
-      | Selecting => []
-      | Restructuring(selection) =>
-        let l = Layout.mk_selection(~style=Filtered, Selected, selection);
+      | Selecting => ([], [])
+      | Restructuring((selection, (prefix, suffix))) =>
         // let len = Layout.length(l);
         let dpaths =
           DecorationPaths.{
             caret: None,
             anchors: [([], 0), ([], List.length(selection))],
           };
-        Node.[
-          span(
+        let view_of_selection = selection =>
+          Node.span(
             [
               Attr.create(
                 "style",
@@ -1105,9 +1104,17 @@ module Caret = {
                 ),
               ),
             ],
-            [view_of_layout(~font_metrics, dpaths, l)],
-          ),
-        ];
+            [
+              view_of_layout(
+                ~font_metrics,
+                dpaths,
+                Layout.mk_selection(~style=Filtered, Selected, selection),
+              ),
+            ],
+          );
+        let ss_before = List.map(view_of_selection, List.rev(prefix));
+        let ss_after = List.map(view_of_selection, [selection, ...suffix]);
+        (ss_before, ss_after);
       };
     let top = (-0.3) *. font_metrics.row_height;
     Node.div(
@@ -1151,6 +1158,19 @@ module Caret = {
         ),
         Node.div(
           [
+            Attr.id("backpack-pre"),
+            Attr.create(
+              "style",
+              Printf.sprintf(
+                "top: %fpx; right: 100%%;",
+                (-1.8) *. font_metrics.row_height,
+              ),
+            ),
+          ],
+          ss_before,
+        ),
+        Node.div(
+          [
             Attr.id("backpack-suf"),
             Attr.create(
               "style",
@@ -1161,7 +1181,7 @@ module Caret = {
               ),
             ),
           ],
-          selection,
+          ss_after,
         ),
       ],
     );

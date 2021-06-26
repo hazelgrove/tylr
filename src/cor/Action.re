@@ -16,7 +16,7 @@ let back_affix =
   fun
   | Direction.Left => snd
   | Right => fst;
-let mk_sframe = (d: Direction.t, front, back) =>
+let mk_frame = (d: Direction.t, front, back) =>
   switch (d) {
   | Left => (front, back)
   | Right => (back, front)
@@ -43,12 +43,12 @@ let rec move_pointing =
           Direction.toggle(d),
           [selem, ...back_affix(d, sframe)],
         );
-      Some(Parser.parse_zipper(mk_sframe(d, toward, away), frame));
+      Some(Parser.parse_zipper(mk_frame(d, toward, away), frame));
     | [_, ..._] as disassembled =>
       // [Move<d>Disassembles]
       move_pointing(
         d,
-        mk_sframe(d, disassembled @ toward, back_affix(d, sframe)),
+        mk_frame(d, disassembled @ toward, back_affix(d, sframe)),
         frame,
       )
     }
@@ -99,12 +99,12 @@ let rec move_selecting =
         let selection' =
           Parser.parse_selection(Right, grow([selem], selection));
         let sframe' =
-          mk_sframe(caret_side, near, back_affix(caret_side, sframe));
+          mk_frame(caret_side, near, back_affix(caret_side, sframe));
         Some((caret_side, selection', sframe', frame));
       | [_, ..._] as disassembled =>
         // [SelectGrow<caret_side>Disassembles]
         let sframe' =
-          mk_sframe(
+          mk_frame(
             caret_side,
             disassembled @ near,
             back_affix(caret_side, sframe),
@@ -122,7 +122,7 @@ let rec move_selecting =
         let (sframe', frame') =
           Parser.(
             parse_zipper(
-              mk_sframe(
+              mk_frame(
                 caret_side,
                 parse_selection(
                   caret_side,
@@ -144,26 +144,31 @@ let rec move_selecting =
 };
 
 let move_restructuring =
-    (
-      d: Direction.t,
-      selection: Selection.t,
-      sframe: Selection.frame,
-      frame: Frame.t,
-    )
-    : option((Selection.frame, Frame.t)) =>
+    (d: Direction.t, (backpack, rframe): Restructuring.t, frame: Frame.t)
+    : option((Restructuring.t, Frame.t)) => {
+  let (selection, ssframe) = backpack;
+  // TODO condition should be based on whole backpack
   if (Selection.is_whole_any(selection)) {
     // [Move<d>RestructuringWhole]
-    move_pointing(d, sframe, frame);
+    let+ (sframe, frame) =
+      move_pointing(d, Restructuring.get_sframe(rframe), frame);
+    ((backpack, Restructuring.mk_frame(sframe)), frame);
   } else {
     // [Move<d>RestructuringNotWhole]
-    switch (front_affix(d, sframe)) {
-    | []
-    | [Shard(_), ..._] => None
-    | [Tile(_) as selem, ...front] =>
-      let sframe = mk_sframe(d, front, [selem, ...back_affix(d, sframe)]);
-      Some((sframe, frame));
+    switch (front_affix(d, rframe)) {
+    | [] => None
+    | [Selem(selem), ...front] =>
+      let rframe =
+        mk_frame(d, front, [Selem(selem), ...back_affix(d, rframe)]);
+      Some(((backpack, rframe), frame));
+    | [Selec(selec), ...front] =>
+      let ssframe = PairUtil.map_fst(List.cons(selection), ssframe);
+      let backpack = (selec, ssframe);
+      let rframe = mk_frame(d, front, back_affix(d, rframe));
+      Some(((backpack, rframe), frame));
     };
   };
+};
 
 let rec disassemble_and_enter =
         (selem: Selem.t, (prefix, suffix): Selection.frame) =>
@@ -231,7 +236,11 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         switch (trim_selection(selection)) {
         | [] => Some((Subject.Pointing(sframe), frame))
         | [_, ..._] as trimmed =>
-          Some((Subject.Restructuring(trimmed, sframe), frame))
+          let rframe = Restructuring.mk_frame(sframe);
+          Some((
+            Subject.Restructuring(((trimmed, ([], [])), rframe)),
+            frame,
+          ));
         };
       };
     | Move(d) =>
@@ -239,28 +248,52 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         move_selecting(d, side, selection, sframe, frame);
       (Subject.Selecting(side, selection, sframe), frame);
     }
-  | Restructuring(selection, (prefix, suffix) as sframe) =>
+  | Restructuring(
+      ((selection, ssframe), (prefix, suffix) as rframe) as restructuring,
+    ) =>
     switch (a) {
     | Mark =>
       if (Selection.is_partial(selection)
           || Selection.is_whole(Frame.sort(frame), selection)) {
         // [MarkRestructuring]
         let tip = Tip.(Convex, Frame.sort(frame));
-        let (prefix, suffix) =
-          Parser.fix_holes(tip, (prefix, selection @ suffix), tip);
-        let suffix = Parser.parse_selection(Right, suffix);
-        let (sframe, frame) = Parser.parse_zipper((prefix, suffix), frame);
-        Some((Pointing(sframe), frame));
+        let rselection = List.map(s => Restructuring.Selem(s), selection);
+        let rframe =
+          Parser.fix_holes_rframe(tip, (prefix, rselection @ suffix), tip);
+        switch (ssframe) {
+        | ([], []) =>
+          let (prefix, suffix) = Restructuring.get_sframe(rframe);
+          let suffix = Parser.parse_selection(Right, suffix);
+          let (sframe, frame) =
+            Parser.parse_zipper((prefix, suffix), frame);
+          Some((Pointing(sframe), frame));
+        | ([selection, ...prefix], []) =>
+          let restructuring = ((selection, (prefix, [])), rframe);
+          Some((Restructuring(restructuring), frame));
+        | ([], [selection, ...suffix]) =>
+          let restructuring = ((selection, ([], suffix)), rframe);
+          Some((Restructuring(restructuring), frame));
+        | ([_, ..._] as prefix, [_, ..._] as suffix) =>
+          let (prefix, hd) = ListUtil.split_last(prefix);
+          let restructuring = (
+            (hd, ([], List.rev(prefix) @ suffix)),
+            rframe,
+          );
+          Some((Restructuring(restructuring), frame));
+        };
       } else {
         None;
       }
     | Move(d) =>
-      let+ (sframe, frame) = move_restructuring(d, selection, sframe, frame);
-      (Subject.Restructuring(selection, sframe), frame);
+      let+ ((backpack, rframe), frame) =
+        move_restructuring(d, restructuring, frame);
+      (Subject.Restructuring((backpack, rframe)), frame);
     | Delete =>
       // [Delete]
       let s = Frame.sort(frame);
       let tip = Tip.(Convex, s);
+      let (prefix, suffix) =
+        Restructuring.get_sframe(~filter_selections=true, rframe);
       let prefix' = Selection.filter_tiles(s, prefix);
       let suffix' = Selection.filter_tiles(s, suffix);
       let fixed = Parser.fix_holes(tip, (prefix', suffix'), tip);

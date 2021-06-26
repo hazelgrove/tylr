@@ -124,7 +124,7 @@ let rec view_of_layout =
                    switch (mode) {
                    | Pointing
                    | Selecting => Some(([caret], 0))
-                   | Restructuring(selection) =>
+                   | Restructuring((selection, _)) =>
                      let selection_len =
                        Layout.length(
                          Layout.mk_selection(Selected, selection),
@@ -151,8 +151,8 @@ let rec view_of_layout =
         let bare =
           switch (subject) {
           | None => []
-          | Some(Restructuring(selection, _))
-              when !Selection.is_whole_any(selection) =>
+          | Some(Restructuring((backpack, _)))
+              when !Parser.is_backpack_whole(backpack) =>
             []
           | _ => [
               d_container(

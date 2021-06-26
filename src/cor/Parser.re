@@ -276,31 +276,45 @@ let rec parse_zipper =
   };
 };
 
-let fix_holes =
-    (ltip: Tip.t, (prefix, suffix): Selection.frame, rtip: Tip.t)
-    : Selection.frame => {
-  let rec fix = (ltip: Tip.t, selection: Selection.t): (Selection.t, Tip.t) =>
-    switch (selection) {
+let is_backpack_whole = ((selection, ssframe): Restructuring.Backpack.t) => {
+  let total_selection =
+    List.flatten(ListFrame.to_list(~subject=[selection], ssframe));
+  Selection.is_whole_any(parse_selection(Right, total_selection));
+};
+
+let fix_holes_rframe =
+    (ltip: Tip.t, (prefix, suffix): Restructuring.frame, rtip: Tip.t)
+    : Restructuring.frame => {
+  let rec fix =
+          (ltip: Tip.t, affix: list(Restructuring.frame_elem))
+          : (list(Restructuring.frame_elem), Tip.t) =>
+    switch (affix) {
     | [] => ([], Tip.toggle(ltip))
-    | [selem, ...selection] =>
-      if (Selem.is_hole(selem)) {
+    | [relem, ...affix] =>
+      switch (relem) {
+      | Selem(selem) when Selem.is_hole(selem) =>
         // skip holes
-        fix(ltip, selection);
-      } else {
+        fix(ltip, affix)
+      | _ =>
         let (fixed, rtip) =
-          fix(Tip.toggle(Selem.tip(Right, selem)), selection);
+          fix(Tip.toggle(Restructuring.tip(Right, relem)), affix);
         let inserted_hole =
           // relies on invariant that reachable selections are sort-consistent
-          Selem.tip(Left, selem) == ltip
-            ? [] : [Selem.Tile(Tile.mk_hole(ltip))];
-        (inserted_hole @ [selem, ...fixed], rtip);
+          Restructuring.tip(Left, relem) == ltip
+            ? [] : [Restructuring.Selem(Tile(Tile.mk_hole(ltip)))];
+        (inserted_hole @ [relem, ...fixed], rtip);
       }
     };
   let (fixed_prefix, rtip_prefix) = fix(ltip, List.rev(prefix));
   let (fixed_suffix, rtip_suffix) = fix(Tip.toggle(rtip_prefix), suffix);
   let inserted_hole =
-    rtip_suffix == rtip ? [] : [Selem.Tile(Tile.mk_hole(rtip))];
+    rtip_suffix == rtip
+      ? [] : [Restructuring.Selem(Tile(Tile.mk_hole(rtip)))];
   (List.rev(fixed_prefix), fixed_suffix @ inserted_hole);
+};
+let fix_holes = (ltip, sframe, rtip) => {
+  let rframe = fix_holes_rframe(ltip, Restructuring.mk_frame(sframe), rtip);
+  Restructuring.get_sframe(rframe);
 };
 
 type itile = (int, Tile.t);

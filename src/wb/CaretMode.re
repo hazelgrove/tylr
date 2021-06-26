@@ -4,4 +4,4 @@ open Cor;
 type t =
   | Pointing
   | Selecting
-  | Restructuring(Selection.t);
+  | Restructuring(Restructuring.Backpack.t);
