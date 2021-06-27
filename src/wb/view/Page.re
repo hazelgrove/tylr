@@ -120,7 +120,7 @@ let logo = (~font_metrics) => {
     ~id="logo",
     ~text_id="logo-text",
     ~font_metrics,
-    DecorationPaths.empty,
+    DecPaths.empty,
     l,
   );
 };
@@ -153,7 +153,7 @@ let view =
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
     ) => {
   let (subject, _) = zipper;
-  let dpaths = DecorationPaths.mk(zipper);
+  let dpaths = DecPaths.mk(zipper);
   let l = Layout.mk_zipper(zipper);
   // let rail_color = {
   //   let frame_color = Color.of_sort(Frame.sort(frame));

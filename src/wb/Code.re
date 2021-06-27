@@ -65,14 +65,13 @@ let rec view_of_layout =
         switch (tile_step) {
         | None => go(~tile_step=step, ~indent, ~start, dpaths, l)
         | Some(tile_step) =>
-          let dpaths =
-            DecorationPaths.take_two_step((tile_step, step), dpaths);
+          let dpaths = DecPaths.take_two_step((tile_step, step), dpaths);
           go(~indent, ~start, dpaths, l);
         }
       | Space(caret_step, color) =>
         let length = len();
         let (current_ds, current_filler) =
-          DecorationPaths.current(caret_step, dpaths)
+          DecPaths.current(caret_step, dpaths)
           |> List.filter_map(
                fun
                | DecorationShape.Sibling =>
@@ -109,17 +108,20 @@ let rec view_of_layout =
 
                | Caret(mode) => {
                    let caret =
-                     Decoration.Caret.view(
+                     CaretDec.view(
                        ~font_metrics,
-                       ~view_of_layout=
-                         view_of_layout(
-                           ~id=?None,
-                           ~text_id=?None,
-                           ~subject=?None,
-                         ),
-                       ~color,
-                       start,
-                       mode,
+                       {
+                         view_of_layout:
+                           view_of_layout(
+                             ~font_metrics,
+                             ~id=?None,
+                             ~text_id=?None,
+                             ~subject=?None,
+                           ),
+                         color,
+                         offset: start,
+                         mode,
+                       },
                      );
                    switch (mode) {
                    | Pointing
@@ -283,7 +285,7 @@ let rec view_of_layout =
 //           ~id=?,
 //           ~text_id=?,
 //           ~font_metrics: FontMetrics.t,
-//           dpaths: DecorationPaths.t,
+//           dpaths: DecPaths.t,
 //           l: Layout.t,
 //         )
 //         : Node.t => {
