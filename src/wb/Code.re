@@ -193,7 +193,7 @@ let rec view_of_layout =
       | Selected(sort_l, sort_r) =>
         let len = len();
         add_decorations([
-          Decoration.SelectedBox.view(~font_metrics, ~start, ~len),
+          SelectedBoxDec.view(~font_metrics, ~start, ~len),
           d_container(
             ~length=len,
             ~cls="selected-bar",
@@ -346,7 +346,7 @@ let rec view_of_layout =
 //                  );
 //                add_decoration(d);
 //              | Selected =>
-//                let d = Decoration.SelectedBox.view(~font_metrics, start, len);
+//                let d = SelectedBoxDec.view(~font_metrics, start, len);
 //                add_decoration(d);
 //              | Space(Some((sort, caret))) =>
 //                let d =
