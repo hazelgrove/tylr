@@ -185,7 +185,7 @@ let rec view_of_layout =
           d_container(
             ~length=len,
             ~cls="uni-child",
-            Decoration.UniChild.view({sort, side, len}),
+            UniChildDec.view({sort, side, len}),
           ),
         ]);
       | Selected(sort_l, sort_r) =>
