@@ -636,10 +636,8 @@ let mk_affix =
       relems
       |> rev
       |> ListUtil.fold_left_map(
-           (offset, relem) => {
-             let offset = offset + Restructuring.len_elem(relem);
-             (offset, (offset, relem));
-           },
+           (offset, relem) =>
+             (offset + Restructuring.len_elem(relem), (offset, relem)),
            offset,
          )
       |> snd
