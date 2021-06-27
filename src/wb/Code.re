@@ -137,9 +137,7 @@ let rec view_of_layout =
                          d_container(
                            ~length=selection_len,
                            ~cls="restructuring-genie",
-                           Decoration.RestructuringGenie.view(
-                             ~length=selection_len,
-                           ),
+                           RestructuringGenieDec.view(~length=selection_len),
                          ),
                          caret,
                        ],
