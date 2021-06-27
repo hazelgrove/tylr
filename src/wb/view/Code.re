@@ -37,7 +37,7 @@ let rec view_of_layout =
           l,
         ) => {
   let with_cls = cls => Node.span([Attr.classes([cls])]);
-  let d_container = Decoration.container(~font_metrics);
+  let d_container = DecUtil.container(~font_metrics);
   let rec go = (~tile_step=?, ~indent=0, ~start=0, dpaths, l: Layout.t) => {
     switch (l) {
     | Text(s) => ([Node.text(s)], [], 0)
@@ -291,7 +291,7 @@ let rec view_of_layout =
 //            (k, {start, len}, annot, l) => {
 //              let (txt, ds, filler) = k(l);
 //              let d_container =
-//                Decoration.container(
+//                DecUtil.container(
 //                  ~font_metrics,
 //                  ~origin=start,
 //                  ~length=len,
