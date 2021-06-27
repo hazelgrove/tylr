@@ -10,7 +10,7 @@ let blur_filter =
         "feGaussianBlur",
         [
           Attr.create("in", "SourceGraphic"),
-          Attr.create("stdDeviation", "0."),
+          Attr.create("stdDeviation", "0"),
         ],
         [],
       ),
