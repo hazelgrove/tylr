@@ -195,11 +195,7 @@ let rec view_of_layout =
           d_container(
             ~length=len,
             ~cls="selected-bar",
-            Decoration.SelectedBar.view(
-              ~font_metrics,
-              ~len,
-              (sort_l, sort_r),
-            ),
+            SelectedBarDec.view(~font_metrics, ~len, (sort_l, sort_r)),
           ),
         ]);
       | Rail(style) =>
