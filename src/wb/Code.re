@@ -80,7 +80,7 @@ let rec view_of_layout =
                      d_container(
                        ~length,
                        ~cls="sibling",
-                       Decoration.CaretPosition.view(
+                       CaretPosDec.view(
                          ~font_metrics,
                          ~style=`Sibling,
                          color,
@@ -95,7 +95,7 @@ let rec view_of_layout =
                        d_container(
                          ~length,
                          ~cls="anchor",
-                         Decoration.CaretPosition.view(
+                         CaretPosDec.view(
                            ~font_metrics,
                            ~style=`Anchor,
                            color,
@@ -160,11 +160,7 @@ let rec view_of_layout =
               d_container(
                 ~length,
                 ~cls="outer-cousin",
-                Decoration.CaretPosition.view(
-                  ~font_metrics,
-                  ~style=`OuterCousin,
-                  color,
-                ),
+                CaretPosDec.view(~font_metrics, ~style=`OuterCousin, color),
               ),
             ]
           };

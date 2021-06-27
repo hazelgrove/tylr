@@ -143,7 +143,7 @@ let filters =
       EmptyHole.thin_inset_shadow_filter(~color=Exp),
       EmptyHole.inset_shadow_filter(~color=Pat),
       EmptyHole.thin_inset_shadow_filter(~color=Pat),
-      CaretPosition.blur_filter,
+      CaretPosDec.blur_filter,
     ],
   );
 
