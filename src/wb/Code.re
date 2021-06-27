@@ -207,11 +207,7 @@ let rec view_of_layout =
       | Rail(style) =>
         let len = len();
         add_decorations([
-          d_container(
-            ~length=len,
-            ~cls="rail",
-            Decoration.Rail.view(~len, style),
-          ),
+          d_container(~length=len, ~cls="rail", RailDec.view(~len, style)),
         ]);
       | Selem({color, shape, style}) =>
         let empty_holes = selem_holes(l);
