@@ -79,3 +79,75 @@ let br_tl =
   SvgUtil.Path.reverse(
     tl_br(~hemi, ~with_child_border, ~stretch_x, ~stretch_y, ()),
   );
+
+let left_tip_path =
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
+    : SvgUtil.Path.t => {
+  open SvgUtil.Path;
+  let path =
+    switch (tip) {
+    | (Convex, _) => br_tl(~hemi=`South, ()) @ bl_tr(~hemi=`North, ())
+    | (Concave, n) =>
+      let jag = [
+        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+        L_({dx: jagged_edge_w, dy: -. jagged_edge_h}),
+        L_({dx: -. jagged_edge_w, dy: -. jagged_edge_h}),
+      ];
+      let bottom_half =
+        n == 0
+          ? [H_({dx: Float.neg(tip_width)}), ...bl_tr(~hemi=`South, ())]
+          : List.concat([
+              [H_({dx: -. (extra_tail +. 0.5)})],
+              jag,
+              [H_({dx: jagged_edge_w +. extra_tail})],
+              bl_tr(~hemi=`South, ~with_child_border=true, ()),
+            ]);
+      let top_half =
+        n == 0 || n == 1
+          ? br_tl(~hemi=`North, ()) @ [H_({dx: tip_width})]
+          : List.concat([
+              br_tl(~hemi=`North, ~with_child_border=true, ()),
+              [H_({dx: -. (jagged_edge_w +. extra_tail)})],
+              jag,
+              [H_({dx: extra_tail +. 0.5})],
+            ]);
+      bottom_half @ top_half;
+    };
+  scale_x(s_x, scale_y(s_y, path));
+};
+let right_tip_path =
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
+    : SvgUtil.Path.t => {
+  open SvgUtil.Path;
+  let path =
+    switch (tip) {
+    | (Convex, _) => tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ())
+    | (Concave, n) =>
+      open SvgUtil.Path;
+      let jag = [
+        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
+        L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),
+        L_({dx: jagged_edge_w, dy: jagged_edge_h}),
+      ];
+      let top_half =
+        n == 0 || n == 1
+          ? [H_({dx: tip_width}), ...tr_bl(~hemi=`North, ())]
+          : List.concat([
+              [H_({dx: 0.5 +. extra_tail})],
+              jag,
+              [H_({dx: -. (extra_tail +. jagged_edge_w)})],
+              tr_bl(~hemi=`North, ~with_child_border=true, ()),
+            ]);
+      let bottom_half =
+        n == 0
+          ? tl_br(~hemi=`South, ()) @ [H_({dx: Float.neg(tip_width)})]
+          : List.concat([
+              tl_br(~with_child_border=true, ~hemi=`South, ()),
+              [H_({dx: extra_tail})],
+              jag,
+              [H_({dx: Float.neg(jagged_edge_w +. extra_tail +. 0.5)})],
+            ]);
+      top_half @ bottom_half;
+    };
+  scale_x(s_x, scale_y(s_y, path));
+};
