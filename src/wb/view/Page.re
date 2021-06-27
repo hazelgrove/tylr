@@ -128,15 +128,15 @@ let logo = (~font_metrics) => {
 let filters =
   NodeUtil.svg(
     Attr.[id("filters")],
-    Decoration.[
-      Selem.raised_shadow_filter(~color=Exp),
-      Selem.shadow_filter(~color=Exp),
-      Selem.raised_shadow_filter(~color=Pat),
-      Selem.shadow_filter(~color=Pat),
-      Selem.raised_shadow_filter(~color=Typ),
-      Selem.shadow_filter(~color=Typ),
-      Selem.raised_shadow_filter(~color=Selected),
-      Selem.shadow_filter(~color=Selected),
+    [
+      SelemDec.raised_shadow_filter(~color=Exp),
+      SelemDec.shadow_filter(~color=Exp),
+      SelemDec.raised_shadow_filter(~color=Pat),
+      SelemDec.shadow_filter(~color=Pat),
+      SelemDec.raised_shadow_filter(~color=Typ),
+      SelemDec.shadow_filter(~color=Typ),
+      SelemDec.raised_shadow_filter(~color=Selected),
+      SelemDec.shadow_filter(~color=Selected),
       EmptyHoleDec.inset_shadow_filter(~color=Selected),
       EmptyHoleDec.thin_inset_shadow_filter(~color=Selected),
       EmptyHoleDec.inset_shadow_filter(~color=Exp),

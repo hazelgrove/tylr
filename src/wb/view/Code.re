@@ -216,7 +216,7 @@ let rec view_of_layout =
             ~length=len,
             ~cls="tile",
             ~container_clss=[SelemStyle.to_string(style)],
-            Decoration.Selem.view(
+            SelemDec.view(
               ~font_metrics,
               ~start,
               {
@@ -312,7 +312,7 @@ let rec view_of_layout =
 //                let d =
 //                  d_container(
 //                    ~cls="tile",
-//                    Decoration.Selem.view(
+//                    SelemDec.view(
 //                      ~font_metrics,
 //                      ~start,
 //                      {
