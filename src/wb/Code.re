@@ -176,7 +176,7 @@ let rec view_of_layout =
           d_container(
             ~length=len(),
             ~cls="empty-hole",
-            Decoration.EmptyHole.view(~color, ~inset=None, ~tip, ()),
+            EmptyHoleDec.view(~color, ~inset=None, ~tip, ()),
           ),
         ])
       | UniChild(sort, side) =>
@@ -331,7 +331,7 @@ let rec view_of_layout =
 //                let d =
 //                  d_container(
 //                    ~cls="empty-hole",
-//                    Decoration.EmptyHole.view(
+//                    EmptyHoleDec.view(
 //                      ~font_metrics,
 //                      ~sort,
 //                      ~inset=None,
