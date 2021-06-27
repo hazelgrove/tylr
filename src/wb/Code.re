@@ -236,7 +236,7 @@ let rec view_of_layout =
       | TargetBounds({sort, mode, strict_bounds}) =>
         let len = len();
         add_decorations([
-          Decoration.TargetBounds.view(
+          TargetBoundsDec.view(
             ~font_metrics,
             ~origin=start,
             ~len,

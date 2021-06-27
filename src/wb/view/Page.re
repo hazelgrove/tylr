@@ -184,7 +184,7 @@ let view =
           ...key_handlers(~inject, ~zipper),
         ],
         [
-          Decoration.Bar.view(~font_metrics),
+          BarDec.view(~font_metrics),
           Code.view_of_layout(
             ~id="under-the-rail",
             ~text_id="under-the-rail-text",
