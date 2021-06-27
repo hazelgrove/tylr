@@ -1,5 +1,5 @@
 open Virtual_dom.Vdom;
-open DecConstants;
+open DecUtil;
 open Cor;
 
 let inset_shadow_filter = (~color) => {

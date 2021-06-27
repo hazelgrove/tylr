@@ -1,5 +1,5 @@
 open Virtual_dom.Vdom;
-open DecConstants;
+open DecUtil;
 
 let blur_filter =
   Node.create_svg(

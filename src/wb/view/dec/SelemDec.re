@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 open Util;
 open Cor;
 open Diag;
-open DecConstants;
+open DecUtil;
 
 type profile = {
   color: Color.t,

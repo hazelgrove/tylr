@@ -1,4 +1,4 @@
-open DecConstants;
+open DecUtil;
 
 // top right to bottom left
 let tr_bl =
