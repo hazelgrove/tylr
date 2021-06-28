@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Util;
 open Cor;
 
 let tile_children =
@@ -35,15 +36,41 @@ let rec view_of_layout =
           ~subject: option(Subject.t)=?,
           dpaths,
           l,
-        ) => {
+        )
+        : Node.t => {
+  let (caret_mode, filler) =
+    subject
+    |> Option.map(
+         fun
+         | Subject.Pointing(_) => (CaretMode.Pointing, 0)
+         | Selecting(_) => (Selecting, 0)
+         | Restructuring(selection, _) => {
+             let l =
+               Layout.mk_selection(~style=Filtered, Selected, selection);
+             let dpaths =
+               DecPaths.{
+                 caret: Some(([], (0, List.length(selection)))),
+                 siblings: None,
+               };
+             (
+               Restructuring({
+                 selection,
+                 view: view_of_layout(~font_metrics, dpaths, l),
+               }),
+               // TODO unify with length in restructuring genie
+               Layout.length(l) - 1,
+             );
+           },
+       )
+    |> OptUtil.unzip;
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let d_container = DecUtil.container(~font_metrics);
   let rec go = (~tile_step=?, ~indent=0, ~start=0, dpaths, l: Layout.t) => {
     switch (l) {
-    | Text(s) => ([Node.text(s)], [], 0)
+    | Text(s) => ([Node.text(s)], [])
     | Cat(l1, l2) =>
-      let (txt1, ds1, n1) = go(~tile_step?, ~indent, ~start, dpaths, l1);
-      let (txt2, ds2, n2) =
+      let (txt1, ds1) = go(~tile_step?, ~indent, ~start, dpaths, l1);
+      let (txt2, ds2) =
         go(
           ~tile_step?,
           ~indent,
@@ -51,14 +78,14 @@ let rec view_of_layout =
           dpaths,
           l2,
         );
-      (txt1 @ txt2, ds1 @ ds2, n1 + n2);
+      (txt1 @ txt2, ds1 @ ds2);
     | Annot(annot, l) =>
       let d_container = d_container(~origin=start);
       let len = () => Layout.length(l);
       let go' = () => go(~tile_step?, ~indent, ~start, dpaths, l);
       let add_decorations = new_ds => {
-        let (txt, ds, n) = go'();
-        (txt, new_ds @ ds, n);
+        let (txt, ds) = go'();
+        (txt, new_ds @ ds);
       };
       switch (annot) {
       | Step(step) =>
@@ -68,109 +95,14 @@ let rec view_of_layout =
           let dpaths = DecPaths.take_two_step((tile_step, step), dpaths);
           go(~indent, ~start, dpaths, l);
         }
-      | Space(caret_step, color) =>
-        let length = len();
-        let (current_ds, current_filler) =
-          DecPaths.current(caret_step, dpaths)
-          |> List.filter_map(
-               fun
-               | DecorationShape.Sibling =>
-                 Some((
-                   [
-                     d_container(
-                       ~length,
-                       ~cls="sibling",
-                       CaretPosDec.view(
-                         ~font_metrics,
-                         ~style=`Sibling,
-                         color,
-                       ),
-                     ),
-                   ],
-                   0,
-                 ))
-               | Anchor => {
-                   Some((
-                     [
-                       d_container(
-                         ~length,
-                         ~cls="anchor",
-                         CaretPosDec.view(
-                           ~font_metrics,
-                           ~style=`Anchor,
-                           color,
-                         ),
-                       ),
-                     ],
-                     0,
-                   ));
-                 }
+      | Space(step, color) =>
+        DecPaths.current(~caret_mode?, ~origin=start, (step, color), dpaths)
+        |> List.map(Dec.view(~font_metrics))
+        |> add_decorations
 
-               | Caret(mode) => {
-                   let caret =
-                     CaretDec.view(
-                       ~font_metrics,
-                       {
-                         view_of_layout:
-                           view_of_layout(
-                             ~font_metrics,
-                             ~id=?None,
-                             ~text_id=?None,
-                             ~subject=?None,
-                           ),
-                         color,
-                         offset: start,
-                         mode,
-                       },
-                     );
-                   switch (mode) {
-                   | Pointing
-                   | Selecting => Some(([caret], 0))
-                   | Restructuring(selection) =>
-                     let selection_len =
-                       Layout.length(
-                         Layout.mk_selection(Selected, selection),
-                       )
-                       - 1;
-                     Some((
-                       [
-                         d_container(
-                           ~length=selection_len,
-                           ~cls="restructuring-genie",
-                           RestructuringGenieDec.view(~length=selection_len),
-                         ),
-                         caret,
-                       ],
-                       selection_len,
-                     ));
-                   };
-                 },
-             )
-          |> List.split
-          |> Util.PairUtil.map_fst(List.flatten);
-        let bare =
-          switch (subject) {
-          | None => []
-          | Some(Restructuring(selection, _))
-              when !Selection.is_whole_any(selection) =>
-            []
-          | _ => [
-              d_container(
-                ~length,
-                ~cls="outer-cousin",
-                CaretPosDec.view(~font_metrics, ~style=`OuterCousin, color),
-              ),
-            ]
-          };
-        let (txt, ds, n) = go'();
-        (
-          txt,
-          bare @ current_ds @ ds,
-          List.fold_left((+), 0, current_filler) + n,
-        );
       | Delim =>
-        let (txt, ds, n) = go'();
-        ([with_cls("delim", txt)], ds, n);
+        let (txt, ds) = go'();
+        ([with_cls("delim", txt)], ds);
       | EmptyHole(color, tip) =>
         add_decorations([
           d_container(
@@ -245,20 +177,30 @@ let rec view_of_layout =
     };
   };
 
-  let (text, decorations, filler) = go(dpaths, l);
+  let (text, decorations) = go(dpaths, l);
   let with_id =
     fun
     | None => []
     | Some(id) => [Attr.id(id)];
-  let filler =
-    Node.span(
-      [Attr.classes(["filler"])],
-      [Node.text(String.concat("", List.init(filler, _ => Unicode.nbsp)))],
-    );
+  let filler = {
+    let n =
+      switch (filler) {
+      | None => 0
+      | Some(n) => n
+      };
+    n == 0
+      ? []
+      : [
+        Node.span(
+          [Attr.classes(["filler"])],
+          [Node.text(String.concat("", List.init(n, _ => Unicode.nbsp)))],
+        ),
+      ];
+  };
   let text =
     Node.span(
       [Attr.classes(["code-text"]), ...with_id(text_id)],
-      text @ [filler],
+      text @ filler,
     );
   Node.div(
     [Attr.classes(["code"]), ...with_id(id)],

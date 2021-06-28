@@ -5,66 +5,38 @@ open OptUtil.Syntax;
 
 [@deriving sexp]
 type t = {
-  caret: option((CaretMode.t, Path.t, list(Path.caret_step))),
-  anchors: list(Path.t),
+  // TODO rename to anchors
+  caret: option(Path.range),
+  siblings: option((Path.steps, list(Path.caret_step))),
 };
 
-let empty = {caret: None, anchors: []};
+let empty = {caret: None, siblings: None};
 
-let mk = ((subject, frame): Zipper.t) => {
-  let sframe =
-    switch (subject) {
-    | Pointing(sframe)
-    | Selecting(_, sframe)
-    | Restructuring(_, sframe) => sframe
-    };
-  let (steps, caret_step) as path = Path.mk(sframe, frame);
-  let caret =
+let mk = ((subject, _) as zipper: Zipper.t) => {
+  let (steps, _) as caret_range = Path.mk_range(zipper);
+  let sibling_range =
     switch (subject) {
     | Pointing(sframe) =>
-      Some((
-        CaretMode.Pointing,
-        path,
-        ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1),
-      ))
+      ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1)
     | Selecting(selection, (prefix, suffix)) =>
       let len_pre = List.length(prefix);
       let len_sel = List.length(selection);
       let len_suf = List.length(suffix);
-      let siblings =
-        ListUtil.range(len_pre + 1)
-        @ ListUtil.range(
-            ~lo=len_pre + len_sel,
-            len_pre + len_sel + len_suf + 1,
-          );
-      Some((Selecting, path, siblings));
-    | Restructuring(selection, (prefix, suffix) as sframe) =>
-      let range =
-        if (Selection.is_whole_any(selection)) {
-          ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1);
-        } else {
-          let (tiles_pre, prefix) =
-            ListUtil.take_while(Selem.is_tile, prefix);
-          let (tiles_suf, _) = ListUtil.take_while(Selem.is_tile, suffix);
-          ListUtil.range(
-            ~lo=List.length(prefix),
-            List.(
-              length(prefix) + length(tiles_pre) + length(tiles_suf) + 1
-            ),
-          );
-        };
-      Some((Restructuring(selection), path, range));
+      ListUtil.range(len_pre + 1)
+      @ ListUtil.range(~lo=len_pre + len_sel, len_pre + len_sel + len_suf + 1);
+    | Restructuring(selection, (prefix, suffix) as rframe) =>
+      if (Selection.is_whole_any(selection)) {
+        ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
+      } else {
+        let (tiles_pre, prefix) = ListUtil.take_while(Selem.is_tile, prefix);
+        let (tiles_suf, _) = ListUtil.take_while(Selem.is_tile, suffix);
+        ListUtil.range(
+          ~lo=List.length(prefix),
+          List.(length(prefix) + length(tiles_pre) + length(tiles_suf) + 1),
+        );
+      }
     };
-  let anchors =
-    switch (subject) {
-    | Pointing(_)
-    | Restructuring(_) => [path]
-    | Selecting(selection, _) => [
-        path,
-        (steps, caret_step + List.length(selection)),
-      ]
-    };
-  {caret, anchors};
+  {caret: Some(caret_range), siblings: Some((steps, sibling_range))};
 };
 
 let take_two_step = (two_step: Path.two_step, paths: t): t => {
@@ -73,32 +45,70 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     | [two_step', ...steps] when two_step' == two_step => Some(steps)
     | _ => None;
   let caret = {
-    let* (mode, (steps, caret_step), siblings) = paths.caret;
+    let* (steps, caret_range) = paths.caret;
     let+ steps = step_or_prune(steps);
-    (mode, (steps, caret_step), siblings);
+    (steps, caret_range);
   };
-  let anchors =
-    paths.anchors
-    |> List.filter_map(((steps, caret_step)) => {
-         let+ steps = step_or_prune(steps);
-         (steps, caret_step);
-       });
-  {caret, anchors};
+  let siblings = {
+    let* (steps, siblings) = paths.siblings;
+    let+ steps = step_or_prune(steps);
+    (steps, siblings);
+  };
+  {caret, siblings};
 };
 let current =
-    (caret_step: Path.caret_step, paths: t): (list(DecorationShape.t) as 'ds) => {
-  let caret_sibling_ds: 'ds =
-    switch (paths.caret) {
-    | Some((mode, ([], caret_step'), _)) when caret_step == caret_step' => [
-        Caret(mode),
-        Sibling,
-      ]
-    | Some((_, ([], _), siblings)) when List.mem(caret_step, siblings) => [
-        Sibling,
+    (
+      ~caret_mode: option(CaretMode.t)=?,
+      ~origin: int,
+      (step, color): (Path.caret_step, Color.t),
+      paths: t,
+    )
+    : (list(Dec.Profile.t) as 'ds) => {
+  open Dec.Profile;
+  let caret_ds =
+    switch (paths.caret, caret_mode) {
+    | (Some(([], (l, _))), Some(mode)) when step == l =>
+      let restructuring_ds =
+        switch (mode) {
+        | Restructuring({selection, _}) => [
+            RestructuringGenie({
+              origin,
+              length: Layout.length(Layout.mk_selection(color, selection)),
+            }),
+          ]
+        | _ => []
+        };
+      [
+        Caret({origin, color, mode}),
+        CaretPos({origin, color, style: `Anchor}),
+        ...restructuring_ds,
+      ];
+    | (Some(([], (_, r))), Some(_)) when step == r => [
+        CaretPos({origin, color, style: `Anchor}),
       ]
     | _ => []
     };
-  let anchor_ds: 'ds =
-    List.mem(([], caret_step), paths.anchors) ? [Anchor] : [];
-  List.concat([anchor_ds, caret_sibling_ds]);
+  let anchor_ds =
+    switch (paths.caret) {
+    | Some(([], (l, r))) when step == l || step == r => [
+        CaretPos({origin, color, style: `Anchor}),
+      ]
+    | _ => []
+    };
+  let bare_ds =
+    switch (caret_mode) {
+    | None => []
+    | Some(Restructuring({selection, _}))
+        when !Selection.is_whole_any(selection) =>
+      []
+    | _ => [CaretPos({origin, color, style: `Bare})]
+    };
+  let sibling_ds =
+    switch (paths.siblings) {
+    | Some(([], siblings)) when List.mem(step, siblings) => [
+        CaretPos({origin, color, style: `Sibling}),
+      ]
+    | _ => []
+    };
+  List.concat([caret_ds, anchor_ds, bare_ds, sibling_ds]);
 };

@@ -4,4 +4,7 @@ open Cor;
 type t =
   | Pointing
   | Selecting
-  | Restructuring(Selection.t);
+  | Restructuring({
+      selection: Selection.t,
+      view: [@sexp.opaque] Virtual_dom.Vdom.Node.t,
+    });

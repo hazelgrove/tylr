@@ -2,9 +2,8 @@ open Virtual_dom.Vdom;
 
 module Profile = {
   type t = {
-    view_of_layout: (DecPaths.t, Layout.t) => Node.t,
     mode: CaretMode.t,
-    offset: int,
+    origin: int,
     color: Color.t,
   };
 };
@@ -114,23 +113,12 @@ let inconsistent =
     [Node.text("inconsistent")],
   );
 
-let view =
-    (
-      ~font_metrics: FontMetrics.t,
-      {view_of_layout, color, offset, mode}: Profile.t,
-    ) => {
+let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
   let selection =
     switch (mode) {
     | Pointing
     | Selecting => []
-    | Restructuring(selection) =>
-      let l = Layout.mk_selection(~style=Filtered, Selected, selection);
-      // let len = Layout.length(l);
-      let dpaths =
-        DecPaths.{
-          caret: None,
-          anchors: [([], 0), ([], List.length(selection))],
-        };
+    | Restructuring({view, selection: _}) =>
       Node.[
         span(
           [
@@ -142,9 +130,9 @@ let view =
               ),
             ),
           ],
-          [view_of_layout(dpaths, l)],
+          [view],
         ),
-      ];
+      ]
     };
   let top = (-0.3) *. font_metrics.row_height;
   Node.div(
@@ -155,7 +143,7 @@ let view =
         Printf.sprintf(
           "top: %fpx; left: %fpx",
           top,
-          (Float.of_int(offset) +. 0.5) *. font_metrics.col_width,
+          (Float.of_int(origin) +. 0.5) *. font_metrics.col_width,
         ),
       ),
     ],

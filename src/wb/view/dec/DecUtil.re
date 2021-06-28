@@ -24,21 +24,6 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let caret_position_radii =
-    (
-      ~font_metrics: FontMetrics.t,
-      ~style: [ | `Anchor | `Sibling | `InnerCousin | `OuterCousin],
-    ) => {
-  let r =
-    switch (style) {
-    | `Anchor => 3.5
-    | `Sibling => 2.75
-    | `InnerCousin
-    | `OuterCousin => 2.
-    };
-  (r /. font_metrics.col_width, r /. font_metrics.row_height);
-};
-
 let container =
     (
       ~font_metrics: FontMetrics.t,
