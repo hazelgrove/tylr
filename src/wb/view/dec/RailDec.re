@@ -1,5 +1,12 @@
 open Virtual_dom.Vdom;
 
+module Profile = {
+  type t = {
+    measurement: Layout.measurement,
+    color: Color.t,
+  };
+};
+
 let gradient_id = "rail-gradient";
 let gradient = (~len, ~color: Color.t): Node.t => {
   let len = Float.of_int(len);
@@ -32,8 +39,9 @@ let gradient = (~len, ~color: Color.t): Node.t => {
   );
 };
 
-let view = (~len, {color, atomic: _}: RailStyle.t) => {
-  let gradient = gradient(~len, ~color);
+let view = (~font_metrics, profile: Profile.t) => {
+  let Profile.{measurement, color} = profile;
+  let gradient = gradient(~len=measurement.length, ~color);
   // ideally I would just vary the gradient based on atomicity
   // but can't get the gradient to behave...
   let stroke_attr =
@@ -50,21 +58,29 @@ let view = (~len, {color, atomic: _}: RailStyle.t) => {
         String.lowercase_ascii(Color.to_string(color)),
       ),
     );
-  [
-    gradient,
-    // let dash_attr = atomic ? [] : [Attr.create("stroke-dasharray", "4 2")];
-    Node.create_svg(
-      "line",
-      Attr.[
-        create("x1", "-0.5"),
-        create("y1", "-0.3"),
-        create("x2", Printf.sprintf("%f", Float.of_int(len) +. 0.5)),
-        create("y2", "-0.3"),
-        // classes([Color.to_string(color)]),
-        stroke_attr,
-      ],
-      // ...dash_attr,
-      [],
-    ),
-  ];
+  DecUtil.container(
+    ~font_metrics,
+    ~measurement,
+    ~cls="rail",
+    [
+      gradient,
+      // let dash_attr = atomic ? [] : [Attr.create("stroke-dasharray", "4 2")];
+      Node.create_svg(
+        "line",
+        Attr.[
+          create("x1", "-0.5"),
+          create("y1", "-0.3"),
+          create(
+            "x2",
+            Printf.sprintf("%f", Float.of_int(measurement.length) +. 0.5),
+          ),
+          create("y2", "-0.3"),
+          // classes([Color.to_string(color)]),
+          stroke_attr,
+        ],
+        // ...dash_attr,
+        [],
+      ),
+    ],
+  );
 };

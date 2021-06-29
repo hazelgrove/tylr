@@ -117,7 +117,7 @@ let rec view_of_layout =
       | Selem({color, shape, step}) =>
         let new_ds =
           DecPaths.current_selem(
-            ~measurement={origin, length: 1},
+            ~measurement={origin, length: Layout.length(l)},
             step,
             color,
             shape,

@@ -15,6 +15,8 @@ type t = {
   siblings: option((Path.steps, list(Path.caret_step))),
   root_term: option((Path.steps, Skel.t)),
   filtered_selems: option((Path.steps, list(Path.selem_step))),
+  neighbor_selems: option((Path.steps, list(Path.selem_step))),
+  // logo hack
   logo_selems: list(Path.selem_step),
 };
 
@@ -24,6 +26,7 @@ let mk =
       ~siblings=?,
       ~root_term=?,
       ~filtered_selems=?,
+      ~neighbor_selems=?,
       ~logo_selems=[],
       (),
     ) => {
@@ -31,6 +34,7 @@ let mk =
   siblings,
   root_term,
   filtered_selems,
+  neighbor_selems,
   logo_selems,
 };
 let empty = mk();
@@ -152,6 +156,28 @@ let filtered_selems = (~frame_sort, subject: Subject.t) => {
   };
 };
 
+let neighbor_selems = (subject: Subject.t) =>
+  switch (subject) {
+  | Pointing(sframe) =>
+    ListUtil.range(List.length(ListFrame.to_list(sframe)))
+  | Selecting(selection, sframe) =>
+    ListUtil.range(
+      List.length(ListFrame.to_list(~subject=selection, sframe)),
+    )
+  | Restructuring(selection, sframe) =>
+    if (Selection.is_whole_any(selection)) {
+      ListUtil.range(List.length(ListFrame.to_list(sframe)));
+    } else {
+      let (prefix, suffix) = sframe;
+      let (tiles_pre, prefix) = ListUtil.take_while(Selem.is_tile, prefix);
+      let (tiles_suf, _) = ListUtil.take_while(Selem.is_tile, suffix);
+      ListUtil.range(
+        ~lo=List.length(prefix),
+        List.length(prefix @ tiles_pre @ tiles_suf),
+      );
+    }
+  };
+
 let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
   let (steps, _) as caret_range = Path.mk_range(zipper);
   let filtered_selems = {
@@ -163,6 +189,7 @@ let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
     ~siblings=(steps, siblings(subject)),
     ~root_term=?root_term(zipper),
     ~filtered_selems?,
+    ~neighbor_selems=(steps, neighbor_selems(subject)),
     (),
   );
 };
@@ -171,7 +198,14 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
   // print_endline("DecPaths.take_two_step");
   // print_endline(Sexplib.Sexp.to_string(Path.sexp_of_two_step(two_step)));
   // print_endline(Sexplib.Sexp.to_string_hum(sexp_of_t(paths)));
-  let {caret, siblings, root_term, filtered_selems, logo_selems: _} = paths;
+  let {
+    caret,
+    siblings,
+    root_term,
+    filtered_selems,
+    neighbor_selems,
+    logo_selems: _,
+  } = paths;
   let step_or_prune_steps =
     fun
     | [two_step', ...steps] when two_step' == two_step => Some(steps)
@@ -190,6 +224,7 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     siblings: step_or_prune(siblings),
     root_term: step_or_prune(root_term),
     filtered_selems: step_or_prune(filtered_selems),
+    neighbor_selems: step_or_prune(neighbor_selems),
     logo_selems: [],
   };
   //print_endline(Sexplib.Sexp.to_string_hum(sexp_of_t(paths)));
@@ -199,7 +234,14 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
 // TODO have everything be computed from here
 let current_bidelimited =
     (~origin: int, ~sort: Sort.t, layout: Layout.t, paths: t) => {
-  let {root_term, logo_selems, caret: _, siblings: _, filtered_selems: _} = paths;
+  let {
+    root_term,
+    logo_selems,
+    caret: _,
+    siblings: _,
+    filtered_selems: _,
+    neighbor_selems: _,
+  } = paths;
   let root_term =
     switch (root_term) {
     | Some(([], skel)) =>
@@ -257,24 +299,40 @@ let current_selem =
       selem_l: Layout.t,
       paths: t,
     ) => {
-  let {filtered_selems, caret: _, siblings: _, root_term: _, logo_selems: _} = paths;
-  switch (filtered_selems) {
-  | Some(([], filtered_selems)) when List.mem(step, filtered_selems) =>
-    let empty_holes = Layout.selem_holes(selem_l);
-    let (open_children, closed_children) = Layout.selem_children(selem_l);
-    [
-      Dec.Profile.Selem({
-        color,
-        shape,
-        style: Filtered,
-        measurement,
-        empty_holes,
-        open_children,
-        closed_children,
-      }),
-    ];
-  | _ => []
-  };
+  let {
+    filtered_selems,
+    neighbor_selems,
+    caret: _,
+    siblings: _,
+    root_term: _,
+    logo_selems: _,
+  } = paths;
+  let filtered_selem_ds =
+    switch (filtered_selems) {
+    | Some(([], filtered_selems)) when List.mem(step, filtered_selems) =>
+      let empty_holes = Layout.selem_holes(selem_l);
+      let (open_children, closed_children) = Layout.selem_children(selem_l);
+      [
+        Dec.Profile.Selem({
+          color,
+          shape,
+          style: Filtered,
+          measurement,
+          empty_holes,
+          open_children,
+          closed_children,
+        }),
+      ];
+    | _ => []
+    };
+  let neighbor_selem_ds =
+    switch (neighbor_selems) {
+    | Some(([], neighbor_selems)) when List.mem(step, neighbor_selems) => [
+        Dec.Profile.Rail({measurement, color}),
+      ]
+    | _ => []
+    };
+  List.concat([filtered_selem_ds, neighbor_selem_ds]);
 };
 
 let current_space =
@@ -286,7 +344,14 @@ let current_space =
     )
     : (list(Dec.Profile.t) as 'ds) => {
   open Dec.Profile;
-  let {caret, siblings, root_term: _, filtered_selems: _, logo_selems: _} = paths;
+  let {
+    caret,
+    siblings,
+    root_term: _,
+    filtered_selems: _,
+    logo_selems: _,
+    neighbor_selems: _,
+  } = paths;
   let caret_ds =
     switch (caret, caret_mode) {
     | (Some(([], (l, _))), Some(mode)) when step == l =>

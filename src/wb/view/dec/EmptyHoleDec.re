@@ -181,7 +181,7 @@ let view =
               },
             ),
           ],
-        path(tip, Float.of_int(measurement.origin), 0.28),
+        path(tip, 0., 0.28),
       ),
     ],
   );
