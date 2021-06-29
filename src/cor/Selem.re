@@ -12,6 +12,7 @@ let get = (get_token, get_tile) =>
   | Tile(tile) => get_tile(tile);
 
 let is_tile = get(_ => false, _ => true);
+let is_shard = get(_ => true, _ => false);
 
 let is_hole = get(_ => false, Tile.is_hole);
 

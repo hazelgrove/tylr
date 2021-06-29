@@ -2,32 +2,6 @@ open Virtual_dom.Vdom;
 open Util;
 open Cor;
 
-let tile_children =
-  Layout.measured_fold'(
-    ~text=(_, _) => ([], []),
-    ~cat=
-      (_, (open1, closed1), (open2, closed2)) =>
-        (open1 @ open2, closed1 @ closed2),
-    ~annot=
-      (_k, {start, len}, annot, _l) =>
-        switch (annot) {
-        | OpenChild => ([(start, len)], [])
-        | ClosedChild => ([], [(start, len)])
-        | _ => ([], [])
-        },
-  );
-let selem_holes =
-  Layout.measured_fold(
-    ~text=(_, _) => [],
-    ~cat=_ => (@),
-    ~annot=
-      ({start, _}, annot, holes) =>
-        switch (annot) {
-        | EmptyHole(sort, tip) => [(start, sort, tip), ...holes]
-        | _ => holes
-        },
-  );
-
 let rec view_of_layout =
         (
           ~id=?,
@@ -45,13 +19,9 @@ let rec view_of_layout =
          | Subject.Pointing(_) => (CaretMode.Pointing, 0)
          | Selecting(_) => (Selecting, 0)
          | Restructuring(selection, _) => {
-             let l =
-               Layout.mk_selection(~style=Filtered, Selected, selection);
+             let l = Layout.mk_selection(Selected, selection);
              let dpaths =
-               DecPaths.{
-                 caret: Some(([], (0, List.length(selection)))),
-                 siblings: None,
-               };
+               DecPaths.mk(~caret=([], (0, List.length(selection))), ());
              (
                Restructuring({
                  selection,
@@ -64,39 +34,41 @@ let rec view_of_layout =
        )
     |> OptUtil.unzip;
   let with_cls = cls => Node.span([Attr.classes([cls])]);
-  let d_container = DecUtil.container(~font_metrics);
-  let rec go = (~tile_step=?, ~indent=0, ~start=0, dpaths, l: Layout.t) => {
+  let rec go = (~selem_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
     switch (l) {
     | Text(s) => ([Node.text(s)], [])
     | Cat(l1, l2) =>
-      let (txt1, ds1) = go(~tile_step?, ~indent, ~start, dpaths, l1);
+      let (txt1, ds1) = go(~selem_step?, ~indent, ~origin, dpaths, l1);
       let (txt2, ds2) =
         go(
-          ~tile_step?,
+          ~selem_step?,
           ~indent,
-          ~start=start + Layout.length(l1),
+          ~origin=origin + Layout.length(l1),
           dpaths,
           l2,
         );
       (txt1 @ txt2, ds1 @ ds2);
     | Annot(annot, l) =>
-      let d_container = d_container(~origin=start);
-      let len = () => Layout.length(l);
-      let go' = () => go(~tile_step?, ~indent, ~start, dpaths, l);
+      let go' = () => go(~selem_step?, ~indent, ~origin, dpaths, l);
       let add_decorations = new_ds => {
         let (txt, ds) = go'();
         (txt, new_ds @ ds);
       };
       switch (annot) {
-      | Step(step) =>
-        switch (tile_step) {
-        | None => go(~tile_step=step, ~indent, ~start, dpaths, l)
-        | Some(tile_step) =>
-          let dpaths = DecPaths.take_two_step((tile_step, step), dpaths);
-          go(~indent, ~start, dpaths, l);
-        }
+      // | Step(step) =>
+      //   switch (tile_step) {
+      //   | None => go(~tile_step=step, ~indent, ~start, dpaths, l)
+      //   | Some(tile_step) =>
+      //     let dpaths = DecPaths.take_two_step((tile_step, step), dpaths);
+      //     go(~indent, ~start, dpaths, l);
+      //   }
       | Space(step, color) =>
-        DecPaths.current(~caret_mode?, ~origin=start, (step, color), dpaths)
+        DecPaths.current_space(
+          ~caret_mode?,
+          ~measurement={origin, length: 1},
+          (step, color),
+          dpaths,
+        )
         |> List.map(Dec.view(~font_metrics))
         |> add_decorations
 
@@ -105,79 +77,96 @@ let rec view_of_layout =
         ([with_cls("delim", txt)], ds);
       | EmptyHole(color, tip) =>
         add_decorations([
-          d_container(
-            ~length=len(),
-            ~cls="empty-hole",
-            EmptyHoleDec.view(~color, ~inset=None, ~tip, ()),
+          EmptyHoleDec.view(
+            ~font_metrics: FontMetrics.t,
+            {
+              measurement: {
+                origin,
+                length: 1,
+              },
+              color,
+              tip,
+              inset: None,
+            },
           ),
         ])
-      | UniChild(sort, side) =>
-        let len = len();
-        add_decorations([
-          d_container(
-            ~length=len,
-            ~cls="uni-child",
-            UniChildDec.view({sort, side, len}),
-          ),
-        ]);
-      | Selected(sort_l, sort_r) =>
-        let len = len();
-        add_decorations([
-          SelectedBoxDec.view(~font_metrics, ~start, ~len),
-          d_container(
-            ~length=len,
-            ~cls="selected-bar",
-            SelectedBarDec.view(~font_metrics, ~len, (sort_l, sort_r)),
-          ),
-        ]);
-      | Rail(style) =>
-        let len = len();
-        add_decorations([
-          d_container(~length=len, ~cls="rail", RailDec.view(~len, style)),
-        ]);
-      | Selem({color, shape, style}) =>
-        let empty_holes = selem_holes(l);
-        let (open_children, closed_children) = tile_children(l);
-        let len = len();
-        let d =
-          d_container(
-            ~length=len,
-            ~cls="tile",
-            ~container_clss=[SelemStyle.to_string(style)],
-            SelemDec.view(
-              ~font_metrics,
-              ~start,
-              {
-                color,
-                shape,
-                style,
-                len,
-                open_children,
-                closed_children,
-                empty_holes,
-              },
-            ),
-          );
-        add_decorations([d]);
-      | TargetBounds({sort, mode, strict_bounds}) =>
-        let len = len();
-        add_decorations([
-          TargetBoundsDec.view(
-            ~font_metrics,
-            ~origin=start,
-            ~len,
-            strict_bounds,
-            sort,
-            mode,
-          ),
-        ]);
-      | OpenChild
-      | ClosedChild => go'()
+      // | UniChild(sort, side) =>
+      //   let len = len();
+      //   add_decorations([
+      //     d_container(
+      //       ~length=len,
+      //       ~cls="uni-child",
+      //       UniChildDec.view({sort, side, len}),
+      //     ),
+      //   ]);
+      // | Selected(sort_l, sort_r) =>
+      //   let len = len();
+      //   add_decorations([
+      //     SelectedBoxDec.view(~font_metrics, ~start, ~len),
+      //     d_container(
+      //       ~length=len,
+      //       ~cls="selected-bar",
+      //       SelectedBarDec.view(~font_metrics, ~len, (sort_l, sort_r)),
+      //     ),
+      //   ]);
+      // | Rail(style) =>
+      //   let len = len();
+      //   add_decorations([
+      //     d_container(~length=len, ~cls="rail", RailDec.view(~len, style)),
+      //   ]);
+      | Selem({color, shape, step}) =>
+        let new_ds =
+          DecPaths.current_selem(
+            ~measurement={origin, length: 1},
+            step,
+            color,
+            shape,
+            l,
+            dpaths,
+          )
+          |> List.map(Dec.view(~font_metrics));
+        let (txt, ds) = go(~selem_step=step, ~indent, ~origin, dpaths, l);
+        (txt, new_ds @ ds);
+
+      // | TargetBounds({sort, mode, strict_bounds}) =>
+      //   let len = len();
+      //   add_decorations([
+      //     TargetBoundsDec.view(
+      //       ~font_metrics,
+      //       ~origin=start,
+      //       ~len,
+      //       strict_bounds,
+      //       sort,
+      //       mode,
+      //     ),
+      //   ]);
+      | Child({step, sort: (_, s_in)}) =>
+        let selem_step =
+          selem_step
+          |> OptUtil.get_or_fail("expected to encounter selem before child");
+        print_endline("-- 0 --");
+        print_endline("origin = " ++ string_of_int(origin));
+        print_endline(
+          Sexplib.Sexp.to_string_hum(DecPaths.sexp_of_t(dpaths)),
+        );
+        print_endline(
+          "s_in = " ++ Sexplib.Sexp.to_string(Sort.sexp_of_t(s_in)),
+        );
+        let dpaths = DecPaths.take_two_step((selem_step, step), dpaths);
+        let new_ds =
+          DecPaths.current_bidelimited(~origin, ~sort=s_in, l, dpaths)
+          |> List.map(Dec.view(~font_metrics));
+        let (txt, ds) = go(~indent, ~origin, dpaths, l);
+        (txt, new_ds @ ds);
       };
     };
   };
 
+  let root_ds =
+    DecPaths.current_bidelimited(~origin=0, ~sort=Exp, l, dpaths)
+    |> List.map(Dec.view(~font_metrics));
   let (text, decorations) = go(dpaths, l);
+
   let with_id =
     fun
     | None => []
@@ -204,6 +193,6 @@ let rec view_of_layout =
     );
   Node.div(
     [Attr.classes(["code"]), ...with_id(id)],
-    [text, ...decorations],
+    [text, ...root_ds @ decorations],
   );
 };

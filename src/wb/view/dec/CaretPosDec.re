@@ -4,7 +4,7 @@ module Profile = {
   type style = [ | `Bare | `Anchor | `Sibling];
   type t = {
     style,
-    origin: int,
+    measurement: Layout.measurement,
     color: Color.t,
   };
 };
@@ -36,7 +36,7 @@ let caret_position_radii =
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let view = (~font_metrics, {style, color, origin}: Profile.t) => {
+let view = (~font_metrics, {style, color, measurement}: Profile.t) => {
   let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
   let c_cls = Color.to_string(color);
   let cls =
@@ -47,8 +47,7 @@ let view = (~font_metrics, {style, color, origin}: Profile.t) => {
     };
   DecUtil.container(
     ~font_metrics,
-    ~origin,
-    ~length=1,
+    ~measurement,
     ~cls,
     [
       Node.create_svg(

@@ -2,6 +2,15 @@ open Virtual_dom.Vdom;
 open DecUtil;
 open Cor;
 
+module Profile = {
+  type t = {
+    measurement: Layout.measurement,
+    color: Color.t,
+    tip: Tip.shape,
+    inset: option([ | `Thick | `Thin]),
+  };
+};
+
 let inset_shadow_filter = (~color) => {
   let c_cls = Color.to_string(color);
   Node.create_svg(
@@ -149,33 +158,31 @@ let path = (tip, offset, s: float) => {
 };
 
 let view =
-    (
-      ~offset=0,
-      ~color: Color.t,
-      ~tip: Tip.shape,
-      ~inset: option([ | `Thick | `Thin]),
-      (),
-    )
-    : list(Node.t) => {
+    (~font_metrics, {measurement, color, tip, inset}: Profile.t): Node.t => {
   let c_cls = Color.to_string(color);
-  SvgUtil.Path.[
-    view(
-      ~attrs=
-        AttrUtil.[
-          Attr.classes(["empty-hole-path", c_cls]),
-          vector_effect("non-scaling-stroke"),
-          stroke_width(Option.is_some(inset) ? 0.3 : 1.),
-          filter(
-            switch (inset) {
-            | None => "none"
-            | Some(`Thin) =>
-              Printf.sprintf("url(#empty-hole-thin-inset-shadow-%s)", c_cls)
-            | Some(`Thick) =>
-              Printf.sprintf("url(#empty-hole-inset-shadow-%s)", c_cls)
-            },
-          ),
-        ],
-      path(tip, Float.of_int(offset), 0.28),
-    ),
-  ];
+  container(
+    ~font_metrics,
+    ~measurement,
+    ~cls="empty-hole",
+    SvgUtil.Path.[
+      view(
+        ~attrs=
+          AttrUtil.[
+            Attr.classes(["empty-hole-path", c_cls]),
+            vector_effect("non-scaling-stroke"),
+            stroke_width(Option.is_some(inset) ? 0.3 : 1.),
+            filter(
+              switch (inset) {
+              | None => "none"
+              | Some(`Thin) =>
+                Printf.sprintf("url(#empty-hole-thin-inset-shadow-%s)", c_cls)
+              | Some(`Thick) =>
+                Printf.sprintf("url(#empty-hole-inset-shadow-%s)", c_cls)
+              },
+            ),
+          ],
+        path(tip, Float.of_int(measurement.origin), 0.28),
+      ),
+    ],
+  );
 };

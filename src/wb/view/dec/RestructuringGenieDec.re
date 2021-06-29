@@ -6,17 +6,13 @@ open Virtual_dom.Vdom;
  * constraints relative to other decorations
  */
 module Profile = {
-  type t = {
-    origin: int,
-    length: int,
-  };
+  type t = Layout.measurement;
 };
 
-let view = (~font_metrics, {origin, length}: Profile.t) =>
+let view = (~font_metrics, measurement: Profile.t) =>
   DecUtil.container(
     ~font_metrics,
-    ~origin,
-    ~length,
+    ~measurement,
     ~cls="restructuring-genie",
     [
       Node.create_svg(
@@ -42,7 +38,7 @@ let view = (~font_metrics, {origin, length}: Profile.t) =>
             M({x: 0.5, y: (-0.3) +. (-0.05)}),
             // TODO unify with caret height numbers (-1.8)
             V({y: (-2.4)}),
-            H_({dx: Float.of_int(length - 1)}),
+            H_({dx: Float.of_int(measurement.length - 1)}),
             V_({dy: 1.4}),
             Z,
           ],

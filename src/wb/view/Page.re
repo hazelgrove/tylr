@@ -101,18 +101,18 @@ let focus_code = () => {
 };
 
 let logo = (~font_metrics) => {
-  let selem = (color: Color.t, shape: Layout.selem_shape, s): Layout.t =>
-    Layout.annot(Selem({color, shape, style: Logo}), Text(s));
+  let selem = (step, color: Color.t, shape: Layout.selem_shape, s): Layout.t =>
+    Layout.annot(Selem({color, shape, step}), Text(s));
   let l =
     Layout.(
       spaces(
         // HACK
         Selected,
         [
-          selem(Exp, ((Convex, 0), (Convex, 0)), "t"),
-          selem(Pat, ((Concave, 0), (Convex, 0)), "y"),
-          selem(Typ, ((Concave, 0), (Concave, 0)), "l"),
-          selem(Selected, ((Convex, 0), (Concave, 1)), "r"),
+          selem(0, Exp, ((Convex, 0), (Convex, 0)), "t"),
+          selem(1, Pat, ((Concave, 0), (Convex, 0)), "y"),
+          selem(2, Typ, ((Concave, 0), (Concave, 0)), "l"),
+          selem(3, Selected, ((Convex, 0), (Concave, 1)), "r"),
         ],
       )
     );
@@ -120,7 +120,7 @@ let logo = (~font_metrics) => {
     ~id="logo",
     ~text_id="logo-text",
     ~font_metrics,
-    DecPaths.empty,
+    DecPaths.mk(~logo_selems=[0, 1, 2, 3], ()),
     l,
   );
 };
@@ -153,7 +153,7 @@ let view =
       {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
     ) => {
   let (subject, _) = zipper;
-  let dpaths = DecPaths.mk(zipper);
+  let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
   // let rail_color = {
   //   let frame_color = Color.of_sort(Frame.sort(frame));

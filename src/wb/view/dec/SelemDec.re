@@ -4,33 +4,35 @@ open Cor;
 open Diag;
 open DecUtil;
 
-type profile = {
-  color: Color.t,
-  shape: Layout.selem_shape,
-  style: SelemStyle.t,
-  len: int,
-  open_children: list((int, int)),
-  closed_children: list((int, int)),
-  empty_holes: list((int, Color.t, Tip.shape)),
-};
-let mk_profile =
-    (
-      ~open_children=[],
-      ~closed_children=[],
-      ~empty_holes=[],
-      ~color,
-      ~style,
-      ~len,
-      ~shape,
-      (),
-    ) => {
-  color,
-  shape,
-  len,
-  open_children,
-  closed_children,
-  empty_holes,
-  style,
+module Profile = {
+  type t = {
+    measurement: Layout.measurement,
+    color: Color.t,
+    shape: Layout.selem_shape,
+    style: SelemStyle.t,
+    open_children: list(Layout.measurement),
+    closed_children: list(Layout.measurement),
+    empty_holes: list((int, Color.t, Tip.shape)),
+  };
+  let mk =
+      (
+        ~measurement,
+        ~open_children=[],
+        ~closed_children=[],
+        ~empty_holes=[],
+        ~color,
+        ~style,
+        ~shape,
+        (),
+      ) => {
+    measurement,
+    color,
+    shape,
+    open_children,
+    closed_children,
+    empty_holes,
+    style,
+  };
 };
 
 let raised_shadow_filter = (~color: Color.t) => {
@@ -73,13 +75,13 @@ let shadow_filter = (~color: Color.t) => {
   );
 };
 
-let closed_child_path = ((start, len)) =>
+let closed_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
     SvgUtil.Path.[
-      [M({x: Float.of_int(start) +. 0.5, y: child_border_thickness})],
+      [M({x: Float.of_int(origin) +. 0.5, y: child_border_thickness})],
       Diag.tr_bl(~with_child_border=true, ~hemi=`North, ()),
       Diag.tl_br(~with_child_border=true, ~hemi=`South, ()),
-      [H_({dx: Float.of_int(len - 1)})],
+      [H_({dx: Float.of_int(length - 1)})],
       Diag.bl_tr(~with_child_border=true, ~hemi=`South, ()),
       Diag.br_tl(~with_child_border=true, ~hemi=`North, ()),
       [Z],
@@ -87,7 +89,7 @@ let closed_child_path = ((start, len)) =>
   );
 
 let open_child_paths =
-    (~start, ~color: Color.t, open_children: list((int, int)))
+    (~origin, ~color: Color.t, open_children: list(Layout.measurement))
     : list(Node.t) => {
   open SvgUtil.Path;
   let color =
@@ -134,15 +136,15 @@ let open_child_paths =
       ],
     );
   open_children
-  |> List.map(((start', len)) => {
+  |> List.map((Layout.{origin: origin', length}) => {
        let gradient_id =
          Printf.sprintf(
            "bidelimited-open-child-gradient-%d-%d",
-           start,
-           start',
+           origin,
+           origin',
          );
        [
-         gradient(gradient_id, start', len),
+         gradient(gradient_id, origin', length),
          view(
            ~attrs=
              Attr.[
@@ -151,8 +153,8 @@ let open_child_paths =
                create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
              ],
            [
-             M({x: Float.of_int(start'), y: 0.}),
-             H_({dx: Float.of_int(len)}),
+             M({x: Float.of_int(origin'), y: 0.}),
+             H_({dx: Float.of_int(length)}),
            ],
          ),
        ];
@@ -167,19 +169,19 @@ let empty_hole_path =
   EmptyHoleDec.path(tip, Float.of_int(offset), 0.28);
 };
 
-let open_child_path = ((start, len): (int, int)) =>
+let open_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
     SvgUtil.Path.[
-      [H({x: Float.of_int(start) +. tip_width})],
+      [H({x: Float.of_int(origin) +. tip_width})],
       tr_bl(~hemi=`North, ()),
       tl_br(~with_child_border=true, ~hemi=`South, ()),
-      [H_({dx: Float.of_int(len - 1)})],
+      [H_({dx: Float.of_int(length - 1)})],
       bl_tr(~with_child_border=true, ~hemi=`South, ()),
       br_tl(~hemi=`North, ()),
     ],
   );
 
-let contour_path = (~font_metrics, profile: profile): SvgUtil.Path.t => {
+let contour_path = (~font_metrics, profile: Profile.t): SvgUtil.Path.t => {
   open SvgUtil.Path;
   let empty_hole_paths = {
     let raised_holes =
@@ -196,7 +198,8 @@ let contour_path = (~font_metrics, profile: profile): SvgUtil.Path.t => {
       SelemStyle.stretched(profile.style) ? Float.neg(stretch_dx) : 0.;
     let end_ =
       SelemStyle.stretched(profile.style)
-        ? Float.of_int(profile.len) +. stretch_dx : Float.of_int(profile.len);
+        ? Float.of_int(profile.measurement.length) +. stretch_dx
+        : Float.of_int(profile.measurement.length);
     List.concat([
       [M({x: start, y: 1.}), ...Diag.left_tip_path(fst(profile.shape))],
       ListUtil.flat_map(open_child_path, profile.open_children),
@@ -209,7 +212,7 @@ let contour_path = (~font_metrics, profile: profile): SvgUtil.Path.t => {
   @ List.concat(empty_hole_paths);
 };
 
-let contour_path_attrs = (~attrs, profile) => {
+let contour_path_attrs = (profile: Profile.t) => {
   let clss = {
     let c_cls = Color.to_string(profile.color);
     let highlighted =
@@ -218,32 +221,31 @@ let contour_path_attrs = (~attrs, profile) => {
     let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
     List.concat([["tile-path", c_cls], highlighted, raised, filtered]);
   };
-  Attr.[
-    classes(clss),
-    create("vector-effect", "non-scaling-stroke"),
-    ...attrs,
-  ];
+  Attr.[classes(clss), create("vector-effect", "non-scaling-stroke")];
 };
 
-let view =
-    (
-      ~attrs: list(Attr.t)=[],
-      ~font_metrics: FontMetrics.t,
-      ~start: int,
-      profile: profile,
-    )
-    : list(Node.t) => {
+let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Node.t => {
   // TODO maybe remove this flag and just specify via children fields?
   let profile =
     SelemStyle.show_children(profile.style)
       ? profile : {...profile, open_children: [], closed_children: []};
   let open_child_paths =
-    open_child_paths(~start, ~color=profile.color, profile.open_children);
-  open_child_paths
-  @ [
-    SvgUtil.Path.view(
-      ~attrs=contour_path_attrs(~attrs, profile),
-      contour_path(~font_metrics, profile),
-    ),
-  ];
+    open_child_paths(
+      ~origin=profile.measurement.origin,
+      ~color=profile.color,
+      profile.open_children,
+    );
+  DecUtil.container(
+    ~font_metrics,
+    ~measurement=profile.measurement,
+    ~cls="tile",
+    ~container_clss=[SelemStyle.to_string(profile.style)],
+    open_child_paths
+    @ [
+      SvgUtil.Path.view(
+        ~attrs=contour_path_attrs(profile),
+        contour_path(~font_metrics, profile),
+      ),
+    ],
+  );
 };

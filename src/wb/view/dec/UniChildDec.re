@@ -2,28 +2,18 @@ open Virtual_dom.Vdom;
 open Util;
 open Cor;
 
-type profile = {
-  sort: Sort.t,
-  side: Direction.t,
-  len: int,
+module Profile = {
+  type t = {
+    measurement: Layout.measurement,
+    sort: Sort.t,
+    side: Direction.t,
+  };
 };
 
-let view = ({sort, side, len}: profile): list(Node.t) => {
+let view = (~font_metrics, {measurement, sort, side}: Profile.t): Node.t => {
   open SvgUtil.Path;
   open Diag;
-  let len = Float.of_int(len);
-  /* old raised tile path
-     let path =
-       List.concat([
-         [M({x: 0., y: 0.}), H_({dx: len})],
-         tl_br(),
-         tr_bl(),
-         [H_({dx: Float.neg(len)})],
-         br_tl(),
-         bl_tr(),
-         [Z],
-       ]);
-     */
+  let len = Float.of_int(measurement.length);
   let (gradient_id, gradient) = {
     let id =
       switch (side) {
@@ -33,7 +23,7 @@ let view = ({sort, side, len}: profile): list(Node.t) => {
     let (x1, x2) =
       switch (side) {
       | Left => ("1", Printf.sprintf("%f", len +. 1.))
-      | Right => (Printf.sprintf("%f", len -. 1.), "-1")
+      | Right => (Printf.sprintf("%f", len), "0")
       };
     let color =
       switch (sort) {
@@ -95,7 +85,7 @@ let view = ({sort, side, len}: profile): list(Node.t) => {
       ])
     | Right =>
       List.concat([
-        [M({x: (-1.), y: 0.}), H_({dx: len})],
+        [M({x: 0., y: 0.}), H_({dx: len})],
         // [M({x: len, y: 0.})],
         tl_br(~hemi=`North, ()),
         tr_bl(~hemi=`South, ()),
@@ -111,5 +101,10 @@ let view = ({sort, side, len}: profile): list(Node.t) => {
       create("vector-effect", "non-scaling-stroke"),
       create("stroke", Printf.sprintf("url(#%s)", gradient_id)),
     ];
-  [gradient, view(~attrs, path)];
+  DecUtil.container(
+    ~font_metrics,
+    ~measurement,
+    ~cls="uni-child",
+    [gradient, view(~attrs, path)],
+  );
 };
