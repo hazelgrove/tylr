@@ -348,7 +348,7 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     let step = List.length(prefix);
     let ls_prefix = mk_tiles_exp(List.rev(prefix));
     let ls_suffix = mk_tiles_exp(~offset=step + 1, suffix);
-    let selem_ann = Selem({step, shape, color: Pat});
+    let selem_ann = Selem({step, shape, color: Exp});
     mk_frame(
       pad_spaces(Exp, ls_prefix @ [annot(selem_ann, tile), ...ls_suffix]),
       Exp(frame),
