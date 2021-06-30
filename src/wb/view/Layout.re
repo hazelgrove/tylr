@@ -121,7 +121,8 @@ let measured_fold' =
 let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~origin=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~origin);
 
-let measure_space = (~origin=0, n: Path.caret_step, l: t): measurement => {
+let find_space =
+    (~origin=0, n: Path.caret_step, l: t): (Color.t, measurement) => {
   l
   |> measured_fold'(
        ~origin,
@@ -130,19 +131,20 @@ let measure_space = (~origin=0, n: Path.caret_step, l: t): measurement => {
        ~annot=
          (_k, measurement, annot, _l) =>
            switch (annot) {
-           | Space(m, _) when m == n => [measurement]
+           | Space(m, color) when m == n => [(color, measurement)]
            | _ => []
            },
      )
   |> ListUtil.hd_opt
-  |> OptUtil.get_or_raise(Invalid_argument("Layout.measure_space"));
+  |> OptUtil.get_or_raise(Invalid_argument("Layout.find_space"));
 };
 
-let measure_range =
+let find_range =
     (~origin=0, (l, r): (Path.caret_step, Path.caret_step), layout: t) => {
-  let l = measure_space(~origin, l, layout);
-  let r = measure_space(~origin, r, layout);
-  {origin: l.origin, length: r.origin - l.origin};
+  let (color_l, l) = find_space(~origin, l, layout);
+  let (color_r, r) = find_space(~origin, r, layout);
+  let measurement = {origin: l.origin, length: r.origin - l.origin};
+  ((color_l, color_r), measurement);
 };
 
 let find_selem = (~origin=0, step: Path.selem_step, l: t) =>

@@ -237,12 +237,23 @@ let current_bidelimited =
   let {
     root_term,
     logo_selems,
-    caret: _,
+    caret,
     siblings: _,
     filtered_selems: _,
     neighbor_selems: _,
   } = paths;
-  let root_term =
+  let caret_ds =
+    switch (caret) {
+    | Some(([], (l, r) as range)) when l != r =>
+      let (ends, measurement) = Layout.find_range(~origin, range, layout);
+      Dec.Profile.[
+        SelectedBox(measurement),
+        SelectedBar({ends, measurement}),
+      ];
+    | _ => []
+    };
+
+  let root_term_ds =
     switch (root_term) {
     | Some(([], skel)) =>
       let root_tile_profile = {
@@ -266,13 +277,14 @@ let current_bidelimited =
         Skel.children(skel)
         |> List.map(((side, skel)) => {
              let range = Skel.range(skel);
-             let measurement = Layout.measure_range(~origin, range, layout);
+             let (_, measurement) =
+               Layout.find_range(~origin, range, layout);
              Dec.Profile.UniChild({measurement, sort, side});
            });
       [root_tile_profile, ...uni_child_profiles];
     | _ => []
     };
-  let logo_selems =
+  let logo_selem_ds =
     logo_selems
     |> List.map(step => {
          let (measurement, color, shape, _) =
@@ -287,7 +299,7 @@ let current_bidelimited =
            shape,
          });
        });
-  List.concat([root_term, logo_selems]);
+  List.concat([caret_ds, root_term_ds, logo_selem_ds]);
 };
 
 let current_selem =

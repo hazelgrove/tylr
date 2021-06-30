@@ -7,6 +7,9 @@ module Profile = {
     | Selem(SelemDec.Profile.t)
     | Rail(RailDec.Profile.t)
     | UniChild(UniChildDec.Profile.t)
+    // TODO merge box and bar decs
+    | SelectedBox(SelectedBoxDec.Profile.t)
+    | SelectedBar(SelectedBarDec.Profile.t)
     | RestructuringGenie(RestructuringGenieDec.Profile.t);
 };
 
@@ -17,6 +20,8 @@ let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Node.t =>
   | Selem(profile) => SelemDec.view(~font_metrics, profile)
   | Rail(profile) => RailDec.view(~font_metrics, profile)
   | UniChild(profile) => UniChildDec.view(~font_metrics, profile)
+  | SelectedBox(profile) => SelectedBoxDec.view(~font_metrics, profile)
+  | SelectedBar(profile) => SelectedBarDec.view(~font_metrics, profile)
   | RestructuringGenie(profile) =>
     RestructuringGenieDec.view(~font_metrics, profile)
   };
