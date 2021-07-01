@@ -66,12 +66,12 @@
   --inner-cousin-z: 9;
   --outer-cousin-caret-position-z: 9;
   --rail-z: 11;
-  --selection-bar-z: 11;
-  --caret-position-z: 12;
-  --anchor-z: 13;
-  --caret-z: 13;
-  --action-table-z: 14;
-  --caret-bar-z: 15;
+  --selection-bar-z: 12;
+  --caret-position-z: 13;
+  --anchor-z: 14;
+  --caret-z: 14;
+  --action-table-z: 15;
+  --caret-bar-z: 16;
 }
 
 #page {

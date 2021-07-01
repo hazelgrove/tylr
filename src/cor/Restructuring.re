@@ -8,7 +8,7 @@ module Backpack = {
     List.length(ListFrame.to_list(~subject=[selection], ssframe));
 };
 
-// TODO reorganize types/modules
+// TODO create Relem module
 [@deriving sexp]
 type frame_elem =
   | Selem(Selem.t)

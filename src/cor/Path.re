@@ -15,6 +15,9 @@ type steps = list(two_step);
 [@deriving sexp]
 type t = (steps, caret_step);
 
+[@deriving sexp]
+type range = (steps, (caret_step, caret_step));
+
 let rec mk_steps = (~steps=[], frame: Frame.t): steps => {
   let mk_pat_s = (child_step, ((prefix, _), frame): Frame_pat.s) =>
     mk_steps(
@@ -47,6 +50,19 @@ let mk = ((prefix, _): Selection.frame, frame: Frame.t): t => (
   mk_steps(frame),
   List.length(prefix),
 );
+
+let mk_range = ((subject, frame): Zipper.t) =>
+  switch (subject) {
+  | Pointing(sframe) =>
+    let (steps, caret_step) = mk(sframe, frame);
+    (steps, (caret_step, caret_step));
+  | Selecting(_, selection, sframe) =>
+    let (steps, caret_step) = mk(sframe, frame);
+    (steps, (caret_step, caret_step + List.length(selection)));
+  | Restructuring((_, rframe)) =>
+    let (steps, caret_step) = mk'(rframe, frame);
+    (steps, (caret_step, caret_step));
+  };
 
 let get_child_steps =
   Selem.get(
