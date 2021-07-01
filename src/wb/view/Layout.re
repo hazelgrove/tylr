@@ -340,8 +340,9 @@ let mk_selection = (~offset=0, ~frame_color: Color.t, selection) =>
 
 let mk_relem = (~step, ~frame_color, relem: Restructuring.frame_elem) =>
   switch (relem) {
-  | Selem(selem) => mk_selem(step, selem)
-  | Selec(selection) => mk_selection(~offset=step, ~frame_color, selection)
+  | Tile(tile) => mk_selem(step, Tile(tile))
+  | Selection(selection) =>
+    mk_selection(~offset=step, ~frame_color, selection)
   };
 
 let rec mk_frame = (subject: t, frame: Frame.t): t => {

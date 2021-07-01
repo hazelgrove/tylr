@@ -157,13 +157,13 @@ let move_restructuring =
     // [Move<d>RestructuringNotWhole]
     switch (front_affix(d, rframe)) {
     | [] => None
-    | [Selem(selem), ...front] =>
+    | [Tile(tile), ...front] =>
       let rframe =
-        mk_frame(d, front, [Selem(selem), ...back_affix(d, rframe)]);
+        mk_frame(d, front, [Tile(tile), ...back_affix(d, rframe)]);
       Some(((backpack, rframe), frame));
-    | [Selec(selec), ...front] =>
+    | [Selection(selection), ...front] =>
       let ssframe = PairUtil.map_fst(List.cons(selection), ssframe);
-      let backpack = (selec, ssframe);
+      let backpack = (selection, ssframe);
       let rframe = mk_frame(d, front, back_affix(d, rframe));
       Some(((backpack, rframe), frame));
     };
@@ -257,7 +257,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
           || Selection.is_whole(Frame.sort(frame), selection)) {
         // [MarkRestructuring]
         let tip = Tip.(Convex, Frame.sort(frame));
-        let rselection = List.map(s => Restructuring.Selem(s), selection);
+        let rselection = Restructuring.mk_relems(selection);
         let rframe =
           Parser.fix_holes_rframe(tip, (prefix, rselection @ suffix), tip);
         switch (ssframe) {

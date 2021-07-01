@@ -292,7 +292,7 @@ let fix_holes_rframe =
     | [] => ([], Tip.toggle(ltip))
     | [relem, ...affix] =>
       switch (relem) {
-      | Selem(selem) when Selem.is_hole(selem) =>
+      | Tile(tile) when Tile.is_hole(tile) =>
         // skip holes
         fix(ltip, affix)
       | _ =>
@@ -301,15 +301,14 @@ let fix_holes_rframe =
         let inserted_hole =
           // relies on invariant that reachable selections are sort-consistent
           Restructuring.tip(Left, relem) == ltip
-            ? [] : [Restructuring.Selem(Tile(Tile.mk_hole(ltip)))];
+            ? [] : [Restructuring.Tile(Tile.mk_hole(ltip))];
         (inserted_hole @ [relem, ...fixed], rtip);
       }
     };
   let (fixed_prefix, rtip_prefix) = fix(ltip, List.rev(prefix));
   let (fixed_suffix, rtip_suffix) = fix(Tip.toggle(rtip_prefix), suffix);
   let inserted_hole =
-    rtip_suffix == rtip
-      ? [] : [Restructuring.Selem(Tile(Tile.mk_hole(rtip)))];
+    rtip_suffix == rtip ? [] : [Restructuring.Tile(Tile.mk_hole(rtip))];
   (List.rev(fixed_prefix), fixed_suffix @ inserted_hole);
 };
 let fix_holes = (ltip, sframe, rtip) => {

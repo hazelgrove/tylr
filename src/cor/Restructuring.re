@@ -11,40 +11,45 @@ module Backpack = {
 // TODO create Relem module
 [@deriving sexp]
 type frame_elem =
-  | Selem(Selem.t)
-  | Selec(Selection.t);
+  | Tile(Tile.t)
+  | Selection(Selection.t);
 [@deriving sexp]
 type frame = ListFrame.t(frame_elem);
 
 let is_tile =
   fun
-  | Selem(selem) => Selem.is_tile(selem)
-  | _ => false;
+  | Tile(_) => true
+  | Selection(_) => false;
 
 let len_elem =
   fun
-  | Selem(_) => 1
-  | Selec(selection) => List.length(selection);
+  | Tile(_) => 1
+  | Selection(selection) => List.length(selection);
 let len = elems => elems |> List.map(len_elem) |> List.fold_left((+), 0);
 
 let tip = d =>
   fun
-  | Selem(selem) => Selem.tip(d, selem)
-  | Selec(selection) =>
+  | Tile(selem) => Tile.tip(d, selem)
+  | Selection(selection) =>
     Selection.tip(d, selection)
     |> OptUtil.get_or_fail(
          "expected nonempty selection in restructuring frame",
        );
 
-let mk_frame = (sframe: Selection.frame) =>
-  TupleUtil.map2(List.map(s => Selem(s)), sframe);
+let mk_relems =
+  List.map(
+    fun
+    | Selem.Tile(tile) => Tile(tile)
+    | Shard(_) as selem => Selection([selem]),
+  );
+let mk_frame = TupleUtil.map2(mk_relems);
 let get_sframe = (~filter_selections=false, frame: frame) =>
   frame
   |> TupleUtil.map2(
        ListUtil.flat_map(
          fun
-         | Selec(selection) => filter_selections ? [] : selection
-         | Selem(selem) => [selem],
+         | Selection(selection) => filter_selections ? [] : selection
+         | Tile(tile) => [Tile(tile)],
        ),
      );
 

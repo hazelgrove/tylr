@@ -154,8 +154,8 @@ let filtered_selems = (~frame_sort, subject: Subject.t) => {
              (
                step + Restructuring.len_elem(relem),
                switch (relem) {
-               | Selem(_) => []
-               | Selec(selection) =>
+               | Tile(_) => []
+               | Selection(selection) =>
                  ListUtil.range(~lo=step, List.length(selection))
                },
              ),
