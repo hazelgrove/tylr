@@ -20,8 +20,13 @@ let rec view_of_layout =
          | Selecting(side, _, _) => (Selecting(side), 0)
          | Restructuring(((selection, _todo) as backpack, _)) => {
              let l = Layout.mk_selection(~frame_color=Selected, selection);
+             let len = List.length(selection);
              let dpaths =
-               DecPaths.mk(~caret=([], (0, List.length(selection))), ());
+               DecPaths.mk(
+                 ~caret=([], (0, len)),
+                 ~filtered_selems=([], ListUtil.range(len)),
+                 (),
+               );
              (
                Restructuring({
                  backpack,
