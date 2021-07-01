@@ -156,8 +156,9 @@ let find_selem = (~origin=0, step: Path.selem_step, l: t) =>
        ~annot=
          (_k, measurement, annot, l) =>
            switch (annot) {
-           | Selem({step: s, color, shape}) when s == step =>
-             [(measurement, color, shape, l)];
+           | Selem({step: s, color, shape}) when s == step => [
+               (measurement, color, shape, l),
+             ]
            | _ => []
            },
      )
