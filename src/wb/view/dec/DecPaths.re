@@ -141,7 +141,7 @@ let filtered_selems = (~frame_sort, subject: Subject.t) => {
            Selem.sort(selem) != frame_sort
            || Selem.is_shard(selem)
            || len_pre <= step
-           && step <= len_pre
+           && step < len_pre
            + len_sel
              ? Some(step) : None
          );
