@@ -5,7 +5,7 @@ open Cor;
 [@deriving sexp]
 type t =
   | Pointing
-  | Selecting
+  | Selecting(Direction.t)
   | Restructuring({
       backpack: Restructuring.Backpack.t,
       view: [@sexp.opaque] (Node.t, ListFrame.t(Node.t)),

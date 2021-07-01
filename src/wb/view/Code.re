@@ -17,7 +17,7 @@ let rec view_of_layout =
     |> Option.map(
          fun
          | Subject.Pointing(_) => (CaretMode.Pointing, 0)
-         | Selecting(_) => (Selecting, 0)
+         | Selecting(side, _, _) => (Selecting(side), 0)
          | Restructuring(((selection, _todo) as backpack, _)) => {
              let l = Layout.mk_selection(~frame_color=Selected, selection);
              let dpaths =

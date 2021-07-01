@@ -372,7 +372,11 @@ let current_space =
   } = paths;
   let caret_ds =
     switch (caret, caret_mode) {
-    | (Some(([], (l, _))), Some(mode)) when step == l =>
+    | (
+        Some(([], (l, _))),
+        Some((Pointing | Selecting(Left) | Restructuring(_)) as mode),
+      )
+        when step == l =>
       let restructuring_ds =
         switch (mode) {
         | Restructuring({backpack: (selection, _todo), _}) => [
@@ -391,7 +395,12 @@ let current_space =
         CaretPos({measurement, color, style: `Anchor}),
         ...restructuring_ds,
       ];
-    | (Some(([], (_, r))), Some(_)) when step == r => [
+    | (
+        Some(([], (_, r))),
+        Some((Pointing | Selecting(Right) | Restructuring(_)) as mode),
+      )
+        when step == r => [
+        Caret({origin: measurement.origin, color, mode}),
         CaretPos({measurement, color, style: `Anchor}),
       ]
     | _ => []

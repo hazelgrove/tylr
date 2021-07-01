@@ -117,7 +117,7 @@ let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
   let (ss_before, ss_after) =
     switch (mode) {
     | Pointing
-    | Selecting => ([], [])
+    | Selecting(_) => ([], [])
     | Restructuring({backpack: _, view: (selection, (ss_pre, ss_suf))}) =>
       let view_of_selection = view =>
         Node.span(

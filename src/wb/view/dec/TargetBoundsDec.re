@@ -7,7 +7,7 @@ let gradient =
   let c =
     switch (mode) {
     | Pointing => Color.of_sort(frame_sort)
-    | Selecting
+    | Selecting(_)
     | Restructuring(_) => Selected
     };
   let stop = (offset, opacity) =>
