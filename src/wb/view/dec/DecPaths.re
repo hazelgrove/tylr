@@ -195,9 +195,6 @@ let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
 };
 
 let take_two_step = (two_step: Path.two_step, paths: t): t => {
-  // print_endline("DecPaths.take_two_step");
-  // print_endline(Sexplib.Sexp.to_string(Path.sexp_of_two_step(two_step)));
-  // print_endline(Sexplib.Sexp.to_string_hum(sexp_of_t(paths)));
   let {
     caret,
     siblings,
@@ -227,7 +224,6 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     neighbor_selems: step_or_prune(neighbor_selems),
     logo_selems: [],
   };
-  //print_endline(Sexplib.Sexp.to_string_hum(sexp_of_t(paths)));
   paths;
 };
 

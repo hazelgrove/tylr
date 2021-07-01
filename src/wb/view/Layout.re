@@ -157,8 +157,6 @@ let find_selem = (~origin=0, step: Path.selem_step, l: t) =>
          (_k, measurement, annot, l) =>
            switch (annot) {
            | Selem({step: s, color, shape}) when s == step =>
-             print_endline("-- 1 --");
-             print_endline(Sexplib.Sexp.to_string(Color.sexp_of_t(color)));
              [(measurement, color, shape, l)];
            | _ => []
            },

@@ -144,14 +144,6 @@ let rec view_of_layout =
         let selem_step =
           selem_step
           |> OptUtil.get_or_fail("expected to encounter selem before child");
-        print_endline("-- 0 --");
-        print_endline("origin = " ++ string_of_int(origin));
-        print_endline(
-          Sexplib.Sexp.to_string_hum(DecPaths.sexp_of_t(dpaths)),
-        );
-        print_endline(
-          "s_in = " ++ Sexplib.Sexp.to_string(Sort.sexp_of_t(s_in)),
-        );
         let dpaths = DecPaths.take_two_step((selem_step, step), dpaths);
         let new_ds =
           DecPaths.current_bidelimited(~origin, ~sort=s_in, l, dpaths)
