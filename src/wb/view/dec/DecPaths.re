@@ -255,26 +255,9 @@ let current_bidelimited =
     switch (caret) {
     | Some(([], (l, r) as range)) when l != r =>
       let (ends, measurement) = Layout.find_range(~origin, range, layout);
-      let selem_ds =
-        ListUtil.range(~lo=l, r)
-        |> List.map(step => {
-             let (measurement, color, shape, selem_l) =
-               Layout.find_selem(~origin, step, layout);
-             Dec.Profile.Selem(
-               SelemDec.Profile.of_layout(
-                 ~measurement,
-                 ~color,
-                 ~shape,
-                 // TODO clean up selem style, this is not quite right conceptually
-                 ~style=Filtered,
-                 selem_l,
-               ),
-             );
-           });
       Dec.Profile.[
         SelectedBox(measurement),
         SelectedBar({ends, measurement}),
-        ...selem_ds,
       ];
     | _ => []
     };
