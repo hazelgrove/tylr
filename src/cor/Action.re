@@ -6,7 +6,7 @@ type t =
   | Mark
   | Move(Direction.t)
   | Delete
-  | Construct(Tile.t);
+  | Construct(Selem.t);
 
 let front_affix =
   fun
@@ -198,23 +198,37 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       let+ (sframe, frame) = move_pointing(d, sframe, frame);
       (Subject.Pointing(sframe), frame);
     | Delete => None
-    | Construct(tile) =>
+    | Construct(selem) =>
       // [Construct]
-      let sort = Tile.sort(tile);
+      let sort = Selem.sort(selem);
       if (sort != Frame.sort(frame)) {
         None;
       } else {
-        let sframe = disassemble_and_enter(Tile(tile), sframe);
-        let (prefix, suffix) = {
-          let tip = (Tip.Convex, sort);
-          Parser.fix_holes(tip, sframe, tip);
+        switch (selem) {
+        | Tile(_) =>
+          let sframe = disassemble_and_enter(selem, sframe);
+          let (prefix, suffix) = {
+            let tip = (Tip.Convex, sort);
+            Parser.fix_holes(tip, sframe, tip);
+          };
+          let sframe = (
+            Parser.parse_selection(Left, prefix),
+            Parser.parse_selection(Right, suffix),
+          );
+          let (sframe, frame) = Parser.parse_zipper(sframe, frame);
+          Some((Pointing(sframe), frame));
+        | Shard(shard) =>
+          let+ (d, _, _) as backpack =
+            Restructuring.Backpack.of_shard(shard);
+          let (prefix, suffix) = sframe;
+          let sframe =
+            switch (d) {
+            | Left => (prefix, [selem, ...suffix])
+            | Right => ([selem, ...prefix], suffix)
+            };
+          let rframe = Restructuring.mk_frame(sframe);
+          (Subject.Restructuring((backpack, rframe)), frame);
         };
-        let sframe = (
-          Parser.parse_selection(Left, prefix),
-          Parser.parse_selection(Right, suffix),
-        );
-        let (sframe, frame) = Parser.parse_zipper(sframe, frame);
-        Some((Pointing(sframe), frame));
       };
     }
   | Selecting(side, selection, sframe) =>

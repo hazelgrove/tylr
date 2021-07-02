@@ -20,6 +20,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
       let key = JsUtil.get_key(evt);
       let held = m => JsUtil.held(m, evt);
       let p = a => Update.PerformAction(a);
+      let frame_sort = Frame.sort(snd(zipper));
       let updates: list(Update.t) =
         if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
           switch (key) {
@@ -32,14 +33,23 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             };
           | "Backspace"
           | "Delete" => [p(Delete)]
-          | "+" => [p(Construct(Exp(Plus)))]
-          | "(" => [p(Construct(Exp(Paren([OpHole]))))]
-          | "\\" => [p(Construct(Exp(Lam([OpHole]))))]
-          | "=" => [p(Construct(Exp(Let([OpHole], [OpHole]))))]
+          | "+" => [p(Construct(Tile(Exp(Plus))))]
+          | "(" =>
+            switch (frame_sort) {
+            | Pat => [p(Construct(Shard(Pat(Paren_l))))]
+            | Exp => [p(Construct(Shard(Exp(Paren_l))))]
+            }
+          | ")" =>
+            switch (frame_sort) {
+            | Pat => [p(Construct(Shard(Pat(Paren_r))))]
+            | Exp => [p(Construct(Shard(Exp(Paren_r))))]
+            }
+          | "\\" => [p(Construct(Tile(Exp(Lam([OpHole])))))]
+          | "=" => [p(Construct(Tile(Exp(Let([OpHole], [OpHole])))))]
           | "," =>
             switch (zipper) {
-            | (_, Pat(_)) => [p(Construct(Pat(Prod)))]
-            | (_, Exp(_)) => [p(Construct(Exp(Prod)))]
+            | (_, Pat(_)) => [p(Construct(Tile(Pat(Prod))))]
+            | (_, Exp(_)) => [p(Construct(Tile(Exp(Prod))))]
             }
           | "Escape" => [Update.escape()]
           | "Enter" =>
@@ -51,10 +61,14 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             let is_var = is_var(key);
             let is_num = is_num(key);
             switch (zipper) {
-            | (_, Pat(_)) when is_var => [p(Construct(Pat(Var(key))))]
-            | (_, Exp(_)) when is_var => [p(Construct(Exp(Var(key))))]
+            | (_, Pat(_)) when is_var => [
+                p(Construct(Tile(Pat(Var(key))))),
+              ]
+            | (_, Exp(_)) when is_var => [
+                p(Construct(Tile(Exp(Var(key))))),
+              ]
             | (_, Exp(_)) when is_num => [
-                p(Construct(Exp(Num(int_of_string(key))))),
+                p(Construct(Tile(Exp(Num(int_of_string(key)))))),
               ]
             | _ => []
             };

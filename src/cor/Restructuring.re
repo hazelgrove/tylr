@@ -22,6 +22,15 @@ module Backpack = {
       Some((Direction.toggle(d), selection', selections));
     };
   };
+
+  let of_shard = (shard: Shard.t): option(t) =>
+    switch (shard) {
+    | Pat(Paren_l) => Some((Right, [Shard(Pat(Paren_r))], []))
+    | Pat(Paren_r) => Some((Left, [Shard(Pat(Paren_l))], []))
+    | Exp(Paren_l) => Some((Right, [Shard(Exp(Paren_r))], []))
+    | Exp(Paren_r) => Some((Left, [Shard(Exp(Paren_l))], []))
+    | _ => None
+    };
 };
 
 // TODO create Relem module
