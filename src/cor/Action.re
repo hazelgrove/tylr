@@ -161,9 +161,14 @@ let move_restructuring =
       let rframe =
         mk_frame(d, front, [Tile(tile), ...back_affix(d, rframe)]);
       Some(((backpack, rframe), frame));
-    | [Selection(selection), ...front] =>
-      let ssframe = PairUtil.map_fst(List.cons(selection), ssframe);
-      let backpack = (selection, ssframe);
+    | [Selection(selection'), ...front] =>
+      let ssframe =
+        mk_frame(
+          d,
+          front_affix(d, ssframe),
+          [selection, ...back_affix(d, ssframe)],
+        );
+      let backpack = (selection', ssframe);
       let rframe = mk_frame(d, front, back_affix(d, rframe));
       Some(((backpack, rframe), frame));
     };
