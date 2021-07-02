@@ -157,7 +157,7 @@ let filtered_selems = (~frame_sort, subject: Subject.t) => {
              (
                step + Restructuring.len_elem(relem),
                switch (relem) {
-               | Tile(_) => []
+               | Tile(tile) => Tile.sort(tile) == frame_sort ? [] : [step]
                | Selection(selection) =>
                  ListUtil.range(~lo=step, step + List.length(selection))
                },
