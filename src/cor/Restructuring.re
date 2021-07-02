@@ -1,5 +1,6 @@
 open Sexplib.Std;
 open Util;
+open OptUtil.Syntax;
 
 module Backpack = {
   [@deriving sexp]
@@ -8,12 +9,18 @@ module Backpack = {
   //   List.length(ListFrame.to_list(~subject=[selection], ssframe));
 
   let pick_up_selection =
-      (d: Direction.t, selection', (d_backpack, selection, rest): t) => {
-    let selections = {
-      let ss = [selection, ...rest];
-      d == d_backpack ? List.rev(ss) : ss;
+      (d: Direction.t, selection', (d_backpack, selection, rest): t)
+      : option(t) => {
+    let* (sort_l, sort_r) = Selection.tip_sorts(selection');
+    if (sort_l != sort_r) {
+      None;
+    } else {
+      let selections = {
+        let ss = [selection, ...rest];
+        d == d_backpack ? List.rev(ss) : ss;
+      };
+      Some((Direction.toggle(d), selection', selections));
     };
-    (Direction.toggle(d), selection', selections);
   };
 };
 

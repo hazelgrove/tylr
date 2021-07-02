@@ -160,10 +160,10 @@ let move_restructuring =
         mk_frame(d, front, [Tile(tile), ...back_affix(d, rframe)]);
       Some(((backpack, rframe), frame));
     | [Selection(selection'), ...front] =>
-      let backpack =
+      let+ backpack =
         Restructuring.Backpack.pick_up_selection(d, selection', backpack);
       let rframe = mk_frame(d, front, back_affix(d, rframe));
-      Some(((backpack, rframe), frame));
+      ((backpack, rframe), frame);
     };
   };
 
