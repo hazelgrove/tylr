@@ -60,23 +60,6 @@ let rec find_shard =
     ([tile, ...preceding_tiles], found_shard, selection);
   };
 
-let rec find_rest_of_selem =
-        (~strict, d: Direction.t, curr_token: Shard.t, selection: Selection.t)
-        : option((AltList.even(Tiles.t, Shard.t), Selection.t)) =>
-  if (Shard.is_end(~strict, d, curr_token)) {
-    Some(([], selection));
-  } else {
-    let* (preceding_tiles, found_shard, selection) =
-      find_shard(d, selection);
-    if (Shard.is_next(d, curr_token, found_shard)) {
-      let+ (rest_of_tile, selection) =
-        find_rest_of_selem(~strict, d, found_shard, selection);
-      ([(preceding_tiles, found_shard), ...rest_of_tile], selection);
-    } else {
-      None;
-    };
-  };
-
 let assemble_selem =
     (d: Direction.t, ts: AltList.t(Shard.t, Tiles.t)): option(Selem.t) => {
   let child = ts => d == Left ? List.rev(ts) : ts;
@@ -128,7 +111,24 @@ let rec parse_selection =
       }
     }
   };
-};
+}
+and find_rest_of_selem =
+    (~strict, d: Direction.t, curr_token: Shard.t, selection: Selection.t)
+    : option((AltList.even(Tiles.t, Shard.t), Selection.t)) =>
+  if (Shard.is_end(~strict, d, curr_token)) {
+    Some(([], selection));
+  } else {
+    let selection = parse_selection(d, selection);
+    let* (preceding_tiles, found_shard, selection) =
+      find_shard(d, selection);
+    if (Shard.is_next(d, curr_token, found_shard)) {
+      let+ (rest_of_tile, selection) =
+        find_rest_of_selem(~strict, d, found_shard, selection);
+      ([(preceding_tiles, found_shard), ...rest_of_tile], selection);
+    } else {
+      None;
+    };
+  };
 
 let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
   fun
