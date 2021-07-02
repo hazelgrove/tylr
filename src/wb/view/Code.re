@@ -55,13 +55,6 @@ let rec view_of_layout =
         (txt, new_ds @ ds);
       };
       switch (annot) {
-      // | Step(step) =>
-      //   switch (tile_step) {
-      //   | None => go(~tile_step=step, ~indent, ~start, dpaths, l)
-      //   | Some(tile_step) =>
-      //     let dpaths = DecPaths.take_two_step((tile_step, step), dpaths);
-      //     go(~indent, ~start, dpaths, l);
-      //   }
       | Space(step, color) =>
         DecPaths.current_space(
           ~caret_mode?,
@@ -90,30 +83,6 @@ let rec view_of_layout =
             },
           ),
         ])
-      // | UniChild(sort, side) =>
-      //   let len = len();
-      //   add_decorations([
-      //     d_container(
-      //       ~length=len,
-      //       ~cls="uni-child",
-      //       UniChildDec.view({sort, side, len}),
-      //     ),
-      //   ]);
-      // | Selected(sort_l, sort_r) =>
-      //   let len = len();
-      //   add_decorations([
-      //     SelectedBoxDec.view(~font_metrics, ~start, ~len),
-      //     d_container(
-      //       ~length=len,
-      //       ~cls="selected-bar",
-      //       SelectedBarDec.view(~font_metrics, ~len, (sort_l, sort_r)),
-      //     ),
-      //   ]);
-      // | Rail(style) =>
-      //   let len = len();
-      //   add_decorations([
-      //     d_container(~length=len, ~cls="rail", RailDec.view(~len, style)),
-      //   ]);
       | Selem({color, shape, step}) =>
         let new_ds =
           DecPaths.current_selem(

@@ -155,16 +155,6 @@ let view =
   let (subject, _) = zipper;
   let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
-  // let rail_color = {
-  //   let frame_color = Color.of_sort(Frame.sort(frame));
-  //   switch (subject) {
-  //   | Pointing(_) => frame_color
-  //   | Selecting(_)
-  //   | Restructuring(_) => Selected
-  //   // | Restructuring(selection, _) =>
-  //   //   Selection.is_whole_any(selection) ? frame_color : Selected
-  //   };
-  // };
   Node.div(
     [Attr.id("page")],
     [
