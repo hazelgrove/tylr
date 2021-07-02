@@ -29,7 +29,7 @@ let caret_position_radii =
     (~font_metrics: FontMetrics.t, ~style: Profile.style) => {
   let r =
     switch (style) {
-    | `Caret => 3.5
+    | `Caret => 3.75
     | `Anchor
     | `Sibling => 2.75
     | `Bare => 2.0
