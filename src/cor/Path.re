@@ -100,63 +100,6 @@ let get_child_steps_of_frame =
     | Root => None,
   );
 
-// let enter_tile =
-//     (d: Direction.t): (Tile.t => option((ChildStep.t, caret_step))) =>
-//   Tile.get(
-//     fun
-//     | Tile_pat.OpHole
-//     | Var(_)
-//     | BinHole
-//     | Prod => None
-//     | Paren(body) =>
-//       Some((ChildStep.paren_body, d == Right ? 0 : List.length(body))),
-//     fun
-//     | Tile_exp.OpHole
-//     | Num(_)
-//     | Var(_)
-//     | BinHole
-//     | Plus
-//     | Times
-//     | Prod => None
-//     | Paren(body) =>
-//       Some((ChildStep.paren_body, d == Right ? 0 : List.length(body)))
-//     | Lam(p) => Some((ChildStep.lam_pat, d == Right ? 0 : List.length(p)))
-//     | Let(_, def) =>
-//       Some(
-//         d == Right
-//           ? (ChildStep.let_pat, 0) : (ChildStep.let_def, List.length(def)),
-//       ),
-//   );
-// let enter_selem = (d: Direction.t) => Selem.get(_ => None, enter_tile(d));
-
-// let rec move_sframe =
-//         (d: Direction.t, sframe: Selection.frame): option(Selection.frame) => {
-//   let (toward, away) = ListFrame.orient(d, sframe);
-//   switch (toward) {
-//   | [] => None
-//   | [selem, ...toward] =>
-//     let (prefix, _) = ListFrame.unorient(d, (toward, away));
-//     let selem_step = List.length(prefix);
-//     switch (enter_selem(d, selem)) {
-//     | None => Some(([], d == Left ? selem_step : selem_step + 1))
-//     | Some((child_step, caret_step)) =>
-//       Some(([(selem_step, child_step)], caret_step))
-//     };
-//   };
-// };
-
-// let move_zipper =
-//     (d: Direction.t, sframe: Selection.frame, frame: Frame.t): option(t) => {
-//   let frame_steps = mk_steps(frame);
-//   switch (move_sframe(d, sframe)) {
-//   | None =>
-//     let+ (steps, (tile_step, _)) = ListUtil.split_last_opt(frame_steps);
-//     let caret_step = d == Left ? tile_step : tile_step + 1;
-//     (steps, caret_step);
-//   | Some((steps, caret_step)) => Some((frame_steps @ steps, caret_step))
-//   };
-// };
-
 let enter_selem =
     (
       d: Direction.t,

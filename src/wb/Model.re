@@ -1,9 +1,8 @@
-open Util;
 open Cor;
 
 type t = {
   zipper: Zipper.t,
-  history_frame: AltList.a_frame(Zipper.t, Action.t),
+  history_frame: HistoryFrame.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
 };
@@ -22,7 +21,21 @@ let init = () => {
     )),
     Frame.Exp(Root),
   ),
-  history_frame: ([], []),
+  history_frame: HistoryFrame.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
+};
+
+let filler = (model: t) => {
+  switch (model.zipper) {
+  | (Pointing(_) | Selecting(_), _) => 0
+  | (Restructuring(_), _) =>
+    switch (HistoryFrame.zipper_before_restructuring(model.history_frame)) {
+    | None => 0
+    | Some(zipper) =>
+      let len_before = Layout.length(Layout.mk_zipper(zipper));
+      let len_now = Layout.length(Layout.mk_zipper(model.zipper));
+      len_now < len_before ? len_before - len_now : 0;
+    }
+  };
 };

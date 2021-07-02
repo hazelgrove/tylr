@@ -8,17 +8,18 @@ let rec view_of_layout =
           ~text_id=?,
           ~font_metrics,
           ~subject: option(Subject.t)=?,
+          ~filler=0,
           dpaths,
           l,
         )
         : Node.t => {
-  let (caret_mode, filler) =
+  let caret_mode =
     subject
     |> Option.map(
          fun
-         | Subject.Pointing(_) => (CaretMode.Pointing, 0)
-         | Selecting(side, _, _) => (Selecting(side), 0)
-         | Restructuring(((selection, _todo) as backpack, _)) => {
+         | Subject.Pointing(_) => CaretMode.Pointing
+         | Selecting(side, _, _) => Selecting(side)
+         | Restructuring(((selection, _) as backpack, _)) => {
              let l = Layout.mk_selection(~frame_color=Selected, selection);
              let len = List.length(selection);
              let dpaths =
@@ -28,17 +29,12 @@ let rec view_of_layout =
                  ~filtered_selems=([], ListUtil.range(len)),
                  (),
                );
-             (
-               Restructuring({
-                 backpack,
-                 view: (view_of_layout(~font_metrics, dpaths, l), ([], [])),
-               }),
-               // TODO unify with length in restructuring genie
-               Layout.length(l) - 1,
-             );
+             Restructuring({
+               backpack,
+               view: (view_of_layout(~font_metrics, dpaths, l), ([], [])),
+             });
            },
-       )
-    |> OptUtil.unzip;
+       );
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let rec go = (~selem_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
     switch (l) {
@@ -61,13 +57,6 @@ let rec view_of_layout =
         (txt, new_ds @ ds);
       };
       switch (annot) {
-      // | Step(step) =>
-      //   switch (tile_step) {
-      //   | None => go(~tile_step=step, ~indent, ~start, dpaths, l)
-      //   | Some(tile_step) =>
-      //     let dpaths = DecPaths.take_two_step((tile_step, step), dpaths);
-      //     go(~indent, ~start, dpaths, l);
-      //   }
       | Space(step, color) =>
         DecPaths.current_space(
           ~caret_mode?,
@@ -96,30 +85,6 @@ let rec view_of_layout =
             },
           ),
         ])
-      // | UniChild(sort, side) =>
-      //   let len = len();
-      //   add_decorations([
-      //     d_container(
-      //       ~length=len,
-      //       ~cls="uni-child",
-      //       UniChildDec.view({sort, side, len}),
-      //     ),
-      //   ]);
-      // | Selected(sort_l, sort_r) =>
-      //   let len = len();
-      //   add_decorations([
-      //     SelectedBoxDec.view(~font_metrics, ~start, ~len),
-      //     d_container(
-      //       ~length=len,
-      //       ~cls="selected-bar",
-      //       SelectedBarDec.view(~font_metrics, ~len, (sort_l, sort_r)),
-      //     ),
-      //   ]);
-      // | Rail(style) =>
-      //   let len = len();
-      //   add_decorations([
-      //     d_container(~length=len, ~cls="rail", RailDec.view(~len, style)),
-      //   ]);
       | Selem({color, shape, step}) =>
         let new_ds =
           DecPaths.current_selem(
@@ -169,21 +134,19 @@ let rec view_of_layout =
     fun
     | None => []
     | Some(id) => [Attr.id(id)];
-  let filler = {
-    let n =
-      switch (filler) {
-      | None => 0
-      | Some(n) => n
-      };
-    n == 0
+  let filler =
+    filler == 0
       ? []
       : [
         Node.span(
           [Attr.classes(["filler"])],
-          [Node.text(String.concat("", List.init(n, _ => Unicode.nbsp)))],
+          [
+            Node.text(
+              String.concat("", List.init(filler, _ => Unicode.nbsp)),
+            ),
+          ],
         ),
       ];
-  };
   let text =
     Node.span(
       [Attr.classes(["code-text"]), ...with_id(text_id)],
