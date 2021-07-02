@@ -114,23 +114,35 @@ let inconsistent =
   );
 
 let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
-  let selections =
+  let (ss_before, ss_after) =
     switch (mode) {
     | Pointing
-    | Selecting(_) => []
-    | Restructuring({backpack: _, view: (selection, rest)}) =>
-      [selection, ...rest]
-      |> List.map(view =>
-           Node.span(
-             [
-               Attr.create(
-                 "style",
-                 Printf.sprintf("margin-top: %fpx;", font_metrics.row_height),
-               ),
-             ],
-             [view],
-           )
-         )
+    | Selecting(_) => ([], [])
+    | Restructuring({backpack: (d, _, _), view: (selection, rest)}) =>
+      let view_of_selection = (~focused, view) =>
+        Node.span(
+          [
+            Attr.create(
+              "style",
+              Printf.sprintf(
+                "margin-right: %fpx;",
+                0.5 *. font_metrics.col_width,
+              ),
+            ),
+            Attr.classes([
+              "restructuring-selection",
+              focused ? "focused" : "unfocused",
+            ]),
+          ],
+          [view],
+        );
+
+      let selection = view_of_selection(~focused=true, selection);
+      let rest = List.map(view_of_selection(~focused=false), rest);
+      switch (d) {
+      | Left => (rest, [selection])
+      | Right => ([], [selection, ...rest])
+      };
     };
   let top = (-0.3) *. font_metrics.row_height;
   Node.div(
@@ -178,13 +190,26 @@ let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
           Attr.create(
             "style",
             Printf.sprintf(
+              "bottom: calc(100%% + %fpx); right: 100%%;",
+              0.8 *. font_metrics.row_height,
+            ),
+          ),
+        ],
+        List.rev(ss_before),
+      ),
+      Node.div(
+        [
+          Attr.id("backpack-suf"),
+          Attr.create(
+            "style",
+            Printf.sprintf(
               "bottom: calc(100%% + %fpx); left: %fpx;",
               0.8 *. font_metrics.row_height,
               (-0.5) *. font_metrics.col_width,
             ),
           ),
         ],
-        List.rev(selections),
+        ss_after,
       ),
     ],
   );

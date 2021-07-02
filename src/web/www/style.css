@@ -575,7 +575,10 @@ svg.rail line.unsorted {
 #backpack-pre, #backpack-suf {
   position: absolute;
   display: grid;
-  grid-auto-flow: row;
+  grid-auto-flow: column;
+}
+.restructuring-selection.unfocused {
+  opacity: 0.6;
 }
 
 #type-info {
