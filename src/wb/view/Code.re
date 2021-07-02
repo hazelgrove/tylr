@@ -24,6 +24,7 @@ let rec view_of_layout =
              let dpaths =
                DecPaths.mk(
                  ~caret=([], (0, len)),
+                 ~selections=[([], (0, len))],
                  ~filtered_selems=([], ListUtil.range(len)),
                  (),
                );

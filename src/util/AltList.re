@@ -55,13 +55,40 @@ let fill_b_frame = (b: 'b, (prefix, suffix): b_frame('a, 'b)) => {
   prepend(prefix, suffix);
 };
 
+let map_a = (f: 'a1 => 'a2, (hd, tl): t('a1, 'b)): t('a2, 'b) => (
+  hd,
+  List.map(((b, a)) => (b, f(a)), tl),
+);
 let map_b = (f: 'b1 => 'b2, (hd, tl): t('a, 'b1)): t('a, 'b2) => (
   hd,
   List.map(((b, a)) => (f(b), a), tl),
 );
+let map = (f_a, f_b, l) => map_a(f_a, map_b(f_b, l));
 
 let even_to_list = (f: 'x => 'a, g: 'y => 'a, xys: even('x, 'y)) =>
   xys |> List.map(((x, y)) => [f(x), g(y)]) |> List.flatten;
 
 let odd_to_list = (f: 'x => 'a, g: 'y => 'a, (x, yxs): odd('x, 'y)) =>
   yxs |> even_to_list(g, f) |> List.cons(f(x));
+
+let fold_left_map =
+    (
+      f_a: ('acc, 'a1) => ('acc, 'a2),
+      f_b: ('acc, 'b1) => ('acc, 'b2),
+      init: 'acc,
+      (hd, tl): t('a1, 'b1),
+    )
+    : ('acc, t('a2, 'b2)) => {
+  let (init_tl, hd') = f_a(init, hd);
+  let (acc, tl') =
+    tl
+    |> ListUtil.fold_left_map(
+         (acc, (b, a)) => {
+           let (acc, b') = f_b(acc, b);
+           let (acc, a') = f_a(acc, a);
+           (acc, (b', a'));
+         },
+         init_tl,
+       );
+  (acc, (hd', tl'));
+};

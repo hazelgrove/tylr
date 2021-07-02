@@ -16,6 +16,7 @@ type t = {
   root_term: option((Path.steps, Skel.t)),
   filtered_selems: option((Path.steps, list(Path.selem_step))),
   neighbor_selems: option((Path.steps, list(Path.selem_step))),
+  selections: list(Path.range),
   // logo hack
   logo_selems: list(Path.selem_step),
 };
@@ -27,6 +28,7 @@ let mk =
       ~root_term=?,
       ~filtered_selems=?,
       ~neighbor_selems=?,
+      ~selections=[],
       ~logo_selems=[],
       (),
     ) => {
@@ -35,6 +37,7 @@ let mk =
   root_term,
   filtered_selems,
   neighbor_selems,
+  selections,
   logo_selems,
 };
 let empty = mk();
@@ -156,7 +159,7 @@ let filtered_selems = (~frame_sort, subject: Subject.t) => {
                switch (relem) {
                | Tile(_) => []
                | Selection(selection) =>
-                 ListUtil.range(~lo=step, List.length(selection))
+                 ListUtil.range(~lo=step, step + List.length(selection))
                },
              ),
            0,
@@ -191,18 +194,45 @@ let neighbor_selems = (subject: Subject.t) =>
     }
   };
 
+let selections = (subject: Subject.t) =>
+  switch (subject) {
+  | Pointing(_) => []
+  | Selecting(_, selection, (prefix, _)) =>
+    let len_pre = List.length(prefix);
+    let len_sel = List.length(selection);
+    [(len_pre, len_pre + len_sel)];
+  | Restructuring((_, rframe)) =>
+    ListFrame.to_list(rframe)
+    |> ListUtil.fold_left_map(
+         (step, relem) =>
+           (
+             step + Restructuring.len_elem(relem),
+             switch (relem) {
+             | Tile(_) => None
+             | Selection(selection) =>
+               Some((step, step + List.length(selection)))
+             },
+           ),
+         0,
+       )
+    |> snd
+    |> List.filter_map(x => x)
+  };
+
 let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
   let (steps, _) as caret_range = Path.mk_range(zipper);
   let filtered_selems = {
     let+ selems = filtered_selems(~frame_sort=Frame.sort(frame), subject);
     (steps, selems);
   };
+  let selections = selections(subject) |> List.map(range => (steps, range));
   mk(
     ~caret=caret_range,
     ~siblings=(steps, siblings(subject)),
     ~root_term=?root_term(zipper),
     ~filtered_selems?,
     ~neighbor_selems=(steps, neighbor_selems(subject)),
+    ~selections,
     (),
   );
 };
@@ -214,6 +244,7 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     root_term,
     filtered_selems,
     neighbor_selems,
+    selections,
     logo_selems: _,
   } = paths;
   let step_or_prune_steps =
@@ -235,6 +266,8 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     root_term: step_or_prune(root_term),
     filtered_selems: step_or_prune(filtered_selems),
     neighbor_selems: step_or_prune(neighbor_selems),
+    selections:
+      selections |> List.filter_map(range => step_or_prune(Some(range))),
     logo_selems: [],
   };
   paths;
@@ -246,21 +279,29 @@ let current_bidelimited =
   let {
     root_term,
     logo_selems,
-    caret,
+    selections,
+    caret: _,
     siblings: _,
     filtered_selems: _,
     neighbor_selems: _,
   } = paths;
-  let caret_ds =
-    switch (caret) {
-    | Some(([], (l, r) as range)) when l != r =>
-      let (ends, measurement) = Layout.find_range(~origin, range, layout);
-      Dec.Profile.[
-        SelectedBox(measurement),
-        SelectedBar({ends, measurement}),
-      ];
-    | _ => []
-    };
+  let selection_ds =
+    selections
+    |> List.filter_map(((steps, range)) =>
+         switch (steps) {
+         | [_, ..._] => None
+         | [] =>
+           let (ends, measurement) =
+             Layout.find_range(~origin, range, layout);
+           Some(
+             Dec.Profile.[
+               SelectedBox(measurement),
+               SelectedBar({ends, measurement}),
+             ],
+           );
+         }
+       )
+    |> List.flatten;
 
   let root_term_ds =
     switch (root_term) {
@@ -305,7 +346,7 @@ let current_bidelimited =
            shape,
          });
        });
-  List.concat([caret_ds, root_term_ds, logo_selem_ds]);
+  List.concat([selection_ds, root_term_ds, logo_selem_ds]);
 };
 
 let current_selem =
@@ -323,6 +364,7 @@ let current_selem =
     caret: _,
     siblings: _,
     root_term: _,
+    selections: _,
     logo_selems: _,
   } = paths;
   let filtered_selem_ds =
@@ -365,6 +407,7 @@ let current_space =
   let {
     caret,
     siblings,
+    selections,
     root_term: _,
     filtered_selems: _,
     logo_selems: _,
@@ -392,7 +435,7 @@ let current_space =
         };
       [
         Caret({origin: measurement.origin, color, mode}),
-        CaretPos({measurement, color, style: `Anchor}),
+        CaretPos({measurement, color, style: `Caret}),
         ...restructuring_ds,
       ];
     | (
@@ -401,17 +444,30 @@ let current_space =
       )
         when step == r => [
         Caret({origin: measurement.origin, color, mode}),
-        CaretPos({measurement, color, style: `Anchor}),
+        CaretPos({measurement, color, style: `Caret}),
       ]
     | _ => []
     };
-  let anchor_ds =
-    switch (caret) {
-    | Some(([], (l, r))) when step == l || step == r => [
-        CaretPos({measurement, color, style: `Anchor}),
-      ]
-    | _ => []
-    };
+  let anchor_ds = {
+    let is_relevant_to_step = ((l, r)) => step == l || step == r;
+    let caret_ds =
+      switch (caret) {
+      | Some(([], range)) when is_relevant_to_step(range) => [
+          CaretPos({measurement, color, style: `Anchor}),
+        ]
+      | _ => []
+      };
+    let selection_ds =
+      if (selections
+          |> List.exists(((steps, range)) =>
+               steps == [] && is_relevant_to_step(range)
+             )) {
+        [CaretPos({measurement, color, style: `Anchor})];
+      } else {
+        [];
+      };
+    caret_ds @ selection_ds;
+  };
   let bare_ds =
     switch (caret_mode) {
     | None => []

@@ -698,29 +698,18 @@ let mk_restructuring =
       rframe: Restructuring.frame,
       frame: Frame.t,
     ) => {
+  let frame_sort = Frame.sort(frame);
   let subject =
-    ListFrame.to_list(rframe)
-    |> ListUtil.fold_left_map(
-         (step, relem) =>
-           (
-             step + Restructuring.len_elem(relem),
-             [
-               mk_relem(
-                 ~step,
-                 ~frame_color=Color.of_sort(Frame.sort(frame)),
-                 relem,
-               ),
-               space(
-                 step + 1,
-                 Color.of_sort(snd(Restructuring.tip(Right, relem))),
-               ),
-             ],
-           ),
-         0,
+    Restructuring.get_sframe(rframe)
+    |> ListFrame.to_list
+    |> List.mapi((i, selem) =>
+         [
+           mk_selem(i, selem),
+           space(i + 1, Color.of_sort(snd(Selem.tip(Right, selem)))),
+         ]
        )
-    |> snd
     |> List.flatten
-    |> List.cons(space(0, Color.of_sort(Frame.sort(frame))))
+    |> List.cons(space(0, Color.of_sort(frame_sort)))
     |> cats;
   mk_frame(subject, frame);
 };
