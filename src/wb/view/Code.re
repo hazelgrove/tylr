@@ -8,31 +8,27 @@ let rec view_of_layout =
           ~text_id=?,
           ~font_metrics,
           ~subject: option(Subject.t)=?,
+          ~filler=0,
           dpaths,
           l,
         )
         : Node.t => {
-  let (caret_mode, filler) =
+  let caret_mode =
     subject
     |> Option.map(
          fun
-         | Subject.Pointing(_) => (CaretMode.Pointing, 0)
-         | Selecting(_) => (Selecting, 0)
+         | Subject.Pointing(_) => CaretMode.Pointing
+         | Selecting(_) => Selecting
          | Restructuring(selection, _) => {
              let l = Layout.mk_selection(Selected, selection);
              let dpaths =
                DecPaths.mk(~caret=([], (0, List.length(selection))), ());
-             (
-               Restructuring({
-                 selection,
-                 view: view_of_layout(~font_metrics, dpaths, l),
-               }),
-               // TODO unify with length in restructuring genie
-               Layout.length(l) - 1,
-             );
+             Restructuring({
+               selection,
+               view: view_of_layout(~font_metrics, dpaths, l),
+             });
            },
-       )
-    |> OptUtil.unzip;
+       );
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let rec go = (~selem_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
     switch (l) {
@@ -132,21 +128,19 @@ let rec view_of_layout =
     fun
     | None => []
     | Some(id) => [Attr.id(id)];
-  let filler = {
-    let n =
-      switch (filler) {
-      | None => 0
-      | Some(n) => n
-      };
-    n == 0
+  let filler =
+    filler == 0
       ? []
       : [
         Node.span(
           [Attr.classes(["filler"])],
-          [Node.text(String.concat("", List.init(n, _ => Unicode.nbsp)))],
+          [
+            Node.text(
+              String.concat("", List.init(filler, _ => Unicode.nbsp)),
+            ),
+          ],
         ),
       ];
-  };
   let text =
     Node.span(
       [Attr.classes(["code-text"]), ...with_id(text_id)],

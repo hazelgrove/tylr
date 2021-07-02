@@ -404,11 +404,13 @@ let mk_restructuring =
   mk_frame(subject, frame);
 };
 
-let mk_zipper = (zipper: Zipper.t) =>
-  switch (zipper) {
-  | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
-  | (Selecting(selection, sframe), frame) =>
-    mk_selecting(selection, sframe, frame)
-  | (Restructuring(selection, sframe), frame) =>
-    mk_restructuring(selection, sframe, frame)
-  };
+let mk_zipper =
+  Memo.memoize((zipper: Zipper.t) =>
+    switch (zipper) {
+    | (Pointing(sframe), frame) => mk_pointing(sframe, frame)
+    | (Selecting(selection, sframe), frame) =>
+      mk_selecting(selection, sframe, frame)
+    | (Restructuring(selection, sframe), frame) =>
+      mk_restructuring(selection, sframe, frame)
+    }
+  );

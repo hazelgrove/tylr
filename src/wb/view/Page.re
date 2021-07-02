@@ -150,7 +150,7 @@ let filters =
 let view =
     (
       ~inject,
-      {font_metrics, logo_font_metrics, zipper, history_frame: _}: Model.t,
+      {font_metrics, logo_font_metrics, zipper, history_frame: _} as model: Model.t,
     ) => {
   let (subject, _) = zipper;
   let dpaths = DecPaths.of_zipper(zipper);
@@ -180,6 +180,7 @@ let view =
             ~text_id="under-the-rail-text",
             ~font_metrics,
             ~subject,
+            ~filler=Model.filler(model),
             dpaths,
             l,
           ),
