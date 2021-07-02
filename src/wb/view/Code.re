@@ -19,20 +19,23 @@ let rec view_of_layout =
          fun
          | Subject.Pointing(_) => CaretMode.Pointing
          | Selecting(side, _, _) => Selecting(side)
-         | Restructuring(((selection, _) as backpack, _)) => {
-             let l = Layout.mk_selection(~frame_color=Selected, selection);
-             let len = List.length(selection);
-             let dpaths =
-               DecPaths.mk(
-                 ~caret=([], (0, len)),
-                 ~selections=[([], (0, len))],
-                 ~filtered_selems=([], ListUtil.range(len)),
-                 (),
-               );
-             Restructuring({
-               backpack,
-               view: (view_of_layout(~font_metrics, dpaths, l), ([], [])),
-             });
+         | Restructuring(((selection, (prefix, suffix)) as backpack, _)) => {
+             let view_of_selection = selection => {
+               let l = Layout.mk_selection(~frame_color=Selected, selection);
+               let len = List.length(selection);
+               let dpaths =
+                 DecPaths.mk(
+                   ~caret=([], (0, len)),
+                   ~selections=[([], (0, len))],
+                   ~filtered_selems=([], ListUtil.range(len)),
+                   (),
+                 );
+               view_of_layout(~font_metrics, dpaths, l);
+             };
+             let selection = view_of_selection(selection);
+             let prefix = List.map(view_of_selection, prefix);
+             let suffix = List.map(view_of_selection, suffix);
+             Restructuring({backpack, view: (selection, (prefix, suffix))});
            },
        );
   let with_cls = cls => Node.span([Attr.classes([cls])]);

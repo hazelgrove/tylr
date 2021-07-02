@@ -124,10 +124,7 @@ let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
           [
             Attr.create(
               "style",
-              Printf.sprintf(
-                "margin-right: %fpx;",
-                (-0.5) *. font_metrics.col_width,
-              ),
+              Printf.sprintf("margin-right: %fpx;", font_metrics.col_width),
             ),
           ],
           [view],
