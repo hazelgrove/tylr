@@ -144,14 +144,9 @@ let rec move_selecting =
 };
 
 let move_restructuring =
-    (
-      d: Direction.t,
-      ((_, selection, _) as backpack, rframe): Restructuring.t,
-      frame: Frame.t,
-    )
+    (d: Direction.t, (backpack, rframe): Restructuring.t, frame: Frame.t)
     : option((Restructuring.t, Frame.t)) =>
-  // TODO condition should be based on whole backpack
-  if (Selection.is_whole_any(selection)) {
+  if (Parser.is_backpack_whole(backpack)) {
     // [Move<d>RestructuringWhole]
     let+ (sframe, frame) =
       move_pointing(d, Restructuring.get_sframe(rframe), frame);
