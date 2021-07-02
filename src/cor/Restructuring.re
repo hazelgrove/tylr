@@ -11,7 +11,7 @@ module Backpack = {
       (d: Direction.t, selection', (d_backpack, selection, rest): t) => {
     let selections = {
       let ss = [selection, ...rest];
-      d == d_backpack ? ss : List.rev(ss);
+      d == d_backpack ? List.rev(ss) : ss;
     };
     (Direction.toggle(d), selection', selections);
   };
