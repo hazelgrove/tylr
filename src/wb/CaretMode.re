@@ -8,5 +8,5 @@ type t =
   | Selecting(Direction.t)
   | Restructuring({
       backpack: Restructuring.Backpack.t,
-      view: [@sexp.opaque] (Node.t, ListFrame.t(Node.t)),
+      view: [@sexp.opaque] (Node.t, list(Node.t)),
     });

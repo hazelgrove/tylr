@@ -16,7 +16,8 @@ type t = {
   root_term: option((Path.steps, Skel.t)),
   filtered_selems: option((Path.steps, list(Path.selem_step))),
   neighbor_selems: option((Path.steps, list(Path.selem_step))),
-  selections: list(Path.range),
+  selection_boxes: list(Path.range),
+  selection_bars: list(Path.range),
   // logo hack
   logo_selems: list(Path.selem_step),
 };
@@ -28,7 +29,8 @@ let mk =
       ~root_term=?,
       ~filtered_selems=?,
       ~neighbor_selems=?,
-      ~selections=[],
+      ~selection_boxes=[],
+      ~selection_bars=[],
       ~logo_selems=[],
       (),
     ) => {
@@ -37,7 +39,8 @@ let mk =
   root_term,
   filtered_selems,
   neighbor_selems,
-  selections,
+  selection_boxes,
+  selection_bars,
   logo_selems,
 };
 let empty = mk();
@@ -232,7 +235,8 @@ let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
     ~root_term=?root_term(zipper),
     ~filtered_selems?,
     ~neighbor_selems=(steps, neighbor_selems(subject)),
-    ~selections,
+    ~selection_boxes=selections,
+    ~selection_bars=selections,
     (),
   );
 };
@@ -244,7 +248,8 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     root_term,
     filtered_selems,
     neighbor_selems,
-    selections,
+    selection_boxes,
+    selection_bars,
     logo_selems: _,
   } = paths;
   let step_or_prune_steps =
@@ -266,8 +271,10 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     root_term: step_or_prune(root_term),
     filtered_selems: step_or_prune(filtered_selems),
     neighbor_selems: step_or_prune(neighbor_selems),
-    selections:
-      selections |> List.filter_map(range => step_or_prune(Some(range))),
+    selection_boxes:
+      selection_boxes |> List.filter_map(range => step_or_prune(Some(range))),
+    selection_bars:
+      selection_bars |> List.filter_map(range => step_or_prune(Some(range))),
     logo_selems: [],
   };
   paths;
@@ -279,26 +286,33 @@ let current_bidelimited =
   let {
     root_term,
     logo_selems,
-    selections,
+    selection_boxes,
+    selection_bars,
     caret: _,
     siblings: _,
     filtered_selems: _,
     neighbor_selems: _,
   } = paths;
-  let selection_ds =
-    selections
+  let selection_box_ds =
+    selection_boxes
+    |> List.filter_map(((steps, range)) =>
+         switch (steps) {
+         | [_, ..._] => None
+         | [] =>
+           let (_, measurement) = Layout.find_range(~origin, range, layout);
+           Some(Dec.Profile.[SelectedBox(measurement)]);
+         }
+       )
+    |> List.flatten;
+  let selection_bar_ds =
+    selection_bars
     |> List.filter_map(((steps, range)) =>
          switch (steps) {
          | [_, ..._] => None
          | [] =>
            let (ends, measurement) =
              Layout.find_range(~origin, range, layout);
-           Some(
-             Dec.Profile.[
-               SelectedBox(measurement),
-               SelectedBar({ends, measurement}),
-             ],
-           );
+           Some(Dec.Profile.[SelectedBar({ends, measurement})]);
          }
        )
     |> List.flatten;
@@ -346,7 +360,12 @@ let current_bidelimited =
            shape,
          });
        });
-  List.concat([selection_ds, root_term_ds, logo_selem_ds]);
+  List.concat([
+    selection_box_ds,
+    selection_bar_ds,
+    root_term_ds,
+    logo_selem_ds,
+  ]);
 };
 
 let current_selem =
@@ -364,7 +383,8 @@ let current_selem =
     caret: _,
     siblings: _,
     root_term: _,
-    selections: _,
+    selection_boxes: _,
+    selection_bars: _,
     logo_selems: _,
   } = paths;
   let filtered_selem_ds =
@@ -407,7 +427,8 @@ let current_space =
   let {
     caret,
     siblings,
-    selections,
+    selection_bars,
+    selection_boxes: _,
     root_term: _,
     filtered_selems: _,
     logo_selems: _,
@@ -422,7 +443,7 @@ let current_space =
         when step == l =>
       let restructuring_ds =
         switch (mode) {
-        | Restructuring({backpack: (selection, _todo), _}) => [
+        | Restructuring({backpack: (_d_todo, selection, _rest_todo), _}) => [
             RestructuringGenie({
               origin: measurement.origin,
               length:
@@ -458,7 +479,7 @@ let current_space =
       | _ => []
       };
     let selection_ds =
-      if (selections
+      if (selection_bars
           |> List.exists(((steps, range)) =>
                steps == [] && is_relevant_to_step(range)
              )) {

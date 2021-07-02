@@ -276,9 +276,10 @@ let rec parse_zipper =
   };
 };
 
-let is_backpack_whole = ((selection, ssframe): Restructuring.Backpack.t) => {
-  let total_selection =
-    List.flatten(ListFrame.to_list(~subject=[selection], ssframe));
+let is_backpack_whole = ((d, selection, rest): Restructuring.Backpack.t) => {
+  let selections = [selection, ...rest];
+  let selections = d == Left ? List.rev(selections) : selections;
+  let total_selection = List.concat(selections);
   Selection.is_whole_any(parse_selection(Right, total_selection));
 };
 

@@ -375,10 +375,6 @@ svg.rail line.unsorted {
   vector-effect: non-scaling-stroke;
 }
 
-#backpack-suf .selection-box {
-  display: none;
-}
-
 .err-hole-path {
   fill: none;
   stroke-dasharray: 2 1;
@@ -579,7 +575,7 @@ svg.rail line.unsorted {
 #backpack-pre, #backpack-suf {
   position: absolute;
   display: grid;
-  grid-auto-flow: column;
+  grid-auto-flow: row;
 }
 
 #type-info {

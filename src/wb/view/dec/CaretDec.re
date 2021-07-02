@@ -114,24 +114,23 @@ let inconsistent =
   );
 
 let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
-  let (ss_before, ss_after) =
+  let selections =
     switch (mode) {
     | Pointing
-    | Selecting(_) => ([], [])
-    | Restructuring({backpack: _, view: (selection, (ss_pre, ss_suf))}) =>
-      let view_of_selection = view =>
-        Node.span(
-          [
-            Attr.create(
-              "style",
-              Printf.sprintf("margin-right: %fpx;", font_metrics.col_width),
-            ),
-          ],
-          [view],
-        );
-      let ss_before = List.map(view_of_selection, List.rev(ss_pre));
-      let ss_after = List.map(view_of_selection, [selection, ...ss_suf]);
-      (ss_before, ss_after);
+    | Selecting(_) => []
+    | Restructuring({backpack: _, view: (selection, rest)}) =>
+      [selection, ...rest]
+      |> List.map(view =>
+           Node.span(
+             [
+               Attr.create(
+                 "style",
+                 Printf.sprintf("margin-top: %fpx;", font_metrics.row_height),
+               ),
+             ],
+             [view],
+           )
+         )
     };
   let top = (-0.3) *. font_metrics.row_height;
   Node.div(
@@ -175,30 +174,17 @@ let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
       ),
       Node.div(
         [
-          Attr.id("backpack-pre"),
-          Attr.create(
-            "style",
-            Printf.sprintf(
-              "top: %fpx; right: 100%%;",
-              (-1.8) *. font_metrics.row_height,
-            ),
-          ),
-        ],
-        ss_before,
-      ),
-      Node.div(
-        [
           Attr.id("backpack-suf"),
           Attr.create(
             "style",
             Printf.sprintf(
-              "top: %fpx; left: %fpx;",
-              (-1.8) *. font_metrics.row_height,
+              "bottom: calc(100%% + %fpx); left: %fpx;",
+              0.8 *. font_metrics.row_height,
               (-0.5) *. font_metrics.col_width,
             ),
           ),
         ],
-        ss_after,
+        List.rev(selections),
       ),
     ],
   );

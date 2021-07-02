@@ -1,11 +1,20 @@
+open Sexplib.Std;
 open Util;
 
 module Backpack = {
   [@deriving sexp]
-  type t = (Selection.t, ListFrame.t(Selection.t));
+  type t = (Direction.t, Selection.t, list(Selection.t));
+  // let len = ((selection, ssframe)) =>
+  //   List.length(ListFrame.to_list(~subject=[selection], ssframe));
 
-  let len = ((selection, ssframe)) =>
-    List.length(ListFrame.to_list(~subject=[selection], ssframe));
+  let pick_up_selection =
+      (d: Direction.t, selection', (d_backpack, selection, rest): t) => {
+    let selections = {
+      let ss = [selection, ...rest];
+      d == d_backpack ? ss : List.rev(ss);
+    };
+    (Direction.toggle(d), selection', selections);
+  };
 };
 
 // TODO create Relem module

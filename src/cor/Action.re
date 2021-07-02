@@ -144,9 +144,12 @@ let rec move_selecting =
 };
 
 let move_restructuring =
-    (d: Direction.t, (backpack, rframe): Restructuring.t, frame: Frame.t)
-    : option((Restructuring.t, Frame.t)) => {
-  let (selection, ssframe) = backpack;
+    (
+      d: Direction.t,
+      ((_, selection, _) as backpack, rframe): Restructuring.t,
+      frame: Frame.t,
+    )
+    : option((Restructuring.t, Frame.t)) =>
   // TODO condition should be based on whole backpack
   if (Selection.is_whole_any(selection)) {
     // [Move<d>RestructuringWhole]
@@ -162,18 +165,12 @@ let move_restructuring =
         mk_frame(d, front, [Tile(tile), ...back_affix(d, rframe)]);
       Some(((backpack, rframe), frame));
     | [Selection(selection'), ...front] =>
-      let ssframe =
-        mk_frame(
-          d,
-          front_affix(d, ssframe),
-          [selection, ...back_affix(d, ssframe)],
-        );
-      let backpack = (selection', ssframe);
+      let backpack =
+        Restructuring.Backpack.pick_up_selection(d, selection', backpack);
       let rframe = mk_frame(d, front, back_affix(d, rframe));
       Some(((backpack, rframe), frame));
     };
   };
-};
 
 let rec disassemble_and_enter =
         (selem: Selem.t, (prefix, suffix): Selection.frame) =>
@@ -243,7 +240,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         | [_, ..._] as trimmed =>
           let rframe = Restructuring.mk_frame(sframe);
           Some((
-            Subject.Restructuring(((trimmed, ([], [])), rframe)),
+            Subject.Restructuring(((Right, trimmed, []), rframe)),
             frame,
           ));
         };
@@ -254,7 +251,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       (Subject.Selecting(side, selection, sframe), frame);
     }
   | Restructuring(
-      ((selection, ssframe), (prefix, suffix) as rframe) as restructuring,
+      ((d_backpack, selection, rest), (prefix, suffix) as rframe) as restructuring,
     ) =>
     switch (a) {
     | Mark =>
@@ -262,29 +259,31 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
           || Selection.is_whole(Frame.sort(frame), selection)) {
         // [MarkRestructuring]
         let tip = Tip.(Convex, Frame.sort(frame));
-        let rselection = Restructuring.mk_relems(selection);
-        let rframe =
-          Parser.fix_holes_rframe(tip, (prefix, rselection @ suffix), tip);
-        switch (ssframe) {
-        | ([], []) =>
+        switch (rest) {
+        | [] =>
+          let rframe =
+            Parser.fix_holes_rframe(
+              tip,
+              (prefix, [Selection(selection), ...suffix]),
+              tip,
+            );
           let (prefix, suffix) = Restructuring.get_sframe(rframe);
           let suffix = Parser.parse_selection(Right, suffix);
           let (sframe, frame) =
             Parser.parse_zipper((prefix, suffix), frame);
           Some((Pointing(sframe), frame));
-        | ([selection, ...prefix], []) =>
-          let restructuring = ((selection, (prefix, [])), rframe);
-          Some((Restructuring(restructuring), frame));
-        | ([], [selection, ...suffix]) =>
-          let restructuring = ((selection, ([], suffix)), rframe);
-          Some((Restructuring(restructuring), frame));
-        | ([_, ..._] as prefix, [_, ..._] as suffix) =>
-          let (prefix, hd) = ListUtil.split_last(prefix);
-          let restructuring = (
-            (hd, ([], List.rev(prefix) @ suffix)),
-            rframe,
-          );
-          Some((Restructuring(restructuring), frame));
+        | [selection', ...rest'] =>
+          let rframe =
+            switch (d_backpack) {
+            | Left => (
+                prefix,
+                [Restructuring.Selection(selection), ...suffix],
+              )
+            | Right => ([Selection(selection), ...prefix], suffix)
+            };
+          let rframe = Parser.fix_holes_rframe(tip, rframe, tip);
+          let backpack = (d_backpack, selection', rest');
+          Some((Restructuring((backpack, rframe)), frame));
         };
       } else {
         None;
