@@ -31,8 +31,8 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             | (Selecting(_), _) => [Update.escape(~d, ())]
             | _ => [p(Move(d))]
             };
-          | "Backspace"
-          | "Delete" => [p(Delete)]
+          | "Backspace" => [p(Delete(Left))]
+          | "Delete" => [p(Delete(Right))]
           | "+" => [p(Construct(Tile(Exp(Plus))))]
           | "(" =>
             switch (frame_sort) {

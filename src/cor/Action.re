@@ -5,7 +5,7 @@ open OptUtil.Syntax;
 type t =
   | Mark
   | Move(Direction.t)
-  | Delete
+  | Delete(Direction.t)
   | Construct(Selem.t);
 
 let front_affix =
@@ -197,7 +197,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
     | Move(d) =>
       let+ (sframe, frame) = move_pointing(d, sframe, frame);
       (Subject.Pointing(sframe), frame);
-    | Delete => None
+    | Delete(_) => None
     | Construct(selem) =>
       // [Construct]
       let sort = Selem.sort(selem);
@@ -254,7 +254,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
     };
     switch (a) {
     | Construct(_) => None
-    | Delete =>
+    | Delete(_) =>
       if (Selection.is_whole_any(selection)) {
         let tip = (Tip.Convex, Frame.sort(frame));
         let sframe = Parser.fix_holes(tip, sframe, tip);
@@ -310,7 +310,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       let+ ((backpack, rframe), frame) =
         move_restructuring(d, restructuring, frame);
       (Subject.Restructuring((backpack, rframe)), frame);
-    | Delete =>
+    | Delete(_) =>
       // [Delete]
       let s = Frame.sort(frame);
       let tip = Tip.(Convex, s);
