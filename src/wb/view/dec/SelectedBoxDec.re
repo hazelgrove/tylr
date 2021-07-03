@@ -15,7 +15,7 @@ let view = (~font_metrics: FontMetrics.t, profile: Profile.t) => {
           (Float.of_int(profile.origin) +. 0.5) *. font_metrics.col_width,
           (-0.2) *. font_metrics.row_height,
           Float.of_int(profile.length) *. font_metrics.col_width,
-          // not sure why this needs to be 1.3 and not 1.2
+          // not sure why this needs to be 1.6 and not 1.4
           1.6 *. font_metrics.row_height,
         ),
       ),

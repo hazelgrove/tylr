@@ -187,7 +187,12 @@ let trim_selection = (selection: Selection.t) => {
   trim_r(trim_l(selection));
 };
 
-let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
+let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
+  let frame_sort = Frame.sort(frame);
+  let fix_holes = sframe => {
+    let tip = (Tip.Convex, frame_sort);
+    Parser.fix_holes(tip, sframe, tip);
+  };
   switch (subject) {
   | Pointing(sframe) =>
     switch (a) {
@@ -197,7 +202,25 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
     | Move(d) =>
       let+ (sframe, frame) = move_pointing(d, sframe, frame);
       (Subject.Pointing(sframe), frame);
-    | Delete(_) => None
+    | Delete(d) =>
+      switch (front_affix(d, sframe)) {
+      | [] => failwith("todo")
+      | [selem, ...front] =>
+        switch (Parser.disassemble_selem(d, selem)) {
+        | [Shard(shard), ...rest_of_selem]
+            when
+              snd(Shard.tip(Left, shard)) == snd(Shard.tip(Right, shard)) =>
+          let front = rest_of_selem @ front;
+          let sframe = mk_frame(d, front, back_affix(d, sframe));
+          let rframe = Restructuring.mk_frame(sframe);
+          let backpack = (d, [Selem.Shard(shard)], []);
+          Some((Restructuring((backpack, rframe)), frame));
+        | _ =>
+          let sframe = mk_frame(d, front, back_affix(d, sframe));
+          let sframe = fix_holes(sframe);
+          Some((Pointing(sframe), frame));
+        }
+      }
     | Construct(selem) =>
       // [Construct]
       let sort = Selem.sort(selem);
@@ -207,10 +230,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
         switch (selem) {
         | Tile(_) =>
           let sframe = disassemble_and_enter(selem, sframe);
-          let (prefix, suffix) = {
-            let tip = (Tip.Convex, sort);
-            Parser.fix_holes(tip, sframe, tip);
-          };
+          let (prefix, suffix) = fix_holes(sframe);
           let sframe = (
             Parser.parse_selection(Left, prefix),
             Parser.parse_selection(Right, suffix),
@@ -323,3 +343,4 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
     | Construct(_) => None
     }
   };
+};
