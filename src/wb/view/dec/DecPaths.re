@@ -46,36 +46,6 @@ let mk =
 let empty = mk();
 
 let root_term = ((subject, frame): Zipper.t) => {
-  let zip_up =
-      (subject: Selection.t, frame: Frame.t)
-      : option((Tile.t, ListFrame.t(Tile.t), Frame.t)) => {
-    let tiles = Option.get(Selection.get_tiles(subject));
-    let get_pat = () => Option.get(Tiles.get_pat(tiles));
-    let get_exp = () => Option.get(Tiles.get_exp(tiles));
-    switch (frame) {
-    | Pat(Paren_body((tframe, frame))) =>
-      let tile = Tile.Pat(Paren(get_pat()));
-      let tframe = TupleUtil.map2(Tiles.of_pat, tframe);
-      Some((tile, tframe, Pat(frame)));
-    | Pat(Lam_pat((tframe, frame))) =>
-      let tile = Tile.Exp(Lam(get_pat()));
-      let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-      Some((tile, tframe, Exp(frame)));
-    | Pat(Let_pat(def, (tframe, frame))) =>
-      let tile = Tile.Exp(Let(get_pat(), def));
-      let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-      Some((tile, tframe, Exp(frame)));
-    | Exp(Paren_body((tframe, frame))) =>
-      let tile = Tile.Exp(Paren(get_exp()));
-      let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-      Some((tile, tframe, Exp(frame)));
-    | Exp(Let_def(p, (tframe, frame))) =>
-      let tile = Tile.Exp(Let(p, get_exp()));
-      let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
-      Some((tile, tframe, Exp(frame)));
-    | Exp(Root) => None
-    };
-  };
   switch (subject) {
   | Selecting(_)
   | Restructuring(_) => None
@@ -90,7 +60,7 @@ let root_term = ((subject, frame): Zipper.t) => {
     let (steps, skel) =
       switch (tframe) {
       | (prefix, []) =>
-        switch (zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
+        switch (Parser.zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
         | None =>
           let tiles = List.rev(prefix);
           (Path.mk_steps(frame), skel_at(List.length(tiles) - 1, tiles));

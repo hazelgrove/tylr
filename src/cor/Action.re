@@ -204,17 +204,68 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
       (Subject.Pointing(sframe), frame);
     | Delete(d) =>
       switch (front_affix(d, sframe)) {
-      | [] => failwith("todo")
+      | [] =>
+        let subject = ListFrame.to_list(sframe);
+        let* (sframe, frame') = Parser.disassemble_frame(frame);
+        switch (front_affix(d, sframe)) {
+        | [Shard(shard), ...front] =>
+          if (snd(Shard.tip(Left, shard)) == snd(Shard.tip(Right, shard))) {
+            let sframe = mk_frame(d, front, subject @ back_affix(d, sframe));
+            let rframe = Restructuring.mk_frame(sframe);
+            let backpack = (d, [Selem.Shard(shard)], []);
+            Some((Subject.Restructuring((backpack, rframe)), frame'));
+          } else {
+            switch (frame) {
+            | Pat(Lam_pat((tframe, frame))) =>
+              let p = Option.get(Selection.get_tiles_pat(subject));
+              let rframe =
+                TupleUtil.map2(
+                  List.map(t => Restructuring.Tile(Exp(t))),
+                  tframe,
+                );
+              let backpack = (
+                Direction.Right,
+                [Selem.Tile(Exp(Lam(p)))],
+                [],
+              );
+              Some((Restructuring((backpack, rframe)), Exp(frame)));
+            | Pat(Let_pat(def, ((prefix, suffix), frame))) =>
+              let p = Option.get(Selection.get_tiles_pat(subject));
+              let sframe = (
+                Selection.of_tiles_exp(prefix),
+                Selection.of_tiles_exp(def)
+                @ [
+                  Selem.Shard(Exp(Let_in)),
+                  ...Selection.of_tiles_exp(suffix),
+                ],
+              );
+              let rframe = Restructuring.mk_frame(sframe);
+              let backpack = (
+                Direction.Right,
+                [Selem.Shard(Exp(Let_let_eq(p)))],
+                [],
+              );
+              Some((Restructuring((backpack, rframe)), Exp(frame)));
+            | _ => None
+            };
+          }
+        | _ => None
+        };
       | [selem, ...front] =>
         switch (Parser.disassemble_selem(d, selem)) {
-        | [Shard(shard), ...rest_of_selem]
-            when
-              snd(Shard.tip(Left, shard)) == snd(Shard.tip(Right, shard)) =>
-          let front = rest_of_selem @ front;
-          let sframe = mk_frame(d, front, back_affix(d, sframe));
-          let rframe = Restructuring.mk_frame(sframe);
-          let backpack = (d, [Selem.Shard(shard)], []);
-          Some((Restructuring((backpack, rframe)), frame));
+        | [Shard(shard), ...rest_of_selem] =>
+          if (snd(Shard.tip(Left, shard)) == snd(Shard.tip(Right, shard))) {
+            let front = rest_of_selem @ front;
+            let sframe = mk_frame(d, front, back_affix(d, sframe));
+            let rframe = Restructuring.mk_frame(sframe);
+            let backpack = (d, [Selem.Shard(shard)], []);
+            Some((Restructuring((backpack, rframe)), frame));
+          } else {
+            let sframe = mk_frame(d, front, back_affix(d, sframe));
+            let rframe = Restructuring.mk_frame(sframe);
+            let backpack = (Direction.Right, [selem], []);
+            Some((Restructuring((backpack, rframe)), frame));
+          }
         | _ =>
           let sframe = mk_frame(d, front, back_affix(d, sframe));
           let sframe = fix_holes(sframe);
