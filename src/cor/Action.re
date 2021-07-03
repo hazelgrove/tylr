@@ -232,10 +232,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
       };
     }
   | Selecting(side, selection, sframe) =>
-    switch (a) {
-    | Delete
-    | Construct(_) => None
-    | Mark =>
+    let mark = () => {
       // [MarkSelecting]
       let* (_, lsort) = Selection.tip(Left, selection);
       let* (_, rsort) = Selection.tip(Right, selection);
@@ -254,11 +251,23 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) =>
           ));
         };
       };
+    };
+    switch (a) {
+    | Construct(_) => None
+    | Delete =>
+      if (Selection.is_whole_any(selection)) {
+        let tip = (Tip.Convex, Frame.sort(frame));
+        let sframe = Parser.fix_holes(tip, sframe, tip);
+        Some((Pointing(sframe), frame));
+      } else {
+        mark();
+      }
+    | Mark => mark()
     | Move(d) =>
       let+ (side, selection, sframe, frame) =
         move_selecting(d, side, selection, sframe, frame);
       (Subject.Selecting(side, selection, sframe), frame);
-    }
+    };
   | Restructuring(
       ((d_backpack, selection, rest), (prefix, suffix) as rframe) as restructuring,
     ) =>
