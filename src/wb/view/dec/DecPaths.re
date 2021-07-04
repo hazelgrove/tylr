@@ -445,7 +445,7 @@ let current_space =
     let caret_ds =
       switch (caret) {
       | Some(([], range)) when is_relevant_to_step(range) => [
-          CaretPos({measurement, color, just_failed, style: `Anchor}),
+          CaretPos({measurement, color, just_failed: None, style: `Anchor}),
         ]
       | _ => []
       };
@@ -454,7 +454,7 @@ let current_space =
           |> List.exists(((steps, range)) =>
                steps == [] && is_relevant_to_step(range)
              )) {
-        [CaretPos({measurement, color, just_failed, style: `Anchor})];
+        [CaretPos({measurement, color, just_failed: None, style: `Anchor})];
       } else {
         [];
       };
