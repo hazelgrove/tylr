@@ -189,10 +189,44 @@ let trim_selection = (selection: Selection.t) => {
 
 let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
   let frame_sort = Frame.sort(frame);
+
   let fix_holes = sframe => {
     let tip = (Tip.Convex, frame_sort);
     Parser.fix_holes(tip, sframe, tip);
   };
+
+  let mark_selecting = (selection, sframe, frame) => {
+    // [MarkSelecting]
+    let* (_, lsort) = Selection.tip(Left, selection);
+    let* (_, rsort) = Selection.tip(Right, selection);
+    if (lsort != rsort) {
+      None;
+    } else {
+      let tip = (Tip.Convex, Frame.sort(frame));
+      let sframe = Parser.fix_holes(tip, sframe, tip);
+      switch (trim_selection(selection)) {
+      | [] => Some((Subject.Pointing(sframe), frame))
+      | [_, ..._] as trimmed =>
+        let rframe = Restructuring.mk_frame(sframe);
+        Some((
+          Subject.Restructuring(((Right, trimmed, []), rframe)),
+          frame,
+        ));
+      };
+    };
+  };
+
+  let delete_selecting = (selection, sframe, frame) =>
+    if (Selection.is_whole_any(selection)) {
+      let tip = (Tip.Convex, Frame.sort(frame));
+      let sframe = Parser.fix_holes(tip, sframe, tip);
+      Some((Subject.Pointing(sframe), frame));
+    } else {
+      let (selection, sframe) =
+        Parser.round_up(~frame_sort, selection, sframe);
+      mark_selecting(selection, sframe, frame);
+    };
+
   switch (subject) {
   | Pointing(sframe) =>
     switch (a) {
@@ -203,75 +237,9 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
       let+ (sframe, frame) = move_pointing(d, sframe, frame);
       (Subject.Pointing(sframe), frame);
     | Delete(d) =>
-      switch (front_affix(d, sframe)) {
-      | [] =>
-        let subject = ListFrame.to_list(sframe);
-        let* (sframe, frame') = Parser.disassemble_frame(frame);
-        switch (front_affix(d, sframe)) {
-        | [Shard(shard), ...front] =>
-          if (snd(Shard.tip(Left, shard)) == snd(Shard.tip(Right, shard))) {
-            let sframe = mk_frame(d, front, subject @ back_affix(d, sframe));
-            let rframe = Restructuring.mk_frame(sframe);
-            let backpack = (d, [Selem.Shard(shard)], []);
-            Some((Subject.Restructuring((backpack, rframe)), frame'));
-          } else {
-            switch (frame) {
-            | Pat(Lam_pat((tframe, frame))) =>
-              let p = Option.get(Selection.get_tiles_pat(subject));
-              let rframe =
-                TupleUtil.map2(
-                  List.map(t => Restructuring.Tile(Exp(t))),
-                  tframe,
-                );
-              let backpack = (
-                Direction.Right,
-                [Selem.Tile(Exp(Lam(p)))],
-                [],
-              );
-              Some((Restructuring((backpack, rframe)), Exp(frame)));
-            | Pat(Let_pat(def, ((prefix, suffix), frame))) =>
-              let p = Option.get(Selection.get_tiles_pat(subject));
-              let sframe = (
-                Selection.of_tiles_exp(prefix),
-                Selection.of_tiles_exp(def)
-                @ [
-                  Selem.Shard(Exp(Let_in)),
-                  ...Selection.of_tiles_exp(suffix),
-                ],
-              );
-              let rframe = Restructuring.mk_frame(sframe);
-              let backpack = (
-                Direction.Right,
-                [Selem.Shard(Exp(Let_let_eq(p)))],
-                [],
-              );
-              Some((Restructuring((backpack, rframe)), Exp(frame)));
-            | _ => None
-            };
-          }
-        | _ => None
-        };
-      | [selem, ...front] =>
-        switch (Parser.disassemble_selem(d, selem)) {
-        | [Shard(shard), ...rest_of_selem] =>
-          if (snd(Shard.tip(Left, shard)) == snd(Shard.tip(Right, shard))) {
-            let front = rest_of_selem @ front;
-            let sframe = mk_frame(d, front, back_affix(d, sframe));
-            let rframe = Restructuring.mk_frame(sframe);
-            let backpack = (d, [Selem.Shard(shard)], []);
-            Some((Restructuring((backpack, rframe)), frame));
-          } else {
-            let sframe = mk_frame(d, front, back_affix(d, sframe));
-            let rframe = Restructuring.mk_frame(sframe);
-            let backpack = (Direction.Right, [selem], []);
-            Some((Restructuring((backpack, rframe)), frame));
-          }
-        | _ =>
-          let sframe = mk_frame(d, front, back_affix(d, sframe));
-          let sframe = fix_holes(sframe);
-          Some((Pointing(sframe), frame));
-        }
-      }
+      let* (_, selection, sframe, frame) =
+        move_selecting(d, Left, [], sframe, frame);
+      delete_selecting(selection, sframe, frame);
     | Construct(selem) =>
       // [Construct]
       let sort = Selem.sort(selem);
@@ -303,44 +271,15 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
       };
     }
   | Selecting(side, selection, sframe) =>
-    let mark = (selection, sframe) => {
-      // [MarkSelecting]
-      let* (_, lsort) = Selection.tip(Left, selection);
-      let* (_, rsort) = Selection.tip(Right, selection);
-      if (lsort != rsort) {
-        None;
-      } else {
-        let tip = (Tip.Convex, Frame.sort(frame));
-        let sframe = Parser.fix_holes(tip, sframe, tip);
-        switch (trim_selection(selection)) {
-        | [] => Some((Subject.Pointing(sframe), frame))
-        | [_, ..._] as trimmed =>
-          let rframe = Restructuring.mk_frame(sframe);
-          Some((
-            Subject.Restructuring(((Right, trimmed, []), rframe)),
-            frame,
-          ));
-        };
-      };
-    };
     switch (a) {
     | Construct(_) => None
-    | Delete(_) =>
-      if (Selection.is_whole_any(selection)) {
-        let tip = (Tip.Convex, Frame.sort(frame));
-        let sframe = Parser.fix_holes(tip, sframe, tip);
-        Some((Pointing(sframe), frame));
-      } else {
-        let (selection, sframe) =
-          Parser.round_up(~frame_sort, selection, sframe);
-        mark(selection, sframe);
-      }
-    | Mark => mark(selection, sframe)
+    | Delete(_) => delete_selecting(selection, sframe, frame)
+    | Mark => mark_selecting(selection, sframe, frame)
     | Move(d) =>
       let+ (side, selection, sframe, frame) =
         move_selecting(d, side, selection, sframe, frame);
       (Subject.Selecting(side, selection, sframe), frame);
-    };
+    }
   | Restructuring(
       ((d_backpack, selection, rest), (prefix, suffix) as rframe) as restructuring,
     ) =>
