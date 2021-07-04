@@ -169,6 +169,10 @@ let view =
     ],
     [
       Node.div(
+        [Attr.id("error-message"), Attr.classes(just_failed_clss)],
+        [Node.span([], [Node.text("failed")])],
+      ),
+      Node.div(
         [
           Attr.id("caret-bar"),
           Attr.classes([Color.to_string(color), ...just_failed_clss]),
