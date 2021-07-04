@@ -160,9 +160,16 @@ let move_restructuring =
         mk_frame(d, front, [Tile(tile), ...back_affix(d, rframe)]);
       Some(((backpack, rframe), frame));
     | [Selection(selection'), ...front] =>
+      let frame_sort = Frame.sort(frame);
       let+ backpack =
         Restructuring.Backpack.pick_up_selection(d, selection', backpack);
       let rframe = mk_frame(d, front, back_affix(d, rframe));
+      let rframe =
+        Parser.fix_holes_rframe(
+          (Convex, frame_sort),
+          rframe,
+          (Convex, frame_sort),
+        );
       ((backpack, rframe), frame);
     };
   };
