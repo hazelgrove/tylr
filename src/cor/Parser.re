@@ -307,6 +307,30 @@ let zip_up =
   };
 };
 
+let round_up =
+    (
+      ~frame_sort: Sort.t,
+      selection: Selection.t,
+      (prefix, suffix): Selection.frame,
+    )
+    : (Selection.t, Selection.frame) => {
+  let split_rounded = d =>
+    ListUtil.take_while(
+      fun
+      | Selem.Tile(tile) => Tile.sort(tile) != frame_sort
+      | Shard(shard) =>
+        snd(Shard.tip(Direction.toggle(d), shard)) != frame_sort,
+    );
+  let (selection_pre, prefix) = split_rounded(Left, prefix);
+  let (selection_suf, suffix) = split_rounded(Right, suffix);
+  let new_selection =
+    parse_selection(
+      Right,
+      ListFrame.to_list(~subject=selection, (selection_pre, selection_suf)),
+    );
+  (new_selection, (prefix, suffix));
+};
+
 let is_backpack_whole = ((d, selection, rest): Restructuring.Backpack.t) => {
   let selections = [selection, ...rest];
   let selections = d == Left ? List.rev(selections) : selections;

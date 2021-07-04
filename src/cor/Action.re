@@ -303,7 +303,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
       };
     }
   | Selecting(side, selection, sframe) =>
-    let mark = () => {
+    let mark = (selection, sframe) => {
       // [MarkSelecting]
       let* (_, lsort) = Selection.tip(Left, selection);
       let* (_, rsort) = Selection.tip(Right, selection);
@@ -331,9 +331,11 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
         let sframe = Parser.fix_holes(tip, sframe, tip);
         Some((Pointing(sframe), frame));
       } else {
-        mark();
+        let (selection, sframe) =
+          Parser.round_up(~frame_sort, selection, sframe);
+        mark(selection, sframe);
       }
-    | Mark => mark()
+    | Mark => mark(selection, sframe)
     | Move(d) =>
       let+ (side, selection, sframe, frame) =
         move_selecting(d, side, selection, sframe, frame);
