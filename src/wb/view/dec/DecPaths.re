@@ -389,7 +389,7 @@ let current_space =
         };
       [
         Caret({origin: measurement.origin, color, mode}),
-        CaretPos({measurement, color, style: `Anchor}),
+        CaretPos({measurement, color, style: `Caret}),
         ...restructuring_ds,
       ];
     | (Some(([], (_, r))), Some(_)) when step == r => [

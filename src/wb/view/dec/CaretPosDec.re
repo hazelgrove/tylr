@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 
 module Profile = {
-  type style = [ | `Bare | `Anchor | `Sibling];
+  type style = [ | `Bare | `Anchor | `Sibling | `Caret];
   type t = {
     style,
     measurement: Layout.measurement,
@@ -29,7 +29,8 @@ let caret_position_radii =
     (~font_metrics: FontMetrics.t, ~style: Profile.style) => {
   let r =
     switch (style) {
-    | `Anchor => 3.5
+    | `Caret => 3.75
+    | `Anchor
     | `Sibling => 2.75
     | `Bare => 2.0
     };
@@ -42,6 +43,7 @@ let view = (~font_metrics, {style, color, measurement}: Profile.t) => {
   let cls =
     switch (style) {
     | `Bare => "outer-cousin"
+    | `Caret
     | `Anchor => "anchor"
     | `Sibling => "sibling"
     };
