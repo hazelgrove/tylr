@@ -47,17 +47,15 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             | (Selecting(_) | Restructuring(_), _) => [p(Mark)]
             | _ => []
             }
-          | _ =>
-            let is_var = is_var(key);
-            let is_num = is_num(key);
+          | _ when is_num(key) => [
+              p(Construct(Exp(Num(int_of_string(key))))),
+            ]
+          | _ when is_var(key) =>
             switch (zipper) {
-            | (_, Pat(_)) when is_var => [p(Construct(Pat(Var(key))))]
-            | (_, Exp(_)) when is_var => [p(Construct(Exp(Var(key))))]
-            | (_, Exp(_)) when is_num => [
-                p(Construct(Exp(Num(int_of_string(key))))),
-              ]
-            | _ => []
-            };
+            | (_, Pat(_)) => [p(Construct(Pat(Var(key))))]
+            | (_, Exp(_)) => [p(Construct(Exp(Var(key))))]
+            }
+          | _ => []
           };
         } else if (!held(Ctrl) && held(Alt) && !held(Meta)) {
           switch (key) {
