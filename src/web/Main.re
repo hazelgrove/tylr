@@ -53,6 +53,8 @@ module App = {
     let%map model = model;
     Component.create(
       ~apply_action=Wb.Update.apply(model),
+      // ~on_display=
+      //   (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
       Wb.Page.view(~inject, model),
     );

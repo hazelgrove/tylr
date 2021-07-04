@@ -147,11 +147,8 @@ let filters =
     ],
   );
 
-let view =
-    (
-      ~inject,
-      {font_metrics, logo_font_metrics, zipper, history_frame: _} as model: Model.t,
-    ) => {
+let view = (~inject, model: Model.t) => {
+  let Model.{font_metrics, logo_font_metrics, zipper, history} = model;
   let (subject, _) = zipper;
   let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
@@ -181,6 +178,7 @@ let view =
             ~font_metrics,
             ~subject,
             ~filler=Model.filler(model),
+            ~just_failed=history.just_failed,
             dpaths,
             l,
           ),

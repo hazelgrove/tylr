@@ -361,6 +361,7 @@ let current_space =
     (
       ~caret_mode: option(CaretMode.t)=?,
       ~measurement: Layout.measurement,
+      ~just_failed: option(Action.t),
       (step, color): (Path.caret_step, Color.t),
       paths: t,
     )
@@ -388,19 +389,19 @@ let current_space =
         | _ => []
         };
       [
-        Caret({origin: measurement.origin, color, mode}),
-        CaretPos({measurement, color, style: `Caret}),
+        Caret({origin: measurement.origin, color, mode, just_failed}),
+        CaretPos({measurement, color, just_failed, style: `Caret}),
         ...restructuring_ds,
       ];
     | (Some(([], (_, r))), Some(_)) when step == r => [
-        CaretPos({measurement, color, style: `Anchor}),
+        CaretPos({measurement, color, just_failed: None, style: `Anchor}),
       ]
     | _ => []
     };
   let anchor_ds =
     switch (caret) {
     | Some(([], (l, r))) when step == l || step == r => [
-        CaretPos({measurement, color, style: `Anchor}),
+        CaretPos({measurement, color, just_failed: None, style: `Anchor}),
       ]
     | _ => []
     };
@@ -410,12 +411,12 @@ let current_space =
     | Some(Restructuring({selection, _}))
         when !Selection.is_whole_any(selection) =>
       []
-    | _ => [CaretPos({measurement, color, style: `Bare})]
+    | _ => [CaretPos({measurement, color, just_failed: None, style: `Bare})]
     };
   let sibling_ds =
     switch (siblings) {
     | Some(([], siblings)) when List.mem(step, siblings) => [
-        CaretPos({measurement, color, style: `Sibling}),
+        CaretPos({measurement, color, just_failed: None, style: `Sibling}),
       ]
     | _ => []
     };
