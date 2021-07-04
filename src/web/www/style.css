@@ -51,6 +51,9 @@
   --action-text-color: rgb(82, 82, 82);
   --action-key-color: whitesmoke;
 
+  --err-flash-duration: 0.4s;
+  --err-msg-duration: 1s;
+
   --selection-box-z: 1;
   --genie-z: 1;
   --empty-hole-z: 2;
@@ -559,16 +562,16 @@ svg.rail line.unsorted {
 }
 
 .caret-position-path.Exp.current-caret-pos.just-failed-0 {
-  animation: failedexppos0 0.25s;
+  animation: failedexppos0 var(--err-flash-duration);
 }
 .caret-position-path.Exp.current-caret-pos.just-failed-1 {
-  animation: failedexppos1 0.25s;
+  animation: failedexppos1 var(--err-flash-duration);
 }
 .caret-position-path.Pat.current-caret-pos.just-failed-0 {
-  animation: failedpatpos0 0.25s;
+  animation: failedpatpos0 var(--err-flash-duration);
 }
 .caret-position-path.Pat.current-caret-pos.just-failed-1 {
-  animation: failedpatpos1 0.25s;
+  animation: failedpatpos1 var(--err-flash-duration);
 }
 
 @keyframes failedexppos0 {
@@ -576,10 +579,10 @@ svg.rail line.unsorted {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
-  }
+  } */
   100% {
     stroke: var(--exp-shadow-color);
     fill: var(--exp-shadow-color);
@@ -590,10 +593,10 @@ svg.rail line.unsorted {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
-  }
+  } */
   100% {
     stroke: var(--exp-shadow-color);
     fill: var(--exp-shadow-color);
@@ -605,10 +608,10 @@ svg.rail line.unsorted {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
-  }
+  } */
   100% {
     stroke: var(--pat-shadow-color);
     fill: var(--pat-shadow-color);
@@ -619,10 +622,10 @@ svg.rail line.unsorted {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
-  }
+  } */
   100% {
     stroke: var(--pat-shadow-color);
     fill: var(--pat-shadow-color);
@@ -656,25 +659,25 @@ svg.rail line.unsorted {
   border-left: 2px solid var(--pat-shadow-color);
 }
 #caret-bar.Exp.just-failed-0 {
-  animation: failedexpbar0 0.25s;
+  animation: failedexpbar0 var(--err-flash-duration);
 }
 #caret-bar.Exp.just-failed-1 {
-  animation: failedexpbar1 0.25s;
+  animation: failedexpbar1 var(--err-flash-duration);
 }
 #caret-bar.Pat.just-failed-0 {
-  animation: failedpatbar0 0.25s;
+  animation: failedpatbar0 var(--err-flash-duration);
 }
 #caret-bar.Pat.just-failed-1 {
-  animation: failedpatbar1 0.25s;
+  animation: failedpatbar1 var(--err-flash-duration);
 }
 
 @keyframes failedexpbar0 {
   0% {
     border-left: 2px solid var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     border-left: 2px solid var(--hole-stroke-color);
-  }
+  } */
   100% {
     border-left: 2px solid var(--exp-shadow-color);
   }
@@ -683,9 +686,9 @@ svg.rail line.unsorted {
   0% {
     border-left: 2px solid var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     border-left: 2px solid var(--hole-stroke-color);
-  }
+  } */
   100% {
     border-left: 2px solid var(--exp-shadow-color);
   }
@@ -695,9 +698,9 @@ svg.rail line.unsorted {
   0% {
     border-left: 2px solid var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     border-left: 2px solid var(--hole-stroke-color);
-  }
+  } */
   100% {
     border-left: 2px solid var(--pat-shadow-color);
   }
@@ -706,9 +709,9 @@ svg.rail line.unsorted {
   0% {
     border-left: 2px solid var(--hole-stroke-color);
   }
-  100% {
+  /* 99% {
     border-left: 2px solid var(--hole-stroke-color);
-  }
+  } */
   100% {
     border-left: 2px solid var(--pat-shadow-color);
   }
@@ -725,17 +728,17 @@ svg.rail line.unsorted {
   font-weight: 500;
 }
 #error-message.just-failed-0 {
-  animation: failederrmsg0 0.25s;
+  animation: failederrmsg0 var(--err-msg-duration);
 }
 #error-message.just-failed-1 {
-  animation: failederrmsg1 0.25s;
+  animation: failederrmsg1 var(--err-msg-duration);
 }
 
 @keyframes failederrmsg0 {
   0% {
     opacity: 100%;
   }
-  100% {
+  50% {
     opacity: 100%;
   }
   100% {
@@ -746,7 +749,7 @@ svg.rail line.unsorted {
   0% {
     opacity: 100%;
   }
-  100% {
+  50% {
     opacity: 100%;
   }
   100% {
