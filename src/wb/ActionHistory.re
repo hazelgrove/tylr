@@ -13,7 +13,6 @@ let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 
 let failed = (a: Action.t, history: t) => {
   let now = JsUtil.date_now()##valueOf;
-  print_endline("now = " ++ string_of_float(now));
   {...history, just_failed: Some(a), last_attempt: Some(now)};
 };
 
