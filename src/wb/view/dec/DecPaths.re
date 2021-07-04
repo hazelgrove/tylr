@@ -389,6 +389,7 @@ let current_space =
     (
       ~caret_mode: option(CaretMode.t)=?,
       ~measurement: Layout.measurement,
+      ~just_failed: option(Action.t),
       (step, color): (Path.caret_step, Color.t),
       paths: t,
     )
@@ -425,8 +426,8 @@ let current_space =
         | _ => []
         };
       [
-        Caret({origin: measurement.origin, color, mode}),
-        CaretPos({measurement, color, style: `Caret}),
+        Caret({origin: measurement.origin, color, mode, just_failed}),
+        CaretPos({measurement, color, just_failed, style: `Caret}),
         ...restructuring_ds,
       ];
     | (
@@ -434,8 +435,8 @@ let current_space =
         Some((Pointing | Selecting(Right) | Restructuring(_)) as mode),
       )
         when step == r => [
-        Caret({origin: measurement.origin, color, mode}),
-        CaretPos({measurement, color, style: `Caret}),
+        Caret({origin: measurement.origin, color, mode, just_failed}),
+        CaretPos({measurement, color, just_failed, style: `Caret}),
       ]
     | _ => []
     };
@@ -444,7 +445,7 @@ let current_space =
     let caret_ds =
       switch (caret) {
       | Some(([], range)) when is_relevant_to_step(range) => [
-          CaretPos({measurement, color, style: `Anchor}),
+          CaretPos({measurement, color, just_failed, style: `Anchor}),
         ]
       | _ => []
       };
@@ -453,7 +454,7 @@ let current_space =
           |> List.exists(((steps, range)) =>
                steps == [] && is_relevant_to_step(range)
              )) {
-        [CaretPos({measurement, color, style: `Anchor})];
+        [CaretPos({measurement, color, just_failed, style: `Anchor})];
       } else {
         [];
       };
@@ -465,12 +466,12 @@ let current_space =
     | Some(Restructuring({backpack, _}))
         when !Parser.is_backpack_whole(backpack) =>
       []
-    | _ => [CaretPos({measurement, color, style: `Bare})]
+    | _ => [CaretPos({measurement, color, just_failed: None, style: `Bare})]
     };
   let sibling_ds =
     switch (siblings) {
     | Some(([], siblings)) when List.mem(step, siblings) => [
-        CaretPos({measurement, color, style: `Sibling}),
+        CaretPos({measurement, color, just_failed: None, style: `Sibling}),
       ]
     | _ => []
     };

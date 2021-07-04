@@ -2,7 +2,7 @@ open Cor;
 
 type t = {
   zipper: Zipper.t,
-  history_frame: HistoryFrame.t,
+  history: ActionHistory.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
 };
@@ -21,7 +21,7 @@ let init = () => {
     )),
     Frame.Exp(Root),
   ),
-  history_frame: HistoryFrame.empty,
+  history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
 };
@@ -30,7 +30,7 @@ let filler = (model: t) => {
   switch (model.zipper) {
   | (Pointing(_) | Selecting(_), _) => 0
   | (Restructuring(_), _) =>
-    switch (HistoryFrame.zipper_before_restructuring(model.history_frame)) {
+    switch (ActionHistory.zipper_before_restructuring(model.history)) {
     | None => 0
     | Some(zipper) =>
       let len_before = Layout.length(Layout.mk_zipper(zipper));

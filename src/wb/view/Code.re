@@ -9,6 +9,7 @@ let rec view_of_layout =
           ~font_metrics,
           ~subject: option(Subject.t)=?,
           ~filler=0,
+          ~just_failed: option(Action.t)=None,
           dpaths,
           l,
         )
@@ -63,6 +64,7 @@ let rec view_of_layout =
       | Space(step, color) =>
         DecPaths.current_space(
           ~caret_mode?,
+          ~just_failed,
           ~measurement={origin, length: 1},
           (step, color),
           dpaths,

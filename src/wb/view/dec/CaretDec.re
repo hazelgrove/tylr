@@ -5,6 +5,7 @@ module Profile = {
     mode: CaretMode.t,
     origin: int,
     color: Color.t,
+    just_failed: option(Cor.Action.t),
   };
 };
 
@@ -113,7 +114,11 @@ let inconsistent =
     [Node.text("inconsistent")],
   );
 
-let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
+let view =
+    (
+      ~font_metrics: FontMetrics.t,
+      {color, origin, mode, just_failed}: Profile.t,
+    ) => {
   let (ss_before, ss_after) =
     switch (mode) {
     | Pointing
@@ -144,6 +149,11 @@ let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
       | Right => ([], [selection, ...rest])
       };
     };
+  let just_failed_clss =
+    switch (just_failed) {
+    | None => []
+    | Some(_) => [JustFailedCls.Bar.mk()]
+    };
   let top = (-0.3) *. font_metrics.row_height;
   Node.div(
     [
@@ -159,7 +169,10 @@ let view = (~font_metrics: FontMetrics.t, {color, origin, mode}: Profile.t) => {
     ],
     [
       Node.div(
-        [Attr.id("caret-bar"), Attr.classes([Color.to_string(color)])],
+        [
+          Attr.id("caret-bar"),
+          Attr.classes([Color.to_string(color), ...just_failed_clss]),
+        ],
         [],
       ),
       Node.div(
