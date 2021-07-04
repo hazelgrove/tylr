@@ -13,7 +13,8 @@ and t =
   | BinHole
   | Plus
   | Times
-  | Prod;
+  | Prod
+  | Ap;
 
 let precedence: t => int =
   fun
@@ -21,6 +22,7 @@ let precedence: t => int =
   | Num(_)
   | Var(_)
   | Paren(_) => 0
+  | Ap => 1
   | Plus => 2
   | Times => 3
   | Prod => 4
@@ -29,7 +31,7 @@ let precedence: t => int =
   | BinHole => 7;
 
 let associativity =
-  [(2, Associativity.Left), (3, Left), (4, Right), (7, Left)]
+  [(1, Associativity.Left), (2, Left), (3, Left), (4, Right), (7, Left)]
   |> List.to_seq
   |> IntMap.of_seq;
 
@@ -45,7 +47,7 @@ let tip = (d: Direction.t, t: t) => {
     | (_, OpHole | Num(_) | Var(_) | Paren(_))
     | (Left, Lam(_) | Let(_)) => Tip.Convex
     | (Right, Lam(_) | Let(_))
-    | (_, BinHole | Plus | Times | Prod) => Concave
+    | (_, BinHole | Plus | Times | Prod | Ap) => Concave
     };
   (shape, Sort.Exp);
 };

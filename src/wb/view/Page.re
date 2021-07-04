@@ -41,6 +41,7 @@ let key_handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => {
             | (_, Pat(_)) => [p(Construct(Pat(Prod)))]
             | (_, Exp(_)) => [p(Construct(Exp(Prod)))]
             }
+          | " " => [p(Construct(Exp(Ap)))]
           | "Escape" => [Update.escape()]
           | "Enter" =>
             switch (zipper) {

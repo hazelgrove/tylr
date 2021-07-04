@@ -23,7 +23,8 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
       | BinHole
       | Plus
       | Times
-      | Prod => []
+      | Prod
+      | Ap => []
       | Paren(body) =>
         [Selem.Shard(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
         @ [Shard(Exp(Paren_r))]

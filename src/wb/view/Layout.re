@@ -213,6 +213,8 @@ let mk_Times = () => delim("*");
 
 let mk_Prod = () => delim(",");
 
+let mk_Ap = () => delim(Unicode.ap);
+
 let mk_OpHole = empty_hole;
 let mk_BinHole = empty_hole;
 
@@ -285,7 +287,8 @@ and mk_tile = t =>
        | BinHole => mk_BinHole(Exp, Concave)
        | Plus => mk_Plus()
        | Times => mk_Times()
-       | Prod => mk_Prod(),
+       | Prod => mk_Prod()
+       | Ap => mk_Ap(),
      );
 
 let mk_selem = (step, selem: Selem.t) => {
