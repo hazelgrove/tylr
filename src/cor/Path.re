@@ -81,7 +81,8 @@ let get_child_steps =
       | BinHole
       | Plus
       | Times
-      | Prod => []
+      | Prod
+      | Ap => []
       | Paren(_) => [ChildStep.paren_body]
       | Lam(_) => [ChildStep.lam_pat]
       | Let(_) => ChildStep.[let_pat, let_def],
@@ -152,7 +153,8 @@ let enter_selem =
          | BinHole
          | Plus
          | Times
-         | Prod => None
+         | Prod
+         | Ap => None
          | Paren(body) => {
              let+ s = get_exp_s();
              let sframe = mk_sframe_of_exp(body);
