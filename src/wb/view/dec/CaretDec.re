@@ -172,6 +172,7 @@ let view =
       | Cant_move => []
       | Cant_construct(sort, frame_sort) => [
           text("cannot construct "),
+          text("a" ++ (sort == Pat ? " " : "n ")),
           sort_label(sort),
           text(" tile in "),
           sort_label(frame_sort),
