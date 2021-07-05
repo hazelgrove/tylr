@@ -98,7 +98,7 @@ let construct_rows =
         [keys(["+"]), construct_shape("plus")],
         [keys(["*"]), construct_shape("times")],
         [keys([","]), construct_shape("prod")],
-        [keys(["("]), construct_shape("paren")],
+        [keys(["(", ")"]), construct_shape("paren")],
         [keys(["\\"]), construct_shape("lambda")],
         [keys(["="]), construct_shape("let")],
       ],
