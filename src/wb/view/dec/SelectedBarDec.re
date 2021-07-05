@@ -39,15 +39,15 @@ let view =
           ~attrs=Attr.[classes(["different-sort", cls_l])],
           [
             M({x: 0.5, y: (-0.3)}),
-            L_({dy: 0., dx: (Float.of_int(len) -. 1. -. skew_x) /. 2.}),
+            L_({dy: 0., dx: (Float.of_int(len) -. skew_x) /. 2.}),
             L_({dx: skew_x, dy: -. skew_y}),
           ],
         ),
         view(
           ~attrs=Attr.[classes(["different-sort", cls_r])],
           [
-            M({x: Float.of_int(len) -. 0.5, y: (-0.3)}),
-            L_({dy: 0., dx: -. (Float.of_int(len) -. 1. -. skew_x) /. 2.}),
+            M({x: Float.of_int(len) +. 0.5, y: (-0.3)}),
+            L_({dy: 0., dx: -. (Float.of_int(len) -. skew_x) /. 2.}),
             L_({dx: -. skew_x, dy: skew_y}),
           ],
         ),
