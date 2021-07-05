@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Cor;
 
 module Profile = {
   type t = {
@@ -154,6 +155,75 @@ let view =
     | None => []
     | Some(_) => [JustFailedCls.Bar.mk()]
     };
+  let err_msg = {
+    open Node;
+    let sort_label = sort =>
+      span(
+        [Attr.classes(["sort-label", Sort.to_string(sort)])],
+        [text(Sort.to_proper_string(sort))],
+      );
+    switch (just_failed) {
+    | Some({reason: Unrecognized, prior_attempts}) when prior_attempts >= 2 => [
+        text("unrecognized keyboard input"),
+      ]
+    | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 2 =>
+      switch (f) {
+      | Failure.Undefined
+      | Cant_move => []
+      | Cant_construct(sort, frame_sort) => [
+          text("cannot construct "),
+          sort_label(sort),
+          text(" tile in "),
+          sort_label(frame_sort),
+          text(" position"),
+        ]
+      | Cant_pick_up_selection => [
+          text("cannot pick up selection with different sort bounds"),
+        ]
+      | Cant_put_down_selection(sort, frame_sort) => [
+          text("cannot put down "),
+          // br([]),
+          text("a" ++ (sort == Pat ? " " : "n ")),
+          sort_label(sort),
+          text("-bounded selection"),
+          // br([]),
+          text(" in "),
+          sort_label(frame_sort),
+          text(" position"),
+        ]
+      | Cant_construct_in_restructuring => [
+          text("cannot construct in restructuring mode"),
+        ]
+      }
+    | _ => []
+    };
+  };
+  let err_msg_style = {
+    let y_pos =
+      Printf.sprintf(
+        "bottom: calc(100%% + %fpx);",
+        0.1 *. font_metrics.row_height,
+      );
+    switch (mode) {
+    | Pointing
+    | Selecting(_) => "left: 8px;" ++ y_pos
+    | Restructuring({backpack: (d, selection, _), _}) =>
+      let x_pos =
+        switch (d) {
+        | Left =>
+          let len =
+            Layout.length(
+              Layout.mk_selection(~frame_color=Selected, selection),
+            );
+          Printf.sprintf(
+            "left: calc(%fpx + 8px); ",
+            Float.of_int(len - 1) *. font_metrics.col_width,
+          );
+        | Right => "right: calc(100% + 8px); "
+        };
+      x_pos ++ y_pos;
+    };
+  };
   let top = (-0.3) *. font_metrics.row_height;
   Node.div(
     [
@@ -169,8 +239,12 @@ let view =
     ],
     [
       Node.div(
-        [Attr.id("error-message"), Attr.classes(just_failed_clss)],
-        [Node.span([], [Node.text("failed")])],
+        Attr.[
+          id("error-message"),
+          classes(just_failed_clss),
+          create("style", err_msg_style),
+        ],
+        [Node.span([], err_msg)],
       ),
       Node.div(
         [

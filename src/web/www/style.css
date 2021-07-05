@@ -52,7 +52,7 @@
   --action-key-color: whitesmoke;
 
   --err-flash-duration: 0.4s;
-  --err-msg-duration: 1s;
+  --err-msg-duration: 4s;
 
   --selection-box-z: 1;
   --genie-z: 1;
@@ -76,6 +76,7 @@
   --caret-z: 14;
   --action-table-z: 15;
   --caret-bar-z: 16;
+  --error-message-z: 17;
 }
 
 #page {
@@ -617,7 +618,7 @@ svg.rail line.unsorted {
     fill: var(--pat-shadow-color);
   }
 }
-@keyframes failedpatpos1 {
+@keyframes failedpatpos1 {f
   0% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
@@ -720,12 +721,11 @@ svg.rail line.unsorted {
 #error-message {
   opacity: 0%;
   position: absolute;
-  top: -20px;
-  left: -36px;
   z-index: var(--error-message-z);
-  color: var(--hole-stroke-color);
+  color: #cb4b16;
   font: 10pt "Helvetica Neue";
-  font-weight: 500;
+  /*font-weight: 500;*/
+  white-space: nowrap;
 }
 #error-message.just-failed-0 {
   animation: failederrmsg0 var(--err-msg-duration);
@@ -738,7 +738,7 @@ svg.rail line.unsorted {
   0% {
     opacity: 100%;
   }
-  50% {
+  80% {
     opacity: 100%;
   }
   100% {
@@ -749,7 +749,7 @@ svg.rail line.unsorted {
   0% {
     opacity: 100%;
   }
-  50% {
+  80% {
     opacity: 100%;
   }
   100% {
