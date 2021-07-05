@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Util;
 
 [@deriving sexp]
 type t =
@@ -20,6 +21,13 @@ let root_index =
   | Pre(n, _)
   | Post(_, n)
   | Bin(_, n, _) => n;
+
+let children =
+  fun
+  | Op(_) => []
+  | Pre(_, skel) => [(Direction.Right, skel)]
+  | Post(skel, _) => [(Left, skel)]
+  | Bin(l, _, r) => [(Left, l), (Right, r)];
 
 // returns inclusive lower bound, exclusive upper bound
 let rec range =

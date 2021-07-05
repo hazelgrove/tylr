@@ -2,194 +2,163 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
-let tessera_children =
-  Layout.measured_fold'(
-    ~text=(_, _) => [],
-    ~cat=_ => (@),
-    ~annot=
-      (_k, {start, len}, annot, _l) =>
-        switch (annot) {
-        | ClosedChild => [(start, len)]
-        | _ => []
-        },
-  );
-
-let tile_children =
-  Layout.measured_fold'(
-    ~text=(_, _) => ([], []),
-    ~cat=
-      (_, (open1, closed1), (open2, closed2)) =>
-        (open1 @ open2, closed1 @ closed2),
-    ~annot=
-      (_k, {start, len}, annot, _l) =>
-        switch (annot) {
-        | OpenChild => ([(start, len)], [])
-        | ClosedChild => ([], [(start, len)])
-        | _ => ([], [])
-        },
-  );
-let tile_holes =
-  Layout.measured_fold(
-    ~text=(_, _) => [],
-    ~cat=_ => (@),
-    ~annot=
-      ({start, _}, annot, holes) =>
-        switch (annot) {
-        | EmptyHole(_) => [start, ...holes]
-        | _ => holes
-        },
-  );
-
 let rec view_of_layout =
         (
           ~id=?,
           ~text_id=?,
-          ~font_metrics: FontMetrics.t,
-          ~type_font_metrics: FontMetrics.t,
-          ~transparent=false,
-          ~show_type_info=false,
-          l: Layout.t,
-        ) => {
-  let with_cls = cls => Node.span([Attr.classes([cls])]);
-  let (text, decorations, filler) =
-    l
-    |> Layout.measured_fold'(
-         ~text=(_, s) => ([Node.text(s)], [], 0),
-         ~cat=
-           (_, (txt1, ds1, n1), (txt2, ds2, n2)) =>
-             (txt1 @ txt2, ds1 @ ds2, n1 + n2),
-         ~annot=
-           (k, {start, len}, annot, l) => {
-             let (txt, ds, filler) = k(l);
-             let d_container =
-               Decoration.container(
-                 ~font_metrics,
-                 ~origin=start,
-                 ~length=len,
-               );
-             let add_decoration = d => (txt, [d, ...ds], filler);
-             switch (annot) {
-             | Delim => ([with_cls("delim", txt)], ds, filler)
-             | UniChild(sort, side) =>
-               add_decoration(
-                 d_container(
-                   ~cls="uni-child",
-                   Decoration.UniChild.view({sort, side, len}),
-                 ),
-               )
-             | Tessera(shape, style) =>
-               let closed_children = tessera_children(l);
-               let d =
-                 d_container(
-                   ~cls="tessera",
-                   ~container_clss=transparent ? ["transparent"] : [],
-                   Decoration.Tessera.view({
-                     shape,
-                     style,
-                     closed_children,
-                     len,
-                   }),
+          ~font_metrics,
+          ~subject: option(Subject.t)=?,
+          ~filler=0,
+          ~just_failed: option(FailedInput.t)=None,
+          dpaths,
+          l,
+        )
+        : Node.t => {
+  let caret_mode =
+    subject
+    |> Option.map(
+         fun
+         | Subject.Pointing(_) => CaretMode.Pointing
+         | Selecting(side, _, _) => Selecting(side)
+         | Restructuring(((_, selection, rest) as backpack, _)) => {
+             let view_of_selection = (~with_box, selection) => {
+               let l = Layout.mk_selection(~frame_color=Selected, selection);
+               let len = List.length(selection);
+               let dpaths =
+                 DecPaths.mk(
+                   ~caret=([], (0, len)),
+                   ~selection_bars=[([], (0, len))],
+                   ~selection_boxes=with_box ? [([], (0, len))] : [],
+                   ~filtered_selems=([], ListUtil.range(len)),
+                   (),
                  );
-               add_decoration(d);
-             | Tile(shape, style) =>
-               let empty_holes = tile_holes(l);
-               let (open_children, closed_children) = tile_children(l);
-               let d =
-                 d_container(
-                   ~cls="tile",
-                   ~container_clss=transparent ? ["transparent"] : [],
-                   Decoration.Tile.view(
-                     ~font_metrics,
-                     ~start,
-                     {
-                       shape,
-                       style,
-                       len,
-                       open_children,
-                       closed_children,
-                       empty_holes,
-                     },
-                   ),
-                 );
-               add_decoration(d);
-             | EmptyHole(sort) =>
-               let d =
-                 d_container(
-                   ~cls="empty-hole",
-                   ~container_clss=transparent ? ["transparent"] : [],
-                   Decoration.EmptyHole.view(
-                     ~font_metrics,
-                     ~sort,
-                     ~inset=None,
-                     (),
-                   ),
-                 );
-               add_decoration(d);
-             | ErrHole(expanded) =>
-               let d =
-                 d_container(
-                   ~cls="err-hole",
-                   Decoration.ErrHole.view({expanded, len}),
-                 );
-               add_decoration(d);
-             | Selection(style) =>
-               let d =
-                 Decoration.Selection.view(~font_metrics, style, start, len);
-               add_decoration(d);
-             | Grout(Some(caret)) =>
-               let d =
-                 Decoration.Caret.view(
-                   ~font_metrics,
-                   ~type_font_metrics,
-                   ~view_of_layout=
-                     view_of_layout(
-                       ~id=?None,
-                       ~text_id=?None,
-                       ~show_type_info=false,
-                       ~type_font_metrics,
-                     ),
-                   ~show_type_info,
-                   start,
-                   caret,
-                 );
-               let filler =
-                 switch (caret) {
-                 | Pointing(_)
-                 | Selecting => filler
-                 | Restructuring(selection, (prefix, suffix)) =>
-                   let len = s => Layout.length(s) - 1;
-                   let len_affix = List.fold_left((l, s) => l + len(s), 0);
-                   filler
-                   + len(selection)
-                   + len_affix(prefix)
-                   + len_affix(suffix);
-                 };
-               (txt, [d, ...ds], filler);
-             | Grout(None)
-             | OpenChild
-             | ClosedChild => (txt, ds, filler)
+               view_of_layout(~font_metrics, dpaths, l);
              };
+             let selection = view_of_selection(~with_box=false, selection);
+             let rest = List.map(view_of_selection(~with_box=true), rest);
+             Restructuring({backpack, view: (selection, rest)});
            },
        );
+  let with_cls = cls => Node.span([Attr.classes([cls])]);
+  let rec go = (~selem_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
+    switch (l) {
+    | Text(s) => ([Node.text(s)], [])
+    | Cat(l1, l2) =>
+      let (txt1, ds1) = go(~selem_step?, ~indent, ~origin, dpaths, l1);
+      let (txt2, ds2) =
+        go(
+          ~selem_step?,
+          ~indent,
+          ~origin=origin + Layout.length(l1),
+          dpaths,
+          l2,
+        );
+      (txt1 @ txt2, ds1 @ ds2);
+    | Annot(annot, l) =>
+      let go' = () => go(~selem_step?, ~indent, ~origin, dpaths, l);
+      let add_decorations = new_ds => {
+        let (txt, ds) = go'();
+        (txt, new_ds @ ds);
+      };
+      switch (annot) {
+      | Space(step, color) =>
+        DecPaths.current_space(
+          ~caret_mode?,
+          ~just_failed,
+          ~measurement={origin, length: 1},
+          (step, color),
+          dpaths,
+        )
+        |> List.map(Dec.view(~font_metrics))
+        |> add_decorations
+
+      | Delim =>
+        let (txt, ds) = go'();
+        ([with_cls("delim", txt)], ds);
+      | EmptyHole(color, tip) =>
+        add_decorations([
+          EmptyHoleDec.view(
+            ~font_metrics: FontMetrics.t,
+            {
+              measurement: {
+                origin,
+                length: 1,
+              },
+              color,
+              tip,
+              inset: None,
+            },
+          ),
+        ])
+      | Selem({color, shape, step}) =>
+        let new_ds =
+          DecPaths.current_selem(
+            ~measurement={origin, length: Layout.length(l)},
+            step,
+            color,
+            shape,
+            l,
+            dpaths,
+          )
+          |> List.map(Dec.view(~font_metrics));
+        let (txt, ds) = go(~selem_step=step, ~indent, ~origin, dpaths, l);
+        (txt, new_ds @ ds);
+
+      // | TargetBounds({sort, mode, strict_bounds}) =>
+      //   let len = len();
+      //   add_decorations([
+      //     TargetBoundsDec.view(
+      //       ~font_metrics,
+      //       ~origin=start,
+      //       ~len,
+      //       strict_bounds,
+      //       sort,
+      //       mode,
+      //     ),
+      //   ]);
+      | Child({step, sort: (_, s_in)}) =>
+        let selem_step =
+          selem_step
+          |> OptUtil.get_or_fail("expected to encounter selem before child");
+        let dpaths = DecPaths.take_two_step((selem_step, step), dpaths);
+        let new_ds =
+          DecPaths.current_bidelimited(~origin, ~sort=s_in, l, dpaths)
+          |> List.map(Dec.view(~font_metrics));
+        let (txt, ds) = go(~indent, ~origin, dpaths, l);
+        (txt, new_ds @ ds);
+      };
+    };
+  };
+
+  let root_ds =
+    DecPaths.current_bidelimited(~origin=0, ~sort=Exp, l, dpaths)
+    |> List.map(Dec.view(~font_metrics));
+  let (text, decorations) = go(dpaths, l);
+
   let with_id =
     fun
     | None => []
     | Some(id) => [Attr.id(id)];
   let filler =
-    Node.span(
-      [Attr.classes(["filler"])],
-      [Node.text(String.concat("", List.init(filler, _ => Unicode.nbsp)))],
-    );
+    filler == 0
+      ? []
+      : [
+        Node.span(
+          [Attr.classes(["filler"])],
+          [
+            Node.text(
+              String.concat("", List.init(filler, _ => Unicode.nbsp)),
+            ),
+          ],
+        ),
+      ];
   let text =
     Node.span(
-      [
-        Attr.classes(["code-text", ...transparent ? ["transparent"] : []]),
-        ...with_id(text_id),
-      ],
-      text @ [filler],
+      [Attr.classes(["code-text"]), ...with_id(text_id)],
+      text @ filler,
     );
   Node.div(
     [Attr.classes(["code"]), ...with_id(id)],
-    [text, ...decorations],
+    [text, ...root_ds @ decorations],
   );
 };
