@@ -202,11 +202,11 @@ let view =
     let y_pos =
       Printf.sprintf(
         "bottom: calc(100%% + %fpx);",
-        0.1 *. font_metrics.row_height,
+        0.3 *. font_metrics.row_height,
       );
     switch (mode) {
     | Pointing
-    | Selecting(_) => "left: 8px;" ++ y_pos
+    | Selecting(_) => "left: 12px;" ++ y_pos
     | Restructuring({backpack: (d, selection, _), _}) =>
       let x_pos =
         switch (d) {
@@ -216,10 +216,10 @@ let view =
               Layout.mk_selection(~frame_color=Selected, selection),
             );
           Printf.sprintf(
-            "left: calc(%fpx + 8px); ",
+            "left: calc(%fpx + 12px); ",
             Float.of_int(len - 1) *. font_metrics.col_width,
           );
-        | Right => "right: calc(100% + 8px); "
+        | Right => "right: calc(100% + 12px); "
         };
       x_pos ++ y_pos;
     };
