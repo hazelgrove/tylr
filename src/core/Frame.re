@@ -1,24 +1,27 @@
-module type S = {
-  module Tm: Term.S;
+type t =
+  | Pat(Frame_pat.t)
+  | Exp(Frame_exp.t);
 
-  // TODO rename to same
-  [@deriving sexp]
-  type open_;
-  // TODO rename to different
-  [@deriving sexp]
-  type closed;
+let get = (get_pat, get_exp) =>
+  fun
+  | Pat(frame) => get_pat(frame)
+  | Exp(frame) => get_exp(frame);
 
-  [@deriving sexp]
-  type t =
-    | Uni(unidelimited)
-    | Bi(bidelimited)
-  and unidelimited =
-    | Pre_r(Tm.pre, t)
-    | Post_l(t, Tm.post)
-    | Bin_l(t, Tm.bin, Tm.t)
-    | Bin_r(Tm.t, Tm.bin, t)
-  and bidelimited =
-    | Root
-    | Open(open_)
-    | Closed(closed);
-};
+let get_pat =
+  fun
+  | Pat(frame) => Some(frame)
+  | Exp(_) => None;
+let get_exp =
+  fun
+  | Exp(frame) => Some(frame)
+  | Pat(_) => None;
+
+let sort =
+  fun
+  | Pat(_) => Sort.Pat
+  | Exp(_) => Exp;
+
+let is_root =
+  fun
+  | Exp(Root) => true
+  | _ => false;

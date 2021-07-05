@@ -1,66 +1,36 @@
-open Util;
-
 [@deriving sexp]
-type t('op, 'pre, 'post, 'bin) =
-  | Op('op)
-  | Pre('pre)
-  | Post('post)
-  | Bin('bin);
+type t =
+  | Pat(Tile_pat.t)
+  | Exp(Tile_exp.t);
 
-let get_op: t('op, _, _, _) => 'op =
-  fun
-  | Op(op) => op
-  | _ => raise(Invalid_argument("Tile.get_op"));
-let get_pre: t(_, 'pre, _, _) => 'pre =
-  fun
-  | Pre(pre) => pre
-  | _ => raise(Invalid_argument("Tile.get_pre"));
-let get_post: t(_, _, 'post, _) => 'post =
-  fun
-  | Post(post) => post
-  | _ => raise(Invalid_argument("Tile.get_post"));
-let get_bin: t(_, _, _, 'bin) => 'bin =
-  fun
-  | Bin(bin) => bin
-  | _ => raise(Invalid_argument("Tile.get_bin"));
+let pat = t => Pat(t);
+let exp = t => Exp(t);
 
-let is_op =
+let get = (get_pat, get_exp) =>
   fun
-  | Op(_) => true
-  | _ => false;
-let is_bin =
+  | Pat(t) => get_pat(t)
+  | Exp(t) => get_exp(t);
+
+let sort = get(_ => Sort.Pat, _ => Exp);
+
+let get_pat =
   fun
-  | Bin(_) => true
-  | _ => false;
-
-let get =
-    (
-      get_op: 'op => 'a,
-      get_pre: 'pre => 'a,
-      get_post: 'post => 'a,
-      get_bin: 'bin => 'a,
-    )
-    : (t('op, 'pre, 'post, 'bin) => 'a) =>
+  | Pat(tile) => Some(tile)
+  | Exp(_) => None;
+let get_exp =
   fun
-  | Op(op) => get_op(op)
-  | Pre(pre) => get_pre(pre)
-  | Post(post) => get_post(post)
-  | Bin(bin) => get_bin(bin);
+  | Pat(_) => None
+  | Exp(tile) => Some(tile);
 
-let is_convex = (d: Direction.t, t: t(_)) =>
-  switch (d, t) {
-  | (_, Op(_))
-  | (Left, Pre(_))
-  | (Right, Post(_)) => true
-  | _ => false
-  };
+let is_hole = get(Tile_pat.is_hole, Tile_exp.is_hole);
 
-module type S = {
-  module Tm: Term.S;
+let tip = d => get(Tile_pat.tip(d), Tile_exp.tip(d));
 
-  [@deriving sexp]
-  type nonrec t = t(Tm.op, Tm.pre, Tm.post, Tm.bin);
+let mk_hole =
+  fun
+  | (Tip.Convex, Sort.Pat) => Pat(OpHole)
+  | (Concave, Pat) => Pat(BinHole)
+  | (Convex, Exp) => Exp(OpHole)
+  | (Concave, Exp) => Exp(BinHole);
 
-  let precedence: t => int;
-  let associativity: IntMap.t(Associativity.t);
-};
+let precedence = get(Tile_pat.precedence, Tile_exp.precedence);

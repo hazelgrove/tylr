@@ -1,20 +1,37 @@
+open Sexplib.Std;
 open Util;
 
-open Term_pat;
-
 [@deriving sexp]
-type t = Tile.t(op, pre, post, bin);
+type s = list(t)
+and t =
+  | OpHole
+  | Var(Var.t)
+  | Paren(s)
+  | BinHole
+  | Prod;
 
 let precedence: t => int =
-  Tile.get(
-    _ => 0,
-    () => raise(Void_pre),
-    fun
-    | Ann(_) => 2,
-    fun
-    | BinHole => 1
-    | Prod => 3,
-  );
+  fun
+  | OpHole
+  | Var(_)
+  | Paren(_) => 0
+  | Prod => 1
+  | BinHole => 2;
 
 let associativity =
-  [(1, Associativity.Left), (3, Left)] |> List.to_seq |> IntMap.of_seq;
+  [(1, Associativity.Right), (2, Left)] |> List.to_seq |> IntMap.of_seq;
+
+let is_hole =
+  fun
+  | OpHole
+  | BinHole => true
+  | _ => false;
+
+let tip = (d: Direction.t, t: t) => {
+  let shape =
+    switch (d, t) {
+    | (_, OpHole | Var(_) | Paren(_)) => Tip.Convex
+    | (_, BinHole | Prod) => Concave
+    };
+  (shape, Sort.Pat);
+};

@@ -1,27 +1,53 @@
-// Tile.S with module Tm := Term_exp
-
+open Sexplib.Std;
 open Util;
-open Term_exp;
 
 [@deriving sexp]
-type t = Tile.t(op, pre, post, bin);
+type s = list(t)
+and t =
+  | OpHole
+  | Num(int)
+  | Var(Var.t)
+  | Paren(s)
+  | Lam(Tile_pat.s)
+  | Let(Tile_pat.s, s)
+  | BinHole
+  | Plus
+  | Times
+  | Prod
+  | Ap;
 
 let precedence: t => int =
-  Tile.get(
-    _ => 0,
-    fun
-    | Lam(_) => 4
-    | Let(_) => 5,
-    fun
-    | Ap(_) => 1,
-    fun
-    | Plus => 3
-    | BinHole => 2
-    | Prod => 4
-    | Cond(_) => 5,
-  );
+  fun
+  | OpHole
+  | Num(_)
+  | Var(_)
+  | Paren(_) => 0
+  | Ap => 1
+  | Plus => 2
+  | Times => 3
+  | Prod => 4
+  | Lam(_) => 5
+  | Let(_) => 6
+  | BinHole => 7;
 
 let associativity =
-  [(2, Associativity.Left), (3, Left), (4, Left), (5, Right)]
+  [(1, Associativity.Left), (2, Left), (3, Left), (4, Right), (7, Left)]
   |> List.to_seq
   |> IntMap.of_seq;
+
+let is_hole =
+  fun
+  | OpHole
+  | BinHole => true
+  | _ => false;
+
+let tip = (d: Direction.t, t: t) => {
+  let shape =
+    switch (d, t) {
+    | (_, OpHole | Num(_) | Var(_) | Paren(_))
+    | (Left, Lam(_) | Let(_)) => Tip.Convex
+    | (Right, Lam(_) | Let(_))
+    | (_, BinHole | Plus | Times | Prod | Ap) => Concave
+    };
+  (shape, Sort.Exp);
+};

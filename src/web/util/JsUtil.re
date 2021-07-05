@@ -27,3 +27,9 @@ let held = (m: mod_key, evt) =>
 
 let get_key = evt =>
   Js.to_string(Js.Optdef.get(evt##.key, () => failwith("JsUtil.get_key")));
+
+let date_now = () => {
+  print_endline("date_now");
+  %js
+  new Js.date_now;
+};

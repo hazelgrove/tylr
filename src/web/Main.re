@@ -1,20 +1,21 @@
 open Js_of_ocaml;
 open Incr_dom;
+open Web;
 
 module App = {
-  module Model = Wb.Model;
-  module Action = Wb.Update;
-  module State = Wb.State;
+  module Model = Model;
+  module Action = Update;
+  module State = State;
 
   let observe_font_specimen = (id, update) =>
     ResizeObserver.observe(
       ~node=JsUtil.get_elem_by_id(id),
       ~f=
         (entries, _) => {
-          let specimen = Js_of_ocaml.Js.to_array(entries)[0];
+          let specimen = Js.to_array(entries)[0];
           let rect = specimen##.contentRect;
           update(
-            Wb.FontMetrics.{
+            Web.FontMetrics.{
               row_height: rect##.bottom -. rect##.top,
               col_width: rect##.right -. rect##.left,
             },
@@ -26,29 +27,29 @@ module App = {
   let on_startup = (~schedule_action, _) => {
     let _ =
       observe_font_specimen("font-specimen", fm =>
-        schedule_action(Wb.Update.SetFontMetrics(fm))
+        schedule_action(Web.Update.SetFontMetrics(fm))
       );
     let _ =
       observe_font_specimen("logo-font-specimen", fm =>
-        schedule_action(Wb.Update.SetLogoFontMetrics(fm))
+        schedule_action(Web.Update.SetLogoFontMetrics(fm))
       );
     // let _ =
     //   observe_font_specimen("type-font-specimen", fm =>
-    //     schedule_action(Wb.Update.SetTypeFontMetrics(fm))
+    //     schedule_action(Web.Update.SetTypeFontMetrics(fm))
     //   );
 
     Async_kernel.Deferred.return();
   };
 
-  let create = (model: Incr.t(Wb.Model.t), ~old_model as _, ~inject) => {
+  let create = (model: Incr.t(Web.Model.t), ~old_model as _, ~inject) => {
     open Incr.Let_syntax;
     let%map model = model;
     Component.create(
-      ~apply_action=Wb.Update.apply(model),
+      ~apply_action=Web.Update.apply(model),
       // ~on_display=
       //   (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
-      Wb.Page.view(~inject, model),
+      Web.Page.view(~inject, model),
     );
   };
 };
@@ -57,5 +58,5 @@ Incr_dom.Start_app.start(
   (module App),
   ~debug=false,
   ~bind_to_element_with_id="container",
-  ~initial_model=Wb.Model.init(),
+  ~initial_model=Web.Model.init(),
 );

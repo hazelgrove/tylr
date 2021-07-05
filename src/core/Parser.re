@@ -1,540 +1,436 @@
 open Util;
 open OptUtil.Syntax;
 
-module type S_INPUT = {
-  module Tm: Term.S;
-  module T: Tile.S with module Tm := Tm;
-  module F: Frame.S with module Tm := Tm;
-
-  let sort:
-    (~sort_and_associate: Unsorted.Tile.s => option(Tm.t), Unsorted.Tile.t) =>
-    option(T.t);
-  let unsort:
-    (~dissociate_and_unsort: Tm.t => Unsorted.Tile.s, T.t) => Unsorted.Tile.t;
-
-  let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
-
-  let assemble_open_frame:
-    (
-      ~associate: list(T.t) => Tm.t,
-      AltList.b_frame(Unsorted.Tessera.t, Tm.t),
-      ListUtil.frame(T.t),
-      F.t
-    ) =>
-    option(F.open_);
-  let disassemble_open_frame:
-    (~dissociate: Tm.t => list(T.t), F.open_) =>
-    (AltList.b_frame(Unsorted.Tessera.t, Tm.t), ListUtil.frame(T.t), F.t);
-};
-
-module type S = {
-  module Tm: Term.S;
-  module T: Tile.S with module Tm := Tm;
-  module F: Frame.S with module Tm := Tm;
-
-  let mk_skel: list(T.t) => Skel.t;
-  let term_of_skel: (Skel.t, list(T.t)) => (Tm.t, ListUtil.frame(T.t));
-
-  let associate: list(T.t) => Tm.t;
-  let dissociate: Tm.t => list(T.t);
-
-  let sort_s: Unsorted.Tile.s => option(list(T.t));
-  let sort: Unsorted.Tile.t => option(T.t);
-  let unsort_s: list(T.t) => Unsorted.Tile.s;
-  let unsort: T.t => Unsorted.Tile.t;
-
-  let sort_and_associate: Unsorted.Tile.s => option(Tm.t);
-  let dissociate_and_unsort: Tm.t => Unsorted.Tile.s;
-
-  let assemble_tile: AltList.t(Unsorted.Tessera.t, Tm.t) => option(T.t);
-  let disassemble_tile: T.t => AltList.t(Unsorted.Tessera.t, Tm.t);
-
-  // legit total, may return same selection back
-  let assemble_tiles_in_selection:
-    (~direction: Direction.t, Selection.t(T.t)) => Selection.t(T.t);
-
-  let fix_empty_holes:
-    (~subject: Selection.t(T.t)=?, ListUtil.frame(Selection.t(T.t))) =>
-    ListUtil.frame(Selection.elem(T.t));
-
-  let associate_frame: (ListUtil.frame(T.t), F.bidelimited) => F.t;
-  let dissociate_frame: F.t => (ListUtil.frame(T.t), F.bidelimited);
-
-  // 1 + ( 2 + [let x =] __3 + 4__ [in] x )
-  let assemble_open_frame:
-    (
-      AltList.b_frame(Unsorted.Tessera.t, Tm.t),
-      ListUtil.frame(T.t),
-      F.bidelimited
-    ) =>
-    option(F.open_);
-  let disassemble_open_frame:
-    F.open_ =>
-    (
-      AltList.b_frame(Unsorted.Tessera.t, Tm.t),
-      ListUtil.frame(T.t),
-      F.bidelimited,
-    );
-};
-
-type hole_patch =
-  | RemoveBoth
-  | RemoveLeft
-  | RemoveRight
-  | InsertOp
-  | InsertBin;
-
-let fix_holes_at_juncture =
-    (
-      ~left_is_hole=false,
-      ~right_is_hole=false,
-      ~left_is_convex: bool,
-      ~right_is_convex: bool,
-      (),
-    )
-    : option(hole_patch) =>
-  if (left_is_convex != right_is_convex) {
-    left_is_hole && right_is_hole ? Some(RemoveBoth) : None;
-  } else if (left_is_hole) {
-    Some(RemoveLeft);
-  } else if (right_is_hole) {
-    Some(RemoveRight);
-  } else {
-    left_is_convex ? Some(InsertBin) : Some(InsertOp);
-  };
-
-module Make =
-       (
-         Tm: Term.S,
-         T: Tile.S with module Tm := Tm,
-         F: Frame.S with module Tm := Tm,
-         Input:
-           S_INPUT with module Tm := Tm and module T := T and module F := F,
-       )
-       : (S with module Tm := Tm and module T := T and module F := F) => {
-  type selection = Selection.t(T.t);
-  type tiles = list(T.t);
-
-  type itile = (int, T.t);
-  let mk_skel = (tiles: tiles): Skel.t => {
-    let push_output =
-        ((i, tile): itile, output_stack: list(Skel.t)): list(Skel.t) =>
+let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
+  let disassembled =
+    switch (selem) {
+    | Selem.Shard(_) => []
+    | Tile(Pat(tile)) =>
       switch (tile) {
-      | Op(_) => [Op(i), ...output_stack]
-      | Pre(_) =>
-        switch (output_stack) {
-        | [] => failwith("impossible: pre encountered empty stack")
-        | [skel, ...skels] => [Pre(i, skel), ...skels]
-        }
-      | Post(_) =>
-        switch (output_stack) {
-        | [] => failwith("impossible: post encountered empty stack")
-        | [skel, ...skels] => [Post(skel, i), ...skels]
-        }
-      | Bin(_) =>
-        switch (output_stack) {
-        | []
-        | [_] =>
-          failwith("impossible: bin encountered empty or singleton stack")
-        | [skel1, skel2, ...skels] => [Bin(skel2, i, skel1), ...skels]
-        }
-      };
-
-    let process_operand = (~output_stack, ~shunted_stack, op) => (
-      output_stack,
-      [op, ...shunted_stack],
-    );
-
-    let rec process_preop =
-            (
-              ~output_stack: list(Skel.t),
-              ~shunted_stack: list(itile),
-              ipreop: itile,
-            ) => {
-      switch (shunted_stack) {
-      | [] => (output_stack, [ipreop, ...shunted_stack])
-      | [(_, tile) as itile, ...itiles] =>
-        switch (tile) {
-        | Pre(_)
-        | Bin(_) => (output_stack, [ipreop, ...shunted_stack])
-        | Op(_)
-        | Post(_) =>
-          process_preop(
-            ~output_stack=push_output(itile, output_stack),
-            ~shunted_stack=itiles,
-            ipreop,
-          )
-        }
-      };
-    };
-
-    // assumes postops lose ties with preops and binops
-    let rec process_postop =
-            (
-              ~output_stack: list(Skel.t),
-              ~shunted_stack: list(itile),
-              (_, post) as ipostop: itile,
-            ) =>
-      switch (shunted_stack) {
-      | [] => (output_stack, [ipostop, ...shunted_stack])
-      | [(_, tile) as itile, ...itiles] =>
-        switch (tile) {
-        | Op(_)
-        | Post(_) =>
-          process_postop(
-            ~output_stack=push_output(itile, output_stack),
-            ~shunted_stack=itiles,
-            ipostop,
-          )
-        | Pre(_)
-        | Bin(_) =>
-          T.precedence(tile) <= T.precedence(post)
-            ? process_postop(
-                ~output_stack=push_output(itile, output_stack),
-                ~shunted_stack=itiles,
-                ipostop,
-              )
-            : (output_stack, [ipostop, ...shunted_stack])
-        }
-      };
-
-    // currently assumes all binops are left-associative
-    // and binops lose ties with preops
-    let rec process_binop =
-            (
-              ~output_stack: list(Skel.t),
-              ~shunted_stack: list(itile),
-              (_, bin) as ibinop: itile,
-            ) =>
-      switch (shunted_stack) {
-      | [] => (output_stack, [ibinop, ...shunted_stack])
-      | [(_, tile) as itile, ...itiles] =>
-        switch (tile) {
-        | Op(_)
-        | Post(_) =>
-          process_binop(
-            ~output_stack=push_output(itile, output_stack),
-            ~shunted_stack=itiles,
-            ibinop,
-          )
-        | Pre(_)
-        | Bin(_) =>
-          T.precedence(tile) <= T.precedence(bin)
-            ? process_binop(
-                ~output_stack=push_output(itile, output_stack),
-                ~shunted_stack=itiles,
-                ibinop,
-              )
-            : (output_stack, [ibinop, ...shunted_stack])
-        }
-      };
-
-    let rec go =
-            (
-              ~output_stack: list(Skel.t)=[],
-              ~shunted_stack: list(itile)=[],
-              itiles: list(itile),
-            )
-            : list(Skel.t) => {
-      switch (itiles) {
-      | [] =>
-        shunted_stack
-        |> List.fold_left(
-             (output_stack, t) => push_output(t, output_stack),
-             output_stack,
-           )
-      | [(_, tile) as itile, ...itiles] =>
-        let process =
-          switch (tile) {
-          | Op(_) => process_operand
-          | Pre(_) => process_preop
-          | Post(_) => process_postop
-          | Bin(_) => process_binop
-          };
-        let (output_stack, shunted_stack) =
-          process(~output_stack, ~shunted_stack, itile);
-        go(~output_stack, ~shunted_stack, itiles);
-      };
-    };
-
-    tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
-  };
-
-  let term_of_skel = (skel: Skel.t, ts: tiles): (Tm.t, ListUtil.frame(T.t)) => {
-    let (a, b) = Skel.range(skel);
-    let prefix = List.rev(ListUtil.sublist((0, a), ts));
-    let suffix = ListUtil.sublist((b, List.length(ts)), ts);
-    let rec go = (skel: Skel.t): Tm.t => {
-      let root = List.nth(ts, Skel.root_index(skel));
-      switch (skel) {
-      | Op(_) => Op(Tile.get_op(root))
-      | Pre(_, r) => Pre(Tile.get_pre(root), go(r))
-      | Post(l, _) => Post(go(l), Tile.get_post(root))
-      | Bin(l, _, r) => Bin(go(l), Tile.get_bin(root), go(r))
-      };
-    };
-    (go(skel), (prefix, suffix));
-  };
-
-  let associate = (tiles: tiles): Tm.t => {
-    let (term, _) = term_of_skel(mk_skel(tiles), tiles);
-    term;
-  };
-  let rec dissociate = (tm: Tm.t): tiles =>
-    switch (tm) {
-    | Op(op) => [Op(op)]
-    | Pre(pre, r) => [Pre(pre), ...dissociate(r)]
-    | Post(l, post) => dissociate(l) @ [Post(post)]
-    | Bin(l, bin, r) => dissociate(l) @ [Bin(bin), ...dissociate(r)]
-    };
-
-  let rec sort_s = (tiles: Unsorted.Tile.s): option(list(T.t)) =>
-    tiles |> List.map(sort) |> OptUtil.sequence
-  and sort = (tile: Unsorted.Tile.t) => Input.sort(~sort_and_associate, tile)
-  and sort_and_associate = ts => {
-    let+ sorted = sort_s(ts);
-    associate(sorted);
-  };
-
-  let rec unsort_s = (tiles: list(T.t)): Unsorted.Tile.s =>
-    List.map(unsort, tiles)
-  and unsort = (tile: T.t): Unsorted.Tile.t =>
-    Input.unsort(~dissociate_and_unsort, tile)
-  and dissociate_and_unsort = term => unsort_s(dissociate(term));
-
-  let assemble_tile = (ts: AltList.t(Unsorted.Tessera.t, Tm.t)): option(T.t) => {
-    let ts = AltList.map_b(dissociate_and_unsort, ts);
-    let* tile = Parser_unsorted.assemble_tile(ts);
-    sort(tile);
-  };
-  let disassemble_tile = Input.disassemble_tile;
-
-  let assemble_tiles_in_selection =
-    Parser_unsorted.assemble_tiles_in_selection'(~assemble_tile=ts =>
-      assemble_tile(AltList.map_b(associate, ts))
-    );
-
-  let is_convex = (d: Direction.t) =>
-    fun
-    | Selection.Tile(tile) => Tile.is_convex(d, tile)
-    | Tessera(tessera) => Unsorted.Tessera.is_convex(d, tessera);
-  let is_hole =
-    fun
-    | Selection.Tile(Tile.Op(op)) => Tm.is_op_hole(op)
-    | Tile(Bin(bin)) => Tm.is_bin_hole(bin)
-    | _ => false;
-
-  let fix_empty_holes_between =
-      (prefix: selection, suffix: selection): (selection, selection) =>
-    switch (ListUtil.split_last_opt(prefix), suffix) {
-    | (None, _)
-    | (_, []) => (prefix, suffix)
-    | (Some((leading, last)), [first, ...trailing]) =>
-      switch (
-        fix_holes_at_juncture(
-          ~left_is_hole=is_hole(last),
-          ~right_is_hole=is_hole(first),
-          ~left_is_convex=is_convex(Right, last),
-          ~right_is_convex=is_convex(Left, first),
-          (),
-        )
-      ) {
-      | None => (prefix, suffix)
-      | Some(RemoveBoth) => (leading, trailing)
-      | Some(RemoveLeft) => (leading, suffix)
-      | Some(RemoveRight) => (prefix, trailing)
-      | Some(InsertOp) => (
-          prefix,
-          [Selection.Tile(Op(Tm.mk_op_hole())), ...suffix],
-        )
-      | Some(InsertBin) => (
-          prefix,
-          [Selection.Tile(Bin(Tm.mk_bin_hole())), ...suffix],
-        )
+      | OpHole
+      | Var(_)
+      | BinHole
+      | Prod => []
+      | Paren(body) =>
+        [Selem.Shard(Pat(Paren_l)), ...Selection.of_tiles_pat(body)]
+        @ [Shard(Pat(Paren_r))]
+      }
+    | Tile(Exp(tile)) =>
+      switch (tile) {
+      | OpHole
+      | Num(_)
+      | Var(_)
+      | BinHole
+      | Plus
+      | Times
+      | Prod
+      | Ap => []
+      | Paren(body) =>
+        [Selem.Shard(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
+        @ [Shard(Exp(Paren_r))]
+      | Lam(p) =>
+        [Selem.Shard(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
+        @ [Shard(Exp(Lam_dot))]
+      | Let(p, def) =>
+        [Selem.Shard(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
+        @ [Selem.Shard(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
+        @ [Selem.Shard(Exp(Let_in))]
       }
     };
+  switch (d) {
+  | Left => List.rev(disassembled)
+  | Right => disassembled
+  };
+};
 
-  let fix_empty_holes_end = (~side, affix) =>
-    switch (ListUtil.split_last_opt(affix)) {
-    | None => [Selection.Tile(Tile.Op(Tm.mk_op_hole()))]
-    | Some((leading, last)) =>
-      if (!is_convex(side, last) && is_hole(last)) {
-        leading;
-      } else {
-        let cap =
-          is_convex(side, last)
-            ? [] : [Selection.Tile(Tile.Op(Tm.mk_op_hole()))];
-        affix @ cap;
-      }
+let rec find_token =
+        (d: Direction.t, selection: Selection.t)
+        : option((Tiles.t, Shard.t, Selection.t)) =>
+  switch (selection) {
+  | [] => None
+  | [Shard(found_token), ...selection] => Some(([], found_token, selection))
+  | [Tile(tile), ...selection] =>
+    let+ (preceding_tiles, found_token, selection) =
+      find_token(d, selection);
+    ([tile, ...preceding_tiles], found_token, selection);
+  };
+
+let rec find_rest_of_tile =
+        (d: Direction.t, curr_token: Shard.t, selection: Selection.t)
+        : option((AltList.even(Tiles.t, Shard.t), Selection.t)) =>
+  if (Shard.is_end(d, curr_token)) {
+    Some(([], selection));
+  } else {
+    let* (preceding_tiles, found_token, selection) =
+      find_token(d, selection);
+    if (Shard.is_next(d, curr_token, found_token)) {
+      let+ (rest_of_tile, selection) =
+        find_rest_of_tile(d, found_token, selection);
+      ([(preceding_tiles, found_token), ...rest_of_tile], selection);
+    } else {
+      None;
     };
-
-  let fix_empty_holes_affix =
-      (~side: Direction.t, affix: list(selection)): selection => {
-    let fixed_between =
-      List.fold_right(
-        (selection, fixed_so_far) => {
-          // TODO consider how fix_empty_holes_between could
-          // not depend on fixed orientation
-          let (selection, fixed_so_far) =
-            switch (side) {
-            | Left =>
-              let (fixed_so_far, selection) =
-                fix_empty_holes_between(
-                  List.rev(fixed_so_far),
-                  List.rev(selection),
-                );
-              (List.rev(selection), List.rev(fixed_so_far));
-            | Right => fix_empty_holes_between(selection, fixed_so_far)
-            };
-          selection @ fixed_so_far;
-        },
-        affix,
-        [],
-      );
-    fix_empty_holes_end(~side, fixed_between);
   };
 
-  // subject should not have holes on its ends
-  let fix_empty_holes =
-      (~subject=[], (prefix, suffix): ListUtil.frame(selection)) => {
-    let suffix = fix_empty_holes_affix(~side=Right, suffix);
-    let (prefix, suffix) =
-      if (List.for_all((==)([]), prefix) && subject == []) {
-        let suffix =
-          suffix |> List.rev |> fix_empty_holes_end(~side=Left) |> List.rev;
-        ([], suffix);
-      } else {
-        (fix_empty_holes_affix(~side=Left, prefix), suffix);
-      };
-    let (subject, suffix) = fix_empty_holes_between(subject, suffix);
-    let (rev_prefix, suffix) =
-      if (subject == []) {
-        fix_empty_holes_between(List.rev(prefix), suffix);
-      } else {
-        let (rev_prefix, _) =
-          fix_empty_holes_between(List.rev(prefix), subject);
-        (rev_prefix, suffix);
-      };
-    (List.rev(rev_prefix), suffix);
+let assemble_tile =
+    (d: Direction.t, ts: AltList.t(Shard.t, Tiles.t)): option(Tile.t) => {
+  let child = ts => d == Left ? List.rev(ts) : ts;
+  switch (d, ts) {
+  | (Left, (Pat(Paren_r), [(body, Pat(Paren_l))]))
+  | (Right, (Pat(Paren_l), [(body, Pat(Paren_r))])) =>
+    let+ body = Tiles.get_pat(child(body));
+    Tile.Pat(Paren(body));
+  | (Left, (Exp(Paren_r), [(body, Exp(Paren_l))]))
+  | (Right, (Exp(Paren_l), [(body, Exp(Paren_r))])) =>
+    let+ body = Tiles.get_exp(child(body));
+    Tile.Exp(Paren(body));
+  | (Left, (Exp(Lam_dot), [(p, Exp(Lam_lam))]))
+  | (Right, (Exp(Lam_lam), [(p, Exp(Lam_dot))])) =>
+    let+ p = Tiles.get_pat(child(p));
+    Tile.Exp(Lam(p));
+  | (Left, (Exp(Let_in), [(def, Exp(Let_eq)), (p, Exp(Let_let))]))
+  | (Right, (Exp(Let_let), [(p, Exp(Let_eq)), (def, Exp(Let_in))])) =>
+    let+ p = Tiles.get_pat(child(p))
+    and+ def = Tiles.get_exp(child(def));
+    Tile.Exp(Let(p, def));
+  | _ => None
   };
+};
 
-  let associate_frame = ((prefix, suffix), frame: F.bidelimited) => {
-    let n = List.length(prefix);
-    let dummy_hole = Tile.Op(Tm.mk_op_hole());
-    let tiles = ListUtil.of_frame(~subject=[dummy_hole], (prefix, suffix));
-    let rec go = (skel, frame: F.t) => {
-      let tile = List.nth(tiles, Skel.root_index(skel));
-      switch (skel) {
-      | Skel.Op(_) => frame
-      | Pre(_, r) => go(r, Uni(Pre_r(Tile.get_pre(tile), frame)))
-      | Post(l, _) => go(l, Uni(Post_l(frame, Tile.get_post(tile))))
-      | Bin(l, m, r) =>
-        if (n < m) {
-          let (r, _) = term_of_skel(r, tiles);
-          go(l, Uni(Bin_l(frame, Tile.get_bin(tile), r)));
-        } else {
-          let (l, _) = term_of_skel(l, tiles);
-          go(r, Uni(Bin_r(l, Tile.get_bin(tile), frame)));
-        }
-      };
-    };
-    go(mk_skel(tiles), Bi(frame));
-  };
+let flatten = l =>
+  l
+  |> AltList.even_to_list(Selection.of_tiles, t => [Selem.Shard(t)])
+  |> List.flatten;
 
-  let dissociate_frame = (frame: F.t) => {
-    let rec go = (~prefix=[], ~suffix=[], frame: F.t) =>
-      switch (frame) {
-      | Bi(bidelimited) => ((prefix, suffix), bidelimited)
-      | Uni(unidelimited) =>
-        switch (unidelimited) {
-        | Pre_r(pre, frame) =>
-          go(~prefix=prefix @ [Tile.Pre(pre)], ~suffix, frame)
-        | Post_l(frame, post) =>
-          go(~prefix, ~suffix=suffix @ [Tile.Post(post)], frame)
-        | Bin_l(frame, bin, r) =>
-          go(
-            ~prefix,
-            ~suffix=suffix @ [Tile.Bin(bin), ...dissociate(r)],
-            frame,
-          )
-        | Bin_r(l, bin, frame) =>
-          go(
-            ~prefix=prefix @ [Tile.Bin(bin), ...List.rev(dissociate(l))],
-            ~suffix,
-            frame,
-          )
-        }
-      };
-    go(frame);
-  };
-
-  let associate_frame_around_root =
-      (
-        tile: T.t,
-        (prefix, _) as tile_frame: ListUtil.frame(T.t),
-        frame: F.bidelimited,
-      )
-      : (T.t, ListUtil.frame(T.t), F.t) => {
-    let n = List.length(prefix);
-    let tiles = ListUtil.of_frame(~subject=[tile], tile_frame);
-    let rec go = (skel: Skel.t, frame: F.t) => {
-      let t = List.nth(tiles, Skel.root_index(skel));
-      switch (skel) {
-      | Op(m) =>
-        assert(n == m);
-        (tile, ([], []), frame);
-      | Pre(m, r) =>
-        if (n == m) {
-          let r = ListUtil.sublist(Skel.range(r), tiles);
-          (t, ([], r), frame);
-        } else {
-          go(r, Uni(Pre_r(Tile.get_pre(t), frame)));
-        }
-      | Post(l, m) =>
-        if (n == m) {
-          let l = ListUtil.sublist(Skel.range(l), tiles);
-          (t, (l, []), frame);
-        } else {
-          go(l, Uni(Post_l(frame, Tile.get_post(t))));
-        }
-      | Bin(l, m, r) =>
-        let bin = Tile.get_bin(t);
-        if (n < m) {
-          let (r, _) = term_of_skel(r, tiles);
-          go(l, Uni(Bin_l(frame, bin, r)));
-        } else if (n > m) {
-          let (l, _) = term_of_skel(l, tiles);
-          go(r, Uni(Bin_r(l, bin, frame)));
-        } else {
-          let l = ListUtil.sublist(Skel.range(l), tiles);
-          let r = ListUtil.sublist(Skel.range(r), tiles);
-          (t, (l, r), frame);
+let rec parse_selection =
+        (d: Direction.t, selection: Selection.t): Selection.t => {
+  switch (find_token(d, selection)) {
+  | None => selection
+  | Some((tiles, shard, selection)) =>
+    switch (find_rest_of_tile(d, shard, selection)) {
+    | None => flatten([(tiles, shard)]) @ parse_selection(d, selection)
+    | Some((rest_of_tile, selection)) =>
+      let parsed =
+        switch (assemble_tile(d, (shard, rest_of_tile))) {
+        | None => flatten([(tiles, shard), ...rest_of_tile])
+        | Some(tile) => Selection.of_tiles(tiles) @ [Tile(tile)]
         };
+      parsed @ parse_selection(d, selection);
+    }
+  };
+};
+
+let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
+  fun
+  | Pat(frame) =>
+    switch (frame) {
+    | Paren_body(((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Pat(Paren_l)),
+        ...Selection.of_tiles_pat(prefix),
+      ];
+      let suffix = [
+        Selem.Shard(Pat(Paren_r)),
+        ...Selection.of_tiles_pat(suffix),
+      ];
+      Some(((prefix, suffix), Pat(frame)));
+    | Lam_pat(((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Exp(Lam_lam)),
+        ...Selection.of_tiles_exp(prefix),
+      ];
+      let suffix = [
+        Selem.Shard(Exp(Lam_dot)),
+        ...Selection.of_tiles_exp(suffix),
+      ];
+      Some(((prefix, suffix), Exp(frame)));
+    | Let_pat(def, ((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Exp(Let_let)),
+        ...Selection.of_tiles_exp(prefix),
+      ];
+      let suffix =
+        [Selem.Shard(Exp(Let_eq)), ...Selection.of_tiles_exp(def)]
+        @ [Shard(Exp(Let_in)), ...Selection.of_tiles_exp(suffix)];
+      Some(((prefix, suffix), Exp(frame)));
+    }
+  | Exp(frame) =>
+    switch (frame) {
+    | Root => None
+    | Paren_body(((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Exp(Paren_l)),
+        ...Selection.of_tiles_exp(prefix),
+      ];
+      let suffix = [
+        Selem.Shard(Exp(Paren_r)),
+        ...Selection.of_tiles_exp(suffix),
+      ];
+      Some(((prefix, suffix), Exp(frame)));
+    | Let_def(p, ((prefix, suffix), frame)) =>
+      let prefix =
+        [Selem.Shard(Exp(Let_eq)), ...List.rev(Selection.of_tiles_pat(p))]
+        @ [Shard(Exp(Let_let)), ...Selection.of_tiles_exp(prefix)];
+      let suffix = [
+        Selem.Shard(Exp(Let_in)),
+        ...Selection.of_tiles_exp(suffix),
+      ];
+      Some(((prefix, suffix), Exp(frame)));
+    };
+
+let assemble_frame =
+    (
+      frame_t: (AltList.t(Shard.t, Tiles.t) as 't, 't),
+      (prefix, suffix): Selection.frame,
+      frame: Frame.t,
+    )
+    : option(Frame.t) => {
+  let* prefix = Selection.get_tiles(prefix);
+  let* suffix = Selection.get_tiles(suffix);
+  switch (frame_t, frame) {
+  | (((Pat(Paren_l), []), (Pat(Paren_r), [])), Pat(frame)) =>
+    let+ prefix = Tiles.get_pat(prefix)
+    and+ suffix = Tiles.get_pat(suffix);
+    Frame.Pat(Paren_body(((prefix, suffix), frame)));
+  | (((Exp(Lam_lam), []), (Exp(Lam_dot), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Pat(Lam_pat(((prefix, suffix), frame)));
+  | (
+      ((Exp(Let_let), []), (Exp(Let_eq), [(def, Exp(Let_in))])),
+      Exp(frame),
+    ) =>
+    let+ def = Tiles.get_exp(def)
+    and+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Pat(Let_pat(def, ((prefix, suffix), frame)));
+  | (((Exp(Paren_l), []), (Exp(Paren_r), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Paren_body(((prefix, suffix), frame)));
+  | (
+      ((Exp(Let_eq), [(p, Exp(Let_let))]), (Exp(Let_in), [])),
+      Exp(frame),
+    ) =>
+    let+ p = Tiles.get_pat(List.rev(p))
+    and+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Let_def(p, ((prefix, suffix), frame)));
+  | _ => None
+  };
+};
+
+let rec parse_zipper =
+        ((prefix, suffix) as sframe: Selection.frame, frame: Frame.t)
+        : (Selection.frame, Frame.t) => {
+  switch (find_token(Left, prefix), find_token(Right, suffix)) {
+  | (None, _)
+  | (_, None) => (sframe, frame)
+  | (
+      Some((tiles_pre, token_pre, prefix)),
+      Some((tiles_suf, token_suf, suffix)),
+    ) =>
+    switch (
+      find_rest_of_tile(Left, token_pre, prefix),
+      find_rest_of_tile(Right, token_suf, suffix),
+    ) {
+    | (None, _)
+    | (_, None) =>
+      let (sframe', frame') = parse_zipper((prefix, suffix), frame);
+      let sframe' =
+        ListFrame.append(
+          (
+            flatten([(tiles_pre, token_pre)]),
+            flatten([(tiles_suf, token_suf)]),
+          ),
+          sframe',
+        );
+      (sframe', frame');
+    | (Some((rest_of_tile_pre, prefix)), Some((rest_of_tile_suf, suffix))) =>
+      let ((prefix', suffix'), frame') =
+        parse_zipper((prefix, suffix), frame);
+      let tile_pre = (token_pre, rest_of_tile_pre);
+      let tile_suf = (token_suf, rest_of_tile_suf);
+      switch (
+        assemble_frame((tile_pre, tile_suf), (prefix', suffix'), frame')
+      ) {
+      | None =>
+        let prefix'' =
+          flatten([(tiles_pre, token_pre), ...rest_of_tile_pre]);
+        let suffix'' =
+          flatten([(tiles_suf, token_suf), ...rest_of_tile_suf]);
+        ((prefix'' @ prefix', suffix'' @ suffix'), frame');
+      | Some(frame'') =>
+        let prefix'' = Selection.of_tiles(tiles_pre);
+        let suffix'' = Selection.of_tiles(tiles_suf);
+        ((prefix'', suffix''), frame'');
       };
+    }
+  };
+};
+
+let fix_holes =
+    (ltip: Tip.t, (prefix, suffix): Selection.frame, rtip: Tip.t)
+    : Selection.frame => {
+  let rec fix = (ltip: Tip.t, selection: Selection.t): (Selection.t, Tip.t) =>
+    switch (selection) {
+    | [] => ([], Tip.toggle(ltip))
+    | [selem, ...selection] =>
+      if (Selem.is_hole(selem)) {
+        // skip holes
+        fix(ltip, selection);
+      } else {
+        let (fixed, rtip) =
+          fix(Tip.toggle(Selem.tip(Right, selem)), selection);
+        let inserted_hole =
+          // relies on invariant that reachable selections are sort-consistent
+          Selem.tip(Left, selem) == ltip
+            ? [] : [Selem.Tile(Tile.mk_hole(ltip))];
+        (inserted_hole @ [selem, ...fixed], rtip);
+      }
     };
-    go(mk_skel(tiles), Bi(frame));
+  let (fixed_prefix, rtip_prefix) = fix(ltip, List.rev(prefix));
+  let (fixed_suffix, rtip_suffix) = fix(Tip.toggle(rtip_prefix), suffix);
+  let inserted_hole =
+    rtip_suffix == rtip ? [] : [Selem.Tile(Tile.mk_hole(rtip))];
+  (List.rev(fixed_prefix), fixed_suffix @ inserted_hole);
+};
+
+type itile = (int, Tile.t);
+let associate = (tiles: Tiles.t): Skel.t => {
+  let push_output =
+      ((i, tile): itile, output_stack: list(Skel.t)): list(Skel.t) =>
+    switch (Tile.tip(Left, tile), Tile.tip(Right, tile)) {
+    | ((Convex, _), (Convex, _)) => [Op(i), ...output_stack]
+    | ((Convex, _), (Concave, _)) =>
+      switch (output_stack) {
+      | [] => failwith("impossible: pre encountered empty stack")
+      | [skel, ...skels] => [Pre(i, skel), ...skels]
+      }
+    | ((Concave, _), (Convex, _)) =>
+      switch (output_stack) {
+      | [] => failwith("impossible: post encountered empty stack")
+      | [skel, ...skels] => [Post(skel, i), ...skels]
+      }
+    | ((Concave, _), (Concave, _)) =>
+      switch (output_stack) {
+      | []
+      | [_] =>
+        failwith("impossible: bin encountered empty or singleton stack")
+      | [skel1, skel2, ...skels] => [Bin(skel2, i, skel1), ...skels]
+      }
+    };
+
+  let process_operand = (~output_stack, ~shunted_stack, op) => (
+    output_stack,
+    [op, ...shunted_stack],
+  );
+
+  let rec process_preop =
+          (
+            ~output_stack: list(Skel.t),
+            ~shunted_stack: list(itile),
+            ipreop: itile,
+          ) => {
+    switch (shunted_stack) {
+    | [] => (output_stack, [ipreop, ...shunted_stack])
+    | [(_, tile) as itile, ...itiles] =>
+      switch (Tile.tip(Right, tile)) {
+      | (Concave, _) => (output_stack, [ipreop, ...shunted_stack])
+      | (Convex, _) =>
+        process_preop(
+          ~output_stack=push_output(itile, output_stack),
+          ~shunted_stack=itiles,
+          ipreop,
+        )
+      }
+    };
   };
 
-  let assemble_open_frame =
-      (
-        ts: AltList.b_frame(Unsorted.Tessera.t, Tm.t),
-        tile_frame: ListUtil.frame(T.t),
-        frame: F.bidelimited,
-      )
-      : option(F.open_) => {
-    let* dummy_tile = {
-      let dummy_hole = Term.Op(Tm.mk_op_hole());
-      assemble_tile(AltList.fill_b_frame(dummy_hole, ts));
+  // assumes postops lose ties with preops and binops
+  let rec process_postop =
+          (
+            ~output_stack: list(Skel.t),
+            ~shunted_stack: list(itile),
+            (_, post) as ipostop: itile,
+          ) =>
+    switch (shunted_stack) {
+    | [] => (output_stack, [ipostop, ...shunted_stack])
+    | [(_, tile) as itile, ...itiles] =>
+      switch (Tile.tip(Right, tile)) {
+      | (Convex, _) =>
+        process_postop(
+          ~output_stack=push_output(itile, output_stack),
+          ~shunted_stack=itiles,
+          ipostop,
+        )
+      | (Concave, _) =>
+        Tile.precedence(tile) <= Tile.precedence(post)
+          ? process_postop(
+              ~output_stack=push_output(itile, output_stack),
+              ~shunted_stack=itiles,
+              ipostop,
+            )
+          : (output_stack, [ipostop, ...shunted_stack])
+      }
     };
-    let (_, tile_frame, frame) =
-      associate_frame_around_root(dummy_tile, tile_frame, frame);
-    Input.assemble_open_frame(~associate, ts, tile_frame, frame);
+
+  // currently assumes all binops are left-associative
+  // and binops lose ties with preops
+  let rec process_binop =
+          (
+            ~output_stack: list(Skel.t),
+            ~shunted_stack: list(itile),
+            (_, bin) as ibinop: itile,
+          ) =>
+    switch (shunted_stack) {
+    | [] => (output_stack, [ibinop, ...shunted_stack])
+    | [(_, tile) as itile, ...itiles] =>
+      switch (Tile.tip(Right, tile)) {
+      | (Convex, _) =>
+        process_binop(
+          ~output_stack=push_output(itile, output_stack),
+          ~shunted_stack=itiles,
+          ibinop,
+        )
+      | (Concave, _) =>
+        Tile.precedence(tile) <= Tile.precedence(bin)
+          ? process_binop(
+              ~output_stack=push_output(itile, output_stack),
+              ~shunted_stack=itiles,
+              ibinop,
+            )
+          : (output_stack, [ibinop, ...shunted_stack])
+      }
+    };
+
+  let rec go =
+          (
+            ~output_stack: list(Skel.t)=[],
+            ~shunted_stack: list(itile)=[],
+            itiles: list(itile),
+          )
+          : list(Skel.t) => {
+    switch (itiles) {
+    | [] =>
+      shunted_stack
+      |> List.fold_left(
+           (output_stack, t) => push_output(t, output_stack),
+           output_stack,
+         )
+    | [(_, tile) as itile, ...itiles] =>
+      let process =
+        switch (Tile.tip(Left, tile), Tile.tip(Right, tile)) {
+        | ((Convex, _), (Convex, _)) => process_operand
+        | ((Convex, _), (Concave, _)) => process_preop
+        | ((Concave, _), (Convex, _)) => process_postop
+        | ((Concave, _), (Concave, _)) => process_binop
+        };
+      let (output_stack, shunted_stack) =
+        process(~output_stack, ~shunted_stack, itile);
+      go(~output_stack, ~shunted_stack, itiles);
+    };
   };
 
-  let disassemble_open_frame = (frame: F.open_) => {
-    let (disassembled, (prefix, suffix), frame) =
-      Input.disassemble_open_frame(~dissociate, frame);
-    let ((outer_prefix, outer_suffix), frame) = dissociate_frame(frame);
-    (disassembled, (prefix @ outer_prefix, suffix @ outer_suffix), frame);
-  };
+  tiles |> List.mapi((i, tile) => (i, tile)) |> go |> List.hd;
 };
