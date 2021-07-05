@@ -715,7 +715,7 @@ svg.rail line.unsorted {
   opacity: 0%;
   position: absolute;
   z-index: var(--error-message-z);
-  color: #cb4b16;
+  color: var(--action-text-color);/*#cb4b16;*/
   font: 10pt "Helvetica Neue";
   /*font-weight: 500;*/
   white-space: nowrap;
@@ -769,7 +769,7 @@ svg.rail line.unsorted {
 .sort-label {
   border-radius: 2px;
   padding: 0 2px;
-  font-weight: bold;
+  font-weight: 500;
 }
 .sort-label.typ {
   background-color: var(--typ-bg-color);
@@ -780,6 +780,15 @@ svg.rail line.unsorted {
 .sort-label.exp {
   background-color: var(--exp-bg-color);
 }
+.sort-label.Exp {
+  color: var(--light-page-color);
+  background-color: var(--exp-shadow-color);
+}
+.sort-label.Pat {
+  color: var(--light-page-color);
+  background-color: var(--pat-shadow-color);
+}
+
 
 .type-info-msg {
   display: grid;
