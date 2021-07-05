@@ -36,6 +36,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
         | "+" => [p(Construct(Tile(Exp(Plus))))]
+        | "*" => [p(Construct(Tile(Exp(Times))))]
         | "(" =>
           switch (frame_sort) {
           | Pat => [p(Construct(Shard(Pat(Paren_l))))]
