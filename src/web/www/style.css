@@ -580,24 +580,17 @@ svg.rail line.unsorted {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
   }
-  /* 99% {
-    stroke: var(--hole-stroke-color);
-    fill: var(--hole-stroke-color);
-  } */
   100% {
     stroke: var(--exp-shadow-color);
     fill: var(--exp-shadow-color);
   }
 }
+
 @keyframes failedexppos1 {
   0% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
   }
-  /* 99% {
-    stroke: var(--hole-stroke-color);
-    fill: var(--hole-stroke-color);
-  } */
   100% {
     stroke: var(--exp-shadow-color);
     fill: var(--exp-shadow-color);
@@ -618,7 +611,7 @@ svg.rail line.unsorted {
     fill: var(--pat-shadow-color);
   }
 }
-@keyframes failedpatpos1 {f
+@keyframes failedpatpos1 {
   0% {
     stroke: var(--hole-stroke-color);
     fill: var(--hole-stroke-color);
