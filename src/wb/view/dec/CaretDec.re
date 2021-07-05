@@ -24,6 +24,11 @@ let keys_container = keys =>
   );
 let keys = ks => keys_container(List.map(key, ks));
 
+let mark_row = [
+  keys(["Enter"]),
+  action_type("Pick Up / Put Down Selection"),
+];
+
 let move_row = [
   keys([Unicode.left_arrow, Unicode.right_arrow]),
   action_type("Move"),
@@ -31,7 +36,7 @@ let move_row = [
 
 let select_row = [
   keys_container([
-    key("Shift"),
+    key("Alt"),
     Node.div([], [Node.text("+")]),
     key(Unicode.left_arrow),
     key(Unicode.right_arrow),
@@ -41,7 +46,7 @@ let select_row = [
 
 let delete_row = [
   keys(["Backspace", "Delete"]),
-  action_type("Delete/Restructure"),
+  action_type("Delete / Restructure"),
 ];
 
 let undo_row = [
@@ -88,10 +93,13 @@ let construct_rows =
           ]),
           construct_shape("single-char var"),
         ],
+        [keys(["Space"]), construct_shape("ap")],
         [keys(["+"]), construct_shape("plus")],
-        [keys(["("]), construct_shape("parentheses")],
+        [keys(["*"]), construct_shape("times")],
+        [keys([","]), construct_shape("prod")],
+        [keys(["("]), construct_shape("paren")],
         [keys(["\\"]), construct_shape("lambda")],
-        [keys(["="]), construct_shape("let expression")],
+        [keys(["="]), construct_shape("let")],
       ],
     ),
   );
@@ -174,13 +182,15 @@ let view =
           ),
         ],
         List.concat([
-          move_row,
-          buffer_row,
-          select_row,
+          construct_rows,
           buffer_row,
           delete_row,
           buffer_row,
-          construct_rows,
+          select_row,
+          buffer_row,
+          move_row,
+          buffer_row,
+          mark_row,
           buffer_row,
           undo_row,
           buffer_row,
