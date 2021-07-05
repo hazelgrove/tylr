@@ -6,7 +6,7 @@ module Profile = {
     style,
     measurement: Layout.measurement,
     color: Color.t,
-    just_failed: option(Cor.Action.t),
+    just_failed: option(FailedInput.t),
   };
 };
 

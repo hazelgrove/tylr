@@ -3,10 +3,20 @@ open Util;
 open OptUtil.Syntax;
 
 module Backpack = {
+  // TODO make private
   [@deriving sexp]
   type t = (Direction.t, Selection.t, list(Selection.t));
   // let len = ((selection, ssframe)) =>
   //   List.length(ListFrame.to_list(~subject=[selection], ssframe));
+
+  let bound_sort = ((_, selection, _): t) => {
+    let (_, sort) =
+      Selection.tip(Left, selection)
+      |> OptUtil.get_or_fail(
+           "backpack expected to carry only nonempty selections",
+         );
+    sort;
+  };
 
   let pick_up_selection =
       (d: Direction.t, selection', (d_backpack, selection, rest): t)

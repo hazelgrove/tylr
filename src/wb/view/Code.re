@@ -9,7 +9,7 @@ let rec view_of_layout =
           ~font_metrics,
           ~subject: option(Subject.t)=?,
           ~filler=0,
-          ~just_failed: option(Action.t)=None,
+          ~just_failed: option(FailedInput.t)=None,
           dpaths,
           l,
         )

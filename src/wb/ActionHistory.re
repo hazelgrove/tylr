@@ -5,15 +5,24 @@ type timestamp = float;
 
 type t = {
   succeeded: AltList.a_frame(Zipper.t, Action.t),
-  just_failed: option(Action.t),
+  just_failed: option(FailedInput.t),
   last_attempt: option(timestamp),
 };
 
 let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 
-let failed = (a: Action.t, history: t) => {
+let failed = (f: Failure.t, history: t) => {
   let now = JsUtil.date_now()##valueOf;
-  {...history, just_failed: Some(a), last_attempt: Some(now)};
+  let prior_attempts =
+    switch (history.just_failed) {
+    | Some({reason, prior_attempts}) when reason == Failure(f) => prior_attempts
+    | _ => 0
+    };
+  {
+    ...history,
+    just_failed: Some(FailedInput.mk(~prior_attempts, Failure(f))),
+    last_attempt: Some(now),
+  };
 };
 
 let succeeded = (a: Action.t, zipper: Zipper.t, history: t) => {

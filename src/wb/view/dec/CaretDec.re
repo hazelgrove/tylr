@@ -5,7 +5,7 @@ module Profile = {
     mode: CaretMode.t,
     origin: int,
     color: Color.t,
-    just_failed: option(Cor.Action.t),
+    just_failed: option(FailedInput.t),
   };
 };
 

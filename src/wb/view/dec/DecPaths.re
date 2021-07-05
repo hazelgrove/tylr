@@ -389,7 +389,7 @@ let current_space =
     (
       ~caret_mode: option(CaretMode.t)=?,
       ~measurement: Layout.measurement,
-      ~just_failed: option(Action.t),
+      ~just_failed: option(FailedInput.t),
       (step, color): (Path.caret_step, Color.t),
       paths: t,
     )
