@@ -10,19 +10,19 @@ jobs:
       # and uncomment them to open an ssh connection at that point:
       #- name: Debugging with ssh
       #  uses: lhotari/action-upterm@v1
-      - name: checkout tylr repo on current branch # STEP 1
+      - name: Checkout tylr repo on current branch # STEP 1
         uses: actions/checkout@v2
         with:
           path: source
-      - name: add name of current branch to environment as BRANCH_NAME
+      - name: Add name of current branch to environment as BRANCH_NAME
         uses: nelonoel/branch-name@v1.0.1
-      - name: retrieve build environment if cached # STEP 2
+      - name: Retrieve build environment if cached # STEP 2
         id: opam-cache
         uses: actions/cache@v2
         with:
           path: '/home/runner/.opam/'
           key: ${{ runner.os }}-modules-${{ hashFiles('./source/opam.export') }}
-      - name: install dependencies and build tylr # STEP 3
+      - name: Install dependencies and build tylr # STEP 3
         run: |
           sudo apt --assume-yes install opam
           export OPAMYES=1
@@ -31,18 +31,18 @@ jobs:
           make deps
           make release
         working-directory: ./source
-      - name: checkout website build artifacts repo # STEP 4
+      - name: Checkout website build artifacts repo # STEP 4
         uses: actions/checkout@v2
         with:
           repository: hazelgrove/tylr-build
           token: ${{ secrets.DEPLOY_TYLR }}
           path: server
-      - name: clear any old build of this branch # STEP 5
+      - name: Clear any old build of this branch # STEP 5
         run: if [ -d "${BRANCH_NAME}" ] ; then rm -rf "${BRANCH_NAME}" ; fi
         working-directory: ./server
-      - name: copy in newly built source # STEP 6
+      - name: Copy in newly built source # STEP 6
         run: mkdir "./server/${BRANCH_NAME}" && cp -r "./source/_build/default/src/hazelweb/www"/* "./server/${BRANCH_NAME}"
-      - name : Commit to the website aka deploy # STEP 7
+      - name: Commit to the website aka deploy # STEP 7
         run: |
           git config user.name github-deploy-action
           git config user.email tylr-deploy@hazel.org
