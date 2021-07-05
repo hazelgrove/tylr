@@ -35,6 +35,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Backspace"
         | "Delete" => [p(Delete)]
         | "+" => [p(Construct(Exp(Plus)))]
+        | "*" => [p(Construct(Exp(Times)))]
         | "(" => [p(Construct(Exp(Paren([OpHole]))))]
         | "\\" => [p(Construct(Exp(Lam([OpHole]))))]
         | "=" => [p(Construct(Exp(Let([OpHole], [OpHole]))))]
