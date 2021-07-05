@@ -768,8 +768,7 @@ svg.rail line.unsorted {
 }
 .sort-label {
   border-radius: 2px;
-  padding: 0 2px;
-  font-weight: 500;
+  font-weight: 600;
 }
 .sort-label.typ {
   background-color: var(--typ-bg-color);
@@ -781,12 +780,12 @@ svg.rail line.unsorted {
   background-color: var(--exp-bg-color);
 }
 .sort-label.Exp {
-  color: var(--light-page-color);
-  background-color: var(--exp-shadow-color);
+  /*color: var(--light-page-color);*/
+  color: var(--exp-shadow-color);
 }
 .sort-label.Pat {
-  color: var(--light-page-color);
-  background-color: var(--pat-shadow-color);
+  /*color: var(--light-page-color);*/
+  color: var(--pat-shadow-color);
 }
 
 
