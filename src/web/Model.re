@@ -14,9 +14,25 @@ let init = () => {
     Subject.Pointing((
       [],
       Selem.[
-        Tile(Exp(Paren([Num(1), Plus, Num(2)]))),
-        Tile(Exp(Plus)),
-        Tile(Exp(Num(3))),
+        Tile(Exp(Let([Var("p")], [Num(1), Prod, Num(2)]))),
+        Tile(
+          Exp(
+            Let(
+              [Var("f")],
+              [
+                Lam([Paren([Var("x"), Prod, Var("y")]), Prod, Var("z")]),
+                Var("x"),
+                Plus,
+                Var("y"),
+                Times,
+                Var("z"),
+              ],
+            ),
+          ),
+        ),
+        Tile(Exp(Var("f"))),
+        Tile(Exp(Ap)),
+        Tile(Exp(Paren([Var("p"), Prod, Num(3)]))),
       ],
     )),
     Frame.Exp(Root),
