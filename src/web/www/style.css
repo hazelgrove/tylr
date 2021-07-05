@@ -834,3 +834,8 @@ svg.rail line.unsorted {
   color: rgb(210, 82, 82);
   font-weight: bold;
 }
+
+.keyboard-arrow {
+  position: relative;
+  top: -1px;
+}

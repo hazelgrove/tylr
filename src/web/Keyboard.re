@@ -40,6 +40,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
             | _ => [p(Move(d))]
             };
           };
+        | "ArrowUp" =>
+          switch (zipper) {
+          | (Selecting(_), _) => [p(Mark)]
+          | _ => []
+          }
+        | "ArrowDown" =>
+          switch (zipper) {
+          | (Restructuring(_), _) => [p(Mark)]
+          | _ => []
+          }
         | "Backspace"
         | "Delete" => [p(Delete)]
         | "+" => [p(Construct(Exp(Plus)))]
@@ -54,11 +64,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           }
         | " " => [p(Construct(Exp(Ap)))]
         | "Escape" => [Update.escape()]
-        | "Enter" =>
-          switch (zipper) {
-          | (Selecting(_) | Restructuring(_), _) => [p(Mark)]
-          | _ => []
-          }
         | _ when is_num(key) => [
             p(Construct(Exp(Num(int_of_string(key))))),
           ]

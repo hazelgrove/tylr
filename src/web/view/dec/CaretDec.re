@@ -15,7 +15,8 @@ let action_type = txt =>
 let construct_shape = txt =>
   Node.div([Attr.classes(["construct-shape"])], [Node.text(txt)]);
 
-let key = txt => Node.div([Attr.classes(["key"])], [Node.text(txt)]);
+let key' = Node.div([Attr.classes(["key"])]);
+let key = txt => key'([Node.text(txt)]);
 
 let keys_container = keys =>
   Node.div(
@@ -24,13 +25,35 @@ let keys_container = keys =>
   );
 let keys = ks => keys_container(List.map(key, ks));
 
+let keyboard_arrow = s =>
+  Node.span(
+    [Attr.classes(["keyboard-arrow"])],
+    [Node.span([], [Node.text(s)])],
+  );
+
 let mark_row = [
-  keys(["Enter"]),
+  keys_container(
+    List.map(
+      key',
+      [
+        [keyboard_arrow(Unicode.up_arrow)],
+        [keyboard_arrow(Unicode.down_arrow)],
+      ],
+    ),
+  ),
   action_type("Pick Up / Put Down Selection"),
 ];
 
 let move_row = [
-  keys([Unicode.left_arrow, Unicode.right_arrow]),
+  keys_container(
+    List.map(
+      key',
+      [
+        [keyboard_arrow(Unicode.left_arrow)],
+        [keyboard_arrow(Unicode.right_arrow)],
+      ],
+    ),
+  ),
   action_type("Move"),
 ];
 
@@ -38,8 +61,13 @@ let select_row = [
   keys_container([
     key("Shift"),
     Node.div([], [Node.text("+")]),
-    key(Unicode.left_arrow),
-    key(Unicode.right_arrow),
+    ...List.map(
+         key',
+         [
+           [keyboard_arrow(Unicode.left_arrow)],
+           [keyboard_arrow(Unicode.right_arrow)],
+         ],
+       ),
   ]),
   action_type("Select"),
 ];
