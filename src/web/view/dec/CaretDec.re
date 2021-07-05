@@ -36,7 +36,7 @@ let move_row = [
 
 let select_row = [
   keys_container([
-    key("Alt"),
+    key("Shift"),
     Node.div([], [Node.text("+")]),
     key(Unicode.left_arrow),
     key(Unicode.right_arrow),
@@ -183,9 +183,9 @@ let view =
         List.concat([
           move_row,
           buffer_row,
-          mark_row,
-          buffer_row,
           select_row,
+          buffer_row,
+          mark_row,
           buffer_row,
           delete_row,
           buffer_row,

@@ -28,9 +28,17 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowLeft"
         | "ArrowRight" =>
           let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-          switch (zipper) {
-          | (Selecting(_), _) => [Update.escape(~d, ())]
-          | _ => [p(Move(d))]
+          if (held(Shift)) {
+            switch (zipper) {
+            | (Pointing(_), _) => [p(Mark), p(Move(d))]
+            | (Selecting(_), _) => [p(Move(d))]
+            | (Restructuring(_), _) => []
+            };
+          } else {
+            switch (zipper) {
+            | (Selecting(_), _) => [Update.escape(~d, ())]
+            | _ => [p(Move(d))]
+            };
           };
         | "Backspace"
         | "Delete" => [p(Delete)]
@@ -59,19 +67,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | (_, Pat(_)) => [p(Construct(Pat(Var(key))))]
           | (_, Exp(_)) => [p(Construct(Exp(Var(key))))]
           }
-        | _ => []
-        };
-      } else if (!held(Ctrl) && held(Alt) && !held(Meta)) {
-        switch (key) {
-        | "Alt" => [p(Mark)]
-        | "ArrowLeft"
-        | "ArrowRight" =>
-          let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-          switch (zipper) {
-          | (Pointing(_), _) => [p(Mark), p(Move(d))]
-          | (Selecting(_), _) => [p(Move(d))]
-          | (Restructuring(_), _) => []
-          };
         | _ => []
         };
       } else if (held(Ctrl) && !held(Alt)) {
