@@ -15,7 +15,8 @@ let failed = (f: Failure.t, history: t) => {
   let now = JsUtil.date_now()##valueOf;
   let prior_attempts =
     switch (history.just_failed) {
-    | Some({reason, prior_attempts}) when reason == Failure(f) => prior_attempts
+    | Some({reason, prior_attempts}) when reason == Failure(f) =>
+      prior_attempts + 1
     | _ => 0
     };
   {
