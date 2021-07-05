@@ -16,7 +16,8 @@ let action_type = txt =>
 let construct_shape = txt =>
   Node.div([Attr.classes(["construct-shape"])], [Node.text(txt)]);
 
-let key = txt => Node.div([Attr.classes(["key"])], [Node.text(txt)]);
+let key' = Node.div([Attr.classes(["key"])]);
+let key = txt => key'([Node.text(txt)]);
 
 let keys_container = keys =>
   Node.div(
@@ -25,22 +26,49 @@ let keys_container = keys =>
   );
 let keys = ks => keys_container(List.map(key, ks));
 
+let keyboard_arrow = s =>
+  Node.span(
+    [Attr.classes(["keyboard-arrow"])],
+    [Node.span([], [Node.text(s)])],
+  );
+
 let mark_row = [
-  keys(["Enter"]),
+  keys_container(
+    List.map(
+      key',
+      [
+        [keyboard_arrow(Unicode.up_arrow)],
+        [keyboard_arrow(Unicode.down_arrow)],
+      ],
+    ),
+  ),
   action_type("Pick Up / Put Down Selection"),
 ];
 
 let move_row = [
-  keys([Unicode.left_arrow, Unicode.right_arrow]),
+  keys_container(
+    List.map(
+      key',
+      [
+        [keyboard_arrow(Unicode.left_arrow)],
+        [keyboard_arrow(Unicode.right_arrow)],
+      ],
+    ),
+  ),
   action_type("Move"),
 ];
 
 let select_row = [
   keys_container([
-    key("Alt"),
+    key("Shift"),
     Node.div([], [Node.text("+")]),
-    key(Unicode.left_arrow),
-    key(Unicode.right_arrow),
+    ...List.map(
+         key',
+         [
+           [keyboard_arrow(Unicode.left_arrow)],
+           [keyboard_arrow(Unicode.right_arrow)],
+         ],
+       ),
   ]),
   action_type("Select"),
 ];
@@ -94,13 +122,12 @@ let construct_rows =
           ]),
           construct_shape("single-char var"),
         ],
-        [keys(["Space"]), construct_shape("ap")],
-        [keys(["+"]), construct_shape("plus")],
-        [keys(["*"]), construct_shape("times")],
-        [keys([","]), construct_shape("prod")],
-        [keys(["(", ")"]), construct_shape("paren")],
-        [keys(["\\"]), construct_shape("lambda")],
-        [keys(["="]), construct_shape("let")],
+        [keys(["+", "*", ","]), construct_shape("plus | times | pair")],
+        [keys(["Space"]), construct_shape("application")],
+        // [keys(["*"]), construct_shape("times")],
+        // [keys([","]), construct_shape("prod")],
+        [keys(["(", ")"]), construct_shape("parentheses")],
+        [keys(["\\", "="]), construct_shape("lambda | let")],
       ],
     ),
   );
@@ -271,15 +298,15 @@ let view =
           ),
         ],
         List.concat([
-          construct_rows,
-          buffer_row,
-          delete_row,
+          move_row,
           buffer_row,
           select_row,
           buffer_row,
-          move_row,
-          buffer_row,
           mark_row,
+          buffer_row,
+          delete_row,
+          buffer_row,
+          construct_rows,
           buffer_row,
           undo_row,
           buffer_row,

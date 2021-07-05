@@ -1,4 +1,6 @@
 let lam = "λ";
+let up_arrow = "↑";
+let down_arrow = "↓";
 let left_arrow = "←";
 let right_arrow = "→";
 let nbsp = "\xC2\xA0";

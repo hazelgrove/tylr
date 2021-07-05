@@ -29,10 +29,28 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowLeft"
         | "ArrowRight" =>
           let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-          switch (zipper) {
-          | (Selecting(_), _) => [Update.escape(~d, ())]
-          | _ => [p(Move(d))]
+          if (held(Shift)) {
+            switch (zipper) {
+            | (Pointing(_), _) => [p(Mark), p(Move(d))]
+            | (Selecting(_), _) => [p(Move(d))]
+            | (Restructuring(_), _) => []
+            };
+          } else {
+            switch (zipper) {
+            | (Selecting(_), _) => [Update.escape(~d, ())]
+            | _ => [p(Move(d))]
+            };
           };
+        | "ArrowUp" =>
+          switch (zipper) {
+          | (Selecting(_), _) => [p(Mark)]
+          | _ => []
+          }
+        | "ArrowDown" =>
+          switch (zipper) {
+          | (Restructuring(_), _) => [p(Mark)]
+          | _ => []
+          }
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
         | "+" => [p(Construct(Tile(Exp(Plus))))]
@@ -56,11 +74,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           }
         | " " => [p(Construct(Tile(Exp(Ap))))]
         | "Escape" => [Update.escape()]
-        | "Enter" =>
-          switch (zipper) {
-          | (Selecting(_) | Restructuring(_), _) => [p(Mark)]
-          | _ => []
-          }
         | _ when is_num(key) => [
             p(Construct(Tile(Exp(Num(int_of_string(key)))))),
           ]
@@ -69,19 +82,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | (_, Pat(_)) => [p(Construct(Tile(Pat(Var(key)))))]
           | (_, Exp(_)) => [p(Construct(Tile(Exp(Var(key)))))]
           }
-        | _ => []
-        };
-      } else if (!held(Ctrl) && held(Alt) && !held(Meta)) {
-        switch (key) {
-        | "Alt" => [p(Mark)]
-        | "ArrowLeft"
-        | "ArrowRight" =>
-          let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-          switch (zipper) {
-          | (Pointing(_), _) => [p(Mark), p(Move(d))]
-          | (Selecting(_), _) => [p(Move(d))]
-          | (Restructuring(_), _) => []
-          };
         | _ => []
         };
       } else if (held(Ctrl) && !held(Alt)) {
