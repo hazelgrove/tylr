@@ -222,12 +222,6 @@ let perform =
     | (_, None) => Ok((Pointing(sframe), frame))
     | (Some((_, lsort)), Some((_, rsort))) =>
       if (lsort != rsort) {
-        print_endline("0");
-        print_endline(
-          Sexplib.Sexp.to_string(Selection.sexp_of_t(selection)),
-        );
-        print_endline(Sexplib.Sexp.to_string(Sort.sexp_of_t(lsort)));
-        print_endline(Sexplib.Sexp.to_string(Sort.sexp_of_t(rsort)));
         Error(Cant_pick_up_selection);
       } else {
         let sframe = fix_holes(Frame.sort(frame), sframe);
