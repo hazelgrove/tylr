@@ -332,12 +332,15 @@ let round_up =
   (new_selection, (prefix, suffix));
 };
 
-let is_backpack_whole = ((d, selection, rest): Restructuring.Backpack.t) => {
+let is_backpack_whole =
+    (sort, (d, selection, rest): Restructuring.Backpack.t) => {
   let selections = [selection, ...rest];
   let selections = d == Left ? List.rev(selections) : selections;
   let total_selection = List.concat(selections);
-  Selection.is_whole_any(parse_selection(Right, total_selection));
+  Selection.is_whole(sort, parse_selection(Right, total_selection));
 };
+let is_backpack_whole_any = backpack =>
+  is_backpack_whole(Pat, backpack) || is_backpack_whole(Exp, backpack);
 
 let fix_holes_rframe =
     (ltip: Tip.t, (prefix, suffix): Restructuring.frame, rtip: Tip.t)

@@ -146,7 +146,7 @@ let rec move_selecting =
 let move_restructuring =
     (d: Direction.t, (backpack, rframe): Restructuring.t, frame: Frame.t)
     : option((Restructuring.t, Frame.t)) =>
-  if (Parser.is_backpack_whole(backpack)) {
+  if (Parser.is_backpack_whole_any(backpack)) {
     // [Move<d>RestructuringWhole]
     let+ (sframe, frame) =
       move_pointing(d, Restructuring.get_sframe(rframe), frame);
@@ -288,22 +288,24 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
       (Subject.Selecting(side, selection, sframe), frame);
     }
   | Restructuring(
-      ((d_backpack, selection, rest), (prefix, suffix) as rframe) as restructuring,
+      (
+        (d_backpack, selection, rest) as backpack,
+        (prefix, suffix) as rframe,
+      ) as restructuring,
     ) =>
     switch (a) {
     | Mark =>
-      if (Selection.is_partial(selection)
-          || Selection.is_whole(Frame.sort(frame), selection)) {
+      if (Parser.is_backpack_whole(frame_sort, backpack)
+          || !Parser.is_backpack_whole_any(backpack)) {
         // [MarkRestructuring]
-        let tip = Tip.(Convex, Frame.sort(frame));
+        let fix_holes_rframe = rframe => {
+          let tip = (Tip.Convex, frame_sort);
+          Parser.fix_holes_rframe(tip, rframe, tip);
+        };
         switch (rest) {
         | [] =>
           let rframe =
-            Parser.fix_holes_rframe(
-              tip,
-              (prefix, [Selection(selection), ...suffix]),
-              tip,
-            );
+            fix_holes_rframe((prefix, [Selection(selection), ...suffix]));
           let (prefix, suffix) = Restructuring.get_sframe(rframe);
           let suffix = Parser.parse_selection(Right, suffix);
           let (sframe, frame) =
@@ -318,7 +320,7 @@ let perform = (a: t, (subject, frame): Zipper.t): option(Zipper.t) => {
               )
             | Right => ([Selection(selection), ...prefix], suffix)
             };
-          let rframe = Parser.fix_holes_rframe(tip, rframe, tip);
+          let rframe = fix_holes_rframe(rframe);
           let backpack = (d_backpack, selection', rest');
           Some((Restructuring((backpack, rframe)), frame));
         };

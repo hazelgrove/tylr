@@ -90,7 +90,7 @@ let siblings = (subject: Subject.t) =>
     ListUtil.range(len_pre + 1)
     @ ListUtil.range(~lo=len_pre + len_sel, len_pre + len_sel + len_suf + 1);
   | Restructuring((backpack, (prefix, suffix) as rframe)) =>
-    if (Parser.is_backpack_whole(backpack)) {
+    if (Parser.is_backpack_whole_any(backpack)) {
       ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
     } else {
       let (tiles_pre, prefix) =
@@ -152,7 +152,7 @@ let neighbor_selems = (subject: Subject.t) =>
       List.length(ListFrame.to_list(~subject=selection, sframe)),
     )
   | Restructuring((backpack, rframe)) =>
-    if (Parser.is_backpack_whole(backpack)) {
+    if (Parser.is_backpack_whole_any(backpack)) {
       ListUtil.range(List.length(ListFrame.to_list(rframe)));
     } else {
       let (prefix, suffix) = rframe;
@@ -464,7 +464,7 @@ let current_space =
     switch (caret_mode) {
     | None => []
     | Some(Restructuring({backpack, _}))
-        when !Parser.is_backpack_whole(backpack) =>
+        when !Parser.is_backpack_whole_any(backpack) =>
       []
     | _ => [CaretPos({measurement, color, just_failed: None, style: `Bare})]
     };
