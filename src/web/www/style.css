@@ -928,23 +928,23 @@ svg.rail line.unsorted {
   align-self: center;
   white-space: nowrap;
 }
-.action-type.Exp {
+/* .action-type.Exp {
   color: var(--exp-shadow-color);
 }
 .action-type.Pat {
   color: var(--pat-shadow-color);
-}
+} */
 
 #action-table .construct-shape {
   justify-self: left;
 }
 
-#action-table .action-type.disabled,
+/* #action-table .action-type.disabled,
 #action-table .key.disabled,
 #action-table .key-hyphen.disabled,
 #action-table .construct-shape.disabled {
   opacity: var(--disabled-action-table-opacity);
-}
+} */
 
 .emph {
   color: rgb(210, 82, 82);
