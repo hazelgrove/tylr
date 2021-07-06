@@ -48,7 +48,7 @@ let mark_row = [
       ],
     ),
   ),
-  action_type("Pick Up / Put Down Selection"),
+  action_type("Pick Up | Put Down Selection"),
 ];
 
 let move_row = [
@@ -81,7 +81,7 @@ let select_row = [
 
 let delete_row = [
   keys(["Backspace", "Delete"]),
-  action_type("Delete / Restructure"),
+  action_type("Delete/Restructure"),
 ];
 
 let undo_row = [
