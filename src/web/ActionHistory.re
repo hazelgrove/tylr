@@ -50,10 +50,10 @@ let undo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
       after,
     ) =>
     let succeeded = (before, [(a', prev), (a, zipper), ...after]);
-    Some((prev', {...history, succeeded}));
+    Some((prev', {...history, just_failed: None, succeeded}));
   | ([(a, prev), ...before], after) =>
     let succeeded = (before, [(a, zipper), ...after]);
-    Some((prev, {...history, succeeded}));
+    Some((prev, {...history, just_failed: None, succeeded}));
   };
 };
 
@@ -69,10 +69,10 @@ let redo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
       ],
     ) =>
     let succeeded = ([(a', next), (a, zipper), ...before], after);
-    Some((next', {...history, succeeded}));
+    Some((next', {...history, just_failed: None, succeeded}));
   | (before, [(a, prev), ...after]) =>
     let succeeded = ([(a, zipper), ...before], after);
-    Some((prev, {...history, succeeded}));
+    Some((prev, {...history, just_failed: None, succeeded}));
   };
 };
 
