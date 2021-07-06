@@ -74,7 +74,7 @@ let select_row = [
 
 let delete_row = [
   keys(["Backspace", "Delete"]),
-  action_type("Delete/Restructure"),
+  action_type("Delete or Restructure"),
 ];
 
 let undo_row = [
