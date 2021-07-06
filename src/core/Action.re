@@ -235,9 +235,17 @@ let perform =
     };
   };
 
-  let delete_selecting = (selection, sframe, frame): 'r => {
+  let delete_selecting = (d: Direction.t, selection, sframe, frame): 'r => {
     let frame_sort = Frame.sort(frame);
-    if (Selection.is_whole_any(selection)) {
+    if (trim_selection(selection) == []) {
+      let (prefix, suffix) = sframe;
+      let sframe =
+        d == Left
+          ? (prefix, selection @ suffix)
+          : (List.rev(selection) @ prefix, suffix);
+      let (sframe, frame) = Parser.parse_zipper(sframe, frame);
+      Ok((Pointing(sframe), frame));
+    } else if (Selection.is_whole_any(selection)) {
       let sframe = fix_holes(frame_sort, sframe);
       Ok((Pointing(sframe), frame));
     } else {
@@ -259,7 +267,7 @@ let perform =
     | Delete(d) =>
       let* (_, selection, sframe, frame) =
         move_selecting(d, Left, [], sframe, frame);
-      delete_selecting(selection, sframe, frame);
+      delete_selecting(d, selection, sframe, frame);
     | Construct(selem) =>
       // [Construct]
       let sort = Selem.sort(selem);
@@ -295,7 +303,7 @@ let perform =
   | Selecting(side, selection, sframe) =>
     switch (a) {
     | Construct(_) => Error(Undefined)
-    | Delete(_) => delete_selecting(selection, sframe, frame)
+    | Delete(d) => delete_selecting(d, selection, sframe, frame)
     | Mark => mark_selecting(selection, sframe, frame)
     | Move(d) =>
       let+ (side, selection, sframe, frame) =
