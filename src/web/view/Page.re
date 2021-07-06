@@ -47,6 +47,40 @@ let filters =
     ],
   );
 
+let size = 20.;
+let undo = (~inject, ~disabled) => {
+  let clss = disabled ? ["disabled"] : [];
+  let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
+  Node.span(
+    Attr.[
+      id("undo"),
+      create(
+        "style",
+        Printf.sprintf("width: %fpx; height: %fpx;", size, size),
+      ),
+      classes(["history-button", ...clss]),
+      on_mousedown(mousedown),
+    ],
+    [Icons.undo(size, size)],
+  );
+};
+let redo = (~inject, ~disabled) => {
+  let clss = disabled ? ["disabled"] : [];
+  let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Redo);
+  Node.span(
+    Attr.[
+      id("redo"),
+      create(
+        "style",
+        Printf.sprintf("width: %fpx; height: %fpx;", size, size),
+      ),
+      classes(["history-button", ...clss]),
+      on_mousedown(mousedown),
+    ],
+    [Icons.redo(size, size)],
+  );
+};
+
 let view = (~inject, model: Model.t) => {
   let Model.{font_metrics, logo_font_metrics, zipper, history} = model;
   let (subject, _) = zipper;
@@ -64,6 +98,8 @@ let view = (~inject, model: Model.t) => {
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
       filters,
+      undo(~inject, ~disabled=!ActionHistory.can_undo(model.history)),
+      redo(~inject, ~disabled=!ActionHistory.can_redo(model.history)),
       Node.div(
         [Attr.id("code-container")],
         [

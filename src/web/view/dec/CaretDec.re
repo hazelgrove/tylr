@@ -218,10 +218,6 @@ let view =
           delete_row,
           buffer_row,
           construct_rows,
-          buffer_row,
-          undo_row,
-          buffer_row,
-          redo_row,
         ]),
       ),
       Node.div(

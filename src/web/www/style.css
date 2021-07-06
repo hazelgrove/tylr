@@ -106,7 +106,7 @@
   position: fixed;
   top: 5%;
   left: 50%;
-  transform: translate(-50%, 0%);
+  transform: translate(-50%, -50%);
 }
 #logo-text {
   position: relative;
@@ -176,6 +176,52 @@
 #bar rect {
   fill: var(--bar-color);/*#586e752e;*/
   /*filter: blur(1px);*/
+}
+
+.history-button {
+  position: fixed;
+  top: 5%;
+  transform: translate(0%, -50%);
+  font: 14pt 'Helvetica Neue';
+  font-weight: bold;
+}
+.history-button.disabled {
+  opacity: 0.5;
+}
+.history-button path {
+  fill: var(--light-text-color);
+  stroke-width: 2px;
+}
+.history-button:hover {
+  cursor: pointer;
+}
+.history-button.disabled:hover {
+  cursor: default;
+}
+.history-buttton:hover svg {
+  transform: scale(108%);
+}
+.history-button.disabled:hover svg {
+  transform: none;
+}
+.history-button:active svg {
+  transform: scale(100%);
+}
+.history-button.disabled:active svg {
+  transform: scale(100%);
+}
+.history-button:hover path {
+  fill: var(--action-text-color);
+}
+.history-button.disabled:hover path {
+  fill: var(--light-text-color);
+}
+
+#undo {
+  left: 32px;
+}
+#redo {
+  left: 68px;
 }
 
 svg.rail line {
@@ -795,7 +841,7 @@ svg.rail line.unsorted {
   font: 10pt "Helvetica Neue";
   display: grid;
   grid-template-columns: 120px auto;
-  grid-template-rows: repeat(4, auto 24px) auto 4px repeat(5, auto 4px) auto 24px auto 4px auto;
+  grid-template-rows: repeat(4, auto 24px) auto 4px repeat(5, auto 4px) auto; /*24px auto 4px auto;*/
   column-gap: 16px;
   color: var(--action-text-color);
   z-index: var(--action-table-z);

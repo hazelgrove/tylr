@@ -11,6 +11,9 @@ type t = {
 
 let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 
+let can_undo = ({succeeded: (prefix, _), _}: t) => prefix != [];
+let can_redo = ({succeeded: (_, suffix), _}: t) => suffix != [];
+
 let failed = (a: Action.t, history: t) => {
   let now = JsUtil.date_now()##valueOf;
   {...history, just_failed: Some(a), last_attempt: Some(now)};
