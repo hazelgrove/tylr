@@ -20,7 +20,7 @@ let perform = (a, model: Model.t) =>
   | Some(zipper) => {
       ...model,
       zipper,
-      history: ActionHistory.succeeded(a, zipper, model.history),
+      history: ActionHistory.succeeded(a, model.zipper, model.history),
     }
   };
 
