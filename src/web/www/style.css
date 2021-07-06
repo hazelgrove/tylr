@@ -198,7 +198,7 @@
 .history-button.disabled:hover {
   cursor: default;
 }
-.history-buttton:hover svg {
+.history-button:hover svg {
   transform: scale(108%);
 }
 .history-button.disabled:hover svg {
