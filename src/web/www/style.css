@@ -62,8 +62,9 @@
 
   --bar-color: #dfdacc;
 
-  --action-text-color: rgb(82, 82, 82);
-  --action-key-color: whitesmoke;
+  --key-bg-color: var(--light-text-color);
+  --key-text-color: whitesmoke;
+  --action-text-color:  var(--light-text-color);/*rgb(82, 82, 82);*/
 
   --err-flash-duration: 0.4s;
   --err-msg-duration: 5s;
@@ -909,8 +910,8 @@ svg.rail line.unsorted {
   grid-auto-flow: column;
 }
 #action-table .key {
-  background-color: var(--action-text-color);
-  color: var(--action-key-color);
+  background-color: var(--key-bg-color);
+  color: var(--key-text-color);
   border-radius: 3px;
   padding: 1.5px 3px;
   margin: 0 2px;
