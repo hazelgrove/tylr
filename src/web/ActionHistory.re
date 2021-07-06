@@ -18,7 +18,7 @@ let just_failed = (reason: FailedInput.reason, history: t) => {
       switch (history.just_failed) {
       | None => FailedInput.mk(reason)
       | Some(failed_input) =>
-        FailedInput.replace_or_increment_attempts(Unrecognized, failed_input)
+        FailedInput.replace_or_increment_attempts(reason, failed_input)
       },
     );
   {...history, last_attempt, just_failed};
