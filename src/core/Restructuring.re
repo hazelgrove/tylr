@@ -78,15 +78,24 @@ let mk_relems =
     | Shard(_) as selem => Selection([selem]),
   );
 let mk_frame = TupleUtil.map2(mk_relems);
-let get_sframe = (~filter_selections=false, frame: frame) =>
-  frame
-  |> TupleUtil.map2(
-       ListUtil.flat_map(
+let get_sframe = (~filter_selections=false, (prefix, suffix): frame) => {
+  let prefix =
+    prefix
+    |> ListUtil.flat_map(
+         fun
+         | Selection(selection) =>
+           filter_selections ? [] : List.rev(selection)
+         | Tile(tile) => [Tile(tile)],
+       );
+  let suffix =
+    suffix
+    |> ListUtil.flat_map(
          fun
          | Selection(selection) => filter_selections ? [] : selection
          | Tile(tile) => [Tile(tile)],
-       ),
-     );
+       );
+  (prefix, suffix);
+};
 
 [@deriving sexp]
 type t = (Backpack.t, frame);
