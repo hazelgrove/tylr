@@ -23,8 +23,8 @@ let precedence: t => int =
   | Var(_)
   | Paren(_) => 0
   | Ap => 1
-  | Plus => 2
-  | Times => 3
+  | Times => 2
+  | Plus => 3
   | Prod => 4
   | Lam(_) => 5
   | Let(_) => 6
