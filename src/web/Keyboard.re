@@ -12,7 +12,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keyup(evt =>
     Event.Many(
       switch (JsUtil.get_key(evt), zipper) {
-      | ("Alt", (Selecting(_, [], _), _)) => [
+      | ("Shift", (Selecting(_, [], _), _)) => [
           inject(Update.escape()),
           Event.Prevent_default,
         ]
