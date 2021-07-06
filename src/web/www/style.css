@@ -68,6 +68,8 @@
   --err-flash-duration: 0.4s;
   --err-msg-duration: 5s;
 
+  --disabled-action-table-opacity: 0.25;
+
   --selection-box-z: 1;
   --genie-z: 1;
   --empty-hole-z: 2;
@@ -925,9 +927,22 @@ svg.rail line.unsorted {
   align-self: center;
   white-space: nowrap;
 }
+.action-type.Exp {
+  color: var(--exp-shadow-color);
+}
+.action-type.Pat {
+  color: var(--pat-shadow-color);
+}
 
 #action-table .construct-shape {
   justify-self: left;
+}
+
+#action-table .action-type.disabled,
+#action-table .key.disabled,
+#action-table .key-hyphen.disabled,
+#action-table .construct-shape.disabled {
+  opacity: var(--disabled-action-table-opacity);
 }
 
 .emph {

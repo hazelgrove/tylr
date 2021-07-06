@@ -10,21 +10,27 @@ module Profile = {
   };
 };
 
-let action_type = txt =>
-  Node.div([Attr.classes(["action-type"])], [Node.text(txt)]);
+let action_type = (~clss=[], txt) =>
+  Node.div([Attr.classes(["action-type", ...clss])], [Node.text(txt)]);
 
-let construct_shape = txt =>
-  Node.div([Attr.classes(["construct-shape"])], [Node.text(txt)]);
+let construct_shape' = (~disabled=false) =>
+  Node.div([
+    Attr.classes(["construct-shape", ...disabled ? ["disabled"] : []]),
+  ]);
+let construct_shape = (~disabled=false, txt) =>
+  construct_shape'(~disabled, [Node.text(txt)]);
 
-let key' = Node.div([Attr.classes(["key"])]);
-let key = txt => key'([Node.text(txt)]);
+let key' = (~disabled=false) =>
+  Node.div([Attr.classes(["key", ...disabled ? ["disabled"] : []])]);
+let key = (~disabled=false, txt) => key'(~disabled, [Node.text(txt)]);
 
 let keys_container = keys =>
   Node.div(
     [Attr.classes(["keys-container"])],
     [Node.div([Attr.classes(["keys"])], keys)],
   );
-let keys = ks => keys_container(List.map(key, ks));
+let keys = (~disabled=false, ks) =>
+  keys_container(List.map(key(~disabled), ks));
 
 let keyboard_arrow = s =>
   Node.span(
@@ -100,37 +106,103 @@ let redo_row = [
 let buffer_cell = Node.div([], []);
 let buffer_row = [buffer_cell, buffer_cell];
 
-let construct_rows =
+let construct_rows = (color: Color.t, mode: CaretMode.t) => {
+  let is_pointing =
+    switch (mode) {
+    | Pointing => true
+    | Selecting(_)
+    | Restructuring(_) => false
+    };
+  let is_exp =
+    switch (color) {
+    | Exp => true
+    | _ => false
+    };
+  let is_exp_pointing = is_pointing && is_exp;
+
+  let disabled_if_not_pointing = !is_pointing ? ["disabled"] : [];
+  let disabled_if_not_exp_pointing = !is_exp_pointing ? ["disabled"] : [];
   List.concat(
     Util.ListUtil.join(
       buffer_row,
       [
-        [buffer_cell, action_type("Construct")],
         [
-          keys_container([
-            key("0"),
-            Node.div([], [Node.text("-")]),
-            key("9"),
-          ]),
-          construct_shape("single-digit num"),
+          buffer_cell,
+          action_type(
+            ~clss=
+              switch (mode) {
+              | Pointing => [Color.to_string(color)]
+              | _ => ["disabled"]
+              },
+            "Construct",
+          ),
         ],
         [
           keys_container([
-            key("a"),
-            Node.div([], [Node.text("-")]),
-            key("z"),
+            key(~disabled=!is_exp_pointing, "0"),
+            Node.div(
+              [
+                Attr.classes(["key-hyphen", ...disabled_if_not_exp_pointing]),
+              ],
+              [Node.text("-")],
+            ),
+            key(~disabled=!is_exp_pointing, "9"),
           ]),
-          construct_shape("single-char var"),
+          construct_shape(~disabled=!is_exp_pointing, "single-digit num"),
         ],
-        [keys(["+", "*", ","]), construct_shape("plus | times | pair")],
-        [keys(["Space"]), construct_shape("application")],
+        [
+          keys_container([
+            key(~disabled=!is_pointing, "a"),
+            Node.div(
+              [Attr.classes(["key-hyphen", ...disabled_if_not_pointing])],
+              [Node.text("-")],
+            ),
+            key(~disabled=!is_pointing, "z"),
+          ]),
+          construct_shape(~disabled=!is_pointing, "single-char var"),
+        ],
+        [
+          keys_container([
+            key(~disabled=!is_exp_pointing, "+"),
+            key(~disabled=!is_exp_pointing, "*"),
+            key(~disabled=!is_pointing, ","),
+          ]),
+          construct_shape'([
+            Node.span(
+              [
+                Attr.classes([
+                  "construct-shape",
+                  ...disabled_if_not_exp_pointing,
+                ]),
+              ],
+              [Node.text("plus | times | ")],
+            ),
+            Node.span(
+              [
+                Attr.classes(["construct-shape", ...disabled_if_not_pointing]),
+              ],
+              [Node.text("pair")],
+            ),
+          ]),
+        ],
+        [
+          keys(~disabled=!is_exp_pointing, ["Space"]),
+          construct_shape(~disabled=!is_exp_pointing, "application"),
+        ],
         // [keys(["*"]), construct_shape("times")],
         // [keys([","]), construct_shape("prod")],
-        [keys(["(", ")"]), construct_shape("parentheses")],
-        [keys(["\\", "="]), construct_shape("lambda | let")],
+        [
+          keys(~disabled=!is_pointing, ["(", ")"]),
+          construct_shape(~disabled=!is_pointing, "parentheses"),
+        ],
+        [
+          keys(~disabled=!is_exp_pointing, ["\\", "="]),
+          construct_shape(~disabled=!is_exp_pointing, "lambda | let"),
+        ],
       ],
     ),
   );
+};
 
 let typ =
   Node.span([Attr.classes(["sort-label", "typ"])], [Node.text("type")]);
@@ -306,7 +378,7 @@ let view =
           buffer_row,
           delete_row,
           buffer_row,
-          construct_rows,
+          construct_rows(color, mode),
         ]),
       ),
       Node.div(
