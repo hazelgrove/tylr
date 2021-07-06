@@ -6,7 +6,7 @@ type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Action.t)
-  | UnrecognizedInput
+  | FailedInput(FailedInput.reason)
   | Undo
   | Redo
   | Escape(Direction.t);
@@ -31,9 +31,9 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) => perform(a, model)
-  | UnrecognizedInput => {
+  | FailedInput(reason) => {
       ...model,
-      history: ActionHistory.unrecognized_input(model.history),
+      history: ActionHistory.just_failed(reason, model.history),
     }
   | Escape(d) =>
     // TODO restore escape functionality on restructuring

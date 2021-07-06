@@ -45,13 +45,17 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           };
         | "ArrowUp" =>
           switch (zipper) {
-          | (Selecting(_), _) => [p(Mark)]
-          | _ => []
+          | (Pointing(_) | Selecting(_, [], _) | Restructuring(_), _) => [
+              FailedInput(Failure(Cant_move)),
+            ]
+          | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
           }
         | "ArrowDown" =>
           switch (zipper) {
+          | (Pointing(_) | Selecting(_), _) => [
+              FailedInput(Failure(Cant_move)),
+            ]
           | (Restructuring(_), _) => [p(Mark)]
-          | _ => []
           }
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
@@ -84,7 +88,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | (_, Pat(_)) => [p(Construct(Tile(Pat(Var(key)))))]
           | (_, Exp(_)) => [p(Construct(Tile(Exp(Var(key)))))]
           }
-        | _ when is_printable(key) => [UnrecognizedInput]
+        | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };
       } else if (held(Ctrl) && !held(Alt)) {

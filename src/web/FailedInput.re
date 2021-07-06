@@ -1,9 +1,12 @@
+open Sexplib.Std;
 open Core;
 
+[@deriving sexp]
 type reason =
   | Unrecognized
   | Failure(Failure.t);
 
+[@deriving sexp]
 type t = {
   reason,
   prior_attempts: int,
