@@ -2,8 +2,10 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
-let is_var = s => Re.Str.string_match(Re.Str.regexp("[a-z]"), s, 0);
-let is_num = s => Re.Str.string_match(Re.Str.regexp("[0-9]"), s, 0);
+let is_var = s => Re.Str.(string_match(regexp("^[a-z]$"), s, 0));
+let is_num = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
+
+let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
 let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keypress(_ => Event.Prevent_default),
@@ -82,6 +84,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | (_, Pat(_)) => [p(Construct(Tile(Pat(Var(key)))))]
           | (_, Exp(_)) => [p(Construct(Tile(Exp(Var(key)))))]
           }
+        | _ when is_printable(key) => [UnrecognizedInput]
         | _ => []
         };
       } else if (held(Ctrl) && !held(Alt)) {

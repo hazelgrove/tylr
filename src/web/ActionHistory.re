@@ -11,20 +11,20 @@ type t = {
 
 let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 
-let failed = (f: Failure.t, history: t) => {
-  let now = JsUtil.date_now()##valueOf;
-  let prior_attempts =
-    switch (history.just_failed) {
-    | Some({reason, prior_attempts}) when reason == Failure(f) =>
-      prior_attempts + 1
-    | _ => 0
-    };
-  {
-    ...history,
-    just_failed: Some(FailedInput.mk(~prior_attempts, Failure(f))),
-    last_attempt: Some(now),
-  };
+let just_failed = (reason: FailedInput.reason, history: t) => {
+  let last_attempt = Some(JsUtil.date_now()##valueOf);
+  let just_failed =
+    Some(
+      switch (history.just_failed) {
+      | None => FailedInput.mk(reason)
+      | Some(failed_input) =>
+        FailedInput.replace_or_increment_attempts(Unrecognized, failed_input)
+      },
+    );
+  {...history, last_attempt, just_failed};
 };
+let unrecognized_input = just_failed(Unrecognized);
+let failure = f => just_failed(Failure(f));
 
 let succeeded = (a: Action.t, zipper: Zipper.t, history: t) => {
   let (before, _) = history.succeeded;

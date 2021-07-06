@@ -6,6 +6,7 @@ type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Action.t)
+  | UnrecognizedInput
   | Undo
   | Redo
   | Escape(Direction.t);
@@ -16,7 +17,7 @@ let perform = (a, model: Model.t) =>
   switch (Action.perform(a, model.zipper)) {
   | Error(failure) =>
     print_endline("failed action");
-    {...model, history: ActionHistory.failed(failure, model.history)};
+    {...model, history: ActionHistory.failure(failure, model.history)};
   | Ok(zipper) => {
       ...model,
       zipper,
@@ -29,6 +30,10 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) => perform(a, model)
+  | UnrecognizedInput => {
+      ...model,
+      history: ActionHistory.unrecognized_input(model.history),
+    }
   | Escape(d) =>
     // TODO restore escape functionality on restructuring
     switch (model.zipper) {

@@ -57,6 +57,10 @@ let view = (~inject, model: Model.t) => {
       Attr.id("page"),
       // necessary to make cell focusable
       Attr.create("tabindex", "0"),
+      Attr.on_blur(_ => {
+        JsUtil.get_elem_by_id("page")##focus;
+        Event.Many([]);
+      }),
       ...Keyboard.handlers(~inject, ~zipper),
     ],
     [
