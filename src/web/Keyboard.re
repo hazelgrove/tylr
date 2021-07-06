@@ -2,8 +2,8 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
-let is_var = s => Re.Str.string_match(Re.Str.regexp("[a-z]"), s, 0);
-let is_num = s => Re.Str.string_match(Re.Str.regexp("[0-9]"), s, 0);
+let is_var = s => Re.Str.(string_match(regexp("^[a-z]$"), s, 0));
+let is_num = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
 
 let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keypress(_ => Event.Prevent_default),
