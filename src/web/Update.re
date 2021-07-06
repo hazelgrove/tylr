@@ -14,9 +14,7 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 
 let perform = (a, model: Model.t) =>
   switch (Action.perform(a, model.zipper)) {
-  | None =>
-    print_endline("failed action");
-    {...model, history: ActionHistory.failed(a, model.history)};
+  | None => {...model, history: ActionHistory.failed(a, model.history)}
   | Some(zipper) => {
       ...model,
       zipper,
