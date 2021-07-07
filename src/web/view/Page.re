@@ -37,12 +37,6 @@ let filters =
       SelemDec.shadow_filter(~color=Typ),
       SelemDec.raised_shadow_filter(~color=Selected),
       SelemDec.shadow_filter(~color=Selected),
-      EmptyHoleDec.inset_shadow_filter(~color=Selected),
-      EmptyHoleDec.thin_inset_shadow_filter(~color=Selected),
-      EmptyHoleDec.inset_shadow_filter(~color=Exp),
-      EmptyHoleDec.thin_inset_shadow_filter(~color=Exp),
-      EmptyHoleDec.inset_shadow_filter(~color=Pat),
-      EmptyHoleDec.thin_inset_shadow_filter(~color=Pat),
       CaretPosDec.blur_filter,
     ],
   );

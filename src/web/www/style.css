@@ -316,6 +316,8 @@ svg.rail line.unsorted {
 
 .empty-hole-path {
   fill: none;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
 }
 .empty-hole-path.unsorted {
   stroke: var(--unsorted-shadow-color);
