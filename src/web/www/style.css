@@ -54,6 +54,7 @@
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
   --delim-color: #657b83;
+  --ap-color: #aeb5b8;
 
   --unselected-tessera-color: #fff1f7;
   --selection-color: #e7e1cd; /*#eee8d5;*/ /*#ffe4f1;*/
@@ -485,6 +486,9 @@ svg.rail line.unsorted {
 .code .delim {
   color: var(--delim-color);
   font-weight: bold;
+}
+.code .ap {
+  color: var(--ap-color);
 }
 /*
 .uni-child-path.Exp {

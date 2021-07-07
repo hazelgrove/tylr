@@ -72,6 +72,9 @@ let rec view_of_layout =
         |> List.map(Dec.view(~font_metrics))
         |> add_decorations
 
+      | Ap =>
+        let (txt, ds) = go'();
+        ([with_cls("ap", txt)], ds);
       | Delim =>
         let (txt, ds) = go'();
         ([with_cls("delim", txt)], ds);

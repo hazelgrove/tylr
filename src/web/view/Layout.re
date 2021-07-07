@@ -15,6 +15,7 @@ type t =
 and annot =
   | Delim
   | EmptyHole(Color.t, Tip.shape)
+  | Ap
   | Space(int, Color.t)
   | Child({
       step: ChildStep.t,
@@ -213,7 +214,7 @@ let mk_Times = () => Text("*");
 
 let mk_Prod = () => Text(",");
 
-let mk_Ap = () => Text(Unicode.ap);
+let mk_Ap = () => annot(Ap, Text(Unicode.ap));
 
 let mk_OpHole = empty_hole;
 let mk_BinHole = empty_hole;
