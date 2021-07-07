@@ -89,7 +89,6 @@ let rec view_of_layout =
               },
               color,
               tip,
-              inset: None,
             },
           ),
         ])
