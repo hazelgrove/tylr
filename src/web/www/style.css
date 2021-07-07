@@ -34,6 +34,13 @@
   src: url('fonts/HelveticaNeue-Bold.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: normal;
+  src: url('fonts/SourceCodePro-Regular.otf.woff2') format('woff2');
+}
+
 :root {
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
