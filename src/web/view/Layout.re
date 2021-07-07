@@ -208,12 +208,12 @@ let mk_Let = (p, def) => {
   ]);
 };
 
-let mk_Plus = () => delim("+");
-let mk_Times = () => delim("*");
+let mk_Plus = () => Text("+");
+let mk_Times = () => Text("*");
 
-let mk_Prod = () => delim(",");
+let mk_Prod = () => Text(",");
 
-let mk_Ap = () => delim(Unicode.ap);
+let mk_Ap = () => Text(Unicode.ap);
 
 let mk_OpHole = empty_hole;
 let mk_BinHole = empty_hole;
