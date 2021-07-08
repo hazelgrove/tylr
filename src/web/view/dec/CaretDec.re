@@ -270,10 +270,10 @@ let view =
         [text(Sort.to_proper_string(sort))],
       );
     switch (just_failed) {
-    | Some({reason: Unrecognized, prior_attempts}) when prior_attempts >= 2 => [
+    | Some({reason: Unrecognized, prior_attempts}) when prior_attempts >= 0 => [
         text("unrecognized keyboard input"),
       ]
-    | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 2 =>
+    | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 0 =>
       switch (f) {
       | Failure.Undefined
       | Cant_move => []
