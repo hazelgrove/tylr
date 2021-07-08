@@ -5,6 +5,7 @@ type t = {
   history: ActionHistory.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
+  show_neighbor_tiles: bool,
 };
 
 let cutoff = (===);
@@ -40,6 +41,7 @@ let init = () => {
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
+  show_neighbor_tiles: false,
 };
 
 let filler = (model: t) => {
