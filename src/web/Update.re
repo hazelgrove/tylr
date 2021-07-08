@@ -1,3 +1,4 @@
+open Sexplib.Std;
 open Util;
 open Core;
 
@@ -8,7 +9,8 @@ type t =
   | PerformAction(Action.t)
   | Undo
   | Redo
-  | Escape(Direction.t);
+  | Escape(Direction.t)
+  | SetShowNeighborTiles(bool);
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
 
@@ -24,6 +26,7 @@ let perform = (a, model: Model.t) =>
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   switch (update) {
+  | SetShowNeighborTiles(b) => {...model, show_neighbor_tiles: b}
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) => perform(a, model)

@@ -10,6 +10,7 @@ let rec view_of_layout =
           ~subject: option(Subject.t)=?,
           ~filler=0,
           ~just_failed: option(Action.t)=None,
+          ~show_neighbor_tiles: bool=false,
           dpaths,
           l,
         )
@@ -86,6 +87,7 @@ let rec view_of_layout =
       | Selem({color, shape, step}) =>
         let new_ds =
           DecPaths.current_selem(
+            ~show_neighbor_tiles,
             ~measurement={origin, length: Layout.length(l)},
             step,
             color,
@@ -115,7 +117,13 @@ let rec view_of_layout =
           |> OptUtil.get_or_fail("expected to encounter selem before child");
         let dpaths = DecPaths.take_two_step((selem_step, step), dpaths);
         let new_ds =
-          DecPaths.current_bidelimited(~origin, ~sort=s_in, l, dpaths)
+          DecPaths.current_bidelimited(
+            ~show_neighbor_tiles,
+            ~origin,
+            ~sort=s_in,
+            l,
+            dpaths,
+          )
           |> List.map(Dec.view(~font_metrics));
         let (txt, ds) = go(~indent, ~origin, dpaths, l);
         (txt, new_ds @ ds);
@@ -124,7 +132,13 @@ let rec view_of_layout =
   };
 
   let root_ds =
-    DecPaths.current_bidelimited(~origin=0, ~sort=Exp, l, dpaths)
+    DecPaths.current_bidelimited(
+      ~show_neighbor_tiles,
+      ~origin=0,
+      ~sort=Exp,
+      l,
+      dpaths,
+    )
     |> List.map(Dec.view(~font_metrics));
   let (text, decorations) = go(dpaths, l);
 

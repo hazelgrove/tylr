@@ -58,6 +58,7 @@
 
   --unselected-tessera-color: #fff1f7;
   --selection-color: #e7e1cd;
+  --revealed-tile-color: var(--light-page-color);/*#faf2df;*/
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
@@ -93,6 +94,7 @@
   --genie-z: 1;
   --empty-hole-z: 2;
   --err-hole-z: 2;
+  --revealed-tile-z: 2;
   --uni-child-z: 3;
   --tile-z: 3;
   --inset-empty-hole-z: 4;
@@ -452,7 +454,10 @@ svg.rail line.unsorted {
 }
 
 .tile-container.Revealed {
-  opacity: 0.6;
+  z-index: var(--revealed-tile-z);
+}
+.tile-container.Revealed .tile-path {
+  fill: var(--revealed-tile-color);
 }
 
 

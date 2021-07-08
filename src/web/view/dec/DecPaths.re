@@ -229,7 +229,13 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
 
 // TODO have everything be computed from here
 let current_bidelimited =
-    (~origin: int, ~sort: Sort.t, layout: Layout.t, paths: t) => {
+    (
+      ~show_neighbor_tiles: bool,
+      ~origin: int,
+      ~sort: Sort.t,
+      layout: Layout.t,
+      paths: t,
+    ) => {
   let {
     root_term,
     logo_selems,
@@ -268,7 +274,7 @@ let current_bidelimited =
 
   let root_term_ds =
     switch (root_term) {
-    | Some(([], skel)) =>
+    | Some(([], skel)) when !show_neighbor_tiles =>
       let root_tile_profile = {
         let root_step = Skel.root_index(skel);
         let (measurement, color, shape, selem_l) =
@@ -314,6 +320,7 @@ let current_bidelimited =
 
 let current_selem =
     (
+      ~show_neighbor_tiles: bool,
       ~measurement: Layout.measurement,
       step: Path.selem_step,
       color: Color.t,
@@ -349,9 +356,25 @@ let current_selem =
     };
   let neighbor_selem_ds =
     switch (neighbor_selems) {
-    | Some(([], neighbor_selems)) when List.mem(step, neighbor_selems) => [
+    | Some(([], neighbor_selems)) when List.mem(step, neighbor_selems) =>
+      let empty_holes = Layout.selem_holes(selem_l);
+      let (open_children, closed_children) = Layout.selem_children(selem_l);
+      [
         Dec.Profile.Rail({measurement, color}),
-      ]
+        ...show_neighbor_tiles
+             ? [
+               Dec.Profile.Selem({
+                 color,
+                 shape,
+                 style: Revealed({show_children: true}),
+                 measurement,
+                 empty_holes,
+                 open_children,
+                 closed_children,
+               }),
+             ]
+             : [],
+      ];
     | _ => []
     };
   List.concat([filtered_selem_ds, neighbor_selem_ds]);

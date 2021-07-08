@@ -76,7 +76,13 @@ let redo = (~inject, ~disabled) => {
 };
 
 let view = (~inject, model: Model.t) => {
-  let Model.{font_metrics, logo_font_metrics, zipper, history} = model;
+  let Model.{
+        font_metrics,
+        logo_font_metrics,
+        zipper,
+        history,
+        show_neighbor_tiles,
+      } = model;
   let (subject, _) = zipper;
   let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
@@ -105,6 +111,7 @@ let view = (~inject, model: Model.t) => {
             ~subject,
             ~filler=Model.filler(model),
             ~just_failed=history.just_failed,
+            ~show_neighbor_tiles,
             dpaths,
             l,
           ),
