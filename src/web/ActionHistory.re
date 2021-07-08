@@ -28,6 +28,12 @@ let succeeded = (a: Action.t, zipper: Zipper.t, history: t) => {
   };
 };
 
+let escaped = (history: t) => {
+  ...history,
+  just_failed: None,
+  last_attempt: Some(JsUtil.date_now()##valueOf),
+};
+
 let undo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
   switch (history.succeeded) {
   | ([], _) => None
