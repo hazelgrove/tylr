@@ -48,7 +48,11 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
           )
         };
       let (sframe, frame) = Parser.parse_zipper(sframe, frame);
-      {...model, zipper: (Pointing(sframe), frame)};
+      {
+        ...model,
+        history: ActionHistory.escaped(model.history),
+        zipper: (Pointing(sframe), frame),
+      };
     | _ => model
     }
   | Undo =>
