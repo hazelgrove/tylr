@@ -330,6 +330,7 @@ let perform =
           let rframe =
             fix_holes_rframe((prefix, [Selection(selection), ...suffix]));
           let (prefix, suffix) = Restructuring.get_sframe(rframe);
+          let prefix = Parser.parse_selection(Left, prefix);
           let suffix = Parser.parse_selection(Right, suffix);
           let (sframe, frame) =
             Parser.parse_zipper((prefix, suffix), frame);
