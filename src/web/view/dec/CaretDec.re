@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Util;
 open Core;
 
 module Profile = {
@@ -13,11 +14,17 @@ module Profile = {
 let action_type = (~clss=[], txt) =>
   Node.div([Attr.classes(["action-type", ...clss])], [Node.text(txt)]);
 
-let construct_shape' = (~disabled=false) =>
-  Node.div([
+let construct_shape_row = shapes =>
+  Node.div(
+    [Attr.classes(["construct-shape-row"])],
+    ListUtil.join(Node.text(" | "), shapes),
+  );
+
+let construct_shape' = (~disabled) =>
+  Node.span([
     Attr.classes(["construct-shape", ...disabled ? ["disabled"] : []]),
   ]);
-let construct_shape = (~disabled=false, txt) =>
+let construct_shape = (~disabled, txt) =>
   construct_shape'(~disabled, [Node.text(txt)]);
 
 let key' = (~disabled=false) =>
@@ -120,8 +127,10 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
     };
   let is_exp_pointing = is_pointing && is_exp;
 
-  let disabled_if_not_pointing = !is_pointing ? ["disabled"] : [];
-  let disabled_if_not_exp_pointing = !is_exp_pointing ? ["disabled"] : [];
+  let disabled_if_not_pointing = construct_shape(~disabled=!is_pointing);
+  let disabled_if_not_exp_pointing =
+    construct_shape(~disabled=!is_exp_pointing);
+
   List.concat(
     Util.ListUtil.join(
       buffer_row,
@@ -140,26 +149,20 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
         [
           keys_container([
             key(~disabled=!is_exp_pointing, "0"),
-            Node.div(
-              [
-                Attr.classes(["key-hyphen", ...disabled_if_not_exp_pointing]),
-              ],
-              [Node.text("-")],
-            ),
+            Node.div([Attr.classes(["key-hyphen"])], [Node.text("-")]),
             key(~disabled=!is_exp_pointing, "9"),
           ]),
-          construct_shape(~disabled=!is_exp_pointing, "single-digit num"),
+          construct_shape_row([
+            disabled_if_not_exp_pointing("single-digit num"),
+          ]),
         ],
         [
           keys_container([
             key(~disabled=!is_pointing, "a"),
-            Node.div(
-              [Attr.classes(["key-hyphen", ...disabled_if_not_pointing])],
-              [Node.text("-")],
-            ),
+            Node.div([Attr.classes(["key-hyphen"])], [Node.text("-")]),
             key(~disabled=!is_pointing, "z"),
           ]),
-          construct_shape(~disabled=!is_pointing, "single-char var"),
+          construct_shape_row([disabled_if_not_pointing("single-char var")]),
         ],
         [
           keys_container([
@@ -167,37 +170,26 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
             key(~disabled=!is_exp_pointing, "*"),
             key(~disabled=!is_pointing, ","),
           ]),
-          construct_shape'([
-            Node.span(
-              [
-                Attr.classes([
-                  "construct-shape",
-                  ...disabled_if_not_exp_pointing,
-                ]),
-              ],
-              [Node.text("plus | times | ")],
-            ),
-            Node.span(
-              [
-                Attr.classes(["construct-shape", ...disabled_if_not_pointing]),
-              ],
-              [Node.text("pair")],
-            ),
+          construct_shape_row([
+            disabled_if_not_exp_pointing("plus"),
+            disabled_if_not_exp_pointing("times"),
+            disabled_if_not_pointing("pair"),
           ]),
         ],
         [
           keys(~disabled=!is_exp_pointing, ["Space"]),
-          construct_shape(~disabled=!is_exp_pointing, "application"),
+          construct_shape_row([disabled_if_not_exp_pointing("application")]),
         ],
-        // [keys(["*"]), construct_shape("times")],
-        // [keys([","]), construct_shape("prod")],
         [
           keys(~disabled=!is_pointing, ["(", ")"]),
-          construct_shape(~disabled=!is_pointing, "parentheses"),
+          construct_shape_row([disabled_if_not_pointing("parentheses")]),
         ],
         [
           keys(~disabled=!is_exp_pointing, ["\\", "="]),
-          construct_shape(~disabled=!is_exp_pointing, "lambda | let"),
+          construct_shape_row([
+            disabled_if_not_exp_pointing("lambda"),
+            disabled_if_not_exp_pointing("let"),
+          ]),
         ],
       ],
     ),
@@ -364,6 +356,7 @@ let view =
       Node.div(
         [
           Attr.id("action-table"),
+          Attr.classes([Color.to_string(color)]),
           Attr.create(
             "style",
             Printf.sprintf("top: %fpx;", Float.of_int(80) -. top),

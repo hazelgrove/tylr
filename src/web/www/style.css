@@ -854,6 +854,17 @@ svg.rail line.unsorted {
 
 #action-table .construct-shape {
   justify-self: left;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+}
+#action-table .construct-shape.disabled {
+  text-decoration: none;
+}
+#action-table.Exp .construct-shape {
+  text-decoration-color: var(--exp-rail-color);
+}
+#action-table.Pat .construct-shape {
+  text-decoration-color: var(--pat-rail-color);
 }
 
 .keyboard-arrow {
