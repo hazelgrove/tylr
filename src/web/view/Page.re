@@ -48,6 +48,7 @@ let undo = (~inject, ~disabled) => {
   Node.span(
     Attr.[
       id("undo"),
+      title("undo"),
       create(
         "style",
         Printf.sprintf("width: %fpx; height: %fpx;", size, size),
@@ -64,6 +65,7 @@ let redo = (~inject, ~disabled) => {
   Node.span(
     Attr.[
       id("redo"),
+      title("redo"),
       create(
         "style",
         Printf.sprintf("width: %fpx; height: %fpx;", size, size),
