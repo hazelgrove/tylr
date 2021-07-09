@@ -128,10 +128,18 @@
   color: var(--light-text-color);
 }
 
-#logo {
+#top-bar {
   position: fixed;
-  top: 5%;
+  left: 0;
+  top: min(max(8px, 4%), 24px);
+  width: 100vw;
+  height: 40px;
+}
+
+#logo {
+  position: absolute;
   left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
 }
 #logo-text {
@@ -163,12 +171,20 @@
 
 #code-container {
   position: fixed;
-  top: 40%;
+  /* 350px is height of action table */
+  /* 50px is height of logo */
+  top: max(min(23%, 100vh - 350px), 80px);
   left: 0%;
   width: 100vw;
 }
 #code-container:focus {
   outline: none;
+}
+
+@media screen and (min-height: 800px) {
+  #code-container {
+    top: max(min(30%, 100vh - 350px), 64px);
+  }
 }
 
 #spotlight {
@@ -198,10 +214,18 @@
   fill: var(--bar-color);
 }
 
+#history-button-container {
+  position: absolute;
+  top: 50%;
+  left: max(16px, min(2%, 32px));
+  transform: translate(0%, -60%);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto;
+  column-gap: 16px;
+}
+
 .history-button {
-  position: fixed;
-  top: 5%;
-  transform: translate(0%, -50%);
   font: 14pt 'Helvetica Neue';
   font-weight: bold;
 }
@@ -235,13 +259,6 @@
 }
 .history-button.disabled:hover path {
   fill: var(--light-text-color);
-}
-
-#undo {
-  left: 32px;
-}
-#redo {
-  left: 68px;
 }
 
 svg.rail line {
@@ -662,7 +679,7 @@ svg.rail line.unsorted {
 
 #caret {
   position: absolute;
-  height: 80vh;
+  height: 100vh;
   z-index: var(--caret-z);
 }
 @property --color {
@@ -804,6 +821,7 @@ svg.rail line.unsorted {
 #action-table {
   position: relative;
   left: -128px;
+  top: min(100px, max(10%, 80px));
   font: 10pt "Helvetica Neue";
   display: grid;
   grid-template-columns: 120px auto;

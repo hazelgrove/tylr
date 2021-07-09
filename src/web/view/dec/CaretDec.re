@@ -354,14 +354,7 @@ let view =
         [],
       ),
       Node.div(
-        [
-          Attr.id("action-table"),
-          Attr.classes([Color.to_string(color)]),
-          Attr.create(
-            "style",
-            Printf.sprintf("top: %fpx;", Float.of_int(80) -. top),
-          ),
-        ],
+        [Attr.id("action-table"), Attr.classes([Color.to_string(color)])],
         List.concat([
           move_row,
           buffer_row,

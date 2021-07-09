@@ -48,6 +48,7 @@ let undo = (~inject, ~disabled) => {
   Node.span(
     Attr.[
       id("undo"),
+      title("undo"),
       create(
         "style",
         Printf.sprintf("width: %fpx; height: %fpx;", size, size),
@@ -64,6 +65,7 @@ let redo = (~inject, ~disabled) => {
   Node.span(
     Attr.[
       id("redo"),
+      title("redo"),
       create(
         "style",
         Printf.sprintf("width: %fpx; height: %fpx;", size, size),
@@ -87,24 +89,37 @@ let view = (~inject, model: Model.t) => {
   let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
   Node.div(
-    [
-      Attr.id("page"),
+    Attr.[
+      id("page"),
       // necessary to make cell focusable
-      Attr.create("tabindex", "0"),
-      Attr.on_blur(_ => {
+      create("tabindex", "0"),
+      on_blur(_ => {
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
       ...Keyboard.handlers(~inject, ~zipper),
     ],
-    [
-      logo(~font_metrics=logo_font_metrics),
+    Node.[
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
       filters,
-      undo(~inject, ~disabled=!ActionHistory.can_undo(model.history)),
-      redo(~inject, ~disabled=!ActionHistory.can_redo(model.history)),
-      Node.div(
+      div(
+        [Attr.id("top-bar")],
+        [
+          div(
+            [Attr.id("history-button-container")],
+            [
+              undo(~inject, ~disabled=!ActionHistory.can_undo(model.history)),
+              redo(
+                ~inject,
+                ~disabled=!ActionHistory.can_redo(model.history),
+              ),
+            ],
+          ),
+          logo(~font_metrics=logo_font_metrics),
+        ],
+      ),
+      div(
         [Attr.id("code-container")],
         [
           BarDec.view(~font_metrics),
