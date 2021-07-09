@@ -287,15 +287,58 @@ let perform =
         | Shard(shard) =>
           switch (Restructuring.Backpack.of_shard(shard)) {
           | None => Error(Undefined)
-          | Some((d, _, _) as backpack) =>
-            let (prefix, suffix) = sframe;
-            let sframe =
-              switch (d) {
-              | Left => (prefix, [selem, ...suffix])
-              | Right => ([selem, ...prefix], suffix)
-              };
-            let rframe = Restructuring.mk_frame(sframe);
-            Ok((Restructuring((backpack, rframe)), frame));
+          | Some((d, selection, rest) as backpack) =>
+            let wrap_prefix = (prefix, suffix) => {
+              let (prefix, suffix) =
+                fix_holes(frame_sort, (prefix, suffix));
+              (Parser.parse_selection(Left, prefix), suffix);
+            };
+            let wrap_suffix = (prefix, suffix) => {
+              let (prefix, suffix) =
+                fix_holes(frame_sort, (prefix, suffix));
+              (prefix, Parser.parse_selection(Right, suffix));
+            };
+            switch (d, sframe) {
+            | (Left, ([], suffix)) =>
+              let sframe =
+                wrap_prefix(
+                  [selem, ...selection] @ List.concat(rest),
+                  suffix,
+                );
+              Ok((Pointing(sframe), frame));
+            | (Left, ([prefix_elem], suffix)) =>
+              let sframe =
+                wrap_prefix(
+                  [selem, prefix_elem, ...selection] @ List.concat(rest),
+                  suffix,
+                );
+              Ok((Pointing(sframe), frame));
+            | (Right, (prefix, [])) =>
+              let sframe =
+                wrap_suffix(
+                  [selem, ...prefix],
+                  selection @ List.concat(rest),
+                );
+              let (sframe, frame) = Parser.parse_zipper(sframe, frame);
+              Ok((Pointing(sframe), frame));
+            | (Right, (prefix, [suffix_elem])) =>
+              let sframe =
+                wrap_suffix(
+                  [selem, ...prefix],
+                  [suffix_elem, ...selection] @ List.concat(rest),
+                );
+              let (sframe, frame) = Parser.parse_zipper(sframe, frame);
+              Ok((Pointing(sframe), frame));
+            | _ =>
+              let (prefix, suffix) = sframe;
+              let sframe =
+                switch (d) {
+                | Left => (prefix, [selem, ...suffix])
+                | Right => ([selem, ...prefix], suffix)
+                };
+              let rframe = Restructuring.mk_frame(sframe);
+              Ok((Restructuring((backpack, rframe)), frame));
+            };
           }
         };
       };
