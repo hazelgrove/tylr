@@ -83,10 +83,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           }
         | _ => []
         };
-      } else if (held(Ctrl) && !held(Alt)) {
+      } else if (! Os.is_mac^ && held(Ctrl) && !held(Alt) && !held(Meta)) {
         switch (key) {
-        | "z" => [Undo]
-        | "Z" => [Redo]
+        | "z"
+        | "Z" => held(Shift) ? [Redo] : [Undo]
+        | _ => []
+        };
+      } else if (Os.is_mac^ && held(Meta) && !held(Alt) && !held(Ctrl)) {
+        switch (key) {
+        | "z"
+        | "Z" => held(Shift) ? [Redo] : [Undo]
         | _ => []
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {

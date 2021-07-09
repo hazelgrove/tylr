@@ -33,11 +33,11 @@ module App = {
       observe_font_specimen("logo-font-specimen", fm =>
         schedule_action(Web.Update.SetLogoFontMetrics(fm))
       );
-    // let _ =
-    //   observe_font_specimen("type-font-specimen", fm =>
-    //     schedule_action(Web.Update.SetTypeFontMetrics(fm))
-    //   );
-
+    Os.is_mac :=
+      Dom_html.window##.navigator##.platform##toUpperCase##indexOf(
+        Js.string("MAC"),
+      )
+      >= 0;
     Async_kernel.Deferred.return();
   };
 
