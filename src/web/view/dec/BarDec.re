@@ -9,7 +9,7 @@ let view = (~font_metrics: FontMetrics.t) =>
       create(
         "style",
         Printf.sprintf(
-          "top: calc(%fpx + 1.5px); height: 1.5px;",
+          "top: calc(%fpx + 1px); height: 2px;",
           (-0.3) *. font_metrics.row_height,
         ),
       ),
