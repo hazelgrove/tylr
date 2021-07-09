@@ -203,10 +203,6 @@ let view =
       Node.div(
         [
           Attr.id("action-table"),
-          Attr.create(
-            "style",
-            Printf.sprintf("top: %fpx;", Float.of_int(80) -. top),
-          ),
         ],
         List.concat([
           move_row,
