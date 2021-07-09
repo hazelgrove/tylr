@@ -809,5 +809,5 @@ svg.rail line.unsorted {
 
 .keyboard-arrow {
   position: relative;
-  top: -1px;
+  /* top: -1px; */
 }
