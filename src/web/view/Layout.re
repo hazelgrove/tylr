@@ -217,7 +217,9 @@ let mk_Cond = then_ =>
   ]);
 
 let mk_Plus = () => Text("+");
+let mk_Minus = () => Text("-");
 let mk_Times = () => Text("*");
+let mk_Div = () => Text("/");
 
 let mk_Prod = () => Text(",");
 
@@ -279,7 +281,9 @@ and mk_tile = t =>
          )
        | BinHole => mk_BinHole(Exp, Concave)
        | Plus => mk_Plus()
+       | Minus => mk_Minus()
        | Times => mk_Times()
+       | Div => mk_Div()
        | Prod => mk_Prod()
        | Ap => mk_Ap()
        | Cond(then_) =>

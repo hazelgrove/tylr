@@ -39,6 +39,8 @@ module Backpack = {
     | Pat(Paren_r) => Some((Left, [Shard(Pat(Paren_l))], []))
     | Exp(Paren_l) => Some((Right, [Shard(Exp(Paren_r))], []))
     | Exp(Paren_r) => Some((Left, [Shard(Exp(Paren_l))], []))
+    | Exp(Cond_que) => Some((Right, [Shard(Exp(Cond_col))], []))
+    | Exp(Cond_col) => Some((Left, [Shard(Exp(Cond_que))], []))
     | _ => None
     };
 };

@@ -12,7 +12,9 @@ and t =
   | Let(Tile_pat.s, s)
   | BinHole
   | Plus
+  | Minus
   | Times
+  | Div
   | Prod
   | Ap
   | Cond(s);
@@ -24,8 +26,10 @@ let precedence: t => int =
   | Var(_)
   | Paren(_) => 0
   | Ap => 1
-  | Times => 2
-  | Plus => 3
+  | Times
+  | Div => 2
+  | Plus
+  | Minus => 3
   | Prod => 4
   | Cond(_) => 5
   | Lam(_) => 6
@@ -56,7 +60,8 @@ let tip = (d: Direction.t, t: t) => {
     | (_, OpHole | Num(_) | Var(_) | Paren(_))
     | (Left, Lam(_) | Let(_)) => Tip.Convex
     | (Right, Lam(_) | Let(_))
-    | (_, BinHole | Plus | Times | Prod | Ap | Cond(_)) => Concave
+    | (_, BinHole | Plus | Minus | Times | Div | Prod | Ap | Cond(_)) =>
+      Concave
     };
   (shape, Sort.Exp);
 };

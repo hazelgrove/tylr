@@ -29,7 +29,9 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
       | Var(_)
       | BinHole
       | Plus
+      | Minus
       | Times
+      | Div
       | Prod
       | Ap => []
       | Paren(body) =>

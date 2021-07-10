@@ -167,24 +167,35 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
         [
           keys_container([
             key(~disabled=!is_exp_pointing, "+"),
+            key(~disabled=!is_exp_pointing, "-"),
             key(~disabled=!is_exp_pointing, "*"),
-            key(~disabled=!is_pointing, ","),
+            key(~disabled=!is_exp_pointing, "/"),
           ]),
           construct_shape_row([
             disabled_if_not_exp_pointing("plus"),
+            disabled_if_not_exp_pointing("minus"),
             disabled_if_not_exp_pointing("times"),
+            disabled_if_not_exp_pointing("div"),
+          ]),
+        ],
+        [
+          keys_container([
+            key(~disabled=!is_pointing, ","),
+            // key(~disabled=!is_exp_pointing, "?"),
+            key(~disabled=!is_exp_pointing, "Space"),
+          ]),
+          construct_shape_row([
             disabled_if_not_pointing("pair"),
+            // disabled_if_not_exp_pointing("cond"),
+            disabled_if_not_exp_pointing("application"),
           ]),
         ],
         [
           keys_container([
             key(~disabled=!is_exp_pointing, "?"),
-            key(~disabled=!is_exp_pointing, "Space"),
+            key(~disabled=!is_exp_pointing, ":"),
           ]),
-          construct_shape_row([
-            disabled_if_not_exp_pointing("cond"),
-            disabled_if_not_exp_pointing("application"),
-          ]),
+          construct_shape_row([disabled_if_not_exp_pointing("ifzero")]),
         ],
         [
           keys(~disabled=!is_pointing, ["(", ")"]),

@@ -79,7 +79,9 @@ let get_child_steps =
       | Var(_)
       | BinHole
       | Plus
+      | Minus
       | Times
+      | Div
       | Prod
       | Ap => []
       | Paren(_) => [ChildStep.paren_body]

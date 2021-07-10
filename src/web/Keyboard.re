@@ -65,7 +65,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
         | "+" => [p(Construct(Tile(Exp(Plus))))]
+        | "-" => [p(Construct(Tile(Exp(Minus))))]
         | "*" => [p(Construct(Tile(Exp(Times))))]
+        | "/" => [p(Construct(Tile(Exp(Div))))]
         | "(" =>
           switch (frame_sort) {
           | Pat => [p(Construct(Shard(Pat(Paren_l))))]
@@ -85,7 +87,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           }
         | " " => [p(Construct(Tile(Exp(Ap))))]
         | "Escape" => [Update.escape()]
-        | "?" => [p(Construct(Tile(Exp(Cond([OpHole])))))]
+        | "?" => [p(Construct(Shard(Exp(Cond_que))))]
+        | ":" => [p(Construct(Shard(Exp(Cond_col))))]
         | _ when is_num(key) => [
             p(Construct(Tile(Exp(Num(int_of_string(key)))))),
           ]
