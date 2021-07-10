@@ -34,3 +34,5 @@ let mk_hole =
   | (Concave, Exp) => Exp(BinHole);
 
 let precedence = get(Tile_pat.precedence, Tile_exp.precedence);
+let associativity =
+  get(_ => Tile_pat.associativity, _ => Tile_exp.associativity);
