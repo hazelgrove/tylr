@@ -414,18 +414,22 @@ let associate = (tiles: Tiles.t): Skel.t => {
           ipostop,
         )
       | (Concave, _) =>
-        Tile.precedence(tile) <= Tile.precedence(post)
+        let p_post = Tile.precedence(post);
+        let p_tile = Tile.precedence(tile);
+        let a_tile = IntMap.find_opt(p_tile, Tile.associativity(tile));
+        p_tile < p_post
+        || p_tile == p_post
+        && a_tile == Some(Associativity.Left)
           ? process_postop(
               ~output_stack=push_output(itile, output_stack),
               ~shunted_stack=itiles,
               ipostop,
             )
-          : (output_stack, [ipostop, ...shunted_stack])
+          : (output_stack, [ipostop, ...shunted_stack]);
       }
     };
 
-  // currently assumes all binops are left-associative
-  // and binops lose ties with preops
+  // currently assumes binops lose ties with preops
   let rec process_binop =
           (
             ~output_stack: list(Skel.t),
@@ -443,13 +447,18 @@ let associate = (tiles: Tiles.t): Skel.t => {
           ibinop,
         )
       | (Concave, _) =>
-        Tile.precedence(tile) <= Tile.precedence(bin)
+        let p_bin = Tile.precedence(bin);
+        let p_tile = Tile.precedence(tile);
+        let a_tile = IntMap.find_opt(p_tile, Tile.associativity(tile));
+        p_tile < p_bin
+        || p_tile == p_bin
+        && a_tile == Some(Associativity.Left)
           ? process_binop(
               ~output_stack=push_output(itile, output_stack),
               ~shunted_stack=itiles,
               ibinop,
             )
-          : (output_stack, [ibinop, ...shunted_stack])
+          : (output_stack, [ibinop, ...shunted_stack]);
       }
     };
 
