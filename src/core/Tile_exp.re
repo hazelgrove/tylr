@@ -10,6 +10,7 @@ and t =
   | Paren(s)
   | Lam(Tile_pat.s)
   | Let(Tile_pat.s, s)
+  | Fact
   | BinHole
   | Plus
   | Minus
@@ -25,25 +26,26 @@ let precedence: t => int =
   | Num(_)
   | Var(_)
   | Paren(_) => 0
-  | Ap => 1
+  | Fact => 1
+  | Ap => 2
   | Times
-  | Div => 2
+  | Div => 3
   | Plus
-  | Minus => 3
-  | Prod => 4
-  | Cond(_) => 5
-  | Lam(_) => 6
-  | Let(_) => 7
-  | BinHole => 8;
+  | Minus => 4
+  | Prod => 5
+  | Cond(_) => 6
+  | Lam(_) => 7
+  | Let(_) => 8
+  | BinHole => 9;
 
 let associativity =
   [
-    (1, Associativity.Left),
-    (2, Left),
+    (2, Associativity.Left),
     (3, Left),
-    (4, Right),
+    (4, Left),
     (5, Right),
-    (8, Left),
+    (6, Right),
+    (9, Left),
   ]
   |> List.to_seq
   |> IntMap.of_seq;
@@ -58,10 +60,11 @@ let tip = (d: Direction.t, t: t) => {
   let shape =
     switch (d, t) {
     | (_, OpHole | Num(_) | Var(_) | Paren(_))
-    | (Left, Lam(_) | Let(_)) => Tip.Convex
+    | (Left, Lam(_) | Let(_))
+    | (Right, Fact) => Tip.Convex
+    | (_, BinHole | Plus | Minus | Times | Div | Prod | Ap | Cond(_))
     | (Right, Lam(_) | Let(_))
-    | (_, BinHole | Plus | Minus | Times | Div | Prod | Ap | Cond(_)) =>
-      Concave
+    | (Left, Fact) => Concave
     };
   (shape, Sort.Exp);
 };

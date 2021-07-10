@@ -77,6 +77,7 @@ let get_child_steps =
       | OpHole
       | Num(_)
       | Var(_)
+      | Fact
       | BinHole
       | Plus
       | Minus

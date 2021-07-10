@@ -216,6 +216,8 @@ let mk_Cond = then_ =>
     delim(":"),
   ]);
 
+let mk_Fact = () => Text("!");
+
 let mk_Plus = () => Text("+");
 let mk_Minus = () => Text("-");
 let mk_Times = () => Text("*");
@@ -279,6 +281,7 @@ and mk_tile = t =>
            pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
            pad_spaces(Exp, mk_tiles(Tiles.of_exp(def))),
          )
+       | Fact => mk_Fact()
        | BinHole => mk_BinHole(Exp, Concave)
        | Plus => mk_Plus()
        | Minus => mk_Minus()

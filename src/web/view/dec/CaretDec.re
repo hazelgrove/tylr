@@ -181,11 +181,13 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
         [
           keys_container([
             key(~disabled=!is_pointing, ","),
+            key(~disabled=!is_exp_pointing, "!"),
             // key(~disabled=!is_exp_pointing, "?"),
             key(~disabled=!is_exp_pointing, "Space"),
           ]),
           construct_shape_row([
             disabled_if_not_pointing("pair"),
+            disabled_if_not_exp_pointing("factorial"),
             // disabled_if_not_exp_pointing("cond"),
             disabled_if_not_exp_pointing("application"),
           ]),
