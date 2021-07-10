@@ -26,7 +26,11 @@ let perform = (a, model: Model.t) =>
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   switch (update) {
-  | SetShowNeighborTiles(b) => {...model, show_neighbor_tiles: b}
+  | SetShowNeighborTiles(b) => {
+      ...model,
+      history: ActionHistory.clear_just_failed(model.history),
+      show_neighbor_tiles: b,
+    }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) => perform(a, model)
