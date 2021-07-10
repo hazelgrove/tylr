@@ -129,19 +129,29 @@ let rec move_selecting =
       switch (Parser.disassemble_selem(Right, selem)) {
       | [] =>
         // [SelectShrink<caret_side>Atomic]
+        let front_affix =
+          Parser.parse_selection(
+            caret_side,
+            [selem, ...front_affix(caret_side, sframe)],
+          );
+        let back_affix = back_affix(caret_side, sframe);
+        let (front_matching, front_affix) =
+          Parser.split_matching_shards(caret_side, selection, front_affix);
+        let (back_matching, back_affix) =
+          Parser.split_matching_shards(
+            Direction.toggle(caret_side),
+            selection,
+            back_affix,
+          );
         let (sframe', frame') =
-          Parser.(
-            parse_zipper(
-              mk_frame(
-                caret_side,
-                parse_selection(
-                  caret_side,
-                  [selem, ...front_affix(caret_side, sframe)],
-                ),
-                back_affix(caret_side, sframe),
-              ),
-              frame,
-            )
+          Parser.parse_zipper(
+            mk_frame(caret_side, front_affix, back_affix),
+            frame,
+          );
+        let sframe' =
+          ListFrame.append(
+            mk_frame(caret_side, front_matching, back_matching),
+            sframe',
           );
         Ok((caret_side, selection, sframe', frame'));
       | [_, ..._] as disassembled =>

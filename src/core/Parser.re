@@ -228,6 +228,57 @@ let assemble_frame =
   };
 };
 
+let unmatched_shards =
+    (d: Direction.t, selection: Selection.t): list(Shard.t) => {
+  let rec go = (~stack=[], selection: Selection.t) =>
+    switch (selection) {
+    | [] => stack
+    | [Tile(_), ...selection] => go(~stack, selection)
+    | [Shard(shard), ...selection] =>
+      let cons_unless_end = (hd, tl) =>
+        Shard.is_end(~strict=true, d, hd) ? tl : [hd, ...tl];
+      switch (stack) {
+      | [shard', ...tl] when Shard.is_next(d, shard', shard) =>
+        go(~stack=cons_unless_end(shard, tl), selection)
+      | _ => go(~stack=cons_unless_end(shard, stack), selection)
+      };
+    };
+  go(d == Left ? List.rev(selection) : selection);
+};
+
+/**
+ * `split_matching_shards(d, selection, affix)` splits the `d`-side
+ * `affix` into a pair of selections, the first of which minimally
+ * contains all shards in `affix` matching those in `selection`,
+ * the second of which carries the rest of `affix`.
+ */
+let split_matching_shards =
+    (d: Direction.t, selection: Selection.t, affix: Selection.t)
+    : (Selection.t, Selection.t) => {
+  let rec go = (~stack, affix: Selection.t) =>
+    switch (stack) {
+    | [] => ([], affix)
+    | [shard, ...stack'] =>
+      switch (affix) {
+      | [] => ([], [])
+      | [Tile(_) as tile, ...affix] =>
+        let (matching, affix) = go(~stack, affix);
+        ([tile, ...matching], affix);
+      | [Shard(shard'), ...affix'] =>
+        if (Shard.is_next(d, shard, shard')) {
+          let stack =
+            Shard.is_end(~strict=true, d, shard')
+              ? stack' : [shard', ...stack'];
+          let (matching, affix) = go(~stack, affix');
+          ([Shard(shard'), ...matching], affix);
+        } else {
+          ([], affix);
+        }
+      }
+    };
+  go(~stack=unmatched_shards(d, selection), affix);
+};
+
 let rec parse_zipper =
         ((prefix, suffix) as sframe: Selection.frame, frame: Frame.t)
         : (Selection.frame, Frame.t) => {
