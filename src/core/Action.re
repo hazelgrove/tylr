@@ -95,13 +95,15 @@ let rec move_selecting =
       switch (Parser.disassemble_selem(Right, selem)) {
       | [] =>
         // [SelectShrinkLeftAtomic]
+        let prefix = Parser.parse_selection(Left, [selem, ...prefix]);
+        let (matching_pre, prefix) =
+          Parser.split_matching_shards(Left, selection, prefix);
+        let (matching_suf, suffix) =
+          Parser.split_matching_shards(Right, selection, suffix);
         let (sframe', frame') =
-          Parser.(
-            parse_zipper(
-              (parse_selection(Left, [selem, ...prefix]), suffix),
-              frame,
-            )
-          );
+          Parser.parse_zipper((prefix, suffix), frame);
+        let sframe' =
+          ListFrame.append((matching_pre, matching_suf), sframe');
         Some((selection, sframe', frame'));
       | [_, ..._] as disassembled =>
         // [SelectShrink<caret_side>Disassembles]

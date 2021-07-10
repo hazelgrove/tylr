@@ -201,9 +201,7 @@ let view =
         [],
       ),
       Node.div(
-        [
-          Attr.id("action-table"),
-        ],
+        [Attr.id("action-table")],
         List.concat([
           move_row,
           buffer_row,
