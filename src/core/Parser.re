@@ -2,14 +2,14 @@ open Util;
 open OptUtil.Syntax;
 
 let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
-  let disassembled =
+  let disassembled: Selection.t =
     switch (selem) {
     | Selem.Shard(Pat(_)) => []
     | Shard(Exp(shard)) =>
       switch (shard) {
       | Let_let_eq(p) =>
         [Selem.Shard(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
-        @ [Selem.Shard(Exp(Let_eq))]
+        @ [Shard(Exp(Let_eq))]
       | _ => []
       }
     | Tile(Pat(tile)) =>
@@ -40,7 +40,10 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
         @ [Shard(Exp(Lam_dot))]
       | Let(p, def) =>
         [Selem.Shard(Exp(Let_let_eq(p))), ...Selection.of_tiles_exp(def)]
-        @ [Selem.Shard(Exp(Let_in))]
+        @ [Shard(Exp(Let_in))]
+      | Cond(then_) =>
+        [Selem.Shard(Exp(Cond_que)), ...Selection.of_tiles_exp(then_)]
+        @ [Shard(Exp(Cond_col))]
       }
     };
   switch (d) {
@@ -85,6 +88,10 @@ let assemble_selem =
   | (Right, (Exp(Let_let_eq(p)), [(def, Exp(Let_in))])) =>
     let+ def = Tiles.get_exp(child(def));
     Selem.Tile(Exp(Let(p, def)));
+  | (Left, (Exp(Cond_col), [(then_, Exp(Cond_que))]))
+  | (Right, (Exp(Cond_que), [(then_, Exp(Cond_col))])) =>
+    let+ then_ = Tiles.get_exp(child(then_));
+    Selem.Tile(Exp(Cond(then_)));
   | _ => None
   };
 };
@@ -188,6 +195,16 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
         ...Selection.of_tiles_exp(suffix),
       ];
       Some(((prefix, suffix), Exp(frame)));
+    | Cond_then(((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Exp(Cond_que)),
+        ...Selection.of_tiles_exp(prefix),
+      ];
+      let suffix = [
+        Selem.Shard(Exp(Cond_col)),
+        ...Selection.of_tiles_exp(suffix),
+      ];
+      Some(((prefix, suffix), Exp(frame)));
     };
 
 let assemble_frame =
@@ -224,6 +241,10 @@ let assemble_frame =
     let+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
     Frame.Exp(Let_def(p, ((prefix, suffix), frame)));
+  | (((Exp(Cond_que), []), (Exp(Cond_col), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Cond_then(((prefix, suffix), frame)));
   | _ => None
   };
 };
@@ -353,6 +374,10 @@ let zip_up =
     Some((tile, tframe, Exp(frame)));
   | Exp(Let_def(p, (tframe, frame))) =>
     let tile = Tile.Exp(Let(p, get_exp()));
+    let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    Some((tile, tframe, Exp(frame)));
+  | Exp(Cond_then((tframe, frame))) =>
+    let tile = Tile.Exp(Cond(get_exp()));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
     Some((tile, tframe, Exp(frame)));
   | Exp(Root) => None

@@ -209,6 +209,13 @@ let mk_Let = (p, def) => {
   ]);
 };
 
+let mk_Cond = then_ =>
+  cats([
+    delim("?"),
+    open_child(Exp, ChildStep.cond_then, then_),
+    delim(":"),
+  ]);
+
 let mk_Plus = () => Text("+");
 let mk_Times = () => Text("*");
 
@@ -274,7 +281,9 @@ and mk_tile = t =>
        | Plus => mk_Plus()
        | Times => mk_Times()
        | Prod => mk_Prod()
-       | Ap => mk_Ap(),
+       | Ap => mk_Ap()
+       | Cond(then_) =>
+         mk_Cond(pad_spaces(Exp, mk_tiles(Tiles.of_exp(then_)))),
      );
 
 let mk_token =
@@ -299,7 +308,9 @@ let mk_token =
         ),
         delim("="),
       ])
-    | Let_in => delim("in"),
+    | Let_in => delim("in")
+    | Cond_que => delim("?")
+    | Cond_col => delim(":"),
   );
 
 let mk_selem = (step, selem: Selem.t) => {
@@ -364,6 +375,7 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   };
   let shape_op = Tip.((Convex, 0), (Convex, 0));
   let shape_pre = Tip.((Convex, 0), (Concave, 0));
+  let shape_bin = Tip.((Concave, 0), (Concave, 0));
   switch (frame) {
   | Pat(Paren_body(frame_s)) =>
     let tile = mk_Paren(Pat, subject);
@@ -380,6 +392,9 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   | Exp(Let_def(p, frame_s)) =>
     let tile = mk_Let(pad_spaces(Pat, mk_tiles_pat(p)), subject);
     mk_frame_exp((tile, shape_pre), frame_s);
+  | Exp(Cond_then(frame_s)) =>
+    let tile = mk_Cond(subject);
+    mk_frame_exp((tile, shape_bin), frame_s);
   | Exp(Root) => subject
   };
 };

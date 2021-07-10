@@ -9,14 +9,19 @@ type t =
   | Let_let_eq(Tile_pat.s)
   | Let_let
   | Let_eq
-  | Let_in;
+  | Let_in
+  | Cond_que
+  | Cond_col;
 
 let tip = (d: Direction.t, t: t) =>
   switch (d, t) {
   | (Left, Paren_l | Lam_lam | Let_let | Let_let_eq(_))
   | (Right, Paren_r) => (Tip.Convex, Sort.Exp)
-  | (Left, Paren_r | Let_in)
-  | (Right, Paren_l | Lam_dot | Let_let_eq(_) | Let_eq | Let_in) => (
+  | (Left, Paren_r | Let_in | Cond_que | Cond_col)
+  | (
+      Right,
+      Paren_l | Lam_dot | Let_let_eq(_) | Let_eq | Let_in | Cond_que | Cond_col,
+    ) => (
       Concave,
       Exp,
     )
@@ -26,8 +31,8 @@ let tip = (d: Direction.t, t: t) =>
 
 let is_end = (~strict: bool, d: Direction.t, t: t) =>
   switch (d, t) {
-  | (Left, Paren_l | Lam_lam | Let_let | Let_let_eq(_))
-  | (Right, Paren_r | Lam_dot | Let_in) => true
+  | (Left, Paren_l | Lam_lam | Let_let | Let_let_eq(_) | Cond_que)
+  | (Right, Paren_r | Lam_dot | Let_in | Cond_col) => true
   | (Right, Let_eq) => !strict
   | _ => false
   };
@@ -40,7 +45,8 @@ let is_next = (d: Direction.t, t1, t2) =>
     | (Lam_dot, Lam_lam)
     | (Let_eq, Let_let)
     | (Let_in, Let_eq)
-    | (Let_in, Let_let_eq(_)) => true
+    | (Let_in, Let_let_eq(_))
+    | (Cond_col, Cond_que) => true
     | _ => false
     }
   | Right =>
@@ -49,7 +55,8 @@ let is_next = (d: Direction.t, t1, t2) =>
     | (Lam_lam, Lam_dot)
     | (Let_let, Let_eq)
     | (Let_eq, Let_in)
-    | (Let_let_eq(_), Let_in) => true
+    | (Let_let_eq(_), Let_in)
+    | (Cond_que, Cond_col) => true
     | _ => false
     }
   };

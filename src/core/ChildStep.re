@@ -9,3 +9,5 @@ let lam_pat = 0;
 
 let let_pat = 0;
 let let_def = 1;
+
+let cond_then = 0;

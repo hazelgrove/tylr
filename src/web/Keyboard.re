@@ -85,6 +85,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           }
         | " " => [p(Construct(Tile(Exp(Ap))))]
         | "Escape" => [Update.escape()]
+        | "?" => [p(Construct(Tile(Exp(Cond([OpHole])))))]
         | _ when is_num(key) => [
             p(Construct(Tile(Exp(Num(int_of_string(key)))))),
           ]
