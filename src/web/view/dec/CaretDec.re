@@ -127,7 +127,7 @@ let delete_row = (~disabled: option([ | `Delete | `Restructure])) => {
     keys(["Backspace", "Delete"]),
     action_type'(
       Node.[
-        span([Attr.classes(del_clss)], [text("Delete")]),
+        span([Attr.classes(del_clss)], [text("Remove")]),
         span([Attr.classes(or_clss)], [text(" or ")]),
         span([Attr.classes(res_clss)], [text("Restructure")]),
       ],
