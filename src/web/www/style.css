@@ -824,7 +824,7 @@ svg.rail line.unsorted {
   font: 10pt "Helvetica Neue";
   display: grid;
   grid-template-columns: 120px auto;
-  grid-template-rows: repeat(4, auto 24px) auto 4px repeat(6, auto 4px) auto; /*24px auto 4px auto;*/
+  grid-template-rows: repeat(4, auto 24px) auto 4px repeat(5, auto 4px) auto; /*24px auto 4px auto;*/
   column-gap: 16px;
   color: var(--action-text-color);
   z-index: var(--action-table-z);
