@@ -100,6 +100,7 @@
   --uni-child-z: 4;
   --tile-z: 4;
   --inset-empty-hole-z: 5;
+  --ap-z: 6;
   --code-text-z: 6;
   --target-bounds-z: 7;
   --flag-z: 8;
@@ -393,6 +394,16 @@ svg.rail line.unsorted {
   box-sizing: border-box;
   box-shadow: inset 1px 1px 2px darkgray;
   border-radius: 4px;
+}
+
+.ap-container {
+  z-index: var(--ap-z);
+}
+.ap-path {
+  stroke: var(--ap-color);
+  stroke-width: 2px;
+  fill: none;
+  vector-effect: non-scaling-stroke;
 }
 
 .decoration-container {
