@@ -66,7 +66,10 @@ let rec view_of_layout =
 
       | Ap =>
         let (txt, ds) = go'();
-        ([with_cls("ap", txt)], ds);
+        (
+          [with_cls("ap", txt)],
+          [ApDec.view(~font_metrics, {origin, length: 1}), ...ds],
+        );
       | Delim =>
         let (txt, ds) = go'();
         ([with_cls("delim", txt)], ds);

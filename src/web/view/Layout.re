@@ -214,7 +214,7 @@ let mk_Times = () => Text("*");
 
 let mk_Prod = () => Text(",");
 
-let mk_Ap = () => annot(Ap, Text(Unicode.ap));
+let mk_Ap = () => annot(Ap, Text(Unicode.nbsp));
 
 let mk_OpHole = empty_hole;
 let mk_BinHole = empty_hole;
