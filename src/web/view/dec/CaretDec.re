@@ -126,19 +126,18 @@ let delete_action_type =
     | Some(`Restructure) => (d, [], [])
     };
   action_type'(
-    Node.
-      [
-        span([Attr.classes(rem_clss)], [text("Remove")]),
-        span([Attr.classes(d)], [text(" / ")]),
-        span([Attr.classes(res_clss)], [text("Restructure")]),
-      ],
-      // span(
-      //   [Attr.classes(["delete-action-arrow", ...arr_clss])],
-      //   [
-      //     text(" "),
-      //     text(dir == Left ? Unicode.left_arrow : Unicode.right_arrow),
-      //   ],
-      // ),
+    Node.[
+      span([Attr.classes(rem_clss)], [text("Remove")]),
+      span([Attr.classes(d)], [text(" / ")]),
+      span([Attr.classes(res_clss)], [text("Restructure")]),
+    ],
+    // span(
+    //   [Attr.classes(["delete-action-arrow", ...arr_clss])],
+    //   [
+    //     text(" "),
+    //     text(dir == Left ? Unicode.left_arrow : Unicode.right_arrow),
+    //   ],
+    // ),
   );
 };
 
