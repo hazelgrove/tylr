@@ -885,11 +885,16 @@ svg.rail line.unsorted {
 
 #action-table .construct-shape {
   justify-self: left;
-  text-decoration-line: underline;
-  text-decoration-thickness: 2px;
+  /* text-decoration-line: underline;
+  text-decoration-thickness: 2px; */
+  font-weight: normal;
 }
 #action-table .construct-shape.disabled {
-  text-decoration: none;
+  /* text-decoration: none; */
+  opacity: 0.5;
+}
+.construct-shape-row .disabled {
+  opacity: 0.5;
 }
 #action-table.Exp .construct-shape {
   text-decoration-color: var(--exp-rail-color);

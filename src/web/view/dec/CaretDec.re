@@ -14,10 +14,16 @@ module Profile = {
 let action_type = (~clss=[], txt) =>
   Node.div([Attr.classes(["action-type", ...clss])], [Node.text(txt)]);
 
-let construct_shape_row = shapes =>
+let construct_shape_row = (~disabled=false, shapes) =>
   Node.div(
     [Attr.classes(["construct-shape-row"])],
-    ListUtil.join(Node.text(" | "), shapes),
+    ListUtil.join(
+      Node.span(
+        [Attr.classes(disabled ? ["disabled"] : [])],
+        [Node.text(" | ")],
+      ),
+      shapes,
+    ),
   );
 
 let construct_shape' = (~disabled) =>
@@ -160,9 +166,10 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
               key(~disabled=!is_exp_pointing, "9"),
             ],
           ),
-          construct_shape_row([
-            disabled_if_not_exp_pointing("single-digit num"),
-          ]),
+          construct_shape_row(
+            ~disabled=!is_exp_pointing,
+            [disabled_if_not_exp_pointing("single-digit num")],
+          ),
         ],
         [
           keys_container(
@@ -173,7 +180,10 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
               key(~disabled=!is_pointing, "z"),
             ],
           ),
-          construct_shape_row([disabled_if_not_pointing("single-char var")]),
+          construct_shape_row(
+            ~disabled=!is_pointing,
+            [disabled_if_not_pointing("single-char var")],
+          ),
         ],
         [
           keys_container([
@@ -182,12 +192,15 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
             key(~disabled=!is_exp_pointing, "*"),
             key(~disabled=!is_exp_pointing, "/"),
           ]),
-          construct_shape_row([
-            disabled_if_not_exp_pointing("plus"),
-            disabled_if_not_exp_pointing("minus"),
-            disabled_if_not_exp_pointing("times"),
-            disabled_if_not_exp_pointing("div"),
-          ]),
+          construct_shape_row(
+            ~disabled=!is_exp_pointing,
+            [
+              disabled_if_not_exp_pointing("plus"),
+              disabled_if_not_exp_pointing("minus"),
+              disabled_if_not_exp_pointing("times"),
+              disabled_if_not_exp_pointing("div"),
+            ],
+          ),
         ],
         [
           keys_container([
@@ -196,12 +209,15 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
             // key(~disabled=!is_exp_pointing, "?"),
             key(~disabled=!is_exp_pointing, "Space"),
           ]),
-          construct_shape_row([
-            disabled_if_not_pointing("pair"),
-            disabled_if_not_exp_pointing("factorial"),
-            // disabled_if_not_exp_pointing("cond"),
-            disabled_if_not_exp_pointing("application"),
-          ]),
+          construct_shape_row(
+            ~disabled=!is_exp_pointing,
+            [
+              disabled_if_not_pointing("pair"),
+              disabled_if_not_exp_pointing("factorial"),
+              // disabled_if_not_exp_pointing("cond"),
+              disabled_if_not_exp_pointing("application"),
+            ],
+          ),
         ],
         // [
         //   keys_container([
@@ -212,14 +228,20 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
         // ],
         [
           keys(~disabled=!is_pointing, ["(", ")"]),
-          construct_shape_row([disabled_if_not_pointing("parentheses")]),
+          construct_shape_row(
+            ~disabled=!is_pointing,
+            [disabled_if_not_pointing("parentheses")],
+          ),
         ],
         [
           keys(~disabled=!is_exp_pointing, ["\\", "="]),
-          construct_shape_row([
-            disabled_if_not_exp_pointing("lambda"),
-            disabled_if_not_exp_pointing("let"),
-          ]),
+          construct_shape_row(
+            ~disabled=!is_exp_pointing,
+            [
+              disabled_if_not_exp_pointing("lambda"),
+              disabled_if_not_exp_pointing("let"),
+            ],
+          ),
         ],
       ],
     ),
@@ -293,7 +315,7 @@ let view =
       );
     switch (just_failed) {
     | Some({reason: Unrecognized, prior_attempts}) when prior_attempts >= 0 => [
-        text("unrecognized keyboard input"),
+        text("unrecognized input for current sort"),
       ]
     | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 0 =>
       switch (f) {
@@ -308,14 +330,14 @@ let view =
           text(" position"),
         ]
       | Cant_pick_up_selection => [
-          text("cannot pick up selection with different sort bounds"),
+          text("cannot pick up selection with caps of different sort"),
         ]
       | Cant_put_down_selection(sort, frame_sort) => [
           text("cannot put down "),
           // br([]),
           text("a" ++ (sort == Pat ? " " : "n ")),
           sort_label(sort),
-          text("-bounded selection"),
+          text("-capped selection"),
           // br([]),
           text(" in "),
           sort_label(frame_sort),
