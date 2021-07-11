@@ -31,10 +31,15 @@ let key' = (~disabled=false) =>
   Node.div([Attr.classes(["key", ...disabled ? ["disabled"] : []])]);
 let key = (~disabled=false, txt) => key'(~disabled, [Node.text(txt)]);
 
-let keys_container = keys =>
+let keys_container = (~with_hyphen=false, keys) =>
   Node.div(
     [Attr.classes(["keys-container"])],
-    [Node.div([Attr.classes(["keys"])], keys)],
+    [
+      Node.div(
+        [Attr.classes(["keys", ...with_hyphen ? ["with-hyphen"] : []])],
+        keys,
+      ),
+    ],
   );
 let keys = (~disabled=false, ks) =>
   keys_container(List.map(key(~disabled), ks));
@@ -147,21 +152,27 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
           ),
         ],
         [
-          keys_container([
-            key(~disabled=!is_exp_pointing, "0"),
-            Node.div([Attr.classes(["key-hyphen"])], [Node.text("-")]),
-            key(~disabled=!is_exp_pointing, "9"),
-          ]),
+          keys_container(
+            ~with_hyphen=true,
+            [
+              key(~disabled=!is_exp_pointing, "0"),
+              Node.div([Attr.classes(["key-hyphen"])], [Node.text("-")]),
+              key(~disabled=!is_exp_pointing, "9"),
+            ],
+          ),
           construct_shape_row([
             disabled_if_not_exp_pointing("single-digit num"),
           ]),
         ],
         [
-          keys_container([
-            key(~disabled=!is_pointing, "a"),
-            Node.div([Attr.classes(["key-hyphen"])], [Node.text("-")]),
-            key(~disabled=!is_pointing, "z"),
-          ]),
+          keys_container(
+            ~with_hyphen=true,
+            [
+              key(~disabled=!is_pointing, "a"),
+              Node.div([Attr.classes(["key-hyphen"])], [Node.text("-")]),
+              key(~disabled=!is_pointing, "z"),
+            ],
+          ),
           construct_shape_row([disabled_if_not_pointing("single-char var")]),
         ],
         [
