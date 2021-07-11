@@ -15,6 +15,7 @@ type t = {
   siblings: option((Path.steps, list(Path.caret_step))),
   root_term: option((Path.steps, Skel.t)),
   filtered_selems: option((Path.steps, list(Path.selem_step))),
+  revealed_selems: option((Path.steps, list(Path.selem_step))),
   neighbor_selems: option((Path.steps, list(Path.selem_step))),
   selection_boxes: list(Path.range),
   selection_bars: list(Path.range),
@@ -28,6 +29,7 @@ let mk =
       ~siblings=?,
       ~root_term=?,
       ~filtered_selems=?,
+      ~revealed_selems=?,
       ~neighbor_selems=?,
       ~selection_boxes=[],
       ~selection_bars=[],
@@ -38,6 +40,7 @@ let mk =
   siblings,
   root_term,
   filtered_selems,
+  revealed_selems,
   neighbor_selems,
   selection_boxes,
   selection_bars,
@@ -107,21 +110,10 @@ let siblings = (subject: Subject.t) =>
 let filtered_selems = (~frame_sort, subject: Subject.t) => {
   switch (subject) {
   | Pointing(_) => None
-  | Selecting(_, selection, (prefix, _) as sframe) =>
+  | Selecting(_, selection, (prefix, _)) =>
     let len_pre = List.length(prefix);
     let len_sel = List.length(selection);
-    let selems =
-      ListFrame.to_list(~subject=selection, sframe)
-      |> List.mapi((i, selem) => (i, selem))
-      |> List.filter_map(((step, selem)) =>
-           Selem.sort(selem) != frame_sort
-           || Selem.is_shard(selem)
-           || len_pre <= step
-           && step < len_pre
-           + len_sel
-             ? Some(step) : None
-         );
-    Some(selems);
+    Some(ListUtil.range(~lo=len_pre, len_pre + len_sel));
   | Restructuring((_, rframe)) =>
     let selems =
       ListFrame.to_list(rframe)
@@ -142,6 +134,23 @@ let filtered_selems = (~frame_sort, subject: Subject.t) => {
     Some(selems);
   };
 };
+
+let revealed_selems = (subject: Subject.t) =>
+  switch (subject) {
+  | Pointing(_) => None
+  | Selecting(_, selection, (prefix, _) as sframe) =>
+    let len_pre = List.length(prefix);
+    let len_sel = List.length(selection);
+    let selems =
+      ListFrame.to_list(~subject=selection, sframe)
+      |> List.mapi((i, selem) => (i, selem))
+      |> List.filter_map(((i, selem)) =>
+           (i < len_pre || len_pre + len_sel <= i) && Selem.is_shard(selem)
+             ? Some(i) : None
+         );
+    Some(selems);
+  | Restructuring(_) => None
+  };
 
 let neighbor_selems = (subject: Subject.t) =>
   switch (subject) {
@@ -198,12 +207,17 @@ let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
     let+ selems = filtered_selems(~frame_sort=Frame.sort(frame), subject);
     (steps, selems);
   };
+  let revealed_selems = {
+    let+ selems = revealed_selems(subject);
+    (steps, selems);
+  };
   let selections = selections(subject) |> List.map(range => (steps, range));
   mk(
     ~caret=caret_range,
     ~siblings=(steps, siblings(subject)),
     ~root_term=?root_term(zipper),
     ~filtered_selems?,
+    ~revealed_selems?,
     ~neighbor_selems=(steps, neighbor_selems(subject)),
     ~selection_boxes=selections,
     ~selection_bars=selections,
@@ -217,6 +231,7 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     siblings,
     root_term,
     filtered_selems,
+    revealed_selems,
     neighbor_selems,
     selection_boxes,
     selection_bars,
@@ -240,6 +255,7 @@ let take_two_step = (two_step: Path.two_step, paths: t): t => {
     siblings: step_or_prune(siblings),
     root_term: step_or_prune(root_term),
     filtered_selems: step_or_prune(filtered_selems),
+    revealed_selems: step_or_prune(revealed_selems),
     neighbor_selems: step_or_prune(neighbor_selems),
     selection_boxes:
       selection_boxes |> List.filter_map(range => step_or_prune(Some(range))),
@@ -267,6 +283,7 @@ let current_bidelimited =
     caret: _,
     siblings: _,
     filtered_selems: _,
+    revealed_selems: _,
     neighbor_selems: _,
   } = paths;
   let selection_box_ds =
@@ -356,6 +373,7 @@ let current_selem =
     ) => {
   let {
     filtered_selems,
+    revealed_selems,
     neighbor_selems,
     caret: _,
     siblings: _,
@@ -374,6 +392,24 @@ let current_selem =
           color,
           shape,
           style: Filtered,
+          measurement,
+          empty_holes,
+          open_children,
+          closed_children,
+        }),
+      ];
+    | _ => []
+    };
+  let revealed_selem_ds =
+    switch (revealed_selems) {
+    | Some(([], revealed_selems)) when List.mem(step, revealed_selems) =>
+      let empty_holes = Layout.selem_holes(selem_l);
+      let (open_children, closed_children) = Layout.selem_children(selem_l);
+      [
+        Dec.Profile.Selem({
+          color,
+          shape,
+          style: Revealed({show_children: true}),
           measurement,
           empty_holes,
           open_children,
@@ -405,7 +441,7 @@ let current_selem =
       ];
     | _ => []
     };
-  List.concat([filtered_selem_ds, neighbor_selem_ds]);
+  List.concat([filtered_selem_ds, revealed_selem_ds, neighbor_selem_ds]);
 };
 
 let current_space =
@@ -425,6 +461,7 @@ let current_space =
     selection_boxes: _,
     root_term: _,
     filtered_selems: _,
+    revealed_selems: _,
     logo_selems: _,
     neighbor_selems: _,
   } = paths;
