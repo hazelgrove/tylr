@@ -18,10 +18,15 @@ let construct_shape = txt =>
 let key' = Node.div([Attr.classes(["key"])]);
 let key = txt => key'([Node.text(txt)]);
 
-let keys_container = keys =>
+let keys_container = (~with_hyphen=false, keys) =>
   Node.div(
     [Attr.classes(["keys-container"])],
-    [Node.div([Attr.classes(["keys"])], keys)],
+    [
+      Node.div(
+        [Attr.classes(["keys", ...with_hyphen ? ["with-hyphen"] : []])],
+        keys,
+      ),
+    ],
   );
 let keys = ks => keys_container(List.map(key, ks));
 
@@ -106,19 +111,17 @@ let construct_rows =
       [
         [buffer_cell, action_type("Construct")],
         [
-          keys_container([
-            key("0"),
-            Node.div([], [Node.text("-")]),
-            key("9"),
-          ]),
+          keys_container(
+            ~with_hyphen=true,
+            [key("0"), Node.div([], [Node.text("-")]), key("9")],
+          ),
           construct_shape("single-digit num"),
         ],
         [
-          keys_container([
-            key("a"),
-            Node.div([], [Node.text("-")]),
-            key("z"),
-          ]),
+          keys_container(
+            ~with_hyphen=true,
+            [key("a"), Node.div([], [Node.text("-")]), key("z")],
+          ),
           construct_shape("single-char var"),
         ],
         [keys(["+", "*", ","]), construct_shape("plus | times | pair")],

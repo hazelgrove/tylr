@@ -810,13 +810,16 @@ svg.rail line.unsorted {
   display: grid;
   grid-template-rows: 1fr;
   grid-auto-flow: column;
+  column-gap: 4px;
+}
+#action-table .keys.with-hyphen {
+  column-gap: 2px;
 }
 #action-table .key {
   background-color: var(--key-bg-color);
   color: var(--key-text-color);
   border-radius: 3px;
-  padding: 1.5px 3px;
-  margin: 0 2px;
+  padding: 2px 4px;
   min-width: 12px;
   display: grid;
   justify-content: center;
@@ -837,5 +840,6 @@ svg.rail line.unsorted {
 
 .keyboard-arrow {
   position: relative;
-  /* top: -1px; */
+  font-family: 'Fira Code';
+  top: 1px;
 }
