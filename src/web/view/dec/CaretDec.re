@@ -5,6 +5,7 @@ open Core;
 module Profile = {
   type t = {
     mode: CaretMode.t,
+    delete_actions: (option([ | `Remove | `Restructure]) as 'a, 'a),
     origin: int,
     color: Color.t,
     just_failed: option(FailedInput.t),
@@ -59,7 +60,7 @@ let keyboard_arrow = s =>
 
 let mark_row = (~disabled: option([ | `Up | `Down | `Both])) => {
   let d = ["disabled"];
-  let (up_clss, bar_clss, down_clss, sel_clss) =
+  let (up_clss, bar_clss, down_clss, _sel_clss) =
     switch (disabled) {
     | None => ([], [], [], [])
     | Some(`Up) => (d, d, [], [])
@@ -81,8 +82,8 @@ let mark_row = (~disabled: option([ | `Up | `Down | `Both])) => {
         span([Attr.classes(up_clss)], [text("Pick Up")]),
         span([Attr.classes(bar_clss)], [text(" | ")]),
         span([Attr.classes(down_clss)], [text(" Put Down")]),
-        span([Attr.classes(sel_clss)], [text(" Selection")]),
       ],
+      /*span([Attr.classes(sel_clss)], [text(" Selection")]),*/
     ),
   ];
 };
@@ -115,23 +116,44 @@ let select_row = (~disabled) => [
   action_type(~clss=disabled ? ["disabled"] : [], "Select"),
 ];
 
-let delete_row = (~disabled: option([ | `Delete | `Restructure])) => {
+let delete_action_type =
+    (_dir: Direction.t, a: option([ | `Remove | `Restructure])) => {
   let d = ["disabled"];
-  let (del_clss, or_clss, res_clss) =
-    switch (disabled) {
-    | None => ([], [], [])
-    | Some(`Delete) => (d, d, [])
-    | Some(`Restructure) => ([], d, d)
+  let (rem_clss, res_clss, _arr_clss) =
+    switch (a) {
+    | None => (d, d, d)
+    | Some(`Remove) => ([], d, [])
+    | Some(`Restructure) => (d, [], [])
     };
-  [
-    keys(["Backspace", "Delete"]),
-    action_type'(
-      Node.[
-        span([Attr.classes(del_clss)], [text("Remove")]),
-        span([Attr.classes(or_clss)], [text(" or ")]),
+  action_type'(
+    Node.
+      [
+        span([Attr.classes(rem_clss)], [text("Remove")]),
+        span([Attr.classes(d)], [text(" / ")]),
         span([Attr.classes(res_clss)], [text("Restructure")]),
       ],
-    ),
+      // span(
+      //   [Attr.classes(["delete-action-arrow", ...arr_clss])],
+      //   [
+      //     text(" "),
+      //     text(dir == Left ? Unicode.left_arrow : Unicode.right_arrow),
+      //   ],
+      // ),
+  );
+};
+
+let buffer_cell = Node.div([], []);
+let buffer_row = [buffer_cell, buffer_cell];
+
+let delete_row =
+    ((action_l, action_r): (option([ | `Remove | `Restructure]) as 'a, 'a)) => {
+  [
+    keys(["Backspace"]),
+    delete_action_type(Left, action_l),
+    buffer_cell,
+    buffer_cell,
+    keys(["Delete"]),
+    delete_action_type(Right, action_r),
   ];
 };
 
@@ -153,9 +175,6 @@ let redo_row = [
   ]),
   action_type("Redo"),
 ];
-
-let buffer_cell = Node.div([], []);
-let buffer_row = [buffer_cell, buffer_cell];
 
 let construct_rows = (color: Color.t, mode: CaretMode.t) => {
   let is_pointing =
@@ -304,7 +323,7 @@ let inconsistent =
 let view =
     (
       ~font_metrics: FontMetrics.t,
-      {color, origin, mode, just_failed}: Profile.t,
+      {color, origin, mode, just_failed, delete_actions}: Profile.t,
     ) => {
   let (ss_before, ss_after) =
     switch (mode) {
@@ -472,17 +491,7 @@ let view =
               },
           ),
           buffer_row,
-          delete_row(
-            ~disabled=
-              switch (mode) {
-              | Pointing
-              | Selecting(_, []) => None
-              | Selecting(_, selection) =>
-                Selection.is_whole_any(selection)
-                  ? Some(`Restructure) : Some(`Delete)
-              | Restructuring(_) => Some(`Restructure)
-              },
-          ),
+          delete_row(delete_actions),
           buffer_row,
           construct_rows(color, mode),
         ]),

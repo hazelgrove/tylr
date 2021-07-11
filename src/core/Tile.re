@@ -22,6 +22,8 @@ let get_exp =
   | Pat(_) => None
   | Exp(tile) => Some(tile);
 
+let is_leaf = get(Tile_pat.is_leaf, Tile_exp.is_leaf);
+
 let is_hole = get(Tile_pat.is_hole, Tile_exp.is_hole);
 
 let tip = d => get(Tile_pat.tip(d), Tile_exp.tip(d));

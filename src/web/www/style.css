@@ -836,7 +836,7 @@ svg.rail line.unsorted {
   font: 10pt "Helvetica Neue";
   display: grid;
   grid-template-columns: 120px auto;
-  grid-template-rows: repeat(4, auto 24px) auto 4px repeat(5, auto 4px) auto; /*24px auto 4px auto;*/
+  grid-template-rows: repeat(3, auto 24px) auto 4px auto 24px auto 4px repeat(5, auto 4px) auto; /*24px auto 4px auto;*/
   column-gap: 16px;
   color: var(--action-text-color);
   z-index: var(--action-table-z);
@@ -898,6 +898,9 @@ svg.rail line.unsorted {
   /* text-decoration: none; */
   opacity: 0.5;
 }
+.construct-shape-row {
+  white-space: nowrap;
+}
 .construct-shape-row .disabled {
   opacity: 0.5;
 }
@@ -912,4 +915,8 @@ svg.rail line.unsorted {
   position: relative;
   font-family: 'Fira Code';
   top: 1px;
+}
+
+.delete-action-arrow {
+  font-family: 'Fira Code';
 }

@@ -27,6 +27,14 @@ let is_hole =
   | BinHole => true
   | _ => false;
 
+let is_leaf =
+  fun
+  | OpHole
+  | Var(_)
+  | BinHole
+  | Prod => true
+  | Paren(_) => false;
+
 let tip = (d: Direction.t, t: t) => {
   let shape =
     switch (d, t) {

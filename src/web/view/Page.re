@@ -85,7 +85,6 @@ let view = (~inject, model: Model.t) => {
         history,
         show_neighbor_tiles,
       } = model;
-  let (subject, _) = zipper;
   let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
   Node.div(
@@ -127,7 +126,7 @@ let view = (~inject, model: Model.t) => {
             ~id="under-the-rail",
             ~text_id="under-the-rail-text",
             ~font_metrics,
-            ~subject,
+            ~zipper,
             ~filler=Model.filler(model),
             ~just_failed=history.just_failed,
             ~show_neighbor_tiles,

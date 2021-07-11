@@ -2,12 +2,34 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
+let delete_actions =
+  fun
+  | (Subject.Pointing((prefix, suffix)), frame)
+  | (Selecting(_, [], (prefix, suffix)), frame) => {
+      let action = affix =>
+        switch (affix) {
+        | [Selem.Tile(tile), ..._] =>
+          Tile.is_leaf(tile) ? Some(`Remove) : Some(`Restructure)
+        | _ =>
+          switch (frame) {
+          | Frame.Exp(Root) => None
+          | _ => Some(`Restructure)
+          }
+        };
+      (action(prefix), action(suffix));
+    }
+  | (Selecting(_, selection, _), _) =>
+    Selection.is_whole_any(selection)
+      ? (Some(`Remove), Some(`Remove))
+      : (Some(`Restructure), Some(`Restructure))
+  | (Restructuring(_), _) => (Some(`Remove), Some(`Remove));
+
 let rec view_of_layout =
         (
           ~id=?,
           ~text_id=?,
           ~font_metrics,
-          ~subject: option(Subject.t)=?,
+          ~zipper: option(Zipper.t)=?,
           ~filler=0,
           ~just_failed: option(FailedInput.t)=None,
           ~show_neighbor_tiles: bool=false,
@@ -15,13 +37,14 @@ let rec view_of_layout =
           l,
         )
         : Node.t => {
+  let delete_actions = Option.map(delete_actions, zipper);
   let caret_mode =
-    subject
+    zipper
     |> Option.map(
          fun
-         | Subject.Pointing(_) => CaretMode.Pointing
-         | Selecting(side, selection, _) => Selecting(side, selection)
-         | Restructuring(((_, selection, rest) as backpack, rframe)) => {
+         | (Subject.Pointing(_), _) => CaretMode.Pointing
+         | (Selecting(side, selection, _), _) => Selecting(side, selection)
+         | (Restructuring(((_, selection, rest) as backpack, rframe)), _) => {
              let at_restructurable_selection =
                switch (rframe) {
                | ([Selection(selection), ..._], _)
@@ -80,6 +103,7 @@ let rec view_of_layout =
       switch (annot) {
       | Space(step, color) =>
         DecPaths.current_space(
+          ~delete_actions?,
           ~caret_mode?,
           ~just_failed,
           ~measurement={origin, length: 1},

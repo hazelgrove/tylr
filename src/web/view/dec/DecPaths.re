@@ -454,6 +454,7 @@ let current_selem =
 
 let current_space =
     (
+      ~delete_actions: option(_)=?,
       ~caret_mode: option(CaretMode.t)=?,
       ~measurement: Layout.measurement,
       ~just_failed: option(FailedInput.t),
@@ -473,6 +474,11 @@ let current_space =
     logo_selems: _,
     neighbor_selems: _,
   } = paths;
+  let delete_actions =
+    switch (delete_actions) {
+    | None => (None, None)
+    | Some(das) => das
+    };
   let caret_ds =
     switch (caret, caret_mode) {
     | (
@@ -494,7 +500,13 @@ let current_space =
         | _ => []
         };
       [
-        Caret({origin: measurement.origin, color, mode, just_failed}),
+        Caret({
+          delete_actions,
+          origin: measurement.origin,
+          color,
+          mode,
+          just_failed,
+        }),
         CaretPos({measurement, color, just_failed, style: `Caret}),
         ...restructuring_ds,
       ];
@@ -503,7 +515,13 @@ let current_space =
         Some((Pointing | Selecting(Right, _) | Restructuring(_)) as mode),
       )
         when step == r => [
-        Caret({origin: measurement.origin, color, mode, just_failed}),
+        Caret({
+          delete_actions,
+          origin: measurement.origin,
+          color,
+          mode,
+          just_failed,
+        }),
         CaretPos({measurement, color, just_failed, style: `Caret}),
       ]
     | _ => []
