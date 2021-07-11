@@ -160,7 +160,8 @@ let buffer_row = [buffer_cell, buffer_cell];
 let construct_rows = (color: Color.t, mode: CaretMode.t) => {
   let is_pointing =
     switch (mode) {
-    | Pointing => true
+    | Pointing
+    | Selecting(_, []) => true
     | Selecting(_)
     | Restructuring(_) => false
     };
@@ -184,7 +185,8 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
           action_type(
             ~clss=
               switch (mode) {
-              | Pointing => [Color.to_string(color)]
+              | Pointing
+              | Selecting(_, []) => [Color.to_string(color)]
               | _ => ["disabled"]
               },
             "Construct",
@@ -458,7 +460,8 @@ let view =
           mark_row(
             ~disabled=
               switch (mode) {
-              | Pointing => Some(`Both)
+              | Pointing
+              | Selecting(_, []) => Some(`Both)
               | Selecting(_, selection) =>
                 switch (Selection.is_restructurable(selection)) {
                 | None => Some(`Both)
@@ -472,7 +475,8 @@ let view =
           delete_row(
             ~disabled=
               switch (mode) {
-              | Pointing => None
+              | Pointing
+              | Selecting(_, []) => None
               | Selecting(_, selection) =>
                 Selection.is_whole_any(selection)
                   ? Some(`Restructure) : Some(`Delete)
