@@ -421,7 +421,7 @@ let view =
       ),
       Node.div(
         [
-          Attr.id("backpack-suf"),
+          Attr.id("backpack-pre"),
           Attr.create(
             "style",
             Printf.sprintf(
