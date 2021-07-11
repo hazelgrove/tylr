@@ -50,10 +50,22 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowRight" => arrow_l_r(key, evt, zipper)
         | "ArrowUp" =>
           switch (zipper) {
-          | (Pointing(_) | Selecting(_, [], _) | Restructuring(_), _) => [
+          | (Pointing(_) | Selecting(_, [], _), _) => [
               FailedInput(Failure(Cant_move)),
             ]
           | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
+          | (Restructuring((_, rframe)), _) =>
+            switch (rframe) {
+            | ([Selection(selection), ..._], _)
+                when Option.is_some(Selection.is_restructurable(selection)) => [
+                p(Move(Left)),
+              ]
+            | (_, [Selection(selection), ..._])
+                when Option.is_some(Selection.is_restructurable(selection)) => [
+                p(Move(Right)),
+              ]
+            | _ => [FailedInput(Failure(Cant_move))]
+            }
           }
         | "ArrowDown" =>
           switch (zipper) {

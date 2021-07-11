@@ -883,6 +883,10 @@ svg.rail line.unsorted {
   align-self: center;
   white-space: nowrap;
 }
+.action-type.disabled,
+.action-type .disabled {
+  opacity: 0.5;
+}
 
 #action-table .construct-shape {
   justify-self: left;

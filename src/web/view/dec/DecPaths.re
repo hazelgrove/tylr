@@ -469,7 +469,7 @@ let current_space =
     switch (caret, caret_mode) {
     | (
         Some(([], (l, _))),
-        Some((Pointing | Selecting(Left) | Restructuring(_)) as mode),
+        Some((Pointing | Selecting(Left, _) | Restructuring(_)) as mode),
       )
         when step == l =>
       let restructuring_ds =
@@ -492,7 +492,7 @@ let current_space =
       ];
     | (
         Some(([], (_, r))),
-        Some((Pointing | Selecting(Right) | Restructuring(_)) as mode),
+        Some((Pointing | Selecting(Right, _) | Restructuring(_)) as mode),
       )
         when step == r => [
         Caret({origin: measurement.origin, color, mode, just_failed}),

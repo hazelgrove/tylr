@@ -20,8 +20,20 @@ let rec view_of_layout =
     |> Option.map(
          fun
          | Subject.Pointing(_) => CaretMode.Pointing
-         | Selecting(side, _, _) => Selecting(side)
-         | Restructuring(((_, selection, rest) as backpack, _)) => {
+         | Selecting(side, selection, _) => Selecting(side, selection)
+         | Restructuring(((_, selection, rest) as backpack, rframe)) => {
+             let at_restructurable_selection =
+               switch (rframe) {
+               | ([Selection(selection), ..._], _)
+                   when
+                     Option.is_some(Selection.is_restructurable(selection)) =>
+                 true
+               | (_, [Selection(selection), ..._])
+                   when
+                     Option.is_some(Selection.is_restructurable(selection)) =>
+                 true
+               | _ => false
+               };
              let view_of_selection = (~with_box, selection) => {
                let l = Layout.mk_selection(~frame_color=Selected, selection);
                let len = List.length(selection);
@@ -37,7 +49,11 @@ let rec view_of_layout =
              };
              let selection = view_of_selection(~with_box=false, selection);
              let rest = List.map(view_of_selection(~with_box=true), rest);
-             Restructuring({backpack, view: (selection, rest)});
+             Restructuring({
+               at_restructurable_selection,
+               backpack,
+               view: (selection, rest),
+             });
            },
        );
   let with_cls = cls => Node.span([Attr.classes([cls])]);

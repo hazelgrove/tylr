@@ -81,3 +81,10 @@ let filter_pred = (s: Sort.t) =>
   | Selem.Tile(tile) when Tile.sort(tile) == s => true
   | _ => false;
 let filter_tiles = (s: Sort.t): (t => t) => List.filter(filter_pred(s));
+
+let is_restructurable = (selection: t): option(Sort.t) =>
+  switch (tip(Left, selection), tip(Right, selection)) {
+  | (Some((_, sort_l)), Some((_, sort_r))) when sort_l == sort_r =>
+    Some(sort_l)
+  | _ => None
+  };

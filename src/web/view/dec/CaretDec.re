@@ -11,8 +11,9 @@ module Profile = {
   };
 };
 
-let action_type = (~clss=[], txt) =>
-  Node.div([Attr.classes(["action-type", ...clss])], [Node.text(txt)]);
+let action_type' = (~clss=[]) =>
+  Node.div([Attr.classes(["action-type", ...clss])]);
+let action_type = (~clss=[], txt) => action_type'(~clss, [Node.text(txt)]);
 
 let construct_shape_row = (~disabled=false, shapes) =>
   Node.div(
@@ -56,18 +57,35 @@ let keyboard_arrow = s =>
     [Node.span([], [Node.text(s)])],
   );
 
-let mark_row = [
-  keys_container(
-    List.map(
-      key',
-      [
-        [keyboard_arrow(Unicode.up_arrow)],
-        [keyboard_arrow(Unicode.down_arrow)],
+let mark_row = (~disabled: option([ | `Up | `Down | `Both])) => {
+  let d = ["disabled"];
+  let (up_clss, bar_clss, down_clss, sel_clss) =
+    switch (disabled) {
+    | None => ([], [], [], [])
+    | Some(`Up) => (d, d, [], [])
+    | Some(`Down) => ([], d, d, [])
+    | Some(`Both) => (d, d, d, d)
+    };
+  [
+    keys_container(
+      List.map(
+        key',
+        [
+          [keyboard_arrow(Unicode.up_arrow)],
+          [keyboard_arrow(Unicode.down_arrow)],
+        ],
+      ),
+    ),
+    action_type'(
+      Node.[
+        span([Attr.classes(up_clss)], [text("Pick Up")]),
+        span([Attr.classes(bar_clss)], [text(" | ")]),
+        span([Attr.classes(down_clss)], [text(" Put Down")]),
+        span([Attr.classes(sel_clss)], [text(" Selection")]),
       ],
     ),
-  ),
-  action_type("Pick Up | Put Down Selection"),
-];
+  ];
+};
 
 let move_row = [
   keys_container(
@@ -82,7 +100,7 @@ let move_row = [
   action_type("Move"),
 ];
 
-let select_row = [
+let select_row = (~disabled) => [
   keys_container([
     key("Shift"),
     Node.div([], [Node.text("+")]),
@@ -94,13 +112,28 @@ let select_row = [
          ],
        ),
   ]),
-  action_type("Select"),
+  action_type(~clss=disabled ? ["disabled"] : [], "Select"),
 ];
 
-let delete_row = [
-  keys(["Backspace", "Delete"]),
-  action_type("Delete or Restructure"),
-];
+let delete_row = (~disabled: option([ | `Delete | `Restructure])) => {
+  let d = ["disabled"];
+  let (del_clss, or_clss, res_clss) =
+    switch (disabled) {
+    | None => ([], [], [])
+    | Some(`Delete) => (d, d, [])
+    | Some(`Restructure) => ([], d, d)
+    };
+  [
+    keys(["Backspace", "Delete"]),
+    action_type'(
+      Node.[
+        span([Attr.classes(del_clss)], [text("Delete")]),
+        span([Attr.classes(or_clss)], [text(" or ")]),
+        span([Attr.classes(res_clss)], [text("Restructure")]),
+      ],
+    ),
+  ];
+};
 
 let undo_row = [
   keys_container([
@@ -275,7 +308,11 @@ let view =
     switch (mode) {
     | Pointing
     | Selecting(_) => ([], [])
-    | Restructuring({backpack: (d, _, _), view: (selection, rest)}) =>
+    | Restructuring({
+        backpack: (d, _, _),
+        view: (selection, rest),
+        at_restructurable_selection: _,
+      }) =>
       let view_of_selection = (~focused, view) =>
         Node.span(
           [
@@ -410,11 +447,38 @@ let view =
         List.concat([
           move_row,
           buffer_row,
-          select_row,
+          select_row(
+            ~disabled=
+              switch (mode) {
+              | Restructuring(_) => true
+              | _ => false
+              },
+          ),
           buffer_row,
-          mark_row,
+          mark_row(
+            ~disabled=
+              switch (mode) {
+              | Pointing => Some(`Both)
+              | Selecting(_, selection) =>
+                switch (Selection.is_restructurable(selection)) {
+                | None => Some(`Both)
+                | Some(_) => Some(`Down)
+                }
+              | Restructuring({at_restructurable_selection, _}) =>
+                at_restructurable_selection ? None : Some(`Up)
+              },
+          ),
           buffer_row,
-          delete_row,
+          delete_row(
+            ~disabled=
+              switch (mode) {
+              | Pointing => None
+              | Selecting(_, selection) =>
+                Selection.is_whole_any(selection)
+                  ? Some(`Restructure) : Some(`Delete)
+              | Restructuring(_) => Some(`Restructure)
+              },
+          ),
           buffer_row,
           construct_rows(color, mode),
         ]),
