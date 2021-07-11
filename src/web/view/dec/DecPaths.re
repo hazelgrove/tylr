@@ -186,7 +186,15 @@ let neighbor_selems = (subject: Subject.t) =>
     }
   };
 
-let of_zipper = ((subject, frame) as zipper: Zipper.t) => {
+let of_zipper = ((subject, frame): Zipper.t) => {
+  // hack to show pointing mode decorations
+  // in selecting mode with empty selection
+  let subject =
+    switch (subject) {
+    | Selecting([], sframe) => Subject.Pointing(sframe)
+    | _ => subject
+    };
+  let zipper = (subject, frame);
   let (steps, _) as caret_range = Path.mk_range(zipper);
   let filtered_selems = {
     let+ selems = filtered_selems(~frame_sort=Frame.sort(frame), subject);
