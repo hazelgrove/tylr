@@ -699,17 +699,18 @@ svg.rail line.unsorted {
 }
 #caret-bar {
   position: absolute;
-  width: 100%;
   height: 100%;
   top: 0;
-  left: -1px;
+  left: 0;
+  width: 2px;
+  transform: translate(-50%, 0%);
   z-index: var(--caret-bar-z);
 }
 #caret-bar.Exp {
-  border-left: 2px solid var(--exp-shadow-color);
+  background-color: var(--exp-shadow-color);
 }
 #caret-bar.Pat {
-  border-left: 2px solid var(--pat-shadow-color);
+  background-color: var(--pat-shadow-color);
 }
 #caret-bar.Exp.just-failed-0 {
   animation: failedexpbar0 var(--err-flash-duration);
@@ -726,35 +727,35 @@ svg.rail line.unsorted {
 
 @keyframes failedexpbar0 {
   0% {
-    border-left: 2px solid var(--hole-stroke-color);
+    background-color: var(--hole-stroke-color);
   }
   100% {
-    border-left: 2px solid var(--exp-shadow-color);
+    background-color: var(--exp-shadow-color);
   }
 }
 @keyframes failedexpbar1 {
   0% {
-    border-left: 2px solid var(--hole-stroke-color);
+    background-color: var(--hole-stroke-color);
   }
   100% {
-    border-left: 2px solid var(--exp-shadow-color);
+    background-color: var(--exp-shadow-color);
   }
 }
 
 @keyframes failedpatbar0 {
   0% {
-    border-left: 2px solid var(--hole-stroke-color);
+    background-color: var(--hole-stroke-color);
   }
   100% {
-    border-left: 2px solid var(--pat-shadow-color);
+    background-color: var(--pat-shadow-color);
   }
 }
 @keyframes failedpatbar1 {
   0% {
-    border-left: 2px solid var(--hole-stroke-color);
+    background-color: var(--hole-stroke-color);
   }
   100% {
-    border-left: 2px solid var(--pat-shadow-color);
+    background-color: var(--pat-shadow-color);
   }
 }
 
