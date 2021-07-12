@@ -272,19 +272,19 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
             ],
           ),
         ],
-        // [
-        //   keys_container([
-        //     key(~disabled=!is_exp_pointing, "?"),
-        //     key(~disabled=!is_exp_pointing, ":"),
-        //   ]),
-        //   construct_shape_row([disabled_if_not_exp_pointing("ifzero")]),
-        // ],
         [
           keys(~disabled=!is_pointing, ["(", ")"]),
           construct_shape_row(
             ~disabled=!is_pointing,
             [disabled_if_not_pointing("parentheses")],
           ),
+        ],
+        [
+          keys_container([
+            key(~disabled=!is_exp_pointing, "?"),
+            key(~disabled=!is_exp_pointing, ":"),
+          ]),
+          construct_shape_row([disabled_if_not_exp_pointing("ifzero")]),
         ],
         [
           keys(~disabled=!is_exp_pointing, ["\\", "="]),
