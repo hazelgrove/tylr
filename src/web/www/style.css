@@ -920,3 +920,21 @@ svg.rail line.unsorted {
 .delete-action-arrow {
   font-family: 'Fira Code';
 }
+
+#help {
+  position: absolute;
+  top: 50%;
+  right: max(16px, min(2%, 32px));
+  transform: translate(0%, -60%);
+}
+#help svg {
+  stroke-width: 0;
+  stroke: var(--light-text-color);
+  fill: var(--light-text-color);
+}
+#help:hover svg {
+  transform: scale(110%);
+}
+#help:active svg {
+  transform: scale(100%);
+}
