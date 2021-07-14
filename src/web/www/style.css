@@ -928,7 +928,8 @@ svg.rail line.unsorted {
   transform: translate(0%, -50%);
 }
 #help svg {
-  stroke-width: 0;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 0.5;
   stroke: var(--light-text-color);
   fill: var(--light-text-color);
 }
