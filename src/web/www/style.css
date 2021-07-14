@@ -218,7 +218,7 @@
   position: absolute;
   top: 50%;
   left: max(16px, min(2%, 32px));
-  transform: translate(0%, -60%);
+  transform: translate(0%, -50%);
   display: grid;
   grid-template-columns: auto auto;
   grid-template-rows: auto;
@@ -925,7 +925,7 @@ svg.rail line.unsorted {
   position: absolute;
   top: 50%;
   right: max(16px, min(2%, 32px));
-  transform: translate(0%, -60%);
+  transform: translate(0%, -50%);
 }
 #help svg {
   stroke-width: 0;

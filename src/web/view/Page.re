@@ -77,7 +77,7 @@ let redo = (~inject, ~disabled) => {
   );
 };
 
-let help_size = 24.;
+let help_size = 20.;
 
 let view = (~inject, model: Model.t) => {
   let Model.{
