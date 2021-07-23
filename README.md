@@ -1,4 +1,4 @@
-# tylr ![Build Status](https://github.com/hazelgrove/tylr/actions/workflows/deploy_branches.yml/badge.svg)
+# tylr ![Build Status](https://github.com/hazelgrove/tylr/actions/workflows/deploy-branches.yml/badge.svg)
 
 `tylr` is a tiny interactive demonstration of tile-based editing,
 a new kind of structure editing that, like text, supports
