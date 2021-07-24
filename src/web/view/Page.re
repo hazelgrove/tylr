@@ -119,28 +119,57 @@ let view = (~inject, model: Model.t) => {
           ),
           logo(~font_metrics=logo_font_metrics),
           div(
-            Attr.[
-              id("help"),
-              title("help"),
-              create(
-                "style",
-                Printf.sprintf(
-                  "width: %fpx; height: %fpx;",
-                  help_size,
-                  help_size,
-                ),
-              ),
-            ],
+            [Attr.id("about-button-container")],
             [
-              a(
+              div(
                 Attr.[
-                  href(
-                    "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
+                  id("github"),
+                  title("GitHub"),
+                  create(
+                    "style",
+                    Printf.sprintf(
+                      "width: %fpx; height: %fpx;",
+                      help_size,
+                      help_size,
+                    ),
                   ),
-                  create("target", "_blank"),
                 ],
-                [Icons.circle_question(help_size, help_size)],
-                // [Node.text("?")],
+                [
+                  a(
+                    Attr.[
+                      href("https://github.com/hazelgrove/tylr"),
+                      create("target", "_blank"),
+                    ],
+                    [Icons.github(help_size, help_size)],
+                    // [Node.text("?")],
+                  ),
+                ],
+              ),
+              div(
+                Attr.[
+                  id("help"),
+                  title("help"),
+                  create(
+                    "style",
+                    Printf.sprintf(
+                      "width: %fpx; height: %fpx;",
+                      help_size,
+                      help_size,
+                    ),
+                  ),
+                ],
+                [
+                  a(
+                    Attr.[
+                      href(
+                        "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
+                      ),
+                      create("target", "_blank"),
+                    ],
+                    [Icons.circle_question(help_size, help_size)],
+                    // [Node.text("?")],
+                  ),
+                ],
               ),
             ],
           ),

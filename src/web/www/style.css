@@ -921,12 +921,23 @@ svg.rail line.unsorted {
   font-family: 'Fira Code';
 }
 
-#help {
+#about-button-container {
   position: absolute;
   top: 50%;
   right: max(16px, min(2%, 32px));
   transform: translate(0%, -50%);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto;
+  column-gap: 16px;
 }
+
+/* #help {
+  position: absolute;
+  top: 50%;
+  right: max(16px, min(2%, 32px));
+  transform: translate(0%, -50%);
+} */
 #help svg {
   vector-effect: non-scaling-stroke;
   stroke-width: 0.5;
@@ -937,5 +948,18 @@ svg.rail line.unsorted {
   transform: scale(110%);
 }
 #help:active svg {
+  transform: scale(100%);
+}
+
+#github svg {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 0;
+  stroke: var(--light-text-color);
+  fill: var(--light-text-color);
+}
+#github:hover svg {
+  transform: scale(110%);
+}
+#github:active  svg {
   transform: scale(100%);
 }
