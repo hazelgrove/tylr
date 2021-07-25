@@ -7,3 +7,6 @@ deps:
 
 release:
 	dune build src --profile release
+
+echo-html:
+	@echo "$(shell pwd)/_build/default/src/web/www/index.html"
