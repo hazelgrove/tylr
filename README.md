@@ -1,4 +1,4 @@
-# tylr ![Build Status](https://github.com/hazelgrove/tylr/actions/workflows/deploy-branches.yml/badge.svg)
+# `tylr` ![Build Status](https://github.com/hazelgrove/tylr/actions/workflows/deploy-branches.yml/badge.svg)
 
 `tylr` is a tiny interactive demonstration of tile-based editing,
 a new kind of structure editing that, like text, supports
@@ -18,3 +18,16 @@ cross-tree portions of the AST.
 You can try `tylr` online by visiting [tylr.fun](https://tylr.fun).
 Click on the help button in the upper-right corner for a gif-laden
 Twitter thread on how it works.
+
+## Building and running `tylr` locally
+
+Install OPAM version ≥2.0 and use it to install OCaml 4.08.1 as described
+[here](https://ocaml.org/docs/install.html).
+
+Clone this repo, run the following commands in the root directory,
+and paste the output of the final command into your browser address bar.
+```sh
+make deps       # build dependencies
+make            # build tylr src
+make echo-html  # output path to compiled page
+```
