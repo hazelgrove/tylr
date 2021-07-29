@@ -14,7 +14,7 @@ Uniquely among structure editors, `tylr` lets you select and manipulate
 near-arbitrary range selections, including those corresponding to sub- and
 cross-tree portions of the AST.
 
-You can try `tylr` online by visiting [tylr.fun](https://tylr.fun).
+You can play with a running instance of this code at [tylr.fun](https://tylr.fun).
 Click on the help button in the upper-right corner for a gif-laden
 Twitter thread on how it works.
 
