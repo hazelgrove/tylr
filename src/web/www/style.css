@@ -50,6 +50,14 @@
   src: url('fonts/SourceCodePro-Bold.otf.woff2') format('woff2');
 }
 
+@font-face{
+  font-family: 'Source Code Pro';
+  font-weight: 900;
+  font-style: normal;
+  font-stretch: normal;
+  src: url('fonts/SourceCodePro-Black.otf.woff2') format('woff2');
+}
+
 :root {
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
@@ -475,6 +483,10 @@ svg.rail line.unsorted {
 .code .delim {
   color: var(--delim-color);
   font-weight: bold;
+}
+.code .paren {
+  color: var(--delim-color);
+  font-weight: 900;
 }
 .code .ap {
   color: var(--ap-color);
