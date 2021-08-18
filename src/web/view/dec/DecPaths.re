@@ -63,7 +63,7 @@ let root_term = ((subject, frame): Zipper.t) => {
     let (steps, skel) =
       switch (tframe) {
       | (prefix, []) =>
-        switch (Parser.zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
+        switch (Zipper.zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
         | None =>
           let tiles = List.rev(prefix);
           (Path.mk_steps(frame), skel_at(List.length(tiles) - 1, tiles));
