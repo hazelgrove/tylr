@@ -13,6 +13,7 @@ type t =
   | Cat(t, t)
   | Annot(annot, t)
 and annot =
+  | Paren
   | Delim
   | EmptyHole(Color.t, Tip.shape)
   | Ap
@@ -187,9 +188,9 @@ let selem_holes =
 
 let mk_Paren = (sort, body) =>
   cats([
-    delim("("),
+    annot(Paren, Text("(")),
     open_child(sort, ChildStep.paren_body, body),
-    delim(")"),
+    annot(Paren, Text(")")),
   ]);
 
 let mk_Lam = p =>

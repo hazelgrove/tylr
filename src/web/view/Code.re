@@ -119,6 +119,9 @@ let rec view_of_layout =
           [with_cls("ap", txt)],
           [ApDec.view(~font_metrics, {origin, length: 1}), ...ds],
         );
+      | Paren =>
+        let (txt, ds) = go'();
+        ([with_cls("paren", txt)], ds);
       | Delim =>
         let (txt, ds) = go'();
         ([with_cls("delim", txt)], ds);
