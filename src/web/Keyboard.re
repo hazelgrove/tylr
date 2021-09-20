@@ -132,6 +132,11 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowRight" => arrow_l_r(key, evt, zipper)
         | _ => []
         };
+      } else if (held(Ctrl) && !held(Alt) && !held(Meta)) {
+        switch (key) {
+        | "t" => [ToggleShowNeighborTiles]
+        | _ => []
+        };
       } else {
         [];
       };

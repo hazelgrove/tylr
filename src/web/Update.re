@@ -11,7 +11,8 @@ type t =
   | Undo
   | Redo
   | Escape(Direction.t)
-  | SetShowNeighborTiles(bool);
+  | SetShowNeighborTiles(bool)
+  | ToggleShowNeighborTiles;
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
 
@@ -34,6 +35,11 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
       ...model,
       history: ActionHistory.clear_just_failed(model.history),
       show_neighbor_tiles: b,
+    }
+  | ToggleShowNeighborTiles => {
+      ...model,
+      history: ActionHistory.clear_just_failed(model.history),
+      show_neighbor_tiles: !model.show_neighbor_tiles,
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
