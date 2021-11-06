@@ -13,8 +13,8 @@ let zip_up =
     let tile = Tile.Pat(Paren(get_pat()));
     let tframe = TupleUtil.map2(Tiles.of_pat, tframe);
     Some((tile, tframe, Pat(frame)));
-  | Pat(Lam_pat((tframe, frame))) =>
-    let tile = Tile.Exp(Lam(get_pat()));
+  | Pat(Lam_pat(body, (tframe, frame))) =>
+    let tile = Tile.Exp(Lam(get_pat(), body));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
     Some((tile, tframe, Exp(frame)));
   | Pat(Let_pat(def, (tframe, frame))) =>
@@ -23,6 +23,14 @@ let zip_up =
     Some((tile, tframe, Exp(frame)));
   | Exp(Paren_body((tframe, frame))) =>
     let tile = Tile.Exp(Paren(get_exp()));
+    let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    Some((tile, tframe, Exp(frame)));
+  | Exp(Ap_arg((tframe, frame))) =>
+    let tile = Tile.Exp(Ap(get_exp()));
+    let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
+    Some((tile, tframe, Exp(frame)));
+  | Exp(Lam_body(p, (tframe, frame))) =>
+    let tile = Tile.Exp(Lam(p, get_exp()));
     let tframe = TupleUtil.map2(Tiles.of_exp, tframe);
     Some((tile, tframe, Exp(frame)));
   | Exp(Let_def(p, (tframe, frame))) =>

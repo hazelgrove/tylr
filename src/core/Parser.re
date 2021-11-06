@@ -7,6 +7,9 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
     | Selem.Shard(Pat(_)) => []
     | Shard(Exp(shard)) =>
       switch (shard) {
+      | Lam_lam_open(p) =>
+        [Selem.Shard(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
+        @ [Shard(Exp(Lam_open))]
       | Let_let_eq(p) =>
         [Selem.Shard(Exp(Let_let)), ...Selection.of_tiles_pat(p)]
         @ [Shard(Exp(Let_eq))]
@@ -33,14 +36,19 @@ let disassemble_selem = (d: Direction.t, selem: Selem.t): Selection.t => {
       | Minus
       | Times
       | Div
-      | Prod
-      | Ap => []
+      | Prod => []
       | Paren(body) =>
         [Selem.Shard(Exp(Paren_l)), ...Selection.of_tiles_exp(body)]
         @ [Shard(Exp(Paren_r))]
-      | Lam(p) =>
-        [Selem.Shard(Exp(Lam_lam)), ...Selection.of_tiles_pat(p)]
-        @ [Shard(Exp(Lam_dot))]
+      | Ap(arg) =>
+        [Selem.Shard(Exp(Ap_l)), ...Selection.of_tiles_exp(arg)]
+        @ [Shard(Exp(Ap_r))]
+      | Lam(p, body) =>
+        [
+          Selem.Shard(Exp(Lam_lam_open(p))),
+          ...Selection.of_tiles_exp(body),
+        ]
+        @ [Shard(Exp(Lam_close))]
       | Let(p, def) =>
         [Selem.Shard(Exp(Let_let_eq(p))), ...Selection.of_tiles_exp(def)]
         @ [Shard(Exp(Let_in))]
@@ -79,10 +87,29 @@ let assemble_selem =
   | (Right, (Exp(Paren_l), [(body, Exp(Paren_r))])) =>
     let+ body = Tiles.get_exp(child(body));
     Selem.Tile(Exp(Paren(body)));
-  | (Left, (Exp(Lam_dot), [(p, Exp(Lam_lam))]))
-  | (Right, (Exp(Lam_lam), [(p, Exp(Lam_dot))])) =>
+  | (Left, (Exp(Ap_r), [(body, Exp(Ap_l))]))
+  | (Right, (Exp(Ap_l), [(body, Exp(Ap_r))])) =>
+    let+ body = Tiles.get_exp(child(body));
+    Selem.Tile(Exp(Paren(body)));
+  | (Left, (Exp(Lam_open), [(p, Exp(Lam_lam))]))
+  | (Right, (Exp(Lam_lam), [(p, Exp(Lam_open))])) =>
     let+ p = Tiles.get_pat(child(p));
-    Selem.Tile(Exp(Lam(p)));
+    Selem.Shard(Exp(Lam_lam_open(p)));
+  | (
+      Left,
+      (Exp(Lam_close), [(body, Exp(Lam_open)), (p, Exp(Lam_lam))]),
+    )
+  | (
+      Right,
+      (Exp(Lam_lam), [(p, Exp(Lam_open)), (body, Exp(Lam_close))]),
+    ) =>
+    let+ p = Tiles.get_pat(p)
+    and+ body = Tiles.get_exp(child(body));
+    Selem.Tile(Exp(Lam(p, body)));
+  | (Left, (Exp(Lam_close), [(body, Exp(Lam_lam_open(p)))]))
+  | (Right, (Exp(Lam_lam_open(p)), [(body, Exp(Lam_close))])) =>
+    let+ body = Tiles.get_exp(child(body));
+    Selem.Tile(Exp(Lam(p, body)));
   | (Left, (Exp(Let_eq), [(p, Exp(Let_let))]))
   | (Right, (Exp(Let_let), [(p, Exp(Let_eq))])) =>
     let+ p = Tiles.get_pat(child(p));
@@ -155,15 +182,14 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
         ...Selection.of_tiles_pat(suffix),
       ];
       Some(((prefix, suffix), Pat(frame)));
-    | Lam_pat(((prefix, suffix), frame)) =>
+    | Lam_pat(body, ((prefix, suffix), frame)) =>
       let prefix = [
         Selem.Shard(Exp(Lam_lam)),
         ...Selection.of_tiles_exp(prefix),
       ];
-      let suffix = [
-        Selem.Shard(Exp(Lam_dot)),
-        ...Selection.of_tiles_exp(suffix),
-      ];
+      let suffix =
+        [Selem.Shard(Exp(Lam_open)), ...Selection.of_tiles_exp(body)]
+        @ [Selem.Shard(Exp(Lam_close)), ...Selection.of_tiles_exp(suffix)];
       Some(((prefix, suffix), Exp(frame)));
     | Let_pat(def, ((prefix, suffix), frame)) =>
       let prefix = [
@@ -185,6 +211,26 @@ let disassemble_frame: Frame.t => option((Selection.frame, Frame.t)) =
       ];
       let suffix = [
         Selem.Shard(Exp(Paren_r)),
+        ...Selection.of_tiles_exp(suffix),
+      ];
+      Some(((prefix, suffix), Exp(frame)));
+    | Ap_arg(((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Exp(Ap_l)),
+        ...Selection.of_tiles_exp(prefix),
+      ];
+      let suffix = [
+        Selem.Shard(Exp(Ap_r)),
+        ...Selection.of_tiles_exp(suffix),
+      ];
+      Some(((prefix, suffix), Exp(frame)));
+    | Lam_body(p, ((prefix, suffix), frame)) =>
+      let prefix = [
+        Selem.Shard(Exp(Lam_lam_open(p))),
+        ...Selection.of_tiles_exp(prefix),
+      ];
+      let suffix = [
+        Selem.Shard(Exp(Lam_close)),
         ...Selection.of_tiles_exp(suffix),
       ];
       Some(((prefix, suffix), Exp(frame)));
@@ -224,10 +270,14 @@ let assemble_frame =
     let+ prefix = Tiles.get_pat(prefix)
     and+ suffix = Tiles.get_pat(suffix);
     Frame.Pat(Paren_body(((prefix, suffix), frame)));
-  | (((Exp(Lam_lam), []), (Exp(Lam_dot), [])), Exp(frame)) =>
-    let+ prefix = Tiles.get_exp(prefix)
+  | (
+      ((Exp(Lam_lam), []), (Exp(Lam_open), [(body, Exp(Lam_close))])),
+      Exp(frame),
+    ) =>
+    let+ body = Tiles.get_exp(body)
+    and+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
-    Frame.Pat(Lam_pat(((prefix, suffix), frame)));
+    Frame.Pat(Lam_pat(body, ((prefix, suffix), frame)));
   | (
       ((Exp(Let_let), []), (Exp(Let_eq), [(def, Exp(Let_in))])),
       Exp(frame),
@@ -240,6 +290,10 @@ let assemble_frame =
     let+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
     Frame.Exp(Paren_body(((prefix, suffix), frame)));
+  | (((Exp(Lam_lam_open(p)), []), (Exp(Lam_close), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Lam_body(p, ((prefix, suffix), frame)));
   | (((Exp(Let_let_eq(p)), []), (Exp(Let_in), [])), Exp(frame)) =>
     let+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);

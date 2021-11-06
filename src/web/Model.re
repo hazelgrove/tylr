@@ -12,34 +12,7 @@ let cutoff = (===);
 
 let init = () => {
   zipper: (
-    Subject.Pointing((
-      [],
-      Selem.[
-        Tile(
-          Exp(
-            Let(
-              [Var("c")],
-              [
-                Lam([Var("m"), Prod, Var("n")]),
-                Var("m"),
-                Fact,
-                Div,
-                Paren([
-                  Var("n"),
-                  Fact,
-                  Times,
-                  Paren([Var("m"), Minus, Var("n")]),
-                  Fact,
-                ]),
-              ],
-            ),
-          ),
-        ),
-        Tile(Exp(Var("c"))),
-        Tile(Exp(Ap)),
-        Tile(Exp(Paren([Num(9), Prod, Num(3)]))),
-      ],
-    )),
+    Subject.Pointing(([], Selem.[Tile(Exp(OpHole))])),
     Frame.Exp(Root),
   ),
   history: ActionHistory.empty,

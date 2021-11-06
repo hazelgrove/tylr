@@ -90,14 +90,14 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | Pat => [p(Construct(Shard(Pat(Paren_r))))]
           | Exp => [p(Construct(Shard(Exp(Paren_r))))]
           }
-        | "\\" => [p(Construct(Tile(Exp(Lam([OpHole])))))]
+        | "\\" => [p(Construct(Tile(Exp(Lam([OpHole], [OpHole])))))]
         | "=" => [p(Construct(Tile(Exp(Let([OpHole], [OpHole])))))]
         | "," =>
           switch (zipper) {
           | (_, Pat(_)) => [p(Construct(Tile(Pat(Prod))))]
           | (_, Exp(_)) => [p(Construct(Tile(Exp(Prod))))]
           }
-        | " " => [p(Construct(Tile(Exp(Ap))))]
+        | "[" => [p(Construct(Tile(Exp(Ap([OpHole])))))]
         | "Escape" => [Update.escape()]
         | "?" => [p(Construct(Shard(Exp(Cond_que))))]
         | ":" => [p(Construct(Shard(Exp(Cond_col))))]

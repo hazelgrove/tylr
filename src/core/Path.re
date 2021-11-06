@@ -31,11 +31,13 @@ let rec mk_steps = (~steps=[], frame: Frame.t): steps => {
   |> Frame.get(
        fun
        | Frame_pat.Paren_body(s) => mk_pat_s(ChildStep.paren_body, s)
-       | Lam_pat(s) => mk_exp_s(ChildStep.lam_pat, s)
+       | Lam_pat(_, s) => mk_exp_s(ChildStep.lam_pat, s)
        | Let_pat(_, s) => mk_exp_s(ChildStep.let_pat, s),
        fun
        | Frame_exp.Root => steps
        | Paren_body(s) => mk_exp_s(ChildStep.paren_body, s)
+       | Ap_arg(s) => mk_exp_s(ChildStep.ap_arg, s)
+       | Lam_body(_, s) => mk_exp_s(ChildStep.lam_body, s)
        | Let_def(_, s) => mk_exp_s(ChildStep.let_def, s)
        | Cond_then(s) => mk_exp_s(ChildStep.cond_then, s),
      );
@@ -83,10 +85,10 @@ let get_child_steps =
       | Minus
       | Times
       | Div
-      | Prod
-      | Ap => []
+      | Prod => []
       | Paren(_) => [ChildStep.paren_body]
-      | Lam(_) => [ChildStep.lam_pat]
+      | Ap(_) => [ChildStep.ap_arg]
+      | Lam(_) => ChildStep.[lam_pat, lam_body]
       | Let(_) => ChildStep.[let_pat, let_def]
       | Cond(_) => [ChildStep.cond_then],
     ),
