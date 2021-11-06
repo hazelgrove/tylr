@@ -45,7 +45,7 @@ let associativity =
     (4, Left),
     (5, Right),
     (6, Right),
-    (9, Left),
+    (7, Right),
   ]
   |> List.to_seq
   |> IntMap.of_seq;
