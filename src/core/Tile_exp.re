@@ -32,11 +32,11 @@ let precedence: t => int =
   | Div => 3
   | Plus
   | Minus => 4
-  | Prod => 5
-  | Cond(_) => 6
-  | Lam(_) => 7
-  | Let(_) => 8
-  | BinHole => 9;
+  | BinHole => 5
+  | Prod => 6
+  | Cond(_) => 7
+  | Lam(_) => 8
+  | Let(_) => 9;
 
 let associativity =
   [
