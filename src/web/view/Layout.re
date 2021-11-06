@@ -186,12 +186,11 @@ let selem_holes =
         },
   );
 
+let paren_l = annot(Paren, Text("("));
+let paren_r = annot(Paren, Text(")"));
+
 let mk_Paren = (sort, body) =>
-  cats([
-    annot(Paren, Text("(")),
-    open_child(sort, ChildStep.paren_body, body),
-    annot(Paren, Text(")")),
-  ]);
+  cats([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
 
 let mk_Lam = p =>
   cats([
@@ -297,11 +296,11 @@ and mk_tile = t =>
 let mk_token =
   Shard.get(
     fun
-    | Shard_pat.Paren_l => delim("(")
-    | Paren_r => delim(")"),
+    | Shard_pat.Paren_l => paren_l
+    | Paren_r => paren_r,
     fun
-    | Shard_exp.Paren_l => delim("(")
-    | Paren_r => delim(")")
+    | Shard_exp.Paren_l => paren_l
+    | Paren_r => paren_r
     | Lam_lam => delim(Unicode.lam)
     | Lam_dot => delim(".")
     | Let_let => delim("let")
