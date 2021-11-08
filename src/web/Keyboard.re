@@ -81,14 +81,32 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "*" => [p(Construct(Tile(Exp(Times))))]
         | "/" => [p(Construct(Tile(Exp(Div))))]
         | "(" =>
-          switch (frame_sort) {
-          | Pat => [p(Construct(Shard(Pat(Paren_l))))]
-          | Exp => [p(Construct(Shard(Exp(Paren_l))))]
+          switch (fst(zipper)) {
+          | Restructuring((
+              (_, [Shard(Pat(Paren_l) | Exp(Paren_l))], _),
+              _,
+            )) => [
+              p(Mark),
+            ]
+          | _ =>
+            switch (frame_sort) {
+            | Pat => [p(Construct(Shard(Pat(Paren_l))))]
+            | Exp => [p(Construct(Shard(Exp(Paren_l))))]
+            }
           }
         | ")" =>
-          switch (frame_sort) {
-          | Pat => [p(Construct(Shard(Pat(Paren_r))))]
-          | Exp => [p(Construct(Shard(Exp(Paren_r))))]
+          switch (fst(zipper)) {
+          | Restructuring((
+              (_, [Shard(Pat(Paren_r) | Exp(Paren_r))], _),
+              _,
+            )) => [
+              p(Mark),
+            ]
+          | _ =>
+            switch (frame_sort) {
+            | Pat => [p(Construct(Shard(Pat(Paren_r))))]
+            | Exp => [p(Construct(Shard(Exp(Paren_r))))]
+            }
           }
         | "\\" => [p(Construct(Tile(Exp(Lam([OpHole])))))]
         | "=" => [p(Construct(Tile(Exp(Let([OpHole], [OpHole])))))]
@@ -99,8 +117,20 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           }
         | " " => [p(Construct(Tile(Exp(Ap))))]
         | "Escape" => [Update.escape()]
-        | "?" => [p(Construct(Shard(Exp(Cond_que))))]
-        | ":" => [p(Construct(Shard(Exp(Cond_col))))]
+        | "?" =>
+          switch (fst(zipper)) {
+          | Restructuring(((_, [Shard(Exp(Cond_que))], _), _)) => [
+              p(Mark),
+            ]
+          | _ => [p(Construct(Shard(Exp(Cond_que))))]
+          }
+        | ":" =>
+          switch (fst(zipper)) {
+          | Restructuring(((_, [Shard(Exp(Cond_col))], _), _)) => [
+              p(Mark),
+            ]
+          | _ => [p(Construct(Shard(Exp(Cond_col))))]
+          }
         | "!" => [p(Construct(Tile(Exp(Fact))))]
         | _ when is_num(key) => [
             p(Construct(Tile(Exp(Num(int_of_string(key)))))),
