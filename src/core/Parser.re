@@ -440,31 +440,69 @@ let is_backpack_whole =
 let is_backpack_whole_any = backpack =>
   is_backpack_whole(Pat, backpack) || is_backpack_whole(Exp, backpack);
 
+let rec fix_holes_relems =
+        (ltip: Tip.t, affix: list(Restructuring.frame_elem))
+        : (list(Restructuring.frame_elem), Tip.t) =>
+  switch (affix) {
+  | [] => ([], Tip.toggle(ltip))
+  | [relem, ...affix] =>
+    switch (relem) {
+    | Tile(tile) when Tile.is_hole(tile) =>
+      // skip holes
+      fix_holes_relems(ltip, affix)
+    | _ =>
+      let (fixed, rtip) =
+        fix_holes_relems(
+          Tip.toggle(Restructuring.tip(Right, relem)),
+          affix,
+        );
+      let inserted_hole =
+        // relies on invariant that reachable selections are sort-consistent
+        Restructuring.tip(Left, relem) == ltip
+          ? [] : [Restructuring.Tile(Tile.mk_hole(ltip))];
+      (inserted_hole @ [relem, ...fixed], rtip);
+    }
+  };
+
+/**
+ * rushed impl for maintaining selection
+ * upon emptying backpack
+ */
+let fix_holes_selection = (ltip, selection, (prefix, suffix), rtip) => {
+  let (fixed_prefix, rtip_prefix) =
+    fix_holes_relems(ltip, List.rev(prefix));
+  let (prefix_hd, rtip_prefix) = {
+    // put hole on prefix instead of selection
+    let ltip_selection = Tip.toggle(rtip_prefix);
+    ltip_selection == Selem.tip(Left, List.hd(selection))
+      ? ([], rtip_prefix)
+      : (
+        Restructuring.mk_relems([Selem.Tile(Tile.mk_hole(ltip_selection))]),
+        ltip_selection,
+      );
+  };
+  let (fixed_selection, rtip_selection) =
+    fix_holes_relems(
+      Tip.toggle(rtip_prefix),
+      Restructuring.mk_relems(selection),
+    );
+  let (fixed_suffix, rtip_suffix) =
+    fix_holes_relems(Tip.toggle(rtip_selection), suffix);
+  let suffix_end =
+    rtip_suffix == rtip ? [] : [Restructuring.Tile(Tile.mk_hole(rtip))];
+  (
+    fixed_selection,
+    (List.rev(fixed_prefix @ prefix_hd), fixed_suffix @ suffix_end),
+  );
+};
+
 let fix_holes_rframe =
     (ltip: Tip.t, (prefix, suffix): Restructuring.frame, rtip: Tip.t)
     : Restructuring.frame => {
-  let rec fix =
-          (ltip: Tip.t, affix: list(Restructuring.frame_elem))
-          : (list(Restructuring.frame_elem), Tip.t) =>
-    switch (affix) {
-    | [] => ([], Tip.toggle(ltip))
-    | [relem, ...affix] =>
-      switch (relem) {
-      | Tile(tile) when Tile.is_hole(tile) =>
-        // skip holes
-        fix(ltip, affix)
-      | _ =>
-        let (fixed, rtip) =
-          fix(Tip.toggle(Restructuring.tip(Right, relem)), affix);
-        let inserted_hole =
-          // relies on invariant that reachable selections are sort-consistent
-          Restructuring.tip(Left, relem) == ltip
-            ? [] : [Restructuring.Tile(Tile.mk_hole(ltip))];
-        (inserted_hole @ [relem, ...fixed], rtip);
-      }
-    };
-  let (fixed_prefix, rtip_prefix) = fix(ltip, List.rev(prefix));
-  let (fixed_suffix, rtip_suffix) = fix(Tip.toggle(rtip_prefix), suffix);
+  let (fixed_prefix, rtip_prefix) =
+    fix_holes_relems(ltip, List.rev(prefix));
+  let (fixed_suffix, rtip_suffix) =
+    fix_holes_relems(Tip.toggle(rtip_prefix), suffix);
   let inserted_hole =
     rtip_suffix == rtip ? [] : [Restructuring.Tile(Tile.mk_hole(rtip))];
   (List.rev(fixed_prefix), fixed_suffix @ inserted_hole);
