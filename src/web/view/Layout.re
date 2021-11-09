@@ -410,6 +410,7 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   };
   let shape_op = Tip.((Convex, 0), (Convex, 0));
   let shape_pre = Tip.((Convex, 0), (Concave, 0));
+  let shape_post = Tip.((Concave, 0), (Convex, 0));
   let shape_bin = Tip.((Concave, 0), (Concave, 0));
   switch (frame) {
   | Pat(Paren_body(frame_s)) =>
@@ -420,16 +421,16 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     mk_frame_exp((tile, shape_pre), frame_s);
   | Pat(Let_pat(def, frame_s)) =>
     let tile = mk_Let(subject, pad_spaces(Exp, mk_tiles_exp(def)));
-    mk_frame_exp((tile, shape_pre), frame_s);
+    mk_frame_exp((tile, shape_op), frame_s);
   | Exp(Paren_body(frame_s)) =>
     let tile = mk_Paren(Exp, subject);
     mk_frame_exp((tile, shape_op), frame_s);
   | Exp(Ap_arg(frame_s)) =>
     let tile = mk_Ap(subject);
-    mk_frame_exp((tile, shape_op), frame_s);
+    mk_frame_exp((tile, shape_post), frame_s);
   | Exp(Lam_body(p, frame_s)) =>
     let tile = mk_Lam(pad_spaces(Pat, mk_tiles_pat(p)), subject);
-    mk_frame_exp((tile, shape_pre), frame_s);
+    mk_frame_exp((tile, shape_op), frame_s);
   | Exp(Let_def(p, frame_s)) =>
     let tile = mk_Let(pad_spaces(Pat, mk_tiles_pat(p)), subject);
     mk_frame_exp((tile, shape_pre), frame_s);
