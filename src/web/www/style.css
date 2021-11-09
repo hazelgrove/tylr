@@ -483,7 +483,7 @@ svg.rail line.unsorted {
   color: var(--delim-color);
   font-weight: bold;
 }
-.code .paren {
+.code .extra-bold-delim {
   color: var(--delim-color);
   font-weight: 900;
 }

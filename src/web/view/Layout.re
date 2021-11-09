@@ -13,7 +13,7 @@ type t =
   | Cat(t, t)
   | Annot(annot, t)
 and annot =
-  | Paren
+  | ExtraBoldDelim
   | Delim
   | EmptyHole(Color.t, Tip.shape)
   | Ap
@@ -47,6 +47,7 @@ let cats =
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cats;
 
 let delim = s => annot(Delim, Text(s));
+let extra_bold_delim = s => annot(ExtraBoldDelim, Text(s));
 let empty_hole = (color, tip) =>
   annot(EmptyHole(color, tip), Text(Unicode.nbsp));
 let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
@@ -186,22 +187,29 @@ let selem_holes =
         },
   );
 
-let paren_l = annot(Paren, Text("("));
-let paren_r = annot(Paren, Text(")"));
+let paren_l = extra_bold_delim("(");
+let paren_r = extra_bold_delim(")");
+
+let ap_l = extra_bold_delim("[");
+let ap_r = extra_bold_delim("]");
+
+let lam_lam = extra_bold_delim("\\");
+let lam_open = extra_bold_delim("{");
+let lam_close = extra_bold_delim("}");
 
 let mk_Paren = (sort, body) =>
   cats([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
 
 let mk_Ap = arg =>
-  cats([delim("["), open_child(Exp, ChildStep.ap_arg, arg), delim("]")]);
+  cats([ap_l, open_child(Exp, ChildStep.ap_arg, arg), ap_r]);
 
 let mk_Lam = (p, body) =>
   cats([
-    delim("\\"),
+    lam_lam,
     closed_child((Exp, Pat), ChildStep.lam_pat, p),
-    delim("{"),
+    lam_open,
     open_child(Exp, ChildStep.lam_body, body),
-    delim("}"),
+    lam_close,
   ]);
 
 let mk_Let = (p, def) => {
@@ -308,21 +316,21 @@ let mk_token =
     fun
     | Shard_exp.Paren_l => paren_l
     | Paren_r => paren_r
-    | Ap_l => delim("[")
-    | Ap_r => delim("]")
-    | Lam_lam => delim("\\")
-    | Lam_open => delim("{")
+    | Ap_l => ap_l
+    | Ap_r => ap_r
+    | Lam_lam => lam_lam
+    | Lam_open => lam_open
     | Lam_lam_open(p) =>
       cats([
-        delim("\\"),
+        lam_lam,
         closed_child(
           (Exp, Pat),
           ChildStep.lam_pat,
           pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
         ),
-        delim("{"),
+        lam_open,
       ])
-    | Lam_close => delim("}")
+    | Lam_close => lam_close
     | Let_let => delim("let")
     | Let_eq => delim("=")
     | Let_let_eq(p) =>
