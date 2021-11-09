@@ -418,10 +418,10 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     mk_frame_pat((tile, shape_op), frame_s);
   | Pat(Lam_pat(body, frame_s)) =>
     let tile = mk_Lam(subject, pad_spaces(Exp, mk_tiles_exp(body)));
-    mk_frame_exp((tile, shape_pre), frame_s);
+    mk_frame_exp((tile, shape_op), frame_s);
   | Pat(Let_pat(def, frame_s)) =>
     let tile = mk_Let(subject, pad_spaces(Exp, mk_tiles_exp(def)));
-    mk_frame_exp((tile, shape_op), frame_s);
+    mk_frame_exp((tile, shape_pre), frame_s);
   | Exp(Paren_body(frame_s)) =>
     let tile = mk_Paren(Exp, subject);
     mk_frame_exp((tile, shape_op), frame_s);
