@@ -87,10 +87,10 @@ let assemble_selem =
   | (Right, (Exp(Paren_l), [(body, Exp(Paren_r))])) =>
     let+ body = Tiles.get_exp(child(body));
     Selem.Tile(Exp(Paren(body)));
-  | (Left, (Exp(Ap_r), [(body, Exp(Ap_l))]))
-  | (Right, (Exp(Ap_l), [(body, Exp(Ap_r))])) =>
-    let+ body = Tiles.get_exp(child(body));
-    Selem.Tile(Exp(Paren(body)));
+  | (Left, (Exp(Ap_r), [(arg, Exp(Ap_l))]))
+  | (Right, (Exp(Ap_l), [(arg, Exp(Ap_r))])) =>
+    let+ arg = Tiles.get_exp(child(arg));
+    Selem.Tile(Exp(Ap(arg)));
   | (Left, (Exp(Lam_open), [(p, Exp(Lam_lam))]))
   | (Right, (Exp(Lam_lam), [(p, Exp(Lam_open))])) =>
     let+ p = Tiles.get_pat(child(p));
@@ -290,6 +290,10 @@ let assemble_frame =
     let+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
     Frame.Exp(Paren_body(((prefix, suffix), frame)));
+  | (((Exp(Ap_l), []), (Exp(Ap_r), [])), Exp(frame)) =>
+    let+ prefix = Tiles.get_exp(prefix)
+    and+ suffix = Tiles.get_exp(suffix);
+    Frame.Exp(Ap_arg(((prefix, suffix), frame)));
   | (((Exp(Lam_lam_open(p)), []), (Exp(Lam_close), [])), Exp(frame)) =>
     let+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
