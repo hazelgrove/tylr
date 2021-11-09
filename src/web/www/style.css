@@ -61,7 +61,7 @@
 :root {
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
-  --delim-color: #657b83;
+  --delim-color: #586e75; /*#aeb5b8;*/ /*#657b83;*/
   --ap-color: #aeb5b8;
 
   --unselected-tessera-color: #fff1f7;
