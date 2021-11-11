@@ -75,6 +75,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         //     ]
         //   | (Restructuring(_), _) => [p(Mark)]
         //   }
+        | "Tab" => []
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
         | "+" => [p(Construct(Tile(Exp(Plus))))]
@@ -214,6 +215,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         [];
       };
     switch (updates) {
+    | [] when key == "Tab" => Event.Prevent_default
     | [] => Event.Many([])
     | [_, ..._] =>
       Event.(
