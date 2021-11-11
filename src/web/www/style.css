@@ -853,6 +853,7 @@ svg.rail line.unsorted {
   column-gap: 16px;
   color: var(--action-text-color);
   z-index: var(--action-table-z);
+  display: none;
 }
 
 #action-table .keys-container {
