@@ -48,32 +48,32 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         switch (key) {
         | "ArrowLeft"
         | "ArrowRight" => arrow_l_r(key, evt, zipper)
-        | "ArrowUp" =>
-          switch (zipper) {
-          | (Pointing(_) | Selecting(_, [], _), _) => [
-              FailedInput(Failure(Cant_move)),
-            ]
-          | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
-          | (Restructuring((_, rframe)), _) =>
-            switch (rframe) {
-            | ([Selection(selection), ..._], _)
-                when Option.is_some(Selection.is_restructurable(selection)) => [
-                p(Move(Left)),
-              ]
-            | (_, [Selection(selection), ..._])
-                when Option.is_some(Selection.is_restructurable(selection)) => [
-                p(Move(Right)),
-              ]
-            | _ => [FailedInput(Failure(Cant_move))]
-            }
-          }
-        | "ArrowDown" =>
-          switch (zipper) {
-          | (Pointing(_) | Selecting(_), _) => [
-              FailedInput(Failure(Cant_move)),
-            ]
-          | (Restructuring(_), _) => [p(Mark)]
-          }
+        // | "ArrowUp" =>
+        //   switch (zipper) {
+        //   | (Pointing(_) | Selecting(_, [], _), _) => [
+        //       FailedInput(Failure(Cant_move)),
+        //     ]
+        //   | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
+        //   | (Restructuring((_, rframe)), _) =>
+        //     switch (rframe) {
+        //     | ([Selection(selection), ..._], _)
+        //         when Option.is_some(Selection.is_restructurable(selection)) => [
+        //         p(Move(Left)),
+        //       ]
+        //     | (_, [Selection(selection), ..._])
+        //         when Option.is_some(Selection.is_restructurable(selection)) => [
+        //         p(Move(Right)),
+        //       ]
+        //     | _ => [FailedInput(Failure(Cant_move))]
+        //     }
+        //   }
+        // | "ArrowDown" =>
+        //   switch (zipper) {
+        //   | (Pointing(_) | Selecting(_), _) => [
+        //       FailedInput(Failure(Cant_move)),
+        //     ]
+        //   | (Restructuring(_), _) => [p(Mark)]
+        //   }
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
         | "+" => [p(Construct(Tile(Exp(Plus))))]
@@ -154,6 +154,32 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         switch (key) {
         | "z"
         | "Z" => held(Shift) ? [Redo] : [Undo]
+        | "x" =>
+          switch (zipper) {
+          | (Pointing(_) | Selecting(_, [], _), _) => [
+              FailedInput(Failure(Cant_move)),
+            ]
+          | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
+          | (Restructuring((_, rframe)), _) =>
+            switch (rframe) {
+            | ([Selection(selection), ..._], _)
+                when Option.is_some(Selection.is_restructurable(selection)) => [
+                p(Move(Left)),
+              ]
+            | (_, [Selection(selection), ..._])
+                when Option.is_some(Selection.is_restructurable(selection)) => [
+                p(Move(Right)),
+              ]
+            | _ => [FailedInput(Failure(Cant_move))]
+            }
+          }
+        | "v" =>
+          switch (zipper) {
+          | (Pointing(_) | Selecting(_), _) => [
+              FailedInput(Failure(Cant_move)),
+            ]
+          | (Restructuring(_), _) => [p(Mark)]
+          }
         | _ => []
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {
