@@ -142,6 +142,7 @@
   top: min(max(8px, 4%), 24px);
   width: 100vw;
   height: 40px;
+  visibility: hidden;
 }
 
 #logo {
