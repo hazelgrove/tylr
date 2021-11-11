@@ -42,7 +42,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keydown(evt => {
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
-    let frame_sort = Frame.sort(snd(zipper));
+    let frame = snd(zipper);
+    let frame_sort = Frame.sort(frame);
     let updates: list(Update.t) =
       if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
         switch (key) {
@@ -95,12 +96,18 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
             }
           }
         | ")" =>
-          switch (fst(zipper)) {
-          | Restructuring((
-              (_, [Shard(Pat(Paren_r) | Exp(Paren_r))], _),
+          switch (zipper) {
+          | (
+              Restructuring((
+                (_, [Shard(Pat(Paren_r) | Exp(Paren_r))], _),
+                _,
+              )),
               _,
-            )) => [
+            ) => [
               p(Mark),
+            ]
+          | (Pointing((_, [])), Pat(Paren_body(_)) | Exp(Paren_body(_))) => [
+              p(Move(Right)),
             ]
           | _ =>
             switch (frame_sort) {
@@ -116,7 +123,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | (_, Exp(_)) => [p(Construct(Tile(Exp(Prod))))]
           }
         | "[" => [p(Construct(Shard(Exp(Ap_l))))]
-        | "]" => [p(Construct(Shard(Exp(Ap_r))))]
+        | "]" =>
+          switch (zipper) {
+          | (Pointing((_, [])), Exp(Ap_arg(_))) => [p(Move(Right))]
+          | _ => [p(Construct(Shard(Exp(Ap_r))))]
+          }
+        | "}" =>
+          switch (zipper) {
+          | (Pointing((_, [])), Exp(Lam_body(_))) => [p(Move(Right))]
+          | _ => []
+          }
         | "Escape" => [Update.escape()]
         | "?" =>
           switch (fst(zipper)) {
