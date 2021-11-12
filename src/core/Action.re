@@ -380,28 +380,28 @@ let perform =
         };
         switch (rest) {
         | [] =>
-          // let rframe =
-          //   fix_holes_rframe((prefix, [Selection(selection), ...suffix]));
-          // let (prefix, suffix) = Restructuring.get_sframe(rframe);
-          // let prefix = Parser.parse_selection(Left, prefix);
-          // let suffix = Parser.parse_selection(Right, suffix);
-          // let (sframe, frame) =
-          //   Parser.parse_zipper((prefix, suffix), frame);
-          // Ok((Pointing(sframe), frame));
-          let (selection, rframe) = {
-            let tip = (Tip.Convex, frame_sort);
-            Parser.fix_holes_selection(
-              tip,
-              selection,
-              (prefix, suffix),
-              tip,
-            );
-          };
-          let (_, selection) = Restructuring.get_sframe(([], selection));
+          let rframe =
+            fix_holes_rframe((prefix, [Selection(selection), ...suffix]));
           let (prefix, suffix) = Restructuring.get_sframe(rframe);
           let prefix = Parser.parse_selection(Left, prefix);
           let suffix = Parser.parse_selection(Right, suffix);
-          Ok((Selecting(Left, selection, (prefix, suffix)), frame));
+          let (sframe, frame) =
+            Parser.parse_zipper((prefix, suffix), frame);
+          Ok((Pointing(sframe), frame));
+        // let (selection, rframe) = {
+        //   let tip = (Tip.Convex, frame_sort);
+        //   Parser.fix_holes_selection(
+        //     tip,
+        //     selection,
+        //     (prefix, suffix),
+        //     tip,
+        //   );
+        // };
+        // let (_, selection) = Restructuring.get_sframe(([], selection));
+        // let (prefix, suffix) = Restructuring.get_sframe(rframe);
+        // let prefix = Parser.parse_selection(Left, prefix);
+        // let suffix = Parser.parse_selection(Right, suffix);
+        // Ok((Selecting(Left, selection, (prefix, suffix)), frame));
         | [selection', ...rest'] =>
           let rframe =
             switch (d_backpack) {
