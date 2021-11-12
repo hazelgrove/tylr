@@ -439,3 +439,120 @@ let perform =
     }
   };
 };
+
+let move_to_next_hole =
+    (d: Direction.t, zipper: Zipper.t): Result.t(Zipper.t, Failure.t) => {
+  let* prepared =
+    switch (d, zipper) {
+    | (_, (Selecting(_), _)) => Error(Failure.Undefined)
+    | (
+        Left,
+        (
+          Pointing((
+            [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+            _,
+          )),
+          _,
+        ),
+      )
+    | (
+        Right,
+        (
+          Pointing((
+            _,
+            [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+          )),
+          _,
+        ),
+      )
+    | (
+        Left,
+        (
+          Restructuring((
+            _,
+            (
+              _,
+              [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+            ),
+          )),
+          _,
+        ),
+      )
+    | (
+        Right,
+        (
+          Restructuring((
+            _,
+            (
+              [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+              _,
+            ),
+          )),
+          _,
+        ),
+      ) =>
+      perform(Move(d), zipper)
+    | _ => Ok(zipper)
+    };
+
+  let rec go = zipper => {
+    let* zipper = perform(Move(d), zipper);
+    switch (d, zipper) {
+    | (
+        Left,
+        (
+          Pointing((
+            _,
+            [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+          )),
+          _,
+        ),
+      )
+    | (
+        Left,
+        (
+          Restructuring((
+            _,
+            (
+              _,
+              [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+            ),
+          )),
+          _,
+        ),
+      )
+    | (
+        Right,
+        (
+          Pointing((
+            [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+            _,
+          )),
+          _,
+        ),
+      )
+    | (
+        Right,
+        (
+          Restructuring((
+            _,
+            (
+              [Tile(Pat(OpHole | BinHole) | Exp(OpHole | BinHole)), ..._],
+              _,
+            ),
+          )),
+          _,
+        ),
+      ) =>
+      Ok(zipper)
+    | _ => go(zipper)
+    };
+  };
+  let moved = go(prepared);
+  switch (d) {
+  | Left => moved
+  | Right =>
+    let* moved = moved;
+    perform(Move(Left), moved);
+  };
+};

@@ -12,12 +12,14 @@ type t =
   | Redo
   | Escape(Direction.t)
   | SetShowNeighborTiles(bool)
-  | ToggleShowNeighborTiles;
+  | ToggleShowNeighborTiles
+  | MoveToNextHole(Direction.t);
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
 
-let perform = (a, model: Model.t) =>
-  switch (Action.perform(a, model.zipper)) {
+let update_result =
+    (a, result: Result.t(Zipper.t, Failure.t), model: Model.t) =>
+  switch (result) {
   | Error(failure) => {
       ...model,
       history: ActionHistory.failure(failure, model.history),
@@ -43,7 +45,9 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
-  | PerformAction(a) => perform(a, model)
+  | PerformAction(a) =>
+    let result = Action.perform(a, model.zipper);
+    update_result(a, result, model);
   | FailedInput(reason) => {
       ...model,
       history: ActionHistory.just_failed(reason, model.history),
@@ -78,4 +82,8 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
     | None => model
     | Some((zipper, history)) => {...model, zipper, history}
     }
+  | MoveToNextHole(d) =>
+    let moved = Action.move_to_next_hole(d, model.zipper);
+    // Move(d) is hack arg, doesn't affect undo behavior
+    update_result(Move(d), moved, model);
   };
