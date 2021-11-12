@@ -78,6 +78,11 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Tab" => []
         | "Backspace" => [p(Delete(Left))]
         | "Delete" => [p(Delete(Right))]
+        | "Enter" =>
+          switch (zipper) {
+          | (Restructuring(_), _) => [p(Mark)]
+          | _ => []
+          }
         | "+" => [p(Construct(Tile(Exp(Plus))))]
         | "-" => [p(Construct(Tile(Exp(Minus))))]
         | "*" => [p(Construct(Tile(Exp(Times))))]
