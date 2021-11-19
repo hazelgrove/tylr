@@ -92,19 +92,20 @@ let siblings = (subject: Subject.t) =>
     let len_suf = List.length(suffix);
     ListUtil.range(len_pre + 1)
     @ ListUtil.range(~lo=len_pre + len_sel, len_pre + len_sel + len_suf + 1);
-  | Restructuring((backpack, (prefix, suffix) as rframe)) =>
-    if (Parser.is_backpack_whole_any(backpack)) {
-      ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
-    } else {
-      let (tiles_pre, prefix) =
-        ListUtil.take_while(Restructuring.is_tile, prefix);
-      let (tiles_suf, _) =
-        ListUtil.take_while(Restructuring.is_tile, suffix);
-      ListUtil.range(
-        ~lo=List.length(prefix),
-        List.(length(prefix) + length(tiles_pre) + length(tiles_suf) + 1),
-      );
-    }
+  | Restructuring((_backpack, (_prefix, _suffix) as rframe)) =>
+    ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1)
+  // if (Parser.is_backpack_whole_any(backpack)) {
+  //   ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
+  // } else {
+  //   let (tiles_pre, prefix) =
+  //     ListUtil.take_while(Restructuring.is_tile, prefix);
+  //   let (tiles_suf, _) =
+  //     ListUtil.take_while(Restructuring.is_tile, suffix);
+  //   ListUtil.range(
+  //     ~lo=List.length(prefix),
+  //     List.(length(prefix) + length(tiles_pre) + length(tiles_suf) + 1),
+  //   );
+  // }
   };
 
 let filtered_selems = (~frame_sort, subject: Subject.t) => {
@@ -160,20 +161,21 @@ let neighbor_selems = (subject: Subject.t) =>
     ListUtil.range(
       List.length(ListFrame.to_list(~subject=selection, sframe)),
     )
-  | Restructuring((backpack, rframe)) =>
-    if (Parser.is_backpack_whole_any(backpack)) {
-      ListUtil.range(List.length(ListFrame.to_list(rframe)));
-    } else {
-      let (prefix, suffix) = rframe;
-      let (tiles_pre, prefix) =
-        ListUtil.take_while(Restructuring.is_tile, prefix);
-      let (tiles_suf, _) =
-        ListUtil.take_while(Restructuring.is_tile, suffix);
-      ListUtil.range(
-        ~lo=List.length(prefix),
-        List.length(prefix @ tiles_pre @ tiles_suf),
-      );
-    }
+  | Restructuring((_backpack, rframe)) =>
+    ListUtil.range(List.length(ListFrame.to_list(rframe)))
+  // if (Parser.is_backpack_whole_any(backpack)) {
+  //   ListUtil.range(List.length(ListFrame.to_list(rframe)));
+  // } else {
+  //   let (prefix, suffix) = rframe;
+  //   let (tiles_pre, prefix) =
+  //     ListUtil.take_while(Restructuring.is_tile, prefix);
+  //   let (tiles_suf, _) =
+  //     ListUtil.take_while(Restructuring.is_tile, suffix);
+  //   ListUtil.range(
+  //     ~lo=List.length(prefix),
+  //     List.length(prefix @ tiles_pre @ tiles_suf),
+  //   );
+  // }
   };
 
 let selections = (subject: Subject.t) =>
