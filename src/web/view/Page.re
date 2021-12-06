@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 
 let logo = (~font_metrics) => {
-  let selem = (step, color: Color.t, shape: Layout.selem_shape, s): Layout.t =>
+  let piece = (step, color: Color.t, shape: Layout.piece_shape, s): Layout.t =>
     Layout.annot(Selem({color, shape, step}), Text(s));
   let l =
     Layout.(
@@ -9,10 +9,10 @@ let logo = (~font_metrics) => {
         // HACK
         Selected,
         [
-          selem(0, Exp, ((Convex, 0), (Convex, 0)), "t"),
-          selem(1, Pat, ((Concave, 0), (Convex, 0)), "y"),
-          selem(2, Typ, ((Concave, 0), (Concave, 0)), "l"),
-          selem(3, Selected, ((Convex, 0), (Concave, 1)), "r"),
+          piece(0, Exp, ((Convex, 0), (Convex, 0)), "t"),
+          piece(1, Pat, ((Concave, 0), (Convex, 0)), "y"),
+          piece(2, Typ, ((Concave, 0), (Concave, 0)), "l"),
+          piece(3, Selected, ((Convex, 0), (Concave, 1)), "r"),
         ],
       )
     );
@@ -20,7 +20,7 @@ let logo = (~font_metrics) => {
     ~id="logo",
     ~text_id="logo-text",
     ~font_metrics,
-    DecPaths.mk(~logo_selems=[0, 1, 2, 3], ()),
+    DecPaths.mk(~logo_pieces=[0, 1, 2, 3], ()),
     l,
   );
 };

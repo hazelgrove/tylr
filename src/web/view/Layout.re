@@ -5,7 +5,7 @@ open Core;
 [@deriving sexp]
 type tip_shape = (Tip.shape, int);
 [@deriving sexp]
-type selem_shape = (tip_shape, tip_shape);
+type piece_shape = (tip_shape, tip_shape);
 
 [@deriving sexp]
 type t =
@@ -22,10 +22,10 @@ and annot =
       step: ChildStep.t,
       sort: (Sort.t, Sort.t),
     })
-  | Selem({
-      step: Path.selem_step,
+  | Piece({
+      step: Path.piece_step,
       color: Color.t,
-      shape: selem_shape,
+      shape: piece_shape,
     });
 
 // | TargetBounds({
@@ -142,7 +142,7 @@ let find_range =
   ((color_l, color_r), measurement);
 };
 
-let find_selem = (~origin=0, step: Path.selem_step, l: t) =>
+let find_piece = (~origin=0, step: Path.piece_step, l: t) =>
   l
   |> measured_fold'(
        ~origin,
@@ -151,16 +151,16 @@ let find_selem = (~origin=0, step: Path.selem_step, l: t) =>
        ~annot=
          (_k, measurement, annot, l) =>
            switch (annot) {
-           | Selem({step: s, color, shape}) when s == step => [
+           | Piece({step: s, color, shape}) when s == step => [
                (measurement, color, shape, l),
              ]
            | _ => []
            },
      )
   |> ListUtil.hd_opt
-  |> OptUtil.get_or_raise(Invalid_argument("Layout.find_selem"));
+  |> OptUtil.get_or_raise(Invalid_argument("Layout.find_piece"));
 
-let selem_children =
+let piece_children =
   measured_fold'(
     ~text=(_, _) => ([], []),
     ~cat=
@@ -175,7 +175,7 @@ let selem_children =
         | _ => ([], [])
         },
   );
-let selem_holes =
+let piece_holes =
   measured_fold(
     ~text=(_, _) => [],
     ~cat=_ => (@),
@@ -244,13 +244,13 @@ let mk_BinHole = empty_hole;
 let mk_text = s => Text(s);
 
 let is_atomic = (t: Tile.t) =>
-  [] == Parser.disassemble_selem(Right, Tile(t));
+  [] == Parser.disassemble_piece(Right, Tile(t));
 
-let selem_shape = (selem: Selem.t) => {
-  let (lshape, _) = Selem.tip(Left, selem);
-  let (rshape, _) = Selem.tip(Right, selem);
-  let ltails = Selem.tails(Left, selem);
-  let rtails = Selem.tails(Right, selem);
+let piece_shape = (piece: Piece.t) => {
+  let (lshape, _) = Piece.tip(Left, piece);
+  let (rshape, _) = Piece.tip(Right, piece);
+  let ltails = Piece.tails(Left, piece);
+  let rtails = Piece.tails(Right, piece);
   ((lshape, ltails), (rshape, rtails));
 };
 
@@ -259,10 +259,10 @@ let rec mk_tiles = (~offset=0, ~rail_color as _=?, ts) =>
     (i, tile) => {
       let l_tile = mk_tile(tile);
       annot(
-        Selem({
+        Piece({
           step: offset + i,
           color: Color.of_sort(Tile.sort(tile)),
-          shape: selem_shape(Tile(tile)),
+          shape: piece_shape(Tile(tile)),
         }),
         l_tile,
       );
@@ -348,11 +348,11 @@ let mk_token =
     | Cond_col => delim(":"),
   );
 
-let mk_selem = (step, selem: Selem.t) => {
-  let l = Selem.get(mk_token, mk_tile, selem);
-  let shape = selem_shape(selem);
-  let color = Color.of_sort(Selem.sort(selem));
-  annot(Selem({step, shape, color}), l);
+let mk_piece = (step, piece: Piece.t) => {
+  let l = Piece.get(mk_token, mk_tile, piece);
+  let shape = piece_shape(piece);
+  let color = Color.of_sort(Piece.sort(piece));
+  annot(Piece({step, shape, color}), l);
 };
 
 let mk_selection = (~offset=0, ~frame_color: Color.t, selection) =>
@@ -360,12 +360,12 @@ let mk_selection = (~offset=0, ~frame_color: Color.t, selection) =>
   | None => space(offset, frame_color)
   | Some((sort_l, _)) =>
     selection
-    |> List.mapi((i, selem) =>
+    |> List.mapi((i, piece) =>
          [
-           mk_selem(offset + i, selem),
+           mk_piece(offset + i, piece),
            space(
              offset + i + 1,
-             Color.of_sort(snd(Selem.tip(Right, selem))),
+             Color.of_sort(snd(Piece.tip(Right, piece))),
            ),
          ]
        )
@@ -376,7 +376,7 @@ let mk_selection = (~offset=0, ~frame_color: Color.t, selection) =>
 
 let mk_relem = (~step, ~frame_color, relem: Restructuring.frame_elem) =>
   switch (relem) {
-  | Tile(tile) => mk_selem(step, Tile(tile))
+  | Tile(tile) => mk_piece(step, Tile(tile))
   | Selection(selection) =>
     mk_selection(~offset=step, ~frame_color, selection)
   };
@@ -391,9 +391,9 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     let step = List.length(prefix);
     let ls_prefix = mk_tiles_pat(List.rev(prefix));
     let ls_suffix = mk_tiles_pat(~offset=step + 1, suffix);
-    let selem_ann = Selem({step, shape, color: Pat});
+    let piece_ann = Piece({step, shape, color: Pat});
     mk_frame(
-      pad_spaces(Pat, ls_prefix @ [annot(selem_ann, tile), ...ls_suffix]),
+      pad_spaces(Pat, ls_prefix @ [annot(piece_ann, tile), ...ls_suffix]),
       Pat(frame),
     );
   };
@@ -402,9 +402,9 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
     let step = List.length(prefix);
     let ls_prefix = mk_tiles_exp(List.rev(prefix));
     let ls_suffix = mk_tiles_exp(~offset=step + 1, suffix);
-    let selem_ann = Selem({step, shape, color: Exp});
+    let piece_ann = Piece({step, shape, color: Exp});
     mk_frame(
-      pad_spaces(Exp, ls_prefix @ [annot(selem_ann, tile), ...ls_suffix]),
+      pad_spaces(Exp, ls_prefix @ [annot(piece_ann, tile), ...ls_suffix]),
       Exp(frame),
     );
   };
@@ -445,7 +445,7 @@ let mk_pointing = (sframe: Selection.frame, frame: Frame.t) => {
   let color = Color.of_sort(Frame.sort(frame));
   let subject =
     ListFrame.to_list(sframe)
-    |> List.mapi((i, selem) => {mk_selem(i, selem)})
+    |> List.mapi((i, piece) => {mk_piece(i, piece)})
     |> pad_spaces(color);
   mk_frame(subject, frame);
 };
@@ -454,10 +454,10 @@ let mk_selecting =
     (selection: Selection.t, sframe: Selection.frame, frame: Frame.t) => {
   let subject =
     ListFrame.to_list(~subject=selection, sframe)
-    |> List.mapi((i, selem) =>
+    |> List.mapi((i, piece) =>
          [
-           mk_selem(i, selem),
-           space(i + 1, Color.of_sort(snd(Selem.tip(Right, selem)))),
+           mk_piece(i, piece),
+           space(i + 1, Color.of_sort(snd(Piece.tip(Right, piece)))),
          ]
        )
     |> List.flatten
@@ -476,10 +476,10 @@ let mk_restructuring =
   let subject =
     Restructuring.get_sframe(rframe)
     |> ListFrame.to_list
-    |> List.mapi((i, selem) =>
+    |> List.mapi((i, piece) =>
          [
-           mk_selem(i, selem),
-           space(i + 1, Color.of_sort(snd(Selem.tip(Right, selem)))),
+           mk_piece(i, piece),
+           space(i + 1, Color.of_sort(snd(Piece.tip(Right, piece)))),
          ]
        )
     |> List.flatten
@@ -497,4 +497,24 @@ let mk_zipper =
     | (Restructuring((backpack, rframe)), frame) =>
       mk_restructuring(backpack, rframe, frame)
     }
+  );
+
+
+let mk_subject = ((down, up): Subject.t) => {
+    ListFrame.to_list(~subject=selection, sframe)
+    |> List.mapi((i, piece) =>
+         [
+           mk_piece(i, piece),
+           space(i + 1, Color.of_sort(snd(Piece.tip(Right, piece)))),
+         ]
+       )
+    |> List.flatten
+    |> List.cons(space(0, Color.of_sort(Frame.sort(frame))))
+    |> cats;
+}
+
+
+let mk_zipper =
+  Memo.memoize(
+    ((subj, frame): Zipper.t) => mk_frame(mk_subject(subj), frame)
   );

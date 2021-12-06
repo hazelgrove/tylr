@@ -6,7 +6,7 @@ type t =
   | Mark
   | Move(Direction.t)
   | Delete(Direction.t)
-  | Construct(Selem.t);
+  | Construct(Piece.t);
 
 let front_affix =
   fun
@@ -23,15 +23,15 @@ let mk_frame = (d: Direction.t, front, back) =>
   };
 
 let disassemble_frame_or_cannot_move =
-    (frame: Frame.t): Result.t((Selection.frame, Frame.t), Failure.t) =>
+    (frame: Frame.t): Result.t((Segment.frame, Frame.t), Failure.t) =>
   Result.of_option(
     ~error=Failure.Cant_move,
     Parser.disassemble_frame(frame),
   );
 
 let rec move_pointing =
-        (d: Direction.t, sframe: Selection.frame, frame: Frame.t)
-        : Result.t((Selection.frame, Frame.t), Failure.t) => {
+        (d: Direction.t, sframe: Segment.frame, frame: Frame.t)
+        : Result.t((Segment.frame, Frame.t), Failure.t) => {
   switch (front_affix(d, sframe)) {
   | [] =>
     // [Move<d>Frame]
@@ -66,12 +66,12 @@ let rec move_selecting =
         (
           d: Direction.t,
           caret_side: Direction.t,
-          selection: Selection.t,
-          sframe: Selection.frame,
+          selection: Segment.t,
+          sframe: Segment.frame,
           frame: Frame.t,
         )
         : Result.t(
-            (Direction.t, Selection.t, Selection.frame, Frame.t),
+            (Direction.t, Segment.t, Segment.frame, Frame.t),
             Failure.t,
           ) => {
   let split = selection =>
@@ -196,21 +196,21 @@ let move_restructuring =
   };
 
 let rec disassemble_and_enter =
-        (selem: Selem.t, (prefix, suffix): Selection.frame) =>
+        (selem: Piece.t, (prefix, suffix): Segment.frame) =>
   switch (Parser.disassemble_selem(Right, selem)) {
   | [] => ([selem, ...prefix], suffix)
   | [hd, ...tl] => disassemble_and_enter(hd, (prefix, tl @ suffix))
   };
 
-let trim_selection = (selection: Selection.t) => {
+let trim_selection = (selection: Segment.t) => {
   let trim_l =
     fun
     | [] => []
-    | [hd, ...tl] as selection => Selem.is_hole(hd) ? tl : selection;
+    | [hd, ...tl] as selection => Piece.is_hole(hd) ? tl : selection;
   let trim_r = selection =>
     switch (ListUtil.split_last_opt(selection)) {
     | None => []
-    | Some((leading, last)) => Selem.is_hole(last) ? leading : selection
+    | Some((leading, last)) => Piece.is_hole(last) ? leading : selection
     };
   trim_r(trim_l(selection));
 };
@@ -227,7 +227,7 @@ let perform =
 
   let mark_selecting = (selection, sframe, frame): 'r => {
     // [MarkSelecting]
-    switch (Selection.tip(Left, selection), Selection.tip(Right, selection)) {
+    switch (Segment.tip(Left, selection), Segment.tip(Right, selection)) {
     | (None, _)
     | (_, None) => Ok((Pointing(sframe), frame))
     | (Some((_, lsort)), Some((_, rsort))) =>
@@ -255,7 +255,7 @@ let perform =
           : (List.rev(selection) @ prefix, suffix);
       let (sframe, frame) = Parser.parse_zipper(sframe, frame);
       Ok((Pointing(sframe), frame));
-    } else if (Selection.is_whole_any(selection)) {
+    } else if (Segment.is_whole_any(selection)) {
       let sframe = fix_holes(frame_sort, sframe);
       Ok((Pointing(sframe), frame));
     } else {
@@ -280,7 +280,7 @@ let perform =
       delete_selecting(d, selection, sframe, frame);
     | Construct(selem) =>
       // [Construct]
-      let sort = Selem.sort(selem);
+      let sort = Piece.sort(selem);
       if (sort != frame_sort) {
         Error(Cant_construct(sort, frame_sort));
       } else {
@@ -431,8 +431,8 @@ let perform =
       // [Delete]
       let (prefix, suffix) =
         Restructuring.get_sframe(~filter_selections=true, rframe);
-      let prefix' = Selection.filter_tiles(frame_sort, prefix);
-      let suffix' = Selection.filter_tiles(frame_sort, suffix);
+      let prefix' = Segment.filter_tiles(frame_sort, prefix);
+      let suffix' = Segment.filter_tiles(frame_sort, suffix);
       let fixed = fix_holes(frame_sort, (prefix', suffix'));
       Ok((Pointing(fixed), frame));
     | Construct(_) => Error(Cant_construct_in_restructuring)

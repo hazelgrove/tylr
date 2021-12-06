@@ -8,7 +8,7 @@ let delete_actions =
   | (Selecting(_, [], (prefix, suffix)), frame) => {
       let action = affix =>
         switch (affix) {
-        | [Selem.Tile(tile), ..._] =>
+        | [Piece.Tile(tile), ..._] =>
           Tile.is_leaf(tile) ? Some(`Remove) : Some(`Restructure)
         | _ =>
           switch (frame) {
@@ -65,7 +65,7 @@ let rec view_of_layout =
                    ~caret=([], (0, len)),
                    ~selection_bars=[([], (0, len))],
                    ~selection_boxes=with_box ? [([], (0, len))] : [],
-                   ~filtered_selems=([], ListUtil.range(len)),
+                   ~filtered_pieces=([], ListUtil.range(len)),
                    (),
                  );
                view_of_layout(~font_metrics, dpaths, l);
@@ -80,14 +80,14 @@ let rec view_of_layout =
            },
        );
   let with_cls = cls => Node.span([Attr.classes([cls])]);
-  let rec go = (~selem_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
+  let rec go = (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
     switch (l) {
     | Text(s) => ([Node.text(s)], [])
     | Cat(l1, l2) =>
-      let (txt1, ds1) = go(~selem_step?, ~indent, ~origin, dpaths, l1);
+      let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
       let (txt2, ds2) =
         go(
-          ~selem_step?,
+          ~piece_step?,
           ~indent,
           ~origin=origin + Layout.length(l1),
           dpaths,
@@ -95,7 +95,7 @@ let rec view_of_layout =
         );
       (txt1 @ txt2, ds1 @ ds2);
     | Annot(annot, l) =>
-      let go' = () => go(~selem_step?, ~indent, ~origin, dpaths, l);
+      let go' = () => go(~piece_step?, ~indent, ~origin, dpaths, l);
       let add_decorations = new_ds => {
         let (txt, ds) = go'();
         (txt, new_ds @ ds);
@@ -139,9 +139,9 @@ let rec view_of_layout =
             },
           ),
         ])
-      | Selem({color, shape, step}) =>
+      | Piece({color, shape, step}) =>
         let new_ds =
-          DecPaths.current_selem(
+          DecPaths.current_piece(
             ~show_neighbor_tiles,
             ~measurement={origin, length: Layout.length(l)},
             step,
@@ -151,7 +151,7 @@ let rec view_of_layout =
             dpaths,
           )
           |> List.map(Dec.view(~font_metrics));
-        let (txt, ds) = go(~selem_step=step, ~indent, ~origin, dpaths, l);
+        let (txt, ds) = go(~piece_step=step, ~indent, ~origin, dpaths, l);
         (txt, new_ds @ ds);
 
       // | TargetBounds({sort, mode, strict_bounds}) =>
@@ -167,10 +167,10 @@ let rec view_of_layout =
       //     ),
       //   ]);
       | Child({step, sort: (_, s_in)}) =>
-        let selem_step =
-          selem_step
-          |> OptUtil.get_or_fail("expected to encounter selem before child");
-        let dpaths = DecPaths.take_two_step((selem_step, step), dpaths);
+        let piece_step =
+          piece_step
+          |> OptUtil.get_or_fail("expected to encounter piece before child");
+        let dpaths = DecPaths.take_two_step((piece_step, step), dpaths);
         let new_ds =
           DecPaths.current_bidelimited(
             ~show_neighbor_tiles,

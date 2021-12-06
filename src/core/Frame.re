@@ -23,5 +23,5 @@ let sort =
 
 let is_root =
   fun
-  | Exp(Root) => true
+  | Exp((_, Root)) => true
   | _ => false;

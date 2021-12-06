@@ -1,3 +1,1 @@
-type t =
-  | Left
-  | Right;
+type t = Util.Direction.t;

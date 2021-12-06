@@ -28,12 +28,16 @@ let is_hole = get(Tile_pat.is_hole, Tile_exp.is_hole);
 
 let tip = d => get(Tile_pat.tip(d), Tile_exp.tip(d));
 
-let mk_hole =
+let id = get(fst, fst);
+
+let mk_hole = id_gen => {
+  let (id, id_gen) = IdGen.next(id_gen);
   fun
-  | (Tip.Convex, Sort.Pat) => Pat(OpHole)
-  | (Concave, Pat) => Pat(BinHole)
-  | (Convex, Exp) => Exp(OpHole)
-  | (Concave, Exp) => Exp(BinHole);
+  | (Tip.Convex, Sort.Pat) => (Pat((id, OpHole)), id_gen)
+  | (Concave, Pat) => (Pat((id, BinHole)), id_gen)
+  | (Convex, Exp) => (Exp((id, OpHole)), id_gen)
+  | (Concave, Exp) => (Exp((id, BinHole)), id_gen);
+};
 
 let precedence = get(Tile_pat.precedence, Tile_exp.precedence);
 let associativity =

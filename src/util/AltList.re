@@ -92,3 +92,20 @@ let fold_left_map =
        );
   (acc, (hd', tl'));
 };
+
+let rec split =
+        (p: 'x => option('y), xs: list('x))
+        : (even(list('x), 'y), list('x)) =>
+  switch (xs) {
+  | [] => ([], [])
+  | [x, ...xs] =>
+    let (split, rest) = split(p, xs);
+    switch (p(x)) {
+    | Some(y) => ([([], y), ...split], rest)
+    | None =>
+      switch (split) {
+      | [] => ([], [x, ...rest])
+      | [(xs, y), ...split] => ([([x, ...xs], y), ...split], rest)
+      }
+    };
+  };

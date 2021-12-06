@@ -160,6 +160,12 @@ let rec put_nth = (n: int, x: 'x, xs: list('x)): list('x) =>
     [hd, ...tl];
   };
 
+let split_first_opt = (xs: list('x)) =>
+  switch (xs) {
+  | [] => None
+  | [x, ...xs] => Some((x, xs))
+  };
+
 let rec split_last_opt = (xs: list('x)): option((list('x), 'x)) =>
   switch (xs) {
   | [] => None

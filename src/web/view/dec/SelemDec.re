@@ -8,7 +8,7 @@ module Profile = {
   type t = {
     measurement: Layout.measurement,
     color: Color.t,
-    shape: Layout.selem_shape,
+    shape: Layout.piece_shape,
     style: SelemStyle.t,
     open_children: list(Layout.measurement),
     closed_children: list(Layout.measurement),
@@ -38,12 +38,12 @@ module Profile = {
       (
         ~measurement: Layout.measurement,
         ~color: Color.t,
-        ~shape: Layout.selem_shape,
+        ~shape: Layout.piece_shape,
         ~style: SelemStyle.t,
         layout: Layout.t,
       ) => {
-    let empty_holes = Layout.selem_holes(layout);
-    let (open_children, closed_children) = Layout.selem_children(layout);
+    let empty_holes = Layout.piece_holes(layout);
+    let (open_children, closed_children) = Layout.piece_children(layout);
     mk(
       ~measurement,
       ~open_children,

@@ -10,6 +10,8 @@ let get = (get_pat, get_exp) =>
   | Pat(t) => get_pat(t)
   | Exp(t) => get_exp(t);
 
+let id = get(fst, fst);
+
 let sort = get(_ => Sort.Pat, _ => Sort.Exp);
 
 let tip = d => get(Shard_pat.tip(d), Shard_exp.tip(d));

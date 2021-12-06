@@ -1,7 +1,8 @@
 open Util;
 
 [@deriving sexp]
-type t =
+type t = Identified.t(t')
+and t' =
   | Paren_l
   | Paren_r
   | Ap_l
@@ -17,7 +18,7 @@ type t =
   | Cond_que
   | Cond_col;
 
-let tip = (d: Direction.t, t: t) =>
+let tip = (d: Direction.t, (_, t): t) =>
   switch (d, t) {
   | (Left, Paren_l | Lam_lam_open(_) | Lam_lam | Let_let | Let_let_eq(_))
   | (Right, Paren_r | Ap_r | Lam_close) => (Tip.Convex, Sort.Exp)
@@ -36,7 +37,7 @@ let tip = (d: Direction.t, t: t) =>
   | (Right, Lam_lam | Let_let) => (Concave, Pat)
   };
 
-let is_end = (~strict: bool, d: Direction.t, t: t) =>
+let is_end = (~strict: bool, d: Direction.t, (_, t): t) =>
   switch (d, t) {
   | (
       Left,
@@ -48,7 +49,7 @@ let is_end = (~strict: bool, d: Direction.t, t: t) =>
   | _ => false
   };
 
-let is_next = (d: Direction.t, t1, t2) =>
+let is_next = (d: Direction.t, (_, t1), (_, t2)) =>
   switch (d) {
   | Left =>
     switch (t1, t2) {
