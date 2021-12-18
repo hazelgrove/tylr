@@ -3,6 +3,8 @@ type t =
   | Pat
   | Exp;
 
+let all = [Pat, Exp];
+
 let to_string =
   fun
   | Pat => "Pat"

@@ -1,15 +1,12 @@
 open Util;
 
 [@deriving sexp]
-type shape =
+type t =
   | Convex
   | Concave;
 
-[@deriving sexp]
-type t = (shape, Sort.t);
-
-let toggle_shape =
+let toggle =
   fun
   | Convex => Concave
   | Concave => Convex;
-let toggle: t => t = PairUtil.map_fst(toggle_shape);
+

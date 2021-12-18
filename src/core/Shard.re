@@ -1,9 +1,6 @@
 open Util;
-
 [@deriving sexp]
-type t =
-  | Pat(Shard_pat.t)
-  | Exp(Shard_exp.t);
+type t = Identified.t((int, list(Token.t)));
 
 let get = (get_pat, get_exp) =>
   fun

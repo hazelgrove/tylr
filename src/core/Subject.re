@@ -1,8 +1,9 @@
 module Down = {
   [@deriving sexp]
-  type t = (Direction.t, Segment.t, Segment.frame);
+  type t = (Direction.t, Segment.t, Segment.Frame.t);
 };
 
+// backpack
 module Up = {
   [@deriving sexp]
   type t = list(Segment.t);

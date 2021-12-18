@@ -2,7 +2,7 @@
 
 (library
  (name core)
- (libraries sexplib util)
+ (libraries sexplib util re)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))

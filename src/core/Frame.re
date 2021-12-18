@@ -1,6 +1,6 @@
-type t =
-  | Pat(Frame_pat.t)
-  | Exp(Frame_exp.t);
+// invariant: affixes are non-empty
+// invariant: shards in each pair of affixes assemble to a tile
+type t = list((Tile.Frame.t, Tile.Frame.s));
 
 let get = (get_pat, get_exp) =>
   fun
