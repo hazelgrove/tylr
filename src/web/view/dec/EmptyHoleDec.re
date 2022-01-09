@@ -6,7 +6,7 @@ module Profile = {
   type t = {
     measurement: Layout.measurement,
     color: Color.t,
-    tip: Tip.shape,
+    tip: Nib.shape,
   };
 };
 

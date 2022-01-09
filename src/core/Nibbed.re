@@ -1,0 +1,1 @@
+type t('a) = ((Nib.t, Nib.t), 'a);

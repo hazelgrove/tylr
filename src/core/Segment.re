@@ -3,84 +3,88 @@ open Util;
 open OptUtil.Syntax;
 
 [@deriving sexp]
-type t = Aba.t(Tile.s, Shard.t);
-
-module Frame = {
-  [@deriving sexp]
-  type t = Aba.Frame.a(Tile.s, Shard.t);
-};
-
-let tip = (d: Direction.t, s: t): option
-
-let connect = (s1: t, s2: t): t =>
-  switch ()
-
-
-
-module Mold = {
-  type segment = t;
-
-  module Sorts = {
-    open LR;
-    type t = LR.t(Sort.t);
-    let merge = (sorts_l: t, sorts_r: t) =>
-      {l: sorts_l.l, r: sorts_r.r};
-  };
-
-  type t = Mold.t(Sorts.t);
-
-  let merge = Mold.merge(~merge_sorts=Sorts.merge);
-
-  let of_tile = (tile: Tile.Mold.t) => {
-    tips: tile.tips,
-    sorts: LR.mk(tile.sorts.out, tile.sorts.out),
-  };
-
-  let of_shard = ((index, tile): Shard.Mold.t) => {
-    let (prefix, suffix) = ListFrame.mk(index, tile.sorts.in);
-    let (tip_l, sort_l) =
-      switch (prefix) {
-      | [] => (tile.tips.l, tile.sorts.out)
-      | [sort_l, ..._] => (Right, sort_l)
-      };
-    let (tip_r, sort_r) =
-      switch (suffix) {
-      | [] => (tile.tips.r, til.sorts.out)
-      | [sort_r, ..._] => (Left, sort_r)
-      };
-    {
-      tips: LR.mk(tip_l, tip_r),
-      sorts: LR.mk(sort_l, sort_r),
-    };
-  };
-
-  let of_ = (segment: segment) => {
-
-  }
-};
+type t = Aba.t(Tile.s, Nibbed.t(Shard.t));
 
 let empty = ([], []);
 let of_tiles = tiles => (tiles, []);
 
 let concat: (t, t) => t = Aba.concat((@));
 
-let tip = (d: Direction.t, segment: t): option(Tip.t) =>
-  switch (segment, ListUtil.split_last_opt(segment)) {
-  | ([], _)
-  | (_, None) => None
-  | ([first, ..._], Some((_, last))) =>
-    Some(
-      switch (d) {
-      | Left => Piece.tip(d, first)
-      | Right => Piece.tip(d, last)
-      },
+module Frame = {
+  [@deriving sexp]
+  type t = Aba.Frame.a(Tile.s, Nibbed.t(Shard.t));
+};
+
+// produce possible front nibs such that
+// segment connects front nib to back nib
+let rec syn = (
+  back: Direction.t,
+  segment: t,
+  back_nib: Nib.t,
+): list(Nib.t) => {
+  let front = Direction.toggle(d);
+  switch (segment) {
+  | ([], []) => [back_nib]
+  | ([], [((nibs, _shard), _tiles), ..._]) =>
+    [Direction.(choose(front, nibs))]
+  | ([tile, ...tiles], tl) =>
+    Tile.molds(tile)
+    |> List.filter_map(
+      mold => {
+        let nibs = Tile.Mold.nibs(mold);
+        let front_nib = Direction.choose(back, nibs);
+        ana(d, front_nib, (tiles, tl), back_nib)
+        ? None
+        : Some(Direction.choose(front, nibs))
+      }
     )
   };
+}
+// check if segment connects front nib to back nib
+and ana = (
+  back: Direction.t,
+  front_nib: Nib.t,
+  segment: t,
+  back_nib: Nib.t,
+): bool =>
+  syn(back, segment, back_nib)
+  |> List.exists((==)(front_nib));
 
-let tip_sorts = (segment: t): option((Sort.t, Sort.t)) => {
-  let+ (_, sort_l) = tip(Left, segment)
-  and+ (_, sort_r) = tip(Right, segment);
-  (sort_l, sort_r);
+let glue = (l: Nib.t, r: Nib.t): Tile.s => {
+  let hole_nibs =
+  if (l == r) {
+    []
+  } else if (l.sort == r.sort) {
+    [(l, r)]
+  } else {
+    let nibs =
+    switch (l.orientation, r.orientation) {
+    | (Left, Right) =>
+      let (l', r') = (Nib.toggle(l), Nib.toggle(r));
+      [(l, l'), (l', r'), (r', r)];
+    | (Left, Left) =>
+      let l' = Nib.toggle(l);
+      [(l, l'), (l', r)];
+    | (Right, Right) =>
+      let r' = Nib.toggle(r);
+      [(l, r'), (r', r)];
+    | (Right, Left) => [(l, r)]
+    };
+  };
+  Tile.s_of_nibs(hole_nibs);
+};
+
+let connect = (l: Nib.t, pre: t, suf: t, r: Nib.t): t => {
+  let nibs_pre = syn(Left, trim_hd(pre), l);
+  let nibs_suf = syn(Right, trim_hd(suf), r);
+  let glue =
+    ListUtil.prod(nibs_pre, nibs_suf)
+    |> List.map(((l, r)) => glue(l, r))
+    |> List.map(Tile.s_len)
+    |> List.sort(Int.compare)
+    // shouldn't fail so long as every tile has at least one mold
+    |> List.hd;
+  concat([pre, of_tiles(glue), suf]);
 };
 
 let is_cracked =

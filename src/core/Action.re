@@ -221,7 +221,7 @@ let perform =
   let frame_sort = Frame.sort(frame);
 
   let fix_holes = (frame_sort, sframe) => {
-    let tip = (Tip.Convex, frame_sort);
+    let tip = (Nib.Convex, frame_sort);
     Parser.fix_holes(tip, sframe, tip);
   };
 
@@ -375,7 +375,7 @@ let perform =
           || !Parser.is_backpack_whole_any(backpack)) {
         // [MarkRestructuring]
         let fix_holes_rframe = rframe => {
-          let tip = (Tip.Convex, frame_sort);
+          let tip = (Nib.Convex, frame_sort);
           Parser.fix_holes_rframe(tip, rframe, tip);
         };
         switch (rest) {
@@ -389,7 +389,7 @@ let perform =
             Parser.parse_zipper((prefix, suffix), frame);
           Ok((Pointing(sframe), frame));
         // let (selection, rframe) = {
-        //   let tip = (Tip.Convex, frame_sort);
+        //   let tip = (Nib.Convex, frame_sort);
         //   Parser.fix_holes_selection(
         //     tip,
         //     selection,

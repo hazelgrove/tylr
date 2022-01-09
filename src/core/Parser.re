@@ -18,13 +18,17 @@ open OptUtil.Syntax;
 //   }
 // };
 
-let disassemble_tile = (d: Direction.t, (id, tile): Tile.t): Segment.t =>
-  switch (tile) {
-  | None => Segment.empty
-  | Some((shard, tl)) =>
-    let (tiles, tl) = Baba.append(tl, []);
-    ([], [(shard, tiles), ...tl]);
+let disassemble_tile = (d: Direction.t, (id, tile): Tile.t): Segment.t => {
+  let disassembled =
+    tile
+    |> Aba.map_b(token => (id, token))
+    |> Baba.cons([])
+    |> Aba.snoc([]);
+  switch (d) {
+  | Left => Segment.rev(disassembled)
+  | Right => disassembled
   };
+};
 
 // let split_by_matching_shards =
 //     ((id, shard): Shard.t, segment: Segment.t)
@@ -41,8 +45,8 @@ let disassemble_tile = (d: Direction.t, (id, tile): Tile.t): Segment.t =>
 // };
 
 let split_by_matching_shards =
-    ((id, _) as hd: Shard.t, segment: Segment.t)
-    : (Aba.t(Shard.t, Segment.t), Segment.t) => {
+    ((_nibs, (id, _token)) as hd: Nibbed.t(Shard.t), segment: Segment.t)
+    : (Aba.t(Nibbed.t(Shard.t), Segment.t), Segment.t) => {
   let (tl, rest) =
     segment
     |> Aba.split(
@@ -276,8 +280,8 @@ let rec assemble_zipper =
 let connect = (id_gen, sort, selection: Segment.t, (prefix, suffix) as affixes: Segment.frame): ((Segment.t, Segment.frame), IdGen.t) => {
   let expected_tip =
     fun
-    | None => (Tip.Convex, sort)
-    | Some(affix_tip) => Tip.toggle(affix_tip);
+    | None => (Nib.Convex, sort)
+    | Some(affix_tip) => Nib.toggle(affix_tip);
   // left bc prefix is reversed
   let l = expected_tip(Segment.tip(Left, prefix))
   let r = expected_tip(Segment.tip(Left, suffix));
@@ -285,7 +289,7 @@ let connect = (id_gen, sort, selection: Segment.t, (prefix, suffix) as affixes: 
   switch (Segment.tip(Left, selection), Segment.tip(Right, selection)) {
   | (None, _)
   | (_, None) =>
-    if (l == Tip.toggle(r)) {
+    if (l == Nib.toggle(r)) {
       (([], affixes), id_gen)
     } else {
       let (hole, id_gen) = Tile.mk_hole(id_gen, l);

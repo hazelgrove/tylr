@@ -1,6 +1,6 @@
-open Tip;
+open Nib;
 
-type t = {l: Tip.t, r: Tip.t};
+type t = {l: Nib.t, r: Nib.t};
 
 let mk = (l, r) => {l, r};
 

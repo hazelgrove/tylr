@@ -3,7 +3,7 @@ open Util;
 open Core;
 
 [@deriving sexp]
-type tip_shape = (Tip.shape, int);
+type tip_shape = (Nib.shape, int);
 [@deriving sexp]
 type piece_shape = (tip_shape, tip_shape);
 
@@ -15,7 +15,7 @@ type t =
 and annot =
   | ExtraBoldDelim
   | Delim
-  | EmptyHole(Color.t, Tip.shape)
+  | EmptyHole(Color.t, Nib.shape)
   | Ap
   | Space(int, Color.t)
   | Child({
@@ -408,10 +408,10 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
       Exp(frame),
     );
   };
-  let shape_op = Tip.((Convex, 0), (Convex, 0));
-  let shape_pre = Tip.((Convex, 0), (Concave, 0));
-  let shape_post = Tip.((Concave, 0), (Convex, 0));
-  let shape_bin = Tip.((Concave, 0), (Concave, 0));
+  let shape_op = Nib.((Convex, 0), (Convex, 0));
+  let shape_pre = Nib.((Convex, 0), (Concave, 0));
+  let shape_post = Nib.((Concave, 0), (Convex, 0));
+  let shape_bin = Nib.((Concave, 0), (Concave, 0));
   switch (frame) {
   | Pat(Paren_body(frame_s)) =>
     let tile = mk_Paren(Pat, subject);

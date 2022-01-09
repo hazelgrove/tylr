@@ -12,7 +12,7 @@ module Profile = {
     style: SelemStyle.t,
     open_children: list(Layout.measurement),
     closed_children: list(Layout.measurement),
-    empty_holes: list((int, Color.t, Tip.shape)),
+    empty_holes: list((int, Color.t, Nib.shape)),
   };
   let mk =
       (
@@ -185,7 +185,7 @@ let open_child_paths =
 };
 
 let empty_hole_path =
-    (~font_metrics as _, empty_hole: (int, Color.t, Tip.shape))
+    (~font_metrics as _, empty_hole: (int, Color.t, Nib.shape))
     : SvgUtil.Path.t => {
   let (offset, _color, tip) = empty_hole;
   EmptyHoleDec.path(tip, Float.of_int(offset), 0.28);
