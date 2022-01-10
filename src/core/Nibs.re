@@ -1,0 +1,1 @@
+type t = (Nib.t, Nib.t);

@@ -1,6 +1,23 @@
-type t = Base.t(LR.t(Sort.t));
+module Role: {
+  type t =
+    | Op
+    | Pre(Precedence.t)
+    | Post(Precedence.t)
+    | Bin(Precedence.t);
 
-let merge = (~merge_sorts, mold_l: t('sorts), mold_r: t('sorts)): t('sorts) => {
-  tips: {l: mold_l.tips.l, r: mold_r.tips.r},
-  sorts: merge_sorts(mold_l.sorts, mold_r.sorts),
+  let precedence: t => Precedence.t;
 };
+
+module Sorts: {
+  type t = {
+    out: Sort.t,
+    in_: list(Sort.t),
+  };
+};
+
+type t = {
+  role: Role.t,
+  sorts: Sorts.t,
+};
+
+let nibs: t => Nibs.t;
