@@ -3,52 +3,19 @@ open Util;
 open OptUtil.Syntax;
 
 [@deriving sexp]
-type t = Aba.t(Tile.s, Nibbed.t(Shard.t));
+type t = Aba.t(Tile.s, Shard.t);
+
+module Frame = {
+  [@deriving sexp]
+  type nonrec t = (t, t);
+
+  let nibs = (_frame, _nibs) => failwith("todo");
+};
 
 let empty = ([], []);
 let of_tiles = tiles => (tiles, []);
 
 let concat: (t, t) => t = Aba.concat((@));
-
-module Frame = {
-  [@deriving sexp]
-  type t = Aba.Frame.a(Tile.s, Nibbed.t(Shard.t));
-};
-
-// produce possible front nibs such that
-// segment connects front nib to back nib
-let rec syn = (
-  back: Direction.t,
-  segment: t,
-  back_nib: Nib.t,
-): list(Nib.t) => {
-  let front = Direction.toggle(d);
-  switch (segment) {
-  | ([], []) => [back_nib]
-  | ([], [((nibs, _shard), _tiles), ..._]) =>
-    [Direction.(choose(front, nibs))]
-  | ([tile, ...tiles], tl) =>
-    Tile.molds(tile)
-    |> List.filter_map(
-      mold => {
-        let nibs = Tile.Mold.nibs(mold);
-        let front_nib = Direction.choose(back, nibs);
-        ana(d, front_nib, (tiles, tl), back_nib)
-        ? None
-        : Some(Direction.choose(front, nibs))
-      }
-    )
-  };
-}
-// check if segment connects front nib to back nib
-and ana = (
-  back: Direction.t,
-  front_nib: Nib.t,
-  segment: t,
-  back_nib: Nib.t,
-): bool =>
-  syn(back, segment, back_nib)
-  |> List.exists((==)(front_nib));
 
 let glue = (l: Nib.t, r: Nib.t): Tile.s => {
   let hole_nibs =
@@ -74,61 +41,6 @@ let glue = (l: Nib.t, r: Nib.t): Tile.s => {
   Tile.s_of_nibs(hole_nibs);
 };
 
-let connect = (l: Nib.t, pre: t, suf: t, r: Nib.t): t => {
-  let nibs_pre = syn(Left, trim_hd(pre), l);
-  let nibs_suf = syn(Right, trim_hd(suf), r);
-  let glue =
-    ListUtil.prod(nibs_pre, nibs_suf)
-    |> List.map(((l, r)) => glue(l, r))
-    |> List.map(Tile.s_len)
-    |> List.sort(Int.compare)
-    // shouldn't fail so long as every tile has at least one mold
-    |> List.hd;
-  concat([pre, of_tiles(glue), suf]);
-};
-
-let is_cracked =
-  List.exists(
-    fun
-    | Piece.Shard(_) => true
-    | _ => false,
-  );
-
-let is_intact = (s: Sort.t) =>
-  List.for_all(
-    fun
-    | Piece.Tile(Pat(_)) when s == Pat => true
-    | Tile(Exp(_)) when s == Exp => true
-    | _ => false,
-  );
-
-let is_intact_any = segment =>
-  is_intact(Pat, segment) || is_intact(Exp, segment);
-
-/*
- let rec is_whole =
-   fun
-   | []
-   | [Piece.Shard(_), ..._] => None
-   | [Tile(tile), ...segment] => {
-       let* tiles = is_whole(segment);
-       Tiles.cons(tile, tiles);
-     };
- */
-
-let filter_pred = (s: Sort.t) =>
-  fun
-  | Piece.Tile(tile) when Tile.sort(tile) == s => true
-  | _ => false;
-let filter_tiles = (s: Sort.t): (t => t) => List.filter(filter_pred(s));
-
-let has_same_sort_caps = (segment: t): option(Sort.t) =>
-  switch (tip(Left, segment), tip(Right, segment)) {
-  | (Some((_, sort_l)), Some((_, sort_r))) when sort_l == sort_r =>
-    Some(sort_l)
-  | _ => None
-  };
-
 let trim_end_holes = (segment: Segment.t) => {
   let trim_l =
     fun
@@ -140,4 +52,56 @@ let trim_end_holes = (segment: Segment.t) => {
     | _ => segment
     };
   trim_r(trim_l(segment));
-}
+};
+
+let rec remold = (
+  shard_nibs: list((Tile.Id.t, list((Shard.Index.t, Nibs.t)))),
+  segment: t,
+  (l, r): Nibs.t,
+): list((t, Tile.Frame.s)) =>
+  switch (segment) {
+  | ([], []) => Segment.of_tiles(glue(l, r))
+  | ([], [(shard, tiles), ...tl]) =>
+    let matching =
+      switch (List.assoc_opt(shard.tile_id, shard_nibs)) {
+      | None => []
+      | Some(matching) => matching
+      };
+    open List.Syntax;
+    let* (ll, rr) as nibs = Shard.Form.nibs(~matching, shard.form);
+    let glue_l = Tiles.rev(glue(l, ll));
+    let+ (remolded_tl, glue_r) = {
+      let+ (tl, (glue_mid, glue_r)) = remold(shard_nibs, (tiles, tl), (rr, r));
+      (concat([of_tiles(Tiles.rev(glue_mid)), tl]), glue_r)
+    };
+    let remolded = cons_shard({...shard, nibs}, remolded_tl);
+    (remolded, (glue_l, glue_r));
+  };
+
+let choose = (_remoldings: list((t, Tile.Frame.s))): (t, Tile.Frame.s) =>
+  failwith("todo");
+
+let connect =
+    (
+      ~insert: (Direction.t, Segment.t)=?,
+      affixes: Segment.Frame.t,
+      outer_nibs: Nibs.t,
+    ) => {
+  let (l, r) = Frame.nibs(affixes, nibs);
+  let insertion =
+    switch (insert) {
+    | None => (empty, Segment.of_tiles(glue(l, r)))
+    | Some((d, insertion)) =>
+      let shard_nibs = Frame.shard_nibs(affixes);
+      let remoldings = remold(shard_nibs, insertion, (l, r));
+      let (insertion, (glue_l, glue_r)) = choose(remoldings);
+      let (glue_l, glue_r) = (of_tiles(glue_l), of_tiles(glue_r));
+      switch (d) {
+      | Left =>
+        (glue_l, concat([insertion, glue_r]))
+      | Right =>
+        (concat([rev(insertion), glue_l]), glue_r)
+      };
+    };
+  Frame.append(insertion, affixes);
+};

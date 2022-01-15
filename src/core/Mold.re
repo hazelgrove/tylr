@@ -20,4 +20,5 @@ type t = {
   sorts: Sorts.t,
 };
 
-let nibs: t => Nibs.t;
+let nibs: (~index: int=?, t) => Nibs.t;
+
