@@ -67,8 +67,6 @@ and t =
       tokens: Aba.t(Token.t, s)
     });
 
-let s_empty = [];
-
 let tokens = get(Aba.get_as);
 
 let molds = (tile: t): list(Mold.t) =>

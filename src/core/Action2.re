@@ -202,6 +202,33 @@ let put_down = (((down, up), frame): Zipper.t): result(Zipper.t) => {
   }
 };
 
+let insert = (d: Direction.t, tokens: list(Token.t), (zipper: Zipper.t, id_gen: IdGen.t)) => {
+  let (((_, selection, affixes), _up), _frame) = zipper;
+  let (id, id_gen) = IdGen.next(id_gen);
+  let (insertion, picked_up) =
+    switch (tokens) {
+    | [_] =>
+    };
+
+  switch (tokens) {
+  | [_] =>
+    // make tile with tokens
+    // get its default mold
+    // make segment and connect between current zipper affixes
+    // meanwhile delete all selected tiles and either
+    //   (1) remove selected shards if they're the last to be picked up
+    //   (also remove their matching shards that were picked up), or
+    //   (2) otherwise pick up selected shards
+  | _ =>
+    // make shards of tokens
+    let shards =
+      tokens
+      |> List.mapi((i, token) => )
+    // connect d-end of shard list to current zipper
+    // put remaining shards in backpack (in some order tbd)
+  }
+};
+
 let perform =
     (a: t, (zipper: Zipper.t, id_gen: IdGen.t))
     : (result((Zipper.t, IdGen.t)) as 'r) =>
@@ -215,8 +242,10 @@ let perform =
   | Remove =>
     let zipper = remove(zipper);
     Ok((zipper, id_gen));
-  | Insert(d, tile) => insert(d, tile, zipper)
-  | Pick_up => Ok((pick_up(zipper), id_gen))
+  | Insert(d, tokens) => insert(d, tokens, (zipper, id_gen))
+  | Pick_up =>
+    let zipper = pick_up(zipper);
+    Ok((zipper, id_gen));
   | Put_down =>
     let+ zipper = put_down(zipper);
     (zipper, id_gen);

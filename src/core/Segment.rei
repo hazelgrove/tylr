@@ -1,13 +1,13 @@
 type t = Aba.t(Tile.s, Shard.t);
 
-let shard_nibs: t => list((Tile.Id.t, list((Shard.Index.t, Nibs.t))));
+let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
 
 module Frame: {
   type nonrec t = (t, t);
 
-  let nibs: (t, Nibs.t) => Nibs.t;
+  let inner_nibs: (t, Nibs.t) => Nibs.t;
 
-  let shard_nibs: t => list((Tile.Id.t, list((Shard.Index.t, Nibs.t))));
+  let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
 
   let append: (t, t) => t;
 };
