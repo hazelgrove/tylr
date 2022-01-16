@@ -93,14 +93,16 @@ let select = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =
   OptUtil.Syntax.(
     if (d == down.focus) {
       let+ (shard, (affixes, frame)) = enter_zipper(d, (down.affixes, frame));
-      let selection = Segment.grow(down.focus, shard, down.selection);
+      let selection =
+        Parser.assemble_segment(Right, Segment.grow(down.focus, shard, down.selection));
       let down = {...down, affixes, selection};
       ((down, up), frame);
     } else {
       let+ (shard, selection) = enter_segment(d, down.selection);
       let affixes = Segment.Frame.grow(down.focus, shard, down.affixes);
+      let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
       let down = {...down, affixes, selection};
-      ((down, up), frame)
+      ((down, up), frame);
     }
   );
 
