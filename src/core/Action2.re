@@ -10,27 +10,6 @@ type t =
 
 type result('success) = Result.t('success, Failure.t);
 
-// unselect current selection and move caret to
-// desired end of former selection if possible
-// (not possible if doing so would violate ordering
-// between shards up and shards down)
-let unselect = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
-  if (
-    d == down.focus
-    && !Segment.is_balanced(selection)
-    && !Zipper.Subject.Up.is_balanced(up)
-  ) {
-    None
-  } else {
-    let affixes =
-      switch (d) {
-      | Left => (prefix, Segment.concat([selection, suffix]))
-      | Right => (Segment.(concat([rev(selection), prefix])), suffix)
-      };
-    let (affixes, frame) = Parser.parse_zipper(affixes, frame);
-    Some(((([], affixes), up), frame));
-  };
-
 let enter_segment = (d: Direction.t, segment: Segment.t): option((Shard.t, Segment.t)) =>
   switch (Segment.orient(d, segment)) {
   | ([], []) => None
@@ -62,6 +41,27 @@ let enter_zipper =
   | Some((shard, front)) =>
     let affixes = Segment.Frame.unorient(d, (front, back));
     Some((shard, (affixes, frame)));
+  };
+
+// unselect current selection and move caret to
+// desired end of former selection if possible
+// (not possible if doing so would violate ordering
+// between shards up and shards down)
+let unselect = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
+  if (
+    d == down.focus
+    && !Segment.is_balanced(selection)
+    && !Zipper.Subject.Up.is_balanced(up)
+  ) {
+    None
+  } else {
+    let affixes =
+      switch (d) {
+      | Left => (prefix, Segment.concat([selection, suffix]))
+      | Right => (Segment.(concat([rev(selection), prefix])), suffix)
+      };
+    let (affixes, frame) = Parser.parse_zipper(affixes, frame);
+    Some(((([], affixes), up), frame));
   };
 
 let move = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
@@ -201,7 +201,7 @@ let perform =
     let+ zipper = Result.of_option(~error=Failure.Cant_move, move(d, zipper));
     (zipper, id_gen);
   | Select(d) =>
-    let+ zipper = select(d, zipper);
+    let+ zipper = Result.of_option(~error=Failure.Cant_move, select(d, zipper));
     (zipper, id_gen);
   | Remove =>
     let zipper = remove(zipper);
