@@ -10,48 +10,6 @@ type t =
 
 type result('success) = Result.t('success, Failure.t);
 
-let rec move_balanced =
-    (d: Direction.t, affixes: Segment.Frame.t, frame: Zipper.Frame.t)
-    : option((Segment.Frame.t, Zipper.Frame.t)) => {
-  let (front, back) = Segment.Frame.orient(d, affixes);
-  switch (front) {
-  | ([], []) =>
-    // [Move<d>Frame]
-    open OptUtil.Syntax;
-    let* (affixes', frame') = Parser.disassemble_frame(frame);
-    move_balanced(d, Segment.Frame.append(affixes, affixes'), frame');
-  | ([], [(shard, tiles), ...tl]) =>
-    // [Move<d>Atomic]
-    let back =
-      Parser.assemble_segment(
-        Direction.toggle(d),
-        Segment.cons_shard(shard, back),
-      );
-    let affixes = unorient(d, (front, back));
-    Some(Parser.assemble_zipper(affixes, frame));
-  | ([tile, ...tiles], tl) =>
-    let front = (tiles, tl);
-    let disassembled = Parser.disassemble_tile(d, tile);
-    let back = Segment.concat([disassembled, back]);
-    let affixes = Segment.Frame.unorient(d, (front, back));
-    move_balanced(d, affixes, frame);
-  };
-};
-
-let move_imbalanced =
-    (d: Direction.t, affixes, frame)
-    : option((Segment.frame, Frame.t)) => {
-  let (front, back) = Segment.Frame.orient(d, affixes);
-  switch (front) {
-  | ([tile, ...tiles], tl) =>
-    let front = (tiles, tl);
-    let back = Segment.cons_tile(tile, back);
-    let affixes = Segment.Frame.unorient(d, (front, back))
-    Some((affixes, frame));
-  | _ => None
-  };
-};
-
 // unselect current selection and move caret to
 // desired end of former selection if possible
 // (not possible if doing so would violate ordering
@@ -66,31 +24,12 @@ let unselect = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t)
   } else {
     let affixes =
       switch (d) {
-      | Left =>
-        let suffix = Segment.concat([selection, suffix]);
-        (prefix, Parser.assemble_segment(Right, suffix));
-      | Right =>
-        let prefix = Segment.(concat([rev(selection), prefix]));
-        (Parser.assemble_segment(Left, prefix), suffix);
+      | Left => (prefix, Segment.concat([selection, suffix]))
+      | Right => (Segment.(concat([rev(selection), prefix])), suffix)
       };
     let (affixes, frame) = Parser.parse_zipper(affixes, frame);
     Some(((([], affixes), up), frame));
   };
-
-let move = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) => {
-  let (selection, affixes) = down;
-  switch (selection) {
-  | [_, ..._] => unselect(d, zipper)
-  | [] =>
-    switch (front_affix(d, affixes)) {
-    | [Shard(_), ..._] => None
-    | _ =>
-      let move =
-        Subject2.Up.is_balanced(up) ? move_balanced : move_imbalanced;
-      move(d, affixes, frame)
-    }
-  };
-};
 
 let enter_segment = (d: Direction.t, segment: Segment.t): option((Shard.t, Segment.t)) =>
   switch (Segment.orient(d, segment)) {
@@ -123,6 +62,31 @@ let enter_zipper =
   | Some((shard, front)) =>
     let affixes = Segment.Frame.unorient(d, (front, back));
     Some((shard, (affixes, frame)));
+  };
+
+let move = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
+  switch (down.selection) {
+  | (_, [_, ..._])
+  | ([_, ..._], _) => unselect(d, zipper)
+  | ([], []) =>
+    if (Zipper.Subject.Up.is_balanced(up)) {
+      open OptUtil.Syntax;
+      let+ (shard, (affixes, frame)) = enter_zipper(d, down.affixes, frame);
+      let affixes = Segment.Frame.grow(Direction.toggle(d), affixes);
+      let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+      let down = {...down, affixes};
+      ((down, up), frame);
+    } else {
+      let (front, back) = Segment.Frame.orient(d, down.affixes);
+      switch (front) {
+      | ([tile, ...tiles], tl) =>
+        let front = (tiles, tl);
+        let back = Segment.cons_tile(tile, back);
+        let affixes = Segment.Frame.unorient(d, (front, back))
+        Some((affixes, frame));
+      | _ => None
+      };
+    }
   };
 
 let select = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
