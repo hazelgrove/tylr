@@ -1,7 +1,11 @@
 module Subject = {
   module Down = {
     [@deriving sexp]
-    type t = (Direction.t, Segment.t, Segment.Frame.t);
+    type t = {
+      focus: Direction.t,
+      selection: Segment.t,
+      affixes: Segment.Frame.t,
+    };
   };
 
   // backpack

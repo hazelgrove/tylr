@@ -1,10 +1,36 @@
-module Id: {
-  type t = int;
+module Role: {
+  type t =
+    | Op
+    | Pre(Precedence.t)
+    | Post(Precedence.t)
+    | Bin(Precedence.t);
+
+  let precedence: t => Precedence.t;
+};
+
+module Sorts: {
+  type t = {
+    out: Sort.t,
+    in_: list(Sort.t),
+  };
+};
+
+module Mold: {
+  type t = {
+    role: Role.t,
+    sorts: Sorts.t,
+  };
+
+  let nibs: (~index: int=?, t) => Nibs.t;
 };
 
 module Form: {
-  type t = list(Token.t);
+  type t = list(Token.t); // nonempty
   let molds: t => list(Mold.t);
+};
+
+module Id: {
+  type t = int;
 };
 
 type s = list(t)
