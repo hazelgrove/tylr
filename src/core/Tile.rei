@@ -1,4 +1,8 @@
-module Role: {
+module Id: {
+  type t = int;
+};
+
+module Shape: {
   type t =
     | Op
     | Pre(Precedence.t)
@@ -17,20 +21,15 @@ module Sorts: {
 
 module Mold: {
   type t = {
-    role: Role.t,
+    shape: Shape.t,
     sorts: Sorts.t,
   };
-
   let nibs: (~index: int=?, t) => Nibs.t;
 };
 
 module Form: {
   type t = list(Token.t); // nonempty
   let molds: t => list(Mold.t);
-};
-
-module Id: {
-  type t = int;
 };
 
 type s = list(t)
@@ -48,8 +47,6 @@ and t =
 let form: t => Form.t;
 
 module Frame: {
-  type tile = t;
-
   // example: y subject
   // 1 + let |y = x + 2 in y + 3
 
@@ -59,7 +56,4 @@ module Frame: {
     mold: Mold.t,
     tokens: Aba.Frame.b(Token.t, s),
   };
-
-  // [1 +] _ [y + 3]
-  type s = ListFrame.t(tile);
 };

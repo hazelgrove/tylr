@@ -4,6 +4,31 @@ module Id = {
   type t = int;
 };
 
+module Shape = {
+  type t =
+    | Op
+    | Pre(Precedence.t)
+    | Post(Precedence.t)
+    | Bin(Precedence.t);
+
+  let precedence: t => Precedence.t = failwith("todo");
+};
+
+module Sorts = {
+  type t = {
+    out: Sort.t,
+    in_: list(Sort.t),
+  };
+};
+
+module Mold = {
+  type t = {
+    shape: Shape.t,
+    sorts: Sorts.t,
+  };
+  let nibs: (~index: int=?, t) => Nibs.t = failwith("todo");
+};
+
 module Form = {
   type t = list(Token.t);
 

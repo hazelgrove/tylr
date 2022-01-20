@@ -26,7 +26,7 @@ module Frame: {
 
   let grow: (Direction.t, Shard.t, t) => t;
 
-  let rerole: (Nibs.t, t, Sort.t) => list(t);
+  let reshape: (Nibs.t, t, Sort.t) => list(t);
 };
 
 let empty: t;
@@ -47,7 +47,7 @@ let glue: Nibs.t => Tile.s;
 
 let trim: t => t;
 
-let rerole: (t, Nibs.t) => list(t);
+let reshape: (t, Nibs.t) => list(t);
 
 let remold: (t, (Sort.t, Sort.t)) => list(t);
 
@@ -81,7 +81,7 @@ let connect:
  * of `segment` along with the glue needed for each
  * to fit `nibs`
  */
-let remold: (t, Nibs.t) => list((t, Tile.Frame.s));
+let remold: (t, Nibs.t) => list((t, Tiles.Frame.t));
 
 let connect: (~insert: (Direction.t, t)=?, Frame.t, Nibs.t) => Frame.t;
 

@@ -1,5 +1,4 @@
 open Sexplib.Std;
-open Tile;
 
 [@deriving sexp]
 type t = Tile.s;
