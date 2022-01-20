@@ -47,14 +47,20 @@ let enter_zipper =
 // desired end of former selection if possible
 // (not possible if doing so would violate ordering
 // between shards up and shards down)
-let unselect = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
+let unselect = (
+  d: Direction.t,
+  edit_state: EditState.t,
+): option(Zipper.t) => {
+  let Subject.{focus, selection, affixes} = edit_state.zipper.subject;
   if (
-    d == down.focus
+    d == focus
     && !Segment.is_balanced(selection)
-    && !Zipper.Subject.Up.is_balanced(up)
+    && !Backpack.is_balanced(edit_state.backpack)
   ) {
     None
   } else {
+    // TODO make this a fn in Segment.Frame
+    let (prefix, suffix) = affixes;
     let affixes =
       switch (d) {
       | Left => (prefix, Segment.concat([selection, suffix]))
@@ -63,31 +69,38 @@ let unselect = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t)
     let (affixes, frame) = Parser.parse_zipper(affixes, frame);
     Some(((([], affixes), up), frame));
   };
+};
 
-let move = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
-  switch (down.selection) {
+let move = (d: Direction.t, edit_state: EditState.t): option(Zipper.t) => {
+  let EditState.{backpack, zipper, id_gen: _} = edit_state;
+  let Zipper.{subject, frame} = zipper;
+  switch (subject.selection) {
   | (_, [_, ..._])
   | ([_, ..._], _) => unselect(d, zipper)
   | ([], []) =>
-    if (Zipper.Subject.Up.is_balanced(up)) {
+    if (Backpack.is_balanced(backpack)) {
       open OptUtil.Syntax;
-      let+ (shard, (affixes, frame)) = enter_zipper(d, down.affixes, frame);
+      let+ (shard, (affixes, frame)) = enter_zipper(d, subject.affixes, frame);
       let affixes = Segment.Frame.grow(Direction.toggle(d), affixes);
       let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
-      let down = {...down, affixes};
-      ((down, up), frame);
+      let subject = {...subject, affixes};
+      {...edit_state, zipper: {subject, frame}};
     } else {
-      let (front, back) = Segment.Frame.orient(d, down.affixes);
+      let (front, back) = Segment.Frame.orient(d, subject.affixes);
       switch (front) {
       | ([tile, ...tiles], tl) =>
         let front = (tiles, tl);
         let back = Segment.cons_tile(tile, back);
         let affixes = Segment.Frame.unorient(d, (front, back))
-        Some((affixes, frame));
+        Some({
+          ...edit_state,
+          zipper: {...zipper, subject: {...subject, affixes}},
+        });
       | _ => None
       };
     }
   };
+};
 
 let select = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
   OptUtil.Syntax.(
@@ -106,11 +119,14 @@ let select = (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =
     }
   );
 
+let remove = (((down, up), frame): Zipper.t): Zipper.t => {
+
+}
+
 let remove = (((down, up) as subj, frame): Zipper.t): Zipper.t => {
-  // for each piece in selection
-  //   check if there are any matching pieces down
-  //   if so, pick up that piece
-  //   otherwise, remove it and any matching pieces up
+  // for each piece p in selection
+  //   if there exist matching pieces down, pick up p
+  //   otherwise, remove p and any matching pieces up
   let (d, selection, (prefix, suffix) as affixes) = down;
   let (up, picked_up) =
     selection
@@ -194,23 +210,19 @@ let insert = (d: Direction.t, tokens: list(Token.t), (zipper: Zipper.t, id_gen: 
 
 
 let perform =
-    (a: t, (zipper: Zipper.t, id_gen: IdGen.t))
-    : (result((Zipper.t, IdGen.t)) as 'r) =>
+    (a: t, edit_state: EditState.t))
+    : (result(EditState.re) as 'r) =>
   switch (a) {
   | Move(d) =>
-    let+ zipper = Result.of_option(~error=Failure.Cant_move, move(d, zipper));
-    (zipper, id_gen);
+    Result.of_option(~error=Failure.Cant_move, move(d, edit_state))
   | Select(d) =>
-    let+ zipper = Result.of_option(~error=Failure.Cant_move, select(d, zipper));
-    (zipper, id_gen);
+    Result.of_option(~error=Failure.Cant_move, select(d, edit_state))
   | Remove =>
-    let zipper = remove(zipper);
-    Ok((zipper, id_gen));
-  | Insert(d, tokens) => insert(d, tokens, (zipper, id_gen))
+    Ok({...edit_state, zipper: remove(edit_state.zipper)})
+  | Insert(d, tokens) =>
+    insert(d, tokens, edit_state)
   | Pick_up =>
-    let zipper = pick_up(zipper);
-    Ok((zipper, id_gen));
+    Ok({...edit_state, zipper: pick_up(zipper)})
   | Put_down =>
-    let+ zipper = put_down(zipper);
-    (zipper, id_gen);
+    Result.of_option(~error=Failure.Empty_backpack, put_down(edit_state))
   };

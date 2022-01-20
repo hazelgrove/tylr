@@ -40,7 +40,5 @@ and t =
 let form: t => Form.t = get(Aba.get_as);
 
 module Frame = {
-  type tile = t;
   type t = Identified.t(Aba.Frame.b(Token.t, s));
-  type s = ListFrame.t(tile);
 };

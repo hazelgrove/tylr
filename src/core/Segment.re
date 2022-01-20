@@ -56,6 +56,10 @@ let rec remold = (
     let* (ll, rr) as nibs = Shard.Form.nibs(~matching, shard.form);
     let glue_l = Tiles.(rev(glue(l, ll)));
     let+ (remolded_tl, glue_r) = {
+      // TODO need to fix args to recursive call,
+      // remember to update affixes passed in so that
+      // any shard remoldings performed in this call
+      // are taken into account for matching shards in tl
       let+ (tl, (glue_mid, glue_r)) = remold(shard_nibs, (tiles, tl), (rr, r));
       (concat([of_tiles(Tiles.rev(glue_mid)), tl]), glue_r)
     };
@@ -67,15 +71,50 @@ let rec remold = (
 let choose = (_remoldings: list((t, Tile.Frame.s))): (t, Tile.Frame.s) =>
   failwith("todo");
 
+let choose: list((t, Frame.t)) => (t, Frame.t) = failwith("todo");
+
+let connect = (affixes: Frame.t, sort: Sort.t): list(Frame.t) => {
+  let (l, r) = Frame.inner_nibs(affixes, sort);
+  if (l.sort == r.sort) {
+    Nib.of_sort(l.sort)
+    |> List.map(mid => Frame.rerole((mid, mid), affixes, sort))
+    |> List.concat
+  } else {
+    let mid_l = Nib.{sort: l.sort, orientation: Right};
+    let mid_r = Nib.{sort: r.sort, orientation: Left};
+    Frame.rerole((mid_l, mid_r), affixes, sort)
+    |> List.map(((prefix, suffix)) => (prefix, [Tile.Sep, ...suffix]))
+  };
+};
+
+let insert =
+    (insertion: Segment.t, affixes: Frame.t, sort: Sort.t)
+    : list((Segment.t, Frame.t)) => {
+  open ListUtil.Syntax;
+  let* remolded = remold(insertion, affixes, sort);
+  switch (nibs(remolded)) {
+  | None =>
+    let+ affixes = connect(affixes, sort);
+    (empty, affixes);
+  | Some(inner_nibs) =>
+    let+ affixes = Frame.rerole(inner_nibs, t, sort);
+
+  };
+};
+
+
 let connect =
     (
       ~insert: option((Direction.t, t))=?,
       affixes: Frame.t,
-      (l, r) as outer_nibs: Nibs.t,
+      outer_nibs: Nibs.t,
     ) => {
+  // TODO need to trim affixes
   let insertion =
     switch (insert) {
-    | None => (empty, Segment.of_tiles(Tiles.glue(l, r)))
+    | None =>
+      let (l, r) = Frame.inner_nibs(affixes, outer_nibs);
+      (empty, Segment.of_tiles(Tiles.glue(l, r)))
     | Some((d, insertion)) =>
       let remoldings = remold(insertion, affixes, outer_nibs);
       let (insertion, (glue_l, glue_r)) = choose(remoldings);

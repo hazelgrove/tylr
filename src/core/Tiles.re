@@ -29,3 +29,7 @@ let glue = ((l, r): Nibs.t) =>
       };
     concat([l, [Sep], r]);
   };
+
+module Frame = {
+  type t = ListFrame.t(Tile.t);
+};
