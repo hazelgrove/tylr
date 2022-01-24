@@ -52,15 +52,12 @@ module Form = {
 };
 
 [@deriving sexp]
-type s = list(t)
-and t =
-  | Hole(Sort.t)
-  | Sep
-  | Tokens({
-      id: Id.t,
-      mold: Mold.t,
-      tokens: Aba.t(Token.t, s)
-    });
+type s = Util.Aba.t(list(Placeholder.t), t)
+and t = {
+    id: Id.t,
+    mold: Mold.t,
+    tokens: Aba.t(Token.t, s),
+  };
 
 let form: t => Form.t = get(Aba.get_as);
 

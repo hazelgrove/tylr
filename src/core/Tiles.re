@@ -9,12 +9,12 @@ let concat = List.concat;
 
 let glue = ((l, r): Nibs.t) =>
   if (l == r) {
-    []
+    [];
   } else if (l.sort == r.sort) {
     switch (l.orientation) {
     | Left => [Hole(l.sort)]
     | Right => [Sep]
-    }
+    };
   } else {
     let l =
       switch (l.orientation) {

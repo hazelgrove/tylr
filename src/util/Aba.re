@@ -1,15 +1,24 @@
-open Sexplib.Std;
-
-module rec Aba: {} = {
+module rec Aba: {
   /**
    * An odd-length list of elements with alternating types
    */
   type t('a, 'b) = ('a, Baba.t('b, 'a));
 
-  let cons = (a: 'a, baba: Baba.t('a, 'b)) => (a, baba);
+  let prepend: (Baba.t('b, 'a), t('a, 'b)) => t('a, 'b);
 
-  let snoc = (baba: t('b, 'a), b: 'b): Aba.t('b, 'a) =>
-    failwith("todo");
+  let split: ('b => option('c), t('a, 'b)) => t(t('a, 'b), 'c);
+
+  let cons: ('a, Baba.t('b, 'a)) => t('a, 'b);
+  let snoc: (t('b, 'a), 'b) => t('b, 'a);
+} = {
+  /**
+   * An odd-length list of elements with alternating types
+   */
+  type t('a, 'b) = ('a, Baba.t('b, 'a));
+
+  let cons = (a: 'a, baba: Baba.t('b, 'a)) => (a, baba);
+
+  let snoc = (_baba: t('b, 'a), _b: 'b): Aba.t('b, 'a) => failwith("todo");
 
   let rec prepend = (prefix: Baba.t('b, 'a), aba: t('a, 'b)): t('a, 'b) =>
     switch (prefix) {
@@ -19,21 +28,30 @@ module rec Aba: {} = {
       prepend(prefix, (a', [(b', a), ...baba]));
     };
 
-  let split_last = (aba: t('a, 'b)): (Baba.t('a, 'b), 'a) =>
-    failwith("todo");
+  // let split_last = (aba: t('a, 'b)): (Baba.t('a, 'b), 'a) =>
+  //   failwith("todo");
 
   let split =
       (p: 'b => option('c), (a, baba): t('a, 'b)): t(t('a, 'b), 'c) => {
     let (baba, cabacaba) = Baba.split(p, baba);
     ((a, baba), cabacaba);
   };
-
-  let hd: t('a, 'b) => 'a = fst;
-
-  let join = (q: 'c => 'b, (aba, cabacaba): t(t('a, 'b), 'c)): t('a, 'b) =>
-    Baba.append(aba, Baba.join(q, cabacaba))
+  // let hd: t('a, 'b) => 'a = fst;
+  // let join = (q: 'c => 'b, (aba, cabacaba): t(t('a, 'b), 'c)): t('a, 'b) =>
+  //   Baba.append(aba, Baba.join(q, cabacaba));
 }
-and Baba: {} = {
+and Baba: {
+  /**
+   * An even-length list of elements with alternating types
+   */
+  type t('b, 'a) = list(('b, 'a));
+
+  let split:
+    ('b => option('c), t('b, 'a)) => (t('b, 'a), t('c, Aba.t('a, 'b)));
+
+  let append: (Aba.t('a, 'b), t('b, 'a)) => Aba.t('a, 'b);
+  let join: ('c => 'b, t('c, Aba.t('a, 'b))) => t('b, 'a);
+} = {
   /**
    * An even-length list of elements with alternating types
    */
@@ -41,9 +59,11 @@ and Baba: {} = {
 
   let cons = (b: 'b, (a, baba): Aba.t('a, 'b)) => [(b, a), ...baba];
 
-  let split =
-      (p: 'b => option('c), baba: t('b, 'a))
-      : (t('b, 'a), t('c, Aba.t('a, 'b))) =>
+  let append = failwith("todo");
+
+  let rec split =
+          (p: 'b => option('c), baba: t('b, 'a))
+          : (t('b, 'a), t('c, Aba.t('a, 'b))) =>
     switch (baba) {
     | [] => ([], [])
     | [(b, a), ...baba] =>
@@ -52,15 +72,14 @@ and Baba: {} = {
         let (baba, cabacaba) = split(p, baba);
         ([(b, a), ...baba], cabacaba);
       | Some(c) =>
-        let (aba, abacaba) = Aba.split(p, (a, baba));
-        ([], [(c, aba), ...tl]);
+        let (aba, _abacaba) = Aba.split(p, (a, baba));
+        let _ = failwith("todo fix tl");
+        ([], [(c, aba)]);
       }
     };
 
-  let join = (q: 'c => 'b, cabacaba: t('c, t('a, 'b))): t('b, 'a) =>
-    cabacaba
-    |> List.map(((c, aba)) => cons(q(c), aba))
-    |> List.concat;
+  let join = (q: 'c => 'b, cabacaba: t('c, Aba.t('a, 'b))): t('b, 'a) =>
+    cabacaba |> List.map(((c, aba)) => cons(q(c), aba)) |> List.concat;
 };
 
 module Frame = {

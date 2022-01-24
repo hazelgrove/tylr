@@ -8,7 +8,8 @@ module Subject = {
 };
 
 module Frame = {
-  type t = list((Tile.Frame.t, Tile.Frame.s));
+  type level = (Tile.Frame.t, Tiles.Frame.t);
+  type t = list(level);
 };
 
 type t = {

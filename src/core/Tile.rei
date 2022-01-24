@@ -1,6 +1,4 @@
-module Id: {
-  type t = int;
-};
+module Id: {type t = int;};
 
 module Shape: {
   type t =
@@ -32,11 +30,18 @@ module Form: {
   let molds: t => list(Mold.t);
 };
 
-type s = list(t)
-and t =
-  | Sep
-  | Hole(Sort.t)
-  | Tokens({id: Id.t, mold: Mold.t, tokens: Aba.t(Token.t, s)});
+module Placeholder: {
+  type t =
+    | Sep(Nibs.t)
+    | Hole(Sort.t);
+};
+
+type s = Util.Aba.t(list(Placeholder.t), t)
+and t = {
+  id: Id.t,
+  mold: Mold.t,
+  tokens: Util.Aba.t(Token.t, s),
+};
 
 // 1 + let x = 2 in x + 3
 // --delete let tile-->
@@ -54,6 +59,6 @@ module Frame: {
   type t = {
     id: Id.t,
     mold: Mold.t,
-    tokens: Aba.Frame.b(Token.t, s),
+    tokens: Util.Aba.Frame.b(Token.t, s),
   };
 };

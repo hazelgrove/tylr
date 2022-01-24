@@ -3,10 +3,13 @@ open Util;
 open Core;
 open OptUtil.Syntax;
 
-type t = {
-
-}
-
+/**
+ * decoration priority list:
+ * - caret
+ * - root_term
+ * - selection highlighting
+ * - tile/shard decorations
+ */
 
 /**
  * A data structure that accompanies a layout

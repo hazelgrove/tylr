@@ -1,6 +1,4 @@
-module Index: {
-  type t = int;
-};
+module Index: {type t = int;};
 
 module Form: {
   type t = (Index.t, Tile.Form.t);

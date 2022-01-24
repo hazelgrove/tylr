@@ -1,7 +1,7 @@
 open Core;
 
 type t = {
-  zipper: Zipper.t,
+  edit_state: EditState.t,
   history: ActionHistory.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
@@ -10,11 +10,40 @@ type t = {
 
 let cutoff = (===);
 
+let one = Tile.{
+  id: 0,
+  mold: {shape: Op, sorts: {out: Exp, in_: []}},
+  tokens: ("1", []),
+};
+let plus_12 = Tile.{
+  id: 1,
+  mold: {shape: Bin(3), sorts: {out: Exp, in_: []}},
+  tokens: ("+", []),
+};
+let two = Tile.{
+  id: 2,
+  mold: {shape: Op, sorts: {out: Exp, in_: []}},
+  tokens: ("2", []),
+};
+let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
+
+let paren = Tile.{
+  id: 3,
+  mold: {shape: Op, sorts: {out: Exp, in_: [Exp]}},
+  tokens: ("(", [(one_plus_two, ")")]),
+};
+
 let init = () => {
-  zipper: (
-    Subject.Pointing(([], Selem.[Tile(Exp(OpHole))])),
-    Frame.Exp(Root),
-  ),
+  edit_state: {
+    zipper: {
+      subject: {
+        focus: Left,
+        selection: Segment.empty,
+        affixes: (Segment.empty, Segment.of_tiles(Tiles.mk([paren]))),
+      },
+      frame: [],
+    },
+  },
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,

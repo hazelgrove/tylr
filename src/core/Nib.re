@@ -8,9 +8,12 @@ type t = {
 
 let toggle = (nib: t) => {
   ...nib,
-  orientation: Direction.toggle(orientation),
+  orientation: Direction.toggle(nib.orientation),
 };
 
 let sort_consistent = (nib: t, nib': t) => nib.sort == nib'.sort;
 
-let of_sort = sort => [{sort, orientation: Left}, {sort, orientation: Right}];
+let of_sort = sort => [
+  {sort, orientation: Left},
+  {sort, orientation: Right},
+];

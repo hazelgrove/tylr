@@ -499,22 +499,20 @@ let mk_zipper =
     }
   );
 
-
 let mk_subject = ((down, up): Subject.t) => {
-    ListFrame.to_list(~subject=selection, sframe)
-    |> List.mapi((i, piece) =>
-         [
-           mk_piece(i, piece),
-           space(i + 1, Color.of_sort(snd(Piece.tip(Right, piece)))),
-         ]
-       )
-    |> List.flatten
-    |> List.cons(space(0, Color.of_sort(Frame.sort(frame))))
-    |> cats;
-}
-
+  ListFrame.to_list(~subject=selection, sframe)
+  |> List.mapi((i, piece) =>
+       [
+         mk_piece(i, piece),
+         space(i + 1, Color.of_sort(snd(Piece.tip(Right, piece)))),
+       ]
+     )
+  |> List.flatten
+  |> List.cons(space(0, Color.of_sort(Frame.sort(frame))))
+  |> cats;
+};
 
 let mk_zipper =
-  Memo.memoize(
-    ((subj, frame): Zipper.t) => mk_frame(mk_subject(subj), frame)
+  Memo.memoize(((subj, frame): Zipper.t) =>
+    mk_frame(mk_subject(subj), frame)
   );

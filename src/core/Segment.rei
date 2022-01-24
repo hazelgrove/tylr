@@ -1,4 +1,4 @@
-type t = Aba.t(Tile.s, Shard.t);
+type t = Util.Aba.t(Tiles.t, Shard.t);
 
 let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
 
@@ -36,12 +36,9 @@ let cons_shard: (Shard.t, t) => t;
 let snoc_shard: (t, Shard.t) => t;
 let grow: (Direction.t, Shard.t, t) => t;
 
-let fold_left_map: (
-  ('acc, Shard.t) => ('acc, 'a),
-  ('acc, Tile.t) => ('acc, 'a),
-  'acc,
-  t,
-) => ('acc, list('a));
+let fold_left_map:
+  (('acc, Shard.t) => ('acc, 'a), ('acc, Tile.t) => ('acc, 'a), 'acc, t) =>
+  ('acc, list('a));
 
 let glue: Nibs.t => Tile.s;
 
@@ -72,9 +69,7 @@ let insert: (t, Frame.t, Sort.t) => list((t, Frame.t));
  * the sort at the frame subject (which should be well-defined
  * if assuming sort-consistency of input)
  */
-let connect:
-    (~insert: t=?, Frame.t, Sort.t)
-    => list((t, Frame.t))
+let connect: (~insert: t=?, Frame.t, Sort.t) => list((t, Frame.t));
 
 /**
  * `remold(segment, nibs)` returns a list of remoldings

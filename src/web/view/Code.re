@@ -80,7 +80,9 @@ let rec view_of_layout =
            },
        );
   let with_cls = cls => Node.span([Attr.classes([cls])]);
-  let rec go = (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t) => {
+  let rec go =
+    (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
+    : (list(Vdom.Node.t), list(Vdom.Node.t)) => {
     switch (l) {
     | Text(s) => ([Node.text(s)], [])
     | Cat(l1, l2) =>
