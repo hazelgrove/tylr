@@ -1,6 +1,6 @@
 open Virtual_dom.Vdom;
 open Util;
-open Core;
+// open Core;
 open Diag;
 open DecUtil;
 
@@ -12,14 +12,14 @@ module Profile = {
     style: SelemStyle.t,
     open_children: list(Layout.measurement),
     closed_children: list(Layout.measurement),
-    empty_holes: list((int, Color.t, Nib.shape)),
+    // empty_holes: list((int, Color.t, Nib.shape)),
   };
   let mk =
       (
         ~measurement,
         ~open_children=[],
         ~closed_children=[],
-        ~empty_holes=[],
+        // ~empty_holes=[],
         ~color,
         ~style,
         ~shape,
@@ -30,7 +30,7 @@ module Profile = {
     shape,
     open_children,
     closed_children,
-    empty_holes,
+    // empty_holes,
     style,
   };
 
@@ -42,13 +42,14 @@ module Profile = {
         ~style: SelemStyle.t,
         layout: Layout.t,
       ) => {
-    let empty_holes = Layout.piece_holes(layout);
+    // let empty_holes = Layout.piece_holes(layout);
     let (open_children, closed_children) = Layout.piece_children(layout);
+    let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
     mk(
       ~measurement,
       ~open_children,
       ~closed_children,
-      ~empty_holes,
+      // ~empty_holes,
       ~color,
       ~style,
       ~shape,
@@ -184,12 +185,12 @@ let open_child_paths =
   |> List.flatten;
 };
 
-let empty_hole_path =
-    (~font_metrics as _, empty_hole: (int, Color.t, Nib.shape))
-    : SvgUtil.Path.t => {
-  let (offset, _color, tip) = empty_hole;
-  EmptyHoleDec.path(tip, Float.of_int(offset), 0.28);
-};
+// let empty_hole_path =
+//     (~font_metrics as _, empty_hole: (int, Color.t, Nib.shape))
+//     : SvgUtil.Path.t => {
+//   let (offset, _color, tip) = empty_hole;
+//   EmptyHoleDec.path(tip, Float.of_int(offset), 0.28);
+// };
 
 let open_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
@@ -203,15 +204,17 @@ let open_child_path = ({origin, length}: Layout.measurement) =>
     ],
   );
 
-let contour_path = (~font_metrics, profile: Profile.t): SvgUtil.Path.t => {
+let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
   open SvgUtil.Path;
   let empty_hole_paths = {
-    let raised_holes =
-      SelemStyle.show_children(profile.style)
-        // always show holes in empty hole tiles
-        ? List.filter(((n, _, _)) => n == 0, profile.empty_holes)
-        : profile.empty_holes;
-    List.map(empty_hole_path(~font_metrics), raised_holes);
+    let _ = failwith("fix SelemDec.contour_path");
+    // let raised_holes =
+    //   SelemStyle.show_children(profile.style)
+    //     // always show holes in empty hole tiles
+    //     ? List.filter(((n, _, _)) => n == 0, profile.empty_holes)
+    //     : profile.empty_holes;
+    // List.map(empty_hole_path(~font_metrics), raised_holes);
+    [];
   };
   let closed_child_paths =
     List.map(closed_child_path, profile.closed_children);

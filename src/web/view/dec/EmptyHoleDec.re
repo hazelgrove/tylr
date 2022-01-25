@@ -1,12 +1,13 @@
 open Virtual_dom.Vdom;
 open DecUtil;
-open Core;
+// open Core;
 
 module Profile = {
   type t = {
     measurement: Layout.measurement,
     color: Color.t,
-    tip: Nib.shape,
+    // TODO refactor types around new Nib datatype
+    // tip: Nib.shape,
   };
 };
 
@@ -26,8 +27,9 @@ let path = (tip, offset, s: float) => {
   );
 };
 
-let view = (~font_metrics, {measurement, color, tip}: Profile.t): Node.t => {
+let view = (~font_metrics, {measurement, color}: Profile.t): Node.t => {
   let c_cls = Color.to_string(color);
+  let _ = failwith("fix EmptyHoleDec");
   container(
     ~font_metrics,
     ~measurement,
@@ -35,7 +37,8 @@ let view = (~font_metrics, {measurement, color, tip}: Profile.t): Node.t => {
     SvgUtil.Path.[
       view(
         ~attrs=[Attr.classes(["empty-hole-path", c_cls])],
-        path(tip, 0., 0.28),
+        [],
+        // path(tip, 0., 0.28),
       ),
     ],
   );

@@ -1,29 +1,29 @@
 open Virtual_dom.Vdom;
 
-let logo = (~font_metrics) => {
-  let piece = (step, color: Color.t, shape: Layout.piece_shape, s): Layout.t =>
-    Layout.annot(Selem({color, shape, step}), Text(s));
-  let l =
-    Layout.(
-      spaces(
-        // HACK
-        Selected,
-        [
-          piece(0, Exp, ((Convex, 0), (Convex, 0)), "t"),
-          piece(1, Pat, ((Concave, 0), (Convex, 0)), "y"),
-          piece(2, Typ, ((Concave, 0), (Concave, 0)), "l"),
-          piece(3, Selected, ((Convex, 0), (Concave, 1)), "r"),
-        ],
-      )
-    );
-  Code.view_of_layout(
-    ~id="logo",
-    ~text_id="logo-text",
-    ~font_metrics,
-    DecPaths.mk(~logo_pieces=[0, 1, 2, 3], ()),
-    l,
-  );
-};
+// let logo = (~font_metrics) => {
+//   let piece = (step, color: Color.t, shape: Layout.piece_shape, s): Layout.t =>
+//     Layout.annot(Piece({color, shape, step}), Text(s));
+//   let l =
+//     Layout.(
+//       spaces(
+//         // HACK
+//         Selected,
+//         [
+//           piece(0, Exp, ((Convex, 0), (Convex, 0)), "t"),
+//           piece(1, Pat, ((Concave, 0), (Convex, 0)), "y"),
+//           piece(2, Typ, ((Concave, 0), (Concave, 0)), "l"),
+//           piece(3, Selected, ((Convex, 0), (Concave, 1)), "r"),
+//         ],
+//       )
+//     );
+//   Code.view_of_layout(
+//     ~id="logo",
+//     ~text_id="logo-text",
+//     ~font_metrics,
+//     DecPaths.mk(~logo_pieces=[0, 1, 2, 3], ()),
+//     l,
+//   );
+// };
 
 let filters =
   NodeUtil.svg(
@@ -82,12 +82,13 @@ let help_size = 20.;
 let view = (~inject, model: Model.t) => {
   let Model.{
         font_metrics,
-        logo_font_metrics,
-        zipper,
+        logo_font_metrics: _,
+        edit_state,
         history,
         show_neighbor_tiles,
       } = model;
-  let dpaths = DecPaths.of_zipper(zipper);
+  let zipper = edit_state.zipper;
+  // let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
   Node.div(
     Attr.[
@@ -117,7 +118,7 @@ let view = (~inject, model: Model.t) => {
               ),
             ],
           ),
-          logo(~font_metrics=logo_font_metrics),
+          // logo(~font_metrics=logo_font_metrics),
           div(
             [Attr.id("about-button-container")],
             [
@@ -187,7 +188,7 @@ let view = (~inject, model: Model.t) => {
             ~filler=Model.filler(model),
             ~just_failed=history.just_failed,
             ~show_neighbor_tiles,
-            dpaths,
+            DecPaths.empty, // dpaths,
             l,
           ),
         ],

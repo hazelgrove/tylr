@@ -1,3 +1,4 @@
+[@deriving sexp]
 type t = (Nib.t, Nib.t);
 
 let sort_consistent = ((l, r): t, (l', r'): t) =>

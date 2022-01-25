@@ -17,19 +17,19 @@ type t =
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
 
-let update_result =
-    (a, result: Result.t(Zipper.t, Failure.t), model: Model.t) =>
-  switch (result) {
-  | Error(failure) => {
-      ...model,
-      history: ActionHistory.failure(failure, model.history),
-    }
-  | Ok(zipper) => {
-      ...model,
-      zipper,
-      history: ActionHistory.succeeded(a, model.zipper, model.history),
-    }
-  };
+// let update_result =
+//     (a, result: Result.t(Zipper.t, Failure.t), model: Model.t) =>
+//   switch (result) {
+//   | Error(failure) => {
+//       ...model,
+//       history: ActionHistory.failure(failure, model.history),
+//     }
+//   | Ok(zipper) => {
+//       ...model,
+//       zipper,
+//       history: ActionHistory.succeeded(a, model.zipper, model.history),
+//     }
+//   };
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
   switch (update) {
@@ -45,45 +45,50 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
-  | PerformAction(a) =>
-    let result = Action.perform(a, model.zipper);
-    update_result(a, result, model);
+  | PerformAction(_a) =>
+    // let result = Action.perform(a, model.zipper);
+    // update_result(a, result, model);
+    model
   | FailedInput(reason) => {
       ...model,
       history: ActionHistory.just_failed(reason, model.history),
     }
-  | Escape(d) =>
+  | Escape(_d) =>
     // TODO restore escape functionality on restructuring
-    switch (model.zipper) {
-    | (Selecting(_, selection, (prefix, suffix)), frame) =>
-      let sframe =
-        switch (d) {
-        | Left => (prefix, Parser.parse_selection(Right, selection @ suffix))
-        | Right => (
-            Parser.parse_selection(Left, List.rev(selection) @ prefix),
-            suffix,
-          )
-        };
-      let (sframe, frame) = Parser.parse_zipper(sframe, frame);
-      {
-        ...model,
-        history: ActionHistory.escaped(model.history),
-        zipper: (Pointing(sframe), frame),
-      };
-    | _ => model
-    }
+    // switch (model.zipper) {
+    // | (Selecting(_, selection, (prefix, suffix)), frame) =>
+    //   let sframe =
+    //     switch (d) {
+    //     | Left => (prefix, Parser.parse_selection(Right, selection @ suffix))
+    //     | Right => (
+    //         Parser.parse_selection(Left, List.rev(selection) @ prefix),
+    //         suffix,
+    //       )
+    //     };
+    //   let (sframe, frame) = Parser.parse_zipper(sframe, frame);
+    //   {
+    //     ...model,
+    //     history: ActionHistory.escaped(model.history),
+    //     zipper: (Pointing(sframe), frame),
+    //   };
+    // | _ => model
+    // }
+    model
   | Undo =>
-    switch (ActionHistory.undo(model.zipper, model.history)) {
-    | None => model
-    | Some((zipper, history)) => {...model, zipper, history}
-    }
+    // switch (ActionHistory.undo(model.zipper, model.history)) {
+    // | None => model
+    // | Some((zipper, history)) => {...model, zipper, history}
+    // }
+    model
   | Redo =>
-    switch (ActionHistory.redo(model.zipper, model.history)) {
-    | None => model
-    | Some((zipper, history)) => {...model, zipper, history}
-    }
-  | MoveToNextHole(d) =>
-    let moved = Action.move_to_next_hole(d, model.zipper);
-    // Move(d) is hack arg, doesn't affect undo behavior
-    update_result(Move(d), moved, model);
+    // switch (ActionHistory.redo(model.zipper, model.history)) {
+    // | None => model
+    // | Some((zipper, history)) => {...model, zipper, history}
+    // }
+    model
+  | MoveToNextHole(_d) =>
+    // let moved = Action.move_to_next_hole(d, model.zipper);
+    // // Move(d) is hack arg, doesn't affect undo behavior
+    // update_result(Move(d), moved, model);
+    model
   };

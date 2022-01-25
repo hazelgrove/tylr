@@ -2,87 +2,88 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
-let delete_actions =
-  fun
-  | (Subject.Pointing((prefix, suffix)), frame)
-  | (Selecting(_, [], (prefix, suffix)), frame) => {
-      let action = affix =>
-        switch (affix) {
-        | [Piece.Tile(tile), ..._] =>
-          Tile.is_leaf(tile) ? Some(`Remove) : Some(`Restructure)
-        | _ =>
-          switch (frame) {
-          | Frame.Exp(Root) => None
-          | _ => Some(`Restructure)
-          }
-        };
-      (action(prefix), action(suffix));
-    }
-  | (Selecting(_, selection, _), _) =>
-    Selection.is_whole_any(selection)
-      ? (Some(`Remove), Some(`Remove))
-      : (Some(`Restructure), Some(`Restructure))
-  | (Restructuring(_), _) => (Some(`Remove), Some(`Remove));
+// let delete_actions =
+//   fun
+//   | (Subject.Pointing((prefix, suffix)), frame)
+//   | (Selecting(_, [], (prefix, suffix)), frame) => {
+//       let action = affix =>
+//         switch (affix) {
+//         | [Piece.Tile(tile), ..._] =>
+//           Tile.is_leaf(tile) ? Some(`Remove) : Some(`Restructure)
+//         | _ =>
+//           switch (frame) {
+//           | Frame.Exp(Root) => None
+//           | _ => Some(`Restructure)
+//           }
+//         };
+//       (action(prefix), action(suffix));
+//     }
+//   | (Selecting(_, selection, _), _) =>
+//     Selection.is_whole_any(selection)
+//       ? (Some(`Remove), Some(`Remove))
+//       : (Some(`Restructure), Some(`Restructure))
+//   | (Restructuring(_), _) => (Some(`Remove), Some(`Remove));
 
-let rec view_of_layout =
-        (
-          ~id=?,
-          ~text_id=?,
-          ~font_metrics,
-          ~zipper: option(Zipper.t)=?,
-          ~filler=0,
-          ~just_failed: option(FailedInput.t)=None,
-          ~show_neighbor_tiles: bool=false,
-          dpaths,
-          l,
-        )
-        : Node.t => {
-  let delete_actions = Option.map(delete_actions, zipper);
-  let caret_mode =
-    zipper
-    |> Option.map(
-         fun
-         | (Subject.Pointing(_), _) => CaretMode.Pointing
-         | (Selecting(side, selection, _), _) => Selecting(side, selection)
-         | (Restructuring(((_, selection, rest) as backpack, rframe)), _) => {
-             let at_restructurable_selection =
-               switch (rframe) {
-               | ([Selection(selection), ..._], _)
-                   when
-                     Option.is_some(Selection.is_restructurable(selection)) =>
-                 true
-               | (_, [Selection(selection), ..._])
-                   when
-                     Option.is_some(Selection.is_restructurable(selection)) =>
-                 true
-               | _ => false
-               };
-             let view_of_selection = (~with_box, selection) => {
-               let l = Layout.mk_selection(~frame_color=Selected, selection);
-               let len = List.length(selection);
-               let dpaths =
-                 DecPaths.mk(
-                   ~caret=([], (0, len)),
-                   ~selection_bars=[([], (0, len))],
-                   ~selection_boxes=with_box ? [([], (0, len))] : [],
-                   ~filtered_pieces=([], ListUtil.range(len)),
-                   (),
-                 );
-               view_of_layout(~font_metrics, dpaths, l);
-             };
-             let selection = view_of_selection(~with_box=false, selection);
-             let rest = List.map(view_of_selection(~with_box=true), rest);
-             Restructuring({
-               at_restructurable_selection,
-               backpack,
-               view: (selection, rest),
-             });
-           },
-       );
+// let rec view_of_layout =
+let view_of_layout =
+    (
+      ~id=?,
+      ~text_id=?,
+      ~font_metrics,
+      ~zipper as _: option(Zipper.t)=?,
+      ~filler=0,
+      ~just_failed as _: option(FailedInput.t)=None,
+      ~show_neighbor_tiles: bool=false,
+      dpaths,
+      l,
+    )
+    : Node.t => {
+  // let delete_actions = Option.map(delete_actions, zipper);
+  // let caret_mode =
+  //   zipper
+  //   |> Option.map(
+  //        fun
+  //        | (Subject.Pointing(_), _) => CaretMode.Pointing
+  //        | (Selecting(side, selection, _), _) => Selecting(side, selection)
+  //        | (Restructuring(((_, selection, rest) as backpack, rframe)), _) => {
+  //            let at_restructurable_selection =
+  //              switch (rframe) {
+  //              | ([Selection(selection), ..._], _)
+  //                  when
+  //                    Option.is_some(Selection.is_restructurable(selection)) =>
+  //                true
+  //              | (_, [Selection(selection), ..._])
+  //                  when
+  //                    Option.is_some(Selection.is_restructurable(selection)) =>
+  //                true
+  //              | _ => false
+  //              };
+  //            let view_of_selection = (~with_box, selection) => {
+  //              let l = Layout.mk_selection(~frame_color=Selected, selection);
+  //              let len = List.length(selection);
+  //              let dpaths =
+  //                DecPaths.mk(
+  //                  ~caret=([], (0, len)),
+  //                  ~selection_bars=[([], (0, len))],
+  //                  ~selection_boxes=with_box ? [([], (0, len))] : [],
+  //                  ~filtered_pieces=([], ListUtil.range(len)),
+  //                  (),
+  //                );
+  //              view_of_layout(~font_metrics, dpaths, l);
+  //            };
+  //            let selection = view_of_selection(~with_box=false, selection);
+  //            let rest = List.map(view_of_selection(~with_box=true), rest);
+  //            Restructuring({
+  //              at_restructurable_selection,
+  //              backpack,
+  //              view: (selection, rest),
+  //            });
+  //          },
+  //      );
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let rec go =
-    (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
-    : (list(Vdom.Node.t), list(Vdom.Node.t)) => {
+          (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
+          : (list(Node.t), list(Node.t)) => {
     switch (l) {
     | Text(s) => ([Node.text(s)], [])
     | Cat(l1, l2) =>
@@ -103,17 +104,19 @@ let rec view_of_layout =
         (txt, new_ds @ ds);
       };
       switch (annot) {
-      | Space(step, color) =>
-        DecPaths.current_space(
-          ~delete_actions?,
-          ~caret_mode?,
-          ~just_failed,
-          ~measurement={origin, length: 1},
-          (step, color),
-          dpaths,
-        )
-        |> List.map(Dec.view(~font_metrics))
-        |> add_decorations
+      | Space(_step, _color) =>
+        let _ = failwith("todo fix Code space dec");
+        // DecPaths.current_space(
+        //   ~delete_actions?,
+        //   ~caret_mode?,
+        //   ~just_failed,
+        //   ~measurement={origin, length: 1},
+        //   (step, color),
+        //   dpaths,
+        // )
+        // |> List.map(Dec.view(~font_metrics))
+        // |> add_decorations
+        go'();
 
       | Ap =>
         let (txt, ds) = go'();
@@ -127,7 +130,7 @@ let rec view_of_layout =
       | Delim =>
         let (txt, ds) = go'();
         ([with_cls("delim", txt)], ds);
-      | EmptyHole(color, tip) =>
+      | EmptyHole(color, _tip) =>
         add_decorations([
           EmptyHoleDec.view(
             ~font_metrics: FontMetrics.t,
@@ -137,7 +140,7 @@ let rec view_of_layout =
                 length: 1,
               },
               color,
-              tip,
+              // tip,
             },
           ),
         ])

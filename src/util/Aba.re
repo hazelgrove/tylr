@@ -1,24 +1,35 @@
+open Sexplib.Std;
+
 module rec Aba: {
   /**
    * An odd-length list of elements with alternating types
    */
+  [@deriving sexp]
   type t('a, 'b) = ('a, Baba.t('b, 'a));
 
   let prepend: (Baba.t('b, 'a), t('a, 'b)) => t('a, 'b);
+
+  let get_as: t('a, _) => list('a);
 
   let split: ('b => option('c), t('a, 'b)) => t(t('a, 'b), 'c);
 
   let cons: ('a, Baba.t('b, 'a)) => t('a, 'b);
   let snoc: (t('b, 'a), 'b) => t('b, 'a);
+
+  let concat: (list('a) => 'a, list(t('a, 'b))) => t('a, 'b);
 } = {
   /**
    * An odd-length list of elements with alternating types
    */
+  [@deriving sexp]
   type t('a, 'b) = ('a, Baba.t('b, 'a));
 
   let cons = (a: 'a, baba: Baba.t('b, 'a)) => (a, baba);
 
   let snoc = (_baba: t('b, 'a), _b: 'b): Aba.t('b, 'a) => failwith("todo");
+
+  let get_as = _ => failwith("todo");
+  let concat = _ => failwith("todo");
 
   let rec prepend = (prefix: Baba.t('b, 'a), aba: t('a, 'b)): t('a, 'b) =>
     switch (prefix) {
@@ -44,6 +55,7 @@ and Baba: {
   /**
    * An even-length list of elements with alternating types
    */
+  [@deriving sexp]
   type t('b, 'a) = list(('b, 'a));
 
   let split:
@@ -55,11 +67,12 @@ and Baba: {
   /**
    * An even-length list of elements with alternating types
    */
+  [@deriving sexp]
   type t('b, 'a) = list(('b, 'a));
 
   let cons = (b: 'b, (a, baba): Aba.t('a, 'b)) => [(b, a), ...baba];
 
-  let append = failwith("todo");
+  let append = _ => failwith("todo");
 
   let rec split =
           (p: 'b => option('c), baba: t('b, 'a))
@@ -83,7 +96,9 @@ and Baba: {
 };
 
 module Frame = {
+  [@deriving sexp]
   type a('a, 'b) = (Baba.t('b, 'a), Baba.t('b, 'a));
+  [@deriving sexp]
   type b('a, 'b) = (Aba.t('a, 'b), Aba.t('a, 'b));
 
   let fill_b = (b: 'b, (aba_pre, aba_suf): b('a, 'b)) => {

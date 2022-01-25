@@ -3,13 +3,13 @@ open Core;
 
 let gradient_id = "target-bounds-gradient";
 let gradient =
-    (len, (l_strict, r_strict), frame_sort, mode: CaretMode.t): Node.t => {
-  let c =
-    switch (mode) {
-    | Pointing => Color.of_sort(frame_sort)
-    | Selecting(_)
-    | Restructuring(_) => Selected
-    };
+    (len, (l_strict, r_strict), _frame_sort, _mode: CaretMode.t): Node.t => {
+  let c = Color.Selected;
+  // switch (mode) {
+  // | Pointing => Color.of_sort(frame_sort)
+  // | Selecting(_)
+  // | Restructuring(_) => Selected
+  // };
   let stop = (offset, opacity) =>
     Node.create_svg(
       "stop",
@@ -20,23 +20,25 @@ let gradient =
       ],
       [],
     );
-  Node.create_svg(
-    "linearGradient",
-    Attr.[
-      id(gradient_id),
-      create("gradientUnits", "userSpaceOnUse"),
-      create("x1", "0"),
-      create("x2", "1"),
-    ],
-    [
-      stop(0., 0.),
-      stop(1.5 /. len, l_strict ? 0. : 1.),
-      stop(1.5 /. len, 0.),
-      stop((len -. 1.5) /. len, 0.),
-      stop((len -. 1.5) /. len, r_strict ? 0. : 1.),
-      stop(1., 0.),
-    ],
-  );
+  let _ =
+    Node.create_svg(
+      "linearGradient",
+      Attr.[
+        id(gradient_id),
+        create("gradientUnits", "userSpaceOnUse"),
+        create("x1", "0"),
+        create("x2", "1"),
+      ],
+      [
+        stop(0., 0.),
+        stop(1.5 /. len, l_strict ? 0. : 1.),
+        stop(1.5 /. len, 0.),
+        stop((len -. 1.5) /. len, 0.),
+        stop((len -. 1.5) /. len, r_strict ? 0. : 1.),
+        stop(1., 0.),
+      ],
+    );
+  failwith("todo: fix c in TargetBoundsDec.gradient");
 };
 
 let view =

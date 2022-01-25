@@ -175,14 +175,18 @@ let redo_row = [
   action_type("Redo"),
 ];
 
-let construct_rows = (color: Color.t, mode: CaretMode.t) => {
-  let is_pointing =
-    switch (mode) {
-    | Pointing
-    | Selecting(_, []) => true
-    | Selecting(_)
-    | Restructuring(_) => false
-    };
+let construct_rows = (color: Color.t, _mode: CaretMode.t) => {
+  let is_pointing = {
+    // switch (mode) {
+    // | Pointing
+    // | Selecting(_, []) => true
+    // | Selecting(_)
+    // | Restructuring(_) => false
+    // };
+    failwith(
+      "todo: fix CaretDec.construct_rows",
+    );
+  };
   let is_exp =
     switch (color) {
     | Exp => true
@@ -201,12 +205,15 @@ let construct_rows = (color: Color.t, mode: CaretMode.t) => {
         [
           buffer_cell,
           action_type(
-            ~clss=
-              switch (mode) {
-              | Pointing
-              | Selecting(_, []) => [Color.to_string(color)]
-              | _ => ["disabled"]
-              },
+            ~clss={
+              // switch (mode) {
+              // | Pointing
+              // | Selecting(_, []) => [Color.to_string(color)]
+              // | _ => ["disabled"]
+              // }
+              let _ = failwith("fix CaretDec clss");
+              [];
+            },
             "Construct",
           ),
         ],
@@ -324,40 +331,43 @@ let view =
       ~font_metrics: FontMetrics.t,
       {color, origin, mode, just_failed, delete_actions}: Profile.t,
     ) => {
-  let (ss_before, ss_after) =
-    switch (mode) {
-    | Pointing
-    | Selecting(_) => ([], [])
-    | Restructuring({
-        backpack: (d, _, _),
-        view: (selection, rest),
-        at_restructurable_selection: _,
-      }) =>
-      let view_of_selection = (~focused, view) =>
-        Node.span(
-          [
-            Attr.create(
-              "style",
-              Printf.sprintf(
-                "margin-right: %fpx;",
-                0.5 *. font_metrics.col_width,
-              ),
-            ),
-            Attr.classes([
-              "restructuring-selection",
-              focused ? "focused" : "unfocused",
-            ]),
-          ],
-          [view],
-        );
-
-      let selection = view_of_selection(~focused=true, selection);
-      let rest = List.map(view_of_selection(~focused=false), rest);
-      switch (d) {
-      | Left => (rest, [selection])
-      | Right => ([], [selection, ...rest])
-      };
-    };
+  let (ss_before, ss_after) = {
+    // switch (mode) {
+    // | Pointing
+    // | Selecting(_) => ([], [])
+    // | Restructuring({
+    //     backpack: (d, _, _),
+    //     view: (selection, rest),
+    //     at_restructurable_selection: _,
+    //   }) =>
+    //   let view_of_selection = (~focused, view) =>
+    //     Node.span(
+    //       [
+    //         Attr.create(
+    //           "style",
+    //           Printf.sprintf(
+    //             "margin-right: %fpx;",
+    //             0.5 *. font_metrics.col_width,
+    //           ),
+    //         ),
+    //         Attr.classes([
+    //           "restructuring-selection",
+    //           focused ? "focused" : "unfocused",
+    //         ]),
+    //       ],
+    //       [view],
+    //     );
+    //   let selection = view_of_selection(~focused=true, selection);
+    //   let rest = List.map(view_of_selection(~focused=false), rest);
+    //   switch (d) {
+    //   | Left => (rest, [selection])
+    //   | Right => ([], [selection, ...rest])
+    //   };
+    // };
+    failwith(
+      "todo: fix CaretDec.view",
+    );
+  };
   let just_failed_clss =
     switch (just_failed) {
     | None => []
@@ -376,7 +386,7 @@ let view =
       ]
     | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 0 =>
       switch (f) {
-      | Failure.Undefined
+      | Action.Failure.Undefined
       | Cant_move => []
       | Cant_construct(sort, frame_sort) => [
           text("cannot construct "),
@@ -408,30 +418,31 @@ let view =
     };
   };
   let err_msg_style = {
-    let y_pos =
+    let _y_pos =
       Printf.sprintf(
         "bottom: calc(100%% + %fpx);",
         0.3 *. font_metrics.row_height,
       );
-    switch (mode) {
-    | Pointing
-    | Selecting(_) => "left: 12px;" ++ y_pos
-    | Restructuring({backpack: (d, selection, _), _}) =>
-      let x_pos =
-        switch (d) {
-        | Left =>
-          let len =
-            Layout.length(
-              Layout.mk_selection(~frame_color=Selected, selection),
-            );
-          Printf.sprintf(
-            "left: calc(%fpx + 12px); ",
-            Float.of_int(len - 1) *. font_metrics.col_width,
-          );
-        | Right => "right: calc(100% + 12px); "
-        };
-      x_pos ++ y_pos;
-    };
+    // switch (mode) {
+    // | Pointing
+    // | Selecting(_) => "left: 12px;" ++ y_pos
+    // | Restructuring({backpack: (d, selection, _), _}) =>
+    //   let x_pos =
+    //     switch (d) {
+    //     | Left =>
+    //       let len =
+    //         Layout.length(
+    //           Layout.mk_selection(~frame_color=Selected, selection),
+    //         );
+    //       Printf.sprintf(
+    //         "left: calc(%fpx + 12px); ",
+    //         Float.of_int(len - 1) *. font_metrics.col_width,
+    //       );
+    //     | Right => "right: calc(100% + 12px); "
+    //     };
+    //   x_pos ++ y_pos;
+    // };
+    failwith("todo: fix CaretDec.view 2");
   };
   let top = (-0.3) *. font_metrics.row_height;
   Node.div(
@@ -468,26 +479,34 @@ let view =
           move_row,
           buffer_row,
           select_row(
-            ~disabled=
-              switch (mode) {
-              | Restructuring(_) => true
-              | _ => false
-              },
+            ~disabled={
+              // switch (mode) {
+              // | Restructuring(_) => true
+              // | _ => false
+              // }
+              failwith(
+                "todo: fix CaretDec.select_row",
+              );
+            },
           ),
           buffer_row,
           mark_row(
-            ~disabled=
-              switch (mode) {
-              | Pointing
-              | Selecting(_, []) => Some(`Both)
-              | Selecting(_, selection) =>
-                switch (Selection.is_restructurable(selection)) {
-                | None => Some(`Both)
-                | Some(_) => Some(`Down)
-                }
-              | Restructuring({at_restructurable_selection, _}) =>
-                at_restructurable_selection ? None : Some(`Up)
-              },
+            ~disabled={
+              // switch (mode) {
+              // | Pointing
+              // | Selecting(_, []) => Some(`Both)
+              // | Selecting(_, selection) =>
+              //   switch (Selection.is_restructurable(selection)) {
+              //   | None => Some(`Both)
+              //   | Some(_) => Some(`Down)
+              //   }
+              // | Restructuring({at_restructurable_selection, _}) =>
+              //   at_restructurable_selection ? None : Some(`Up)
+              // }
+              failwith(
+                "todo: fix CaretDec.mark_row",
+              );
+            },
           ),
           buffer_row,
           delete_row(delete_actions),

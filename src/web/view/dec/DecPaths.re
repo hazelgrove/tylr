@@ -56,190 +56,190 @@ let mk =
 };
 let empty = mk();
 
-let root_term = ((subject, frame): Zipper.t) => {
-  switch (subject) {
-  | Selecting(_)
-  | Restructuring(_) => None
-  | Pointing(sframe) =>
-    let tframe =
-      sframe
-      |> TupleUtil.map2(Selection.get_tiles)
-      |> TupleUtil.map2(
-           OptUtil.get_or_fail("expected prefix/suffix to consist of tiles"),
-         );
-    let skel_at = (n, tiles) => Skel.skel_at(n, Parser.associate(tiles));
-    let (steps, skel) =
-      switch (tframe) {
-      | (prefix, []) =>
-        switch (Zipper.zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
-        | None =>
-          let tiles = List.rev(prefix);
-          (Path.mk_steps(frame), skel_at(List.length(tiles) - 1, tiles));
-        | Some((root_tile, (prefix, _) as tframe, outer_frame)) =>
-          let tiles = ListFrame.to_list(~subject=[root_tile], tframe);
-          (
-            Path.mk_steps(outer_frame),
-            skel_at(List.length(prefix), tiles),
-          );
-        }
-      | (prefix, [_, ..._]) =>
-        let tiles = ListFrame.to_list(tframe);
-        (Path.mk_steps(frame), skel_at(List.length(prefix), tiles));
-      };
-    Some((steps, skel));
-  };
-};
+// let root_term = ((subject, frame): Zipper.t) => {
+//   switch (subject) {
+//   | Selecting(_)
+//   | Restructuring(_) => None
+//   | Pointing(sframe) =>
+//     let tframe =
+//       sframe
+//       |> TupleUtil.map2(Selection.get_tiles)
+//       |> TupleUtil.map2(
+//            OptUtil.get_or_fail("expected prefix/suffix to consist of tiles"),
+//          );
+//     let skel_at = (n, tiles) => Skel.skel_at(n, Parser.associate(tiles));
+//     let (steps, skel) =
+//       switch (tframe) {
+//       | (prefix, []) =>
+//         switch (Zipper.zip_up(Selection.of_tiles(List.rev(prefix)), frame)) {
+//         | None =>
+//           let tiles = List.rev(prefix);
+//           (Path.mk_steps(frame), skel_at(List.length(tiles) - 1, tiles));
+//         | Some((root_tile, (prefix, _) as tframe, outer_frame)) =>
+//           let tiles = ListFrame.to_list(~subject=[root_tile], tframe);
+//           (
+//             Path.mk_steps(outer_frame),
+//             skel_at(List.length(prefix), tiles),
+//           );
+//         }
+//       | (prefix, [_, ..._]) =>
+//         let tiles = ListFrame.to_list(tframe);
+//         (Path.mk_steps(frame), skel_at(List.length(prefix), tiles));
+//       };
+//     Some((steps, skel));
+//   };
+// };
 
-let siblings = (subject: Subject.t) =>
-  switch (subject) {
-  | Pointing(sframe) =>
-    ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1)
-  | Selecting(_, selection, (prefix, suffix)) =>
-    let len_pre = List.length(prefix);
-    let len_sel = List.length(selection);
-    let len_suf = List.length(suffix);
-    ListUtil.range(len_pre + 1)
-    @ ListUtil.range(~lo=len_pre + len_sel, len_pre + len_sel + len_suf + 1);
-  | Restructuring((backpack, (prefix, suffix) as rframe)) =>
-    if (Parser.is_backpack_whole_any(backpack)) {
-      ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
-    } else {
-      let (tiles_pre, prefix) =
-        ListUtil.take_while(Restructuring.is_tile, prefix);
-      let (tiles_suf, _) =
-        ListUtil.take_while(Restructuring.is_tile, suffix);
-      ListUtil.range(
-        ~lo=List.length(prefix),
-        List.(length(prefix) + length(tiles_pre) + length(tiles_suf) + 1),
-      );
-    }
-  };
+// let siblings = (subject: Subject.t) =>
+//   switch (subject) {
+//   | Pointing(sframe) =>
+//     ListUtil.range(List.length(ListFrame.to_list(sframe)) + 1)
+//   | Selecting(_, selection, (prefix, suffix)) =>
+//     let len_pre = List.length(prefix);
+//     let len_sel = List.length(selection);
+//     let len_suf = List.length(suffix);
+//     ListUtil.range(len_pre + 1)
+//     @ ListUtil.range(~lo=len_pre + len_sel, len_pre + len_sel + len_suf + 1);
+//   | Restructuring((backpack, (prefix, suffix) as rframe)) =>
+//     if (Parser.is_backpack_whole_any(backpack)) {
+//       ListUtil.range(List.length(ListFrame.to_list(rframe)) + 1);
+//     } else {
+//       let (tiles_pre, prefix) =
+//         ListUtil.take_while(Restructuring.is_tile, prefix);
+//       let (tiles_suf, _) =
+//         ListUtil.take_while(Restructuring.is_tile, suffix);
+//       ListUtil.range(
+//         ~lo=List.length(prefix),
+//         List.(length(prefix) + length(tiles_pre) + length(tiles_suf) + 1),
+//       );
+//     }
+//   };
 
-let filtered_pieces = (~frame_sort, subject: Subject.t) => {
-  switch (subject) {
-  | Pointing(_) => None
-  | Selecting(_, selection, (prefix, _)) =>
-    let len_pre = List.length(prefix);
-    let len_sel = List.length(selection);
-    Some(ListUtil.range(~lo=len_pre, len_pre + len_sel));
-  | Restructuring((_, rframe)) =>
-    let pieces =
-      ListFrame.to_list(rframe)
-      |> ListUtil.fold_left_map(
-           (step, relem) =>
-             (
-               step + Restructuring.len_elem(relem),
-               switch (relem) {
-               | Tile(tile) => Tile.sort(tile) == frame_sort ? [] : [step]
-               | Selection(selection) =>
-                 ListUtil.range(~lo=step, step + List.length(selection))
-               },
-             ),
-           0,
-         )
-      |> snd
-      |> List.flatten;
-    Some(pieces);
-  };
-};
+// let filtered_pieces = (~frame_sort, subject: Subject.t) => {
+//   switch (subject) {
+//   | Pointing(_) => None
+//   | Selecting(_, selection, (prefix, _)) =>
+//     let len_pre = List.length(prefix);
+//     let len_sel = List.length(selection);
+//     Some(ListUtil.range(~lo=len_pre, len_pre + len_sel));
+//   | Restructuring((_, rframe)) =>
+//     let pieces =
+//       ListFrame.to_list(rframe)
+//       |> ListUtil.fold_left_map(
+//            (step, relem) =>
+//              (
+//                step + Restructuring.len_elem(relem),
+//                switch (relem) {
+//                | Tile(tile) => Tile.sort(tile) == frame_sort ? [] : [step]
+//                | Selection(selection) =>
+//                  ListUtil.range(~lo=step, step + List.length(selection))
+//                },
+//              ),
+//            0,
+//          )
+//       |> snd
+//       |> List.flatten;
+//     Some(pieces);
+//   };
+// };
 
-let revealed_pieces = (subject: Subject.t) =>
-  switch (subject) {
-  | Pointing(_) => None
-  | Selecting(_, selection, (prefix, _) as sframe) =>
-    let len_pre = List.length(prefix);
-    let len_sel = List.length(selection);
-    let pieces =
-      ListFrame.to_list(~subject=selection, sframe)
-      |> List.mapi((i, piece) => (i, piece))
-      |> List.filter_map(((i, piece)) =>
-           (i < len_pre || len_pre + len_sel <= i) && Selem.is_shard(piece)
-             ? Some(i) : None
-         );
-    Some(pieces);
-  | Restructuring(_) => None
-  };
+// let revealed_pieces = (subject: Subject.t) =>
+//   switch (subject) {
+//   | Pointing(_) => None
+//   | Selecting(_, selection, (prefix, _) as sframe) =>
+//     let len_pre = List.length(prefix);
+//     let len_sel = List.length(selection);
+//     let pieces =
+//       ListFrame.to_list(~subject=selection, sframe)
+//       |> List.mapi((i, piece) => (i, piece))
+//       |> List.filter_map(((i, piece)) =>
+//            (i < len_pre || len_pre + len_sel <= i) && Selem.is_shard(piece)
+//              ? Some(i) : None
+//          );
+//     Some(pieces);
+//   | Restructuring(_) => None
+//   };
 
-let neighbor_pieces = (subject: Subject.t) =>
-  switch (subject) {
-  | Pointing(sframe) =>
-    ListUtil.range(List.length(ListFrame.to_list(sframe)))
-  | Selecting(_, selection, sframe) =>
-    ListUtil.range(
-      List.length(ListFrame.to_list(~subject=selection, sframe)),
-    )
-  | Restructuring((backpack, rframe)) =>
-    if (Parser.is_backpack_whole_any(backpack)) {
-      ListUtil.range(List.length(ListFrame.to_list(rframe)));
-    } else {
-      let (prefix, suffix) = rframe;
-      let (tiles_pre, prefix) =
-        ListUtil.take_while(Restructuring.is_tile, prefix);
-      let (tiles_suf, _) =
-        ListUtil.take_while(Restructuring.is_tile, suffix);
-      ListUtil.range(
-        ~lo=List.length(prefix),
-        List.length(prefix @ tiles_pre @ tiles_suf),
-      );
-    }
-  };
+// let neighbor_pieces = (subject: Subject.t) =>
+//   switch (subject) {
+//   | Pointing(sframe) =>
+//     ListUtil.range(List.length(ListFrame.to_list(sframe)))
+//   | Selecting(_, selection, sframe) =>
+//     ListUtil.range(
+//       List.length(ListFrame.to_list(~subject=selection, sframe)),
+//     )
+//   | Restructuring((backpack, rframe)) =>
+//     if (Parser.is_backpack_whole_any(backpack)) {
+//       ListUtil.range(List.length(ListFrame.to_list(rframe)));
+//     } else {
+//       let (prefix, suffix) = rframe;
+//       let (tiles_pre, prefix) =
+//         ListUtil.take_while(Restructuring.is_tile, prefix);
+//       let (tiles_suf, _) =
+//         ListUtil.take_while(Restructuring.is_tile, suffix);
+//       ListUtil.range(
+//         ~lo=List.length(prefix),
+//         List.length(prefix @ tiles_pre @ tiles_suf),
+//       );
+//     }
+//   };
 
-let selections = (subject: Subject.t) =>
-  switch (subject) {
-  | Pointing(_) => []
-  | Selecting(_, selection, (prefix, _)) =>
-    let len_pre = List.length(prefix);
-    let len_sel = List.length(selection);
-    [(len_pre, len_pre + len_sel)];
-  | Restructuring((_, rframe)) =>
-    ListFrame.to_list(rframe)
-    |> ListUtil.fold_left_map(
-         (step, relem) =>
-           (
-             step + Restructuring.len_elem(relem),
-             switch (relem) {
-             | Tile(_) => None
-             | Selection(selection) =>
-               Some((step, step + List.length(selection)))
-             },
-           ),
-         0,
-       )
-    |> snd
-    |> List.filter_map(x => x)
-  };
+// let selections = (subject: Subject.t) =>
+//   switch (subject) {
+//   | Pointing(_) => []
+//   | Selecting(_, selection, (prefix, _)) =>
+//     let len_pre = List.length(prefix);
+//     let len_sel = List.length(selection);
+//     [(len_pre, len_pre + len_sel)];
+//   | Restructuring((_, rframe)) =>
+//     ListFrame.to_list(rframe)
+//     |> ListUtil.fold_left_map(
+//          (step, relem) =>
+//            (
+//              step + Restructuring.len_elem(relem),
+//              switch (relem) {
+//              | Tile(_) => None
+//              | Selection(selection) =>
+//                Some((step, step + List.length(selection)))
+//              },
+//            ),
+//          0,
+//        )
+//     |> snd
+//     |> List.filter_map(x => x)
+//   };
 
-let of_zipper = ((subject, frame): Zipper.t) => {
-  // hack to show pointing mode decorations
-  // in selecting mode with empty selection
-  let subject =
-    switch (subject) {
-    | Selecting(_, [], sframe) => Subject.Pointing(sframe)
-    | _ => subject
-    };
-  let zipper = (subject, frame);
-  let (steps, _) as caret_range = Path.mk_range(zipper);
-  let filtered_pieces = {
-    let+ pieces = filtered_pieces(~frame_sort=Frame.sort(frame), subject);
-    (steps, pieces);
-  };
-  let revealed_pieces = {
-    let+ pieces = revealed_pieces(subject);
-    (steps, pieces);
-  };
-  let selections = selections(subject) |> List.map(range => (steps, range));
-  mk(
-    ~caret=caret_range,
-    ~siblings=(steps, siblings(subject)),
-    ~root_term=?root_term(zipper),
-    ~filtered_pieces?,
-    ~revealed_pieces?,
-    ~neighbor_pieces=(steps, neighbor_pieces(subject)),
-    ~selection_boxes=selections,
-    ~selection_bars=selections,
-    (),
-  );
-};
+// let of_zipper = ((subject, frame): Zipper.t) => {
+//   // hack to show pointing mode decorations
+//   // in selecting mode with empty selection
+//   let subject =
+//     switch (subject) {
+//     | Selecting(_, [], sframe) => Subject.Pointing(sframe)
+//     | _ => subject
+//     };
+//   let zipper = (subject, frame);
+//   let (steps, _) as caret_range = Path.mk_range(zipper);
+//   let filtered_pieces = {
+//     let+ pieces = filtered_pieces(~frame_sort=Frame.sort(frame), subject);
+//     (steps, pieces);
+//   };
+//   let revealed_pieces = {
+//     let+ pieces = revealed_pieces(subject);
+//     (steps, pieces);
+//   };
+//   let selections = selections(subject) |> List.map(range => (steps, range));
+//   mk(
+//     ~caret=caret_range,
+//     ~siblings=(steps, siblings(subject)),
+//     ~root_term=?root_term(zipper),
+//     ~filtered_pieces?,
+//     ~revealed_pieces?,
+//     ~neighbor_pieces=(steps, neighbor_pieces(subject)),
+//     ~selection_boxes=selections,
+//     ~selection_bars=selections,
+//     (),
+//   );
+// };
 
 let take_two_step = (two_step: Path.two_step, paths: t): t => {
   let {
@@ -363,7 +363,7 @@ let current_bidelimited =
            measurement,
            open_children: [],
            closed_children: [],
-           empty_holes: [],
+           //  empty_holes: [],
            color,
            style: Logo,
            shape,
@@ -401,7 +401,7 @@ let current_piece =
   let filtered_piece_ds =
     switch (filtered_pieces) {
     | Some(([], filtered_pieces)) when List.mem(step, filtered_pieces) =>
-      let empty_holes = Layout.piece_holes(piece_l);
+      let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Selem({
@@ -409,7 +409,7 @@ let current_piece =
           shape,
           style: Filtered,
           measurement,
-          empty_holes,
+          // empty_holes,
           open_children,
           closed_children,
         }),
@@ -419,7 +419,7 @@ let current_piece =
   let revealed_piece_ds =
     switch (revealed_pieces) {
     | Some(([], revealed_pieces)) when List.mem(step, revealed_pieces) =>
-      let empty_holes = Layout.piece_holes(piece_l);
+      let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Selem({
@@ -427,7 +427,7 @@ let current_piece =
           shape,
           style: Revealed({show_children: true}),
           measurement,
-          empty_holes,
+          // empty_holes,
           open_children,
           closed_children,
         }),
@@ -437,7 +437,7 @@ let current_piece =
   let neighbor_piece_ds =
     switch (neighbor_pieces) {
     | Some(([], neighbor_pieces)) when List.mem(step, neighbor_pieces) =>
-      let empty_holes = Layout.piece_holes(piece_l);
+      let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Rail({measurement, color}),
@@ -448,7 +448,7 @@ let current_piece =
                  shape,
                  style: Revealed({show_children: true}),
                  measurement,
-                 empty_holes,
+                 //  empty_holes,
                  open_children,
                  closed_children,
                }),
@@ -462,112 +462,114 @@ let current_piece =
 
 let current_space =
     (
-      ~delete_actions: option(_)=?,
-      ~caret_mode: option(CaretMode.t)=?,
-      ~measurement: Layout.measurement,
-      ~just_failed: option(FailedInput.t),
-      (step, color): (Path.caret_step, Color.t),
-      paths: t,
+      ~delete_actions as _: option(_)=?,
+      ~caret_mode as _: option(CaretMode.t)=?,
+      ~measurement as _: Layout.measurement,
+      ~just_failed as _: option(FailedInput.t),
+      (_step, _color): (Path.caret_step, Color.t),
+      _paths: t,
     )
     : (list(Dec.Profile.t) as 'ds) => {
-  open Dec.Profile;
-  let {
-    caret,
-    siblings,
-    selection_bars,
-    selection_boxes: _,
-    root_term: _,
-    filtered_pieces: _,
-    revealed_pieces: _,
-    logo_pieces: _,
-    neighbor_pieces: _,
-  } = paths;
-  let delete_actions =
-    switch (delete_actions) {
-    | None => (None, None)
-    | Some(das) => das
-    };
-  let caret_ds =
-    switch (caret, caret_mode) {
-    | (
-        Some(([], (l, _))),
-        Some((Pointing | Selecting(Left, _) | Restructuring(_)) as mode),
-      )
-        when step == l =>
-      let restructuring_ds =
-        switch (mode) {
-        | Restructuring({backpack: (_d_todo, selection, _rest_todo), _}) => [
-            RestructuringGenie({
-              origin: measurement.origin,
-              length:
-                Layout.length(
-                  Layout.mk_selection(~frame_color=color, selection),
-                ),
-            }),
-          ]
-        | _ => []
-        };
-      [
-        Caret({
-          delete_actions,
-          origin: measurement.origin,
-          color,
-          mode,
-          just_failed,
-        }),
-        CaretPos({measurement, color, just_failed, style: `Caret}),
-        ...restructuring_ds,
-      ];
-    | (
-        Some(([], (_, r))),
-        Some((Pointing | Selecting(Right, _) | Restructuring(_)) as mode),
-      )
-        when step == r => [
-        Caret({
-          delete_actions,
-          origin: measurement.origin,
-          color,
-          mode,
-          just_failed,
-        }),
-        CaretPos({measurement, color, just_failed, style: `Caret}),
-      ]
-    | _ => []
-    };
-  let anchor_ds = {
-    let is_relevant_to_step = ((l, r)) => step == l || step == r;
-    let caret_ds =
-      switch (caret) {
-      | Some(([], range)) when is_relevant_to_step(range) => [
-          CaretPos({measurement, color, just_failed: None, style: `Anchor}),
-        ]
-      | _ => []
-      };
-    let selection_ds =
-      if (selection_bars
-          |> List.exists(((steps, range)) =>
-               steps == [] && is_relevant_to_step(range)
-             )) {
-        [CaretPos({measurement, color, just_failed: None, style: `Anchor})];
-      } else {
-        [];
-      };
-    caret_ds @ selection_ds;
-  };
-  let bare_ds =
-    switch (caret_mode) {
-    | None => []
-    | Some(Restructuring({backpack, _}))
-        when !Parser.is_backpack_whole_any(backpack) =>
-      []
-    | _ => [CaretPos({measurement, color, just_failed: None, style: `Bare})]
-    };
-  let sibling_ds =
-    switch (siblings) {
-    | Some(([], siblings)) when List.mem(step, siblings) => [
-        CaretPos({measurement, color, just_failed: None, style: `Sibling}),
-      ]
-    | _ => []
-    };
-  List.concat([caret_ds, anchor_ds, bare_ds, sibling_ds]);
+  let _ = failwith("fix DecPaths.current_space");
+  // open Dec.Profile;
+  // let {
+  //   caret,
+  //   siblings,
+  //   selection_bars,
+  //   selection_boxes: _,
+  //   root_term: _,
+  //   filtered_pieces: _,
+  //   revealed_pieces: _,
+  //   logo_pieces: _,
+  //   neighbor_pieces: _,
+  // } = paths;
+  // let delete_actions =
+  //   switch (delete_actions) {
+  //   | None => (None, None)
+  //   | Some(das) => das
+  //   };
+  // let caret_ds =
+  //   switch (caret, caret_mode) {
+  //   | (
+  //       Some(([], (l, _))),
+  //       Some((Pointing | Selecting(Left, _) | Restructuring(_)) as mode),
+  //     )
+  //       when step == l =>
+  //     let restructuring_ds =
+  //       switch (mode) {
+  //       | Restructuring({backpack: (_d_todo, selection, _rest_todo), _}) => [
+  //           RestructuringGenie({
+  //             origin: measurement.origin,
+  //             length:
+  //               Layout.length(
+  //                 Layout.mk_selection(~frame_color=color, selection),
+  //               ),
+  //           }),
+  //         ]
+  //       | _ => []
+  //       };
+  //     [
+  //       Caret({
+  //         delete_actions,
+  //         origin: measurement.origin,
+  //         color,
+  //         mode,
+  //         just_failed,
+  //       }),
+  //       CaretPos({measurement, color, just_failed, style: `Caret}),
+  //       ...restructuring_ds,
+  //     ];
+  //   | (
+  //       Some(([], (_, r))),
+  //       Some((Pointing | Selecting(Right, _) | Restructuring(_)) as mode),
+  //     )
+  //       when step == r => [
+  //       Caret({
+  //         delete_actions,
+  //         origin: measurement.origin,
+  //         color,
+  //         mode,
+  //         just_failed,
+  //       }),
+  //       CaretPos({measurement, color, just_failed, style: `Caret}),
+  //     ]
+  //   | _ => []
+  //   };
+  // let anchor_ds = {
+  //   let is_relevant_to_step = ((l, r)) => step == l || step == r;
+  //   let caret_ds =
+  //     switch (caret) {
+  //     | Some(([], range)) when is_relevant_to_step(range) => [
+  //         CaretPos({measurement, color, just_failed: None, style: `Anchor}),
+  //       ]
+  //     | _ => []
+  //     };
+  //   let selection_ds =
+  //     if (selection_bars
+  //         |> List.exists(((steps, range)) =>
+  //              steps == [] && is_relevant_to_step(range)
+  //            )) {
+  //       [CaretPos({measurement, color, just_failed: None, style: `Anchor})];
+  //     } else {
+  //       [];
+  //     };
+  //   caret_ds @ selection_ds;
+  // };
+  // let bare_ds =
+  //   switch (caret_mode) {
+  //   | None => []
+  //   | Some(Restructuring({backpack, _}))
+  //       when !Parser.is_backpack_whole_any(backpack) =>
+  //     []
+  //   | _ => [CaretPos({measurement, color, just_failed: None, style: `Bare})]
+  //   };
+  // let sibling_ds =
+  //   switch (siblings) {
+  //   | Some(([], siblings)) when List.mem(step, siblings) => [
+  //       CaretPos({measurement, color, just_failed: None, style: `Sibling}),
+  //     ]
+  //   | _ => []
+  //   };
+  // List.concat([caret_ds, anchor_ds, bare_ds, sibling_ds]);
+  [];
 };

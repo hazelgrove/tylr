@@ -1,7 +1,7 @@
 module Subject = {
   [@deriving sexp]
   type t = {
-    focus: Direction.t,
+    focus: Util.Direction.t,
     selection: Segment.t,
     affixes: Segment.Frame.t,
   };
@@ -10,6 +10,8 @@ module Subject = {
 module Frame = {
   type level = (Tile.Frame.t, Tiles.Frame.t);
   type t = list(level);
+
+  let sort = _ => failwith("todo Zipper.Frame.sort");
 };
 
 type t = {

@@ -1,6 +1,10 @@
-module Id: {type t = int;};
+module Id: {
+  [@deriving sexp]
+  type t = int;
+};
 
 module Shape: {
+  [@deriving sexp]
   type t =
     | Op
     | Pre(Precedence.t)
@@ -11,6 +15,7 @@ module Shape: {
 };
 
 module Sorts: {
+  [@deriving sexp]
   type t = {
     out: Sort.t,
     in_: list(Sort.t),
@@ -18,6 +23,7 @@ module Sorts: {
 };
 
 module Mold: {
+  [@deriving sexp]
   type t = {
     shape: Shape.t,
     sorts: Sorts.t,
@@ -26,16 +32,19 @@ module Mold: {
 };
 
 module Form: {
+  [@deriving sexp]
   type t = list(Token.t); // nonempty
   let molds: t => list(Mold.t);
 };
 
 module Placeholder: {
+  [@deriving sexp]
   type t =
     | Sep(Nibs.t)
     | Hole(Sort.t);
 };
 
+[@deriving sexp]
 type s = Util.Aba.t(list(Placeholder.t), t)
 and t = {
   id: Id.t,
@@ -56,6 +65,7 @@ module Frame: {
   // 1 + let |y = x + 2 in y + 3
 
   // [let] _ [= x + 2 in]
+  [@deriving sexp]
   type t = {
     id: Id.t,
     mold: Mold.t,

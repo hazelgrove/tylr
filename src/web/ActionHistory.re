@@ -4,8 +4,11 @@ open Core;
 type timestamp = float;
 
 type t = {
-  succeeded: AltList.a_frame(Zipper.t, Action.t),
+  succeeded: Aba.Frame.a(Zipper.t, Action.t),
   just_failed: option(FailedInput.t),
+  // TODO(d): forgetting why we need this...
+  // not seeing it get read anywhere. possibly
+  // to trigger view redraw? review blame
   last_attempt: option(timestamp),
 };
 
@@ -46,55 +49,55 @@ let escaped = (history: t) => {
   last_attempt: Some(JsUtil.date_now()##valueOf),
 };
 
-let undo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
-  switch (history.succeeded) {
-  | ([], _) => None
-  | (
-      [
-        (a, (Selecting(_), _) as prev),
-        (a', (Pointing(_) | Selecting(_, [], _), _) as prev'),
-        ...before,
-      ],
-      after,
-    ) =>
-    let succeeded = (before, [(a', prev), (a, zipper), ...after]);
-    Some((prev', {...history, just_failed: None, succeeded}));
-  | ([(a, prev), ...before], after) =>
-    let succeeded = (before, [(a, zipper), ...after]);
-    Some((prev, {...history, just_failed: None, succeeded}));
-  };
-};
+// let undo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
+//   switch (history.succeeded) {
+//   | ([], _) => None
+//   | (
+//       [
+//         (a, (Selecting(_), _) as prev),
+//         (a', (Pointing(_) | Selecting(_, [], _), _) as prev'),
+//         ...before,
+//       ],
+//       after,
+//     ) =>
+//     let succeeded = (before, [(a', prev), (a, zipper), ...after]);
+//     Some((prev', {...history, just_failed: None, succeeded}));
+//   | ([(a, prev), ...before], after) =>
+//     let succeeded = (before, [(a, zipper), ...after]);
+//     Some((prev, {...history, just_failed: None, succeeded}));
+//   };
+// };
 
-let redo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
-  switch (history.succeeded) {
-  | (_, []) => None
-  | (
-      before,
-      [
-        (a, (Selecting(_), _) as next),
-        (a', (Pointing(_) | Selecting(_, [], _), _) as next'),
-        ...after,
-      ],
-    ) =>
-    let succeeded = ([(a', next), (a, zipper), ...before], after);
-    Some((next', {...history, just_failed: None, succeeded}));
-  | (before, [(a, prev), ...after]) =>
-    let succeeded = ([(a, zipper), ...before], after);
-    Some((prev, {...history, just_failed: None, succeeded}));
-  };
-};
+// let redo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
+//   switch (history.succeeded) {
+//   | (_, []) => None
+//   | (
+//       before,
+//       [
+//         (a, (Selecting(_), _) as next),
+//         (a', (Pointing(_) | Selecting(_, [], _), _) as next'),
+//         ...after,
+//       ],
+//     ) =>
+//     let succeeded = ([(a', next), (a, zipper), ...before], after);
+//     Some((next', {...history, just_failed: None, succeeded}));
+//   | (before, [(a, prev), ...after]) =>
+//     let succeeded = ([(a, zipper), ...before], after);
+//     Some((prev, {...history, just_failed: None, succeeded}));
+//   };
+// };
 
-let zipper_before_restructuring =
-    ({succeeded: (prefix, _), _}: t): option(Zipper.t) => {
-  let (_restructuring, before) =
-    prefix
-    |> ListUtil.take_while(
-         fun
-         | (_, (Subject.Restructuring(_), _)) => true
-         | _ => false,
-       );
-  switch (before) {
-  | [] => None
-  | [(_, zipper), ..._] => Some(zipper)
-  };
-};
+// let zipper_before_restructuring =
+//     ({succeeded: (prefix, _), _}: t): option(Zipper.t) => {
+//   let (_restructuring, before) =
+//     prefix
+//     |> ListUtil.take_while(
+//          fun
+//          | (_, (Subject.Restructuring(_), _)) => true
+//          | _ => false,
+//        );
+//   switch (before) {
+//   | [] => None
+//   | [(_, zipper), ..._] => Some(zipper)
+//   };
+// };
