@@ -48,6 +48,8 @@ let fold_left_map:
 
 let trim: t => t;
 
+let remold: (Shard.Ctx.t, Nibs.t, t) => list(t);
+
 // let reshape: (t, Nibs.t) => list(t);
 
 // let remold: (t, (Sort.t, Sort.t)) => list(t);

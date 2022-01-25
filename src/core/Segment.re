@@ -46,6 +46,30 @@ let unorient = _ => failwith("todo Segment.unorient");
 
 let fold_left_map = _ => failwith("todo Segment.fold_left_map");
 
+let rec remold = (ctx: Shard.Ctx.t, (l, r): Nibs.t, segment: t): list(t) =>
+  switch (segment) {
+  | ((ps, []), []) => [
+      ((Tiles.Placeholders.adjust((l, r), ps), []), []),
+    ]
+  | ((ps, []), [(shard, tiles), ...tl]) =>
+    open ListUtil.Syntax;
+    let* nibs = Shard.nibs(~l, ctx, shard);
+    let shard = {...shard, nibs};
+    let ctx = Shard.Ctx.add(shard, ctx);
+    let ps = Tiles.Placeholders.adjust((l, fst(shard.nibs)), ps);
+    let+ (tiles, tl) = remold(ctx, (snd(shard.nibs), r), (tiles, tl));
+    ((ps, []), [(shard, tiles), ...tl]);
+  | ((ps, [(tile, ps'), ...tiles_tl]), segment_tl) =>
+    open ListUtil.Syntax;
+    let* mold = Tile.Form.molds(~l, Tile.form(tile));
+    let tile = {...tile, mold};
+    let nibs = Tile.Mold.nibs(mold);
+    let ps = Tiles.Placeholders.adjust((l, fst(nibs)), ps);
+    let+ ((ps', tiles_tl), segment_tl) =
+      remold(ctx, (snd(nibs), r), ((ps', tiles_tl), segment_tl));
+    ((ps, [(tile, ps'), ...tiles_tl]), segment_tl);
+  };
+
 // let trim = (segment: t) => {
 //   let trim_l =
 //     fun
@@ -57,32 +81,6 @@ let fold_left_map = _ => failwith("todo Segment.fold_left_map");
 //     | _ => segment
 //     };
 //   trim_r(trim_l(segment));
-// };
-
-// let rec remold = (
-//   segment: t,
-//   affixes: Frame.t,
-//   outer_nibs: Nibs.t,
-// ): list((t, Tile.Frame.s)) => {
-//   let (l, r) = Frame.inner_nibs(affixes, outer_nibs);
-//   switch (segment) {
-//   | ([], []) => of_tiles(Tiles.glue(l, r))
-//   | ([], [(shard, tiles), ...tl]) =>
-//     open ListUtil.Syntax;
-//     let matching = Frame.shard_nibs(shard.tile_id, affixes);
-//     let* (ll, rr) as nibs = Shard.Form.nibs(~matching, shard.form);
-//     let glue_l = Tiles.(rev(glue(l, ll)));
-//     let+ (remolded_tl, glue_r) = {
-//       // TODO need to fix args to recursive call,
-//       // remember to update affixes passed in so that
-//       // any shard remoldings performed in this call
-//       // are taken into account for matching shards in tl
-//       let+ (tl, (glue_mid, glue_r)) = remold(shard_nibs, (tiles, tl), (rr, r));
-//       (concat([of_tiles(Tiles.rev(glue_mid)), tl]), glue_r)
-//     };
-//     let remolded = cons_shard({...shard, nibs}, remolded_tl);
-//     (remolded, (glue_l, glue_r));
-//   };
 // };
 
 // let choose = (_remoldings: list((t, Tile.Frame.s))): (t, Tile.Frame.s) =>

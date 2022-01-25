@@ -1,7 +1,10 @@
 module Id: {
   [@deriving sexp]
   type t = int;
+  let compare: (t, t) => int;
 };
+
+module Map: {include Map.S with type key = Id.t;};
 
 module Shape: {
   [@deriving sexp]
@@ -34,7 +37,7 @@ module Mold: {
 module Form: {
   [@deriving sexp]
   type t = list(Token.t); // nonempty
-  let molds: t => list(Mold.t);
+  let molds: (~l: Nib.t=?, t) => list(Mold.t);
 };
 
 module Placeholder: {

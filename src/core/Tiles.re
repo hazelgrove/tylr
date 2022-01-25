@@ -31,6 +31,12 @@ let mk: list(Tile.t) => t = _ => failwith("todo Tiles.mk");
 //     concat([l, [Sep], r]);
 //   };
 
+module Placeholders = {
+  type t = list(Tile.Placeholder.t);
+
+  let adjust = (_: Nibs.t, _: t): t => failwith("Tiles.Placeholders.adjust");
+};
+
 module Frame = {
   type nonrec t = (t, t);
 };

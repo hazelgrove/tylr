@@ -3,6 +3,11 @@ open Sexplib.Std;
 module Id = {
   [@deriving sexp]
   type t = int;
+  let compare = Int.compare;
+};
+
+module Map = {
+  include Map.Make(Id);
 };
 
 module Shape = {
@@ -40,7 +45,7 @@ module Form = {
   [@deriving sexp]
   type t = list(Token.t);
 
-  let molds =
+  let molds = (~l as _: option(Nib.t)=?) =>
     Mold.(
       fun
       | [t] when Token.is_num(t) => [{shape: Op, sorts: Sorts.mk(Exp)}]

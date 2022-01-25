@@ -228,3 +228,8 @@ let take_5 =
   fun
   | [x1, x2, x3, x4, x5, ..._] => (x1, x2, x3, x4, x5)
   | _ => raise(Invalid_argument("ListUtil.take_5"));
+
+module Syntax = {
+  let (let+) = (xs, f) => List.map(f, xs);
+  let ( let* ) = (xs, f) => List.concat(List.map(f, xs));
+};
