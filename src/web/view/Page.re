@@ -80,6 +80,7 @@ let redo = (~inject, ~disabled) => {
 let help_size = 20.;
 
 let view = (~inject, model: Model.t) => {
+  print_endline("Page.view");
   let Model.{
         font_metrics,
         logo_font_metrics: _,

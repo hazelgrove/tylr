@@ -31,7 +31,8 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 //     }
 //   };
 
-let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
+let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
+  print_endline("Update.apply");
   switch (update) {
   | SetShowNeighborTiles(b) => {
       ...model,
@@ -92,3 +93,4 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) =>
     // update_result(Move(d), moved, model);
     model
   };
+};

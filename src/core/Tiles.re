@@ -4,8 +4,8 @@ open Tile;
 type t = s;
 
 let empty = ([], []);
-let rev = _ => failwith("todo");
-let concat = _ => failwith("todo");
+let rev = _ => failwith("todo Tiles.rev");
+let concat = _ => failwith("todo Tiles.concat");
 
 let mk: list(Tile.t) => t = _ => failwith("todo Tiles.mk");
 

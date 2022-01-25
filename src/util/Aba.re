@@ -26,10 +26,11 @@ module rec Aba: {
 
   let cons = (a: 'a, baba: Baba.t('b, 'a)) => (a, baba);
 
-  let snoc = (_baba: t('b, 'a), _b: 'b): Aba.t('b, 'a) => failwith("todo");
+  let snoc = (_baba: t('b, 'a), _b: 'b): Aba.t('b, 'a) =>
+    failwith("todo Aba.snoc");
 
-  let get_as = _ => failwith("todo");
-  let concat = _ => failwith("todo");
+  let get_as = _ => failwith("todo Aba.get_as");
+  let concat = (_, _) => failwith("todo Aba.concat");
 
   let rec prepend = (prefix: Baba.t('b, 'a), aba: t('a, 'b)): t('a, 'b) =>
     switch (prefix) {
@@ -72,7 +73,7 @@ and Baba: {
 
   let cons = (b: 'b, (a, baba): Aba.t('a, 'b)) => [(b, a), ...baba];
 
-  let append = _ => failwith("todo");
+  let append = _ => failwith("todo Aba.append");
 
   let rec split =
           (p: 'b => option('c), baba: t('b, 'a))

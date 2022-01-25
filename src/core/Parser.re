@@ -29,10 +29,10 @@
 //   | Right => disassembled
 //   };
 // };
-let disassemble_tile = _ => failwith("todo");
-let disassemble_frame = _ => failwith("todo");
-let assemble_segment = _ => failwith("todo");
-let assemble_zipper = _ => failwith("todo");
+let disassemble_tile = _ => failwith("todo Parser.disassemble_tile");
+let disassemble_frame = _ => failwith("todo Parser.disassemble_tile");
+let assemble_segment = _ => failwith("todo Parser.assemble_segment");
+let assemble_zipper = _ => failwith("todo Parser.assemble_zipper");
 
 // let split_by_matching_shards =
 //     ((id, shard): Shard.t, segment: Segment.t)

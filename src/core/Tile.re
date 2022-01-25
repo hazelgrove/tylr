@@ -13,7 +13,8 @@ module Shape = {
     | Post(Precedence.t)
     | Bin(Precedence.t);
 
-  let precedence: t => Precedence.t = _ => failwith("todo");
+  let precedence: t => Precedence.t =
+    _ => failwith("todo Tile.Shape.precedence");
 };
 
 module Sorts = {
@@ -32,7 +33,7 @@ module Mold = {
     sorts: Sorts.t,
   };
   let nibs: (~index: int=?, t) => Nibs.t =
-    (~index as _=?, _) => failwith("todo");
+    (~index as _=?, _) => failwith("todo Tile.Mold.nibs");
 };
 
 module Form = {

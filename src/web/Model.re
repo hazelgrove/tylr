@@ -46,20 +46,20 @@ let two =
     },
     tokens: ("2", []),
   };
-let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
+// let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
 
-let paren =
-  Tile.{
-    id: 3,
-    mold: {
-      shape: Op,
-      sorts: {
-        out: Exp,
-        in_: [Exp],
-      },
-    },
-    tokens: ("(", [(one_plus_two, ")")]),
-  };
+// let paren =
+//   Tile.{
+//     id: 3,
+//     mold: {
+//       shape: Op,
+//       sorts: {
+//         out: Exp,
+//         in_: [Exp],
+//       },
+//     },
+//     tokens: ("(", [(one_plus_two, ")")]),
+//   };
 
 let init = () => {
   edit_state: {

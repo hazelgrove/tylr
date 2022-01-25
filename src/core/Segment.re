@@ -3,9 +3,9 @@ open Util;
 [@deriving sexp]
 type t = Aba.t(Tiles.t, Shard.t);
 
-let cons_shard = (_, _) => failwith("todo");
-let snoc_shard = (_, _) => failwith("todo");
-let cons_tile = _ => failwith("todo");
+let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
+let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
+let cons_tile = _ => failwith("todo Segment.cons_tile");
 let grow = (side: Direction.t, shard: Shard.t, segment: t): t =>
   switch (side) {
   | Left => cons_shard(shard, segment)
@@ -23,11 +23,12 @@ module Frame = {
     };
   let unorient = orient;
 
-  let inner_nibs = (_frame, _outer_nibs) => failwith("todo");
+  let inner_nibs = (_frame, _outer_nibs) =>
+    failwith("todo Segment.Frame.inner_nibs");
 
-  let grow = _ => failwith("todo");
-  let reshape = _ => failwith("todo");
-  let concat = _ => failwith("todo");
+  let grow = _ => failwith("todo Segment.Frame.grow");
+  let reshape = _ => failwith("todo Segment.Frame.reshape");
+  let concat = _ => failwith("todo Segment.Frame.concat");
 };
 
 let empty = (Tiles.empty, []);
@@ -35,15 +36,15 @@ let of_tiles = tiles => (tiles, []);
 
 let concat: list(t) => t = Util.Aba.concat(Tiles.concat);
 
-let contains = _ => failwith("todo");
-let remove = _ => failwith("todo");
+let contains = _ => failwith("todo Segment.contains");
+let remove = _ => failwith("todo Segment.remove");
 
-let trim = _ => failwith("todo");
+let trim = _ => failwith("todo Segment.trim");
 
-let orient = _ => failwith("todo");
-let unorient = _ => failwith("todo");
+let orient = _ => failwith("todo Segment.orient");
+let unorient = _ => failwith("todo Segment.unorient");
 
-let fold_left_map = _ => failwith("todo");
+let fold_left_map = _ => failwith("todo Segment.fold_left_map");
 
 // let trim = (segment: t) => {
 //   let trim_l =
