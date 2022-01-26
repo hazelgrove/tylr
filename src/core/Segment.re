@@ -3,6 +3,9 @@ open Util;
 [@deriving sexp]
 type t = Aba.t(Tiles.t, Shard.t);
 
+type hd = Tiles.t;
+type tl = Baba.t(Shard.t, Tiles.t);
+
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
 let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
 let cons_tile = _ => failwith("todo Segment.cons_tile");
@@ -11,25 +14,6 @@ let grow = (side: Direction.t, shard: Shard.t, segment: t): t =>
   | Left => cons_shard(shard, segment)
   | Right => snoc_shard(segment, shard)
   };
-
-module Frame = {
-  [@deriving sexp]
-  type nonrec t = (t, t);
-
-  let orient = (d: Direction.t, (prefix, suffix): t): t =>
-    switch (d) {
-    | Left => (prefix, suffix)
-    | Right => (suffix, prefix)
-    };
-  let unorient = orient;
-
-  let inner_nibs = (_frame, _outer_nibs) =>
-    failwith("todo Segment.Frame.inner_nibs");
-
-  let grow = _ => failwith("todo Segment.Frame.grow");
-  let reshape = _ => failwith("todo Segment.Frame.reshape");
-  let concat = _ => failwith("todo Segment.Frame.concat");
-};
 
 let empty = (Tiles.empty, []);
 let of_tiles = tiles => (tiles, []);
@@ -69,6 +53,43 @@ let rec remold = (ctx: Shard.Ctx.t, (l, r): Nibs.t, segment: t): list(t) =>
       remold(ctx, (snd(nibs), r), ((ps', tiles_tl), segment_tl));
     ((ps, [(tile, ps'), ...tiles_tl]), segment_tl);
   };
+
+module Frame = {
+  [@deriving sexp]
+  type affix = t;
+  [@deriving sexp]
+  type t = (affix, affix);
+
+  let orient = (d: Direction.t, (prefix, suffix): t): t =>
+    switch (d) {
+    | Left => (prefix, suffix)
+    | Right => (suffix, prefix)
+    };
+  let unorient = orient;
+
+  let inner_nibs = (_frame, _outer_nibs) =>
+    failwith("todo Segment.Frame.inner_nibs");
+
+  let grow = _ => failwith("todo Segment.Frame.grow");
+  let concat = _ => failwith("todo Segment.Frame.concat");
+
+  let reshape_affix =
+      (d: Direction.t, affix: affix, back_nib: Nib.t)
+      : (Tiles.hd, list(Tiles.tl), tl) => {
+    let (hd, tl) = affix;
+    let back_nib =
+      switch (tl) {
+      | [] => back_nib
+      | [(shard, _), ..._] => Direction.(choose(toggle(d), shard.nibs))
+      };
+    let (tiles_hd, tiles_tls) = Tiles.Frame.reshape_affix(d, hd, back_nib);
+    (tiles_hd, tiles_tls, tl);
+  };
+  let reshape = ((prefix, suffix): t, (l, r): Nibs.t) => (
+    reshape_affix(Left, prefix, l),
+    reshape_affix(Right, suffix, r),
+  );
+};
 
 // let trim = (segment: t) => {
 //   let trim_l =

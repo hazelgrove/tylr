@@ -1,6 +1,9 @@
 [@deriving sexp]
 type t = Util.Aba.t(Tiles.t, Shard.t);
 
+type hd = Tiles.t;
+type tl = Util.Baba.t(Shard.t, Tiles.t);
+
 // let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
 
 // TODO clean up
@@ -9,7 +12,9 @@ let unorient: (Util.Direction.t, t) => t;
 
 module Frame: {
   [@deriving sexp]
-  type nonrec t = (t, t);
+  type affix = t;
+  [@deriving sexp]
+  type nonrec t = (affix, affix);
 
   /**
    * `orient(d, affixes)` returns the pair `(front, back)`
@@ -28,7 +33,9 @@ module Frame: {
 
   let grow: (Util.Direction.t, Shard.t, t) => t;
 
-  let reshape: (Nibs.t, t, Sort.t) => list(t);
+  let reshape_affix:
+    (Util.Direction.t, affix, Nib.t) => (Tiles.hd, list(Tiles.tl), tl);
+  let reshape: (t, Nibs.t) => ((Tiles.hd, list(Tiles.tl), tl) as 'r, 'r);
 };
 
 let empty: t;

@@ -40,6 +40,7 @@ module Form: {
   let molds: (~l: Nib.t=?, t) => list(Mold.t);
 };
 
+// Grout
 module Placeholder: {
   [@deriving sexp]
   type t =
@@ -62,6 +63,8 @@ and t = {
 // 1 + \ x . 2 >< x + 3
 
 let form: t => Form.t;
+
+let reshape: t => list(t);
 
 module Frame: {
   // example: y subject

@@ -93,7 +93,12 @@ and t = {
   tokens: Util.Aba.t(Token.t, s),
 };
 
-let form = tile => Util.Aba.get_as(tile.tokens);
+let form = (tile: t) => Util.Aba.get_as(tile.tokens);
+
+let reshape = (tile: t) =>
+  Form.molds(form(tile))
+  |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
+  |> List.map(mold => {...tile, mold});
 
 module Frame = {
   [@deriving sexp]
