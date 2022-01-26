@@ -9,6 +9,7 @@ type tl = Baba.t(Shard.t, Tiles.t);
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
 let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
 let cons_tile = _ => failwith("todo Segment.cons_tile");
+let cons_placeholder = _ => failwith("todo Segment.cons_placeholder");
 let grow = (side: Direction.t, shard: Shard.t, segment: t): t =>
   switch (side) {
   | Left => cons_shard(shard, segment)

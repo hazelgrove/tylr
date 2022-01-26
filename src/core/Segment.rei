@@ -45,6 +45,7 @@ let of_tiles: Tiles.t => t;
 let cons_tile: (Tile.t, t) => t;
 let cons_shard: (Shard.t, t) => t;
 let snoc_shard: (t, Shard.t) => t;
+let cons_placeholder: (Tile.Placeholder.t, t) => t;
 let grow: (Util.Direction.t, Shard.t, t) => t;
 
 let concat: list(t) => t;

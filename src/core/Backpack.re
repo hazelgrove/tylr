@@ -7,6 +7,7 @@ type t = list(Segment.t);
 //   Segment.is_whole_any(
 //     Parser.parse_selection(Right, List.concat(segments)),
 //   );
+let is_balanced = _ => failwith("Backpack.is_balanced");
 
 let total_segment = (up: t): Segment.t => Segment.concat(up);
 
