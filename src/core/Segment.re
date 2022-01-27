@@ -6,10 +6,22 @@ type t = Aba.t(Tiles.t, Shard.t);
 type hd = Tiles.t;
 type tl = Baba.t(Shard.t, Tiles.t);
 
+module Piece = {
+  [@deriving sexp]
+  type t =
+    | Shard(Shard.t)
+    | Tile(Tile.t)
+    | Grout(Tile.Placeholder.t);
+};
+
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
 let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
 let cons_tile = _ => failwith("todo Segment.cons_tile");
 let cons_placeholder = _ => failwith("todo Segment.cons_placeholder");
+let cons_piece = (_, _) => failwith("todo Segment.cons_piece");
+
+let rev = _ => failwith("todo Segment.rev");
+
 let grow = (side: Direction.t, shard: Shard.t, segment: t): t =>
   switch (side) {
   | Left => cons_shard(shard, segment)
@@ -28,6 +40,8 @@ let trim = _ => failwith("todo Segment.trim");
 
 let orient = _ => failwith("todo Segment.orient");
 let unorient = _ => failwith("todo Segment.unorient");
+
+let is_balanced = _ => failwith("todo Segment.is_balanced");
 
 let fold_left_map = _ => failwith("todo Segment.fold_left_map");
 
@@ -55,27 +69,25 @@ let rec remold = (ctx: Shard.Ctx.t, (l, r): Nibs.t, segment: t): list(t) =>
     ((ps, [(tile, ps'), ...tiles_tl]), segment_tl);
   };
 
-module Frame = {
+let split_hd = (segment: t): option((Piece.t, t)) =>
+  switch (segment) {
+  | (([], []), []) => None
+  | (([], []), [(shard, tiles), ...tl]) =>
+    Some((Shard(shard), (tiles, tl)))
+  | (([], [(tile, ps), ...tiles_tl]), segment_tl) =>
+    Some((Tile(tile), ((ps, tiles_tl), segment_tl)))
+  | (([p, ...ps], tiles_tl), segment_tl) =>
+    Some((Grout(p), ((ps, tiles_tl), segment_tl)))
+  };
+
+module Affix = {
   [@deriving sexp]
-  type affix = t;
-  [@deriving sexp]
-  type t = (affix, affix);
+  type nonrec t = t;
 
-  let orient = (d: Direction.t, (prefix, suffix): t): t =>
-    switch (d) {
-    | Left => (prefix, suffix)
-    | Right => (suffix, prefix)
-    };
-  let unorient = orient;
+  let split_hd = split_hd;
 
-  let inner_nibs = (_frame, _outer_nibs) =>
-    failwith("todo Segment.Frame.inner_nibs");
-
-  let grow = _ => failwith("todo Segment.Frame.grow");
-  let concat = _ => failwith("todo Segment.Frame.concat");
-
-  let reshape_affix =
-      (d: Direction.t, affix: affix, back_nib: Nib.t)
+  let reshape =
+      (d: Direction.t, affix: t, back_nib: Nib.t)
       : (Tiles.hd, list(Tiles.tl), tl) => {
     let (hd, tl) = affix;
     let back_nib =
@@ -86,9 +98,47 @@ module Frame = {
     let (tiles_hd, tiles_tls) = Tiles.Frame.reshape_affix(d, hd, back_nib);
     (tiles_hd, tiles_tls, tl);
   };
+};
+
+module Frame = {
+  type segment = t;
+  [@deriving sexp]
+  type t = (Affix.t, Affix.t);
+
+  let orient = (d: Direction.t, (prefix, suffix): t): t =>
+    switch (d) {
+    | Left => (prefix, suffix)
+    | Right => (suffix, prefix)
+    };
+  let unorient = orient;
+
+  let cons_piece = (d: Direction.t, piece: Piece.t, affixes: t): t => {
+    let (front, back) = orient(d, affixes);
+    unorient(d, (cons_piece(piece, front), back));
+  };
+
+  let prepend = (d: Direction.t, segment: segment, affixes: t): t => {
+    let segment = d == Left ? rev(segment) : segment;
+    let (front, back) = orient(d, affixes);
+    unorient(d, (concat([segment, front]), back));
+  };
+
+  let split_hd = (d: Direction.t, affixes: t): option((Piece.t, t)) => {
+    open OptUtil.Syntax;
+    let (front, back) = orient(d, affixes);
+    let+ (piece, front) = Affix.split_hd(front);
+    (piece, unorient(d, (front, back)));
+  };
+
+  let inner_nibs = (_frame, _outer_nibs) =>
+    failwith("todo Segment.Frame.inner_nibs");
+
+  let grow = _ => failwith("todo Segment.Frame.grow");
+  let concat = _ => failwith("todo Segment.Frame.concat");
+
   let reshape = ((prefix, suffix): t, (l, r): Nibs.t) => (
-    reshape_affix(Left, prefix, l),
-    reshape_affix(Right, suffix, r),
+    Affix.reshape(Left, prefix, l),
+    Affix.reshape(Right, suffix, r),
   );
 };
 

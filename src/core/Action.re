@@ -24,99 +24,89 @@ module Result = {
   type t('success) = Result.t('success, Failure.t);
 };
 
-let shift_piece =
-    (d_from: Direction.t, affixes: Segment.Frame.t, frame: Zipper.Frame.t)
-    : option((Segment.Frame.t, Zipper.Frame.t)) => {
-  open OptUtil.Syntax;
-  let shift_affixes = affixes => {
-    let (from, to_) = Segment.Frame.orient(d_from, affixes);
-    let+ (from, to_) =
-      switch (from) {
-      | (([], []), []) => None
-      | (([], []), [(shard, tiles), ...tl]) =>
-        Some(((tiles, tl), Segment.cons_shard(shard, to_)))
-      | (([], [(tile, ps), ...tiles_tl]), segment_tl) =>
-        Some((((ps, tiles_tl), segment_tl), Segment.cons_tile(tile, to_)))
-      | (([p, ...ps], tiles_tl), segment_tl) =>
-        Some((
-          ((ps, tiles_tl), segment_tl),
-          Segment.cons_placeholder(p, to_),
-        ))
-      };
-    Parser.assemble_affixes(Segment.Frame.unorient(d_from, (from, to_)));
-  };
-  switch (shift_affixes(affixes)) {
-  | Some(affixes) => Some((affixes, frame))
+// TODO maybe move this
+let split_piece =
+    (d: Direction.t, affixes: Segment.Frame.t, frame: Zipper.Frame.t)
+    : option((Segment.Piece.t, Segment.Frame.t, Zipper.Frame.t)) => {
+  switch (Segment.Frame.split_hd(d, affixes)) {
+  | Some((piece, affixes)) => Some((piece, affixes, frame))
   | None =>
+    open OptUtil.Syntax;
     let* (affixes', frame) = Parser.disassemble_frame(frame);
-    let+ affixes = shift_affixes(Segment.Frame.concat([affixes, affixes']));
-    Parser.assemble_zipper(affixes, frame);
+    let+ (piece, affixes) =
+      Segment.Frame.(split_hd(d, concat([affixes, affixes'])));
+    (piece, affixes, frame);
   };
 };
 
-// // unselect current selection and move caret to
-// // desired end of former selection if possible
-// // (not possible if doing so would violate ordering
-// // between shards up and shards down)
-// let unselect = (d: Direction.t, edit_state: EditState.t): option(Zipper.t) => {
-//   let Subject.{focus, selection, affixes} = edit_state.zipper.subject;
-//   if (d == focus
-//       && !Segment.is_balanced(selection)
-//       && !Backpack.is_balanced(edit_state.backpack)) {
-//     None;
-//   } else {
-//     // TODO make this a fn in Segment.Frame
-//     let (prefix, suffix) = affixes;
-//     let affixes =
-//       switch (d) {
-//       | Left => (prefix, Segment.concat([selection, suffix]))
-//       | Right => (Segment.(concat([rev(selection), prefix])), suffix)
-//       };
-//     let (affixes, frame) = Parser.parse_zipper(affixes, frame);
-//     Some(((([], affixes), up), frame));
-//   };
-// };
+// unselect current selection and move caret to
+// desired end of former selection if possible
+// (not possible if doing so would violate ordering
+// between shards up and shards down)
+let unselect = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
+  let Zipper.{subject: {focus, selection, affixes}, frame} =
+    edit_state.zipper;
+  if (d == focus
+      && !Segment.is_balanced(selection)
+      && !Backpack.is_balanced(edit_state.backpack)) {
+    None;
+  } else {
+    let affixes = Segment.Frame.prepend(d, selection, affixes);
+    let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+    Some({
+      ...edit_state,
+      zipper: {
+        frame,
+        subject: {
+          affixes,
+          selection: Segment.empty,
+          focus: d,
+        },
+      },
+    });
+  };
+};
 
-// let move = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
-//   let EditState.{backpack, zipper, id_gen: _} = edit_state;
-//   let Zipper.{subject, frame} = zipper;
-//   if (subject.selection != Segment.empty) {
-//     unselect(d, zipper);
-//   } else if (Backpack.is_balanced(backpack)) {
-//     open OptUtil.Syntax;
-//     let+ (shard, (affixes, frame)) =
-//       enter_zipper(d, subject.affixes, frame);
-//     let affixes = Segment.Frame.grow(Direction.toggle(d), affixes);
-//     let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
-//     let subject = {...subject, affixes};
-//     {
-//       ...edit_state,
-//       zipper: {
-//         subject,
-//         frame,
-//       },
-//     };
-//   } else {
-//     let (front, back) = Segment.Frame.orient(d, subject.affixes);
-//     switch (front) {
-//     | ([tile, ...tiles], tl) =>
-//       let front = (tiles, tl);
-//       let back = Segment.cons_tile(tile, back);
-//       let affixes = Segment.Frame.unorient(d, (front, back));
-//       Some({
-//         ...edit_state,
-//         zipper: {
-//           ...zipper,
-//           subject: {
-//             ...subject,
-//             affixes,
-//           },
-//         },
-//       });
-//     | _ => None
-//     };
-//   };
-// };
+let move = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
+  let EditState.{backpack, zipper, id_gen: _} = edit_state;
+  let Zipper.{subject, frame} = zipper;
+  if (subject.selection != Segment.empty) {
+    unselect(d, edit_state);
+  } else if (Backpack.is_balanced(backpack)) {
+    open OptUtil.Syntax;
+    let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
+    let affixes =
+      Segment.Frame.cons_piece(Direction.toggle(d), piece, affixes);
+    let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+    {
+      ...edit_state,
+      zipper: {
+        frame,
+        subject: {
+          ...subject,
+          affixes,
+        },
+      },
+    };
+  } else {
+    switch (Segment.Frame.split_hd(d, subject.affixes)) {
+    | Some((Tile(_) as tile, affixes)) =>
+      let affixes =
+        Segment.Frame.cons_piece(Direction.toggle(d), tile, affixes);
+      Some({
+        ...edit_state,
+        zipper: {
+          ...zipper,
+          subject: {
+            ...subject,
+            affixes,
+          },
+        },
+      });
+    | _ => None
+    };
+  };
+};
 
 // let select =
 //     (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
