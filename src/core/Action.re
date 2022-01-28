@@ -134,32 +134,40 @@ let select = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
   };
 };
 
-// let remove = (((down, up), frame): Zipper.t): Zipper.t => {};
-
-// let remove = (((down, up) as subj, frame): Zipper.t): Zipper.t => {
-//   // for each piece p in selection
-//   //   if there exist matching pieces down, pick up p
-//   //   otherwise, remove p and any matching pieces up
-//   let (d, selection, (prefix, suffix) as affixes) = down;
-//   let (up, picked_up) =
-//     selection
-//     |> ListUtil.fold_left_map(
-//          (up, piece) => {
-//            let id = Piece.id(piece);
-//            let has_matching_piece = List.exists(p => Piece.id(p) == id);
-//            if (has_matching_piece(prefix) || has_matching_piece(suffix)) {
-//              (up, Some(piece));
-//            } else {
-//              (List.map(Segment.remove_id(id), up), None);
-//            };
-//          },
-//          up,
-//        );
-//   let picked_up = List.filter_map(Fun.id, picked_up);
-//   let down = (d, [], affixes);
-//   let up = Subject.Up.extend(Direction.toggle(d), picked_up, up);
-//   ((down, up), frame);
-// };
+let remove = (edit_state: EditState.t): EditState.t => {
+  let EditState.{backpack, zipper, id_gen: _} = edit_state;
+  let Zipper.Subject.{focus, selection, affixes} = zipper.subject;
+  let backpack = {
+    let (backpack, picked_up) =
+      selection
+      |> Segment.fold_left_map(
+           (backpack, piece) =>
+             switch (piece) {
+             | Grout(_)
+             | Tile(_) => (backpack, None)
+             | Shard(shard) =>
+               Segment.Frame.contains_matching(shard, affixes)
+                 ? (backpack, Some(piece))
+                 : (
+                   List.map(Segment.remove_matching(shard), backpack),
+                   None,
+                 )
+             },
+           backpack,
+         );
+    let picked_up = Segment.of_pieces(List.filter_map(Fun.id, picked_up));
+    Backpack.extend(Direction.toggle(focus), picked_up, backpack);
+  };
+  let subject = {...zipper.subject, selection: Segment.empty};
+  {
+    ...edit_state,
+    backpack,
+    zipper: {
+      ...zipper,
+      subject,
+    },
+  };
+};
 
 // let pick_up = (((down, up), frame): Zipper.t): Zipper.t => {
 //   let sort = Zipper.Frame.sort(frame);

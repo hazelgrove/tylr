@@ -14,6 +14,7 @@ module Piece: {
 let empty: t;
 
 let of_tiles: Tiles.t => t;
+let of_pieces: list(Piece.t) => t;
 
 let rev: t => t;
 
@@ -33,14 +34,16 @@ let cons_placeholder: (Tile.Placeholder.t, t) => t;
 let concat: list(t) => t;
 
 let fold_left_map:
-  (('acc, Shard.t) => ('acc, 'a), ('acc, Tile.t) => ('acc, 'a), 'acc, t) =>
-  ('acc, list('a));
+  (('acc, Piece.t) => ('acc, 'a), 'acc, t) => ('acc, list('a));
 
 let trim: t => t;
 
 let remold: (Shard.Ctx.t, Nibs.t, t) => list(t);
 
 let is_balanced: t => bool;
+
+let contains_matching: (Shard.t, t) => bool;
+let remove_matching: (Shard.t, t) => t;
 
 // let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
 
@@ -80,9 +83,9 @@ module Frame: {
 
   let concat: list(t) => t;
 
-  let grow: (Util.Direction.t, Shard.t, t) => t;
-
   let reshape: (t, Nibs.t) => ((Tiles.hd, list(Tiles.tl), tl) as 'r, 'r);
+
+  let contains_matching: (Shard.t, t) => bool;
 };
 
 // let reshape: (t, Nibs.t) => list(t);

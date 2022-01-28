@@ -22,6 +22,8 @@ let cons_snoc = (side: Direction.t, piece: Piece.t, segment: t): t =>
   | Right => snoc(segment, piece)
   };
 
+let of_pieces = _ => failwith("todo Segment.of_pieces");
+
 let split = (_, _) => failwith("todo Segment.split");
 
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
@@ -30,6 +32,9 @@ let cons_tile = _ => failwith("todo Segment.cons_tile");
 let cons_placeholder = _ => failwith("todo Segment.cons_placeholder");
 
 let rev = _ => failwith("todo Segment.rev");
+
+let contains_matching = (_, _) => failwith("todo Segment.contains_matching");
+let remove_matching = (_, _) => failwith("todo Segment.remove_matching");
 
 let empty = (Tiles.empty, []);
 let of_tiles = tiles => (tiles, []);
@@ -136,13 +141,15 @@ module Frame = {
   let inner_nibs = (_frame, _outer_nibs) =>
     failwith("todo Segment.Frame.inner_nibs");
 
-  let grow = _ => failwith("todo Segment.Frame.grow");
   let concat = _ => failwith("todo Segment.Frame.concat");
 
   let reshape = ((prefix, suffix): t, (l, r): Nibs.t) => (
     Affix.reshape(Left, prefix, l),
     Affix.reshape(Right, suffix, r),
   );
+
+  let contains_matching = (_, _) =>
+    failwith("todo Segment.Frame.contains_matching");
 };
 
 // let trim = (segment: t) => {
