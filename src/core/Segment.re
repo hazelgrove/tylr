@@ -14,19 +14,22 @@ module Piece = {
     | Grout(Tile.Placeholder.t);
 };
 
+let cons = (_, _) => failwith("todo Segment.cons");
+let snoc = (_, _) => failwith("todo Segment.snoc");
+let cons_snoc = (side: Direction.t, piece: Piece.t, segment: t): t =>
+  switch (side) {
+  | Left => cons(piece, segment)
+  | Right => snoc(segment, piece)
+  };
+
+let split = (_, _) => failwith("todo Segment.split");
+
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
 let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
 let cons_tile = _ => failwith("todo Segment.cons_tile");
 let cons_placeholder = _ => failwith("todo Segment.cons_placeholder");
-let cons_piece = (_, _) => failwith("todo Segment.cons_piece");
 
 let rev = _ => failwith("todo Segment.rev");
-
-let grow = (side: Direction.t, shard: Shard.t, segment: t): t =>
-  switch (side) {
-  | Left => cons_shard(shard, segment)
-  | Right => snoc_shard(segment, shard)
-  };
 
 let empty = (Tiles.empty, []);
 let of_tiles = tiles => (tiles, []);
@@ -112,9 +115,9 @@ module Frame = {
     };
   let unorient = orient;
 
-  let cons_piece = (d: Direction.t, piece: Piece.t, affixes: t): t => {
+  let cons = (d: Direction.t, piece: Piece.t, affixes: t): t => {
     let (front, back) = orient(d, affixes);
-    unorient(d, (cons_piece(piece, front), back));
+    unorient(d, (cons(piece, front), back));
   };
 
   let prepend = (d: Direction.t, segment: segment, affixes: t): t => {

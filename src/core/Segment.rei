@@ -17,12 +17,18 @@ let of_tiles: Tiles.t => t;
 
 let rev: t => t;
 
-let cons_piece: (Piece.t, t) => t;
+let cons: (Piece.t, t) => t;
+let snoc: (t, Piece.t) => t;
+let cons_snoc: (Util.Direction.t, Piece.t, t) => t;
+
+let split: (Util.Direction.t, t) => option((Piece.t, t));
+
 let cons_tile: (Tile.t, t) => t;
+
 let cons_shard: (Shard.t, t) => t;
 let snoc_shard: (t, Shard.t) => t;
+
 let cons_placeholder: (Tile.Placeholder.t, t) => t;
-let grow: (Util.Direction.t, Shard.t, t) => t;
 
 let concat: list(t) => t;
 
@@ -63,7 +69,7 @@ module Frame: {
   let orient: (Util.Direction.t, t) => t;
   let unorient: (Util.Direction.t, t) => t;
 
-  let cons_piece: (Util.Direction.t, Piece.t, t) => t;
+  let cons: (Util.Direction.t, Piece.t, t) => t;
   let prepend: (Util.Direction.t, segment, t) => t;
 
   let split_hd: (Util.Direction.t, t) => option((Piece.t, t));

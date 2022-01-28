@@ -75,32 +75,26 @@ let move = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
   } else if (Backpack.is_balanced(backpack)) {
     open OptUtil.Syntax;
     let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
-    let affixes =
-      Segment.Frame.cons_piece(Direction.toggle(d), piece, affixes);
+    let affixes = Segment.Frame.cons(Direction.toggle(d), piece, affixes);
     let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+    let subject = {...subject, affixes};
     {
       ...edit_state,
       zipper: {
         frame,
-        subject: {
-          ...subject,
-          affixes,
-        },
+        subject,
       },
     };
   } else {
     switch (Segment.Frame.split_hd(d, subject.affixes)) {
     | Some((Tile(_) as tile, affixes)) =>
-      let affixes =
-        Segment.Frame.cons_piece(Direction.toggle(d), tile, affixes);
+      let affixes = Segment.Frame.cons(Direction.toggle(d), tile, affixes);
+      let subject = {...subject, affixes};
       Some({
         ...edit_state,
         zipper: {
           ...zipper,
-          subject: {
-            ...subject,
-            affixes,
-          },
+          subject,
         },
       });
     | _ => None
@@ -108,27 +102,37 @@ let move = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
   };
 };
 
-// let select =
-//     (d: Direction.t, ((down, up), frame): Zipper.t): option(Zipper.t) =>
-//   OptUtil.Syntax.(
-//     if (d == down.focus) {
-//       let+ (shard, (affixes, frame)) =
-//         enter_zipper(d, (down.affixes, frame));
-//       let selection =
-//         Parser.assemble_segment(
-//           Right,
-//           Segment.grow(down.focus, shard, down.selection),
-//         );
-//       let down = {...down, affixes, selection};
-//       ((down, up), frame);
-//     } else {
-//       let+ (shard, selection) = enter_segment(d, down.selection);
-//       let affixes = Segment.Frame.grow(down.focus, shard, down.affixes);
-//       let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
-//       let down = {...down, affixes, selection};
-//       ((down, up), frame);
-//     }
-//   );
+let select = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
+  open OptUtil.Syntax;
+  let Zipper.{subject, frame} = edit_state.zipper;
+  if (d == subject.focus) {
+    let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
+    let selection =
+      subject.selection
+      |> Segment.cons_snoc(subject.focus, piece)
+      |> Parser.assemble_segment;
+    let subject = {...subject, affixes, selection};
+    {
+      ...edit_state,
+      zipper: {
+        frame,
+        subject,
+      },
+    };
+  } else {
+    let+ (piece, selection) = Segment.split(d, subject.selection);
+    let affixes = Segment.Frame.cons(subject.focus, piece, subject.affixes);
+    let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+    let subject = {...subject, affixes, selection};
+    {
+      ...edit_state,
+      zipper: {
+        frame,
+        subject,
+      },
+    };
+  };
+};
 
 // let remove = (((down, up), frame): Zipper.t): Zipper.t => {};
 

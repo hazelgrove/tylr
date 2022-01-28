@@ -31,8 +31,12 @@
 // };
 let disassemble_tile = _ => failwith("todo Parser.disassemble_tile");
 let disassemble_frame = _ => failwith("todo Parser.disassemble_tile");
+
 let assemble_segment = _ => failwith("todo Parser.assemble_segment");
+
+let assemble_affix = (_, _) => failwith("todo Parser.assemble_affix");
 let assemble_affixes = _ => failwith("todo Parser.assemble_affixes");
+
 let assemble_zipper = _ => failwith("todo Parser.assemble_zipper");
 
 // let split_by_matching_shards =
