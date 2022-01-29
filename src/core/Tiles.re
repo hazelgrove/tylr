@@ -4,14 +4,8 @@ open Util;
 [@deriving sexp]
 type t = s;
 
-module Placeholders = {
-  type t = list(Tile.Placeholder.t);
-
-  let adjust = (_: Nibs.t, _: t): t => failwith("Tiles.Placeholders.adjust");
-};
-
-type hd = Placeholders.t;
-type tl = Util.Baba.t(Tile.t, Placeholders.t);
+type hd = Grouts.t;
+type tl = Util.Baba.t(Tile.t, Grouts.t);
 
 let empty = ([], []);
 let rev = _ => failwith("todo Tiles.rev");
@@ -41,18 +35,21 @@ let mk: list(Tile.t) => t = _ => failwith("todo Tiles.mk");
 //     concat([l, [Sep], r]);
 //   };
 
-module Frame = {
-  type affix_tl = tl;
-  type affix_hd = hd;
-  type affix = t;
-  type t = (affix, affix);
+module Affix = {
+  type nonrec t = t;
+  type nonrec hd = hd;
+  type nonrec tl = tl;
 
-  let near_nib = (d: Direction.t, tl: affix_tl, back_nib: Nib.t) =>
+  let near_nib_tl = (d: Direction.t, tl: tl, far_nib: Nib.t) =>
     switch (tl) {
-    | [] => back_nib
+    | [] => far_nib
     | [(tile, _), ..._] =>
       Direction.(choose(toggle(d), Tile.Mold.nibs(tile.mold)))
     };
+  let near_nib = (d: Direction.t, (hd, tl): t, far_nib: Nib.t) => (
+    hd,
+    near_nib_tl(d, tl, far_nib),
+  );
 
   // let adjust_placeholders =
   //     (d: Direction.t, ps: Placeholders.t, far_nib: Nib.t) =>
@@ -67,9 +64,8 @@ module Frame = {
   //   );
   let adjust_placeholders = (_, _, _) => failwith("todo");
 
-  let reshape_affix_tl =
-      (d: Direction.t, tl: affix_tl, back_nib: Nib.t): list(affix_tl) => {
-    let fold = ((tile, ps), (tl: affix_tl, k: unit => list(affix_tl))) => {
+  let reshape_tl = (d: Direction.t, tl: tl, far_nib: Nib.t): list(tl) => {
+    let fold = ((tile, ps), (tl: tl, k: unit => list(tl))) => {
       let tl = [(tile, ps), ...tl];
       let k = () =>
         switch (Tile.reshape(tile)) {
@@ -79,7 +75,7 @@ module Frame = {
           let* reshaped_tile = reshapings;
           let+ reshaped_tl = k();
           let adjusted_ps = {
-            let far_nib = near_nib(d, reshaped_tl, back_nib);
+            let far_nib = near_nib_tl(d, reshaped_tl, far_nib);
             let near_nib = Direction.choose(d, Tile.Mold.nibs(tile.mold));
             adjust_placeholders(d, ps, (near_nib, far_nib));
           };
@@ -90,11 +86,24 @@ module Frame = {
     let (_, k) = List.fold_right(fold, tl, ([], () => [[]]));
     k();
   };
+  let reshape = (d: Direction.t, (hd, tl): t, far_nib: Nib.t): list(t) =>
+    reshape_tl(d, tl, far_nib) |> List.map(tl => (hd, tl));
+};
 
-  let reshape_affix =
-      (d: Direction.t, (hd, tl): affix, back_nib: Nib.t)
-      : (affix_hd, list(affix_tl)) => (
-    hd,
-    reshape_affix_tl(d, tl, back_nib),
-  );
+module Frame = {
+  type t = (Affix.t, Affix.t);
+
+  let near_nibs =
+      ((prefix, suffix): t, far_nibs: Nibs.t): (Grouts.Frame.t, Nibs.t) => {
+    let (grouts_l, near_l) = Affix.near_nib(Left, prefix, fst(far_nibs));
+    let (grouts_r, near_r) = Affix.near_nib(Right, suffix, snd(far_nibs));
+    ((grouts_l, grouts_r), (near_l, near_r));
+  };
+
+  let reshape = ((prefix, suffix): t, (far_l, far_r): Nibs.t) => {
+    open ListUtil.Syntax;
+    let* prefix = Affix.reshape(Left, prefix, far_l);
+    let+ suffix = Affix.reshape(Right, suffix, far_r);
+    (prefix, suffix);
+  };
 };

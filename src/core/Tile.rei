@@ -40,16 +40,8 @@ module Form: {
   let molds: (~l: Nib.t=?, t) => list(Mold.t);
 };
 
-// Grout
-module Placeholder: {
-  [@deriving sexp]
-  type t =
-    | Sep(Nibs.t)
-    | Hole(Sort.t);
-};
-
 [@deriving sexp]
-type s = Util.Aba.t(list(Placeholder.t), t)
+type s = Util.Aba.t(Grouts.t, t)
 and t = {
   id: Id.t,
   mold: Mold.t,
@@ -77,4 +69,10 @@ module Frame: {
     mold: Mold.t,
     tokens: Util.Aba.Frame.b(Token.t, s),
   };
+
+  [@deriving sexp]
+  type step;
+  let step: t => step;
+
+  let sort: t => Sort.t;
 };

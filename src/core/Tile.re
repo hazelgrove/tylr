@@ -78,15 +78,8 @@ module Form = {
     );
 };
 
-module Placeholder = {
-  [@deriving sexp]
-  type t =
-    | Sep(Nibs.t)
-    | Hole(Sort.t);
-};
-
 [@deriving sexp]
-type s = Util.Aba.t(list(Placeholder.t), t)
+type s = Util.Aba.t(Grouts.t, t)
 and t = {
   id: Id.t,
   mold: Mold.t,
@@ -107,4 +100,15 @@ module Frame = {
     mold: Mold.t,
     tokens: Util.Aba.Frame.b(Token.t, s),
   };
+
+  [@deriving sexp]
+  type step = int;
+
+  let step = (frame: t): step => {
+    let (prefix, _) = frame.tokens;
+    List.length(Util.Aba.get_as(prefix));
+  };
+
+  let sort = (frame: t): Sort.t =>
+    List.nth(frame.mold.sorts.in_, step(frame));
 };

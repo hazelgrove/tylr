@@ -8,7 +8,7 @@ module Piece: {
   type t =
     | Shard(Shard.t)
     | Tile(Tile.t)
-    | Grout(Tile.Placeholder.t);
+    | Grout(Grout.t);
 };
 
 let empty: t;
@@ -29,7 +29,7 @@ let cons_tile: (Tile.t, t) => t;
 let cons_shard: (Shard.t, t) => t;
 let snoc_shard: (t, Shard.t) => t;
 
-let cons_placeholder: (Tile.Placeholder.t, t) => t;
+let cons_grout: (Grout.t, t) => t;
 
 let concat: list(t) => t;
 
@@ -38,7 +38,7 @@ let fold_left_map:
 
 let trim: t => t;
 
-let remold: (Shard.Ctx.t, Nibs.t, t) => list(t);
+let remold: (t, Nibs.t, Shard.Ctx.t) => list(t);
 
 let is_balanced: t => bool;
 
@@ -54,8 +54,11 @@ let unorient: (Util.Direction.t, t) => t;
 module Affix: {
   [@deriving sexp]
   type nonrec t = t;
-  let reshape:
-    (Util.Direction.t, t, Nib.t) => (Tiles.hd, list(Tiles.tl), tl);
+  [@deriving sexp]
+  type nonrec tl = tl;
+  // let near_nib_tl: tl => Nib.t;
+  // let reshape:
+  //   (Util.Direction.t, t, Nib.t) => (Tiles.hd, list(Tiles.tl), tl);
 };
 
 module Frame: {
@@ -83,46 +86,12 @@ module Frame: {
 
   let concat: list(t) => t;
 
-  let reshape: (t, Nibs.t) => ((Tiles.hd, list(Tiles.tl), tl) as 'r, 'r);
+  // let reshape: (t, Nibs.t) => ((Tiles.hd, list(Tiles.tl), tl) as 'r, 'r);
 
   let contains_matching: (Shard.t, t) => bool;
 };
 
-// let reshape: (t, Nibs.t) => list(t);
-
-// let remold: (t, (Sort.t, Sort.t)) => list(t);
-
-// let connect: (Frame.t, Sort.t) => list(Frame.t);
-
-// let insert: (t, Frame.t, Sort.t) => list((t, Frame.t));
-
-// /**
-//  * Given a pair of `affixes` surrounded by a tile frame of
-//  * sort `s`, `connect(~insert=insertion, affixes, s)` remolds
-//  * `insertion` against the inner sorts of `affixes`;
-//  * then, for each remolding, reroles `affixes` against
-//  * the remolding nibs and tile
-//  * frame nibs; and returns all resulting combinations.
-//  *
-//  * If no sort-consistent remolding can be found for `insertion`,
-//  * then returns a singleton list of `insertion` coupled with
-//  * glued `affixes`.
-//  *
-//  * By default `insertion` is empty. In this case the nibs
-//  * used to rerole the affixes are both orientations with
-//  * the sort at the frame subject (which should be well-defined
-//  * if assuming sort-consistency of input)
-//  */
-// let connect: (~insert: t=?, Frame.t, Sort.t) => list((t, Frame.t));
-
-// /**
-//  * `remold(segment, nibs)` returns a list of remoldings
-//  * of `segment` along with the glue needed for each
-//  * to fit `nibs`
-//  */
-// let remold: (t, Nibs.t) => list((t, Tiles.Frame.t));
-
-// let connect: (~insert: (Direction.t, t)=?, Frame.t, Nibs.t) => Frame.t;
+let connect: (t, Frame.t, Sort.t) => (t, Frame.t);
 
 let contains: (Tile.Id.t, t) => bool;
 

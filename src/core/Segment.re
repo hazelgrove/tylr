@@ -3,7 +3,9 @@ open Util;
 [@deriving sexp]
 type t = Aba.t(Tiles.t, Shard.t);
 
+[@deriving sexp]
 type hd = Tiles.t;
+[@deriving sexp]
 type tl = Baba.t(Shard.t, Tiles.t);
 
 module Piece = {
@@ -11,7 +13,7 @@ module Piece = {
   type t =
     | Shard(Shard.t)
     | Tile(Tile.t)
-    | Grout(Tile.Placeholder.t);
+    | Grout(Grout.t);
 };
 
 let cons = (_, _) => failwith("todo Segment.cons");
@@ -29,7 +31,7 @@ let split = (_, _) => failwith("todo Segment.split");
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
 let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
 let cons_tile = _ => failwith("todo Segment.cons_tile");
-let cons_placeholder = _ => failwith("todo Segment.cons_placeholder");
+let cons_grout = _ => failwith("todo Segment.cons_grout");
 
 let rev = _ => failwith("todo Segment.rev");
 
@@ -53,30 +55,6 @@ let is_balanced = _ => failwith("todo Segment.is_balanced");
 
 let fold_left_map = _ => failwith("todo Segment.fold_left_map");
 
-let rec remold = (ctx: Shard.Ctx.t, (l, r): Nibs.t, segment: t): list(t) =>
-  switch (segment) {
-  | ((ps, []), []) => [
-      ((Tiles.Placeholders.adjust((l, r), ps), []), []),
-    ]
-  | ((ps, []), [(shard, tiles), ...tl]) =>
-    open ListUtil.Syntax;
-    let* nibs = Shard.nibs(~l, ctx, shard);
-    let shard = {...shard, nibs};
-    let ctx = Shard.Ctx.add(shard, ctx);
-    let ps = Tiles.Placeholders.adjust((l, fst(shard.nibs)), ps);
-    let+ (tiles, tl) = remold(ctx, (snd(shard.nibs), r), (tiles, tl));
-    ((ps, []), [(shard, tiles), ...tl]);
-  | ((ps, [(tile, ps'), ...tiles_tl]), segment_tl) =>
-    open ListUtil.Syntax;
-    let* mold = Tile.Form.molds(~l, Tile.form(tile));
-    let tile = {...tile, mold};
-    let nibs = Tile.Mold.nibs(mold);
-    let ps = Tiles.Placeholders.adjust((l, fst(nibs)), ps);
-    let+ ((ps', tiles_tl), segment_tl) =
-      remold(ctx, (snd(nibs), r), ((ps', tiles_tl), segment_tl));
-    ((ps, [(tile, ps'), ...tiles_tl]), segment_tl);
-  };
-
 let split_hd = (segment: t): option((Piece.t, t)) =>
   switch (segment) {
   | (([], []), []) => None
@@ -91,27 +69,32 @@ let split_hd = (segment: t): option((Piece.t, t)) =>
 module Affix = {
   [@deriving sexp]
   type nonrec t = t;
+  [@deriving sexp]
+  type nonrec tl = tl;
 
   let split_hd = split_hd;
-
-  let reshape =
-      (d: Direction.t, affix: t, back_nib: Nib.t)
-      : (Tiles.hd, list(Tiles.tl), tl) => {
-    let (hd, tl) = affix;
-    let back_nib =
-      switch (tl) {
-      | [] => back_nib
-      | [(shard, _), ..._] => Direction.(choose(toggle(d), shard.nibs))
-      };
-    let (tiles_hd, tiles_tls) = Tiles.Frame.reshape_affix(d, hd, back_nib);
-    (tiles_hd, tiles_tls, tl);
-  };
+  // let reshape =
+  //     (d: Direction.t, affix: t, back_nib: Nib.t)
+  //     : (Tiles.hd, list(Tiles.tl), tl) => {
+  //   let (hd, tl) = affix;
+  //   let back_nib =
+  //     switch (tl) {
+  //     | [] => back_nib
+  //     | [(shard, _), ..._] => Direction.(choose(toggle(d), shard.nibs))
+  //     };
+  //   let (tiles_hd, tiles_tls) = Tiles.Affix.reshape(d, hd, back_nib);
+  //   (tiles_hd, tiles_tls, tl);
+  // };
 };
 
 module Frame = {
   type segment = t;
   [@deriving sexp]
   type t = (Affix.t, Affix.t);
+
+  let of_grouts = (_: Grouts.Frame.t): t =>
+    failwith("Segment.Frame.of_grouts");
+  let of_tiles = (_: Tiles.Frame.t): t => failwith("Segment.Frame.of_tiles");
 
   let orient = (d: Direction.t, (prefix, suffix): t): t =>
     switch (d) {
@@ -143,83 +126,69 @@ module Frame = {
 
   let concat = _ => failwith("todo Segment.Frame.concat");
 
-  let reshape = ((prefix, suffix): t, (l, r): Nibs.t) => (
-    Affix.reshape(Left, prefix, l),
-    Affix.reshape(Right, suffix, r),
-  );
+  // let reshape = ((prefix, suffix): t, (l, r): Nibs.t) => (
+  //   Affix.reshape(Left, prefix, l),
+  //   Affix.reshape(Right, suffix, r),
+  // );
+
+  let near_nibs_tls = (_, _) => failwith("todo Segment.Frame.near_nibs_tls");
 
   let contains_matching = (_, _) =>
     failwith("todo Segment.Frame.contains_matching");
+
+  let fill = (_: segment, _: t): segment =>
+    failwith("todo Segment.Frame.fill");
 };
 
-// let trim = (segment: t) => {
-//   let trim_l =
-//     fun
-//     | [hd, ...tl] when Piece.is_hole(hd) => tl
-//     | segment => segment;
-//   let trim_r = segment =>
-//     switch (ListUtil.split_last_opt(segment)) {
-//     | Some((leading, last)) when Piece.is_hole(last) => leading
-//     | _ => segment
-//     };
-//   trim_r(trim_l(segment));
-// };
+let trim_grouts = (_: t): (t, Grouts.Frame.t) =>
+  failwith("todo Segment.trim_grouts");
 
-// let choose = (_remoldings: list((t, Tile.Frame.s))): (t, Tile.Frame.s) =>
-//   failwith("todo");
+let rec remold = (segment: t, (l, r): Nibs.t, ctx: Shard.Ctx.t): list(t) =>
+  switch (segment) {
+  | ((ps, []), []) => [((Grouts.adjust((l, r), ps), []), [])]
+  | ((ps, []), [(shard, tiles), ...tl]) =>
+    open ListUtil.Syntax;
+    let* nibs = Shard.nibs(~l, ctx, shard);
+    let shard = {...shard, nibs};
+    let ctx = Shard.Ctx.add(shard, ctx);
+    let ps = Grouts.adjust((l, fst(shard.nibs)), ps);
+    let+ (tiles, tl) = remold((tiles, tl), (snd(shard.nibs), r), ctx);
+    ((ps, []), [(shard, tiles), ...tl]);
+  | ((ps, [(tile, ps'), ...tiles_tl]), segment_tl) =>
+    open ListUtil.Syntax;
+    let* mold = Tile.Form.molds(~l, Tile.form(tile));
+    let tile = {...tile, mold};
+    let nibs = Tile.Mold.nibs(mold);
+    let ps = Grouts.adjust((l, fst(nibs)), ps);
+    let+ ((ps', tiles_tl), segment_tl) =
+      remold(((ps', tiles_tl), segment_tl), (snd(nibs), r), ctx);
+    ((ps, [(tile, ps'), ...tiles_tl]), segment_tl);
+  };
 
-// let choose: list((t, Frame.t)) => (t, Frame.t) = _ => failwith("todo");
+let remold_reshape =
+    (insertion: t, affixes: Tiles.Frame.t, nibs: Nibs.t, ctx: Shard.Ctx.t)
+    : list((t, Grouts.Frame.t, Tiles.Frame.t)) => {
+  open ListUtil.Syntax;
+  let* tiles_frame = Tiles.Frame.reshape(affixes, nibs);
+  let (grouts, nibs) = Tiles.Frame.near_nibs(tiles_frame, nibs);
+  let+ insertion =
+    remold(Frame.(fill(insertion, of_grouts(grouts))), nibs, ctx);
+  let (insertion, grouts) = trim_grouts(insertion);
+  (insertion, grouts, tiles_frame);
+};
 
-// let connect = (affixes: Frame.t, sort: Sort.t): list(Frame.t) => {
-//   let (l, r) = Frame.inner_nibs(affixes, sort);
-//   if (l.sort == r.sort) {
-//     Nib.of_sort(l.sort)
-//     |> List.map(mid => Frame.rerole((mid, mid), affixes, sort))
-//     |> List.concat
-//   } else {
-//     let mid_l = Nib.{sort: l.sort, orientation: Right};
-//     let mid_r = Nib.{sort: r.sort, orientation: Left};
-//     Frame.rerole((mid_l, mid_r), affixes, sort)
-//     |> List.map(((prefix, suffix)) => (prefix, [Tile.Sep, ...suffix]))
-//   };
-// };
-
-// let insert =
-//     (insertion: Segment.t, affixes: Frame.t, sort: Sort.t)
-//     : list((Segment.t, Frame.t)) => {
-//   open ListUtil.Syntax;
-//   let* remolded = remold(insertion, affixes, sort);
-//   switch (nibs(remolded)) {
-//   | None =>
-//     let+ affixes = connect(affixes, sort);
-//     (empty, affixes);
-//   | Some(inner_nibs) =>
-//     let+ affixes = Frame.rerole(inner_nibs, t, sort);
-
-//   };
-// };
-
-// let connect =
-//     (
-//       ~insert: option((Direction.t, t))=?,
-//       affixes: Frame.t,
-//       outer_nibs: Nibs.t,
-//     ) => {
-//   // TODO need to trim affixes
-//   let insertion =
-//     switch (insert) {
-//     | None =>
-//       let (l, r) = Frame.inner_nibs(affixes, outer_nibs);
-//       (empty, Segment.of_tiles(Tiles.glue(l, r)))
-//     | Some((d, insertion)) =>
-//       let remoldings = remold(insertion, affixes, outer_nibs);
-//       let (insertion, (glue_l, glue_r)) = choose(remoldings);
-//       let (glue_l, glue_r) = (of_tiles(glue_l), of_tiles(glue_r));
-//       switch (d) {
-//       | Left =>
-//         (glue_l, concat([insertion, glue_r]))
-//       | Right =>
-//         (concat([rev(insertion), glue_l]), glue_r)
-//       };
-//     };
-//   Frame.append(insertion, affixes);
+let connect =
+    // ~focus=Direction.Right,
+    (insertion: t, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
+  let ctx = failwith("todo ctx");
+  let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
+  let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
+  let (insertion, grouts, tiles) =
+    remold_reshape(insertion, (tiles_l, tiles_r), nibs, ctx)
+    |> List.sort(((_, grouts, _), (_, grouts', _)) =>
+         Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
+       )
+    |> ListUtil.hd_opt
+    |> OptUtil.get_or_fail("Segment.insert: expected at least one remolding");
+  (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
+};
