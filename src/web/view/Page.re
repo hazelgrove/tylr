@@ -84,11 +84,10 @@ let view = (~inject, model: Model.t) => {
   let Model.{
         font_metrics,
         logo_font_metrics: _,
-        edit_state,
+        zipper,
         history,
         show_neighbor_tiles,
       } = model;
-  let zipper = edit_state.zipper;
   // let dpaths = DecPaths.of_zipper(zipper);
   let l = Layout.mk_zipper(zipper);
   Node.div(

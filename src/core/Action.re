@@ -1,4 +1,5 @@
 open Util;
+open Zipper;
 
 [@deriving sexp]
 type t =
@@ -24,18 +25,21 @@ module Result = {
   type t('success) = Result.t('success, Failure.t);
 };
 
-// TODO maybe move this
 let split_piece =
-    (d: Direction.t, affixes: Segment.Frame.t, frame: Zipper.Frame.t)
-    : option((Segment.Piece.t, Segment.Frame.t, Zipper.Frame.t)) => {
-  switch (Segment.Frame.split_hd(d, affixes)) {
-  | Some((piece, affixes)) => Some((piece, affixes, frame))
+    (d: Direction.t, siblings, ancestors)
+    : option((Segment.Piece.t, Siblings.t, Ancestors.t)) => {
+  switch (Siblings.split_hd(d, siblings)) {
+  | Some((p, siblings)) => Some((p, siblings, ancestors))
   | None =>
-    open OptUtil.Syntax;
-    let* (affixes', frame) = Parser.disassemble_frame(frame);
-    let+ (piece, affixes) =
-      Segment.Frame.(split_hd(d, concat([affixes, affixes'])));
-    (piece, affixes, frame);
+    switch (ancestors) {
+    | [] => None
+    | [ancestor, ...ancestors] =>
+      open OptUtil.Syntax;
+      let siblings' = Parser.disassemble_ancestor(ancestor);
+      let+ (piece, siblings) =
+        Siblings.(split_hd(d, concat([siblings, siblings'])));
+      (piece, siblings, ancestors);
+    }
   };
 };
 
@@ -43,114 +47,94 @@ let split_piece =
 // desired end of former selection if possible
 // (not possible if doing so would violate ordering
 // between shards up and shards down)
-let unselect = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
-  let Zipper.{subject: {focus, selection, affixes}, frame} =
-    edit_state.zipper;
-  if (d == focus
-      && !Segment.is_balanced(selection)
-      && !Backpack.is_balanced(edit_state.backpack)) {
+let unselect = (d: Direction.t, zipper: Zipper.t): option(Zipper.t) => {
+  let {selection, backpack, siblings, ancestors, id_gen: _} = zipper;
+  if (d == selection.focus
+      && !Selection.is_balanced(selection)
+      && !Backpack.is_balanced(backpack)) {
     None;
   } else {
-    let affixes = Segment.Frame.prepend(d, selection, affixes);
-    let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+    let siblings = Siblings.prepend(d, selection.content, siblings);
+    let (siblings, ancestors) =
+      Parser.reassemble_relatives(siblings, ancestors);
     Some({
-      ...edit_state,
-      zipper: {
-        frame,
-        subject: {
-          affixes,
-          selection: Segment.empty,
-          focus: d,
-        },
-      },
+      ...zipper,
+      ancestors,
+      siblings,
+      selection: Selection.clear(selection),
     });
   };
 };
 
-let move = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
-  let EditState.{backpack, zipper, id_gen: _} = edit_state;
-  let Zipper.{subject, frame} = zipper;
-  if (subject.selection != Segment.empty) {
-    unselect(d, edit_state);
-  } else if (Backpack.is_balanced(backpack)) {
+let move = (d: Direction.t, z: Zipper.t): option(Zipper.t) =>
+  if (!Selection.is_empty(z.selection)) {
+    unselect(d, z);
+  } else if (Backpack.is_balanced(z.backpack)) {
     open OptUtil.Syntax;
-    let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
-    let affixes = Segment.Frame.cons(Direction.toggle(d), piece, affixes);
-    let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
-    let subject = {...subject, affixes};
-    {
-      ...edit_state,
-      zipper: {
-        frame,
-        subject,
-      },
-    };
+    let+ (p, siblings, ancestors) = split_piece(d, z.siblings, z.ancestors);
+    let siblings = Siblings.cons(Direction.toggle(d), p, siblings);
+    let (siblings, ancestors) =
+      Parser.reassemble_relatives(siblings, ancestors);
+    {...z, siblings, ancestors};
   } else {
-    switch (Segment.Frame.split_hd(d, subject.affixes)) {
-    | Some((Tile(_) as tile, affixes)) =>
-      let affixes = Segment.Frame.cons(Direction.toggle(d), tile, affixes);
-      let subject = {...subject, affixes};
-      Some({
-        ...edit_state,
-        zipper: {
-          ...zipper,
-          subject,
-        },
-      });
+    switch (Siblings.split_hd(d, z.siblings)) {
+    | Some((Tile(_) as tile, siblings)) =>
+      let siblings = Siblings.cons(Direction.toggle(d), tile, siblings);
+      Some({...z, siblings});
     | _ => None
+    };
+  };
+
+let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
+  open OptUtil.Syntax;
+  let grow = selection => {
+    let+ (p, siblings, ancestors) = split_piece(d, z.siblings, z.ancestors);
+    let selection =
+      selection
+      |> Selection.push(p)
+      |> Selection.map_content(Parser.reassemble_segment);
+    {...z, selection, siblings, ancestors};
+  };
+  if (d == z.selection.focus) {
+    grow(z.selection);
+  } else {
+    switch (Selection.pop(z.selection)) {
+    | None => grow(Selection.toggle_focus(z.selection))
+    | Some((p, selection)) =>
+      let siblings = Siblings.cons(z.selection.focus, p, z.siblings);
+      let (siblings, ancestors) =
+        Parser.reassemble_relatives(siblings, z.ancestors);
+      Some({...z, selection, siblings, ancestors});
     };
   };
 };
 
-let select = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
-  open OptUtil.Syntax;
-  let Zipper.{subject, frame} = edit_state.zipper;
-  let+ zipper =
-    if (d == subject.focus) {
-      let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
-      let selection =
-        subject.selection
-        |> Segment.cons_snoc(subject.focus, piece)
-        |> Parser.assemble_segment;
-      let subject = {...subject, affixes, selection};
-      Zipper.{subject, frame};
-    } else {
-      let+ (piece, selection) = Segment.split(d, subject.selection);
-      let affixes = Segment.Frame.cons(subject.focus, piece, subject.affixes);
-      let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
-      let subject = {...subject, affixes, selection};
-      Zipper.{subject, frame};
-    };
-  {...edit_state, zipper};
-};
-
-let remove = (edit_state: EditState.t): EditState.t => {
-  let EditState.{backpack, zipper, id_gen: _} = edit_state;
-  let Zipper.Subject.{focus, selection, affixes} = zipper.subject;
+let remove = (z: Zipper.t): Zipper.t => {
   let backpack = {
     let (backpack, picked_up) =
-      selection
+      z.selection.content
       |> Segment.fold_left_map(
-           (backpack, piece) =>
-             switch (piece) {
+           (backpack, p) =>
+             switch (p) {
              | Grout(_)
              | Tile(_) => (backpack, None)
              | Shard(shard) =>
-               Segment.Frame.contains_matching(shard, affixes)
-                 ? (backpack, Some(piece))
+               Siblings.contains_matching(shard, z.siblings)
+                 ? (backpack, Some(p))
                  : (
                    List.map(Segment.remove_matching(shard), backpack),
                    None,
                  )
              },
-           backpack,
+           z.backpack,
          );
     let picked_up = Segment.of_pieces(List.filter_map(Fun.id, picked_up));
-    Backpack.extend(Direction.toggle(focus), picked_up, backpack);
+    Backpack.pick_up(z.selection.focus, picked_up, backpack);
   };
-  let subject = {...zipper.subject, selection: Segment.empty};
-  let zipper = {...zipper, subject};
-  {...edit_state, backpack, zipper};
+  // TODO need to connect siblings
+  let (_, siblings) =
+    Segment.connect(Segment.empty, z.siblings, Ancestors.sort(z.ancestors));
+  {...z, selection: Selection.clear(z.selection), backpack, siblings};
 };
 
 // let pick_up = (edit_state: EditState.t): EditState.t => {
@@ -191,10 +175,10 @@ let remove = (edit_state: EditState.t): EditState.t => {
 //     let (prefix, suffix) =
 //       Segment.connect(~insert=(up_side, put_down), affixes);
 //     let affixes = (
-//       Parser.assemble_segment(Left, prefix),
-//       Parser.assemble_segment(Right, suffix),
+//       Parser.reassemble_segment(Left, prefix),
+//       Parser.reassemble_segment(Right, suffix),
 //     );
-//     let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+//     let (affixes, frame) = Parser.reassemble_relatives(affixes, frame);
 //     ((([], affixes), up), frame);
 //   };
 // };

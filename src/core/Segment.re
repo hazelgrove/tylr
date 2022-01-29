@@ -18,15 +18,8 @@ module Piece = {
 
 let cons = (_, _) => failwith("todo Segment.cons");
 let snoc = (_, _) => failwith("todo Segment.snoc");
-let cons_snoc = (side: Direction.t, piece: Piece.t, segment: t): t =>
-  switch (side) {
-  | Left => cons(piece, segment)
-  | Right => snoc(segment, piece)
-  };
 
 let of_pieces = _ => failwith("todo Segment.of_pieces");
-
-let split = (_, _) => failwith("todo Segment.split");
 
 let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
 let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
@@ -73,12 +66,16 @@ module Affix = {
   type nonrec tl = tl;
 
   let split_hd = split_hd;
+
+  let empty = empty;
 };
 
 module Frame = {
   type segment = t;
   [@deriving sexp]
   type t = (Affix.t, Affix.t);
+
+  let empty = (Affix.empty, Affix.empty);
 
   let of_grouts = (_: Grouts.Frame.t): t =>
     failwith("Segment.Frame.of_grouts");

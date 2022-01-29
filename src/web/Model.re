@@ -1,7 +1,7 @@
 open Core;
 
 type t = {
-  edit_state: EditState.t,
+  zipper: Zipper.t,
   history: ActionHistory.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
@@ -62,18 +62,17 @@ let two =
 //   };
 
 let init = () => {
-  edit_state: {
-    zipper: {
-      subject: {
+  zipper:
+    Zipper.{
+      selection: {
         focus: Left,
-        selection: Segment.empty,
-        affixes: (Segment.empty, Segment.empty),
+        content: Segment.empty,
       },
-      frame: [],
+      backpack: Backpack.empty,
+      siblings: Siblings.empty,
+      ancestors: Ancestors.empty,
+      id_gen: IdGen.init,
     },
-    id_gen: IdGen.init,
-    backpack: [],
-  },
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,

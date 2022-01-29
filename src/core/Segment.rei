@@ -20,9 +20,6 @@ let rev: t => t;
 
 let cons: (Piece.t, t) => t;
 let snoc: (t, Piece.t) => t;
-let cons_snoc: (Util.Direction.t, Piece.t, t) => t;
-
-let split: (Util.Direction.t, t) => option((Piece.t, t));
 
 let cons_tile: (Tile.t, t) => t;
 
@@ -62,6 +59,8 @@ module Frame: {
   type segment = t;
   [@deriving sexp]
   type nonrec t = (Affix.t, Affix.t);
+
+  let empty: t;
 
   /**
    * `orient(d, affixes)` returns the pair `(front, back)`
