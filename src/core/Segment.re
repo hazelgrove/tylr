@@ -73,18 +73,6 @@ module Affix = {
   type nonrec tl = tl;
 
   let split_hd = split_hd;
-  // let reshape =
-  //     (d: Direction.t, affix: t, back_nib: Nib.t)
-  //     : (Tiles.hd, list(Tiles.tl), tl) => {
-  //   let (hd, tl) = affix;
-  //   let back_nib =
-  //     switch (tl) {
-  //     | [] => back_nib
-  //     | [(shard, _), ..._] => Direction.(choose(toggle(d), shard.nibs))
-  //     };
-  //   let (tiles_hd, tiles_tls) = Tiles.Affix.reshape(d, hd, back_nib);
-  //   (tiles_hd, tiles_tls, tl);
-  // };
 };
 
 module Frame = {
@@ -125,11 +113,6 @@ module Frame = {
     failwith("todo Segment.Frame.inner_nibs");
 
   let concat = _ => failwith("todo Segment.Frame.concat");
-
-  // let reshape = ((prefix, suffix): t, (l, r): Nibs.t) => (
-  //   Affix.reshape(Left, prefix, l),
-  //   Affix.reshape(Right, suffix, r),
-  // );
 
   let near_nibs_tls = (_, _) => failwith("todo Segment.Frame.near_nibs_tls");
 
@@ -177,9 +160,7 @@ let remold_reshape =
   (insertion, grouts, tiles_frame);
 };
 
-let connect =
-    // ~focus=Direction.Right,
-    (insertion: t, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
+let connect = (insertion: t, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
   let ctx = failwith("todo ctx");
   let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
   let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
@@ -189,6 +170,6 @@ let connect =
          Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
        )
     |> ListUtil.hd_opt
-    |> OptUtil.get_or_fail("Segment.insert: expected at least one remolding");
+    |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
   (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
 };

@@ -5,7 +5,7 @@ type t =
   | Move(Direction.t)
   | Select(Direction.t)
   | Remove
-  | Insert(Direction.t, Tile.t)
+  | Insert(Direction.t, Tile.Form.t)
   | Pick_up
   | Put_down;
 
@@ -105,33 +105,23 @@ let move = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
 let select = (d: Direction.t, edit_state: EditState.t): option(EditState.t) => {
   open OptUtil.Syntax;
   let Zipper.{subject, frame} = edit_state.zipper;
-  if (d == subject.focus) {
-    let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
-    let selection =
-      subject.selection
-      |> Segment.cons_snoc(subject.focus, piece)
-      |> Parser.assemble_segment;
-    let subject = {...subject, affixes, selection};
-    {
-      ...edit_state,
-      zipper: {
-        frame,
-        subject,
-      },
+  let+ zipper =
+    if (d == subject.focus) {
+      let+ (piece, affixes, frame) = split_piece(d, subject.affixes, frame);
+      let selection =
+        subject.selection
+        |> Segment.cons_snoc(subject.focus, piece)
+        |> Parser.assemble_segment;
+      let subject = {...subject, affixes, selection};
+      Zipper.{subject, frame};
+    } else {
+      let+ (piece, selection) = Segment.split(d, subject.selection);
+      let affixes = Segment.Frame.cons(subject.focus, piece, subject.affixes);
+      let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
+      let subject = {...subject, affixes, selection};
+      Zipper.{subject, frame};
     };
-  } else {
-    let+ (piece, selection) = Segment.split(d, subject.selection);
-    let affixes = Segment.Frame.cons(subject.focus, piece, subject.affixes);
-    let (affixes, frame) = Parser.assemble_zipper(affixes, frame);
-    let subject = {...subject, affixes, selection};
-    {
-      ...edit_state,
-      zipper: {
-        frame,
-        subject,
-      },
-    };
-  };
+  {...edit_state, zipper};
 };
 
 let remove = (edit_state: EditState.t): EditState.t => {
@@ -159,15 +149,15 @@ let remove = (edit_state: EditState.t): EditState.t => {
     Backpack.extend(Direction.toggle(focus), picked_up, backpack);
   };
   let subject = {...zipper.subject, selection: Segment.empty};
-  {
-    ...edit_state,
-    backpack,
-    zipper: {
-      ...zipper,
-      subject,
-    },
-  };
+  let zipper = {...zipper, subject};
+  {...edit_state, backpack, zipper};
 };
+
+// let pick_up = (edit_state: EditState.t): EditState.t => {
+//   let Zipper.{subject, frame} = edit_state.zipper;
+//   let sort = Zipper.Frame.sort(frame);
+
+// };
 
 // let pick_up = (((down, up), frame): Zipper.t): Zipper.t => {
 //   let sort = Zipper.Frame.sort(frame);

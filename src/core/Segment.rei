@@ -56,9 +56,6 @@ module Affix: {
   type nonrec t = t;
   [@deriving sexp]
   type nonrec tl = tl;
-  // let near_nib_tl: tl => Nib.t;
-  // let reshape:
-  //   (Util.Direction.t, t, Nib.t) => (Tiles.hd, list(Tiles.tl), tl);
 };
 
 module Frame: {
@@ -82,11 +79,7 @@ module Frame: {
 
   let inner_nibs: (t, Nibs.t) => Nibs.t;
 
-  // let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
-
   let concat: list(t) => t;
-
-  // let reshape: (t, Nibs.t) => ((Tiles.hd, list(Tiles.tl), tl) as 'r, 'r);
 
   let contains_matching: (Shard.t, t) => bool;
 };
