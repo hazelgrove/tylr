@@ -136,24 +136,17 @@ let remove = (z: Zipper.t): Zipper.t => {
   {...z, selection: Selection.clear(z.selection), backpack, siblings};
 };
 
-// let pick_up = (edit_state: EditState.t): EditState.t => {
-//   let Zipper.{subject, frame} = edit_state.zipper;
-//   let sort = Zipper.Frame.sort(frame);
-
-// };
-
-// let pick_up = (((down, up), frame): Zipper.t): Zipper.t => {
-//   let sort = Zipper.Frame.sort(frame);
-//   let (side, selection, affixes) = down;
-//   let affixes = Segment.connect(affixes);
-//   let down = ([], affixes);
-//   switch (Segment.trim(selection)) {
-//   | [] => ((down, up), frame)
-//   | [_, ..._] as trimmed =>
-//     let up = Subject.Up.extend(Direction.toggle(side), trimmed, up);
-//     ((down, up), frame);
-//   };
-// };
+let pick_up = (z: Zipper.t): Zipper.t => {
+  let (trimmed, grouts) = Selection.trim(z.selection);
+  let (_, siblings) =
+    Segment.connect(
+      Siblings.(concat([of_grouts(grouts), z.siblings])),
+      Ancestors.sort(z.ancestors),
+    );
+  let backpack =
+    Backpack.pick_up(z.selection.focus, trimmed.content, z.backpack);
+  {...z, selection: Selection.clear(z.selection), backpack, siblings};
+};
 
 // let put_down = (((down, up), frame): Zipper.t): result(Zipper.t) => {
 //   let sort = Frame.sort(frame);

@@ -34,6 +34,9 @@ module Selection = {
 
   let pop = (_selection: t): option((Segment.Piece.t, t)) =>
     failwith("todo Selection.pop");
+
+  let trim = (_selection: t): (t, Grouts.Frame.t) =>
+    failwith("todo Selection.trim");
 };
 
 module Backpack = {
@@ -50,10 +53,14 @@ module Backpack = {
 
   let total_segment = (up: t): Segment.t => Segment.concat(up);
 
-  let pick_up = (side: Util.Direction.t, segment, up): t =>
-    switch (side) {
-    | Left => [segment, ...up]
-    | Right => up @ [segment]
+  let pick_up = (side: Util.Direction.t, segment, backpack): t =>
+    if (segment == Segment.empty) {
+      backpack;
+    } else {
+      switch (side) {
+      | Left => [segment, ...backpack]
+      | Right => backpack @ [segment]
+      };
     };
 
   let put_down = (side: Util.Direction.t, up: t): option((Segment.t, t)) =>

@@ -81,6 +81,8 @@ module Frame: {
   let concat: list(t) => t;
 
   let contains_matching: (Shard.t, t) => bool;
+
+  let of_grouts: Grouts.Frame.t => t;
 };
 
 let connect: (~insert: t=?, Frame.t, Sort.t) => (t, Frame.t);
