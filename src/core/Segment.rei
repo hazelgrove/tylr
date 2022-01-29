@@ -83,7 +83,7 @@ module Frame: {
   let contains_matching: (Shard.t, t) => bool;
 };
 
-let connect: (t, Frame.t, Sort.t) => (t, Frame.t);
+let connect: (~insert: t=?, Frame.t, Sort.t) => (t, Frame.t);
 
 let contains: (Tile.Id.t, t) => bool;
 

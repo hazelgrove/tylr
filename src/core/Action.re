@@ -131,9 +131,8 @@ let remove = (z: Zipper.t): Zipper.t => {
     let picked_up = Segment.of_pieces(List.filter_map(Fun.id, picked_up));
     Backpack.pick_up(z.selection.focus, picked_up, backpack);
   };
-  // TODO need to connect siblings
   let (_, siblings) =
-    Segment.connect(Segment.empty, z.siblings, Ancestors.sort(z.ancestors));
+    Segment.connect(z.siblings, Ancestors.sort(z.ancestors));
   {...z, selection: Selection.clear(z.selection), backpack, siblings};
 };
 

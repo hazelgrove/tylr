@@ -157,12 +157,12 @@ let remold_reshape =
   (insertion, grouts, tiles_frame);
 };
 
-let connect = (insertion: t, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
+let connect = (~insert=empty, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
   let ctx = failwith("todo ctx");
   let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
   let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
   let (insertion, grouts, tiles) =
-    remold_reshape(insertion, (tiles_l, tiles_r), nibs, ctx)
+    remold_reshape(insert, (tiles_l, tiles_r), nibs, ctx)
     |> List.sort(((_, grouts, _), (_, grouts', _)) =>
          Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
        )
