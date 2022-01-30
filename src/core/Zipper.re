@@ -53,15 +53,14 @@ module Backpack = {
 
   let total_segment = (up: t): Segment.t => Segment.concat(up);
 
-  let pick_up = (side: Util.Direction.t, segment, backpack): t =>
-    if (segment == Segment.empty) {
-      backpack;
-    } else {
-      switch (side) {
-      | Left => [segment, ...backpack]
-      | Right => backpack @ [segment]
-      };
+  let pick_up =
+      (side: Util.Direction.t, segments: list(Segment.t), backpack): t => {
+    let segments = List.filter((!=)(Segment.empty), segments);
+    switch (side) {
+    | Left => segments @ backpack
+    | Right => backpack @ segments
     };
+  };
 
   let put_down = (side: Util.Direction.t, up: t): option((Segment.t, t)) =>
     switch (side) {

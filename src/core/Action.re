@@ -110,30 +110,22 @@ let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
 };
 
 let remove = (z: Zipper.t): Zipper.t => {
-  let backpack = {
-    let (backpack, picked_up) =
-      z.selection.content
-      |> Segment.fold_left_map(
-           (backpack, p) =>
-             switch (p) {
-             | Grout(_)
-             | Tile(_) => (backpack, None)
-             | Shard(shard) =>
-               Siblings.contains_matching(shard, z.siblings)
-                 ? (backpack, Some(p))
-                 : (
-                   List.map(Segment.remove_matching(shard), backpack),
-                   None,
-                 )
-             },
-           z.backpack,
-         );
-    let picked_up = Segment.of_pieces(List.filter_map(Fun.id, picked_up));
-    Backpack.pick_up(z.selection.focus, picked_up, backpack);
-  };
+  let (picked_up, removed) =
+    Segment.shards(z.selection.content)
+    |> List.partition(shard => Siblings.contains_matching(shard, z.siblings));
+  let segments =
+    picked_up |> List.map(shard => (Tiles.empty, [(shard, Tiles.empty)]));
+  let backpack =
+    removed
+    |> List.fold_left(
+         (backpack, shard) =>
+           List.map(Segment.remove_matching(shard), backpack),
+         z.backpack,
+       )
+    |> Backpack.pick_up(z.selection.focus, segments);
   let (_, siblings) =
     Segment.connect(z.siblings, Ancestors.sort(z.ancestors));
-  {...z, selection: Selection.clear(z.selection), backpack, siblings};
+  {...z, siblings, backpack, selection: Selection.clear(z.selection)};
 };
 
 let pick_up = (z: Zipper.t): Zipper.t => {
@@ -144,7 +136,7 @@ let pick_up = (z: Zipper.t): Zipper.t => {
       Ancestors.sort(z.ancestors),
     );
   let backpack =
-    Backpack.pick_up(z.selection.focus, trimmed.content, z.backpack);
+    Backpack.pick_up(z.selection.focus, [trimmed.content], z.backpack);
   {...z, selection: Selection.clear(z.selection), backpack, siblings};
 };
 

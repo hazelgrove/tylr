@@ -16,6 +16,8 @@ module Piece = {
     | Grout(Grout.t);
 };
 
+let shards = _ => failwith("todo Segment.shards");
+
 let cons = (_, _) => failwith("todo Segment.cons");
 let snoc = (_, _) => failwith("todo Segment.snoc");
 

@@ -48,6 +48,8 @@ let remove_matching: (Shard.t, t) => t;
 let orient: (Util.Direction.t, t) => t;
 let unorient: (Util.Direction.t, t) => t;
 
+let shards: t => list(Shard.t);
+
 module Affix: {
   [@deriving sexp]
   type nonrec t = t;
@@ -64,9 +66,9 @@ module Frame: {
 
   /**
    * `orient(d, affixes)` returns the pair `(front, back)`
-   * such that, if you stood at the subject of `affixes`,
-   * `front` is the affix in front of you and `back` the
-   * affix behind you
+   * such that, if you stood facing direction `d` at the
+   * subject of `affixes`, `front` is the affix in front
+   * of you and `back` the affix behind
    */
   let orient: (Util.Direction.t, t) => t;
   let unorient: (Util.Direction.t, t) => t;
