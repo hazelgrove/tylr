@@ -13,12 +13,9 @@ type t =
 module Failure = {
   [@deriving sexp]
   type t =
-    | Undefined
     | Cant_move
-    | Cant_construct(Sort.t, Sort.t)
-    | Cant_pick_up_selection
-    | Cant_put_down_selection(Sort.t, Sort.t)
-    | Cant_construct_in_restructuring;
+    | Nothing_to_put_down
+    | Cant_overwrite_imbalanced_selection;
 };
 
 module Result = {
@@ -140,32 +137,29 @@ let pick_up = (z: Zipper.t): Zipper.t => {
   {...z, selection: Selection.clear(z.selection), backpack, siblings};
 };
 
-// let put_down = (((down, up), frame): Zipper.t): result(Zipper.t) => {
-//   let sort = Frame.sort(frame);
-//   let (side, selection, affixes) = down;
-//   switch (selection) {
-//   | [_, ..._] =>
-//     // todo revisit
-//     // should support pasting over intact selections at least
-//     Error(Undefined)
-//   | [] =>
-//     let up_side = Direction.toggle(side);
-//     // todo better error
-//     let+ (put_down, up) =
-//       Result.of_option(
-//         ~error=Failure.Undefined,
-//         Subject.Up.pop(up_side, up),
-//       );
-//     let (prefix, suffix) =
-//       Segment.connect(~insert=(up_side, put_down), affixes);
-//     let affixes = (
-//       Parser.reassemble_segment(Left, prefix),
-//       Parser.reassemble_segment(Right, suffix),
-//     );
-//     let (affixes, frame) = Parser.reassemble_relatives(affixes, frame);
-//     ((([], affixes), up), frame);
-//   };
-// };
+let put_down = (z: Zipper.t): Result.t(Zipper.t) => {
+  open Util.Result.Syntax;
+  let focus = z.selection.focus;
+  let* (put_down, backpack) =
+    Util.Result.of_option(
+      ~error=Failure.Nothing_to_put_down,
+      Backpack.put_down(focus, z.backpack),
+    );
+  if (!Selection.is_balanced(z.selection)) {
+    Error(Failure.Cant_overwrite_imbalanced_selection);
+  } else {
+    let z = remove(z);
+    let siblings = {
+      let s = Ancestors.sort(z.ancestors);
+      let (put_down, siblings) =
+        Segment.connect(~insert=put_down, z.siblings, s);
+      Siblings.prepend(Direction.toggle(focus), put_down, siblings);
+    };
+    let (siblings, ancestors) =
+      Parser.reassemble_relatives(siblings, z.ancestors);
+    Ok({...z, backpack, siblings, ancestors});
+  };
+};
 
 // let insert = (d: Direction.t, tokens: list(Token.t), (zipper: Zipper.t, id_gen: IdGen.t)) => {
 //   let (((_, selection, affixes), _up), _frame) = zipper;

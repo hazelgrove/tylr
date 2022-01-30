@@ -62,17 +62,18 @@ module Backpack = {
     };
   };
 
-  let put_down = (side: Util.Direction.t, up: t): option((Segment.t, t)) =>
+  let put_down =
+      (side: Util.Direction.t, backpack: t): option((Segment.t, t)) =>
     switch (side) {
     | Left =>
-      switch (up) {
+      switch (backpack) {
       | [] => None
-      | [popped, ...up] => Some((popped, up))
+      | [put_down, ...backpack] => Some((put_down, backpack))
       }
     | Right =>
       open Util.OptUtil.Syntax;
-      let+ (up, popped) = Util.ListUtil.split_last_opt(up);
-      (popped, up);
+      let+ (backpack, put_down) = Util.ListUtil.split_last_opt(backpack);
+      (put_down, backpack);
     };
 };
 

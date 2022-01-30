@@ -1,6 +1,6 @@
 open Virtual_dom.Vdom;
 open Util;
-open Core;
+// open Core;
 
 module Profile = {
   type t = {
@@ -374,48 +374,52 @@ let view =
     | Some(_) => [JustFailedCls.Bar.mk()]
     };
   let err_msg = {
-    open Node;
-    let sort_label = sort =>
-      span(
-        [Attr.classes(["sort-label", Sort.to_string(sort)])],
-        [text(Sort.to_proper_string(sort))],
+    Node.
+      // let sort_label = sort =>
+      //   span(
+      //     [Attr.classes(["sort-label", Sort.to_string(sort)])],
+      //     [text(Sort.to_proper_string(sort))],
+      //   );
+      (
+        switch (just_failed) {
+        | Some({reason: Unrecognized, prior_attempts})
+            when prior_attempts >= 0 => [
+            text("unrecognized input for current sort"),
+          ]
+        | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 0 =>
+          switch (f) {
+          | _ => []
+          // | Action.Failure.Undefined
+          // | Cant_move => []
+          // | Cant_construct(sort, frame_sort) => [
+          //     text("cannot construct "),
+          //     text("a" ++ (sort == Pat ? " " : "n ")),
+          //     sort_label(sort),
+          //     text(" tile in "),
+          //     sort_label(frame_sort),
+          //     text(" position"),
+          //   ]
+          // | Cant_pick_up_selection => [
+          //     text("cannot pick up selection with caps of different sort"),
+          //   ]
+          // | Cant_put_down_selection(sort, frame_sort) => [
+          //     text("cannot put down "),
+          //     // br([]),
+          //     text("a" ++ (sort == Pat ? " " : "n ")),
+          //     sort_label(sort),
+          //     text("-capped selection"),
+          //     // br([]),
+          //     text(" in "),
+          //     sort_label(frame_sort),
+          //     text(" position"),
+          //   ]
+          // | Cant_construct_in_restructuring => [
+          //     text("cannot construct in restructuring mode"),
+          //   ]
+          }
+        | _ => []
+        }
       );
-    switch (just_failed) {
-    | Some({reason: Unrecognized, prior_attempts}) when prior_attempts >= 0 => [
-        text("unrecognized input for current sort"),
-      ]
-    | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 0 =>
-      switch (f) {
-      | Action.Failure.Undefined
-      | Cant_move => []
-      | Cant_construct(sort, frame_sort) => [
-          text("cannot construct "),
-          text("a" ++ (sort == Pat ? " " : "n ")),
-          sort_label(sort),
-          text(" tile in "),
-          sort_label(frame_sort),
-          text(" position"),
-        ]
-      | Cant_pick_up_selection => [
-          text("cannot pick up selection with caps of different sort"),
-        ]
-      | Cant_put_down_selection(sort, frame_sort) => [
-          text("cannot put down "),
-          // br([]),
-          text("a" ++ (sort == Pat ? " " : "n ")),
-          sort_label(sort),
-          text("-capped selection"),
-          // br([]),
-          text(" in "),
-          sort_label(frame_sort),
-          text(" position"),
-        ]
-      | Cant_construct_in_restructuring => [
-          text("cannot construct in restructuring mode"),
-        ]
-      }
-    | _ => []
-    };
   };
   let err_msg_style = {
     let _y_pos =
