@@ -138,9 +138,9 @@ let rec remold = (segment: t, (l, r): Nibs.t, ctx: Shard.Ctx.t): list(t) =>
     ((ps, []), [(shard, tiles), ...tl]);
   | ((ps, [(tile, ps'), ...tiles_tl]), segment_tl) =>
     open ListUtil.Syntax;
-    let* mold = Tile.Form.molds(~l, Tile.form(tile));
+    let* mold = Tile.molds(~l, Tile.form(tile));
     let tile = {...tile, mold};
-    let nibs = Tile.Mold.nibs(mold);
+    let nibs = Tile.nibs(mold);
     let ps = Grouts.adjust((l, fst(nibs)), ps);
     let+ ((ps', tiles_tl), segment_tl) =
       remold(((ps', tiles_tl), segment_tl), (snd(nibs), r), ctx);
@@ -172,3 +172,5 @@ let connect = (~insert=empty, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
     |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
   (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
 };
+
+let split = _ => failwith("todo Segment.split");

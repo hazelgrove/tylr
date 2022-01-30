@@ -92,3 +92,5 @@ let connect: (~insert: t=?, Frame.t, Sort.t) => (t, Frame.t);
 let contains: (Tile.Id.t, t) => bool;
 
 let remove: (Tile.Id.t, t) => t;
+
+let split: t => list(t);

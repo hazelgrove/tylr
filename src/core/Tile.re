@@ -37,45 +37,11 @@ module Mold = {
     shape: Shape.t,
     sorts: Sorts.t,
   };
-  let nibs: (~index: int=?, t) => Nibs.t =
-    (~index as _=?, _) => failwith("todo Tile.Mold.nibs");
 };
 
 module Form = {
   [@deriving sexp]
   type t = list(Token.t);
-
-  let molds = (~l as _: option(Nib.t)=?) =>
-    Mold.(
-      fun
-      | [t] when Token.is_num(t) => [{shape: Op, sorts: Sorts.mk(Exp)}]
-      | [t] when Token.is_var(t) => [
-          {shape: Op, sorts: Sorts.mk(Pat)},
-          {shape: Op, sorts: Sorts.mk(Exp)},
-        ]
-      | ["(", ")"] => [
-          {shape: Op, sorts: Sorts.mk(~in_=[Pat], Pat)},
-          {shape: Op, sorts: Sorts.mk(~in_=[Exp], Exp)},
-        ]
-      | ["λ", "{", "}"] => [
-          {shape: Op, sorts: Sorts.mk(~in_=[Pat, Exp], Exp)},
-        ]
-      | ["!"] => [{shape: Post(1), sorts: Sorts.mk(Exp)}]
-      | ["[", "]"] => [
-          {shape: Post(2), sorts: Sorts.mk(~in_=[Exp], Exp)},
-        ]
-      | ["*" | "/"] => [{shape: Bin(3), sorts: Sorts.mk(Exp)}]
-      | ["+" | "-"] => [{shape: Bin(4), sorts: Sorts.mk(Exp)}]
-      | [","] => [
-          {shape: Bin(5), sorts: Sorts.mk(Exp)},
-          {shape: Bin(5), sorts: Sorts.mk(Pat)},
-        ]
-      | ["?", ":"] => [{shape: Bin(6), sorts: Sorts.mk(~in_=[Exp], Exp)}]
-      | ["let", "=", "in"] => [
-          {shape: Pre(9), sorts: Sorts.mk(~in_=[Pat, Exp], Exp)},
-        ]
-      | _ => []
-    );
 };
 
 [@deriving sexp]
@@ -88,8 +54,46 @@ and t = {
 
 let form = (tile: t) => Util.Aba.get_as(tile.tokens);
 
+let molds = (~l as _: option(Nib.t)=?, form: Form.t) =>
+  Mold.(
+    switch (form) {
+    | [t] when Token.is_num(t) => [{shape: Op, sorts: Sorts.mk(Exp)}]
+    | [t] when Token.is_var(t) => [
+        {shape: Op, sorts: Sorts.mk(Pat)},
+        {shape: Op, sorts: Sorts.mk(Exp)},
+      ]
+    | ["(", ")"] => [
+        {shape: Op, sorts: Sorts.mk(~in_=[Pat], Pat)},
+        {shape: Op, sorts: Sorts.mk(~in_=[Exp], Exp)},
+      ]
+    | ["λ", "{", "}"] => [
+        {shape: Op, sorts: Sorts.mk(~in_=[Pat, Exp], Exp)},
+      ]
+    | ["!"] => [{shape: Post(1), sorts: Sorts.mk(Exp)}]
+    | ["[", "]"] => [{shape: Post(2), sorts: Sorts.mk(~in_=[Exp], Exp)}]
+    | ["*" | "/"] => [{shape: Bin(3), sorts: Sorts.mk(Exp)}]
+    | ["+" | "-"] => [{shape: Bin(4), sorts: Sorts.mk(Exp)}]
+    | [","] => [
+        {shape: Bin(5), sorts: Sorts.mk(Exp)},
+        {shape: Bin(5), sorts: Sorts.mk(Pat)},
+      ]
+    | ["?", ":"] => [{shape: Bin(6), sorts: Sorts.mk(~in_=[Exp], Exp)}]
+    | ["let", "=", "in"] => [
+        {shape: Pre(9), sorts: Sorts.mk(~in_=[Pat, Exp], Exp)},
+      ]
+    | _ => []
+    }
+  );
+
+let default_mold =
+    (_form: Form.t, _sibling: Sort.t, _ancestor: Sort.t): Mold.t =>
+  failwith("todo Tile.default_mold");
+
+let nibs: (~index: int=?, Mold.t) => Nibs.t =
+  (~index as _=?, _) => failwith("todo Tile.nibs");
+
 let reshape = (tile: t) =>
-  Form.molds(form(tile))
+  molds(form(tile))
   |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
   |> List.map(mold => {...tile, mold});
 

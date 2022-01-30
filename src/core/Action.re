@@ -6,6 +6,7 @@ type t =
   | Move(Direction.t)
   | Select(Direction.t)
   | Remove
+  // `Insert(d, form)` constructs `form` starting from `d` side
   | Insert(Direction.t, Tile.Form.t)
   | Pick_up
   | Put_down;
@@ -21,6 +22,30 @@ module Failure = {
 module Result = {
   type t('success) = Result.t('success, Failure.t);
 };
+
+let clear_selection = (z: Zipper.t): (Segment.t, Zipper.t) => {
+  let selection = Selection.clear(z.selection);
+  let (_, siblings) =
+    Segment.connect(z.siblings, Ancestors.sort(z.ancestors));
+  (z.selection.content, {...z, selection, siblings});
+};
+
+let overwrite_selection =
+    (segment: Segment.t, z: Zipper.t): Result.t((Segment.t, Zipper.t)) =>
+  if (!Selection.is_balanced(z.selection)) {
+    Error(Failure.Cant_overwrite_imbalanced_selection);
+  } else {
+    let (cleared, z) = clear_selection(z);
+    let siblings = {
+      let s = Ancestors.sort(z.ancestors);
+      let (segment, siblings) =
+        Segment.connect(~insert=segment, z.siblings, s);
+      Siblings.prepend(z.selection.focus, segment, siblings);
+    };
+    let (siblings, ancestors) =
+      Parser.reassemble_relatives(siblings, z.ancestors);
+    Ok((cleared, {...z, siblings, ancestors}));
+  };
 
 let split_piece =
     (d: Direction.t, siblings, ancestors)
@@ -107,8 +132,9 @@ let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
 };
 
 let remove = (z: Zipper.t): Zipper.t => {
+  let (selected, z) = clear_selection(z);
   let (picked_up, removed) =
-    Segment.shards(z.selection.content)
+    Segment.shards(selected)
     |> List.partition(shard => Siblings.contains_matching(shard, z.siblings));
   let segments =
     picked_up |> List.map(shard => (Tiles.empty, [(shard, Tiles.empty)]));
@@ -120,21 +146,14 @@ let remove = (z: Zipper.t): Zipper.t => {
          z.backpack,
        )
     |> Backpack.pick_up(z.selection.focus, segments);
-  let (_, siblings) =
-    Segment.connect(z.siblings, Ancestors.sort(z.ancestors));
-  {...z, siblings, backpack, selection: Selection.clear(z.selection)};
+  {...z, backpack};
 };
 
 let pick_up = (z: Zipper.t): Zipper.t => {
-  let (trimmed, grouts) = Selection.trim(z.selection);
-  let (_, siblings) =
-    Segment.connect(
-      Siblings.(concat([of_grouts(grouts), z.siblings])),
-      Ancestors.sort(z.ancestors),
-    );
-  let backpack =
-    Backpack.pick_up(z.selection.focus, [trimmed.content], z.backpack);
-  {...z, selection: Selection.clear(z.selection), backpack, siblings};
+  let (selected, z) = clear_selection(z);
+  let segments = Segment.split(selected);
+  let backpack = Backpack.pick_up(z.selection.focus, segments, z.backpack);
+  {...z, backpack};
 };
 
 let put_down = (z: Zipper.t): Result.t(Zipper.t) => {
@@ -145,49 +164,48 @@ let put_down = (z: Zipper.t): Result.t(Zipper.t) => {
       ~error=Failure.Nothing_to_put_down,
       Backpack.put_down(focus, z.backpack),
     );
-  if (!Selection.is_balanced(z.selection)) {
-    Error(Failure.Cant_overwrite_imbalanced_selection);
-  } else {
-    let z = remove(z);
-    let siblings = {
-      let s = Ancestors.sort(z.ancestors);
-      let (put_down, siblings) =
-        Segment.connect(~insert=put_down, z.siblings, s);
-      Siblings.prepend(Direction.toggle(focus), put_down, siblings);
-    };
-    let (siblings, ancestors) =
-      Parser.reassemble_relatives(siblings, z.ancestors);
-    Ok({...z, backpack, siblings, ancestors});
-  };
+  let+ (_, z) = overwrite_selection(put_down, z);
+  {...z, backpack};
 };
+let rec put_down_all = (z: Zipper.t): Zipper.t =>
+  switch (put_down(z)) {
+  | Error(_) => z
+  | Ok(z) => put_down_all(z)
+  };
 
-// let insert = (d: Direction.t, tokens: list(Token.t), (zipper: Zipper.t, id_gen: IdGen.t)) => {
-//   let (((_, selection, affixes), _up), _frame) = zipper;
-//   let (id, id_gen) = IdGen.next(id_gen);
-//   let (insertion, picked_up) =
-//     switch (tokens) {
-//     | [_] => failwith
-//     };
-
-//   switch (tokens) {
-//   | [_] =>
-//     // make tile with tokens
-//     // get its default mold
-//     // make segment and connect between current zipper affixes
-//     // meanwhile delete all selected tiles and either
-//     //   (1) remove selected shards if they're the last to be picked up
-//     //   (also remove their matching shards that were picked up), or
-//     //   (2) otherwise pick up selected shards
-//   | _ =>
-//     // make shards of tokens
-//     let shards =
-//       tokens
-//       |> List.mapi((i, token) => )
-//     // connect d-end of shard list to current zipper
-//     // put remaining shards in backpack (in some order tbd)
-//   }
-// };
-let insert = _ => failwith("todo Action.insert");
+let insert =
+    (d: Direction.t, form: Tile.Form.t, z: Zipper.t): Result.t(Zipper.t) => {
+  let z =
+    d != z.selection.focus && !Backpack.is_balanced(z.backpack)
+      ? put_down_all(z) : z;
+  let (tile_id, id_gen) = IdGen.next(z.id_gen);
+  let mold =
+    Tile.default_mold(
+      form,
+      Ancestors.sort(z.ancestors),
+      Siblings.sort(z.siblings),
+    );
+  let segments =
+    form
+    |> List.mapi((index, _) => {
+         let shard =
+           Shard.{
+             tile_id,
+             nibs: Tile.nibs(~index, mold),
+             form: (index, form),
+           };
+         Segment.of_pieces([Shard(shard)]);
+       });
+  put_down({
+    ...z,
+    id_gen,
+    backpack: Backpack.pick_up(d, segments, z.backpack),
+    selection: {
+      ...z.selection,
+      focus: d,
+    },
+  });
+};
 
 // let perform = (a: t, edit_state: EditState.t): result(EditState.t) =>
 //   switch (a) {

@@ -44,7 +44,7 @@ module Affix = {
     switch (tl) {
     | [] => far_nib
     | [(tile, _), ..._] =>
-      Direction.(choose(toggle(d), Tile.Mold.nibs(tile.mold)))
+      Direction.(choose(toggle(d), Tile.nibs(tile.mold)))
     };
   let near_nib = (d: Direction.t, (hd, tl): t, far_nib: Nib.t) => (
     hd,
@@ -76,7 +76,7 @@ module Affix = {
           let+ reshaped_tl = k();
           let adjusted_ps = {
             let far_nib = near_nib_tl(d, reshaped_tl, far_nib);
-            let near_nib = Direction.choose(d, Tile.Mold.nibs(tile.mold));
+            let near_nib = Direction.choose(d, Tile.nibs(tile.mold));
             adjust_placeholders(d, ps, (near_nib, far_nib));
           };
           [(reshaped_tile, adjusted_ps), ...reshaped_tl];

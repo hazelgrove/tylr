@@ -79,6 +79,8 @@ module Backpack = {
 
 module Siblings = {
   include Segment.Frame;
+
+  let sort: t => Sort.t = _ => failwith("todo Siblings.sort");
 };
 
 module Ancestor = {

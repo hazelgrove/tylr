@@ -31,13 +31,11 @@ module Mold: {
     shape: Shape.t,
     sorts: Sorts.t,
   };
-  let nibs: (~index: int=?, t) => Nibs.t;
 };
 
 module Form: {
   [@deriving sexp]
   type t = list(Token.t); // nonempty
-  let molds: (~l: Nib.t=?, t) => list(Mold.t);
 };
 
 [@deriving sexp]
@@ -55,6 +53,11 @@ and t = {
 // 1 + \ x . 2 >< x + 3
 
 let form: t => Form.t;
+
+let molds: (~l: Nib.t=?, Form.t) => list(Mold.t);
+let default_mold: (Form.t, Sort.t, Sort.t) => Mold.t;
+
+let nibs: (~index: int=?, Mold.t) => Nibs.t;
 
 let reshape: t => list(t);
 

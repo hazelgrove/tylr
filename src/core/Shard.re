@@ -12,7 +12,7 @@ module Form = {
 
   let consistent = (matching: list((Index.t, Nibs.t)), mold: Tile.Mold.t) =>
     matching
-    |> List.for_all(((index, nibs)) => Tile.Mold.nibs(~index, mold) == nibs);
+    |> List.for_all(((index, nibs)) => Tile.nibs(~index, mold) == nibs);
 
   let nibs =
       (
@@ -21,9 +21,9 @@ module Form = {
         (index, form),
       )
       : list(Nibs.t) =>
-    Tile.Form.molds(form)
+    Tile.molds(form)
     |> List.filter(consistent(matching))
-    |> List.map(Tile.Mold.nibs(~index));
+    |> List.map(Tile.nibs(~index));
 };
 
 [@deriving sexp]
