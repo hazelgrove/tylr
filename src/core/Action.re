@@ -7,7 +7,7 @@ type t =
   | Select(Direction.t)
   | Remove
   // `Insert(d, form)` constructs `form` starting from `d` side
-  | Insert(Direction.t, Tile.Form.t)
+  | Insert(Direction.t, Tile.Label.t)
   | Pick_up
   | Put_down;
 
@@ -175,26 +175,22 @@ let rec put_down_all = (z: Zipper.t): Zipper.t =>
   };
 
 let insert =
-    (d: Direction.t, form: Tile.Form.t, z: Zipper.t): Result.t(Zipper.t) => {
+    (d: Direction.t, label: Tile.Label.t, z: Zipper.t): Result.t(Zipper.t) => {
   let z =
     d != z.selection.focus && !Backpack.is_balanced(z.backpack)
       ? put_down_all(z) : z;
-  let (tile_id, id_gen) = IdGen.next(z.id_gen);
+  let (id, id_gen) = IdGen.next(z.id_gen);
+  let tile = (id, label);
   let mold =
     Tile.default_mold(
-      form,
+      label,
       Ancestors.sort(z.ancestors),
       Siblings.sort(z.siblings),
     );
   let segments =
-    form
+    label
     |> List.mapi((index, _) => {
-         let shard =
-           Shard.{
-             tile_id,
-             nibs: Tile.nibs(~index, mold),
-             form: (index, form),
-           };
+         let shard = Shard.{tile, index, nibs: Tile.nibs(~index, mold)};
          Segment.of_pieces([Shard(shard)]);
        });
   put_down({

@@ -130,7 +130,7 @@ let rec remold = (segment: t, (l, r): Nibs.t, ctx: Shard.Ctx.t): list(t) =>
   | ((ps, []), []) => [((Grouts.adjust((l, r), ps), []), [])]
   | ((ps, []), [(shard, tiles), ...tl]) =>
     open ListUtil.Syntax;
-    let* nibs = Shard.nibs(~l, ctx, shard);
+    let* nibs = Shard.assignable_nibs(~l, ctx, shard);
     let shard = {...shard, nibs};
     let ctx = Shard.Ctx.add(shard, ctx);
     let ps = Grouts.adjust((l, fst(shard.nibs)), ps);
@@ -138,7 +138,7 @@ let rec remold = (segment: t, (l, r): Nibs.t, ctx: Shard.Ctx.t): list(t) =>
     ((ps, []), [(shard, tiles), ...tl]);
   | ((ps, [(tile, ps'), ...tiles_tl]), segment_tl) =>
     open ListUtil.Syntax;
-    let* mold = Tile.molds(~l, Tile.form(tile));
+    let* mold = Tile.assignable_molds(~l, Tile.label(tile));
     let tile = {...tile, mold};
     let nibs = Tile.nibs(mold);
     let ps = Grouts.adjust((l, fst(nibs)), ps);

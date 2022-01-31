@@ -20,7 +20,7 @@ let one =
         in_: [],
       },
     },
-    tokens: ("1", []),
+    substance: ("1", []),
   };
 let plus_12 =
   Tile.{
@@ -32,7 +32,7 @@ let plus_12 =
         in_: [],
       },
     },
-    tokens: ("+", []),
+    substance: ("+", []),
   };
 let two =
   Tile.{
@@ -44,7 +44,7 @@ let two =
         in_: [],
       },
     },
-    tokens: ("2", []),
+    substance: ("2", []),
   };
 // let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
 

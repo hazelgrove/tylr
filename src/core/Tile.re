@@ -39,7 +39,7 @@ module Mold = {
   };
 };
 
-module Form = {
+module Label = {
   [@deriving sexp]
   type t = list(Token.t);
 };
@@ -49,14 +49,14 @@ type s = Util.Aba.t(Grouts.t, t)
 and t = {
   id: Id.t,
   mold: Mold.t,
-  tokens: Util.Aba.t(Token.t, s),
+  substance: Util.Aba.t(Token.t, s),
 };
 
-let form = (tile: t) => Util.Aba.get_a(tile.tokens);
+let label = (tile: t) => Util.Aba.get_a(tile.substance);
 
-let molds = (~l as _: option(Nib.t)=?, form: Form.t) =>
+let assignable_molds = (~l as _: option(Nib.t)=?, label: Label.t) =>
   Mold.(
-    switch (form) {
+    switch (label) {
     | [t] when Token.is_num(t) => [{shape: Op, sorts: Sorts.mk(Exp)}]
     | [t] when Token.is_var(t) => [
         {shape: Op, sorts: Sorts.mk(Pat)},
@@ -86,14 +86,14 @@ let molds = (~l as _: option(Nib.t)=?, form: Form.t) =>
   );
 
 let default_mold =
-    (_form: Form.t, _sibling: Sort.t, _ancestor: Sort.t): Mold.t =>
+    (_form: Label.t, _sibling: Sort.t, _ancestor: Sort.t): Mold.t =>
   failwith("todo Tile.default_mold");
 
 let nibs: (~index: int=?, Mold.t) => Nibs.t =
   (~index as _=?, _) => failwith("todo Tile.nibs");
 
 let reshape = (tile: t) =>
-  molds(form(tile))
+  assignable_molds(label(tile))
   |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
   |> List.map(mold => {...tile, mold});
 
@@ -102,18 +102,18 @@ module Frame = {
   type t = {
     id: Id.t,
     mold: Mold.t,
-    tokens: Util.Aba.Frame.B.t(Token.t, s),
+    substance: Util.Aba.Frame.B.t(Token.t, s),
   };
 
   [@deriving sexp]
   type step = int;
 
   let step = (frame: t): step => {
-    let (prefix, _) = frame.tokens;
+    let (prefix, _) = frame.substance;
     List.length(Util.Aba.get_b(prefix));
   };
 
-  let form = _ => failwith("todo Tile.Frame.form");
+  let label = _ => failwith("todo Tile.Frame.label");
 
   let sort = (frame: t): Sort.t =>
     List.nth(frame.mold.sorts.in_, step(frame));

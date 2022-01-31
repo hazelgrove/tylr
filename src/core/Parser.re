@@ -5,7 +5,7 @@ let wrap = ((tiles_near, tiles_far), s: Aba.t(Shard.t, Tiles.t)): Segment.t =>
   s |> Baba.cons(tiles_near) |> Fun.flip(Aba.snoc, tiles_far);
 
 let disassemble_tile = (tile: Tile.t): Segment.t =>
-  tile.tokens
+  tile.substance
   |> Util.Aba.mapi_a((index, _) => Shard.of_tile(index, tile))
   |> wrap((Tiles.empty, Tiles.empty));
 
@@ -14,7 +14,7 @@ let reassemble_segment = _ => failwith("todo Parser.assemble_segment");
 let disassemble_ancestor =
     ((tile, tiles): Zipper.Ancestor.t): Zipper.Siblings.t => {
   let step = Tile.Frame.step(tile);
-  let (tile_pre, tile_suf) = tile.tokens;
+  let (tile_pre, tile_suf) = tile.substance;
   let (tiles_pre, tiles_suf) = tiles;
   let prefix =
     tile_pre

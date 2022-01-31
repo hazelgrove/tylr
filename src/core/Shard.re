@@ -6,41 +6,31 @@ module Index = {
   let compare = Int.compare;
 };
 
-module Form = {
+module Label = {
   [@deriving sexp]
-  type t = (Index.t, Tile.Form.t);
-
-  let consistent = (matching: list((Index.t, Nibs.t)), mold: Tile.Mold.t) =>
-    matching
-    |> List.for_all(((index, nibs)) => Tile.nibs(~index, mold) == nibs);
-
-  let nibs =
-      (
-        ~l as _: option(Nib.t)=?,
-        matching: list((Index.t, Nibs.t)),
-        (index, form),
-      )
-      : list(Nibs.t) =>
-    Tile.molds(form)
-    |> List.filter(consistent(matching))
-    |> List.map(Tile.nibs(~index));
+  type t = Token.t;
 };
 
 [@deriving sexp]
 type t = {
-  tile_id: Tile.Id.t,
-  form: Form.t,
+  tile: (Tile.Id.t, Tile.Label.t),
+  index: Index.t,
   nibs: Nibs.t,
 };
 
+let label = (shard: t): Label.t => {
+  let (_, tile_label) = shard.tile;
+  List.nth(tile_label, shard.index);
+};
+
 let of_tile = (index: Index.t, tile: Tile.t): t => {
-  tile_id: tile.id,
-  form: (index, Tile.form(tile)),
+  tile: (tile.id, Tile.label(tile)),
+  index,
   nibs: Tile.nibs(~index, tile.mold),
 };
 let of_tile_frame = (index: Index.t, tile: Tile.Frame.t): t => {
-  tile_id: tile.id,
-  form: (index, Tile.Frame.form(tile)),
+  tile: (tile.id, Tile.Frame.label(tile)),
+  index,
   nibs: Tile.nibs(~index, tile.mold),
 };
 
@@ -50,16 +40,27 @@ module Map = {
 
 module Ctx = {
   type shard = t;
-  type t = Tile.Map.t(Map.t(Nibs.t));
+  type t = Tile.Map.t(list(shard));
 
   let lookup = (_, _) => failwith("todo Shard.Ctx.lookup");
 
   let add = (shard: shard, ctx: t) => {
-    let shard_map =
-      ctx |> lookup(shard.tile_id) |> Map.add(fst(shard.form), shard.nibs);
-    Tile.Map.add(shard.tile_id, shard_map, ctx);
+    let (id, _) = shard.tile;
+    let shards = [shard, ...lookup(id, ctx)];
+    Tile.Map.add(id, shards, ctx);
   };
 };
 
-let nibs = (~l: option(Nib.t)=?, ctx: Ctx.t, shard: t) =>
-  Form.nibs(~l?, Ctx.lookup(shard.tile_id, ctx), shard.form);
+let consistent = (shards: list(t), mold: Tile.Mold.t) =>
+  shards
+  |> List.for_all(shard => Tile.nibs(~index=shard.index, mold) == shard.nibs);
+
+let assignable_nibs =
+    // l is intended to be left neighbor nib that is
+    // used to filter down to sort-consistent nibs
+    (~l as _: option(Nib.t)=?, ctx: Ctx.t, shard: t) => {
+  let (id, label) = shard.tile;
+  Tile.assignable_molds(label)
+  |> List.filter(consistent(Ctx.lookup(id, ctx)))
+  |> List.map(Tile.nibs(~index=shard.index));
+};

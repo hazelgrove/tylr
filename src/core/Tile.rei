@@ -33,7 +33,7 @@ module Mold: {
   };
 };
 
-module Form: {
+module Label: {
   [@deriving sexp]
   type t = list(Token.t); // nonempty
 };
@@ -43,7 +43,7 @@ type s = Util.Aba.t(Grouts.t, t)
 and t = {
   id: Id.t,
   mold: Mold.t,
-  tokens: Util.Aba.t(Token.t, s),
+  substance: Util.Aba.t(Token.t, s),
 };
 
 // 1 + let x = 2 in x + 3
@@ -52,10 +52,10 @@ and t = {
 // --construct lam-->
 // 1 + \ x . 2 >< x + 3
 
-let form: t => Form.t;
+let label: t => Label.t;
 
-let molds: (~l: Nib.t=?, Form.t) => list(Mold.t);
-let default_mold: (Form.t, Sort.t, Sort.t) => Mold.t;
+let assignable_molds: (~l: Nib.t=?, Label.t) => list(Mold.t);
+let default_mold: (Label.t, Sort.t, Sort.t) => Mold.t;
 
 let nibs: (~index: int=?, Mold.t) => Nibs.t;
 
@@ -70,14 +70,14 @@ module Frame: {
   type t = {
     id: Id.t,
     mold: Mold.t,
-    tokens: Util.Aba.Frame.B.t(Token.t, s),
+    substance: Util.Aba.Frame.B.t(Token.t, s),
   };
 
   [@deriving sexp]
   type step = int;
   let step: t => step;
 
-  let form: t => Form.t;
+  let label: t => Label.t;
 
   let sort: t => Sort.t;
 };
