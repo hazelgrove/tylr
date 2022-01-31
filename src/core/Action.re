@@ -20,6 +20,7 @@ module Failure = {
 };
 
 module Result = {
+  include Result;
   type t('success) = Result.t('success, Failure.t);
 };
 
@@ -207,15 +208,13 @@ let insert =
   });
 };
 
-// let perform = (a: t, edit_state: EditState.t): result(EditState.t) =>
-//   switch (a) {
-//   | Move(d) =>
-//     Result.of_option(~error=Failure.Cant_move, move(d, edit_state))
-//   | Select(d) =>
-//     Result.of_option(~error=Failure.Cant_move, select(d, edit_state))
-//   | Remove => Ok({...edit_state, zipper: remove(edit_state.zipper)})
-//   | Insert(d, tokens) => insert(d, tokens, edit_state)
-//   | Pick_up => Ok({...edit_state, zipper: pick_up(zipper)})
-//   | Put_down =>
-//     Result.of_option(~error=Failure.Empty_backpack, put_down(edit_state))
-//   };
+let perform = (a: t, zipper: Zipper.t): Result.t(Zipper.t) =>
+  switch (a) {
+  | Move(d) => Result.of_option(~error=Failure.Cant_move, move(d, zipper))
+  | Select(d) =>
+    Result.of_option(~error=Failure.Cant_move, select(d, zipper))
+  | Remove => Ok(remove(zipper))
+  | Insert(d, form) => insert(d, form, zipper)
+  | Pick_up => Ok(pick_up(zipper))
+  | Put_down => put_down(zipper)
+  };
