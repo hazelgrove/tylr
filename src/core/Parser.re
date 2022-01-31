@@ -1,35 +1,18 @@
 // open Util;
 // open OptUtil.Syntax;
 
-// let disassemble_b = (id, affix: AltList.even(Shard.t', Tile.s)): Segment.t =>
-//   affix
-//   |> List.map(((tiles, shard)) =>
-//     [Segment.of_tiles(tiles), [Piece.Shard((id, shard))]]
-//   )
-//   |> List.concat;
-// let disassemble_a = (id, (hd, tl): AltList.t(Shard.t', Tile.s)) =>
-//   [Piece.Shard((id, hd)), ...disassemble_b(tl)];
+let disassemble_tile = (tile: Tile.t): Segment.t =>
+  tile.tokens
+  |> Util.Aba.mapi_a((index, _) =>
+       Shard.{
+         tile_id: tile.id,
+         form: (index, Tile.form(tile)),
+         nibs: Tile.nibs(~index, tile.mold),
+       }
+     )
+  |> Util.Baba.cons(Tiles.empty)
+  |> Fun.flip(Util.Aba.snoc, Tiles.empty);
 
-// let disassemble_tile = (d: Direction.t, (id, tile): Tile.t): Segment.t => {
-//   let disassembled = disassemble_a(id, tile);
-//   switch (d) {
-//   | Left => List.rev(disassembled)
-//   | Right => disassembled
-//   }
-// };
-
-// let disassemble_tile = (d: Direction.t, (id, tile): Tile.t): Segment.t => {
-//   let disassembled =
-//     tile
-//     |> Aba.map_b(token => (id, token))
-//     |> Baba.cons([])
-//     |> Aba.snoc([]);
-//   switch (d) {
-//   | Left => Segment.rev(disassembled)
-//   | Right => disassembled
-//   };
-// };
-let disassemble_tile = _ => failwith("todo Parser.disassemble_tile");
 let reassemble_segment = _ => failwith("todo Parser.assemble_segment");
 
 let disassemble_ancestor = _ => failwith("todo Parser.disassemble_ancestor");

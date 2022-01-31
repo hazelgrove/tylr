@@ -52,7 +52,7 @@ and t = {
   tokens: Util.Aba.t(Token.t, s),
 };
 
-let form = (tile: t) => Util.Aba.get_as(tile.tokens);
+let form = (tile: t) => Util.Aba.get_a(tile.tokens);
 
 let molds = (~l as _: option(Nib.t)=?, form: Form.t) =>
   Mold.(
@@ -110,7 +110,7 @@ module Frame = {
 
   let step = (frame: t): step => {
     let (prefix, _) = frame.tokens;
-    List.length(Util.Aba.get_as(prefix));
+    List.length(Util.Aba.get_a(prefix));
   };
 
   let sort = (frame: t): Sort.t =>

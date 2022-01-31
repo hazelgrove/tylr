@@ -9,12 +9,14 @@ module rec Aba: {
 
   let prepend: (Baba.t('b, 'a), t('a, 'b)) => t('a, 'b);
 
-  let get_as: t('a, _) => list('a);
+  let get_a: t('a, _) => list('a);
+  let map_a: ('a1 => 'a2, t('a1, 'b)) => t('a2, 'b);
+  let mapi_a: ((int, 'a1) => 'a2, t('a1, 'b)) => t('a2, 'b);
 
   let split: ('b => option('c), t('a, 'b)) => t(t('a, 'b), 'c);
 
   let cons: ('a, Baba.t('b, 'a)) => t('a, 'b);
-  let snoc: (t('b, 'a), 'b) => t('b, 'a);
+  let snoc: (Baba.t('a, 'b), 'a) => t('a, 'b);
 
   let concat: (list('a) => 'a, list(t('a, 'b))) => t('a, 'b);
 } = {
@@ -26,10 +28,14 @@ module rec Aba: {
 
   let cons = (a: 'a, baba: Baba.t('b, 'a)) => (a, baba);
 
-  let snoc = (_baba: t('b, 'a), _b: 'b): Aba.t('b, 'a) =>
+  let snoc = (_baba: Baba.t('b, 'a), _b: 'b): Aba.t('b, 'a) =>
     failwith("todo Aba.snoc");
 
-  let get_as = _ => failwith("todo Aba.get_as");
+  let get_a = _ => failwith("todo Aba.get_a");
+
+  let map_a = (_, _) => failwith("todo Aba.map_a");
+  let mapi_a = (_, _) => failwith("todo Aba.mapi_a");
+
   let concat = (_, _) => failwith("todo Aba.concat");
 
   let rec prepend = (prefix: Baba.t('b, 'a), aba: t('a, 'b)): t('a, 'b) =>
@@ -58,6 +64,8 @@ and Baba: {
    */
   [@deriving sexp]
   type t('b, 'a) = list(('b, 'a));
+
+  let cons: ('b, Aba.t('a, 'b)) => t('b, 'a);
 
   let split:
     ('b => option('c), t('b, 'a)) => (t('b, 'a), t('c, Aba.t('a, 'b)));
