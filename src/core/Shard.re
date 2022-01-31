@@ -18,6 +18,8 @@ type t = {
   nibs: Nibs.t,
 };
 
+let id = shard => fst(shard.tile);
+
 let label = (shard: t): Label.t => {
   let (_, tile_label) = shard.tile;
   List.nth(tile_label, shard.index);

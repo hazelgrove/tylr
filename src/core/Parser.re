@@ -9,7 +9,48 @@ let disassemble_tile = (tile: Tile.t): Segment.t =>
   |> Util.Aba.mapi_a((index, _) => Shard.of_tile(index, tile))
   |> wrap((Tiles.empty, Tiles.empty));
 
-let reassemble_segment = _ => failwith("todo Parser.assemble_segment");
+let split_by_matching_shards =
+    (hd: Shard.t, segment: Segment.t)
+    : (Aba.t(Shard.t, Segment.t), Segment.t) => {
+  let (tl, rest) =
+    segment
+    |> Aba.split(shard =>
+         Shard.id(shard) == Shard.id(hd) ? None : Some(shard)
+       )
+    |> Aba.split_last;
+  ((hd, tl), rest);
+};
+
+let rec reassemble_segment = (segment: Segment.t): Segment.t =>
+  switch (segment) {
+  | (_, []) => segment
+  | (tiles, [(shard, tiles'), ...segment]) =>
+    let (split, rest) = split_by_matching_shards(shard, (tiles', segment));
+    Segment.concat([
+      Segment.of_tiles(tiles),
+      reassemble_tile(split),
+      reassemble_segment(rest),
+    ]);
+  }
+// attempt to assemble tile from specified shards
+// + assemble inner segments
+and reassemble_tile = (split: Aba.t(Shard.t, Segment.t)): Segment.t => {
+  let hd = Aba.hd(split);
+  let (id, label) = hd.tile;
+  let shards = Aba.get_a(split);
+  if (List.length(shards) < List.length(label)) {
+    failwith("todo Parser.reassemble_tile flatten split");
+  } else {
+    let substance =
+      split
+      |> Aba.map_a(Shard.label)
+      // relying on well-balanced invariant to guarantee
+      // pieces aren't getting dropped when using Aba.hd
+      |> Aba.map_b(segment => Aba.hd(reassemble_segment(segment)));
+    let mold = failwith("todo merge shard nibs into mold");
+    Segment.of_pieces([Tile({id, mold, substance})]);
+  };
+};
 
 let disassemble_ancestor =
     ((tile, tiles): Zipper.Ancestor.t): Zipper.Siblings.t => {
@@ -32,87 +73,6 @@ let reassemble_relatives = (_, _) =>
 
 // let assemble_affix = (_, _) => failwith("todo Parser.assemble_affix");
 // let assemble_affixes = _ => failwith("todo Parser.assemble_affixes");
-
-// let split_by_matching_shards =
-//     ((id, shard): Shard.t, segment: Segment.t)
-//     : (AltList.t(Shard.t, Segment.t), Segment.t) => {
-//   let (tl, rest) =
-//     AltList.split(
-//       fun
-//       | Piece.Shard((id', _) as shard) when id == id' =>
-//         Some(shard)
-//       | _ => None,
-//       segment,
-//     );
-//   ((shard, tl), rest);
-// };
-
-// let split_by_matching_shards =
-//     ((_nibs, (id, _token)) as hd: Nibbed.t(Shard.t), segment: Segment.t)
-//     : (Aba.t(Nibbed.t(Shard.t), Segment.t), Segment.t) => {
-//   let (tl, rest) =
-//     segment
-//     |> Aba.split(
-//       fun
-//       | ((id', _) as shard) when id' == id => Some(shard)
-//       | _ => None
-//     )
-//     |> Aba.split_last;
-//   ((hd, tl), rest);
-// };
-
-// let rec assemble_segment = (d: Direction.t, segment: Segment.t): Segment.t =>
-//   switch (segment) {
-//   | (_, []) => segment
-//   | (tiles, [(shard, tiles'), ...segment]) =>
-//     let (split, rest) = split_by_matching_shards(shard, (tiles', segment));
-//     assemble_tile(d, split) @ assemble_segment(d, rest)
-//   }
-// // attempt to assemble tile from specified shards
-// // + assemble inner segments
-// and assemble_tile =
-//     (d: Direction.t, split: Aba.t(Shard.t, Segment.t))
-//     : Segment.t => {
-//   let id = Shard.id(Aba.hd(split));
-//   let of_tile = tile => Segment.of_tiles([(id, tile)]);
-//   let split =
-//     split
-//     |> Aba.map_a(Identified.get(Fun.id))
-//     // using hd relies on well-balanced invariant
-//     // to guarantee pieces aren't being dropped
-//     |> Aba.map_b(segment => Aba.hd(assemble_segment(segment)));
-//   let ordered_split =
-//     switch (d) {
-//     | Left => Aba.rev(Aba.map_b(List.rev, split))
-//     | Right => split
-//     };
-//   switch (ordered_split) {
-//   | ("(", [(body, ")")]) => of_tile(Paren(body))
-//   | ("[", [(arg, "]")]) => of_tile(Ap(arg))
-//   | ("λ", [(p, "{"), (body, "}")]) => of_tile(Lam(p, body))
-//   | ("let", [(p, "="), (def, "in")]) => of_tile(Let(p, def))
-//   | ("?", [(then_, ":")]) => of_tile(Cond(then_))
-//   | _ =>
-//     split
-//     |> Aba.map_a(shard => (id, shard))
-//     |> Baba.cons([])
-//     |> Aba.snoc([]);
-//   };
-// };
-
-// let disassemble_frame = (frames: Frame.t) =>
-//   switch (tile_frames) {
-//   | [] => None
-//   | [((id, (tile_pre, tile_suf)), (prefix, suffix)), ...tile_frames] =>
-
-//   }
-
-//  {
-//   let+ ((tile_pre, tile_suf), ((prefix, suffix), frame)) = frame;
-//   let prefix = disassemble_a(id, tile_pre) @ Segment.of_tiles(prefix);
-//   let suffix = disassemble_a(id, tile_suf) @ Segment.of_tiles(suffix);
-//   ((prefix, suffix), frame);
-// };
 
 // // assumes shards have matching ids
 // let assemble_frame =
