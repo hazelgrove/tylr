@@ -1,21 +1,32 @@
-// open Util;
+open Util;
 // open OptUtil.Syntax;
+
+let wrap = ((tiles_near, tiles_far), s: Aba.t(Shard.t, Tiles.t)): Segment.t =>
+  s |> Baba.cons(tiles_near) |> Fun.flip(Aba.snoc, tiles_far);
 
 let disassemble_tile = (tile: Tile.t): Segment.t =>
   tile.tokens
-  |> Util.Aba.mapi_a((index, _) =>
-       Shard.{
-         tile_id: tile.id,
-         form: (index, Tile.form(tile)),
-         nibs: Tile.nibs(~index, tile.mold),
-       }
-     )
-  |> Util.Baba.cons(Tiles.empty)
-  |> Fun.flip(Util.Aba.snoc, Tiles.empty);
+  |> Util.Aba.mapi_a((index, _) => Shard.of_tile(index, tile))
+  |> wrap((Tiles.empty, Tiles.empty));
 
 let reassemble_segment = _ => failwith("todo Parser.assemble_segment");
 
-let disassemble_ancestor = _ => failwith("todo Parser.disassemble_ancestor");
+let disassemble_ancestor =
+    ((tile, tiles): Zipper.Ancestor.t): Zipper.Siblings.t => {
+  let step = Tile.Frame.step(tile);
+  let (tile_pre, tile_suf) = tile.tokens;
+  let (tiles_pre, tiles_suf) = tiles;
+  let prefix =
+    tile_pre
+    |> Aba.mapi_a((i, _) => Shard.of_tile_frame(step - i, tile))
+    |> wrap((Tiles.empty, tiles_pre));
+  let suffix =
+    tile_suf
+    |> Aba.mapi_a((i, _) => Shard.of_tile_frame(step + 1 + i, tile))
+    |> wrap((Tiles.empty, tiles_suf));
+  (prefix, suffix);
+};
+
 let reassemble_relatives = (_, _) =>
   failwith("todo Parser.assemble_relatives");
 

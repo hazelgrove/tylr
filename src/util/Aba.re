@@ -10,6 +10,8 @@ module rec Aba: {
   let prepend: (Baba.t('b, 'a), t('a, 'b)) => t('a, 'b);
 
   let get_a: t('a, _) => list('a);
+  let get_b: t(_, 'b) => list('b);
+
   let map_a: ('a1 => 'a2, t('a1, 'b)) => t('a2, 'b);
   let mapi_a: ((int, 'a1) => 'a2, t('a1, 'b)) => t('a2, 'b);
 
@@ -32,6 +34,7 @@ module rec Aba: {
     failwith("todo Aba.snoc");
 
   let get_a = _ => failwith("todo Aba.get_a");
+  let get_b = _ => failwith("todo Aba.get_b");
 
   let map_a = (_, _) => failwith("todo Aba.map_a");
   let mapi_a = (_, _) => failwith("todo Aba.mapi_a");
@@ -105,17 +108,22 @@ and Baba: {
 };
 
 module Frame = {
-  [@deriving sexp]
-  type a('a, 'b) = (Baba.t('b, 'a), Baba.t('b, 'a));
-  [@deriving sexp]
-  type b('a, 'b) = (Aba.t('a, 'b), Aba.t('a, 'b));
+  module A = {
+    [@deriving sexp]
+    type t('a, 'b) = (Baba.t('b, 'a), Baba.t('b, 'a));
+  };
 
-  let fill_b = (b: 'b, (aba_pre, aba_suf): b('a, 'b)) => {
-    let baba_pre = {
-      let (a, baba) = aba_pre;
-      [(b, a), ...baba];
+  module B = {
+    [@deriving sexp]
+    type t('a, 'b) = (Aba.t('a, 'b), Aba.t('a, 'b));
+
+    let fill = (b: 'b, (aba_pre, aba_suf): t('a, 'b)) => {
+      let baba_pre = {
+        let (a, baba) = aba_pre;
+        [(b, a), ...baba];
+      };
+      Aba.prepend(baba_pre, aba_suf);
     };
-    Aba.prepend(baba_pre, aba_suf);
   };
 };
 

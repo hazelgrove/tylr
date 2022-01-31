@@ -102,7 +102,7 @@ module Frame = {
   type t = {
     id: Id.t,
     mold: Mold.t,
-    tokens: Util.Aba.Frame.b(Token.t, s),
+    tokens: Util.Aba.Frame.B.t(Token.t, s),
   };
 
   [@deriving sexp]
@@ -110,8 +110,10 @@ module Frame = {
 
   let step = (frame: t): step => {
     let (prefix, _) = frame.tokens;
-    List.length(Util.Aba.get_a(prefix));
+    List.length(Util.Aba.get_b(prefix));
   };
+
+  let form = _ => failwith("todo Tile.Frame.form");
 
   let sort = (frame: t): Sort.t =>
     List.nth(frame.mold.sorts.in_, step(frame));

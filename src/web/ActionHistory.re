@@ -4,7 +4,7 @@ open Core;
 type timestamp = float;
 
 type t = {
-  succeeded: Aba.Frame.a(Zipper.t, Action.t),
+  succeeded: Aba.Frame.A.t(Zipper.t, Action.t),
   just_failed: option(FailedInput.t),
   // TODO(d): forgetting why we need this...
   // not seeing it get read anywhere. possibly

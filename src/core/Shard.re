@@ -33,6 +33,17 @@ type t = {
   nibs: Nibs.t,
 };
 
+let of_tile = (index: Index.t, tile: Tile.t): t => {
+  tile_id: tile.id,
+  form: (index, Tile.form(tile)),
+  nibs: Tile.nibs(~index, tile.mold),
+};
+let of_tile_frame = (index: Index.t, tile: Tile.Frame.t): t => {
+  tile_id: tile.id,
+  form: (index, Tile.Frame.form(tile)),
+  nibs: Tile.nibs(~index, tile.mold),
+};
+
 module Map = {
   include Map.Make(Index);
 };

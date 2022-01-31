@@ -70,12 +70,14 @@ module Frame: {
   type t = {
     id: Id.t,
     mold: Mold.t,
-    tokens: Util.Aba.Frame.b(Token.t, s),
+    tokens: Util.Aba.Frame.B.t(Token.t, s),
   };
 
   [@deriving sexp]
-  type step;
+  type step = int;
   let step: t => step;
+
+  let form: t => Form.t;
 
   let sort: t => Sort.t;
 };
