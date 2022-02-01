@@ -1,5 +1,7 @@
 open Sexplib.Std;
 
+exception Ambiguous_molds;
+
 module Id = {
   [@deriving sexp]
   type t = int;

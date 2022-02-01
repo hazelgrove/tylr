@@ -36,23 +36,26 @@ let rec reassemble_segment = (segment: Segment.t): Segment.t =>
       reassemble_segment(rest),
     ]);
   }
-// attempt to assemble tile from specified shards
-// + assemble inner segments
+// attempt to assemble tile from specified shards + assemble inner segments
 and reassemble_tile = (split: Aba.t(Shard.t, Segment.t)): Segment.t => {
-  let hd = Aba.hd(split);
-  let (id, label) = hd.tile;
+  let (id, label) = Aba.hd(split).tile;
   let shards = Aba.get_a(split);
+  let split = Aba.map_b(reassemble_segment, split);
   if (List.length(shards) < List.length(label)) {
     join(split);
   } else {
-    let substance =
-      split
-      |> Aba.map_a(Shard.label)
-      // relying on well-balanced invariant to guarantee
-      // pieces aren't getting dropped when using Aba.hd
-      |> Aba.map_b(segment => Aba.hd(reassemble_segment(segment)));
-    let mold = failwith("todo merge shard nibs into mold");
-    Segment.of_pieces([Tile({id, mold, substance})]);
+    switch (Shard.assignable_molds(shards)) {
+    | [] => raise(Shard.Inconsistent_nibs)
+    | [_, _, ..._] => raise(Tile.Ambiguous_molds)
+    | [mold] =>
+      let substance =
+        split
+        |> Aba.map_a(Shard.label)
+        // relying on well-balanced invariant to guarantee
+        // pieces aren't getting dropped when using Aba.hd
+        |> Aba.map_b(Aba.hd);
+      Segment.of_pieces([Tile({id, mold, substance})]);
+    };
   };
 };
 

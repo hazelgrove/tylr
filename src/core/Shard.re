@@ -1,5 +1,11 @@
 open Sexplib.Std;
 
+/**
+ * to be raised if matching shards are found
+ * to have been assigned inconsistent nibs
+ */
+exception Inconsistent_nibs;
+
 module Index = {
   [@deriving sexp]
   type t = int;
@@ -53,9 +59,18 @@ module Ctx = {
   };
 };
 
-let consistent = (shards: list(t), mold: Tile.Mold.t) =>
+// assumes input shards are of same tile
+let is_assignable = (shards: list(t), mold: Tile.Mold.t) =>
   shards
   |> List.for_all(shard => Tile.nibs(~index=shard.index, mold) == shard.nibs);
+
+// assumes input shards are of same tile
+let assignable_molds = (shards: list(t)): list(Tile.Mold.t) =>
+  switch (shards) {
+  | [] => []
+  | [{tile: (_, label), _}, ..._] =>
+    List.filter(is_assignable(shards), Tile.assignable_molds(label))
+  };
 
 let assignable_nibs =
     // l is intended to be left neighbor nib that is
@@ -63,6 +78,6 @@ let assignable_nibs =
     (~l as _: option(Nib.t)=?, ctx: Ctx.t, shard: t) => {
   let (id, label) = shard.tile;
   Tile.assignable_molds(label)
-  |> List.filter(consistent(Ctx.lookup(id, ctx)))
+  |> List.filter(is_assignable(Ctx.lookup(id, ctx)))
   |> List.map(Tile.nibs(~index=shard.index));
 };

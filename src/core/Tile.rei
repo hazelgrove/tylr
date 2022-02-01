@@ -54,6 +54,12 @@ and t = {
 
 let label: t => Label.t;
 
+/**
+ * to be raised if `assignable_molds(l)` contains
+ * two molds for label `l` with the same nibs
+ */
+exception Ambiguous_molds;
+
 let assignable_molds: (~l: Nib.t=?, Label.t) => list(Mold.t);
 let default_mold: (Label.t, Sort.t, Sort.t) => Mold.t;
 
