@@ -14,6 +14,8 @@ module rec Aba: {
   let get_a: t('a, _) => list('a);
   let get_b: t(_, 'b) => list('b);
 
+  let map_to_list: ('a => 'c, 'b => 'c, t('a, 'b)) => list('c);
+
   let map_a: ('a1 => 'a2, t('a1, 'b)) => t('a2, 'b);
   let map_b: ('b1 => 'b2, t('a, 'b1)) => t('a, 'b2);
   let mapi_a: ((int, 'a1) => 'a2, t('a1, 'b)) => t('a2, 'b);
@@ -41,6 +43,8 @@ module rec Aba: {
 
   let get_a = _ => failwith("todo Aba.get_a");
   let get_b = _ => failwith("todo Aba.get_b");
+
+  let map_to_list = (_, _, _) => failwith("todo Aba.map_to_list");
 
   let map_a = (_, _) => failwith("todo Aba.map_a");
   let map_b = (_, _) => failwith("todo Aba.map_b");

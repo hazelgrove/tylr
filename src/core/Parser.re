@@ -20,6 +20,10 @@ let split_by_matching_shards =
     |> Aba.split_last;
   ((hd, tl), rest);
 };
+let join = (split: Aba.t(Shard.t, Segment.t)): Segment.t =>
+  split
+  |> Aba.map_to_list(s => Segment.of_pieces([Shard(s)]), Fun.id)
+  |> Segment.concat;
 
 let rec reassemble_segment = (segment: Segment.t): Segment.t =>
   switch (segment) {
@@ -39,7 +43,7 @@ and reassemble_tile = (split: Aba.t(Shard.t, Segment.t)): Segment.t => {
   let (id, label) = hd.tile;
   let shards = Aba.get_a(split);
   if (List.length(shards) < List.length(label)) {
-    failwith("todo Parser.reassemble_tile flatten split");
+    join(split);
   } else {
     let substance =
       split
