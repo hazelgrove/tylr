@@ -1,5 +1,4 @@
 open Util;
-// open OptUtil.Syntax;
 
 let wrap = ((tiles_near, tiles_far), s: Aba.t(Shard.t, Tiles.t)): Segment.t =>
   s |> Baba.cons(tiles_near) |> Fun.flip(Aba.snoc, tiles_far);
@@ -9,55 +8,70 @@ let disassemble_tile = (tile: Tile.t): Segment.t =>
   |> Util.Aba.mapi_a((index, _) => Shard.of_tile(index, tile))
   |> wrap((Tiles.empty, Tiles.empty));
 
+/**
+ * hd of output is guaranteed to be intact
+ */
 let split_by_matching_shards =
-    (hd: Shard.t, segment: Segment.t)
-    : (Aba.t(Shard.t, Segment.t), Segment.t) => {
-  let (tl, rest) =
-    segment
-    |> Aba.split(shard =>
-         Shard.id(shard) == Shard.id(hd) ? None : Some(shard)
-       )
-    |> Aba.split_last;
-  ((hd, tl), rest);
+    ((tiles, rest): Segment.t)
+    : (Tiles.t, option((Aba.t(Shard.t, Segment.t), Segment.t))) => {
+  let split =
+    switch (rest) {
+    | [] => None
+    | [(hd_shard, tiles'), ...rest] =>
+      let (tl, rest) =
+        (tiles', rest)
+        |> Aba.split(s =>
+             Shard.id(s) == Shard.id(hd_shard) ? Some(s) : None
+           )
+        |> Aba.split_last;
+      Some(((hd_shard, tl), rest));
+    };
+  (tiles, split);
 };
+
 let join = (split: Aba.t(Shard.t, Segment.t)): Segment.t =>
   split
   |> Aba.map_to_list(s => Segment.of_pieces([Shard(s)]), Fun.id)
   |> Segment.concat;
 
+let unique_mold = shards =>
+  switch (Shard.assignable_molds(shards)) {
+  | [] => raise(Shard.Inconsistent_nibs)
+  | [_, _, ..._] => raise(Tile.Ambiguous_molds)
+  | [mold] => mold
+  };
+
 let rec reassemble_segment = (segment: Segment.t): Segment.t =>
-  switch (segment) {
-  | (_, []) => segment
-  | (tiles, [(shard, tiles'), ...segment]) =>
-    let (split, rest) = split_by_matching_shards(shard, (tiles', segment));
+  switch (split_by_matching_shards(segment)) {
+  | (_, None) => segment
+  | (tiles, Some((tile_split, rest))) =>
+    let tile_split = Aba.map_b(reassemble_segment, tile_split);
+    let reassembled_rest = reassemble_segment(rest);
+    let attempted_tile_assembly = {
+      let (id, label) = Aba.hd(tile_split).tile;
+      let shards = Aba.get_a(tile_split);
+      if (List.length(shards) < List.length(label)) {
+        join(tile_split);
+      } else {
+        let mold = unique_mold(shards);
+        let substance =
+          tile_split |> Aba.map_a(Shard.label) |> Aba.map_b(Aba.hd);
+        Segment.of_pieces([Tile({id, mold, substance})]);
+      };
+    };
     Segment.concat([
       Segment.of_tiles(tiles),
-      reassemble_tile(split),
-      reassemble_segment(rest),
+      attempted_tile_assembly,
+      reassembled_rest,
     ]);
-  }
-// attempt to assemble tile from specified shards + assemble inner segments
-and reassemble_tile = (split: Aba.t(Shard.t, Segment.t)): Segment.t => {
-  let (id, label) = Aba.hd(split).tile;
-  let shards = Aba.get_a(split);
-  let split = Aba.map_b(reassemble_segment, split);
-  if (List.length(shards) < List.length(label)) {
-    join(split);
-  } else {
-    switch (Shard.assignable_molds(shards)) {
-    | [] => raise(Shard.Inconsistent_nibs)
-    | [_, _, ..._] => raise(Tile.Ambiguous_molds)
-    | [mold] =>
-      let substance =
-        split
-        |> Aba.map_a(Shard.label)
-        // relying on well-balanced invariant to guarantee
-        // pieces aren't getting dropped when using Aba.hd
-        |> Aba.map_b(Aba.hd);
-      Segment.of_pieces([Tile({id, mold, substance})]);
-    };
   };
-};
+
+let reassemble_affix =
+    (side: Direction.t, affix: Segment.Affix.t): Segment.Affix.t =>
+  switch (side) {
+  | Left => Segment.(rev(reassemble_segment(rev(affix))))
+  | Right => reassemble_segment(affix)
+  };
 
 let disassemble_ancestor =
     ((tile, tiles): Zipper.Ancestor.t): Zipper.Siblings.t => {
@@ -75,175 +89,51 @@ let disassemble_ancestor =
   (prefix, suffix);
 };
 
-let reassemble_relatives = (_, _) =>
-  failwith("todo Parser.assemble_relatives");
-
-// let assemble_affix = (_, _) => failwith("todo Parser.assemble_affix");
-// let assemble_affixes = _ => failwith("todo Parser.assemble_affixes");
-
-// // assumes shards have matching ids
-// let assemble_frame =
-//     (
-//       frame_t: (AltList.t(Shard.t, Tiles.t) as 't, 't),
-//       (prefix, suffix): Segment.frame,
-//       frame: Frame.t,
-//     )
-//     : option(Frame.t) => {
-//   let* prefix = Segment.get_tiles(prefix);
-//   let* suffix = Segment.get_tiles(suffix);
-//   switch (frame_t, frame) {
-//   | (((Pat((id, Paren_l)), []), (Pat((_, Paren_r)), [])), Pat(frame)) =>
-//     let+ prefix = Tiles.get_pat(prefix)
-//     and+ suffix = Tiles.get_pat(suffix);
-//     Frame.Pat((id, Paren_body(((prefix, suffix), frame))));
-//   | (
-//       (
-//         (Exp((id, Lam_lam)), []),
-//         (Exp((_, Lam_open)), [(body, Exp((_, Lam_close)))]),
-//       ),
-//       Exp(frame),
-//     ) =>
-//     let+ body = Tiles.get_exp(body)
-//     and+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Pat((id, Lam_pat(body, ((prefix, suffix), frame))));
-//   | (
-//       (
-//         (Exp((id, Let_let)), []),
-//         (Exp((_, Let_eq)), [(def, Exp((_, Let_in)))]),
-//       ),
-//       Exp(frame),
-//     ) =>
-//     let+ def = Tiles.get_exp(def)
-//     and+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Pat((id, Let_pat(def, ((prefix, suffix), frame))));
-//   | (((Exp((id, Paren_l)), []), (Exp((_, Paren_r)), [])), Exp(frame)) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Paren_body(((prefix, suffix), frame))));
-//   | (((Exp((id, Ap_l)), []), (Exp((_, Ap_r)), [])), Exp(frame)) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Ap_arg(((prefix, suffix), frame))));
-//   | (
-//       ((Exp((id, Lam_lam_open(p))), []), (Exp((_, Lam_close)), [])),
-//       Exp(frame),
-//     ) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Lam_body(p, ((prefix, suffix), frame))));
-//   | (
-//       ((Exp((id, Let_let_eq(p))), []), (Exp((_, Let_in)), [])),
-//       Exp(frame),
-//     ) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Let_def(p, ((prefix, suffix), frame))));
-//   | (((Exp((id, Cond_que)), []), (Exp((_, Cond_col)), [])), Exp(frame)) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Cond_then(((prefix, suffix), frame))));
-//   | _ => None
-//   };
-// };
-
-// // assumes shards have matching ids
-// let assemble_frame =
-//     (
-//       disassembled: (AltList.t(Shard.t, Segment.t) as 't, 't),
-//       (prefix, suffix): Segment.frame,
-//       frame: Frame.t,
-//     )
-//     : option(Frame.t) => {
-//   let* prefix = Segment.get_tiles(prefix);
-//   let* suffix = Segment.get_tiles(suffix);
-//   switch (disassembled, frame) {
-//   | (((Pat((id, Paren_l)), []), (Pat((_, Paren_r)), [])), Pat(frame)) =>
-//     let+ prefix = Tiles.get_pat(prefix)
-//     and+ suffix = Tiles.get_pat(suffix);
-//     Frame.Pat((id, Paren_body(((prefix, suffix), frame))));
-//   | (
-//       (
-//         (Exp((id, Lam_lam)), []),
-//         (Exp((_, Lam_open)), [(body, Exp((_, Lam_close)))]),
-//       ),
-//       Exp(frame),
-//     ) =>
-//     let+ body = Segment.get_tiles_exp(body)
-//     and+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Pat((id, Lam_pat(body, ((prefix, suffix), frame))));
-//   | (
-//       (
-//         (Exp((id, Let_let)), []),
-//         (Exp((_, Let_eq)), [(def, Exp((_, Let_in)))]),
-//       ),
-//       Exp(frame),
-//     ) =>
-//     let+ def = Segment.get_tiles_exp(def)
-//     and+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Pat((id, Let_pat(def, ((prefix, suffix), frame))));
-//   | (((Exp((id, Paren_l)), []), (Exp((_, Paren_r)), [])), Exp(frame)) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Paren_body(((prefix, suffix), frame))));
-//   | (((Exp((id, Ap_l)), []), (Exp((_, Ap_r)), [])), Exp(frame)) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Ap_arg(((prefix, suffix), frame))));
-//   | (
-//       ((Exp((id, Lam_lam_open(p))), []), (Exp((_, Lam_close)), [])),
-//       Exp(frame),
-//     ) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Lam_body(p, ((prefix, suffix), frame))));
-//   | (
-//       ((Exp((id, Let_let_eq(p))), []), (Exp((_, Let_in)), [])),
-//       Exp(frame),
-//     ) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Let_def(p, ((prefix, suffix), frame))));
-//   | (((Exp((id, Cond_que)), []), (Exp((_, Cond_col)), [])), Exp(frame)) =>
-//     let+ prefix = Tiles.get_exp(prefix)
-//     and+ suffix = Tiles.get_exp(suffix);
-//     Frame.Exp((id, Cond_then(((prefix, suffix), frame))));
-//   | _ => None
-//   };
-// };
-
-// let rec assemble_zipper =
-//     (affixes: Segment.frame, frame: Frame.t)
-//     : (Segment.frame, Frame.t) => {
-//   switch (affixes) {
-//   | ([], _)
-//   | (_, []) => (affixes, frame)
-//   | ([Tile(_) as tile, ...prefix], suffix) =>
-//     let ((prefix, suffix), frame) =
-//       assemble_zipper((prefix, suffix), frame);
-//     (([tile, ...prefix], suffix), frame);
-//   | (prefix, [Tile(_) as tile, ...suffix]) =>
-//     let ((prefix, suffix), frame) =
-//       assemble_zipper((prefix, suffix), frame);
-//     ((prefix, [tile, ...suffix]), frame);
-//   | ([Shard(shard_pre), ...prefix], [Shard(shard_suf), ...suffix]) =>
-//     let (disassembled_pre, prefix) = split_by_matching_shards(shard_pre, prefix);
-//     let (disassembled_suf, suffix) = split_by_matching_shards(shard_suf, suffix);
-//     let ((prefix, suffix), frame) = assemble_zipper((prefix, suffix), frame);
-//     switch (
-//       assemble_frame((disassembled_pre, disassembled_suf), (prefix, suffix), frame)
-//     ) {
-//     | None =>
-//       let prefix = flatten(disassembled_pre) @ prefix;
-//       let suffix = flatten(disassembled_suf) @ suffix;
-//       ((prefix, suffix), frame);
-//     | Some(frame) => (([], []), frame)
-//     }
-//   }
-// };
+let rec reassemble_relatives =
+        (siblings: Zipper.Siblings.t, ancestors: Zipper.Ancestors.t)
+        : (Zipper.Siblings.t, Zipper.Ancestors.t) => {
+  let map2 = TupleUtil.map2;
+  switch (map2(split_by_matching_shards, siblings)) {
+  | ((_, None), _)
+  | (_, (_, None)) => (siblings, ancestors)
+  | (
+      (tiles_pre, Some((tile_split_pre, rest_pre))),
+      (tiles_suf, Some((tile_split_suf, rest_suf))),
+    ) =>
+    let tile_split = (
+      Aba.map_b(reassemble_affix(Left), tile_split_pre),
+      Aba.map_b(reassemble_affix(Right), tile_split_suf),
+    );
+    let (rest, ancestors) =
+      reassemble_relatives((rest_pre, rest_suf), ancestors);
+    let (remaining_siblings, attempted_tile_assembly) = {
+      let (id, label) = Aba.hd(tile_split_pre).tile;
+      let (shards_pre, shards_suf) = map2(Aba.get_a, tile_split);
+      if (List.length(shards_pre)
+          + List.length(shards_suf) < List.length(label)) {
+        let siblings = Segment.Frame.concat([map2(join, tile_split), rest]);
+        (siblings, ancestors);
+      } else {
+        let mold = unique_mold(ListFrame.to_list((shards_pre, shards_suf)));
+        let substance =
+          tile_split
+          |> map2(Aba.map_a(Shard.label))
+          |> map2(Aba.map_b(Aba.hd));
+        let ancestor = (
+          Tile.Frame.{id, mold, substance},
+          map2(Aba.hd, rest),
+        );
+        (Segment.Frame.empty, [ancestor, ...ancestors]);
+      };
+    };
+    (
+      Segment.Frame.(
+        concat([of_tiles((tiles_pre, tiles_suf)), remaining_siblings])
+      ),
+      attempted_tile_assembly,
+    );
+  };
+};
 
 // type itile = (int, Tile.t);
 // let associate = (tiles: Tiles.t): Skel.t => {

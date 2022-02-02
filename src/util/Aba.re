@@ -84,6 +84,8 @@ and Baba: {
   let split:
     ('b => option('c), t('b, 'a)) => (t('b, 'a), t('c, Aba.t('a, 'b)));
 
+  let split_last: Baba.t('b, 'a) => option((Aba.t('b, 'a), 'a));
+
   let append: (Aba.t('a, 'b), t('b, 'a)) => Aba.t('a, 'b);
   let join: ('c => 'b, t('c, Aba.t('a, 'b))) => t('b, 'a);
 } = {
@@ -113,6 +115,8 @@ and Baba: {
         ([], [(c, aba)]);
       }
     };
+
+  let split_last = _ => failwith("todo Baba.split_last");
 
   let join = (q: 'c => 'b, cabacaba: t('c, Aba.t('a, 'b))): t('b, 'a) =>
     cabacaba |> List.map(((c, aba)) => cons(q(c), aba)) |> List.concat;

@@ -64,6 +64,8 @@ module Frame: {
 
   let empty: t;
 
+  let of_tiles: Tiles.Frame.t => t;
+
   /**
    * `orient(d, affixes)` returns the pair `(front, back)`
    * such that, if you stood facing direction `d` at the
