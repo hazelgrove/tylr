@@ -27,6 +27,8 @@ module rec Aba: {
   let snoc: (Baba.t('a, 'b), 'a) => t('a, 'b);
 
   let concat: (list('a) => 'a, list(t('a, 'b))) => t('a, 'b);
+
+  let fold_right: ('a => 'acc, ('a, 'b, 'acc) => 'acc, t('a, 'b)) => 'acc;
 } = {
   /**
    * An odd-length list of elements with alternating types
@@ -71,6 +73,17 @@ module rec Aba: {
   // let hd: t('a, 'b) => 'a = fst;
   // let join = (q: 'c => 'b, (aba, cabacaba): t(t('a, 'b), 'c)): t('a, 'b) =>
   //   Baba.append(aba, Baba.join(q, cabacaba));
+
+  let rec fold_right = (
+    f_a:'a => 'acc,
+    f_ab: ('a, 'b, 'acc) => 'acc,
+    (a, baba): t('a, 'b),
+  ): 'acc =>
+    switch (baba) {
+    | [] => f_a(a)
+    | [(b, a'), ...baba'] =>
+      f_ab(a, b, fold_right(f_a, f_ab, (a', baba')))
+    };
 }
 and Baba: {
   /**
