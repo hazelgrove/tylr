@@ -26,6 +26,8 @@ module rec Aba: {
   let cons: ('a, Baba.t('b, 'a)) => t('a, 'b);
   let snoc: (Baba.t('a, 'b), 'a) => t('a, 'b);
 
+  let cons_alist: ('a, Aba.t(list('a), 'b)) => Aba.t(list('a), 'b);
+
   let concat: (('a, 'a) => 'a, list(t('a, 'b))) => t('a, 'b);
 
   let fold_right: ('a => 'acc, ('a, 'b, 'acc) => 'acc, t('a, 'b)) => 'acc;
@@ -42,6 +44,9 @@ module rec Aba: {
 
   let snoc = (_baba: Baba.t('b, 'a), _b: 'b): Aba.t('b, 'a) =>
     failwith("todo Aba.snoc");
+
+  let cons_alist = (a: 'a, (hd, tl): t(list('a), 'b)) =>
+    ([a, ...hd], tl);
 
   let get_a = _ => failwith("todo Aba.get_a");
   let get_b = _ => failwith("todo Aba.get_b");
