@@ -26,7 +26,7 @@ module rec Aba: {
   let cons: ('a, Baba.t('b, 'a)) => t('a, 'b);
   let snoc: (Baba.t('a, 'b), 'a) => t('a, 'b);
 
-  let concat: (list('a) => 'a, list(t('a, 'b))) => t('a, 'b);
+  let concat: (('a, 'a) => 'a, list(t('a, 'b))) => t('a, 'b);
 
   let fold_right: ('a => 'acc, ('a, 'b, 'acc) => 'acc, t('a, 'b)) => 'acc;
 } = {
@@ -74,11 +74,13 @@ module rec Aba: {
   // let join = (q: 'c => 'b, (aba, cabacaba): t(t('a, 'b), 'c)): t('a, 'b) =>
   //   Baba.append(aba, Baba.join(q, cabacaba));
 
-  let rec fold_right = (
-    f_a:'a => 'acc,
-    f_ab: ('a, 'b, 'acc) => 'acc,
-    (a, baba): t('a, 'b),
-  ): 'acc =>
+  let rec fold_right =
+          (
+            f_a: 'a => 'acc,
+            f_ab: ('a, 'b, 'acc) => 'acc,
+            (a, baba): t('a, 'b),
+          )
+          : 'acc =>
     switch (baba) {
     | [] => f_a(a)
     | [(b, a'), ...baba'] =>
