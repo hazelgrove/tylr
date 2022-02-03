@@ -7,6 +7,8 @@ type t = s;
 type hd = Grouts.t;
 type tl = Util.Baba.t(Tile.t, Grouts.t);
 
+let cons_tile = (tile, (hd, tl)) => ([], [(tile, hd), ...tl]);
+
 let empty = ([], []);
 let rev = _ => failwith("todo Tiles.rev");
 let concat = _ => failwith("todo Tiles.concat");
