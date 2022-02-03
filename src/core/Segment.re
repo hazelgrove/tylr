@@ -36,8 +36,12 @@ let remove_matching = (_, _) => failwith("todo Segment.remove_matching");
 let empty = (Tiles.empty, []);
 let of_tiles = tiles => (tiles, []);
 
-let concat: list(t) => t =
-  Util.Aba.concat((ts, ts') => Tiles.concat([ts, ts']));
+let concat = (segments: list(t)): t =>
+  List.fold_right(
+    Util.Aba.concat((ts, ts') => Tiles.concat([ts, ts'])),
+    segments,
+    empty,
+  );
 
 let contains = _ => failwith("todo Segment.contains");
 let remove = _ => failwith("todo Segment.remove");

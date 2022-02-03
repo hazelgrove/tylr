@@ -28,7 +28,7 @@ module rec Aba: {
 
   let cons_alist: ('a, Aba.t(list('a), 'b)) => Aba.t(list('a), 'b);
 
-  let concat: (('a, 'a) => 'a, list(t('a, 'b))) => t('a, 'b);
+  let concat: (('a, 'a) => 'a, t('a, 'b), t('a, 'b)) => t('a, 'b);
 
   let fold_right: ('a => 'acc, ('a, 'b, 'acc) => 'acc, t('a, 'b)) => 'acc;
 } = {
@@ -54,16 +54,44 @@ module rec Aba: {
     tl,
   );
 
-  let get_a = _ => failwith("todo Aba.get_a");
-  let get_b = _ => failwith("todo Aba.get_b");
+  let get_a = ((a, baba)) => [a, ...List.map(snd, baba)];
+  let get_b = ((_, baba)) => List.map(fst, baba);
 
   let map_to_list = (_, _, _) => failwith("todo Aba.map_to_list");
 
-  let map_a = (_, _) => failwith("todo Aba.map_a");
-  let map_b = (_, _) => failwith("todo Aba.map_b");
-  let mapi_a = (_, _) => failwith("todo Aba.mapi_a");
+  let map_a = (f_a, (a, baba)) => (
+    f_a(a),
+    List.map(PairUtil.map_snd(f_a), baba),
+  );
+  let map_b = (f_b, (a, baba)) => (
+    a,
+    List.map(PairUtil.map_fst(f_b), baba),
+  );
+  let mapi_a = (f_ia, (a, baba)) => (
+    f_ia(0, a),
+    List.mapi((i, (b, a)) => (b, f_ia(i + 1, a)), baba),
+  );
 
-  let concat = (_, _) => failwith("todo Aba.concat");
+  let rec fold_right =
+          (
+            f_a: 'a => 'acc,
+            f_ab: ('a, 'b, 'acc) => 'acc,
+            (a, baba): t('a, 'b),
+          )
+          : 'acc =>
+    switch (baba) {
+    | [] => f_a(a)
+    | [(b, a'), ...baba'] =>
+      f_ab(a, b, fold_right(f_a, f_ab, (a', baba')))
+    };
+
+  let concat =
+      (cat: ('a, 'a) => 'a, aba: Aba.t('a, 'b), (hd, tl): Aba.t('a, 'b)) =>
+    aba
+    |> fold_right(
+         a => (cat(a, hd), tl),
+         (a, b, (hd, tl)) => (a, [(b, hd), ...tl]),
+       );
 
   let rec prepend = (prefix: Baba.t('b, 'a), aba: t('a, 'b)): t('a, 'b) =>
     switch (prefix) {
@@ -84,19 +112,6 @@ module rec Aba: {
   // let hd: t('a, 'b) => 'a = fst;
   // let join = (q: 'c => 'b, (aba, cabacaba): t(t('a, 'b), 'c)): t('a, 'b) =>
   //   Baba.append(aba, Baba.join(q, cabacaba));
-
-  let rec fold_right =
-          (
-            f_a: 'a => 'acc,
-            f_ab: ('a, 'b, 'acc) => 'acc,
-            (a, baba): t('a, 'b),
-          )
-          : 'acc =>
-    switch (baba) {
-    | [] => f_a(a)
-    | [(b, a'), ...baba'] =>
-      f_ab(a, b, fold_right(f_a, f_ab, (a', baba')))
-    };
 }
 and Baba: {
   /**
