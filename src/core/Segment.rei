@@ -24,7 +24,6 @@ let snoc: (t, Piece.t) => t;
 let cons_tile: (Tile.t, t) => t;
 
 let cons_shard: (Shard.t, t) => t;
-let snoc_shard: (t, Shard.t) => t;
 
 let cons_grout: (Grout.t, t) => t;
 

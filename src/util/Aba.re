@@ -11,6 +11,8 @@ module rec Aba: {
 
   let prepend: (Baba.t('b, 'a), t('a, 'b)) => t('a, 'b);
 
+  let rev: ('a => 'a, 'b => 'b, t('a, 'b)) => t('a, 'b);
+
   let get_a: t('a, _) => list('a);
   let get_b: t(_, 'b) => list('b);
 
@@ -100,6 +102,16 @@ module rec Aba: {
       let (a, baba) = aba;
       prepend(prefix, (a', [(b', a), ...baba]));
     };
+
+  let rev = (rev_a, rev_b, (hd, tl)) =>
+    tl
+    |> List.fold_left(
+         (reversed, (b, a)) => {
+           let (hd, tl) = reversed;
+           (rev_a(a), [(rev_b(b), hd), ...tl]);
+         },
+         (hd, []),
+       );
 
   let split_last = (_aba: t('a, 'b)): (Baba.t('a, 'b), 'a) =>
     failwith("todo Aba.split_last");

@@ -7,6 +7,7 @@ type t = s;
 type hd = Grouts.t;
 type tl = Util.Baba.t(Tile.t, Grouts.t);
 
+let cons_grout = (grout, (hd, tl)) => ([grout, ...hd], tl);
 let cons_tile = (tile, (hd, tl)) => ([], [(tile, hd), ...tl]);
 
 let empty = ([], []);

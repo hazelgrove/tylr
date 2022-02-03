@@ -16,25 +16,32 @@ module Piece = {
     | Grout(Grout.t);
 };
 
-let shards = _ => failwith("todo Segment.shards");
+let empty = (Tiles.empty, []);
 
-let cons = (_, _) => failwith("todo Segment.cons");
-let snoc = (_, _) => failwith("todo Segment.snoc");
+let of_tiles = tiles => (tiles, []);
 
-let of_pieces = _ => failwith("todo Segment.of_pieces");
+let rev: t => t = Aba.rev(Tiles.rev, Fun.id);
 
-let cons_shard = (_, _) => failwith("todo Segment.cons_shard");
-let snoc_shard = (_, _) => failwith("todo Segment.snoc_shard");
-let cons_tile = _ => failwith("todo Segment.cons_tile");
-let cons_grout = _ => failwith("todo Segment.cons_grout");
+let shards: t => list(Shard.t) = Aba.get_b;
 
-let rev = _ => failwith("todo Segment.rev");
+let cons_shard = (shard, (hd, tl)) => (Tiles.empty, [(shard, hd), ...tl]);
+
+let cons_tile = (tile, (hd, tl)) => (Tiles.cons_tile(tile, hd), tl);
+
+let cons_grout = (grout, (hd, tl)) => (Tiles.cons_grout(grout, hd), tl);
+
+let cons = (p: Piece.t) =>
+  switch (p) {
+  | Shard(s) => cons_shard(s)
+  | Tile(t) => cons_tile(t)
+  | Grout(g) => cons_grout(g)
+  };
+let snoc = (segment, p) => rev(cons(p, rev(segment)));
+
+let of_pieces = (ps: list(Piece.t)) => List.fold_right(cons, ps, empty);
 
 let contains_matching = (_, _) => failwith("todo Segment.contains_matching");
 let remove_matching = (_, _) => failwith("todo Segment.remove_matching");
-
-let empty = (Tiles.empty, []);
-let of_tiles = tiles => (tiles, []);
 
 let concat = (segments: list(t)): t =>
   List.fold_right(
