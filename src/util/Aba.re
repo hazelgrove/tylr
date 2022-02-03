@@ -42,11 +42,17 @@ module rec Aba: {
 
   let cons = (a: 'a, baba: Baba.t('b, 'a)) => (a, baba);
 
-  let snoc = (_baba: Baba.t('b, 'a), _b: 'b): Aba.t('b, 'a) =>
-    failwith("todo Aba.snoc");
+  let snoc = (abab: Baba.t('a, 'b), a: 'a): Aba.t('a, 'b) =>
+    List.fold_right(
+      ((a, b), (a', baba)) => (a, [(b, a'), ...baba]),
+      abab,
+      (a, []),
+    );
 
-  let cons_alist = (a: 'a, (hd, tl): t(list('a), 'b)) =>
-    ([a, ...hd], tl);
+  let cons_alist = (a: 'a, (hd, tl): t(list('a), 'b)) => (
+    [a, ...hd],
+    tl,
+  );
 
   let get_a = _ => failwith("todo Aba.get_a");
   let get_b = _ => failwith("todo Aba.get_b");
