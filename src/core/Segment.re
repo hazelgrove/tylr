@@ -55,12 +55,9 @@ let remove = _ => failwith("todo Segment.remove");
 
 let trim = _ => failwith("todo Segment.trim");
 
-let orient = _ => failwith("todo Segment.orient");
-let unorient = _ => failwith("todo Segment.unorient");
+let is_intact = ((_, tl)) => tl == [];
 
-let is_balanced = _ => failwith("todo Segment.is_balanced");
-
-let fold_left_map = _ => failwith("todo Segment.fold_left_map");
+// let fold_left_map = _ => failwith("todo Segment.fold_left_map");
 
 let split_hd = (segment: t): option((Piece.t, t)) =>
   switch (segment) {

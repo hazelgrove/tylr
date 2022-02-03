@@ -29,23 +29,17 @@ let cons_grout: (Grout.t, t) => t;
 
 let concat: list(t) => t;
 
-let fold_left_map:
-  (('acc, Piece.t) => ('acc, 'a), 'acc, t) => ('acc, list('a));
+// let fold_left_map:
+//   (('acc, Piece.t) => ('acc, 'a), 'acc, t) => ('acc, list('a));
 
 let trim: t => t;
 
 let remold: (t, Nibs.t, Shard.Ctx.t) => list(t);
 
-let is_balanced: t => bool;
+let is_intact: t => bool;
 
 let contains_matching: (Shard.t, t) => bool;
 let remove_matching: (Shard.t, t) => t;
-
-// let shard_nibs: (Tile.Id.t, t) => list((Shard.Index.t, Nibs.t));
-
-// TODO clean up
-let orient: (Util.Direction.t, t) => t;
-let unorient: (Util.Direction.t, t) => t;
 
 let shards: t => list(Shard.t);
 

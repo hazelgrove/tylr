@@ -1,5 +1,3 @@
-open Zipper;
-
 let disassemble_tile: Tile.t => Segment.t;
 let reassemble_segment: Segment.t => Segment.t;
 

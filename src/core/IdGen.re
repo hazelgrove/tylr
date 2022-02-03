@@ -1,3 +1,4 @@
+[@deriving sexp]
 type t = Id.t;
 
 let init = 0;

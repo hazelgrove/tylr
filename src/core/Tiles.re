@@ -39,6 +39,7 @@ let mk: list(Tile.t) => t = _ => failwith("todo Tiles.mk");
 //   };
 
 module Affix = {
+  [@deriving sexp]
   type nonrec t = t;
   type nonrec hd = hd;
   type nonrec tl = tl;
@@ -94,6 +95,7 @@ module Affix = {
 };
 
 module Frame = {
+  [@deriving sexp]
   type t = (Affix.t, Affix.t);
 
   let near_nibs =

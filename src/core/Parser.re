@@ -73,8 +73,7 @@ let reassemble_affix =
   | Right => reassemble_segment(affix)
   };
 
-let disassemble_ancestor =
-    ((tile, tiles): Zipper.Ancestor.t): Zipper.Siblings.t => {
+let disassemble_ancestor = ((tile, tiles): Ancestor.t): Siblings.t => {
   let step = Tile.Frame.step(tile);
   let (tile_pre, tile_suf) = tile.substance;
   let (tiles_pre, tiles_suf) = tiles;
@@ -90,8 +89,8 @@ let disassemble_ancestor =
 };
 
 let rec reassemble_relatives =
-        (siblings: Zipper.Siblings.t, ancestors: Zipper.Ancestors.t)
-        : (Zipper.Siblings.t, Zipper.Ancestors.t) => {
+        (siblings: Siblings.t, ancestors: Ancestors.t)
+        : (Siblings.t, Ancestors.t) => {
   let map2 = TupleUtil.map2;
   switch (map2(split_by_matching_shards, siblings)) {
   | ((_, None), _)
