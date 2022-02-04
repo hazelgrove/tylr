@@ -16,12 +16,9 @@ module Shape = {
   [@deriving sexp]
   type t =
     | Op
-    | Pre(Precedence.t)
-    | Post(Precedence.t)
-    | Bin(Precedence.t);
-
-  let precedence: t => Precedence.t =
-    _ => failwith("todo Tile.Shape.precedence");
+    | Pre
+    | Post
+    | Bin;
 };
 
 module Sorts = {
@@ -36,9 +33,15 @@ module Sorts = {
 module Mold = {
   [@deriving sexp]
   type t = {
+    precedence: Precedence.t,
     shape: Shape.t,
     sorts: Sorts.t,
   };
+
+  let mk_op = sorts => {sorts, shape: Op, precedence: Precedence.max_p};
+  let mk_pre = (precedence, sorts) => {sorts, precedence, shape: Pre};
+  let mk_post = (precedence, sorts) => {sorts, precedence, shape: Post};
+  let mk_bin = (precedence, sorts) => {sorts, precedence, shape: Bin};
 };
 
 module Label = {
@@ -56,36 +59,32 @@ and t = {
 
 let label = (tile: t) => Util.Aba.get_a(tile.substance);
 
-let assignable_molds = (~l as _: option(Nib.t)=?, label: Label.t) =>
-  Mold.(
-    switch (label) {
-    | [t] when Token.is_num(t) => [{shape: Op, sorts: Sorts.mk(Exp)}]
-    | [t] when Token.is_var(t) => [
-        {shape: Op, sorts: Sorts.mk(Pat)},
-        {shape: Op, sorts: Sorts.mk(Exp)},
-      ]
-    | ["(", ")"] => [
-        {shape: Op, sorts: Sorts.mk(~in_=[Pat], Pat)},
-        {shape: Op, sorts: Sorts.mk(~in_=[Exp], Exp)},
-      ]
-    | ["λ", "{", "}"] => [
-        {shape: Op, sorts: Sorts.mk(~in_=[Pat, Exp], Exp)},
-      ]
-    | ["!"] => [{shape: Post(1), sorts: Sorts.mk(Exp)}]
-    | ["[", "]"] => [{shape: Post(2), sorts: Sorts.mk(~in_=[Exp], Exp)}]
-    | ["*" | "/"] => [{shape: Bin(3), sorts: Sorts.mk(Exp)}]
-    | ["+" | "-"] => [{shape: Bin(4), sorts: Sorts.mk(Exp)}]
-    | [","] => [
-        {shape: Bin(5), sorts: Sorts.mk(Exp)},
-        {shape: Bin(5), sorts: Sorts.mk(Pat)},
-      ]
-    | ["?", ":"] => [{shape: Bin(6), sorts: Sorts.mk(~in_=[Exp], Exp)}]
-    | ["let", "=", "in"] => [
-        {shape: Pre(9), sorts: Sorts.mk(~in_=[Pat, Exp], Exp)},
-      ]
-    | _ => []
-    }
-  );
+let assignable_molds = (~l as _: option(Nib.t)=?, label: Label.t) => {
+  open Mold;
+  let s = Sorts.mk;
+  switch (label) {
+  | [t] when Token.is_num(t) => [mk_op(s(Exp))]
+  | [t] when Token.is_var(t) => [mk_op(s(Pat)), mk_op(s(Exp))]
+  | ["(", ")"] => [
+      mk_op(s(~in_=[Pat], Pat)),
+      mk_op(s(~in_=[Exp], Exp)),
+    ]
+  | ["λ", "{", "}"] => [mk_op(s(~in_=[Pat, Exp], Exp))]
+  | ["!"] => [mk_post(Precedence.fact, s(Exp))]
+  | ["[", "]"] => [mk_post(Precedence.ap, s(~in_=[Exp], Exp))]
+  | ["*" | "/"] => [mk_bin(Precedence.mult, s(Exp))]
+  | ["+" | "-"] => [mk_bin(Precedence.plus, s(Exp))]
+  | [","] => [
+      mk_bin(Precedence.prod, s(Pat)),
+      mk_bin(Precedence.prod, s(Exp)),
+    ]
+  | ["?", ":"] => [mk_bin(Precedence.cond, s(~in_=[Exp], Exp))]
+  | ["let", "=", "in"] => [
+      mk_pre(Precedence.let_, s(~in_=[Pat, Exp], Exp)),
+    ]
+  | _ => []
+  };
+};
 
 let default_mold =
     (_form: Label.t, _sibling: Sort.t, _ancestor: Sort.t): Mold.t =>

@@ -10,11 +10,9 @@ module Shape: {
   [@deriving sexp]
   type t =
     | Op
-    | Pre(Precedence.t)
-    | Post(Precedence.t)
-    | Bin(Precedence.t);
-
-  let precedence: t => Precedence.t;
+    | Pre
+    | Post
+    | Bin;
 };
 
 module Sorts: {
@@ -23,14 +21,20 @@ module Sorts: {
     out: Sort.t,
     in_: list(Sort.t),
   };
+  let mk: (~in_: list(Sort.t)=?, Sort.t) => t;
 };
 
 module Mold: {
   [@deriving sexp]
   type t = {
+    precedence: Precedence.t,
     shape: Shape.t,
     sorts: Sorts.t,
   };
+  let mk_op: Sorts.t => t;
+  let mk_pre: (Precedence.t, Sorts.t) => t;
+  let mk_post: (Precedence.t, Sorts.t) => t;
+  let mk_bin: (Precedence.t, Sorts.t) => t;
 };
 
 module Label: {

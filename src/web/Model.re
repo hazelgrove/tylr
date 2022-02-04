@@ -11,41 +11,15 @@ type t = {
 let cutoff = (===);
 
 let one =
-  Tile.{
-    id: 0,
-    mold: {
-      shape: Op,
-      sorts: {
-        out: Exp,
-        in_: [],
-      },
-    },
-    substance: ("1", []),
-  };
+  Tile.{id: 0, mold: Mold.mk_op(Sorts.mk(Exp)), substance: ("1", [])};
 let plus_12 =
   Tile.{
     id: 1,
-    mold: {
-      shape: Bin(3),
-      sorts: {
-        out: Exp,
-        in_: [],
-      },
-    },
+    mold: Mold.mk_bin(Precedence.plus, Sorts.mk(Exp)),
     substance: ("+", []),
   };
 let two =
-  Tile.{
-    id: 2,
-    mold: {
-      shape: Op,
-      sorts: {
-        out: Exp,
-        in_: [],
-      },
-    },
-    substance: ("2", []),
-  };
+  Tile.{id: 2, mold: Mold.mk_op(Sorts.mk(Exp)), substance: ("2", [])};
 // let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
 
 // let paren =
