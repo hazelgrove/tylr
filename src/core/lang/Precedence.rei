@@ -14,3 +14,5 @@ let let_: t;
 let compare: (t, t) => int;
 
 let min: (t, t) => t;
+
+let associativity: t => Util.Direction.t;

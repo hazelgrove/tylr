@@ -21,68 +21,66 @@ module Affix = {
   type nonrec t = t;
   // type nonrec hd = hd;
   // type nonrec tl = tl;
-
-  let near_nib_tl = (d: Direction.t, tl: tl, far_nib: Nib.t) =>
-    switch (tl) {
-    | [] => far_nib
-    | [(tile, _), ..._] =>
-      Direction.(choose(toggle(d), Tile.nibs(tile.mold)))
-    };
-  let near_nib = (d: Direction.t, (hd, tl): t, far_nib: Nib.t) => (
-    hd,
-    near_nib_tl(d, tl, far_nib),
-  );
-
+  // let near_nib_tl = (d: Direction.t, tl: tl, far_nib: Nib.t) =>
+  //   switch (tl) {
+  //   | [] => far_nib
+  //   | [(tile, _), ..._] =>
+  //     Direction.(choose(toggle(d), Tile.nibs(tile.mold)))
+  //   };
+  // let near_nib = (d: Direction.t, (hd, tl): t, far_nib: Nib.t) => (
+  //   hd,
+  //   near_nib_tl(d, tl, far_nib),
+  // );
   // let split_hd = (d, affix) =>
   //   switch (affix) {
   //   | [] => None
   //   | [hd, ...tl] =>
   //     let Tile.disassemble(hd))
-
   //     switch (Tile.disassemble_hd(hd)) {
   //     | [] => Some((hd, tl))
   //     |  =>
   //     }
   //   }
-
   // let split_hd = split_hd;
+  // let reshape_tl = (d: Direction.t, tl: tl, far_nib: Nib.t): list(tl) => {
+  //   let fold = ((tile, ps), (tl: tl, k: unit => list(tl))) => {
+  //     let tl = [(tile, ps), ...tl];
+  //     let k = () =>
+  //       switch (Tile.reshape(tile)) {
+  //       | [_] => [tl] // short-circuit reshaping when only one option
+  //       | reshapings =>
+  //         open ListUtil.Syntax;
+  //         let* reshaped_tile = reshapings;
+  //         let+ reshaped_tl = k();
+  //         let adjusted_ps = {
+  //           let far_nib = near_nib_tl(d, reshaped_tl, far_nib);
+  //           let near_nib = Direction.choose(d, Tile.nibs(tile.mold));
+  //           adjust_placeholders(d, ps, (near_nib, far_nib));
+  //         };
+  //         [(reshaped_tile, adjusted_ps), ...reshaped_tl];
+  //       };
+  //     (tl, k);
+  //   };
+  //   let (_, k) = List.fold_right(fold, tl, ([], () => [[]]));
+  //   k();
+  // };
+  // let reshape = (d: Direction.t, (hd, tl): t, far_nib: Nib.t): list(t) =>
+  //   reshape_tl(d, tl, far_nib) |> List.map(tl => (hd, tl));
 
-  let reshape_tl = (d: Direction.t, tl: tl, far_nib: Nib.t): list(tl) => {
-    let fold = ((tile, ps), (tl: tl, k: unit => list(tl))) => {
-      let tl = [(tile, ps), ...tl];
-      let k = () =>
-        switch (Tile.reshape(tile)) {
-        | [_] => [tl] // short-circuit reshaping when only one option
-        | reshapings =>
-          open ListUtil.Syntax;
-          let* reshaped_tile = reshapings;
-          let+ reshaped_tl = k();
-          let adjusted_ps = {
-            let far_nib = near_nib_tl(d, reshaped_tl, far_nib);
-            let near_nib = Direction.choose(d, Tile.nibs(tile.mold));
-            adjust_placeholders(d, ps, (near_nib, far_nib));
-          };
-          [(reshaped_tile, adjusted_ps), ...reshaped_tl];
-        };
-      (tl, k);
-    };
-    let (_, k) = List.fold_right(fold, tl, ([], () => [[]]));
-    k();
-  };
-  let reshape = (d: Direction.t, (hd, tl): t, far_nib: Nib.t): list(t) =>
-    reshape_tl(d, tl, far_nib) |> List.map(tl => (hd, tl));
+  let near_nib = (_: Direction.t, _, _) => failwith("near_nib todo");
+  let reshape = (_: Direction.t, _, _) => failwith("reshape todo");
 };
 
 module Frame = {
   [@deriving sexp]
   type t = (Affix.t, Affix.t);
 
-  let near_nibs =
-      ((prefix, suffix): t, far_nibs: Nibs.t): (Grouts.Frame.t, Nibs.t) => {
-    let (grouts_l, near_l) = Affix.near_nib(Left, prefix, fst(far_nibs));
-    let (grouts_r, near_r) = Affix.near_nib(Right, suffix, snd(far_nibs));
-    ((grouts_l, grouts_r), (near_l, near_r));
-  };
+  // let near_nibs =
+  //     ((prefix, suffix): t, far_nibs: Nibs.t): (Grouts.Frame.t, Nibs.t) => {
+  //   let (grouts_l, near_l) = Affix.near_nib(Left, prefix, fst(far_nibs));
+  //   let (grouts_r, near_r) = Affix.near_nib(Right, suffix, snd(far_nibs));
+  //   ((grouts_l, grouts_r), (near_l, near_r));
+  // };
 
   let reshape = ((prefix, suffix): t, (far_l, far_r): Nibs.t) => {
     open ListUtil.Syntax;
@@ -171,7 +169,7 @@ let rec reassemble = (tiles: t): t => {
 
 /**
  * should never need
- */
+ */;
 // let remold = (tiles: t, nibs: Nibs.t, ctx: Shard.Ctx.t): list(t) => {
 //   open ListUtil.Syntax;
 //   tiles
@@ -188,16 +186,16 @@ let rec reassemble = (tiles: t): t => {
 //   )
 // };
 
-let connect = (~insert=empty, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
-  let ctx = failwith("todo ctx");
-  let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
-  let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
-  let (insertion, grouts, tiles) =
-    remold_reshape(insert, (tiles_l, tiles_r), nibs, ctx)
-    |> List.sort(((_, grouts, _), (_, grouts', _)) =>
-         Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
-       )
-    |> ListUtil.hd_opt
-    |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
-  (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
-};
+// let connect = (~insert=empty, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
+//   let ctx = failwith("todo ctx");
+//   let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
+//   let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
+//   let (insertion, grouts, tiles) =
+//     remold_reshape(insert, (tiles_l, tiles_r), nibs, ctx)
+//     |> List.sort(((_, grouts, _), (_, grouts', _)) =>
+//          Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
+//        )
+//     |> ListUtil.hd_opt
+//     |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
+//   (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
+// };
