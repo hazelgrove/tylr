@@ -4,6 +4,11 @@ module Id: {
   let compare: (t, t) => int;
 };
 
+module Label: {
+  [@deriving sexp]
+  type t = list(Token.t); // nonempty
+};
+
 module Map: {include Map.S with type key = Id.t;};
 
 module Shape: {
@@ -37,14 +42,33 @@ module Mold: {
   let mk_bin: (Precedence.t, Sorts.t) => t;
 };
 
-module Label: {
+module Shard: {
   [@deriving sexp]
-  type t = list(Token.t); // nonempty
+  type index = int;
+  [@deriving sexp]
+  type labeled = {
+    tile: (Id.t, Label.t),
+    index: int,
+    nibs: Nibs.t,
+  };
+  [@deriving sexp]
+  type placeholder = {
+    ids: list(Id.t),
+    p: Precedence.t,
+  };
+  [@deriving sexp]
+  type t =
+    | Placeholder(placeholder)
+    | Labeled(labeled);
 };
 
 [@deriving sexp]
-type s = Util.Aba.t(Grouts.t, t)
-and t = {
+type s = list(t)
+and t =
+  | Placeholder({substance: Util.Aba.t(Shard.t, s)})
+  | Labeled(labeled)
+// and placeholder =
+and labeled = {
   id: Id.t,
   mold: Mold.t,
   substance: Util.Aba.t(Token.t, s),

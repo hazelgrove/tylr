@@ -31,3 +31,10 @@ let put_down = (side: Util.Direction.t, backpack: t): option((Segment.t, t)) =>
     let+ (backpack, put_down) = Util.ListUtil.split_last_opt(backpack);
     (put_down, backpack);
   };
+
+let remove = (shards: list(Shard.Labeled.t), backpack: t) =>
+  List.fold_left(
+    (backpack, shard) => List.map(Tiles.remove_matching(shard), backpack),
+    backpack,
+    to_remove,
+  );

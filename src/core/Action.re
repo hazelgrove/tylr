@@ -24,184 +24,171 @@ module Result = {
   type t('success) = Result.t('success, Failure.t);
 };
 
-let clear_selection = (z: Zipper.t): (Segment.t, Zipper.t) => {
+// clear zipper selection, connect siblings,
+// and return original selection contents
+let clear_selection = (z: Zipper.t): (Tiles.t, Zipper.t) => {
   let selection = Selection.clear(z.selection);
-  let (_, siblings) =
-    Segment.connect(z.siblings, Ancestors.sort(z.ancestors));
-  (z.selection.content, {...z, selection, siblings});
+  let relatives = Relatives.connect(z.relatives);
+  (z.selection.content, {...z, selection, relatives});
 };
 
+// clear zipper selection if balanced (otherwise
+// raise Failure.Cant_overwrite_imbalanced_selection);
+// replace with input tiles (s.t. cursor ends up on
+// same side of tiles as original selection) and connect
+// to siblings; and
+// return original selection contents
 let overwrite_selection =
-    (segment: Segment.t, z: Zipper.t): Result.t((Segment.t, Zipper.t)) =>
+    (tiles: Tiles.t, z: Zipper.t): Result.t((Tiles.t, Zipper.t)) =>
   if (!Selection.is_balanced(z.selection)) {
     Error(Failure.Cant_overwrite_imbalanced_selection);
   } else {
     let (cleared, z) = clear_selection(z);
-    let siblings = {
-      let s = Ancestors.sort(z.ancestors);
-      let (segment, siblings) =
-        Segment.connect(~insert=segment, z.siblings, s);
-      Siblings.prepend(z.selection.focus, segment, siblings);
-    };
-    let (siblings, ancestors) =
-      Parser.reassemble_relatives(siblings, z.ancestors);
-    Ok((cleared, {...z, siblings, ancestors}));
+    let relatives =
+      z.relatives
+      |> Relatives.prepend(
+           ~connect=true,
+           Direction.toggle(z.selection.focus),
+           tiles,
+         )
+      |> Relatives.reassemble;
+    Ok((cleared, {...z, relatives}));
   };
-
-let split_piece =
-    (d: Direction.t, siblings, ancestors)
-    : option((Segment.Piece.t, Siblings.t, Ancestors.t)) => {
-  switch (Siblings.split_hd(d, siblings)) {
-  | Some((p, siblings)) => Some((p, siblings, ancestors))
-  | None =>
-    switch (ancestors) {
-    | [] => None
-    | [ancestor, ...ancestors] =>
-      open OptUtil.Syntax;
-      let siblings' = Parser.disassemble_ancestor(ancestor);
-      let+ (piece, siblings) =
-        Siblings.(split_hd(d, concat([siblings, siblings'])));
-      (piece, siblings, ancestors);
-    }
-  };
-};
 
 // unselect current selection and move caret to
 // desired end of former selection if possible
 // (not possible if doing so would violate ordering
 // between shards up and shards down)
-let unselect = (d: Direction.t, zipper: Zipper.t): option(Zipper.t) => {
-  let {selection, backpack, siblings, ancestors, id_gen: _} = zipper;
+let unselect = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
+  let {selection, backpack, relatives, id_gen: _} = zipper;
   if (d == selection.focus
       && !Selection.is_balanced(selection)
       && !Backpack.is_balanced(backpack)) {
     None;
   } else {
-    let siblings = Siblings.prepend(d, selection.content, siblings);
-    let (siblings, ancestors) =
-      Parser.reassemble_relatives(siblings, ancestors);
-    Some({
-      ...zipper,
-      ancestors,
-      siblings,
-      selection: Selection.clear(selection),
-    });
+    let relatives =
+      z.relatives
+      |> Relatives.prepend(d, selection.content)
+      |> Relatives.reassemble;
+    let selection = Selection.clear(selection);
+    Some({...z, selection, relatives});
   };
 };
 
 let move = (d: Direction.t, z: Zipper.t): option(Zipper.t) =>
   if (!Selection.is_empty(z.selection)) {
+    // todo: make unselect not reassemble
     unselect(d, z);
   } else if (Backpack.is_balanced(z.backpack)) {
     open OptUtil.Syntax;
-    let+ (p, siblings, ancestors) = split_piece(d, z.siblings, z.ancestors);
-    let siblings = Siblings.cons(Direction.toggle(d), p, siblings);
-    let (siblings, ancestors) =
-      Parser.reassemble_relatives(siblings, ancestors);
-    {...z, siblings, ancestors};
+    let+ (shard, relatives) = Relatives.split_shard(d, z.relatives);
+    let relatives =
+      relatives
+      |> Relatives.cons_shard(Direction.toggle(d), shard)
+      |> Relatives.reassemble;
+    {...z, relatives};
   } else {
-    switch (Siblings.split_hd(d, z.siblings)) {
-    | Some((Tile(_) as tile, siblings)) =>
-      let siblings = Siblings.cons(Direction.toggle(d), tile, siblings);
-      Some({...z, siblings});
-    | _ => None
+    open OptUtil.Syntax;
+    let* (tile, relatives) = Relatives.split_tile(d, relatives);
+    switch (tile) {
+    | Labeled(_) =>
+      let relatives = Relatives.cons(Direction.toggle(d), tile, z.relatives);
+      Some({...z, relatives});
+    | Placeholder({substance}) =>
+      let (shard, siblings) = Aba.split_end(Direction.toggle(d), substance);
+      switch (shard) {
+      | Labeled(_) => None
+      | Placeholder(_) =>
+        let siblings =
+          siblings
+          |> TupleUtil.map2(Baba.map_to_list(Fun.id, s => Tile.of_shard(s)))
+          |> TupleUtil.map2(List.concat);
+        let relatives =
+          z.relatives
+          |> Relatives.cat(siblings)
+          |> Relatives.cons_shard(Direction.toggle(d), shard)
+          |> Relatives.reassemble;
+        Some({...z, relatives});
+      };
     };
   };
 
 let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
   open OptUtil.Syntax;
   let grow = selection => {
-    let+ (p, siblings, ancestors) = split_piece(d, z.siblings, z.ancestors);
+    let+ (shard, relatives) =
+      Relatives.split_shard(selection.focus, z.relatives);
     let selection =
       selection
-      |> Selection.push(p)
-      |> Selection.map_content(Parser.reassemble_segment);
-    {...z, selection, siblings, ancestors};
+      |> Selection.push(tile)
+      |> Selection.map_content(Tiles.reassemble);
+    {...z, selection, relatives};
   };
   if (d == z.selection.focus) {
     grow(z.selection);
   } else {
-    switch (Selection.pop(z.selection)) {
+    switch (Selection.split_shard(z.selection)) {
     | None => grow(Selection.toggle_focus(z.selection))
-    | Some((p, selection)) =>
-      let siblings = Siblings.cons(z.selection.focus, p, z.siblings);
-      let (siblings, ancestors) =
-        Parser.reassemble_relatives(siblings, z.ancestors);
-      Some({...z, selection, siblings, ancestors});
+    | Some((shard, selection)) =>
+      let relatives =
+        relatives
+        |> Relatives.cons_shard(selection.focus, shard, z.siblings)
+        |> Relatives.reassemble;
+      Some({...z, relatives});
     };
   };
 };
 
 let remove = (z: Zipper.t): Zipper.t => {
   let (selected, z) = clear_selection(z);
-  let (picked_up, removed) =
-    Segment.shards(selected)
-    |> List.partition(shard => Siblings.contains_matching(shard, z.siblings));
-  let segments =
-    picked_up |> List.map(shard => (Tiles.empty, [(shard, Tiles.empty)]));
+  let (to_pick_up, to_remove) =
+    Tiles.labeled_shards(selected)
+    |> List.partition(shard => Siblings.contains_matching(shard, z.siblings))
+    |> PairUtil.map_fst(List.map(Tiles.of_shard));
   let backpack =
-    removed
-    |> List.fold_left(
-         (backpack, shard) =>
-           List.map(Segment.remove_matching(shard), backpack),
-         z.backpack,
-       )
-    |> Backpack.pick_up(z.selection.focus, segments);
+    z.backpack
+    |> Backpack.remove(to_remove)
+    |> Backpack.pick_up(z.selection.focus, to_pick_up);
   {...z, backpack};
 };
 
 let pick_up = (z: Zipper.t): Zipper.t => {
   let (selected, z) = clear_selection(z);
-  let segments = Segment.split(selected);
-  let backpack = Backpack.pick_up(z.selection.focus, segments, z.backpack);
+  let tiles = Aba.get_a(Tiles.split_by_placeholder(selected));
+  let backpack = Backpack.pick_up(z.selection.focus, tiles, z.backpack);
   {...z, backpack};
 };
 
 let put_down = (z: Zipper.t): Result.t(Zipper.t) => {
   open Util.Result.Syntax;
-  let focus = z.selection.focus;
   let* (put_down, backpack) =
-    Util.Result.of_option(
-      ~error=Failure.Nothing_to_put_down,
-      Backpack.put_down(focus, z.backpack),
-    );
+    z.backpack
+    |> Backpack.put_down(z.selection.focus)
+    |> Util.Result.of_option(~error=Failure.Nothing_to_put_down);
   let+ (_, z) = overwrite_selection(put_down, z);
   {...z, backpack};
 };
-let rec put_down_all = (z: Zipper.t): Zipper.t =>
+let rec put_down_all = (z: Zipper.t): Result.t(Zipper.t) =>
   switch (put_down(z)) {
-  | Error(_) => z
+  | Error(Nothing_to_put_down) => Ok(z)
+  | Error(_) as r => r
   | Ok(z) => put_down_all(z)
   };
 
 let insert =
     (d: Direction.t, label: Tile.Label.t, z: Zipper.t): Result.t(Zipper.t) => {
-  let z =
+  open Util.Result.Syntax;
+  let* z =
     d != z.selection.focus && !Backpack.is_balanced(z.backpack)
-      ? put_down_all(z) : z;
+      ? put_down_all(z) : Ok(z);
   let (id, id_gen) = IdGen.next(z.id_gen);
-  let tile = (id, label);
-  let mold =
-    Tile.default_mold(
-      label,
-      Ancestors.sort(z.ancestors),
-      Siblings.sort(z.siblings),
-    );
-  let segments =
-    label
-    |> List.mapi((index, _) => {
-         let shard = Shard.{tile, index, nibs: Tile.nibs(~index, mold)};
-         Segment.of_pieces([Shard(shard)]);
-       });
-  put_down({
-    ...z,
-    id_gen,
-    backpack: Backpack.pick_up(d, segments, z.backpack),
-    selection: {
-      ...z.selection,
-      focus: d,
-    },
-  });
+  let mold = Relatives.default_mold(label, z.relatives);
+  let to_pick_up =
+    Shard.Labeled.s_of_tile(id, mold, label)
+    |> List.map(shard => Tiles.of_shard(Labeled(shard)));
+  let selection = {...z.selection, focus: d};
+  let backpack = Backpack.pick_up(d, to_pick_up, z.backpack);
+  put_down({...z, id_gen, selection, backpack});
 };
 
 let perform = (a: t, zipper: Zipper.t): Result.t(Zipper.t) =>

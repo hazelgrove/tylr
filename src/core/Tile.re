@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Util;
 
 exception Ambiguous_molds;
 
@@ -10,6 +11,13 @@ module Id = {
 
 module Map = {
   include Map.Make(Id);
+};
+
+module Label = {
+  [@deriving sexp]
+  type t = list(Token.t);
+
+  let len: t => int = List.length;
 };
 
 module Shape = {
@@ -44,20 +52,46 @@ module Mold = {
   let mk_bin = (precedence, sorts) => {sorts, precedence, shape: Bin};
 };
 
-module Label = {
+module Shard = {
   [@deriving sexp]
-  type t = list(Token.t);
+  type index = int;
+  [@deriving sexp]
+  type labeled = {
+    tile: (Id.t, Label.t),
+    index: int,
+    nibs: Nibs.t,
+  };
+  [@deriving sexp]
+  type placeholder = {
+    ids: list(Id.t),
+    p: Precedence.t,
+  };
+  [@deriving sexp]
+  type t =
+    | Placeholder(placeholder)
+    | Labeled(labeled);
 };
 
 [@deriving sexp]
-type s = Util.Aba.t(Grouts.t, t)
-and t = {
+type s = list(t)
+and t =
+  | Placeholder({substance: Aba.t(Shard.t, s)})
+  | Labeled(labeled)
+// and placeholder =
+and labeled = {
   id: Id.t,
   mold: Mold.t,
   substance: Util.Aba.t(Token.t, s),
 };
 
-let label = (tile: t) => Util.Aba.get_a(tile.substance);
+// module Placeholder = {
+//   type t = placeholder;
+// };
+// module Labeled = {
+//   type t = labeled;
+// };
+
+let label = (labeled: labeled): Label.t => Aba.get_a(labeled.substance);
 
 let assignable_molds = (~l as _: option(Nib.t)=?, label: Label.t) => {
   open Mold;
@@ -93,29 +127,110 @@ let default_mold =
 let nibs: (~index: int=?, Mold.t) => Nibs.t =
   (~index as _=?, _) => failwith("todo Tile.nibs");
 
-let reshape = (tile: t) =>
-  assignable_molds(label(tile))
-  |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
-  |> List.map(mold => {...tile, mold});
+let reshape = (labeled: labeled) =>
+  assignable_molds(label(labeled))
+  |> List.filter((mold: Mold.t) => mold.sorts == labeled.mold.sorts)
+  |> List.map(mold => {...labeled, mold});
+
+// postcond: output list is nonempty
+let disassemble = (tile: t): s =>
+  switch (tile) {
+  | Placeholder(p) =>
+    p.substance
+    |> Aba.map_to_list(
+         shard => [Placeholder({substance: (shard, [])})],
+         tiles => tiles,
+       )
+    |> List.concat
+  | Labeled(labeled) =>
+    let mk_shard = index => [
+      Placeholder({
+        substance: (
+          Labeled({
+            tile: (labeled.id, label(labeled)),
+            index,
+            nibs: nibs(~index, labeled.mold),
+          }),
+          [],
+        ),
+      }),
+    ];
+    labeled.substance
+    |> Aba.mapi_a((index, _token) => index)
+    |> Aba.map_to_list(mk_shard, Fun.id)
+    |> List.concat;
+  };
 
 module Frame = {
   [@deriving sexp]
-  type t = {
-    id: Id.t,
-    mold: Mold.t,
-    substance: Util.Aba.Frame.B.t(Token.t, s),
+  type step = int;
+
+  module Labeled = {
+    [@deriving sexp]
+    type t = {
+      id: Id.t,
+      mold: Mold.t,
+      substance: Util.Aba.Frame.B.t(Token.t, s),
+    };
+
+    let step = (frame: t): step => {
+      let (prefix, _) = frame.substance;
+      List.length(Util.Aba.get_b(prefix));
+    };
+
+    let sort = (frame: t): Sort.t =>
+      List.nth(frame.mold.sorts.in_, step(frame));
+    // let disassemble = (frame: t): (s, s) =>
+    //   switch (frame) {
+    //   | Placeholder({substance: (prefix, suffix)}) =>
+    //   }
+
+    let label = _ => failwith("todo Tile.Frame.label");
+  };
+  module Placeholder = {
+    [@deriving sexp]
+    type t = {substance: Util.Aba.Frame.B.t(Shard.t, s)};
   };
 
   [@deriving sexp]
-  type step = int;
+  type t =
+    | Placeholder(Placeholder.t)
+    | Labeled(Labeled.t);
+};
 
-  let step = (frame: t): step => {
-    let (prefix, _) = frame.substance;
-    List.length(Util.Aba.get_b(prefix));
+let rec split = (tiles: s): option((s, Shard.Placeholder.t, s)) =>
+  switch (tiles) {
+  | [] => None
+  | [Tile.Placeholder((Placeholder(p), [])), ...tiles] =>
+    Some(([], p, tiles))
+  | [tile, ...tiles] =>
+    split(tiles)
+    |> Option.map(((pre, p, suf)) => ([tile, ...pre], p, suf))
   };
 
-  let label = _ => failwith("todo Tile.Frame.label");
-
-  let sort = (frame: t): Sort.t =>
-    List.nth(frame.mold.sorts.in_, step(frame));
+// note: assumes input shards are matching and in order,
+// and that overall substance is connected
+let mk = ((shard, _) as substance: Aba.t(Shard.Labeled.t, s)): t => {
+  let (id, label) = shard.tile;
+  if (List.length(Aba.get_a(tile_split)) == Tile.Label.len(label)) {
+    let mold = unique_mold(Aba.get_a(tile_split));
+    let substance =
+      tile_split
+      |> Aba.map_a(Shard.Labeled.label)
+      |> Aba.map_b(reassemble_tiles);
+    [Tile.Labeled({id, mold, substance}), ...last];
+  } else {
+    substance
+    |> Aba.fold_right(
+         shard => (shard, []),
+         (shard, tiles, (hd, tl)) =>
+           switch (split(tiles)) {
+           | None => (shard, [(tiles, hd), ...tl])
+           | Some((pre, p, suf)) => (
+               shard,
+               [(pre, Shard.Placeholder(p)), (suf, hd), ...tl],
+             )
+           },
+       );
+  };
 };

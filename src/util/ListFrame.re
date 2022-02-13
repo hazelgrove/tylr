@@ -22,6 +22,19 @@ let mk = (n, xs) =>
   mk_opt(n, xs)
   |> OptUtil.get(() => raise(Invalid_argument("ListFrame.mk")));
 
+let rec find_mk =
+        (p: 'x => option('y), xs: list('x)): option(('y, t('x))) =>
+  switch (xs) {
+  | [] => None
+  | [x, ...xs] =>
+    switch (p(x)) {
+    | Some(y) => Some((y, ([], xs)))
+    | None =>
+      let+ (y, (prefix, suffix)) = find_mk(p, xs);
+      (y, (prefix @ [x], suffix));
+    }
+  };
+
 let orient =
     (d: Direction.t, (prefix, suffix): t('x)): (list('x), list('x)) =>
   d == Left ? (prefix, suffix) : (suffix, prefix);

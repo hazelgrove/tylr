@@ -1,2 +1,2 @@
 [@deriving sexp]
-type t = (Tile.Frame.t, Tiles.Frame.t);
+type t = (Tile.Frame.t, Siblings.t);

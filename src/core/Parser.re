@@ -41,36 +41,11 @@ let unique_mold = shards =>
   | [mold] => mold
   };
 
-let rec reassemble_segment = (segment: Segment.t): Segment.t =>
-  switch (split_by_matching_shards(segment)) {
-  | (_, None) => segment
-  | (tiles, Some((tile_split, rest))) =>
-    let tile_split = Aba.map_b(reassemble_segment, tile_split);
-    let reassembled_rest = reassemble_segment(rest);
-    let attempted_tile_assembly = {
-      let (id, label) = Aba.hd(tile_split).tile;
-      let shards = Aba.get_a(tile_split);
-      if (List.length(shards) < List.length(label)) {
-        join(tile_split);
-      } else {
-        let mold = unique_mold(shards);
-        let substance =
-          tile_split |> Aba.map_a(Shard.label) |> Aba.map_b(Aba.hd);
-        Segment.of_pieces([Tile({id, mold, substance})]);
-      };
-    };
-    Segment.concat([
-      Segment.of_tiles(tiles),
-      attempted_tile_assembly,
-      reassembled_rest,
-    ]);
-  };
-
 let reassemble_affix =
-    (side: Direction.t, affix: Segment.Affix.t): Segment.Affix.t =>
+    (side: Direction.t, affix: Tiles.Affix.t): Tiles.Affix.t =>
   switch (side) {
-  | Left => Segment.(rev(reassemble_segment(rev(affix))))
-  | Right => reassemble_segment(affix)
+  | Left => Tiles.(rev(reassemble_tiles(rev(affix))))
+  | Right => reassemble_tiles(affix)
   };
 
 let disassemble_ancestor = ((tile, tiles): Ancestor.t): Siblings.t => {

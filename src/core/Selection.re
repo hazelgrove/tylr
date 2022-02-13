@@ -1,7 +1,7 @@
 [@deriving sexp]
 type t = {
   focus: Util.Direction.t,
-  content: Segment.t,
+  content: Tiles.t,
 };
 
 let map_content = (f, selection) => {
