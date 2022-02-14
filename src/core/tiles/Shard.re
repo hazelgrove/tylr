@@ -13,3 +13,5 @@ type t = {
 };
 
 let label = (shard: t) => List.nth(snd(shard.tile), shard.index);
+
+let s_of_tile = (_, _, _) => failwith("todo s_of_tile");

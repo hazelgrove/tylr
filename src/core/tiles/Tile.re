@@ -7,18 +7,31 @@ module Map = {
   include Map.Make(Id);
 };
 
+module Intact = {
+  [@deriving sexp]
+  type t('child) = {
+    id: Id.t,
+    mold: Mold.t,
+    substance: Util.Aba.t(Token.t, 'child),
+  };
+
+  let label = (tile: t(_)): Label.t => Aba.get_a(tile.substance);
+};
+
 [@deriving sexp]
 type s = list(t)
 and t =
-  | Pieces(Aba.t(Piece.t, s))
+  | Pieces(pieces)
   | Intact(intact)
-and intact = {
-  id: Id.t,
-  mold: Mold.t,
-  substance: Util.Aba.t(Token.t, s),
-};
+and pieces = Aba.t(Piece.t, s)
+and intact = Intact.t(s);
 
-let label = (tile: intact): Label.t => Aba.get_a(tile.substance);
+let of_piece = piece => Pieces((piece, []));
+
+let is_intact =
+  fun
+  | Intact(_) => true
+  | Pieces(_) => false;
 
 let assignable_molds = (~l as _: option(Nib.t)=?, label: Label.t) => {
   open Mold;
@@ -55,7 +68,7 @@ let nibs: (~index: int=?, Mold.t) => Nibs.t =
   (~index as _=?, _) => failwith("todo Tile.nibs");
 
 let reshape = (tile: intact) =>
-  assignable_molds(label(tile))
+  assignable_molds(Intact.label(tile))
   |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
   |> List.map(mold => {...tile, mold});
 
@@ -64,23 +77,18 @@ let disassemble = (tile: t): s =>
   switch (tile) {
   | Pieces(pieces) =>
     pieces
-    |> Aba.map_to_list(
-         shard => [Placeholder({substance: (shard, [])})],
-         tiles => tiles,
-       )
+    |> Aba.map_to_list(shard => [Pieces((shard, []))], tiles => tiles)
     |> List.concat
   | Intact(tile) =>
     let mk_shard = index => [
-      Placeholder({
-        substance: (
-          Labeled({
-            tile: (tile.id, label(tile)),
-            index,
-            nibs: nibs(~index, tile.mold),
-          }),
-          [],
-        ),
-      }),
+      Pieces((
+        Shard({
+          tile: (tile.id, Intact.label(tile)),
+          index,
+          nibs: nibs(~index, tile.mold),
+        }),
+        [],
+      )),
     ];
     tile.substance
     |> Aba.mapi_a((index, _token) => index)
@@ -88,41 +96,41 @@ let disassemble = (tile: t): s =>
     |> List.concat;
   };
 
-module Frame = {};
-
-let rec split = (tiles: s): option((s, Shard.placeholder, s)) =>
+let rec split = (tiles: s): option((s, Grout.t, s)) =>
   switch (tiles) {
   | [] => None
-  | [Placeholder({substance: (Placeholder(p), [])}), ...tiles] =>
-    Some(([], p, tiles))
+  | [Pieces((Grout(g), [])), ...tiles] => Some(([], g, tiles))
   | [tile, ...tiles] =>
     split(tiles)
-    |> Option.map(((pre, p, suf)) => ([tile, ...pre], p, suf))
+    |> Option.map(((pre, g, suf)) => ([tile, ...pre], g, suf))
   };
+
+let unique_mold = _ => failwith("todo unique_mold");
 
 // note: assumes input shards are matching and in order,
 // and that overall substance is connected
 let mk =
-    (~reassemble: s => s, (shard, _) as tile_split: Aba.t(Shard.labeled, s))
-    : t => {
+    (~reassemble: s => s, (shard, _) as tile_split: Aba.t(Shard.t, s)): t => {
   let (id, label) = shard.tile;
-  if (List.length(Aba.get_a(tile_split)) == Tile.Label.len(label)) {
+  if (List.length(Aba.get_a(tile_split)) == Label.len(label)) {
     let mold = unique_mold(Aba.get_a(tile_split));
     let substance =
       tile_split |> Aba.map_a(Shard.label) |> Aba.map_b(reassemble);
-    Labeled({id, mold, substance});
+    Intact({id, mold, substance});
   } else {
-    substance
-    |> Aba.fold_right(
-         shard => (shard, []),
-         (shard, tiles, (hd, tl)) =>
-           switch (split(tiles)) {
-           | None => (shard, [(tiles, hd), ...tl])
-           | Some((pre, p, suf)) => (
-               shard,
-               [(pre, Shard.Placeholder(p)), (suf, hd), ...tl],
-             )
-           },
-       );
+    let pieces =
+      tile_split
+      |> Aba.fold_right(
+           shard => (Piece.Shard(shard), []),
+           (shard, tiles, (hd, tl)) =>
+             switch (split(tiles)) {
+             | None => (Piece.Shard(shard), [(tiles, hd), ...tl])
+             | Some((pre, g, suf)) => (
+                 Piece.Shard(shard),
+                 [(pre, Piece.Grout(g)), (suf, hd), ...tl],
+               )
+             },
+         );
+    Pieces(pieces);
   };
 };

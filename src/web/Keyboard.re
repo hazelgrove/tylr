@@ -43,7 +43,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keydown(evt => {
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
-    let _frame_sort = Ancestors.sort(zipper.ancestors);
+    let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
       if (!held(Ctrl) && !held(Alt) && !held(Meta)) {

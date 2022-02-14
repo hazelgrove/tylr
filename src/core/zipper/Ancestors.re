@@ -5,7 +5,8 @@ type t = list((Ancestor.t, Siblings.t));
 
 let empty = [];
 
-let sort: t => Sort.t =
+let rec sort: t => Sort.t =
   fun
   | [] => Sort.Exp
-  | [(ancestor, _), ..._] => Ancestor.sort(ancestor);
+  | [(Intact(ancestor), _), ..._] => Ancestor.Intact.sort(ancestor)
+  | [(Pieces(_), _), ...ancestors] => sort(ancestors);

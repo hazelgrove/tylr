@@ -1,5 +1,7 @@
-// [@deriving sexp]
-// type step = int;
+open Sexplib.Std;
+
+[@deriving sexp]
+type step = int;
 
 module Intact = {
   [@deriving sexp]
@@ -9,10 +11,10 @@ module Intact = {
     substance: Util.Aba.Frame.B.t(Token.t, Tiles.t),
   };
 
-  // let step = (frame: t): step => {
-  //   let (prefix, _) = frame.substance;
-  //   List.length(Util.Aba.get_b(prefix));
-  // };
+  let step = (frame: t): step => {
+    let (prefix, _) = frame.substance;
+    List.length(Util.Aba.get_b(prefix));
+  };
 
   let sort = (frame: t): Sort.t =>
     List.nth(frame.mold.sorts.in_, step(frame));
@@ -31,3 +33,5 @@ type t =
 
 // [@deriving sexp]
 // type t = (Tile.Frame.t, Siblings.t);
+
+let disassemble = (_: t): Siblings.t => failwith("todo disassemble");

@@ -11,15 +11,23 @@ type t = {
 let cutoff = (===);
 
 let one =
-  Tile.{id: 0, mold: Mold.mk_op(Sorts.mk(Exp)), substance: ("1", [])};
+  Tile.Intact.{
+    id: 0,
+    mold: Mold.(mk_op(Sorts.mk(Exp))),
+    substance: ("1", []),
+  };
 let plus_12 =
-  Tile.{
+  Tile.Intact.{
     id: 1,
-    mold: Mold.mk_bin(Precedence.plus, Sorts.mk(Exp)),
+    mold: Mold.(mk_bin(Precedence.plus, Sorts.mk(Exp))),
     substance: ("+", []),
   };
 let two =
-  Tile.{id: 2, mold: Mold.mk_op(Sorts.mk(Exp)), substance: ("2", [])};
+  Tile.Intact({
+    id: 2,
+    mold: Mold.(mk_op(Sorts.mk(Exp))),
+    substance: ("2", []),
+  });
 // let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
 
 // let paren =
@@ -40,11 +48,10 @@ let init = () => {
     Zipper.{
       selection: {
         focus: Left,
-        content: Segment.empty,
+        content: Tiles.empty,
       },
       backpack: Backpack.empty,
-      siblings: Siblings.empty,
-      ancestors: Ancestors.empty,
+      relatives: Relatives.empty,
       id_gen: IdGen.init,
     },
   history: ActionHistory.empty,

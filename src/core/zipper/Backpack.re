@@ -1,25 +1,24 @@
 open Sexplib.Std;
 
 [@deriving sexp]
-type t = list(Segment.t);
+type t = list(Tiles.t);
 
 let empty = [];
 
-let is_balanced = (segments: t) =>
-  Segment.is_intact(Parser.reassemble_segment(Segment.concat(segments)));
+let is_balanced = (tiles: t) =>
+  Tiles.(is_intact(reassemble(concat(tiles))));
 
-let total_segment = (up: t): Segment.t => Segment.concat(up);
+let total_segment = (up: t): Tiles.t => Tiles.concat(up);
 
-let pick_up =
-    (side: Util.Direction.t, segments: list(Segment.t), backpack): t => {
-  let segments = List.filter((!=)(Segment.empty), segments);
+let pick_up = (side: Util.Direction.t, tiles: list(Tiles.t), backpack): t => {
+  let tiles = List.filter((!=)(Tiles.empty), tiles);
   switch (side) {
-  | Left => segments @ backpack
-  | Right => backpack @ segments
+  | Left => tiles @ backpack
+  | Right => backpack @ tiles
   };
 };
 
-let put_down = (side: Util.Direction.t, backpack: t): option((Segment.t, t)) =>
+let put_down = (side: Util.Direction.t, backpack: t): option((Tiles.t, t)) =>
   switch (side) {
   | Left =>
     switch (backpack) {
@@ -32,9 +31,9 @@ let put_down = (side: Util.Direction.t, backpack: t): option((Segment.t, t)) =>
     (put_down, backpack);
   };
 
-let remove = (shards: list(Shard.Labeled.t), backpack: t) =>
+let remove = (shards: list(Shard.t), backpack: t) =>
   List.fold_left(
     (backpack, shard) => List.map(Tiles.remove_matching(shard), backpack),
     backpack,
-    to_remove,
+    shards,
   );

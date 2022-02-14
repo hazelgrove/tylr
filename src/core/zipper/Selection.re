@@ -16,21 +16,23 @@ let toggle_focus = selection => {
 
 let is_balanced = _ => failwith("todo Selection.is_balanced");
 
-let is_empty = (selection: t) => selection.content == Segment.empty;
+let is_empty = (selection: t) => selection.content == Tiles.empty;
 
-let clear = (selection: t) => {...selection, content: Segment.empty};
+let clear = (selection: t) => {...selection, content: Tiles.empty};
 
-let push = (p: Segment.Piece.t, {focus, content} as selection: t): t => {
+let push = (tile: Tile.t, {focus, content} as selection: t): t => {
   let content =
     switch (focus) {
-    | Left => Segment.cons(p, content)
-    | Right => Segment.snoc(content, p)
+    | Left => Tiles.cons(tile, content)
+    | Right => Tiles.snoc(content, tile)
     };
   {...selection, content};
 };
 
-let pop = (_selection: t): option((Segment.Piece.t, t)) =>
+let pop = (_selection: t): option((Tile.t, t)) =>
   failwith("todo Selection.pop");
 
-let trim = (_selection: t): (t, Grouts.Frame.t) =>
-  failwith("todo Selection.trim");
+// let trim = (_selection: t): (t, Grouts.Frame.t) =>
+//   failwith("todo Selection.trim");
+
+let split_piece = _: option((Piece.t, t)) => failwith("todo split_piece");

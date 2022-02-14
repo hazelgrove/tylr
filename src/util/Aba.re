@@ -33,6 +33,9 @@ module rec Aba: {
   let concat: (('a, 'a) => 'a, t('a, 'b), t('a, 'b)) => t('a, 'b);
 
   let fold_right: ('a => 'acc, ('a, 'b, 'acc) => 'acc, t('a, 'b)) => 'acc;
+
+  let split_end:
+    (Direction.t, t('a, 'b)) => ('a, (Baba.t('b, 'a), Baba.t('b, 'a)));
 } = {
   /**
    * An odd-length list of elements with alternating types
@@ -124,6 +127,8 @@ module rec Aba: {
   // let hd: t('a, 'b) => 'a = fst;
   // let join = (q: 'c => 'b, (aba, cabacaba): t(t('a, 'b), 'c)): t('a, 'b) =>
   //   Baba.append(aba, Baba.join(q, cabacaba));
+
+  let split_end = (_, _) => failwith("todo split_end");
 }
 and Baba: {
   /**
@@ -141,6 +146,8 @@ and Baba: {
 
   let append: (Aba.t('a, 'b), t('b, 'a)) => Aba.t('a, 'b);
   let join: ('c => 'b, t('c, Aba.t('a, 'b))) => t('b, 'a);
+
+  let map_to_list: ('b => 'c, 'a => 'c, Baba.t('b, 'a)) => list('c);
 } = {
   /**
    * An even-length list of elements with alternating types
@@ -173,6 +180,8 @@ and Baba: {
 
   let join = (q: 'c => 'b, cabacaba: t('c, Aba.t('a, 'b))): t('b, 'a) =>
     cabacaba |> List.map(((c, aba)) => cons(q(c), aba)) |> List.concat;
+
+  let map_to_list = (_, _, _) => failwith("todo map_to_list");
 };
 
 module Frame = {
