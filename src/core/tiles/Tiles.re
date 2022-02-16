@@ -3,21 +3,28 @@ open Util;
 [@deriving sexp]
 type t = Tile.s;
 
+let empty = [];
+let cons = List.cons;
+let concat = List.concat;
+
 // type hd = Grouts.t;
 // type tl = Util.Baba.t(Tile.t, Grouts.t);
 
 // let cons_grout = (grout, (hd, tl)) => ([grout, ...hd], tl);
 // let cons_tile = (tile, (hd, tl)) => ([], [(tile, hd), ...tl]);
 
-let empty = [];
-let rev = _ => failwith("todo Tiles.rev");
-let concat = _ => failwith("todo Tiles.concat");
+let of_shard = shard => [Tile.Pieces((Shard(shard), []))];
+let of_grouts = List.map(Tile.of_grout);
 
-let of_shard = _ => failwith("todo of_shard");
+let nibs = tiles =>
+  switch (tiles, ListUtil.split_last_opt(tiles)) {
+  | ([], _)
+  | (_, None) => None
+  | ([_first, ..._], Some((_, _last))) => failwith("todo Tiles.nibs")
+  };
 
 let shards = _ => failwith("todo shards");
 
-let cons = List.cons;
 let snoc = (tiles, tile) => tiles @ [tile];
 
 let is_intact = List.for_all(Tile.is_intact);
@@ -103,19 +110,3 @@ let rec reassemble = (tiles: t): t => {
 //     (nibs, ctx),
 //   )
 // };
-
-// let connect = (~insert=empty, affixes: Frame.t, s: Sort.t): (t, Frame.t) => {
-//   let ctx = failwith("todo ctx");
-//   let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
-//   let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
-//   let (insertion, grouts, tiles) =
-//     remold_reshape(insert, (tiles_l, tiles_r), nibs, ctx)
-//     |> List.sort(((_, grouts, _), (_, grouts', _)) =>
-//          Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
-//        )
-//     |> ListUtil.hd_opt
-//     |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
-//   (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
-// };
-let connect = (~insert as _=empty, _siblings, _s) =>
-  failwith("todo connect");

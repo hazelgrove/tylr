@@ -15,21 +15,12 @@ module Failure = {
   [@deriving sexp]
   type t =
     | Cant_move
-    | Nothing_to_put_down
-    | Cant_overwrite_imbalanced_selection;
+    | Nothing_to_put_down;
 };
 
 module Result = {
   include Result;
   type t('success) = Result.t('success, Failure.t);
-};
-
-// clear zipper selection, connect siblings,
-// and return original selection contents
-let clear_selection = (z: Zipper.t): (Tiles.t, Zipper.t) => {
-  let selection = Selection.clear(z.selection);
-  let relatives = Relatives.connect(z.relatives);
-  (z.selection.content, {...z, selection, relatives});
 };
 
 // clear zipper selection if balanced (otherwise
@@ -38,22 +29,22 @@ let clear_selection = (z: Zipper.t): (Tiles.t, Zipper.t) => {
 // same side of tiles as original selection) and connect
 // to siblings; and
 // return original selection contents
-let overwrite_selection =
-    (tiles: Tiles.t, z: Zipper.t): Result.t((Tiles.t, Zipper.t)) =>
-  if (!Selection.is_balanced(z.selection)) {
-    Error(Failure.Cant_overwrite_imbalanced_selection);
-  } else {
-    let (cleared, z) = clear_selection(z);
-    let relatives =
-      z.relatives
-      |> Relatives.prepend(
-           ~connect=true,
-           Direction.toggle(z.selection.focus),
-           tiles,
-         )
-      |> Relatives.reassemble;
-    Ok((cleared, {...z, relatives}));
-  };
+// let overwrite_selection =
+//     (tiles: Tiles.t, z: Zipper.t): Result.t((Tiles.t, Zipper.t)) =>
+//   if (!Selection.is_balanced(z.selection)) {
+//     Error(Failure.Cant_overwrite_imbalanced_selection);
+//   } else {
+//     let (cleared, z) = clear_selection(z);
+//     let relatives =
+//       z.relatives
+//       |> Relatives.prepend(
+//            ~connect=true,
+//            Direction.toggle(z.selection.focus),
+//            tiles,
+//          )
+//       |> Relatives.reassemble;
+//     Ok((cleared, {...z, relatives}));
+//   };
 
 // unselect current selection and move caret to
 // desired end of former selection if possible
@@ -140,7 +131,7 @@ let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
 };
 
 let remove = (z: Zipper.t): Zipper.t => {
-  let (selected, z) = clear_selection(z);
+  let (selected, z) = Zipper.remove_selection(z);
   let (to_pick_up, to_remove) =
     Tiles.shards(selected)
     |> List.partition(shard =>
@@ -155,7 +146,7 @@ let remove = (z: Zipper.t): Zipper.t => {
 };
 
 let pick_up = (z: Zipper.t): Zipper.t => {
-  let (selected, z) = clear_selection(z);
+  let (selected, z) = Zipper.remove_selection(z);
   let tiles = Aba.get_a(Tiles.split_by_grout(selected));
   let backpack = Backpack.pick_up(z.selection.focus, tiles, z.backpack);
   {...z, backpack};
@@ -163,12 +154,13 @@ let pick_up = (z: Zipper.t): Zipper.t => {
 
 let put_down = (z: Zipper.t): Result.t(Zipper.t) => {
   open Util.Result.Syntax;
-  let* (put_down, backpack) =
+  let+ (put_down, backpack) =
     z.backpack
     |> Backpack.put_down(z.selection.focus)
     |> Util.Result.of_option(~error=Failure.Nothing_to_put_down);
-  let+ (_, z) = overwrite_selection(put_down, z);
-  {...z, backpack};
+  remove({...z, backpack})
+  |> Zipper.put_selection({...z.selection, content: put_down})
+  |> Zipper.insert_selection;
 };
 let rec put_down_all = (z: Zipper.t): Result.t(Zipper.t) =>
   switch (put_down(z)) {
@@ -186,8 +178,7 @@ let insert =
   let (id, id_gen) = IdGen.next(z.id_gen);
   let mold = Relatives.default_mold(label, z.relatives);
   let to_pick_up =
-    Shard.s_of_tile(id, mold, label)
-    |> List.map(shard => Tiles.of_shard(shard));
+    List.map(Tiles.of_shard, Shard.s_of_tile(id, mold, label));
   let selection = {...z.selection, focus: d};
   let backpack = Backpack.pick_up(d, to_pick_up, z.backpack);
   put_down({...z, id_gen, selection, backpack});

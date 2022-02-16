@@ -6,6 +6,42 @@ module Affix = {
 
   let empty = Tiles.empty;
 
+  let split_nearest_grouts = (_: Direction.t, _: t) =>
+    failwith("todo split_nearest_grouts");
+  // let split_nearest_grouts = (d: Direction.t, affix: t) =>
+  //   switch (affix) {
+  //   | []
+  //   | [Intact(_), ..._] => ([], affix)
+  //   | [Pieces(pieces), ...affix'] =>
+  //     let pieces = d == Left ? Aba.rev(pieces) : pieces;
+  //     switch (pieces) {
+  //     | (Shard(_), _) => ([], affix)
+  //     | (Grout(g), []) =>
+  //       let (gs, affix) = split_nearest_grouts(affix');
+  //       ([g, ...gs], affix);
+  //     | (Grout(g), [_, ..._] as tl) =>
+  //       let affix'' =
+  //         tl
+  //         |> List.map(((tiles, piece)) =>
+
+  //         )
+
+  //       ([g], )
+
+  //       let gs =
+  //         switch (tl) {
+  //         |
+  //         }
+  //     }
+
+  //   | [Pieces((Shard(_), _)), ..._]
+  //   | [Pieces((Grout(g), tl)), ...affix] =>
+  //     let gs =
+  //       switch (tl) {
+  //       | [] => split_nearest_grouts(d)
+  //       }
+  //   }
+
   // type nonrec hd = hd;
   // type nonrec tl = tl;
   // let near_nib_tl = (d: Direction.t, tl: tl, far_nib: Nib.t) =>
@@ -73,11 +109,13 @@ let empty = (Affix.empty, Affix.empty);
 // };
 
 let cons = (_, _, _) => failwith("todo cons");
-let prepend = (_, _, _) => failwith("todo prepend");
+let prepend = (_: Direction.t, _, _) => failwith("todo prepend");
 let split_piece = (_, _) => failwith("todo splti_piece");
 let split_tile = (_, _) => failwith("todo split_tile");
 
 let concat = _ => failwith("todo concat");
+
+let of_grouts = _ => failwith("todo of_grouts");
 
 let reshape = ((prefix, suffix): t, (far_l, far_r): Nibs.t) => {
   open ListUtil.Syntax;
@@ -111,3 +149,33 @@ let split_hd = (d: Direction.t, affixes: t): option((Tile.t, t)) => {
 let sort: t => Sort.t = _ => failwith("todo Siblings.sort");
 
 let contains_matching = (_, _) => failwith("todo contains_matching");
+
+// let connect = (~insert=empty, affixes: t, s: Sort.t): (t, Frame.t) => {
+//   let ctx = failwith("todo ctx");
+//   let ((tiles_l, prefix_tl), (tiles_r, suffix_tl)) = affixes;
+//   let nibs = Frame.near_nibs_tls((prefix_tl, suffix_tl), Nibs.of_sort(s));
+//   let (insertion, grouts, tiles) =
+//     remold_reshape(insert, (tiles_l, tiles_r), nibs, ctx)
+//     |> List.sort(((_, grouts, _), (_, grouts', _)) =>
+//          Grouts.Frame.(Int.compare(size(grouts), size(grouts')))
+//        )
+//     |> ListUtil.hd_opt
+//     |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
+//   (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
+// };
+let connect = (~insert as _=empty, _siblings: t, _s: Sort.t) =>
+  failwith("todo connect");
+
+let split_grouts = ((prefix, suffix): t): (Grouts.Frame.t, t) => {
+  let (gs_pre, prefix) = Affix.split_nearest_grouts(Left, prefix);
+  let (gs_suf, suffix) = Affix.split_nearest_grouts(Right, suffix);
+  ((gs_pre, gs_suf), (prefix, suffix));
+};
+
+// regrout around subject
+// let regrout = (siblings: t, s: Sort.t) => {
+//   let (gs, siblings') = split_nearest_grouts(siblings);
+//   let gs' = Grouts.regrout(Grouts.Frame.to_list(gs), s);
+//   Grouts.Frame.to_list(gs) == gs'
+//     ? siblings : prepend(Right, Tiles.of_grouts(gs'), siblings');
+// };

@@ -7,9 +7,7 @@ open Util;
 [@deriving sexp]
 type t = int;
 
-// let of_sexp: Sexplib.Sexp.t => t = sexp => max_p;
-
-let max_p: t = 0;
+let max: t = 0;
 
 let fact = 1;
 let ap = 2;
@@ -19,9 +17,11 @@ let prod = 5;
 let cond = 6;
 let let_ = 7;
 
+let min = 10;
+
 let compare = (p1: t, p2: t): int =>
   (-1) * Int.compare((p1 :> int), (p2 :> int));
-let min = (p1: t, p2: t): t => max(p1, p2);
+// let min = (p1: t, p2: t): t => max(p1, p2);
 
 let associativity_map: IntMap.t(Direction.t) =
   [(mult, Direction.Left), (plus, Left), (prod, Right), (cond, Left)]

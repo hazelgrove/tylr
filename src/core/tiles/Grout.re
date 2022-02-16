@@ -1,2 +1,2 @@
 [@deriving sexp]
-type t = {p: Precedence.t};
+type t = {nibs: Nibs.t};

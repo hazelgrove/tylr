@@ -26,7 +26,8 @@ and t =
 and pieces = Aba.t(Piece.t, s)
 and intact = Intact.t(s);
 
-let of_piece = piece => Pieces((piece, []));
+let of_piece = (piece: Piece.t) => Pieces((piece, []));
+let of_grout = g => of_piece(Grout(g));
 
 let is_intact =
   fun
