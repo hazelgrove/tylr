@@ -8,6 +8,41 @@ module Affix = {
 
   let split_nearest_grouts = (_: Direction.t, _: t) =>
     failwith("todo split_nearest_grouts");
+
+  // let sort_stacks = (d: Direction.t, affix: t): (Sort.Stack.t, Sort.Stack.t) => {
+  //   let (pushed, popped) =
+  //     Tiles.fold_right(
+  //       (tile: Tile.t, (pushed, popped)) =>
+  //         switch (tile) {
+  //         | Intact(intact) => stack
+  //         | Pieces(pieces) =>
+  //           open Sort.Stack;
+  //           let s = Pieces.sort(ps);
+  //           let (front, back) =
+  //             Nibs.orient(Direction.toggle(d), Pieces.nibs(ps));
+  //           if (s == front.sort && s == back.sort) {
+  //             stacks;
+  //           } else if (s == front.sort) {
+  //             (push(s, pushed), popped);
+  //           } else if (s == back.sort) {
+  //             switch (pop(pushed)) {
+  //             | None => (pushed, push(s, popped))
+  //             | Some((_, pushed)) => (pushed, popped)
+  //             };
+  //           } else {
+  //             switch (pop(pushed)) {
+  //             | None => (push(s, pushed), push(s, popped))
+  //             | Some((_, pushed)) => (push(s, pushed), popped)
+  //             };
+  //           };
+  //         },
+  //       affix,
+  //       Sort.Stack.(empty, empty),
+  //     );
+  //   (pushed, Sort.Stack.rev(popped));
+  // };
+  // let sort_stack = (d, affix) => fst(sort_stacks(d, affix));
+
   // let split_nearest_grouts = (d: Direction.t, affix: t) =>
   //   switch (affix) {
   //   | []
@@ -179,3 +214,8 @@ let split_grouts = ((prefix, suffix): t): (Grouts.Frame.t, t) => {
 //   Grouts.Frame.to_list(gs) == gs'
 //     ? siblings : prepend(Right, Tiles.of_grouts(gs'), siblings');
 // };
+
+// let sort_stacks = ((prefix, suffix): t): (Sort.Stack.t, Sort.Stack.t) => (
+//   Affix.sort_stack(Left, prefix),
+//   Affix.sort_stack(Right, suffix),
+// );

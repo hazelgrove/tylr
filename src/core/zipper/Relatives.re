@@ -92,10 +92,11 @@ let split_grouts = (relatives: t): (Grouts.Frame.t, t) => {
 let remove = (selection: Selection.t, relatives: t): t => {
   switch (Tiles.nibs(selection.content)) {
   | None => relatives
-  | Some(nibs) =>
-    let (gs, rs) =
-      relatives |> cons_piece(Right, Grout({nibs: nibs})) |> split_grouts;
-    let gs = Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
+  | Some(_nibs) =>
+    let (_gs, rs) = failwith("todo gs rs");
+    // relatives |> cons_piece(Right, Grout(Grout.mk(nibs))) |> split_grouts;
+    let gs = failwith("todo gs");
+    // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
     let siblings = Siblings.(concat([of_grouts(gs), rs.siblings]));
     reassemble({...rs, siblings});
   };
@@ -106,17 +107,39 @@ let insert = ({focus, content}: Selection.t, relatives: t): t =>
   | None => relatives
   | Some(inner) =>
     let outer = nibs(relatives);
-    let nibs_l = Nibs.fitting((fst(outer), fst(inner)));
-    let nibs_r = Nibs.fitting((snd(inner), snd(outer)));
-    let (gs, rs) =
-      relatives
-      |> cons_piece(Left, Grout({nibs: nibs_l}))
-      |> cons_piece(Right, Grout({nibs: nibs_r}))
-      |> split_grouts;
-    let gs = Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
+    let _nibs_l = Nibs.fitting((fst(outer), fst(inner)));
+    let _nibs_r = Nibs.fitting((snd(inner), snd(outer)));
+    let (_gs, rs) = failwith("todo gs, rs");
+    // relatives
+    // |> cons_piece(Left, Grout(Grout.mk(nibs_l)))
+    // |> cons_piece(Right, Grout(Grout.mk(nibs_r)))
+    // |> split_grouts;
+    let gs = failwith("todo gs");
+    // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
     let siblings =
       Siblings.(
         concat([of_grouts(gs), rs.siblings]) |> prepend(focus, content)
       );
     reassemble({...rs, siblings});
   };
+
+// let sort_stack = ({siblings, ancestors}: t): (Sort.t, Sort.Stack.t) => {
+//   let (prefix, _) = siblings;
+//   switch (Siblings.Affix.rev(prefix)) {
+//   |
+//   }
+// }
+
+// let insert = ({focus, content}: Selection.t, relatives: t): t =>
+//   switch (Tiles.nibs(content)) {
+//   | None => relatives
+//   | Some(inner) =>
+
+//   }
+
+// let insert = ({focus: _, content}: Selection.t, relatives: t): t =>
+//   switch (Tiles.nibs(content)) {
+//   | None => relatives
+//   | Some(inner_nibs) =>
+//     let inner_ss = Tiles.min_sort_stacks(content);
+//     let (outer_nibs, outer_ss) = Relatives.sort_stacks(relatives);

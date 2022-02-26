@@ -6,12 +6,7 @@ type t = Tile.s;
 let empty = [];
 let cons = List.cons;
 let concat = List.concat;
-
-// type hd = Grouts.t;
-// type tl = Util.Baba.t(Tile.t, Grouts.t);
-
-// let cons_grout = (grout, (hd, tl)) => ([grout, ...hd], tl);
-// let cons_tile = (tile, (hd, tl)) => ([], [(tile, hd), ...tl]);
+let fold_right = List.fold_right;
 
 let of_shard = shard => [Tile.Pieces((Shard(shard), []))];
 let of_grouts = List.map(Tile.of_grout);
@@ -30,8 +25,6 @@ let snoc = (tiles, tile) => tiles @ [tile];
 let is_intact = List.for_all(Tile.is_intact);
 
 let remove_matching = (_, _) => failwith("todo remove_matching");
-
-// let mk: list(Tile.t) => t = _ => failwith("todo Tiles.mk");
 
 let split_by_grout = (_tiles: t): Util.Aba.t(t, Grout.t) =>
   failwith("todo split_by_grout");
@@ -92,9 +85,36 @@ let rec reassemble = (tiles: t): t => {
   };
 };
 
-/**
- * should never need
- */;
+// let rec remold =
+//     (tiles: t, (l, r): Nibs.t, ctx: Shard.Ctx.t)
+//     : list(t) => {
+//   switch (tiles) {
+//   | [] => [Nib.fits(l, r) ? [] : of_grout({nibs: (l, r)})]
+//   | [Intact(tile), ...tiles] =>
+//     open ListUtil.Syntax;
+//     let* mold = Tile.(assignable_molds(~l, Intact.label(tile)));
+//     let gs = Grouts.mk(Mold.nibs(mold), ;
+
+//     let gs = Nibs.fits(l, tl) ? [] : of_grout({nibs: (l, tl)});
+//     let+ tl = remold(tiles, (tr, r), ctx);
+//     concat([gs, [Intact({...tile, mold}), tl]]);
+//   | [Pieces(pieces), ...tiles] =>
+
+//   }
+// }
+//   ListUtil.Syntax.(
+//     tiles
+//     |> List.fold_left(
+//       ((remolded, (l, r), ctx), tile) =>
+//         switch (tile) {
+//         | Intact(tile) =>
+//           let* mold = Tile.(assignable_molds(~l, label(tile)));
+
+//         }
+//       (Tiles.empty, nibs, ctx),
+//     )
+//   );
+
 // let remold = (tiles: t, nibs: Nibs.t, ctx: Shard.Ctx.t): list(t) => {
 //   open ListUtil.Syntax;
 //   tiles
@@ -110,3 +130,32 @@ let rec reassemble = (tiles: t): t => {
 //     (nibs, ctx),
 //   )
 // };
+
+// let sort_stacks = (tiles: t): (Sort.Stack.t, Sort.Stack.t) =>
+//   tiles
+//   |> List.fold_left(
+//        ((popped, pushed) as stacks, tile: Tile.t) =>
+//          switch (tile) {
+//          | Intact(_) => stacks
+//          | Pieces(ps) =>
+//            open Sort.Stack;
+//            let s = Tile.Pieces.sort(ps);
+//            let (l, r) = Tile.Pieces.nibs(ps);
+//            if (s == l.sort && s == r.sort) {
+//              stacks;
+//            } else if (s == l.sort) {
+//              (popped, push(r.sort, pushed));
+//            } else if (s == r.sort) {
+//              switch (pop(pushed)) {
+//              | None => (push(l.sort, popped), pushed)
+//              | Some((_, pushed)) => (popped, pushed)
+//              };
+//            } else {
+//              switch (pop(pushed)) {
+//              | None => (push(l.sort, popped), push(r.sort, pushed))
+//              | Some((_, pushed)) => (popped, push(r.sort, pushed))
+//              };
+//            };
+//          },
+//        Sort.Stack.(empty, empty),
+//      );

@@ -3,10 +3,6 @@ open Util;
 
 exception Ambiguous_molds;
 
-module Map = {
-  include Map.Make(Id);
-};
-
 module Intact = {
   [@deriving sexp]
   type t('child) = {
@@ -16,15 +12,29 @@ module Intact = {
   };
 
   let label = (tile: t(_)): Label.t => Aba.get_a(tile.substance);
+  // let reshape = (gs: Grouts.t, tile: t): (Grouts.t, t, option(Grout.t)) =>
+};
+
+module Pieces = {
+  [@deriving sexp]
+  type t('child) = Aba.t(Piece.t, 'child);
+
+  let sort = ((p, _)) => Piece.sort(p);
+  let nibs = _ => failwith("todo Pieces.nibs");
+  // let nibs = (ps: t) => {
+  //   let (first, _) = ps;
+  //   let (_, last) = Aba.split_last(ps);
+  //   (fst(Piece.nibs(first)), snd(Piece.nibs(last)));
+  // };
 };
 
 [@deriving sexp]
 type s = list(t)
 and t =
-  | Pieces(pieces)
   | Intact(intact)
-and pieces = Aba.t(Piece.t, s)
-and intact = Intact.t(s);
+  | Pieces(pieces)
+and intact = Intact.t(s)
+and pieces = Pieces.t(s);
 
 let of_piece = (piece: Piece.t) => Pieces((piece, []));
 let of_grout = g => of_piece(Grout(g));
@@ -34,33 +44,6 @@ let is_intact =
   | Intact(_) => true
   | Pieces(_) => false;
 
-let assignable_molds = (~l as _: option(Nib.t)=?, label: Label.t) => {
-  open Mold;
-  let s = Sorts.mk;
-  switch (label) {
-  | [t] when Token.is_num(t) => [mk_op(s(Exp))]
-  | [t] when Token.is_var(t) => [mk_op(s(Pat)), mk_op(s(Exp))]
-  | ["(", ")"] => [
-      mk_op(s(~in_=[Pat], Pat)),
-      mk_op(s(~in_=[Exp], Exp)),
-    ]
-  | ["λ", "{", "}"] => [mk_op(s(~in_=[Pat, Exp], Exp))]
-  | ["!"] => [mk_post(Precedence.fact, s(Exp))]
-  | ["[", "]"] => [mk_post(Precedence.ap, s(~in_=[Exp], Exp))]
-  | ["*" | "/"] => [mk_bin(Precedence.mult, s(Exp))]
-  | ["+" | "-"] => [mk_bin(Precedence.plus, s(Exp))]
-  | [","] => [
-      mk_bin(Precedence.prod, s(Pat)),
-      mk_bin(Precedence.prod, s(Exp)),
-    ]
-  | ["?", ":"] => [mk_bin(Precedence.cond, s(~in_=[Exp], Exp))]
-  | ["let", "=", "in"] => [
-      mk_pre(Precedence.let_, s(~in_=[Pat, Exp], Exp)),
-    ]
-  | _ => []
-  };
-};
-
 let default_mold =
     (_form: Label.t, _sibling: Sort.t, _ancestor: Sort.t): Mold.t =>
   failwith("todo Tile.default_mold");
@@ -68,10 +51,10 @@ let default_mold =
 let nibs: (~index: int=?, Mold.t) => Nibs.t =
   (~index as _=?, _) => failwith("todo Tile.nibs");
 
-let reshape = (tile: intact) =>
-  assignable_molds(Intact.label(tile))
-  |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
-  |> List.map(mold => {...tile, mold});
+// let reshape = (tile: intact) =>
+//   assignable_molds(Intact.label(tile))
+//   |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
+//   |> List.map(mold => {...tile, mold});
 
 // postcond: output list is nonempty
 let disassemble = (tile: t): s =>

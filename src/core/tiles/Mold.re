@@ -4,9 +4,9 @@ module Shape = {
   [@deriving sexp]
   type t =
     | Op
-    | Pre
-    | Post
-    | Bin;
+    | Pre(Precedence.t)
+    | Post(Precedence.t)
+    | Bin(Precedence.t);
 };
 
 module Sorts = {
@@ -20,12 +20,11 @@ module Sorts = {
 
 [@deriving sexp]
 type t = {
-  precedence: Precedence.t,
   shape: Shape.t,
   sorts: Sorts.t,
 };
 
-let mk_op = sorts => {sorts, shape: Op, precedence: Precedence.max};
-let mk_pre = (precedence, sorts) => {sorts, precedence, shape: Pre};
-let mk_post = (precedence, sorts) => {sorts, precedence, shape: Post};
-let mk_bin = (precedence, sorts) => {sorts, precedence, shape: Bin};
+let mk_op = sorts => {sorts, shape: Op};
+let mk_pre = (p, sorts) => {sorts, shape: Pre(p)};
+let mk_post = (p, sorts) => {sorts, shape: Post(p)};
+let mk_bin = (p, sorts) => {sorts, shape: Bin(p)};
