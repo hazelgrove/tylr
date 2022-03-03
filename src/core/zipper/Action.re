@@ -5,9 +5,9 @@ open Zipper;
 type t =
   | Move(Direction.t)
   | Select(Direction.t)
-  | Remove
-  // `Insert(d, form)` constructs `form` starting from `d` side
-  | Insert(Direction.t, Label.t)
+  | Destruct
+  // `Construct(d, form)` constructs `form` starting from `d` side
+  | Construct(Direction.t, Label.t)
   | Pick_up
   | Put_down;
 
@@ -46,28 +46,24 @@ module Result = {
 //     Ok((cleared, {...z, relatives}));
 //   };
 
-// unselect current selection and move caret to
-// desired end of former selection if possible
-// (not possible if doing so would violate ordering
-// between shards up and shards down)
-let unselect = (d: Direction.t, z: Zipper.t): option(Zipper.t) =>
-  if (d == z.selection.focus
-      && !Selection.is_balanced(z.selection)
-      && !Backpack.is_balanced(z.backpack)) {
-    None;
-  } else {
-    let relatives =
-      z.relatives
-      |> Relatives.prepend(d, z.selection.content)
-      |> Relatives.reassemble;
-    let selection = Selection.clear(z.selection);
-    Some({...z, selection, relatives});
-  };
-
 let move = (d: Direction.t, z: Zipper.t): option(Zipper.t) =>
   if (!Selection.is_empty(z.selection)) {
-    // todo: make unselect not reassemble
-    unselect(d, z);
+    // unselect current selection and move caret to
+    // desired end of former selection if possible
+    // (not possible if doing so would violate ordering
+    // between shards up and shards down)
+    d == z.selection.focus
+    && !Selection.is_balanced(z.selection)
+    && !Backpack.is_balanced(z.backpack)
+      ? None
+      : Some(
+          z
+          |> Zipper.put_selection({
+               ...z.selection,
+               focus: Direction.toggle(d),
+             })
+          |> Zipper.unselect,
+        );
   } else if (Backpack.is_balanced(z.backpack)) {
     open OptUtil.Syntax;
     let+ (piece, relatives) = Relatives.split_piece(d, z.relatives);
@@ -112,7 +108,7 @@ let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
     let selection =
       selection
       |> Selection.push(Tile.of_piece(piece))
-      |> Selection.map_content(Tiles.reassemble);
+      |> Selection.map(Tiles.reassemble);
     {...z, selection, relatives};
   };
   if (d == z.selection.focus) {
@@ -130,58 +126,67 @@ let select = (d: Direction.t, z: Zipper.t): option(Zipper.t) => {
   };
 };
 
-let remove = (z: Zipper.t): Zipper.t => {
+let destruct = (z: Zipper.t): Zipper.t => {
   let (selected, z) = Zipper.remove_selection(z);
   let (to_pick_up, to_remove) =
     Tiles.shards(selected)
     |> List.partition(shard =>
          Siblings.contains_matching(shard, z.relatives.siblings)
-       )
-    |> PairUtil.map_fst(List.map(Tiles.of_shard));
+       );
   let backpack =
     z.backpack
-    |> Backpack.remove(to_remove)
-    |> Backpack.pick_up(z.selection.focus, to_pick_up);
+    |> Backpack.remove_matching(to_remove)
+    |> Backpack.push_s(
+         to_pick_up
+         |> List.map(Tiles.of_shard)
+         |> List.map(Selection.mk(z.selection.focus)),
+       );
   {...z, backpack};
 };
 
 let pick_up = (z: Zipper.t): Zipper.t => {
   let (selected, z) = Zipper.remove_selection(z);
-  let tiles = Aba.get_a(Tiles.split_by_grout(selected));
-  let backpack = Backpack.pick_up(z.selection.focus, tiles, z.backpack);
+  let selections =
+    selected
+    |> Tiles.split_by_grout
+    |> Aba.get_a
+    |> List.map(Selection.mk(z.selection.focus));
+  let backpack =
+    Backpack.push_s(
+      (z.selection.focus == Left ? Fun.id : List.rev)(selections),
+      z.backpack,
+    );
   {...z, backpack};
 };
 
 let put_down = (z: Zipper.t): Result.t(Zipper.t) => {
   open Util.Result.Syntax;
-  let+ (put_down, backpack) =
-    z.backpack
-    |> Backpack.put_down(z.selection.focus)
-    |> Util.Result.of_option(~error=Failure.Nothing_to_put_down);
-  remove({...z, backpack})
-  |> Zipper.put_selection({...z.selection, content: put_down})
+  let+ (popped, backpack) =
+    Result.of_option(
+      ~error=Failure.Nothing_to_put_down,
+      Backpack.pop(z.backpack),
+    );
+  destruct({...z, backpack})
+  |> Zipper.put_selection(popped)
   |> Zipper.insert_selection;
 };
-let rec put_down_all = (z: Zipper.t): Result.t(Zipper.t) =>
-  switch (put_down(z)) {
-  | Error(Nothing_to_put_down) => Ok(z)
-  | Error(_) as r => r
-  | Ok(z) => put_down_all(z)
-  };
+// let rec put_down_all = (z: Zipper.t): Result.t(Zipper.t) =>
+//   switch (put_down(z)) {
+//   | Error(Nothing_to_put_down) => Ok(z)
+//   | Error(_) as r => r
+//   | Ok(z) => put_down_all(z)
+//   };
 
-let insert =
-    (d: Direction.t, label: Label.t, z: Zipper.t): Result.t(Zipper.t) => {
-  open Util.Result.Syntax;
-  let* z =
-    d != z.selection.focus && !Backpack.is_balanced(z.backpack)
-      ? put_down_all(z) : Ok(z);
+let construct =
+    (side: Direction.t, label: Label.t, z: Zipper.t): Result.t(Zipper.t) => {
   let (id, id_gen) = IdGen.next(z.id_gen);
   let mold = Relatives.default_mold(label, z.relatives);
   let to_pick_up =
-    List.map(Tiles.of_shard, Shard.s_of_tile(id, mold, label));
-  let selection = {...z.selection, focus: d};
-  let backpack = Backpack.pick_up(d, to_pick_up, z.backpack);
-  put_down({...z, id_gen, selection, backpack});
+    Shard.s_of_tile(id, mold, label)
+    |> List.map(Tiles.of_shard)
+    |> List.map(Selection.mk(side));
+  let backpack = Backpack.push_s(to_pick_up, z.backpack);
+  put_down({...z, id_gen, backpack});
 };
 
 let perform = (a: t, zipper: Zipper.t): Result.t(Zipper.t) =>
@@ -189,8 +194,8 @@ let perform = (a: t, zipper: Zipper.t): Result.t(Zipper.t) =>
   | Move(d) => Result.of_option(~error=Failure.Cant_move, move(d, zipper))
   | Select(d) =>
     Result.of_option(~error=Failure.Cant_move, select(d, zipper))
-  | Remove => Ok(remove(zipper))
-  | Insert(d, form) => insert(d, form, zipper)
+  | Destruct => Ok(destruct(zipper))
+  | Construct(side, form) => construct(side, form, zipper)
   | Pick_up => Ok(pick_up(zipper))
   | Put_down => put_down(zipper)
   };

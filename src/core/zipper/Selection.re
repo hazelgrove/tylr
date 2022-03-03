@@ -4,10 +4,9 @@ type t = {
   content: Tiles.t,
 };
 
-let map_content = (f, selection) => {
-  ...selection,
-  content: f(selection.content),
-};
+let mk = (focus, content) => {focus, content};
+
+let map = (f, sel) => {...sel, content: f(sel.content)};
 
 let toggle_focus = selection => {
   ...selection,

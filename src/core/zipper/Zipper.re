@@ -1,3 +1,5 @@
+open Util;
+
 [@deriving sexp]
 type t = {
   id_gen: IdGen.t,
@@ -6,6 +8,21 @@ type t = {
   relatives: Relatives.t,
 };
 
+let unselect = (z: t): t => {
+  let relatives =
+    z.relatives
+    |> Relatives.prepend(
+         Direction.toggle(z.selection.focus),
+         z.selection.content,
+       )
+    |> Relatives.reassemble;
+  let selection = Selection.clear(z.selection);
+  {...z, selection, relatives};
+};
+
+/**
+ * TODO connect selection to relatives
+ */
 let put_selection = (selection, z) => {...z, selection};
 
 let insert_selection = (z: t): t => {

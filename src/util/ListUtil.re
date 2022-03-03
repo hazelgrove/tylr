@@ -160,12 +160,6 @@ let rec put_nth = (n: int, x: 'x, xs: list('x)): list('x) =>
     [hd, ...tl];
   };
 
-let split_first_opt = (xs: list('x)) =>
-  switch (xs) {
-  | [] => None
-  | [x, ...xs] => Some((x, xs))
-  };
-
 let rec split_last_opt = (xs: list('x)): option((list('x), 'x)) =>
   switch (xs) {
   | [] => None
@@ -183,11 +177,14 @@ let split_last = (xs: list('x)): (list('x), 'x) =>
   };
 let leading = xs => fst(split_last(xs));
 
-let split_first = (xs: list('x)): ('x, list('x)) =>
+let split_first_opt = (xs: list('x)): option(('x, list('x))) =>
   switch (xs) {
-  | [] => raise(Invalid_argument("ListUtil.split_first"))
-  | [first, ...trailing] => (first, trailing)
+  | [] => None
+  | [first, ...trailing] => Some((first, trailing))
   };
+let split_first = xs =>
+  split_first_opt(xs)
+  |> OptUtil.get_or_raise(Invalid_argument("ListUtil.split_first"));
 
 let rec fold_left_map =
         (f: ('acc, 'x) => ('acc, 'y), start: 'acc, xs: list('x))
