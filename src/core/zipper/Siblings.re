@@ -9,6 +9,26 @@ module Affix = {
   let split_nearest_grouts = (_: Direction.t, _: t) =>
     failwith("todo split_nearest_grouts");
 
+  let pop = (side: Direction.t, affix: t): option((Piece.t, t)) =>
+    switch (affix) {
+    | [] => None
+    | [tile, ...affix] =>
+      let (p, affix') = Tile.pop(Direction.toggle(side), tile);
+      Some((p, Tiles.concat([affix', affix])));
+    };
+
+  let pop_balanced = (side: Direction.t, affix: t): option((Tile.t, t)) =>
+    switch (affix) {
+    | [] => None
+    | [Intact(_) as tile, ...affix] => Some((tile, affix))
+    | [Pieces(_) as tile, ...affix] =>
+      let (p, affix') = Tile.pop(Direction.toggle(side), tile);
+      switch (p) {
+      | Shard(_) => None
+      | Grout(_) => Some((Tile.of_piece(p), Tiles.concat([affix', affix])))
+      };
+    };
+
   // let sort_stacks = (d: Direction.t, affix: t): (Sort.Stack.t, Sort.Stack.t) => {
   //   let (pushed, popped) =
   //     Tiles.fold_right(
@@ -145,8 +165,6 @@ let empty = (Affix.empty, Affix.empty);
 
 let push_tile = (_, _, _) => failwith("todo cons");
 let prepend = (_: Direction.t, _, _) => failwith("todo prepend");
-let pop = (_, _) => failwith("todo pop");
-let pop_tile = (_, _): option((Tile.t, t)) => failwith("todo pop_tile");
 
 let concat = _ => failwith("todo concat");
 
@@ -165,21 +183,6 @@ let orient = (d: Direction.t, (prefix, suffix): t): t =>
   | Right => (suffix, prefix)
   };
 let unorient = orient;
-
-// let split_end = (d: Direction.t, tile: Tile.t): (Tile.t, t) => {
-//   let (shard, rest) = Aba.split_end(d, tile.substance);
-//   open OptUtil.Syntax;
-//   let (front, back) = orient(d, affixes);
-//   let+ (piece, front) = Affix.split_hd(front);
-//   (piece, unorient(d, (front, back)));
-// };
-
-let split_hd = (d: Direction.t, affixes: t): option((Tile.t, t)) => {
-  open OptUtil.Syntax;
-  let (front, back) = orient(d, affixes);
-  let+ (piece, front) = Affix.split_hd(front);
-  (piece, unorient(d, (front, back)));
-};
 
 let sort: t => Sort.t = _ => failwith("todo Siblings.sort");
 
@@ -219,3 +222,17 @@ let split_grouts = ((prefix, suffix): t): (Grouts.Frame.t, t) => {
 //   Affix.sort_stack(Left, prefix),
 //   Affix.sort_stack(Right, suffix),
 // );
+
+let pop = (from: Direction.t, sibs: t): option((Piece.t, t)) => {
+  open OptUtil.Syntax;
+  let (front, back) = orient(from, sibs);
+  let+ (p, front) = Affix.pop(from, front);
+  (p, unorient(from, (front, back)));
+};
+
+let pop_balanced = (from: Direction.t, sibs: t): option((Tile.t, t)) => {
+  open OptUtil.Syntax;
+  let (front, back) = orient(from, sibs);
+  let+ (tile, front) = Affix.pop_balanced(from, front);
+  (tile, unorient(from, (front, back)));
+};

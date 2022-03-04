@@ -93,6 +93,8 @@ let rec split = (tiles: s): option((s, Grout.t, s)) =>
 
 let unique_mold = _ => failwith("todo unique_mold");
 
+let pop = (_, _): (Piece.t, s) => failwith("todo pop");
+
 // note: assumes input shards are matching and in order,
 // and that overall substance is connected
 let mk =

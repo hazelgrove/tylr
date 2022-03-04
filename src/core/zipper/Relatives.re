@@ -41,44 +41,22 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
 //   Siblings.pop(d, relatives.siblings);
 
 let pop_balanced = (from: Direction.t, rs: t): option((Tile.t, t)) =>
-  switch (Siblings.pop_tile(from, rs.siblings)) {
-  | Some((Intact(_) as tile, siblings)) => Some((tile, {...rs, siblings}))
-  | Some((Pieces(_) as tile, siblings)) =>
-    let (p, siblings') = Tile.split_piece(Direction.toggle(from), tile);
-    switch (p) {
-    | Shard(_) => None
-    | Grout(_) =>
-      let siblings = Siblings.concat([siblings', siblings]);
-      Some((Tile.of_piece(p), {...rs, siblings}));
-    };
+  switch (Siblings.pop(from, rs.siblings)) {
+  | Some(_) =>
+    open OptUtil.Syntax;
+    let+ (tile, siblings) = Siblings.pop_balanced(from, rs.siblings);
+    (tile, {...rs, siblings});
   | None =>
     switch (rs.ancestors) {
     | [] => None
     | [(ancestor, siblings), ...ancestors] =>
       open OptUtil.Syntax;
       let siblings' = Ancestor.disassemble(ancestor);
-      let+ (p, siblings) =
-        Siblings.(pop(from, concat([siblings', siblings])));
-      (Tile.of_piece(p), {siblings, ancestors});
+      let+ (tile, siblings) =
+        Siblings.(pop_balanced(from, concat([siblings', siblings])));
+      (tile, {siblings, ancestors});
     }
   };
-
-let split_hd =
-    (d: Direction.t, {siblings, ancestors}: t): option((Tile.t, t)) => {
-  switch (Siblings.split_hd(d, siblings)) {
-  | Some((tile, siblings)) => Some((tile, {siblings, ancestors}))
-  | None =>
-    switch (ancestors) {
-    | [] => None
-    | [(ancestor, siblings''), ...ancestors] =>
-      open OptUtil.Syntax;
-      let siblings' = Ancestor.disassemble(ancestor);
-      let+ (piece, siblings) =
-        Siblings.(split_hd(d, concat([siblings, siblings', siblings''])));
-      (piece, {siblings, ancestors});
-    }
-  };
-};
 
 let reassemble = _ => failwith("todo reassemble");
 
