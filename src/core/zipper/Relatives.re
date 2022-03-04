@@ -8,12 +8,11 @@ type t = {
 
 let empty = {siblings: Siblings.empty, ancestors: Ancestors.empty};
 
-let cons = (d: Direction.t, tile: Tile.t, relatives: t): t => {
-  ...relatives,
-  siblings: Siblings.cons(d, tile, relatives.siblings),
+let push_tile = (d: Direction.t, tile: Tile.t, rs: t): t => {
+  ...rs,
+  siblings: Siblings.push_tile(d, tile, rs.siblings),
 };
-let cons_piece = (d, piece, relatives) =>
-  cons(d, Tile.of_piece(piece), relatives);
+let push = (d, p, rs) => push_tile(d, Tile.of_piece(p), rs);
 
 let cat = (_, _) => failwith("todo cat + better name");
 
@@ -24,24 +23,45 @@ let prepend = (d: Direction.t, tiles, rs: t) => {
 
 let nibs = _ => failwith("todo nibs");
 
-let split_piece =
-    (d: Direction.t, {siblings, ancestors}: t): option((Piece.t, t)) =>
-  switch (Siblings.split_piece(d, siblings)) {
-  | Some((piece, siblings)) => Some((piece, {siblings, ancestors}))
+let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
+  switch (Siblings.pop(d, rs.siblings)) {
+  | Some((p, siblings)) => Some((p, {...rs, siblings}))
   | None =>
-    switch (ancestors) {
+    switch (rs.ancestors) {
     | [] => None
-    | [(ancestor, siblings''), ...ancestors] =>
+    | [(ancestor, siblings), ...ancestors] =>
       open OptUtil.Syntax;
       let siblings' = Ancestor.disassemble(ancestor);
-      let+ (piece, siblings) =
-        Siblings.(split_piece(d, concat([siblings, siblings', siblings''])));
-      (piece, {siblings, ancestors});
+      let+ (p, siblings) = Siblings.(pop(d, concat([siblings, siblings'])));
+      (p, {siblings, ancestors});
     }
   };
 
-let split_tile = (d, relatives): option((Tile.t, t)) =>
-  Siblings.split_tile(d, relatives.siblings);
+// let split_tile = (d, relatives): option((Tile.t, t)) =>
+//   Siblings.pop(d, relatives.siblings);
+
+let pop_balanced = (from: Direction.t, rs: t): option((Tile.t, t)) =>
+  switch (Siblings.pop_tile(from, rs.siblings)) {
+  | Some((Intact(_) as tile, siblings)) => Some((tile, {...rs, siblings}))
+  | Some((Pieces(_) as tile, siblings)) =>
+    let (p, siblings') = Tile.split_piece(Direction.toggle(from), tile);
+    switch (p) {
+    | Shard(_) => None
+    | Grout(_) =>
+      let siblings = Siblings.concat([siblings', siblings]);
+      Some((Tile.of_piece(p), {...rs, siblings}));
+    };
+  | None =>
+    switch (rs.ancestors) {
+    | [] => None
+    | [(ancestor, siblings), ...ancestors] =>
+      open OptUtil.Syntax;
+      let siblings' = Ancestor.disassemble(ancestor);
+      let+ (p, siblings) =
+        Siblings.(pop(from, concat([siblings', siblings])));
+      (Tile.of_piece(p), {siblings, ancestors});
+    }
+  };
 
 let split_hd =
     (d: Direction.t, {siblings, ancestors}: t): option((Tile.t, t)) => {

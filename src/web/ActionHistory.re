@@ -4,7 +4,7 @@ open Core;
 type timestamp = float;
 
 type t = {
-  succeeded: Aba.Frame.A.t(Zipper.t, Action.t),
+  succeeded: Aba.Frame.A.t(Zipper.t, Zipper.Action.t),
   just_failed: option(FailedInput.t),
   // TODO(d): forgetting why we need this...
   // not seeing it get read anywhere. possibly
@@ -34,7 +34,7 @@ let just_failed = (reason: FailedInput.reason, history: t) => {
 let unrecognized_input = just_failed(Unrecognized);
 let failure = f => just_failed(Failure(f));
 
-let succeeded = (a: Action.t, zipper: Zipper.t, history: t) => {
+let succeeded = (a: Zipper.Action.t, zipper: Zipper.t, history: t) => {
   let (before, _) = history.succeeded;
   {
     succeeded: ([(a, zipper), ...before], []),

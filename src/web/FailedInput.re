@@ -4,7 +4,7 @@ open Core;
 [@deriving sexp]
 type reason =
   | Unrecognized
-  | Failure(Action.Failure.t);
+  | Failure(Zipper.Action.Failure.t);
 
 [@deriving sexp]
 type t = {

@@ -143,10 +143,10 @@ let empty = (Affix.empty, Affix.empty);
 //   ((grouts_l, grouts_r), (near_l, near_r));
 // };
 
-let cons = (_, _, _) => failwith("todo cons");
+let push_tile = (_, _, _) => failwith("todo cons");
 let prepend = (_: Direction.t, _, _) => failwith("todo prepend");
-let split_piece = (_, _) => failwith("todo splti_piece");
-let split_tile = (_, _) => failwith("todo split_tile");
+let pop = (_, _) => failwith("todo pop");
+let pop_tile = (_, _): option((Tile.t, t)) => failwith("todo pop_tile");
 
 let concat = _ => failwith("todo concat");
 

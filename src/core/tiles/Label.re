@@ -4,3 +4,5 @@ open Sexplib.Std;
 type t = list(Token.t);
 
 let len: t => int = List.length;
+
+exception Empty_label;

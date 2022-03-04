@@ -80,6 +80,8 @@ let disassemble = (tile: t): s =>
     |> List.concat;
   };
 
+let split_piece = (_, _): (Piece.t, _) => failwith("todo split_piece");
+
 let rec split = (tiles: s): option((s, Grout.t, s)) =>
   switch (tiles) {
   | [] => None

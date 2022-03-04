@@ -6,7 +6,7 @@ open Core;
 type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
-  | PerformAction(Action.t)
+  | PerformAction(Zipper.Action.t)
   | FailedInput(FailedInput.reason)
   | Undo
   | Redo
