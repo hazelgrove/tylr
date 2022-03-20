@@ -1,6 +1,4 @@
-open Sexplib.Std;
-
-[@deriving sexp]
+[@deriving show]
 type t = list(Selection.t);
 
 let empty = [];
@@ -18,11 +16,11 @@ let left_to_right: t => list(Selection.t) =
 let is_balanced = (bp: t) =>
   left_to_right(bp)
   |> List.map((s: Selection.t) => s.content)
-  |> Tiles.concat
-  |> Tiles.reassemble
-  |> Tiles.is_intact;
+  |> Segment.concat
+  |> Segment.reassemble
+  |> Segment.is_balanced;
 
-let push = List.cons;
+let push = sel => Selection.is_empty(sel) ? Fun.id : List.cons(sel);
 
 let push_s: (list(Selection.t), t) => t = List.fold_right(push);
 
@@ -32,7 +30,7 @@ let remove_matching = (ss: list(Shard.t), bp: t) =>
   List.fold_left(
     (bp, s) =>
       bp
-      |> List.map(Selection.map(Tiles.remove_matching(s)))
+      |> List.map(Selection.map(Segment.remove_matching(s)))
       |> List.filter_map(
            fun
            | Selection.{content: [], _} => None

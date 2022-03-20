@@ -1,14 +1,14 @@
 open Util;
 
-[@deriving sexp]
+[@deriving show]
 type t = {
   focus: Direction.t,
-  content: Tiles.t,
+  content: Segment.t,
 };
 
 let mk = (focus, content) => {focus, content};
 
-let empty = mk(Left, Tiles.empty);
+let empty = mk(Left, Segment.empty);
 
 let map = (f, sel) => {...sel, content: f(sel.content)};
 
@@ -19,17 +19,16 @@ let toggle_focus = selection => {
 
 let is_balanced = _ => failwith("todo Selection.is_balanced");
 
-let is_empty = (selection: t) => selection.content == Tiles.empty;
+let is_empty = (selection: t) => selection.content == Segment.empty;
 
-let clear = (selection: t) => {...selection, content: Tiles.empty};
+let clear = (selection: t) => {...selection, content: Segment.empty};
 
 let push = (p: Piece.t, {focus, content}: t): t => {
-  let tile = Tile.of_piece(p);
   let content =
-    Tiles.reassemble(
+    Segment.reassemble(
       switch (focus) {
-      | Left => Tiles.cons(tile, content)
-      | Right => Tiles.snoc(content, tile)
+      | Left => Segment.cons(p, content)
+      | Right => Segment.snoc(content, p)
       },
     );
   {focus, content};
@@ -39,8 +38,8 @@ let pop = (sel: t): option((Piece.t, t)) =>
   switch (sel.focus, sel.content, ListUtil.split_last_opt(sel.content)) {
   | (_, [], _)
   | (_, _, None) => None
-  | (Left, [_, ..._], _)
-  | (Right, _, Some((_, _))) => failwith("todo pop")
+  | (Left, [p, ...content], _)
+  | (Right, _, Some((content, p))) => Some((p, {...sel, content}))
   };
 
 // let trim = (_selection: t): (t, Grouts.Frame.t) =>

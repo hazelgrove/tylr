@@ -1,19 +1,17 @@
-open Sexplib.Std;
-
-[@deriving sexp]
+[@deriving show]
 type piece_step = int;
-[@deriving sexp]
+[@deriving show]
 type caret_step = int;
 
-[@deriving sexp]
+[@deriving show]
 type two_step = (piece_step, ChildStep.t);
-[@deriving sexp]
+[@deriving show]
 type steps = list(two_step);
 
-[@deriving sexp]
+[@deriving show]
 type t = (steps, caret_step);
 
-[@deriving sexp]
+[@deriving show]
 type range = (steps, (caret_step, caret_step));
 
 // let rec mk_steps = (~steps=[], frame: Zipper.Frame.t): steps => {

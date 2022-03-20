@@ -1,7 +1,5 @@
-open Sexplib.Std;
-
 // make an enum
-[@deriving sexp]
+[@deriving show]
 type t = string;
 
 let is_var = token => Re.Str.string_match(Re.Str.regexp("[a-z]"), token, 0);

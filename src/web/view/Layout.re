@@ -1,15 +1,14 @@
-open Sexplib.Std;
 open Util;
 open Core;
 
 // TODO: get rid of these and better organize
 // types around new mold/nib model
-[@deriving sexp]
+[@deriving show]
 type tip_shape = (Nib.t, int);
-[@deriving sexp]
+[@deriving show]
 type piece_shape = (tip_shape, tip_shape);
 
-[@deriving sexp]
+[@deriving show]
 type t =
   | Text(string)
   | Cat(t, t)

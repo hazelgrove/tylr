@@ -1,12 +1,11 @@
-open Sexplib.Std;
 open Core;
 
-[@deriving sexp]
+[@deriving show]
 type reason =
   | Unrecognized
   | Failure(Zipper.Action.Failure.t);
 
-[@deriving sexp]
+[@deriving show]
 type t = {
   reason,
   prior_attempts: int,

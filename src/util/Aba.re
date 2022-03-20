@@ -1,10 +1,8 @@
-open Sexplib.Std;
-
 module rec Aba: {
   /**
    * An odd-length list of elements with alternating types
    */
-  [@deriving sexp]
+  [@deriving show]
   type t('a, 'b) = ('a, Baba.t('b, 'a));
 
   let hd: t('a, _) => 'a;
@@ -40,7 +38,7 @@ module rec Aba: {
   /**
    * An odd-length list of elements with alternating types
    */
-  [@deriving sexp]
+  [@deriving show]
   type t('a, 'b) = ('a, Baba.t('b, 'a));
 
   let hd = fst;
@@ -134,7 +132,7 @@ and Baba: {
   /**
    * An even-length list of elements with alternating types
    */
-  [@deriving sexp]
+  [@deriving show]
   type t('b, 'a) = list(('b, 'a));
 
   let cons: ('b, Aba.t('a, 'b)) => t('b, 'a);
@@ -152,7 +150,7 @@ and Baba: {
   /**
    * An even-length list of elements with alternating types
    */
-  [@deriving sexp]
+  [@deriving show]
   type t('b, 'a) = list(('b, 'a));
 
   let cons = (b: 'b, (a, baba): Aba.t('a, 'b)) => [(b, a), ...baba];
@@ -186,12 +184,12 @@ and Baba: {
 
 module Frame = {
   module A = {
-    [@deriving sexp]
+    [@deriving show]
     type t('a, 'b) = (Baba.t('b, 'a), Baba.t('b, 'a));
   };
 
   module B = {
-    [@deriving sexp]
+    [@deriving show]
     type t('a, 'b) = (Aba.t('a, 'b), Aba.t('a, 'b));
 
     let fill = (b: 'b, (aba_pre, aba_suf): t('a, 'b)) => {

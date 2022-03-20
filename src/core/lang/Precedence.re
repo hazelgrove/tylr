@@ -1,10 +1,9 @@
-open Sexplib.Std;
 open Util;
 
 /**
  * higher precedence means lower int representation
  */
-[@deriving sexp]
+[@deriving show]
 type t = int;
 
 let max: t = 0;

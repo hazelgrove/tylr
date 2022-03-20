@@ -1,4 +1,3 @@
-open Sexplib.Std;
 open Util;
 open Core;
 open OptUtil.Syntax;
@@ -16,7 +15,7 @@ open OptUtil.Syntax;
  * (see `Layout.t`) and contains relative paths to
  * decorations of the layout
  */
-[@deriving sexp]
+[@deriving show]
 type t = {
   // TODO rename to anchors
   caret: option(Path.range),

@@ -1,8 +1,7 @@
-open Sexplib.Std;
 open OptUtil.Syntax;
 
 // heads of prefix and suffix neighbor the subject
-[@deriving sexp]
+[@deriving show]
 type t('x) = (list('x), list('x));
 
 let rec mk_opt = (n: int, xs: list('x)): option(t('x)) =>

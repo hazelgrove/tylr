@@ -1,12 +1,9 @@
-open Sexplib.Std;
-
-[@deriving sexp]
+[@deriving show]
 type t = list((Ancestor.t, Siblings.t));
 
 let empty = [];
 
-let rec sort: t => Sort.t =
+let sort =
   fun
-  | [] => Sort.Exp
-  | [(Intact(ancestor), _), ..._] => Ancestor.Intact.sort(ancestor)
-  | [(Pieces(_), _), ...ancestors] => sort(ancestors);
+  | [] => Sort.root
+  | [(a, _), ..._] => Ancestor.sort(a);

@@ -1,7 +1,6 @@
-open Sexplib.Std;
 open Util;
 
-[@deriving sexp]
+[@deriving show]
 type t =
   | Op(int)
   | Pre(int, t)

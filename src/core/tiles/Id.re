@@ -1,7 +1,5 @@
-open Sexplib.Std;
-
 module T = {
-  [@deriving sexp]
+  [@deriving show]
   type t = int;
   let compare = Int.compare;
 };

@@ -1,6 +1,6 @@
 open Util;
 
-[@deriving sexp]
+[@deriving show]
 type t = {
   siblings: Siblings.t,
   ancestors: Ancestors.t,
@@ -8,11 +8,10 @@ type t = {
 
 let empty = {siblings: Siblings.empty, ancestors: Ancestors.empty};
 
-let push_tile = (d: Direction.t, tile: Tile.t, rs: t): t => {
+let push = (d: Direction.t, p: Piece.t, rs: t): t => {
   ...rs,
-  siblings: Siblings.push_tile(d, tile, rs.siblings),
+  siblings: Siblings.push(d, p, rs.siblings),
 };
-let push = (d, p, rs) => push_tile(d, Tile.of_piece(p), rs);
 
 let cat = (_, _) => failwith("todo cat + better name");
 
@@ -23,40 +22,40 @@ let prepend = (d: Direction.t, tiles, rs: t) => {
 
 let nibs = _ => failwith("todo nibs");
 
-let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
-  switch (Siblings.pop(d, rs.siblings)) {
+let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
+  switch (Siblings.pop(~balanced, d, rs.siblings)) {
   | Some((p, siblings)) => Some((p, {...rs, siblings}))
   | None =>
     switch (rs.ancestors) {
-    | [] => None
-    | [(ancestor, siblings), ...ancestors] =>
+    | [(ancestor, siblings), ...ancestors] when !balanced =>
       open OptUtil.Syntax;
       let siblings' = Ancestor.disassemble(ancestor);
       let+ (p, siblings) = Siblings.(pop(d, concat([siblings, siblings'])));
       (p, {siblings, ancestors});
+    | _ => None
     }
   };
 
 // let split_tile = (d, relatives): option((Tile.t, t)) =>
 //   Siblings.pop(d, relatives.siblings);
 
-let pop_balanced = (from: Direction.t, rs: t): option((Tile.t, t)) =>
-  switch (Siblings.pop(from, rs.siblings)) {
-  | Some(_) =>
-    open OptUtil.Syntax;
-    let+ (tile, siblings) = Siblings.pop_balanced(from, rs.siblings);
-    (tile, {...rs, siblings});
-  | None =>
-    switch (rs.ancestors) {
-    | [] => None
-    | [(ancestor, siblings), ...ancestors] =>
-      open OptUtil.Syntax;
-      let siblings' = Ancestor.disassemble(ancestor);
-      let+ (tile, siblings) =
-        Siblings.(pop_balanced(from, concat([siblings', siblings])));
-      (tile, {siblings, ancestors});
-    }
-  };
+// let pop_balanced = (from: Direction.t, rs: t): option((Tile.t, t)) =>
+//   switch (Siblings.pop(from, rs.siblings)) {
+//   | Some(_) =>
+//     open OptUtil.Syntax;
+//     let+ (tile, siblings) = Siblings.pop_balanced(from, rs.siblings);
+//     (tile, {...rs, siblings});
+//   | None =>
+//     switch (rs.ancestors) {
+//     | [] => None
+//     | [(ancestor, siblings), ...ancestors] =>
+//       open OptUtil.Syntax;
+//       let siblings' = Ancestor.disassemble(ancestor);
+//       let+ (tile, siblings) =
+//         Siblings.(pop_balanced(from, concat([siblings', siblings])));
+//       (tile, {siblings, ancestors});
+//     }
+//   };
 
 let reassemble = _ => failwith("todo reassemble");
 

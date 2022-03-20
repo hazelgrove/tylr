@@ -1,4 +1,4 @@
-[@deriving sexp]
+[@deriving show]
 type t;
 
 let max: t;

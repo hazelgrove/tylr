@@ -1,30 +1,22 @@
-open Sexplib.Std;
+include Base.Shard;
 
-module Index = {
-  [@deriving sexp]
-  type t = int;
+module Label = {
+  include Label;
+
+  let token = ((n, lbl)) => List.nth(lbl, n);
+
+  let is_next = ((n_l, lbl_l), (n_r, lbl_r)) =>
+    n_l + 1 == n_r && lbl_l == lbl_r;
 };
 
-[@deriving sexp]
-type t = {
-  tile: (Id.t, Label.t),
-  index: Index.t,
-  nibs: Nibs.t,
-};
+let mk = (label: Label.t, nibs: Nibs.t) => {label, nibs};
 
-let label = (shard: t) => List.nth(snd(shard.tile), shard.index);
+let mk_s = (label: Base.Tile.Label.t, mold: Mold.t): list(t) =>
+  label |> List.mapi((i, _) => mk((i, label), Mold.nibs(~index=i, mold)));
 
-let s_of_tile = (_, _, _) => failwith("todo s_of_tile");
+let to_piece = s => Base.Piece.Shard(s);
 
-module Ctx = {
-  type shard = t;
-  type t = Id.Map.t(list(shard));
+let tile_label = s => snd(s.label);
 
-  let lookup = (_, _) => failwith("todo Shard.Ctx.lookup");
-
-  let add = (shard: shard, ctx: t) => {
-    let (id, _) = shard.tile;
-    let shards = [shard, ...lookup(id, ctx)];
-    Id.Map.add(id, shards, ctx);
-  };
-};
+// TODO generalize direction
+let is_next = (l: t, r: t) => Label.is_next(l.label, r.label);

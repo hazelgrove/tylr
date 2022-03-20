@@ -1,5 +1,5 @@
 module Shape = {
-  [@deriving sexp]
+  [@deriving show]
   type t =
     | Convex
     | Concave(Precedence.t);
@@ -18,7 +18,7 @@ module Shape = {
     | Concave(_) => Convex;
 };
 
-[@deriving sexp]
+[@deriving show]
 type t = {
   shape: Shape.t,
   sort: Sort.t,

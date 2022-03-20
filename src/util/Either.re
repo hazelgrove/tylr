@@ -1,4 +1,4 @@
-[@deriving sexp]
+[@deriving show]
 type t('l, 'r) =
   | L('l)
   | R('r);

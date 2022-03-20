@@ -1,6 +1,4 @@
-open Sexplib.Std;
-
-[@deriving sexp]
+[@deriving show]
 type t = {
   atomic: bool,
   color: Color.t,

@@ -1,8 +1,7 @@
-// open Sexplib.Std;
-// open Virtual_dom.Vdom;
+// // open Virtual_dom.Vdom;
 // open Util;
 // open Core;
-// [@deriving sexp]
+// [@deriving show]
 // type t =
 //   | Pointing
 //   | Selecting(Direction.t, Segment.t)

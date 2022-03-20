@@ -1,32 +1,25 @@
 open Util;
 
 module Affix = {
-  [@deriving sexp]
-  type t = Tiles.t;
+  [@deriving show]
+  type t = Segment.t;
 
-  let empty = Tiles.empty;
+  let empty = Segment.empty;
 
   let split_nearest_grouts = (_: Direction.t, _: t) =>
     failwith("todo split_nearest_grouts");
 
-  let pop = (side: Direction.t, affix: t): option((Piece.t, t)) =>
+  let pop =
+      (~balanced: bool, side: Direction.t, affix: t): option((Piece.t, t)) =>
     switch (affix) {
     | [] => None
-    | [tile, ...affix] =>
-      let (p, affix') = Tile.pop(Direction.toggle(side), tile);
-      Some((p, Tiles.concat([affix', affix])));
-    };
-
-  let pop_balanced = (side: Direction.t, affix: t): option((Tile.t, t)) =>
-    switch (affix) {
-    | [] => None
-    | [Intact(_) as tile, ...affix] => Some((tile, affix))
-    | [Pieces(_) as tile, ...affix] =>
-      let (p, affix') = Tile.pop(Direction.toggle(side), tile);
-      switch (p) {
-      | Shard(_) => None
-      | Grout(_) => Some((Tile.of_piece(p), Tiles.concat([affix', affix])))
-      };
+    | [p, ...affix] =>
+      if (balanced) {
+        Piece.is_balanced(p) ? Some((p, affix)) : None;
+      } else {
+        let (p, affix') = Piece.pop(Direction.toggle(side), p);
+        Some((p, Segment.concat([affix', affix])));
+      }
     };
 
   // let sort_stacks = (d: Direction.t, affix: t): (Sort.Stack.t, Sort.Stack.t) => {
@@ -151,7 +144,7 @@ module Affix = {
   let reshape = (_: Direction.t, _, _) => failwith("reshape todo");
 };
 
-[@deriving sexp]
+[@deriving show]
 type t = (Affix.t, Affix.t);
 
 let empty = (Affix.empty, Affix.empty);
@@ -201,14 +194,15 @@ let contains_matching = (_, _) => failwith("todo contains_matching");
 //     |> OptUtil.get_or_fail("Segment.connect: expected at least one remolding");
 //   (insertion, Frame.(concat([of_grouts(grouts), of_tiles(tiles)])));
 // };
-let connect = (~insert as _=empty, _siblings: t, _s: Sort.t) =>
-  failwith("todo connect");
 
-let split_grouts = ((prefix, suffix): t): (Grouts.Frame.t, t) => {
-  let (gs_pre, prefix) = Affix.split_nearest_grouts(Left, prefix);
-  let (gs_suf, suffix) = Affix.split_nearest_grouts(Right, suffix);
-  ((gs_pre, gs_suf), (prefix, suffix));
-};
+// let connect = (~insert as _=empty, _siblings: t, _s: Sort.t) =>
+//   failwith("todo connect");
+
+// let split_grouts = ((prefix, suffix): t): (Grouts.Frame.t, t) => {
+//   let (gs_pre, prefix) = Affix.split_nearest_grouts(Left, prefix);
+//   let (gs_suf, suffix) = Affix.split_nearest_grouts(Right, suffix);
+//   ((gs_pre, gs_suf), (prefix, suffix));
+// };
 
 // regrout around subject
 // let regrout = (siblings: t, s: Sort.t) => {
@@ -223,16 +217,10 @@ let split_grouts = ((prefix, suffix): t): (Grouts.Frame.t, t) => {
 //   Affix.sort_stack(Right, suffix),
 // );
 
-let pop = (from: Direction.t, sibs: t): option((Piece.t, t)) => {
+let pop =
+    (~balanced: bool, from: Direction.t, sibs: t): option((Piece.t, t)) => {
   open OptUtil.Syntax;
   let (front, back) = orient(from, sibs);
-  let+ (p, front) = Affix.pop(from, front);
+  let+ (p, front) = Affix.pop(~balanced, from, front);
   (p, unorient(from, (front, back)));
-};
-
-let pop_balanced = (from: Direction.t, sibs: t): option((Tile.t, t)) => {
-  open OptUtil.Syntax;
-  let (front, back) = orient(from, sibs);
-  let+ (tile, front) = Affix.pop_balanced(from, front);
-  (tile, unorient(from, (front, back)));
 };

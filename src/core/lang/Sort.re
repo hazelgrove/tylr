@@ -1,11 +1,13 @@
 open Util;
 
-[@deriving sexp]
+[@deriving show]
 type t =
   | Pat
   | Exp;
 
 let all = [Pat, Exp];
+
+let root = Exp;
 
 let to_string =
   fun

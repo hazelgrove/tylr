@@ -1,14 +1,22 @@
-[@deriving sexp]
-type t =
-  | Grout(Grout.t)
-  | Shard(Shard.t);
+open Util;
+include Base.Piece;
 
-let sort =
+let is_balanced =
   fun
-  | Grout(g) => g.sort
-  | Shard(_) => failwith("todo sort");
+  | Shard(_) => false
+  | Grout(_)
+  | Tile(_) => true;
 
-let nibs =
-  fun
-  | Grout(g) => g.nibs
-  | Shard(s) => s.nibs;
+let pop = (side: Direction.t, p: t): (t, Base.Segment.t) =>
+  switch (p) {
+  | Tile(t) => Tile.pop(side, t)
+  | Shard(_)
+  | Grout(_) => (p, [])
+  };
+
+let disassemble = (from: Direction.t, p: t): Base.Segment.t =>
+  switch (p) {
+  | Grout(_)
+  | Shard(_) => [p]
+  | Tile(t) => Tile.disassemble(from, t)
+  };

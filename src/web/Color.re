@@ -1,6 +1,6 @@
 open Core;
 
-[@deriving sexp]
+[@deriving show]
 type t =
   | Typ
   | Pat
