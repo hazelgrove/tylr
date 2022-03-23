@@ -24,6 +24,7 @@ let is_balanced = List.for_all(Piece.is_balanced);
 
 let remove_matching = (_, _) => failwith("todo remove_matching");
 
+module Stack = Stack.Make(Orientation.R);
 // TODO use direction parameter
 let reassemble = (seg: t): t =>
   List.fold_right(Stack.push, seg, Stack.init) |> Stack.flatten;

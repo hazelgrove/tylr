@@ -30,7 +30,8 @@ let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
     | [(ancestor, siblings), ...ancestors] when !balanced =>
       open OptUtil.Syntax;
       let siblings' = Ancestor.disassemble(ancestor);
-      let+ (p, siblings) = Siblings.(pop(d, concat([siblings, siblings'])));
+      let+ (p, siblings) =
+        Siblings.(pop(~balanced, d, concat([siblings, siblings'])));
       (p, {siblings, ancestors});
     | _ => None
     }
@@ -61,30 +62,30 @@ let reassemble = _ => failwith("todo reassemble");
 
 let default_mold = (_, _) => failwith("todo default_mold");
 
-let rec disassemble_grouts = (rs: t): t =>
-  switch (rs.ancestors) {
-  | []
-  | [(Intact(_), _), ..._]
-  | [(Pieces(((Shard(_), _), _) | (_, (Shard(_), _))), _), ..._] => rs
-  | [
-      (Pieces(((Grout(_), _), (Grout(_), _))) as ancestor, siblings),
-      ...ancestors,
-    ] =>
-    let siblings =
-      Siblings.concat([
-        Ancestor.disassemble(ancestor),
-        siblings,
-        rs.siblings,
-      ]);
-    disassemble_grouts({siblings, ancestors});
-  };
+// let rec disassemble_grouts = (rs: t): t =>
+//   switch (rs.ancestors) {
+//   | []
+//   | [(Intact(_), _), ..._]
+//   | [(Pieces(((Shard(_), _), _) | (_, (Shard(_), _))), _), ..._] => rs
+//   | [
+//       (Pieces(((Grout(_), _), (Grout(_), _))) as ancestor, siblings),
+//       ...ancestors,
+//     ] =>
+//     let siblings =
+//       Siblings.concat([
+//         Ancestor.disassemble(ancestor),
+//         siblings,
+//         rs.siblings,
+//       ]);
+//     disassemble_grouts({siblings, ancestors});
+//   };
 
 // note: may disassemble ancestors, does not reassemble
-let split_grouts = (relatives: t): (Grouts.Frame.t, t) => {
-  let relatives = disassemble_grouts(relatives);
-  let (gs, siblings) = Siblings.split_grouts(relatives.siblings);
-  (gs, {...relatives, siblings});
-};
+// let split_grouts = (relatives: t): (Grouts.Frame.t, t) => {
+//   let relatives = disassemble_grouts(relatives);
+//   let (gs, siblings) = Siblings.split_grouts(relatives.siblings);
+//   (gs, {...relatives, siblings});
+// };
 
 let remove = (selection: Selection.t, relatives: t): t => {
   switch (Tiles.nibs(selection.content)) {
