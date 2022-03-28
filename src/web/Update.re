@@ -1,7 +1,8 @@
+open Sexplib.Std;
 open Util;
 open Core;
 
-[@deriving show]
+[@deriving sexp]
 type t =
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)

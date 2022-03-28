@@ -10,7 +10,7 @@ module Label = {
   // check if can be moved to Base
   exception Empty_label;
 
-  let len: t => int = List.length;
+  let length: t => int = List.length;
 
   let rev: t => t = List.rev;
 
@@ -56,3 +56,41 @@ let pop = (from: Direction.t, tile: t): (Base.Piece.t, Base.Segment.t) =>
   |> OptUtil.get_or_raise(Empty_disassembly);
 
 let unique_mold = _ => failwith("todo unique_mold");
+
+module Match = {
+  type tile = t;
+
+  module Make = (O: Orientation.S) => {
+    [@deriving show]
+    type t = Aba.t(Shard.t, Base.Segment.t);
+
+    let init = s => (s, []);
+
+    let label = ((hd, _): t) => snd(hd.label);
+
+    let length = m => List.length(Aba.get_a(m));
+
+    let children = Aba.get_b;
+
+    let extend = (s: Shard.t, seg: Base.Segment.t, (hd, tl): t) =>
+      Shard.is_next(O.d, s, hd) ? Some((s, [(seg, hd), ...tl])) : None;
+
+    let flatten = (m: t): Base.Segment.t =>
+      m
+      |> Aba.map_to_list(s => [Base.Piece.Shard(s)], Fun.id)
+      |> List.flatten;
+
+    let complete = (m: t): option(tile) => {
+      let label = label(m);
+      length(m) == Label.length(label)
+        ? Some(
+            Base.Tile.{
+              label,
+              mold: failwith("todo complete"),
+              children: List.map(ListUtil.rev_if(O.d == Left), children(m)),
+            },
+          )
+        : None;
+    };
+  };
+};

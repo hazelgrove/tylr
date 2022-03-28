@@ -88,3 +88,8 @@ let pop =
       (p, (pre, suf));
     }
   );
+
+let reassemble = ((pre, suf): t) => (
+  Prefix.reassemble(pre),
+  Suffix.reassemble(suf),
+);

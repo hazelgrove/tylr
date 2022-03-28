@@ -12,7 +12,7 @@ and Piece: {
 } = Piece
 and Tile: {
   module Label: {
-    [@deriving show]
+    [@deriving (show, sexp)]
     type t = list(Token.t);
   };
 

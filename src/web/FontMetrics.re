@@ -1,5 +1,7 @@
+open Sexplib.Std;
+
 [@warning "-33"]
-[@deriving show]
+[@deriving (show, sexp)]
 type t = {
   row_height: float,
   col_width: float,

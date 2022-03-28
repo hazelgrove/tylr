@@ -2,12 +2,12 @@
 
 (library
  (name core)
- (libraries util re)
+ (libraries util re sexplib)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))
  (preprocess
-  (pps ppx_let ppx_deriving.show)))
+  (pps ppx_let ppx_sexp_conv ppx_deriving.show)))
 
 (rule
  (write-file js-of-ocaml-flags-dev "(:standard --debuginfo --noinline)"))

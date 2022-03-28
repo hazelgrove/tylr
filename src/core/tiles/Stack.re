@@ -1,7 +1,7 @@
 open Util;
 
 module Make = (O: Orientation.S) => {
-  module Match = Match.Make(O);
+  module Match = Tile.Match.Make(O);
 
   [@deriving show]
   type t = Aba.t(Base.Segment.t, Match.t);

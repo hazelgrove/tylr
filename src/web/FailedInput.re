@@ -1,6 +1,6 @@
 open Core;
 
-[@deriving show]
+[@deriving (show, sexp)]
 type reason =
   | Unrecognized
   | Failure(Zipper.Action.Failure.t);

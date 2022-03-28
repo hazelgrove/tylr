@@ -6,6 +6,9 @@ type t = {
   ancestors: Ancestors.t,
 };
 
+module Prefix = Siblings.Prefix;
+module Suffix = Siblings.Suffix;
+
 let empty = {siblings: Siblings.empty, ancestors: Ancestors.empty};
 
 let push = (d: Direction.t, p: Piece.t, rs: t): t => {
@@ -37,107 +40,69 @@ let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
     }
   };
 
-// let split_tile = (d, relatives): option((Tile.t, t)) =>
-//   Siblings.pop(d, relatives.siblings);
+let reassemble = (rs: t) => {
+  let rev = Aba.rev(Fun.id, Fun.id);
 
-// let pop_balanced = (from: Direction.t, rs: t): option((Tile.t, t)) =>
-//   switch (Siblings.pop(from, rs.siblings)) {
-//   | Some(_) =>
-//     open OptUtil.Syntax;
-//     let+ (tile, siblings) = Siblings.pop_balanced(from, rs.siblings);
-//     (tile, {...rs, siblings});
-//   | None =>
-//     switch (rs.ancestors) {
-//     | [] => None
-//     | [(ancestor, siblings), ...ancestors] =>
-//       open OptUtil.Syntax;
-//       let siblings' = Ancestor.disassemble(ancestor);
-//       let+ (tile, siblings) =
-//         Siblings.(pop_balanced(from, concat([siblings', siblings])));
-//       (tile, {siblings, ancestors});
-//     }
-//   };
+  let rec go = ((rev_pre, rev_suf), ancestors) => {
+    let flatten = () => {
+      let pre = Prefix.Stack.flatten(rev(rev_pre));
+      let suf = Suffix.Stack.flatten(rev(rev_suf));
+      {siblings: (pre, suf), ancestors};
+    };
+    let (hd_pre, tl_pre) = rev_pre;
+    let (hd_suf, tl_suf) = rev_suf;
+    switch (tl_pre, tl_suf) {
+    | ([(m_pre, seg_pre), ...tl_pre], [(m_suf, seg_suf), ...tl_suf]) =>
+      switch (Ancestor.Match.complete((m_pre, m_suf))) {
+      | Some(ancestor) =>
+        let rev_pre = (seg_pre, tl_pre);
+        let rev_suf = (seg_suf, tl_suf);
+        let ancestors = [(ancestor, (hd_pre, hd_suf)), ...ancestors];
+        go((rev_pre, rev_suf), ancestors);
+      | None => flatten()
+      }
+    | _ => flatten()
+    };
+  };
 
-let reassemble = _ => failwith("todo reassemble");
+  let (pre, suf) = Siblings.reassemble(rs.siblings);
+  let matched_pre = Prefix.match(pre);
+  let matched_suf = Suffix.match(suf);
+  go((rev(matched_pre), rev(matched_suf)), rs.ancestors);
+};
 
 let default_mold = (_, _) => failwith("todo default_mold");
 
-// let rec disassemble_grouts = (rs: t): t =>
-//   switch (rs.ancestors) {
-//   | []
-//   | [(Intact(_), _), ..._]
-//   | [(Pieces(((Shard(_), _), _) | (_, (Shard(_), _))), _), ..._] => rs
-//   | [
-//       (Pieces(((Grout(_), _), (Grout(_), _))) as ancestor, siblings),
-//       ...ancestors,
-//     ] =>
-//     let siblings =
-//       Siblings.concat([
-//         Ancestor.disassemble(ancestor),
-//         siblings,
-//         rs.siblings,
-//       ]);
-//     disassemble_grouts({siblings, ancestors});
+// let remove = (selection: Selection.t, relatives: t): t => {
+//   switch (Tiles.nibs(selection.content)) {
+//   | None => relatives
+//   | Some(_nibs) =>
+//     let (_gs, rs) = failwith("todo gs rs");
+//     // relatives |> cons_piece(Right, Grout(Grout.mk(nibs))) |> split_grouts;
+//     let gs = failwith("todo gs");
+//     // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
+//     let siblings = Siblings.(concat([of_grouts(gs), rs.siblings]));
+//     reassemble({...rs, siblings});
 //   };
-
-// note: may disassemble ancestors, does not reassemble
-// let split_grouts = (relatives: t): (Grouts.Frame.t, t) => {
-//   let relatives = disassemble_grouts(relatives);
-//   let (gs, siblings) = Siblings.split_grouts(relatives.siblings);
-//   (gs, {...relatives, siblings});
 // };
-
-let remove = (selection: Selection.t, relatives: t): t => {
-  switch (Tiles.nibs(selection.content)) {
-  | None => relatives
-  | Some(_nibs) =>
-    let (_gs, rs) = failwith("todo gs rs");
-    // relatives |> cons_piece(Right, Grout(Grout.mk(nibs))) |> split_grouts;
-    let gs = failwith("todo gs");
-    // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
-    let siblings = Siblings.(concat([of_grouts(gs), rs.siblings]));
-    reassemble({...rs, siblings});
-  };
-};
-
-let insert = ({focus, content}: Selection.t, relatives: t): t =>
-  switch (Tiles.nibs(content)) {
-  | None => relatives
-  | Some(inner) =>
-    let outer = nibs(relatives);
-    let _nibs_l = Nibs.fitting((fst(outer), fst(inner)));
-    let _nibs_r = Nibs.fitting((snd(inner), snd(outer)));
-    let (_gs, rs) = failwith("todo gs, rs");
-    // relatives
-    // |> cons_piece(Left, Grout(Grout.mk(nibs_l)))
-    // |> cons_piece(Right, Grout(Grout.mk(nibs_r)))
-    // |> split_grouts;
-    let gs = failwith("todo gs");
-    // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
-    let siblings =
-      Siblings.(
-        concat([of_grouts(gs), rs.siblings]) |> prepend(focus, content)
-      );
-    reassemble({...rs, siblings});
-  };
-
-// let sort_stack = ({siblings, ancestors}: t): (Sort.t, Sort.Stack.t) => {
-//   let (prefix, _) = siblings;
-//   switch (Siblings.Affix.rev(prefix)) {
-//   |
-//   }
-// }
 
 // let insert = ({focus, content}: Selection.t, relatives: t): t =>
 //   switch (Tiles.nibs(content)) {
 //   | None => relatives
 //   | Some(inner) =>
-
-//   }
-
-// let insert = ({focus: _, content}: Selection.t, relatives: t): t =>
-//   switch (Tiles.nibs(content)) {
-//   | None => relatives
-//   | Some(inner_nibs) =>
-//     let inner_ss = Tiles.min_sort_stacks(content);
-//     let (outer_nibs, outer_ss) = Relatives.sort_stacks(relatives);
+//     let outer = nibs(relatives);
+//     let _nibs_l = Nibs.fitting((fst(outer), fst(inner)));
+//     let _nibs_r = Nibs.fitting((snd(inner), snd(outer)));
+//     let (_gs, rs) = failwith("todo gs, rs");
+//     // relatives
+//     // |> cons_piece(Left, Grout(Grout.mk(nibs_l)))
+//     // |> cons_piece(Right, Grout(Grout.mk(nibs_r)))
+//     // |> split_grouts;
+//     let gs = failwith("todo gs");
+//     // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
+//     let siblings =
+//       Siblings.(
+//         concat([of_grouts(gs), rs.siblings]) |> prepend(focus, content)
+//       );
+//     reassemble({...rs, siblings});
+//   };

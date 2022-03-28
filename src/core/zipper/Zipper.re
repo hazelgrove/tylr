@@ -9,18 +9,18 @@ type t = {
 };
 
 module Action = {
-  [@deriving show]
+  [@deriving (show, sexp)]
   type t =
     | Move(Direction.t)
     | Select(Direction.t)
     | Destruct
     // `Construct(d, lbl)` constructs `lbl` starting from `d` side
-    | Construct(Direction.t, Label.t)
+    | Construct(Direction.t, Tile.Label.t)
     | Pick_up
     | Put_down;
 
   module Failure = {
-    [@deriving show]
+    [@deriving (show, sexp)]
     type t =
       | Cant_move
       | Nothing_to_put_down;
@@ -136,7 +136,7 @@ let put_down = (z: t): option(t) => {
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
-let construct = (from: Direction.t, label: Label.t, z: t): t => {
+let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let z = destruct(z);
   let mold = Relatives.default_mold(label, z.relatives);
   let selections =
@@ -145,7 +145,7 @@ let construct = (from: Direction.t, label: Label.t, z: t): t => {
     |> List.map(Selection.mk(from))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
-  put_down({...z, backpack});
+  Option.get(put_down({...z, backpack}));
 };
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>

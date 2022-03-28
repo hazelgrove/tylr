@@ -24,10 +24,32 @@ let is_balanced = List.for_all(Piece.is_balanced);
 
 let remove_matching = (_, _) => failwith("todo remove_matching");
 
+let split_by_grout = _ => failwith("todo split_by_grout");
+
 module Stack = Stack.Make(Orientation.R);
 // TODO use direction parameter
 let reassemble = (seg: t): t =>
   List.fold_right(Stack.push, seg, Stack.init) |> Stack.flatten;
+
+// let rec remold = (
+//   shard_ctx:
+//   n_l: Nib.t, g_l: option(Grout.t),
+//   seg: t,
+//   g_r: option(Grout.t), n_r: Nib.t,
+// ): t =>
+//   fold_right(
+//     (p, ((g_r, n_r), remolded)) =>
+//       switch (p) {
+//       | Grout(g) =>
+//         // safe to drop g_r bc no-consecutive-grout invariant
+//         ((Some(g), n_r), remolded)
+//       | Shard(s) =>
+
+//       | _ => failwith("todo")
+//       },
+//     seg,
+//     ((g_r, n_r), empty),
+//   );
 
 // let rec remold =
 //     (tiles: t, (l, r): Nibs.t, ctx: Shard.Ctx.t)

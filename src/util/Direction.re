@@ -1,4 +1,4 @@
-[@deriving show]
+[@deriving (show, sexp)]
 type t =
   | Left
   | Right;

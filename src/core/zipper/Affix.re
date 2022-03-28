@@ -8,8 +8,9 @@ module Make = (O: Orientation.S) => {
 
   let empty = Segment.empty;
 
-  let reassemble = (affix: t): t =>
-    List.fold_right(Stack.push, affix, Stack.init) |> Stack.flatten;
+  let match = affix => List.fold_right(Stack.push, affix, Stack.init);
+
+  let reassemble = (affix: t): t => Stack.flatten(match(affix));
 
   let split_nearest_grouts = (_: Direction.t, _: t) =>
     failwith("todo split_nearest_grouts");
