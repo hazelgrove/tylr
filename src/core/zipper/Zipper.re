@@ -1,5 +1,6 @@
 open Util;
 
+// assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
 type t = {
   // id_gen: IdGen.t,
