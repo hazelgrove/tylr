@@ -23,6 +23,11 @@ let sort = (frame: t): Sort.t =>
 //   | Placeholder({substance: (prefix, suffix)}) =>
 //   }
 
+let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
+  let s = a.mold.sorts.out;
+  Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
+};
+
 // [@deriving show]
 // type t = (Tile.Frame.t, Siblings.t);
 

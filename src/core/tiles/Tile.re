@@ -2,6 +2,7 @@ open Util;
 
 exception Empty_disassembly;
 exception Ambiguous_molds;
+exception Invalid_mold;
 
 include Base.Tile;
 
@@ -22,6 +23,12 @@ module Label = {
 };
 
 let to_piece = t => Base.Piece.Tile(t);
+
+let sorted_children = ({mold, children, _}: t) =>
+  switch (List.combine(mold.sorts.in_, children)) {
+  | exception (Invalid_argument(_)) => raise(Invalid_mold)
+  | r => r
+  };
 
 // postcond: output segment is nonempty
 // TODO double shard indices

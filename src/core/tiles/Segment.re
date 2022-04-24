@@ -26,6 +26,31 @@ let remove_matching = (_, _) => failwith("todo remove_matching");
 
 let split_by_grout = _ => failwith("todo split_by_grout");
 
+let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
+  let (s_l', rank) =
+    fold_right(
+      (p: Piece.t, (s, rank)) =>
+        switch (p) {
+        | Grout(_) => (s, rank)
+        | Shard(shard) =>
+          let (n_l, n_r) = shard.nibs;
+          let (s_l, s_r) = (n_l.sort, n_r.sort);
+          (s_l, rank + Bool.to_int(s_r != s));
+        | Tile(tile) =>
+          let s' = tile.mold.sorts.out;
+          let children_ranks =
+            Tile.sorted_children(tile)
+            |> List.map(((s, child)) => sort_rank(child, (s, s)))
+            |> List.fold_left((+), 0);
+          let rank' = rank + children_ranks + Bool.to_int(s != s');
+          (s', rank');
+        },
+      seg,
+      (s_r, 0),
+    );
+  rank + Bool.to_int(s_l != s_l');
+};
+
 module Stack = Stack.Make(Orientation.R);
 // TODO use direction parameter
 let reassemble = (seg: t): t =>

@@ -31,6 +31,8 @@ let reshape = ((prefix, suffix): t, (far_l, far_r): Nibs.t) => {
 
 let sort: t => Sort.t = _ => failwith("todo Siblings.sort");
 
+let sorts: t => (Sort.t, Sort.t) = _ => failwith("todo Silblings.sorts");
+
 let contains_matching = (_, _) => failwith("todo contains_matching");
 
 // let connect = (~insert=empty, affixes: t, s: Sort.t): (t, Frame.t) => {
@@ -93,3 +95,6 @@ let reassemble = ((pre, suf): t) => (
   Prefix.reassemble(pre),
   Suffix.reassemble(suf),
 );
+
+let sort_rank = ((prefix, suffix): t, s: Sort.t) =>
+  Prefix.sort_rank(prefix, s) + Suffix.sort_rank(suffix, s);

@@ -29,6 +29,29 @@ module Make = (O: Orientation.S) => {
       }
     };
 
+  let sort_rank = (affix: t, s: Sort.t) =>
+    Segment.fold_right(
+      (p: Piece.t, (s, rank)) =>
+        switch (p) {
+        | Grout(_) => (s, rank)
+        | Shard(shard) =>
+          let (n_far, n_near) = Nibs.orient(O.d, shard.nibs);
+          let (s_far, s_near) = (n_far.sort, n_near.sort);
+          (s_near, rank + Bool.to_int(s_far != s));
+        | Tile(tile) =>
+          let s' = tile.mold.sorts.out;
+          let children_ranks =
+            Tile.sorted_children(tile)
+            |> List.map(((s, child)) => Segment.sort_rank(child, (s, s)))
+            |> List.fold_left((+), 0);
+          let rank' = rank + children_ranks + Bool.to_int(s != s');
+          (s', rank');
+        },
+      affix,
+      (s, 0),
+    )
+    |> snd;
+
   // let sort_stacks = (d: Direction.t, affix: t): (Sort.Stack.t, Sort.Stack.t) => {
   //   let (pushed, popped) =
   //     Tiles.fold_right(
