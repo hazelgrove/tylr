@@ -51,6 +51,18 @@ let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   rank + Bool.to_int(s_l != s_l');
 };
 
+let shape_rank = (seg: t) =>
+  fold_right(
+    (p: Piece.t, rank) =>
+      switch (p) {
+      | Grout(_) => rank + 1
+      | Shard(_)
+      | Tile(_) => rank
+      },
+    seg,
+    0,
+  );
+
 module Stack = Stack.Make(Orientation.R);
 // TODO use direction parameter
 let reassemble = (seg: t): t =>

@@ -22,3 +22,10 @@ let sort_rank = (ancestors: t): int =>
     (Sort.root, 0),
   )
   |> snd;
+
+let shape_rank = (ancestors: t): int =>
+  List.fold_right(
+    ((_, sibs), rank) => Siblings.shape_rank(sibs) + rank,
+    ancestors,
+    0,
+  );

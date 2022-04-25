@@ -98,3 +98,6 @@ let reassemble = ((pre, suf): t) => (
 
 let sort_rank = ((prefix, suffix): t, s: Sort.t) =>
   Prefix.sort_rank(prefix, s) + Suffix.sort_rank(suffix, s);
+
+let shape_rank = ((prefix, suffix): t) =>
+  Prefix.shape_rank(prefix) + Suffix.shape_rank(suffix);

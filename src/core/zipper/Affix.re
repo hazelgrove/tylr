@@ -52,6 +52,8 @@ module Make = (O: Orientation.S) => {
     )
     |> snd;
 
+  let shape_rank = Segment.shape_rank;
+
   // let sort_stacks = (d: Direction.t, affix: t): (Sort.Stack.t, Sort.Stack.t) => {
   //   let (pushed, popped) =
   //     Tiles.fold_right(
