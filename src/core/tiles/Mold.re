@@ -29,3 +29,9 @@ let mk_bin = (p, sorts) => {sorts, shape: Bin(p)};
 
 let nibs: (~index: int=?, t) => Nibs.t =
   (~index as _=?, _) => failwith("todo Mold.nibs");
+
+module Map = {
+  type mold = t;
+  include Id.Map;
+  type nonrec t = Id.Map.t(list(mold));
+};

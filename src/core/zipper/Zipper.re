@@ -33,24 +33,6 @@ module Action = {
   };
 };
 
-/**
- * TODO connect to relatives
- */
-let update_selection = (selection, z) => (
-  failwith("todo update"),
-  {...z, selection},
-);
-
-let put_selection = (sel, z) => snd(update_selection(sel, z));
-
-let grow_selection = (z: t): option(t) => {
-  open OptUtil.Syntax;
-  let+ (p, relatives) =
-    Relatives.pop(~balanced=false, z.selection.focus, z.relatives);
-  let selection = Selection.push(p, z.selection);
-  {...z, selection, relatives};
-};
-
 let unselect = (z: t): t => {
   let relatives =
     z.relatives
@@ -60,6 +42,39 @@ let unselect = (z: t): t => {
        )
     |> Relatives.reassemble;
   let selection = Selection.clear(z.selection);
+  {...z, selection, relatives};
+};
+
+let update_selection = (sel: Selection.t, z: t): (Selection.t, t) => {
+  let old_sel = z.selection;
+  let z = unselect({...z, selection: sel});
+  let sort_rank = Relatives.sort_rank(z.relatives);
+  let grout_rank = Relatives.grout_rank(z.relatives);
+  let molds =
+    Relatives.mold(z.relatives)
+    |> List.sort((molds, molds') => {
+         let (s, s') = (sort_rank(molds), sort_rank(molds'));
+         let (g, g') = (grout_rank(molds), grout_rank(molds'));
+         if (s < s') {
+           (-1);
+         } else if (s > s') {
+           1;
+         } else {
+           Int.compare(g, g');
+         };
+       })
+    |> List.hd;
+  let relatives = Relatives.regrout(molds, z.relatives);
+  (old_sel, {...z, /* molds */ relatives});
+};
+
+let put_selection = (sel, z) => snd(update_selection(sel, z));
+
+let grow_selection = (z: t): option(t) => {
+  open OptUtil.Syntax;
+  let+ (p, relatives) =
+    Relatives.pop(~balanced=false, z.selection.focus, z.relatives);
+  let selection = Selection.push(p, z.selection);
   {...z, selection, relatives};
 };
 

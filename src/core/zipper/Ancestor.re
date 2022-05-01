@@ -28,9 +28,6 @@ let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
 };
 
-// [@deriving show]
-// type t = (Tile.Frame.t, Siblings.t);
-
 let disassemble = (_: t): Siblings.t => failwith("todo disassemble");
 
 module Match = {
