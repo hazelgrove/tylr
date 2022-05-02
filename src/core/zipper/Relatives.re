@@ -73,10 +73,17 @@ let reassemble = (rs: t) => {
 
 let default_mold = (_, _) => failwith("todo default_mold");
 
-let mold = _ => failwith("todo mold");
-let sort_rank = (_, _) => failwith("todo sort_rank");
-let grout_rank = (_, _) => failwith("todo grout_rank");
-let regrout = (_, _) => failwith("todo regrout");
+let remold = (rels: t): list(t) => {
+  open ListUtil.Syntax;
+  let+ ancestors = Ancestors.remold(rels.ancestors)
+  and+ siblings = Siblings.remold(rels.siblings);
+  {ancestors, siblings};
+};
+
+let sort_rank = _ => failwith("todo sort_rank");
+let shape_rank = _ => failwith("todo grout_rank");
+
+let regrout = _ => failwith("todo regrout");
 
 // let remove = (selection: Selection.t, relatives: t): t => {
 //   switch (Tiles.nibs(selection.content)) {

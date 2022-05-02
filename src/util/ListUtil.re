@@ -1,5 +1,9 @@
 let rev_if = b => b ? List.rev : Fun.id;
 
+let dedup = _ => failwith("todo dedup");
+
+let group_by = (_, _) => failwith("todo group_by");
+
 let rec range = (~lo=0, hi) =>
   if (lo > hi) {
     raise(Invalid_argument("ListUtil.range"));
@@ -209,24 +213,11 @@ let rec take_while = (p: 'x => bool, xs: list('x)): (list('x), list('x)) =>
     }
   };
 
-let take_2 =
-  fun
-  | [x1, x2, ..._] => (x1, x2)
-  | _ => raise(Invalid_argument("ListUtil.take_2"));
-let take_3 =
-  fun
-  | [x1, x2, x3, ..._] => (x1, x2, x3)
-  | _ => raise(Invalid_argument("ListUtil.take_3"));
-let take_4 =
-  fun
-  | [x1, x2, x3, x4, ..._] => (x1, x2, x3, x4)
-  | _ => raise(Invalid_argument("ListUtil.take_4"));
-let take_5 =
-  fun
-  | [x1, x2, x3, x4, x5, ..._] => (x1, x2, x3, x4, x5)
-  | _ => raise(Invalid_argument("ListUtil.take_5"));
+let product = (xs, ys) =>
+  xs |> List.map(x => ys |> List.map(y => (x, y))) |> List.flatten;
 
 module Syntax = {
   let (let+) = (xs, f) => List.map(f, xs);
+  let (and+) = product;
   let ( let* ) = (xs, f) => List.concat(List.map(f, xs));
 };

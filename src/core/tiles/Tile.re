@@ -30,6 +30,9 @@ let sorted_children = ({mold, children, _}: t) =>
   | r => r
   };
 
+let remold = (t: t): list(t) =>
+  Molds.get(t.label) |> List.map(mold => {...t, mold});
+
 // postcond: output segment is nonempty
 // TODO double shard indices
 let disassemble =

@@ -16,6 +16,9 @@ let step = (frame: t): step => {
   List.length(prefix);
 };
 
+let remold = (a: t): list(t) =>
+  Molds.get(a.label) |> List.map(mold => {...a, mold});
+
 let sort = (frame: t): Sort.t =>
   List.nth(frame.mold.sorts.in_, step(frame));
 // let disassemble = (frame: t): (s, s) =>

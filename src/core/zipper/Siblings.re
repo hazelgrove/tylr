@@ -22,6 +22,23 @@ let concat = _ => failwith("todo concat");
 
 let of_grouts = _ => failwith("todo of_grouts");
 
+let consistent_shards = ((pre, suf): t): bool => {
+  let shards_pre = Prefix.shards(pre);
+  let shards_suf = Suffix.shards(suf);
+  ListUtil.group_by(Shard.id, shards_pre @ shards_suf)
+  |> List.for_all(((_, shards)) => Shard.consistent(shards));
+};
+
+let remold = ((pre, suf): t): list(t) => {
+  open ListUtil.Syntax;
+  let sibs = {
+    let+ pre = Prefix.remold(pre)
+    and+ suf = Suffix.remold(suf);
+    (pre, suf);
+  };
+  List.filter(consistent_shards, sibs);
+};
+
 let reshape = ((prefix, suffix): t, (far_l, far_r): Nibs.t) => {
   open ListUtil.Syntax;
   let* prefix = Prefix.reshape(prefix, far_l);

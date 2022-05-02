@@ -1,6 +1,6 @@
 open Mold;
 
-let get = (label: Tile.Label.t): list(Mold.t) => {
+let get = (label: Base.Tile.Label.t): list(Mold.t) => {
   let s = Sorts.mk;
   switch (label) {
   | [t] when Token.is_num(t) => [mk_op(s(Exp))]

@@ -1,3 +1,5 @@
+open Util;
+
 [@deriving show]
 type t = list((Ancestor.t, Siblings.t));
 
@@ -7,6 +9,19 @@ let sort =
   fun
   | [] => Sort.root
   | [(a, _), ..._] => Ancestor.sort(a);
+
+let remold = (ancestors: t): list(t) =>
+  List.fold_right(
+    ((a, sibs), remolded) => {
+      open ListUtil.Syntax;
+      let+ ancestors = remolded
+      and+ sibs = Siblings.remold(sibs)
+      and+ a = Ancestor.remold(a);
+      [(a, sibs), ...ancestors];
+    },
+    ancestors,
+    [],
+  );
 
 let sort_rank = (ancestors: t): int =>
   List.fold_right(

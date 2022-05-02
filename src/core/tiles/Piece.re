@@ -1,6 +1,10 @@
 open Util;
 include Base.Piece;
 
+let grout = g => Grout(g);
+let shard = s => Shard(s);
+let tile = t => Tile(t);
+
 let is_balanced =
   fun
   | Shard(_) => false
@@ -19,4 +23,11 @@ let disassemble = (from: Direction.t, p: t): Base.Segment.t =>
   | Grout(_)
   | Shard(_) => [p]
   | Tile(t) => Tile.disassemble(from, t)
+  };
+
+let remold = (p: t) =>
+  switch (p) {
+  | Grout(_) => [p]
+  | Shard(s) => List.map(shard, Shard.remold(s))
+  | Tile(t) => List.map(tile, Tile.remold(t))
   };

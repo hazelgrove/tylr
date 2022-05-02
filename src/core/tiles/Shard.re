@@ -23,3 +23,14 @@ let tile_label = s => snd(s.label);
 // TODO generalize direction
 let is_next = (d: Direction.t, l: t, r: t) =>
   Label.is_next(d, l.label, r.label);
+
+let id = _ => failwith("todo id");
+
+let index = _ => failwith("todo index");
+
+let remold = (s: t) =>
+  Molds.get(tile_label(s))
+  |> List.map(mold => {...s, nibs: Mold.nibs(~index=index(s), mold)})
+  |> ListUtil.dedup;
+
+let consistent = (_shards: list(t)) => failwith("todo consistent");

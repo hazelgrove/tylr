@@ -26,6 +26,18 @@ let remove_matching = (_, _) => failwith("todo remove_matching");
 
 let split_by_grout = _ => failwith("todo split_by_grout");
 
+let remold = (seg: t): list(t) =>
+  fold_right(
+    (p: Piece.t, remolded) => {
+      open ListUtil.Syntax;
+      let+ seg = remolded
+      and+ p = Piece.remold(p);
+      [p, ...seg];
+    },
+    seg,
+    [],
+  );
+
 let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   let (s_l', rank) =
     fold_right(

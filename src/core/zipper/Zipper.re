@@ -45,27 +45,19 @@ let unselect = (z: t): t => {
   {...z, selection, relatives};
 };
 
-let update_selection = (sel: Selection.t, z: t): (Selection.t, t) => {
-  let old_sel = z.selection;
-  let z = unselect({...z, selection: sel});
-  let sort_rank = Relatives.sort_rank(z.relatives);
-  let grout_rank = Relatives.grout_rank(z.relatives);
-  let molds =
-    Relatives.mold(z.relatives)
-    |> List.sort((molds, molds') => {
-         let (s, s') = (sort_rank(molds), sort_rank(molds'));
-         let (g, g') = (grout_rank(molds), grout_rank(molds'));
-         if (s < s') {
-           (-1);
-         } else if (s > s') {
-           1;
-         } else {
-           Int.compare(g, g');
-         };
+let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
+  let old = z.selection;
+  let z = unselect({...z, selection});
+  let relatives =
+    Relatives.remold(z.relatives)
+    |> List.sort((rels, rels') => {
+         open Relatives;
+         let c = Int.compare(sort_rank(rels), sort_rank(rels'));
+         c != 0 ? c : Int.compare(shape_rank(rels), shape_rank(rels'));
        })
-    |> List.hd;
-  let relatives = Relatives.regrout(molds, z.relatives);
-  (old_sel, {...z, /* molds */ relatives});
+    |> List.hd
+    |> Relatives.regrout;
+  (old, {...z, relatives});
 };
 
 let put_selection = (sel, z) => snd(update_selection(sel, z));
