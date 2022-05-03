@@ -23,13 +23,13 @@ let remold = (ancestors: t): list(t) =>
     [],
   );
 
-let sort_rank = (ancestors: t): int =>
+let sort_rank = (ancestors: t) =>
   List.fold_right(
     ((a, sibs), (s, rank)) => {
       let rank =
         rank
         + Siblings.sort_rank(sibs, s)
-        + Ancestor.sort_rank(a, Siblings.sorts(sibs));
+        + Ancestor.sort_rank(a, Siblings.sorts(sibs, s));
       let s' = Ancestor.sort(a);
       (s', rank);
     },

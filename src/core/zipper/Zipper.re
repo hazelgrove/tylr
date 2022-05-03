@@ -50,10 +50,10 @@ let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
   let z = unselect({...z, selection});
   let relatives =
     Relatives.remold(z.relatives)
-    |> List.sort((rels, rels') => {
+    |> List.sort((rel, rel') => {
          open Relatives;
-         let c = Int.compare(sort_rank(rels), sort_rank(rels'));
-         c != 0 ? c : Int.compare(shape_rank(rels), shape_rank(rels'));
+         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
        })
     |> List.hd
     |> Relatives.regrout;

@@ -60,20 +60,37 @@ let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
       seg,
       (s_r, 0),
     );
-  rank + Bool.to_int(s_l != s_l');
+  rank + Bool.to_int(!Sort.consistent(s_l, s_l'));
 };
 
-let shape_rank = (seg: t) =>
-  fold_right(
-    (p: Piece.t, rank) =>
-      switch (p) {
-      | Grout(_) => rank + 1
-      | Shard(_)
-      | Tile(_) => rank
-      },
-    seg,
-    0,
-  );
+let rec shape_rank = (seg, (s_l, s_r): (Nib.Shape.t, Nib.Shape.t)) => {
+  let (s_l', rank) =
+    fold_right(
+      (p: Piece.t, (s, rank)) =>
+        switch (p) {
+        | Grout(_) => (s, rank)
+        | Shard(shard) =>
+          let (n_far, n_near) = shard.nibs;
+          let (s_far, s_near) = (n_far.shape, n_near.shape);
+          (s_near, rank + Bool.to_int(!Nib.Shape.fits(s_far, s)));
+        | Tile(tile) =>
+          let (n_far, n_near) = Mold.nibs(tile.mold);
+          let (s_far, s_near) = (n_far.shape, n_near.shape);
+          let children_ranks =
+            tile.children
+            |> List.map(child =>
+                 shape_rank(child, Nib.Shape.(concave(), concave()))
+               )
+            |> List.fold_left((+), 0);
+          let rank' =
+            rank + children_ranks + Bool.to_int(!Nib.Shape.fits(s_far, s));
+          (s_near, rank');
+        },
+      seg,
+      (s_r, 0),
+    );
+  rank + Bool.to_int(!Nib.Shape.fits(s_l, s_l'));
+};
 
 module Stack = Stack.Make(Orientation.R);
 // TODO use direction parameter

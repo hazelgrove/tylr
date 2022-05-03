@@ -73,15 +73,27 @@ let reassemble = (rs: t) => {
 
 let default_mold = (_, _) => failwith("todo default_mold");
 
-let remold = (rels: t): list(t) => {
+let remold = (rel: t): list(t) => {
   open ListUtil.Syntax;
-  let+ ancestors = Ancestors.remold(rels.ancestors)
-  and+ siblings = Siblings.remold(rels.siblings);
+  let+ ancestors = Ancestors.remold(rel.ancestors)
+  and+ siblings = Siblings.remold(rel.siblings);
   {ancestors, siblings};
 };
 
-let sort_rank = _ => failwith("todo sort_rank");
-let shape_rank = _ => failwith("todo grout_rank");
+let sort_rank = ({siblings, ancestors}: t) => {
+  let s = Ancestors.sort(ancestors);
+  let (s_l, s_r) = Siblings.sorts(siblings, s);
+  Ancestors.sort_rank(ancestors)
+  + Siblings.sort_rank(siblings, s)
+  + Bool.to_int(!Sort.consistent(s_l, s_r));
+};
+
+let shape_rank = ({siblings, ancestors}: t) => {
+  let (l, r) = Siblings.shapes(siblings);
+  Ancestors.shape_rank(ancestors)
+  + Siblings.shape_rank(siblings)
+  + Bool.to_int(!Nib.Shape.fits(l, r));
+};
 
 let regrout = _ => failwith("todo regrout");
 

@@ -46,9 +46,11 @@ let reshape = ((prefix, suffix): t, (far_l, far_r): Nibs.t) => {
   (prefix, suffix);
 };
 
-let sort: t => Sort.t = _ => failwith("todo Siblings.sort");
-
-let sorts: t => (Sort.t, Sort.t) = _ => failwith("todo Silblings.sorts");
+let sorts = ((pre, suf): t, s: Sort.t) => (
+  Prefix.sort(pre, s),
+  Suffix.sort(suf, s),
+);
+let shapes = ((pre, suf): t) => (Prefix.shape(pre), Suffix.shape(suf));
 
 let contains_matching = (_, _) => failwith("todo contains_matching");
 

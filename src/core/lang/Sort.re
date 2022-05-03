@@ -9,6 +9,8 @@ let all = [Pat, Exp];
 
 let root = Exp;
 
+let consistent = (==);
+
 let to_string =
   fun
   | Pat => "Pat"

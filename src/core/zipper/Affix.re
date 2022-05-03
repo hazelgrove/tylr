@@ -15,6 +15,30 @@ module Make = (O: Orientation.S) => {
   let split_nearest_grouts = (_: Direction.t, _: t) =>
     failwith("todo split_nearest_grouts");
 
+  let rec shape = (affix: t) =>
+    switch (affix) {
+    | [] => Nib.Shape.concave()
+    | [Grout(_), ...affix] => shape(affix)
+    | [Shard(s), ..._] =>
+      let (_, near) = Nibs.orient(O.d, s.nibs);
+      near.shape;
+    | [Tile(t), ..._] =>
+      let (_, near) = Nibs.orient(O.d, Mold.nibs(t.mold));
+      near.shape;
+    };
+
+  let rec sort = (affix: t, s: Sort.t) =>
+    switch (affix) {
+    | [] => s
+    | [Grout(_), ...affix] => sort(affix, s)
+    | [Shard(s), ..._] =>
+      let (_, near) = Nibs.orient(O.d, s.nibs);
+      near.sort;
+    | [Tile(t), ..._] =>
+      let (_, near) = Nibs.orient(O.d, Mold.nibs(t.mold));
+      near.sort;
+    };
+
   let push = (p, affix: t) => reassemble(Segment.cons(p, affix));
 
   let pop = (~balanced: bool, affix: t): option((Piece.t, t)) =>
@@ -41,14 +65,15 @@ module Make = (O: Orientation.S) => {
         | Shard(shard) =>
           let (n_far, n_near) = Nibs.orient(O.d, shard.nibs);
           let (s_far, s_near) = (n_far.sort, n_near.sort);
-          (s_near, rank + Bool.to_int(s_far != s));
+          (s_near, rank + Bool.to_int(!Sort.consistent(s_far, s)));
         | Tile(tile) =>
           let s' = tile.mold.sorts.out;
           let children_ranks =
             Tile.sorted_children(tile)
             |> List.map(((s, child)) => Segment.sort_rank(child, (s, s)))
             |> List.fold_left((+), 0);
-          let rank' = rank + children_ranks + Bool.to_int(s != s');
+          let rank' =
+            rank + children_ranks + Bool.to_int(!Sort.consistent(s, s'));
           (s', rank');
         },
       affix,
@@ -56,7 +81,32 @@ module Make = (O: Orientation.S) => {
     )
     |> snd;
 
-  let shape_rank = Segment.shape_rank;
+  let shape_rank = affix =>
+    Segment.fold_right(
+      (p: Piece.t, (s, rank)) =>
+        switch (p) {
+        | Grout(_) => (s, rank)
+        | Shard(shard) =>
+          let (n_far, n_near) = Nibs.orient(O.d, shard.nibs);
+          let (s_far, s_near) = (n_far.shape, n_near.shape);
+          (s_near, rank + Bool.to_int(!Nib.Shape.fits(s_far, s)));
+        | Tile(tile) =>
+          let (n_far, n_near) = Nibs.orient(O.d, Mold.nibs(tile.mold));
+          let (s_far, s_near) = (n_far.shape, n_near.shape);
+          let children_ranks =
+            tile.children
+            |> List.map(child =>
+                 Segment.shape_rank(child, Nib.Shape.(concave(), concave()))
+               )
+            |> List.fold_left((+), 0);
+          let rank' =
+            rank + children_ranks + Bool.to_int(!Nib.Shape.fits(s_far, s));
+          (s_near, rank');
+        },
+      affix,
+      (Nib.Shape.concave(), 0),
+    )
+    |> snd;
 
   // let sort_stacks = (d: Direction.t, affix: t): (Sort.Stack.t, Sort.Stack.t) => {
   //   let (pushed, popped) =

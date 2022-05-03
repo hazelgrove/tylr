@@ -8,6 +8,7 @@ let of_hole = sort => Nib.({sort, shape: Convex}, {sort, shape: Convex});
 
 let fitting = ((l, r): t) => (Nib.fitting(l), Nib.fitting(r));
 
+// TODO revisit, always confusing to use
 let orient = (d: Util.Direction.t, (l, r)) =>
   switch (d) {
   | Left => (l, r)

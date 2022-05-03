@@ -4,6 +4,15 @@ module Shape = {
     | Convex
     | Concave(Precedence.t);
 
+  let concave = (~p=?, ()) => {
+    let p =
+      switch (p) {
+      | None => Precedence.min
+      | Some(p) => p
+      };
+    Concave(p);
+  };
+
   let fits = (l: t, r: t) =>
     switch (l, r) {
     | (Convex, Concave(_))
