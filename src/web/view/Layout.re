@@ -70,7 +70,9 @@ let pad = (~offset, ~length, color, l) =>
   cats([space(offset, color), l, space(offset + length, color)]);
 let pad_spaces = (~offset=0, color, ls) =>
   switch (ls) {
-  | [] => space(offset, color)
+  | [] => empty
+  //TODO(andrew): david i made this change to avoid a surperfluous space being inserted, not sure if correct
+  //space(offset, color)
   | [_, ..._] =>
     pad(~offset, ~length=List.length(ls), color, spaces(color, ls))
   };
@@ -515,9 +517,15 @@ let mk_text = s => Text(s);
 //     mk_frame(mk_subject(subj), frame)
 //   );
 
-let text = t => Text(t);
-let of_grout = _ => Text("TODO:IamGROUT");
-let of_shard = _ => Text("TODO:IamSHART");
+let text: string => t = t => Text(t);
+
+let of_grout: Grout.t => t =
+  fun
+  | Convex => Text("TODO:CONVEX_GROUT")
+  | Concave => Text("TODO:CONCAVE_GROUT");
+
+let of_shard: Base.Shard.t => t =
+  ({label: (idx, label), _}) => Text(List.nth(label, idx));
 
 let map_alt: (list('x), list('y), 'x => t, 'y => t) => list(t) =
   (xs, ys, fx, fy) => {
