@@ -515,4 +515,23 @@ let mk_text = s => Text(s);
 //     mk_frame(mk_subject(subj), frame)
 //   );
 
-let mk_zipper = _ => Text("hello world!");
+let text = t => Text(t);
+let of_grout = _ => Text("IamGROUT");
+
+let of_tile: Tile.t => t =
+  ({label, children: _, _}) =>
+    switch (label) {
+    | [hd, ..._] => text(hd)
+    | _ => failwith("of_tile")
+    };
+
+let of_piece: Piece.t => t =
+  fun
+  | Tile(t) => of_tile(t)
+  | _ => failwith("TODO Layout.of_piece");
+
+let of_segment: Segment.t => t =
+  seg => seg |> List.map(of_piece) |> pad_spaces(Exp); //TODO: pad?
+
+let mk_zipper: Zipper.t => t =
+  ({relatives: {siblings: (_, suffix), _}, _}) => of_segment(suffix);

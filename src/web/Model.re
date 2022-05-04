@@ -35,6 +35,11 @@ let two =
 //     tokens: ("(", [(one_plus_two, ")")]),
 //   };
 
+let segment_of_tiles: list(Tile.t) => Segment.t =
+  List.map(t => Piece.Tile(t));
+
+let stx: Segment.t = segment_of_tiles([one, plus_12, two]);
+
 let init = () => {
   zipper:
     Zipper.{
@@ -43,7 +48,10 @@ let init = () => {
         content: Segment.empty,
       },
       backpack: Backpack.empty,
-      relatives: Relatives.empty,
+      relatives: {
+        siblings: (Siblings.Prefix.empty, stx),
+        ancestors: Ancestors.empty,
+      },
     },
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,

@@ -105,7 +105,8 @@ let view_of_layout =
       };
       switch (annot) {
       | Space(_step, _color) =>
-        let _ = failwith("todo fix Code space dec");
+        //TODO(andrew): i commented out below fail??
+        //let _ = failwith("todo fix Code space dec");
         // DecPaths.current_space(
         //   ~delete_actions?,
         //   ~caret_mode?,
@@ -116,7 +117,7 @@ let view_of_layout =
         // )
         // |> List.map(Dec.view(~font_metrics))
         // |> add_decorations
-        go'();
+        go'()
 
       | Ap =>
         let (txt, ds) = go'();
