@@ -10,6 +10,7 @@ type piece_shape = (tip_shape, tip_shape);
 
 [@deriving show]
 type t =
+  | Empty
   | Text(string)
   | Cat(t, t)
   | Annot(annot, t)
@@ -35,14 +36,12 @@ and annot =
 //     strict_bounds: (bool, bool),
 //   });
 
-let empty = Text("");
-
 let annot = (annot, l) => Annot(annot, l);
 
 let cat = (l1, l2) => Cat(l1, l2);
 let cats =
   fun
-  | [] => empty
+  | [] => Empty
   | [l, ...ls] => List.fold_left(cat, l, ls);
 
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cats;
@@ -58,7 +57,7 @@ let space = (n, color) => Annot(Space(n, color), Text(Unicode.nbsp));
 let space_sort = (n, sort) => space(n, Color.of_sort(sort));
 let spaces = (~offset=0, color, ls) =>
   switch (ls) {
-  | [] => empty
+  | [] => Empty
   | [hd, ...tl] =>
     let spaced_tl =
       tl
@@ -70,7 +69,7 @@ let pad = (~offset, ~length, color, l) =>
   cats([space(offset, color), l, space(offset + length, color)]);
 let pad_spaces = (~offset=0, color, ls) =>
   switch (ls) {
-  | [] => empty
+  | [] => Empty
   //TODO(andrew): david i made this change to avoid a surperfluous space being inserted, not sure if correct
   //space(offset, color)
   | [_, ..._] =>
@@ -82,6 +81,7 @@ let length = {
     lazy(
       Memo.memoize(
         fun
+        | Empty => 0
         | Text(s) => Unicode.length(s)
         | Cat(l1, l2) => Lazy.force(go, l1) + Lazy.force(go, l2)
         | Annot(_, l) => Lazy.force(go, l),
@@ -107,6 +107,7 @@ let measured_fold' =
   let rec go = (~origin, l: t) => {
     let m = {origin, length: length(l)};
     switch (l) {
+    | Empty => text(m, "")
     | Text(s) => text(m, s)
     | Cat(l1, l2) =>
       let mid = origin + length(l1);

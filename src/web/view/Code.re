@@ -85,6 +85,7 @@ let view_of_layout =
           (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
           : (list(Node.t), list(Node.t)) => {
     switch (l) {
+    | Empty => ([], [])
     | Text(s) => ([Node.text(s)], [])
     | Cat(l1, l2) =>
       let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
