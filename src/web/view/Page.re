@@ -89,7 +89,9 @@ let view = (~inject, model: Model.t) => {
         show_neighbor_tiles,
       } = model;
   // let dpaths = DecPaths.of_zipper(zipper);
+  //print_endline(Core.Zipper.show(zipper));
   let l = Layout.mk_zipper(zipper);
+  print_endline(Layout.show(l));
   Node.div(
     Attr.[
       id("page"),

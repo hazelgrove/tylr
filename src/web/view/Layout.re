@@ -516,22 +516,59 @@ let mk_text = s => Text(s);
 //   );
 
 let text = t => Text(t);
-let of_grout = _ => Text("IamGROUT");
+let of_grout = _ => Text("TODO:IamGROUT");
+let of_shard = _ => Text("TODO:IamSHART");
 
-let of_tile: Tile.t => t =
-  ({label, children: _, _}) =>
-    switch (label) {
-    | [hd, ..._] => text(hd)
-    | _ => failwith("of_tile")
-    };
+let map_alt: (list('x), list('y), 'x => t, 'y => t) => list(t) =
+  (xs, ys, fx, fy) => {
+    assert(List.length(xs) == List.length(ys) + 1);
+    List.fold_left2(
+      (acc, x, y) => acc @ [fy(y), fx(x)],
+      [fx(List.hd(xs))],
+      List.tl(xs),
+      ys,
+    );
+  };
 
-let of_piece: Piece.t => t =
+let rec of_piece: Piece.t => t =
   fun
   | Tile(t) => of_tile(t)
-  | _ => failwith("TODO Layout.of_piece");
+  | Grout(g) => of_grout(g)
+  | Shard(s) => of_shard(s)
+and of_segment: Segment.t => t =
+  seg => seg |> List.map(of_piece) |> pad_spaces(Exp) //TODO: pad?
+and of_tile: Tile.t => t =
+  ({label, children, _}) =>
+    cats(map_alt(label, children, text, of_segment));
 
-let of_segment: Segment.t => t =
-  seg => seg |> List.map(of_piece) |> pad_spaces(Exp); //TODO: pad?
+let mk_parent: (Ancestor.t, t) => t =
+  ({label, children: (left, right), _}, layout) => {
+    //TODO(andrew): david does this assert and label splitting logic make sense?
+    assert(
+      List.length(label) - 2 == List.length(left) + List.length(right),
+    );
+    let (label_left, label_right) =
+      ListUtil.split_n(List.length(left) + 1, label);
+    cats(
+      map_alt(label_left, left, text, of_segment)
+      @ [layout]
+      @ map_alt(label_right, right, text, of_segment),
+    );
+  };
+
+let mk_ancestor: ((Ancestor.t, Siblings.t), t) => t =
+  ((ancestor, (left_aunts, right_aunts)), layout) =>
+    pad_spaces(
+      Exp,
+      List.map(of_piece, left_aunts)
+      @ [mk_parent(ancestor, layout)]
+      @ List.map(of_piece, right_aunts),
+    );
 
 let mk_zipper: Zipper.t => t =
-  ({relatives: {siblings: (_, suffix), _}, _}) => of_segment(suffix);
+  ({relatives: {siblings: (left, right), ancestors, _}, _}) =>
+    List.fold_left(
+      (layout, ancestor) => mk_ancestor(ancestor, layout),
+      cat(of_segment(left), of_segment(right)),
+      ancestors,
+    );

@@ -10,35 +10,50 @@ type t = {
 
 let cutoff = (===);
 
-let one =
-  Tile.{label: ["1"], mold: Mold.(mk_op(Sorts.mk(Exp))), children: []};
-let plus_12 =
-  Tile.{
-    label: ["+"],
-    mold: Mold.(mk_bin(Precedence.plus, Sorts.mk(Exp))),
-    children: [],
-  };
-let two =
-  Tile.{label: ["2"], mold: Mold.(mk_op(Sorts.mk(Exp))), children: []};
-// let one_plus_two: Tiles.t = Tiles.mk([one, plus_12, two]);
+let mk_atom = (sort, name): Tile.t => {
+  label: [name],
+  mold: Mold.(mk_op(Sorts.mk(sort))),
+  children: [],
+};
+let mk_exp_atom = mk_atom(Exp);
+let mk_pat_atom = mk_atom(Pat);
+let one = mk_exp_atom("1");
+let two = mk_exp_atom("2");
+let pat_foo = mk_pat_atom("foo");
+let exp_foo = mk_exp_atom("foo");
+let pat_bar = mk_pat_atom("bar");
+let pat_taz = mk_pat_atom("taz");
 
-// let paren =
-//   Tile.{
-//     id: 3,
-//     mold: {
-//       shape: Op,
-//       sorts: {
-//         out: Exp,
-//         in_: [Exp],
-//       },
-//     },
-//     tokens: ("(", [(one_plus_two, ")")]),
-//   };
+let plus_12: Tile.t = {
+  label: ["+"],
+  mold: Mold.(mk_bin(Precedence.plus, Sorts.mk(Exp))),
+  children: [],
+};
 
 let segment_of_tiles: list(Tile.t) => Segment.t =
   List.map(t => Piece.Tile(t));
 
-let stx: Segment.t = segment_of_tiles([one, plus_12, two]);
+let paren_plus12: Tile.t = {
+  label: ["(", ")"],
+  mold: Mold.(mk_op(Sorts.mk(Exp))),
+  children: [segment_of_tiles([one, plus_12, two])],
+};
+
+let mk_lambda_ancestor: (list('a), list('a)) => Ancestor.t =
+  (left, right) => {
+    label: ["λ", "{", "}"],
+    mold: Mold.(mk_op(Sorts.mk(~in_=[Pat, Exp], Exp))),
+    children: (left, right),
+  };
+
+let mk_ancestor_sib = ancestor => (ancestor, ([], []));
+
+let inner_stx: Segment.t = [Tile(exp_foo), Tile(paren_plus12)];
+
+let ancestors: Ancestors.t = [
+  mk_ancestor_sib(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
+  mk_ancestor_sib(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
+];
 
 let init = () => {
   zipper:
@@ -49,8 +64,8 @@ let init = () => {
       },
       backpack: Backpack.empty,
       relatives: {
-        siblings: (Siblings.Prefix.empty, stx),
-        ancestors: Ancestors.empty,
+        siblings: (Siblings.Prefix.empty, inner_stx),
+        ancestors,
       },
     },
   history: ActionHistory.empty,
