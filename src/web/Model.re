@@ -15,6 +15,7 @@ let mk_atom = (sort, name): Tile.t => {
   mold: Mold.(mk_op(Sorts.mk(sort))),
   children: [],
 };
+
 let mk_exp_atom = mk_atom(Exp);
 let mk_pat_atom = mk_atom(Pat);
 let one = mk_exp_atom("1");
@@ -39,20 +40,22 @@ let paren_plus12: Tile.t = {
   children: [segment_of_tiles([one, plus_12, two])],
 };
 
-let mk_lambda_ancestor: (list('a), list('a)) => Ancestor.t =
+let mk_lambda_ancestor:
+  (list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
   (left, right) => {
     label: ["λ", "{", "}"],
     mold: Mold.(mk_op(Sorts.mk(~in_=[Pat, Exp], Exp))),
     children: (left, right),
   };
 
-let mk_ancestor_sib = ancestor => (ancestor, ([], []));
+let mk_empty_sibs: Ancestor.t => (Ancestor.t, Siblings.t) =
+  ancestor => (ancestor, ([], []));
 
-let inner_stx: Segment.t = [Tile(exp_foo), Tile(paren_plus12)];
+let inner_stx: Segment.t = [Tile(paren_plus12)];
 
 let ancestors: Ancestors.t = [
-  mk_ancestor_sib(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
-  mk_ancestor_sib(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
+  mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
+  mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
 ];
 
 let init = () => {
