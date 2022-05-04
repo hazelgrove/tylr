@@ -44,3 +44,5 @@ let shape_rank = (ancestors: t): int =>
     ancestors,
     0,
   );
+
+let regrout = _ => failwith("todo regrout");

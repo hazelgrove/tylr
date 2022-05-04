@@ -42,7 +42,4 @@ let pop = (sel: t): option((Piece.t, t)) =>
   | (Right, _, Some((content, p))) => Some((p, {...sel, content}))
   };
 
-// let trim = (_selection: t): (t, Grouts.Frame.t) =>
-//   failwith("todo Selection.trim");
-
 let split_piece = _: option((Piece.t, t)) => failwith("todo split_piece");

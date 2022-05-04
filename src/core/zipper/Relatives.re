@@ -16,14 +16,10 @@ let push = (d: Direction.t, p: Piece.t, rs: t): t => {
   siblings: Siblings.push(d, p, rs.siblings),
 };
 
-let cat = (_, _) => failwith("todo cat + better name");
-
 let prepend = (d: Direction.t, tiles, rs: t) => {
   let siblings = Siblings.prepend(d, tiles, rs.siblings);
   {...rs, siblings};
 };
-
-let nibs = _ => failwith("todo nibs");
 
 let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
   switch (Siblings.pop(~balanced, d, rs.siblings)) {
@@ -73,10 +69,10 @@ let reassemble = (rs: t) => {
 
 let default_mold = (_, _) => failwith("todo default_mold");
 
-let remold = (rel: t): list(t) => {
+let remold = ({siblings, ancestors}: t): list(t) => {
   open ListUtil.Syntax;
-  let+ ancestors = Ancestors.remold(rel.ancestors)
-  and+ siblings = Siblings.remold(rel.siblings);
+  let+ ancestors = Ancestors.remold(ancestors)
+  and+ siblings = Siblings.remold(siblings);
   {ancestors, siblings};
 };
 
@@ -95,38 +91,9 @@ let shape_rank = ({siblings, ancestors}: t) => {
   + Bool.to_int(!Nib.Shape.fits(l, r));
 };
 
-let regrout = _ => failwith("todo regrout");
-
-// let remove = (selection: Selection.t, relatives: t): t => {
-//   switch (Tiles.nibs(selection.content)) {
-//   | None => relatives
-//   | Some(_nibs) =>
-//     let (_gs, rs) = failwith("todo gs rs");
-//     // relatives |> cons_piece(Right, Grout(Grout.mk(nibs))) |> split_grouts;
-//     let gs = failwith("todo gs");
-//     // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
-//     let siblings = Siblings.(concat([of_grouts(gs), rs.siblings]));
-//     reassemble({...rs, siblings});
-//   };
-// };
-
-// let insert = ({focus, content}: Selection.t, relatives: t): t =>
-//   switch (Tiles.nibs(content)) {
-//   | None => relatives
-//   | Some(inner) =>
-//     let outer = nibs(relatives);
-//     let _nibs_l = Nibs.fitting((fst(outer), fst(inner)));
-//     let _nibs_r = Nibs.fitting((snd(inner), snd(outer)));
-//     let (_gs, rs) = failwith("todo gs, rs");
-//     // relatives
-//     // |> cons_piece(Left, Grout(Grout.mk(nibs_l)))
-//     // |> cons_piece(Right, Grout(Grout.mk(nibs_r)))
-//     // |> split_grouts;
-//     let gs = failwith("todo gs");
-//     // Grouts.Frame.regrout(gs, Ancestors.sort(rs.ancestors));
-//     let siblings =
-//       Siblings.(
-//         concat([of_grouts(gs), rs.siblings]) |> prepend(focus, content)
-//       );
-//     reassemble({...rs, siblings});
-//   };
+let regrout = ({siblings, ancestors}: t): t => {
+  let ancestors = Ancestors.regrout(ancestors);
+  let siblings = Siblings.regrout(siblings);
+  let _ = failwith("todo regrout siblings interface");
+  {siblings, ancestors};
+};

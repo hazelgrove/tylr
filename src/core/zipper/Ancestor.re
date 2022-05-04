@@ -21,10 +21,6 @@ let remold = (a: t): list(t) =>
 
 let sort = (frame: t): Sort.t =>
   List.nth(frame.mold.sorts.in_, step(frame));
-// let disassemble = (frame: t): (s, s) =>
-//   switch (frame) {
-//   | Placeholder({substance: (prefix, suffix)}) =>
-//   }
 
 let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   let s = a.mold.sorts.out;

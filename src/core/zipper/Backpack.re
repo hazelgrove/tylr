@@ -39,24 +39,3 @@ let remove_matching = (ss: list(Shard.t), bp: t) =>
     bp,
     ss,
   );
-
-// let pick_up = (side: Util.Direction.t, tiles: list(Tiles.t), backpack): t => {
-//   let tiles = List.filter((!=)(Tiles.empty), tiles);
-//   switch (side) {
-//   | Left => tiles @ backpack
-//   | Right => backpack @ tiles
-//   };
-// };
-
-// let put_down = (side: Util.Direction.t, backpack: t): option((Tiles.t, t)) =>
-//   switch (side) {
-//   | Left =>
-//     switch (backpack) {
-//     | [] => None
-//     | [put_down, ...backpack] => Some((put_down, backpack))
-//     }
-//   | Right =>
-//     open Util.OptUtil.Syntax;
-//     let+ (backpack, put_down) = Util.ListUtil.split_last_opt(backpack);
-//     (put_down, backpack);
-//   };
