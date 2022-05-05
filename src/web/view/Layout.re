@@ -35,19 +35,22 @@ and annot =
 //     strict_bounds: (bool, bool),
 //   });
 
-let annot = (annot, l) => Annot(annot, l);
-let cat = xs => Cat(xs);
+let cat: list(t) => t = xs => Cat(xs);
+let text: string => t = t => Text(t);
+let annot: (annot, t) => t = (annot, l) => Annot(annot, l);
+let delim: string => t = s => annot(Delim, Text(s));
+
+let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
 
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cat;
 
-let delim = s => annot(Delim, Text(s));
-let extra_bold_delim = s => annot(ExtraBoldDelim, Text(s));
+let extra_bold_delim = s => annot(ExtraBoldDelim, text(s));
 let empty_hole = (color, tip) =>
-  annot(EmptyHole(color, tip), Text(Unicode.nbsp));
+  annot(EmptyHole(color, tip), text(Unicode.nbsp));
 let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
 let closed_child = (sort, step) => annot(Child({step, sort}));
 
-let space = (n, color) => Annot(Space(n, color), Text(Unicode.nbsp));
+let space = (n, color) => annot(Space(n, color), text(Unicode.nbsp));
 
 let pad_spaces: (Color.t, list(t)) => t =
   (color, ls) =>
@@ -91,16 +94,15 @@ let measured_fold' =
     switch (l) {
     | Text(s) => text(m, s)
     | Cat(ls) =>
-      let (blah, _) =
+      let (acc, _) =
         List.fold_left(
-          ((acc, mid), l) => {
-            let mid = mid + length(l);
-            (acc @ [go(~origin=mid, l)], mid);
+          ((acc, origin), l) => {
+            (acc @ [go(~origin, l)], origin + length(l))
           },
           ([], origin),
           ls,
         );
-      cat(m, blah);
+      cat(m, acc);
     | Annot(ann, l) => annot(go(~origin), m, ann, l)
     };
   };
@@ -186,29 +188,29 @@ let piece_holes =
         },
   );
 
-let paren_l = extra_bold_delim("(");
-let paren_r = extra_bold_delim(")");
+//let paren_l = extra_bold_delim("(");
+//let paren_r = extra_bold_delim(")");
 
-let ap_l = extra_bold_delim("[");
-let ap_r = extra_bold_delim("]");
+//let ap_l = extra_bold_delim("[");
+//let ap_r = extra_bold_delim("]");
 
-let lam_lam = extra_bold_delim("\\");
-let lam_open = extra_bold_delim("{");
-let lam_close = extra_bold_delim("}");
+//let lam_lam = extra_bold_delim("\\");
+//let lam_open = extra_bold_delim("{");
+//let lam_close = extra_bold_delim("}");
 
-let mk_Paren = (sort, body) =>
-  cat([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
+//let mk_Paren = (sort, body) =>
+//  cat([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
 
-let mk_Ap = arg => cat([ap_l, open_child(Exp, ChildStep.ap_arg, arg), ap_r]);
+//let mk_Ap = arg => cat([ap_l, open_child(Exp, ChildStep.ap_arg, arg), ap_r]);
 
-let mk_Lam = (p, body) =>
-  cat([
-    lam_lam,
-    closed_child((Exp, Pat), ChildStep.lam_pat, p),
-    lam_open,
-    open_child(Exp, ChildStep.lam_body, body),
-    lam_close,
-  ]);
+//let mk_Lam = (p, body) =>
+//  cat([
+//    lam_lam,
+//    closed_child((Exp, Pat), ChildStep.lam_pat, p),
+//    lam_open,
+//    open_child(Exp, ChildStep.lam_body, body),
+//    lam_close,
+//  ]);
 
 let mk_Let = (p, def) => {
   cat([
@@ -227,19 +229,14 @@ let mk_Cond = then_ =>
     delim(":"),
   ]);
 
-let mk_Fact = () => Text("!");
-
-let mk_Plus = () => Text("+");
-let mk_Minus = () => Text("-");
-let mk_Times = () => Text("*");
-let mk_Div = () => Text("/");
-
-let mk_Prod = () => Text(",");
-
-let mk_OpHole = empty_hole;
-let mk_BinHole = empty_hole;
-
-let mk_text = s => Text(s);
+//let mk_Fact = () => Text("!");
+//let mk_Plus = () => Text("+");
+//let mk_Minus = () => Text("-");
+//let mk_Times = () => Text("*");
+//let mk_Div = () => Text("/");
+//let mk_Prod = () => Text(",");
+//let mk_OpHole = empty_hole;
+//let mk_BinHole = empty_hole;
 
 // let piece_shape = (piece: Piece.t) => {
 //   let (lshape, _) = Piece.tip(Left, piece);
@@ -507,13 +504,6 @@ let mk_text = s => Text(s);
 //   |> cats;
 // };
 
-// let mk_zipper =
-//   Memo.memoize(((subj, frame): Zipper.t) =>
-//     mk_frame(mk_subject(subj), frame)
-//   );
-
-//let text: string => t = t => Text(t);
-
 let delims =
   List.flatten([
     ["(", ")"],
@@ -524,18 +514,15 @@ let delims =
     ["let", "=", "in"],
   ]);
 
-let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
-
-let text: string => t =
-  t => List.mem(t, delims) ? Annot(Delim, Text(t)) : Text(t);
+let text_ann: string => t = t => List.mem(t, delims) ? delim(t) : text(t);
 
 let of_grout: Grout.t => t =
   fun
-  | Convex => Text("TODO:CONVEX_GROUT")
-  | Concave => Text("TODO:CONCAVE_GROUT");
+  | Convex => text("TODO:CONVEX_GROUT")
+  | Concave => text("TODO:CONCAVE_GROUT");
 
 let of_shard: Base.Shard.t => t =
-  ({label: (n, label), _}) => Text(List.nth(label, n));
+  ({label: (n, label), _}) => text(List.nth(label, n));
 
 let rec of_piece: Piece.t => t =
   fun
@@ -543,10 +530,12 @@ let rec of_piece: Piece.t => t =
   | Grout(g) => of_grout(g)
   | Shard(s) => of_shard(s)
 and of_segment: (Color.t, Segment.t) => t =
-  (color, seg) => seg |> List.map(of_piece) |> pad_spaces(color)
+  (color, ps) => ps |> List.map(of_piece) |> pad_spaces(color)
 and of_tile: Tile.t => t =
   ({label, children, mold}) =>
-    cat(ListUtil.map_alt(text, of_segment(color(mold)), label, children));
+    cat(
+      ListUtil.map_alt(text_ann, of_segment(color(mold)), label, children),
+    );
 
 let mk_parent: (Ancestor.t, t) => t =
   ({label, children: (kids_l, kids_r), mold}, layout) => {
@@ -556,12 +545,12 @@ let mk_parent: (Ancestor.t, t) => t =
     );
     let (label_l, label_r) =
       ListUtil.split_n(List.length(kids_l) + 1, label);
-    let map_alt = ListUtil.map_alt(text, of_segment(color(mold)));
+    let map_alt = ListUtil.map_alt(text_ann, of_segment(color(mold)));
     cat(map_alt(label_l, kids_l) @ [layout] @ map_alt(label_r, kids_r));
   };
 
-let mk_ancestor: ((Ancestor.t, Siblings.t), t) => t =
-  ((ancestor, (left_aunts, right_aunts)), layout) =>
+let mk_ancestor: (t, (Ancestor.t, Siblings.t)) => t =
+  (layout, (ancestor, (left_aunts, right_aunts))) =>
     pad_spaces(
       color(ancestor.mold),
       List.map(of_piece, left_aunts)
@@ -569,10 +558,15 @@ let mk_ancestor: ((Ancestor.t, Siblings.t), t) => t =
       @ List.map(of_piece, right_aunts),
     );
 
+let mk_current: (Siblings.t, Selection.t) => t =
+  ((left, right), {content, _}) =>
+    //TODO(andrew): how do i get sort here?
+    cat([
+      of_segment(Exp, left),
+      of_segment(Exp, content),
+      of_segment(Exp, right),
+    ]);
+
 let mk_zipper: Zipper.t => t =
-  ({relatives: {siblings: (left, right), ancestors, _}, _}) =>
-    List.fold_left(
-      (layout, ancestor) => mk_ancestor(ancestor, layout),
-      cat([of_segment(Exp, left), of_segment(Exp, right)]), //TODO(andrew): how do i get sort?
-      ancestors,
-    );
+  ({relatives: {siblings, ancestors}, selection, _}) =>
+    List.fold_left(mk_ancestor, mk_current(siblings, selection), ancestors);
