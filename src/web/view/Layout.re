@@ -528,48 +528,45 @@ let rec of_piece: Piece.t => t =
   | Tile(t) => of_tile(t)
   | Grout(g) => of_grout(g)
   | Shard(s) => of_shard(s)
+and of_pieces = ps => List.map(of_piece, ps)
 and of_segment: (Color.t, Segment.t) => t =
-  (color, ps) => ps |> List.map(of_piece) |> pad_spaces(color)
+  //TODO(andrew): piece step annos
+  (color, ps) => ps |> of_pieces |> pad_spaces(color)
 and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
+  //TODO(andrew): child-step anno
   mold => ListUtil.map_alt(text', of_segment(color(mold)))
 and of_tile: Tile.t => t =
   ({label, children, mold}) => cat(of_form(mold, label, children));
 
-let mk_ancestor: (Ancestor.t, t) => t =
+let of_ancestor: (Ancestor.t, t) => t =
   ({label, children: (l_kids, r_kids), mold}, layout) => {
-    //TODO(andrew): david does this assert and label splitting logic make sense?
     assert(
       List.length(label) - 2 == List.length(l_kids) + List.length(r_kids),
     );
-    let (label_l, label_r) =
+    let (l_label, r_label) =
       ListUtil.split_n(List.length(l_kids) + 1, label);
     cat(
-      of_form(mold, label_l, l_kids)
+      of_form(mold, l_label, List.rev(l_kids))
       @ [layout]
-      @ of_form(mold, label_r, r_kids),
+      @ of_form(mold, r_label, r_kids),
     );
   };
 
-let mk_generation: (t, (Ancestor.t, Siblings.t)) => t =
-  (layout, (ancestor, (l_piblings, r_piblings))) =>
+let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
+  (layout, (ancestor, (l_pibs, r_pibs))) => {
     pad_spaces(
       color(ancestor.mold),
-      List.concat([
-        List.map(of_piece, l_piblings),
-        [mk_ancestor(ancestor, layout)],
-        List.map(of_piece, r_piblings),
-      ]),
+      //TODO(andrew): piece-step annos
+      of_pieces(List.rev(l_pibs))
+      @ [of_ancestor(ancestor, layout)]
+      @ of_pieces(r_pibs),
     );
-
-let mk_current: (Siblings.t, Selection.t) => t =
-  ((left, right), {content, _}) =>
-    //TODO(andrew): how do i get sort here?
-    cat(List.map(of_segment(Exp), [left, content, right]));
+  };
 
 let mk_zipper: Zipper.t => t =
-  ({relatives: {siblings, ancestors}, selection, _}) =>
-    List.fold_left(
-      mk_generation,
-      mk_current(siblings, selection),
-      ancestors,
-    );
+  ({relatives: {siblings: (l_sibs, r_sibs), ancestors}, selection, _}) => {
+    let color = ancestors |> Ancestors.sort |> Color.of_sort;
+    let segments = [List.rev(l_sibs), selection.content, r_sibs];
+    let current = cat(List.map(of_segment(color), segments));
+    List.fold_left(of_generation, current, ancestors);
+  };

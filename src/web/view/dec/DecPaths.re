@@ -19,13 +19,13 @@ open OptUtil.Syntax;
 type t = {
   // TODO rename to anchors
   caret: option(Path.range),
+  selection_boxes: list(Path.range),
+  selection_bars: list(Path.range),
   siblings: option((Path.steps, list(Path.caret_step))),
   root_term: option((Path.steps, Skel.t)),
   filtered_pieces: option((Path.steps, list(Path.piece_step))),
   revealed_pieces: option((Path.steps, list(Path.piece_step))),
   neighbor_pieces: option((Path.steps, list(Path.piece_step))),
-  selection_boxes: list(Path.range),
-  selection_bars: list(Path.range),
   // logo hack
   logo_pieces: list(Path.piece_step),
 };
