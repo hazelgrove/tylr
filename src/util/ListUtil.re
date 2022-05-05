@@ -222,8 +222,8 @@ module Syntax = {
   let ( let* ) = (xs, f) => List.concat(List.map(f, xs));
 };
 
-let map_alt: (list('x), list('y), 'x => 'c, 'y => 'c) => list('c) =
-  (xs, ys, fx, fy) => {
+let map_alt: ('a => 'c, 'b => 'c, list('a), list('b)) => list('c) =
+  (fx, fy, xs, ys) => {
     assert(List.length(xs) == List.length(ys) + 1);
     List.fold_left2(
       (acc, x, y) => acc @ [fy(y), fx(x)],
@@ -233,4 +233,4 @@ let map_alt: (list('x), list('y), 'x => 'c, 'y => 'c) => list('c) =
     );
   };
 
-let interleave = (xs, ys) => map_alt(xs, ys, x => x, y => y);
+let interleave = (xs, ys) => map_alt(x => x, y => y, xs, ys);

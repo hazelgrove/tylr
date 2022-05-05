@@ -523,6 +523,8 @@ let delims =
     ["let", "=", "in"],
   ]);
 
+let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
+
 let text: string => t =
   t => List.mem(t, delims) ? Annot(Delim, Text(t)) : Text(t);
 
@@ -534,9 +536,6 @@ let of_grout: Grout.t => t =
 let of_shard: Base.Shard.t => t =
   ({label: (n, label), _}) => Text(List.nth(label, n));
 
-let sort_of: Mold.t => Color.t =
-  ({sorts: {out, _}, _}) => Color.of_sort(out);
-
 let rec of_piece: Piece.t => t =
   fun
   | Tile(t) => of_tile(t)
@@ -546,9 +545,7 @@ and of_segment: (Color.t, Segment.t) => t =
   (color, seg) => seg |> List.map(of_piece) |> pad_spaces(color)
 and of_tile: Tile.t => t =
   ({label, children, mold}) =>
-    cat(
-      ListUtil.map_alt(label, children, text, of_segment(sort_of(mold))),
-    );
+    cat(ListUtil.map_alt(text, of_segment(color(mold)), label, children));
 
 let mk_parent: (Ancestor.t, t) => t =
   ({label, children: (left, right), mold}, layout) => {
@@ -557,11 +554,8 @@ let mk_parent: (Ancestor.t, t) => t =
       List.length(label) - 2 == List.length(left) + List.length(right),
     );
     let (label_l, label_r) = ListUtil.split_n(List.length(left) + 1, label);
-    cat(
-      ListUtil.map_alt(label_l, left, text, of_segment(sort_of(mold)))
-      @ [layout]
-      @ ListUtil.map_alt(label_r, right, text, of_segment(sort_of(mold))),
-    );
+    let map_alt = ListUtil.map_alt(text, of_segment(color(mold)));
+    cat(map_alt(label_l, left) @ [layout] @ map_alt(label_r, right));
   };
 
 let mk_ancestor: ((Ancestor.t, Siblings.t), t) => t =
