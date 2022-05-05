@@ -35,8 +35,8 @@ let tip = (d: Direction.t, t: t) =>
 let is_end = (~strict: bool, d: Direction.t, t: t) =>
   switch (d, t) {
   | (Left, Paren_l | Ap_l | Lam_lam | Let_let | Let_let_eq(_) | Cond_que)
-  | (Right, Paren_r | Ap_r | Let_in | Cond_col) => true
-  | (Right, Lam_dot | Let_eq) => !strict
+  | (Right, Paren_r | Ap_r | Lam_dot | Let_in | Cond_col) => true
+  | (Right, Let_eq) => !strict
   | _ => false
   };
 

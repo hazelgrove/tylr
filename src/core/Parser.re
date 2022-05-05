@@ -233,17 +233,14 @@ let assemble_frame =
       frame: Frame.t,
     )
     : option(Frame.t) => {
-  print_endline("0");
   let* prefix = Selection.get_tiles(prefix);
   let* suffix = Selection.get_tiles(suffix);
-  print_endline("1");
   switch (frame_t, frame) {
   | (((Pat(Paren_l), []), (Pat(Paren_r), [])), Pat(frame)) =>
     let+ prefix = Tiles.get_pat(prefix)
     and+ suffix = Tiles.get_pat(suffix);
     Frame.Pat(Paren_body(((prefix, suffix), frame)));
   | (((Exp(Lam_lam), []), (Exp(Lam_dot), [])), Exp(frame)) =>
-    print_endline("yo");
     let+ prefix = Tiles.get_exp(prefix)
     and+ suffix = Tiles.get_exp(suffix);
     Frame.Pat(Lam_pat(((prefix, suffix), frame)));
