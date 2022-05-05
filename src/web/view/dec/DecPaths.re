@@ -56,9 +56,15 @@ let root_term = ((subject, frame): Zipper.t) => {
     let tframe =
       sframe
       |> TupleUtil.map2(Selection.get_tiles)
-      |> TupleUtil.map2(
-           OptUtil.get_or_fail("expected prefix/suffix to consist of tiles"),
-         );
+      |> TupleUtil.map2(x => {
+           print_endline(
+             Sexplib.Sexp.to_string(Subject.sexp_of_t(subject)),
+           );
+           OptUtil.get_or_fail(
+             "expected prefix/suffix to consist of tiles",
+             x,
+           );
+         });
     let skel_at = (n, tiles) => Skel.skel_at(n, Parser.associate(tiles));
     let (steps, skel) =
       switch (tframe) {

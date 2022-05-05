@@ -124,7 +124,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
             | Exp => [p(Construct(Shard(Exp(Paren_r))))]
             }
           }
-        | "\\" => [p(Construct(Tile(Exp(Lam([OpHole], [OpHole])))))]
+        // | "\\" => [p(Construct(Tile(Exp(Lam([OpHole], [OpHole])))))]
+        | "\\" => [p(Construct(Tile(Exp(Lam([OpHole])))))]
         | "=" => [p(Construct(Tile(Exp(Let([OpHole], [OpHole])))))]
         | "," =>
           switch (zipper) {
@@ -141,15 +142,15 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | (Pointing((_, [])), Exp(Ap_arg(_))) => [p(Move(Right))]
           | _ => [p(Construct(Shard(Exp(Ap_r))))]
           }
-        | "}" =>
-          switch (zipper) {
-          | (Restructuring(((d, [Shard(Exp(Lam_close))], _), _)), _) => [
-              p(Mark),
-              ...d == Right ? [p(Move(Right))] : [],
-            ]
-          | (Pointing((_, [])), Exp(Lam_body(_))) => [p(Move(Right))]
-          | _ => []
-          }
+        // | "}" =>
+        //   switch (zipper) {
+        //   | (Restructuring(((d, [Shard(Exp(Lam_close))], _), _)), _) => [
+        //       p(Mark),
+        //       ...d == Right ? [p(Move(Right))] : [],
+        //     ]
+        //   | (Pointing((_, [])), Exp(Lam_body(_))) => [p(Move(Right))]
+        //   | _ => []
+        //   }
         | "Escape" => [Update.escape()]
         | "?" =>
           switch (fst(zipper)) {

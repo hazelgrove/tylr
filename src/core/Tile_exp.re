@@ -8,7 +8,7 @@ and t =
   | Num(int)
   | Var(Var.t)
   | Paren(s)
-  | Lam(Tile_pat.s, s)
+  | Lam(Tile_pat.s)
   | Let(Tile_pat.s, s)
   | Ap(s)
   | Fact
@@ -25,8 +25,7 @@ let precedence: t => int =
   | OpHole
   | Num(_)
   | Var(_)
-  | Paren(_)
-  | Lam(_) => 0
+  | Paren(_) => 0
   | Fact => 1
   | Ap(_) => 2
   | Times
@@ -36,6 +35,7 @@ let precedence: t => int =
   | BinHole => 5
   | Prod => 6
   | Cond(_) => 7
+  | Lam(_) => 8
   | Let(_) => 9;
 
 let associativity =
@@ -72,9 +72,9 @@ let tip = (d: Direction.t, t: t) => {
     switch (d, t) {
     | (_, OpHole | Num(_) | Var(_) | Paren(_))
     | (Left, Lam(_) | Let(_))
-    | (Right, Fact | Lam(_) | Ap(_)) => Tip.Convex
+    | (Right, Fact | Ap(_)) => Tip.Convex
     | (_, BinHole | Plus | Minus | Times | Div | Prod | Cond(_))
-    | (Right, Let(_))
+    | (Right, Lam(_) | Let(_))
     | (Left, Fact | Ap(_)) => Concave
     };
   (shape, Sort.Exp);

@@ -193,9 +193,8 @@ let paren_r = extra_bold_delim(")");
 let ap_l = extra_bold_delim("[");
 let ap_r = extra_bold_delim("]");
 
-let lam_lam = extra_bold_delim("\\");
-let lam_open = extra_bold_delim("{");
-let lam_close = extra_bold_delim("}");
+let lam_lam = delim(Unicode.lam);
+let lam_dot = delim(".");
 
 let mk_Paren = (sort, body) =>
   cats([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
@@ -203,14 +202,8 @@ let mk_Paren = (sort, body) =>
 let mk_Ap = arg =>
   cats([ap_l, open_child(Exp, ChildStep.ap_arg, arg), ap_r]);
 
-let mk_Lam = (p, body) =>
-  cats([
-    lam_lam,
-    closed_child((Exp, Pat), ChildStep.lam_pat, p),
-    lam_open,
-    open_child(Exp, ChildStep.lam_body, body),
-    lam_close,
-  ]);
+let mk_Lam = p =>
+  cats([lam_lam, closed_child((Exp, Pat), ChildStep.lam_pat, p), lam_dot]);
 
 let mk_Let = (p, def) => {
   cats([
@@ -287,11 +280,7 @@ and mk_tile = t =>
        | Paren(body) =>
          mk_Paren(Exp, pad_spaces(Exp, mk_tiles(Tiles.of_exp(body))))
        | Ap(arg) => mk_Ap(pad_spaces(Exp, mk_tiles(Tiles.of_exp(arg))))
-       | Lam(p, body) =>
-         mk_Lam(
-           pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
-           pad_spaces(Exp, mk_tiles(Tiles.of_exp(body))),
-         )
+       | Lam(p) => mk_Lam(pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))))
        | Let(p, def) =>
          mk_Let(
            pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
@@ -319,18 +308,7 @@ let mk_token =
     | Ap_l => ap_l
     | Ap_r => ap_r
     | Lam_lam => lam_lam
-    | Lam_open => lam_open
-    | Lam_lam_open(p) =>
-      cats([
-        lam_lam,
-        closed_child(
-          (Exp, Pat),
-          ChildStep.lam_pat,
-          pad_spaces(Pat, mk_tiles(Tiles.of_pat(p))),
-        ),
-        lam_open,
-      ])
-    | Lam_close => lam_close
+    | Lam_dot => lam_dot
     | Let_let => delim("let")
     | Let_eq => delim("=")
     | Let_let_eq(p) =>
@@ -416,8 +394,8 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   | Pat(Paren_body(frame_s)) =>
     let tile = mk_Paren(Pat, subject);
     mk_frame_pat((tile, shape_op), frame_s);
-  | Pat(Lam_pat(body, frame_s)) =>
-    let tile = mk_Lam(subject, pad_spaces(Exp, mk_tiles_exp(body)));
+  | Pat(Lam_pat(frame_s)) =>
+    let tile = mk_Lam(subject);
     mk_frame_exp((tile, shape_op), frame_s);
   | Pat(Let_pat(def, frame_s)) =>
     let tile = mk_Let(subject, pad_spaces(Exp, mk_tiles_exp(def)));
@@ -428,9 +406,6 @@ let rec mk_frame = (subject: t, frame: Frame.t): t => {
   | Exp(Ap_arg(frame_s)) =>
     let tile = mk_Ap(subject);
     mk_frame_exp((tile, shape_post), frame_s);
-  | Exp(Lam_body(p, frame_s)) =>
-    let tile = mk_Lam(pad_spaces(Pat, mk_tiles_pat(p)), subject);
-    mk_frame_exp((tile, shape_op), frame_s);
   | Exp(Let_def(p, frame_s)) =>
     let tile = mk_Let(pad_spaces(Pat, mk_tiles_pat(p)), subject);
     mk_frame_exp((tile, shape_pre), frame_s);
