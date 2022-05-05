@@ -49,13 +49,14 @@ let closed_child = (sort, step) => annot(Child({step, sort}));
 
 let space = (n, color) => Annot(Space(n, color), Text(Unicode.nbsp));
 
-let pad_spaces = (color, ls) =>
-  switch (ls) {
-  | [] => cat([])
-  | _ =>
-    let spaces = List.init(List.length(ls) + 1, i => space(i, color));
-    cat(ListUtil.interleave(spaces, ls));
-  };
+let pad_spaces: (Color.t, list(t)) => t =
+  (color, ls) =>
+    switch (ls) {
+    | [] => cat([])
+    | _ =>
+      let spaces = List.init(List.length(ls) + 1, i => space(i, color));
+      cat(ListUtil.interleave(spaces, ls));
+    };
 
 let length = {
   let rec go =
@@ -548,20 +549,21 @@ and of_tile: Tile.t => t =
     cat(ListUtil.map_alt(text, of_segment(color(mold)), label, children));
 
 let mk_parent: (Ancestor.t, t) => t =
-  ({label, children: (left, right), mold}, layout) => {
+  ({label, children: (kids_l, kids_r), mold}, layout) => {
     //TODO(andrew): david does this assert and label splitting logic make sense?
     assert(
-      List.length(label) - 2 == List.length(left) + List.length(right),
+      List.length(label) - 2 == List.length(kids_l) + List.length(kids_r),
     );
-    let (label_l, label_r) = ListUtil.split_n(List.length(left) + 1, label);
+    let (label_l, label_r) =
+      ListUtil.split_n(List.length(kids_l) + 1, label);
     let map_alt = ListUtil.map_alt(text, of_segment(color(mold)));
-    cat(map_alt(label_l, left) @ [layout] @ map_alt(label_r, right));
+    cat(map_alt(label_l, kids_l) @ [layout] @ map_alt(label_r, kids_r));
   };
 
 let mk_ancestor: ((Ancestor.t, Siblings.t), t) => t =
   ((ancestor, (left_aunts, right_aunts)), layout) =>
     pad_spaces(
-      Exp,
+      color(ancestor.mold),
       List.map(of_piece, left_aunts)
       @ [mk_parent(ancestor, layout)]
       @ List.map(of_piece, right_aunts),
