@@ -221,3 +221,16 @@ module Syntax = {
   let (and+) = product;
   let ( let* ) = (xs, f) => List.concat(List.map(f, xs));
 };
+
+let map_alt: (list('x), list('y), 'x => 'c, 'y => 'c) => list('c) =
+  (xs, ys, fx, fy) => {
+    assert(List.length(xs) == List.length(ys) + 1);
+    List.fold_left2(
+      (acc, x, y) => acc @ [fy(y), fx(x)],
+      [fx(List.hd(xs))],
+      List.tl(xs),
+      ys,
+    );
+  };
+
+let interleave = (xs, ys) => map_alt(xs, ys, x => x, y => y);

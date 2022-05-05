@@ -85,19 +85,29 @@ let view_of_layout =
           (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
           : (list(Node.t), list(Node.t)) => {
     switch (l) {
-    | Empty => ([], [])
     | Text(s) => ([Node.text(s)], [])
-    | Cat(l1, l2) =>
-      let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
-      let (txt2, ds2) =
-        go(
-          ~piece_step?,
-          ~indent,
-          ~origin=origin + Layout.length(l1),
-          dpaths,
-          l2,
+    | Cat(ls) =>
+      let (blah, _) =
+        List.fold_left(
+          (((txt1, ds1), origin), l) => {
+            let (txt2, ds2) = go(~piece_step?, ~indent, ~origin, dpaths, l);
+            ((txt1 @ txt2, ds1 @ ds2), origin + Layout.length(l));
+          },
+          (([], []), origin),
+          ls,
         );
-      (txt1 @ txt2, ds1 @ ds2);
+      blah;
+    /*
+     let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
+     let (txt2, ds2) =
+       go(
+         ~piece_step?,
+         ~indent,
+         ~origin=origin + Layout.length(l1),
+         dpaths,
+         l2,
+       );
+     (txt1 @ txt2, ds1 @ ds2);*/
     | Annot(annot, l) =>
       let go' = () => go(~piece_step?, ~indent, ~origin, dpaths, l);
       let add_decorations = new_ds => {
