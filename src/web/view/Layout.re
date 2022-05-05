@@ -48,7 +48,6 @@ let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
 let closed_child = (sort, step) => annot(Child({step, sort}));
 
 let space = (n, color) => Annot(Space(n, color), Text(Unicode.nbsp));
-let space_sort = (n, sort) => space(n, Color.of_sort(sort));
 
 let pad_spaces = (color, ls) =>
   switch (ls) {
@@ -512,7 +511,20 @@ let mk_text = s => Text(s);
 //     mk_frame(mk_subject(subj), frame)
 //   );
 
-let text: string => t = t => Text(t);
+//let text: string => t = t => Text(t);
+
+let delims =
+  List.flatten([
+    ["(", ")"],
+    ["λ", "{", "}"],
+    ["[", "]"],
+    [","],
+    ["?", ":"],
+    ["let", "=", "in"],
+  ]);
+
+let text: string => t =
+  t => List.mem(t, delims) ? Annot(Delim, Text(t)) : Text(t);
 
 let of_grout: Grout.t => t =
   fun
@@ -520,31 +532,35 @@ let of_grout: Grout.t => t =
   | Concave => Text("TODO:CONCAVE_GROUT");
 
 let of_shard: Base.Shard.t => t =
-  ({label: (idx, label), _}) => Text(List.nth(label, idx));
+  ({label: (n, label), _}) => Text(List.nth(label, n));
+
+let sort_of: Mold.t => Color.t =
+  ({sorts: {out, _}, _}) => Color.of_sort(out);
 
 let rec of_piece: Piece.t => t =
   fun
   | Tile(t) => of_tile(t)
   | Grout(g) => of_grout(g)
   | Shard(s) => of_shard(s)
-and of_segment: Segment.t => t =
-  seg => seg |> List.map(of_piece) |> pad_spaces(Exp) //TODO: pad?
+and of_segment: (Color.t, Segment.t) => t =
+  (color, seg) => seg |> List.map(of_piece) |> pad_spaces(color)
 and of_tile: Tile.t => t =
-  ({label, children, _}) =>
-    cat(ListUtil.map_alt(label, children, text, of_segment));
+  ({label, children, mold}) =>
+    cat(
+      ListUtil.map_alt(label, children, text, of_segment(sort_of(mold))),
+    );
 
 let mk_parent: (Ancestor.t, t) => t =
-  ({label, children: (left, right), _}, layout) => {
+  ({label, children: (left, right), mold}, layout) => {
     //TODO(andrew): david does this assert and label splitting logic make sense?
     assert(
       List.length(label) - 2 == List.length(left) + List.length(right),
     );
-    let (label_left, label_right) =
-      ListUtil.split_n(List.length(left) + 1, label);
+    let (label_l, label_r) = ListUtil.split_n(List.length(left) + 1, label);
     cat(
-      ListUtil.map_alt(label_left, left, text, of_segment)
+      ListUtil.map_alt(label_l, left, text, of_segment(sort_of(mold)))
       @ [layout]
-      @ ListUtil.map_alt(label_right, right, text, of_segment),
+      @ ListUtil.map_alt(label_r, right, text, of_segment(sort_of(mold))),
     );
   };
 
@@ -561,6 +577,6 @@ let mk_zipper: Zipper.t => t =
   ({relatives: {siblings: (left, right), ancestors, _}, _}) =>
     List.fold_left(
       (layout, ancestor) => mk_ancestor(ancestor, layout),
-      cat([of_segment(left), of_segment(right)]),
+      cat([of_segment(Exp, left), of_segment(Exp, right)]), //TODO(andrew): how do i get sort?
       ancestors,
     );

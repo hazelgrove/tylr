@@ -87,7 +87,7 @@ let view_of_layout =
     switch (l) {
     | Text(s) => ([Node.text(s)], [])
     | Cat(ls) =>
-      let (blah, _) =
+      let (ns, _) =
         List.fold_left(
           (((txt1, ds1), origin), l) => {
             let (txt2, ds2) = go(~piece_step?, ~indent, ~origin, dpaths, l);
@@ -96,7 +96,7 @@ let view_of_layout =
           (([], []), origin),
           ls,
         );
-      blah;
+      ns;
     /*
      let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
      let (txt2, ds2) =
