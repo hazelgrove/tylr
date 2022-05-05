@@ -45,4 +45,24 @@ let shape_rank = (ancestors: t): int =>
     0,
   );
 
-let regrout = _ => failwith("todo regrout");
+let regrout =
+  List.map(((a: Ancestor.t, sibs: Siblings.t)) => {
+    let (n_l, n_r) = Mold.nibs(a.mold);
+    let (s_l, s_r) = (n_l.shape, n_r.shape);
+    let (pre, suf) = Siblings.regrout(sibs);
+    let pre =
+      switch (pre) {
+      | [Grout(g), ...pre'] => Grout.fits(g, s_l) ? pre : pre'
+      | _ =>
+        Nib.Shape.fits(s_l, Siblings.Prefix.shape(pre))
+          ? pre : [Grout(Grout.mk_fits(s_l)), ...pre]
+      };
+    let suf =
+      switch (suf) {
+      | [Grout(g), ...suf'] => Grout.fits(g, s_r) ? suf : suf'
+      | _ =>
+        Nib.Shape.fits(s_r, Siblings.Prefix.shape(suf))
+          ? suf : [Grout(Grout.mk_fits(s_r)), ...suf]
+      };
+    (a, (pre, suf));
+  });

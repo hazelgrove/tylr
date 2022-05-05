@@ -93,7 +93,19 @@ let shape_rank = ({siblings, ancestors}: t) => {
 
 let regrout = ({siblings, ancestors}: t): t => {
   let ancestors = Ancestors.regrout(ancestors);
-  let siblings = Siblings.regrout(siblings);
-  let _ = failwith("todo regrout siblings interface");
+  let siblings = {
+    let (pre, suf) = Siblings.regrout(siblings);
+    let (s_pre, s_suf) = Siblings.shapes(siblings);
+    // relies on invariant of non-consecutive grout
+    switch (pre, suf) {
+    | ([Grout(g), ...pre'], _) =>
+      Grout.fits(g, s_suf) ? (pre, suf) : (pre', suf)
+    | (_, [Grout(g), ...suf']) =>
+      Grout.fits(g, s_pre) ? (pre, suf) : (pre, suf')
+    | _ =>
+      Nib.Shape.fits(s_pre, s_suf)
+        ? (pre, suf) : (pre, [Grout(Grout.mk_fits(s_suf)), ...suf])
+    };
+  };
   {siblings, ancestors};
 };

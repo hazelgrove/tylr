@@ -105,12 +105,6 @@ module Make = (O: Orientation.S) => {
     )
     |> snd;
 
-  let hd_grout = (affix: t): (option(Grout.t), t) =>
-    switch (affix) {
-    | [Grout(g), ...tl] => (Some(g), tl)
-    | _ => (None, affix)
-    };
-
   let regrout = (affix: t) =>
     Segment.fold_right(
       (p: Piece.t, regrouted) =>
@@ -120,27 +114,36 @@ module Make = (O: Orientation.S) => {
         | Shard(shard) =>
           let (n_far, _) = O.orient(shard.nibs);
           let s_far = n_far.shape;
-          switch (hd_grout(regrouted)) {
-          | (Some(g), tl) =>
+          switch (regrouted) {
+          | [Grout(g), ...tl] =>
             Grout.fits(g, s_far) ? [p, ...regrouted] : [p, ...tl]
-          | (None, _) =>
+          | _ =>
             Nib.Shape.fits(s_far, shape(regrouted))
               ? [p, ...regrouted]
               : [p, Grout(Grout.mk_fits(s_far)), ...regrouted]
           };
         | Tile(tile) =>
+          let p =
+            Piece.Tile({
+              ...tile,
+              children:
+                List.map(
+                  Segment.regrout((Nib.Shape.concave(), Nib.Shape.concave())),
+                  tile.children,
+                ),
+            });
           let (n_far, _) = O.orient(Mold.nibs(tile.mold));
           let s_far = n_far.shape;
-          switch (hd_grout(regrouted)) {
-          | (Some(g), tl) =>
+          switch (regrouted) {
+          | [Grout(g), ...tl] =>
             Grout.fits(g, s_far) ? [p, ...regrouted] : [p, ...tl]
-          | (None, _) =>
+          | _ =>
             Nib.Shape.fits(s_far, shape(regrouted))
               ? [p, ...regrouted]
               : [p, Grout(Grout.mk_fits(s_far)), ...regrouted]
           };
         },
       affix,
-      Segment.empty,
+      empty,
     );
 };

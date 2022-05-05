@@ -92,6 +92,68 @@ let rec shape_rank = (seg, (s_l, s_r): (Nib.Shape.t, Nib.Shape.t)) => {
   rank + Bool.to_int(!Nib.Shape.fits(s_l, s_l'));
 };
 
+let rec shape = (seg: t, r: Nib.Shape.t) =>
+  switch (seg) {
+  | [] => r
+  | [Grout(_), ...seg] => shape(seg, r)
+  | [Shard(s), ..._] =>
+    let (l, _) = s.nibs;
+    l.shape;
+  | [Tile(t), ..._] =>
+    let (l, _) = Mold.nibs(t.mold);
+    l.shape;
+  };
+
+let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
+  let regrouted =
+    fold_right(
+      (p: Piece.t, regrouted) =>
+        switch (p) {
+        | Grout(g) =>
+          Grout.fits(g, shape(regrouted, r)) ? [p, ...regrouted] : regrouted
+        | Shard(shard) =>
+          let (_, n_r) = shard.nibs;
+          let s_r = n_r.shape;
+          switch (regrouted) {
+          | [Grout(g), ...tl] =>
+            Grout.fits(g, s_r) ? [p, ...regrouted] : [p, ...tl]
+          | _ =>
+            Nib.Shape.fits(s_r, shape(regrouted, r))
+              ? [p, ...regrouted]
+              : [p, Grout(Grout.mk_fits(s_r)), ...regrouted]
+          };
+        | Tile(tile) =>
+          let p =
+            Piece.Tile({
+              ...tile,
+              children:
+                List.map(
+                  regrout((Nib.Shape.concave(), Nib.Shape.concave())),
+                  tile.children,
+                ),
+            });
+          let (_, n_r) = Mold.nibs(tile.mold);
+          let s_r = n_r.shape;
+          switch (regrouted) {
+          | [Grout(g), ...tl] =>
+            Grout.fits(g, s_r) ? [p, ...regrouted] : [p, ...tl]
+          | _ =>
+            Nib.Shape.fits(s_r, shape(regrouted, r))
+              ? [p, ...regrouted]
+              : [p, Grout(Grout.mk_fits(s_r)), ...regrouted]
+          };
+        },
+      seg,
+      empty,
+    );
+  switch (regrouted) {
+  | [Grout(g), ...tl] => Grout.fits(g, l) ? regrouted : tl
+  | _ =>
+    Nib.Shape.fits(l, shape(regrouted, r))
+      ? regrouted : [Grout(Grout.mk_fits(l)), ...regrouted]
+  };
+};
+
 module Stack = Stack.Make(Orientation.R);
 // TODO use direction parameter
 let reassemble = (seg: t): t =>
