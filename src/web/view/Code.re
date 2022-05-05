@@ -85,7 +85,40 @@ let view_of_layout =
           (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
           : (list(Node.t), list(Node.t)) => {
     switch (l) {
-    | Text(s) => ([Node.text(s)], [])
+    | Text(s, text_ann) =>
+      let t = [Node.text(s)];
+      switch (text_ann) {
+      | None => (t, [])
+      | Delim => ([with_cls("delim", t)], [])
+      | DelimBold => ([with_cls("extra-bold-delim", t)], [])
+      | Ap => (
+          [with_cls("ap", t)],
+          [ApDec.view(~font_metrics, {origin, length: 1})],
+        )
+      | Space(_step, _color) =>
+        // DecPaths.current_space(
+        //   ~delete_actions?,
+        //   ~caret_mode?,
+        //   ~just_failed,
+        //   ~measurement={origin, length: 1},
+        //   (step, color),
+        //   dpaths,
+        // )
+        // |> List.map(Dec.view(~font_metrics))
+        // |> add_decorations
+        (t, [])
+      | EmptyHole(color, _tip) =>
+        let m: Layout.measurement = {origin, length: 1};
+        (
+          t,
+          [
+            EmptyHoleDec.view(
+              ~font_metrics: FontMetrics.t,
+              {measurement: m, color},
+            ),
+          ],
+        );
+      };
     | Cat(ls) =>
       let (ns, _) =
         List.fold_left(
@@ -109,53 +142,7 @@ let view_of_layout =
        );
      (txt1 @ txt2, ds1 @ ds2);*/
     | Annot(annot, l) =>
-      let go' = () => go(~piece_step?, ~indent, ~origin, dpaths, l);
-      let add_decorations = new_ds => {
-        let (txt, ds) = go'();
-        (txt, new_ds @ ds);
-      };
       switch (annot) {
-      | Space(_step, _color) =>
-        //TODO(andrew): i commented out below fail??
-        //let _ = failwith("todo fix Code space dec");
-        // DecPaths.current_space(
-        //   ~delete_actions?,
-        //   ~caret_mode?,
-        //   ~just_failed,
-        //   ~measurement={origin, length: 1},
-        //   (step, color),
-        //   dpaths,
-        // )
-        // |> List.map(Dec.view(~font_metrics))
-        // |> add_decorations
-        go'()
-
-      | Ap =>
-        let (txt, ds) = go'();
-        (
-          [with_cls("ap", txt)],
-          [ApDec.view(~font_metrics, {origin, length: 1}), ...ds],
-        );
-      | ExtraBoldDelim =>
-        let (txt, ds) = go'();
-        ([with_cls("extra-bold-delim", txt)], ds);
-      | Delim =>
-        let (txt, ds) = go'();
-        ([with_cls("delim", txt)], ds);
-      | EmptyHole(color, _tip) =>
-        add_decorations([
-          EmptyHoleDec.view(
-            ~font_metrics: FontMetrics.t,
-            {
-              measurement: {
-                origin,
-                length: 1,
-              },
-              color,
-              // tip,
-            },
-          ),
-        ])
       | Piece({color, shape, step}) =>
         let new_ds =
           DecPaths.current_piece(
@@ -199,7 +186,7 @@ let view_of_layout =
           |> List.map(Dec.view(~font_metrics));
         let (txt, ds) = go(~indent, ~origin, dpaths, l);
         (txt, new_ds @ ds);
-      };
+      }
     };
   };
 

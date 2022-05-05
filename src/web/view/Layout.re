@@ -9,16 +9,7 @@ type tip_shape = (Nib.t, int);
 type piece_shape = (tip_shape, tip_shape);
 
 [@deriving show]
-type t =
-  | Text(string)
-  | Cat(list(t))
-  | Annot(annot, t)
-and annot =
-  | ExtraBoldDelim
-  | Delim
-  | EmptyHole(Color.t, Nib.t)
-  | Ap
-  | Space(int, Color.t)
+type annot =
   | Child({
       step: ChildStep.t,
       sort: (Sort.t, Sort.t),
@@ -28,26 +19,39 @@ and annot =
       color: Color.t,
       shape: piece_shape,
     });
-
 // | TargetBounds({
 //     sort: Sort.t,
 //     mode: CaretMode.t,
 //     strict_bounds: (bool, bool),
 //   });
 
+[@deriving show]
+type text_annot =
+  | None
+  | DelimBold //annot(DelimBold, text(s))
+  | Delim //annot(Delim, Text(s))
+  | EmptyHole(Color.t, Nib.t) //annot(EmptyHole(color, tip), text(Unicode.nbsp))
+  | Ap //?
+  | Space(int, Color.t); //annot(Space(n, color), text(Unicode.nbsp));
+
+[@deriving show]
+type t =
+  | Text(string, text_annot)
+  | Cat(list(t))
+  | Annot(annot, t);
+
 let cat: list(t) => t = xs => Cat(xs);
-let text: string => t = t => Text(t);
+let text: string => t = t => Text(t, None);
 let annot: (annot, t) => t = (annot, l) => Annot(annot, l);
-let delim: string => t = s => annot(Delim, Text(s));
-let space = (n, color) => annot(Space(n, color), text(Unicode.nbsp));
+let delim: string => t = s => Text(s, Delim);
+let space = (n, color) => Text(Unicode.nbsp, Space(n, color));
 
 let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
 
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cat;
 
-let extra_bold_delim = s => annot(ExtraBoldDelim, text(s));
-let empty_hole = (color, tip) =>
-  annot(EmptyHole(color, tip), text(Unicode.nbsp));
+let extra_bold_delim = s => Text(s, DelimBold);
+let empty_hole = (color, tip) => Text(Unicode.nbsp, EmptyHole(color, tip));
 let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
 let closed_child = (sort, step) => annot(Child({step, sort}));
 
@@ -56,7 +60,7 @@ let length = {
     lazy(
       Memo.memoize(
         fun
-        | Text(s) => Unicode.length(s)
+        | Text(s, _) => Unicode.length(s)
         | Cat(ls) =>
           List.fold_left((acc, l) => Lazy.force(go, l) + acc, 0, ls)
         | Annot(_, l) => Lazy.force(go, l),
@@ -82,7 +86,7 @@ let measured_fold' =
   let rec go = (~origin, l: t) => {
     let m = {origin, length: length(l)};
     switch (l) {
-    | Text(s) => text(m, s)
+    | Text(s, _) => text(m, s)
     | Cat(ls) =>
       let (acc, _) =
         List.fold_left(
@@ -109,9 +113,9 @@ let find_space =
        ~text=(_, _) => [],
        ~cat=_ => List.concat,
        ~annot=
-         (_k, measurement, annot, _l) =>
-           switch (annot) {
-           | Space(m, color) when m == n => [(color, measurement)]
+         (_k, measurement, _annot, l) =>
+           switch (l) {
+           | Text(_, Space(m, color)) when m == n => [(color, measurement)]
            | _ => []
            },
      )
@@ -166,17 +170,17 @@ let piece_children =
         | _ => ([], [])
         },
   );
-let piece_holes =
-  measured_fold(
-    ~text=(_, _) => [],
-    ~cat=_ => List.concat,
-    ~annot=
-      ({origin, _}, annot, holes) =>
-        switch (annot) {
-        | EmptyHole(sort, tip) => [(origin, sort, tip), ...holes]
-        | _ => holes
-        },
-  );
+//let piece_holes =
+//  measured_fold(
+//    ~text=(_, _) => [],
+//    ~cat=_ => List.concat,
+//    ~annot=
+//      ({origin, _}, annot, holes) =>
+//        switch (annot) {
+//        | EmptyHole(sort, tip) => [(origin, sort, tip), ...holes]
+//        | _ => holes
+//        },
+//  );
 
 //let paren_l = extra_bold_delim("(");
 //let paren_r = extra_bold_delim(")");

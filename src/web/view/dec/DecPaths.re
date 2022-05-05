@@ -400,7 +400,7 @@ let current_piece =
   let filtered_piece_ds =
     switch (filtered_pieces) {
     | Some(([], filtered_pieces)) when List.mem(step, filtered_pieces) =>
-      let _empty_holes = Layout.piece_holes(piece_l);
+      //let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Selem({
@@ -418,7 +418,7 @@ let current_piece =
   let revealed_piece_ds =
     switch (revealed_pieces) {
     | Some(([], revealed_pieces)) when List.mem(step, revealed_pieces) =>
-      let _empty_holes = Layout.piece_holes(piece_l);
+      //let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Selem({
@@ -436,7 +436,7 @@ let current_piece =
   let neighbor_piece_ds =
     switch (neighbor_pieces) {
     | Some(([], neighbor_pieces)) when List.mem(step, neighbor_pieces) =>
-      let _empty_holes = Layout.piece_holes(piece_l);
+      //let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Rail({measurement, color}),
