@@ -39,6 +39,7 @@ let cat: list(t) => t = xs => Cat(xs);
 let text: string => t = t => Text(t);
 let annot: (annot, t) => t = (annot, l) => Annot(annot, l);
 let delim: string => t = s => annot(Delim, Text(s));
+let space = (n, color) => annot(Space(n, color), text(Unicode.nbsp));
 
 let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
 
@@ -49,17 +50,6 @@ let empty_hole = (color, tip) =>
   annot(EmptyHole(color, tip), text(Unicode.nbsp));
 let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
 let closed_child = (sort, step) => annot(Child({step, sort}));
-
-let space = (n, color) => annot(Space(n, color), text(Unicode.nbsp));
-
-let pad_spaces: (Color.t, list(t)) => t =
-  (color, ls) =>
-    switch (ls) {
-    | [] => cat([])
-    | _ =>
-      let spaces = List.init(List.length(ls) + 1, i => space(i, color));
-      cat(ListUtil.interleave(spaces, ls));
-    };
 
 let length = {
   let rec go =
@@ -504,6 +494,15 @@ let mk_Cond = then_ =>
 //   |> cats;
 // };
 
+let pad_spaces: (Color.t, list(t)) => t =
+  (color, ls) =>
+    switch (ls) {
+    | [] => cat([])
+    | _ =>
+      let spaces = List.init(List.length(ls) + 1, i => space(i, color));
+      cat(ListUtil.interleave(spaces, ls));
+    };
+
 let delims =
   List.flatten([
     ["(", ")"],
@@ -514,7 +513,7 @@ let delims =
     ["let", "=", "in"],
   ]);
 
-let text_ann: string => t = t => List.mem(t, delims) ? delim(t) : text(t);
+let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 
 let of_grout: Grout.t => t =
   fun
@@ -531,42 +530,46 @@ let rec of_piece: Piece.t => t =
   | Shard(s) => of_shard(s)
 and of_segment: (Color.t, Segment.t) => t =
   (color, ps) => ps |> List.map(of_piece) |> pad_spaces(color)
+and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
+  mold => ListUtil.map_alt(text', of_segment(color(mold)))
 and of_tile: Tile.t => t =
-  ({label, children, mold}) =>
-    cat(
-      ListUtil.map_alt(text_ann, of_segment(color(mold)), label, children),
-    );
+  ({label, children, mold}) => cat(of_form(mold, label, children));
 
-let mk_parent: (Ancestor.t, t) => t =
-  ({label, children: (kids_l, kids_r), mold}, layout) => {
+let mk_ancestor: (Ancestor.t, t) => t =
+  ({label, children: (l_kids, r_kids), mold}, layout) => {
     //TODO(andrew): david does this assert and label splitting logic make sense?
     assert(
-      List.length(label) - 2 == List.length(kids_l) + List.length(kids_r),
+      List.length(label) - 2 == List.length(l_kids) + List.length(r_kids),
     );
     let (label_l, label_r) =
-      ListUtil.split_n(List.length(kids_l) + 1, label);
-    let map_alt = ListUtil.map_alt(text_ann, of_segment(color(mold)));
-    cat(map_alt(label_l, kids_l) @ [layout] @ map_alt(label_r, kids_r));
+      ListUtil.split_n(List.length(l_kids) + 1, label);
+    cat(
+      of_form(mold, label_l, l_kids)
+      @ [layout]
+      @ of_form(mold, label_r, r_kids),
+    );
   };
 
-let mk_ancestor: (t, (Ancestor.t, Siblings.t)) => t =
-  (layout, (ancestor, (left_aunts, right_aunts))) =>
+let mk_generation: (t, (Ancestor.t, Siblings.t)) => t =
+  (layout, (ancestor, (l_piblings, r_piblings))) =>
     pad_spaces(
       color(ancestor.mold),
-      List.map(of_piece, left_aunts)
-      @ [mk_parent(ancestor, layout)]
-      @ List.map(of_piece, right_aunts),
+      List.concat([
+        List.map(of_piece, l_piblings),
+        [mk_ancestor(ancestor, layout)],
+        List.map(of_piece, r_piblings),
+      ]),
     );
 
 let mk_current: (Siblings.t, Selection.t) => t =
   ((left, right), {content, _}) =>
     //TODO(andrew): how do i get sort here?
-    cat([
-      of_segment(Exp, left),
-      of_segment(Exp, content),
-      of_segment(Exp, right),
-    ]);
+    cat(List.map(of_segment(Exp), [left, content, right]));
 
 let mk_zipper: Zipper.t => t =
   ({relatives: {siblings, ancestors}, selection, _}) =>
-    List.fold_left(mk_ancestor, mk_current(siblings, selection), ancestors);
+    List.fold_left(
+      mk_generation,
+      mk_current(siblings, selection),
+      ancestors,
+    );
