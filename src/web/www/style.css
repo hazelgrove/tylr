@@ -377,7 +377,7 @@ svg.rail line.unsorted {
   position: absolute;
   height: 100%;
   width: 100%;
-  filter: blur(1px);
+  /*filter: blur(1px);*/
   border-radius: 3px;
 }
 .selection-box.unfocused {

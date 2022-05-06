@@ -6,37 +6,38 @@ open Core;
 let span_c = cls => span([Attr.class_(cls)]);
 
 let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
-  //assert(0 <= i && i <= j && j <= List.length(ms));
-  let origin = List.nth(ms, i).measurement.origin;
-  let r =
-    List.nth(ms, j).measurement.origin + List.nth(ms, j).measurement.length;
-  {origin, length: r - origin};
+  assert(0 <= i && i <= j && j <= List.length(ms));
+  let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
+  let origin = ith.measurement.origin;
+  let length = jth.measurement.origin + jth.measurement.length - origin;
+  {origin, length};
 };
 
-let cat_decos = (~font_metrics, ann: Layout.ann_cat, _measurement, ms) =>
+let cat_decos =
+    (~font_metrics, ann: Layout.ann_cat, measurement: Layout.measurement, ms) =>
   switch (ann) {
-  | SelectionRange(i, j) =>
-    let profile = range_profile(ms, i, j);
-    [SelectedBoxDec.view(~font_metrics, profile)];
+  | SelectionRange(i, j) => [
+      SelectedBoxDec.view(~font_metrics, range_profile(ms, i, j)),
+      CaretDec.simple_view(~font_metrics, measurement.origin),
+    ]
   | _ => []
   };
 
 let text_decos = (~font_metrics, ann: Layout.ann_text, measurement) =>
   switch (ann) {
-  | EmptyHole(color, _tip) => [
-      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, color}),
+  | EmptyHole(tip) => [
+      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, tip}),
     ]
   | _ => []
   };
 
 let rec deco_view: (~font_metrics: FontMetrics.t, Layout.measured) => list(t) =
   (~font_metrics, layout) =>
-    switch (layout) {
-    | {layout: CatM(ms, ann), measurement} =>
-      cat_decos(~font_metrics, ann, measurement, ms)
+    switch (layout.layout) {
+    | CatM(ms, ann) =>
+      cat_decos(~font_metrics, ann, layout.measurement, ms)
       @ List.concat(List.map(deco_view(~font_metrics), ms))
-    | {layout: TextM(_s, ann), measurement} =>
-      text_decos(~font_metrics, ann, measurement)
+    | TextM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
     };
 
 let rec text_view = (l: Layout.t): list(Node.t) => {

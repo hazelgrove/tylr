@@ -32,7 +32,7 @@ type ann_text =
   | None
   | Delim
   | DelimBold
-  | EmptyHole(Color.t, Nib.t)
+  | EmptyHole(Nib.t)
   | Space(int, Color.t)
   | Ap; //TODO(andrew): deprecate?
 
@@ -60,7 +60,7 @@ let cat: list(t) => t = xs => Cat(xs, None);
 let text: string => t = t => Text(t, None);
 let delim: string => t = s => Text(s, Delim);
 let space = (n, color) => Text(Unicode.nbsp, Space(n, color));
-let empty_hole = (color, tip) => Text(Unicode.nbsp, EmptyHole(color, tip));
+let empty_hole = tip => Text(Unicode.nbsp, EmptyHole(tip));
 
 let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
 
@@ -117,9 +117,10 @@ let delims =
 let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 
 let of_grout: Grout.t => t =
+  // TODO(andrew): get nibs for holes?
   fun
-  | Convex => empty_hole(Exp, {shape: Convex, sort: Exp})
-  | Concave => text("TODO:CONCAVE_GROUT");
+  | Convex => empty_hole({shape: Convex, sort: Exp})
+  | Concave => empty_hole({shape: Concave(Precedence.max), sort: Exp});
 
 let of_shard: Base.Shard.t => t =
   ({label: (n, label), _}) => text(List.nth(label, n));
