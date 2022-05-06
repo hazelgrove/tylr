@@ -59,9 +59,10 @@ and measured = {
 let cat: list(t) => t = xs => Cat(xs, None);
 let text: string => t = t => Text(t, None);
 let delim: string => t = s => Text(s, Delim);
-let delim_bold = s => Text(s, DelimBold);
 let space = (n, color) => Text(Unicode.nbsp, Space(n, color));
 let empty_hole = (color, tip) => Text(Unicode.nbsp, EmptyHole(color, tip));
+
+let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
 
 let update_ann: (t, ann_cat => ann_cat) => t =
   (t, f) =>
@@ -69,13 +70,6 @@ let update_ann: (t, ann_cat => ann_cat) => t =
     | Cat(x, ann) => Cat(x, f(ann))
     | _ => t
     };
-
-let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
-
-let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cat;
-
-//let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
-//let closed_child = (sort, step) => annot(Child({step, sort}));
 
 let rec length =
   fun
@@ -101,6 +95,100 @@ let rec to_measured = (~origin=0, layout: t): measured =>
     {layout: CatM(List.rev(ms), ann), measurement};
   };
 
+let pad_spaces: (Color.t, list(t)) => t =
+  (color, ls) =>
+    switch (ls) {
+    | [] => cat([])
+    | _ =>
+      let spaces = List.init(List.length(ls) + 1, i => space(i, color));
+      cat(ListUtil.interleave(spaces, ls));
+    };
+
+let delims =
+  List.flatten([
+    ["(", ")"],
+    ["λ", "{", "}"],
+    ["[", "]"],
+    [","],
+    ["?", ":"],
+    ["let", "=", "in"],
+  ]);
+
+let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
+
+let of_grout: Grout.t => t =
+  fun
+  | Convex => empty_hole(Exp, {shape: Convex, sort: Exp})
+  | Concave => text("TODO:CONCAVE_GROUT");
+
+let of_shard: Base.Shard.t => t =
+  ({label: (n, label), _}) => text(List.nth(label, n));
+
+let rec of_piece: Piece.t => t =
+  fun
+  | Tile(t) => of_tile(t)
+  | Grout(g) => of_grout(g)
+  | Shard(s) => of_shard(s)
+and of_pieces = ps => List.map(of_piece, ps)
+and of_segment: (Color.t, Segment.t) => t =
+  //TODO(andrew): piece step annos
+  (color, ps) => ps |> of_pieces |> pad_spaces(color)
+and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
+  //TODO(andrew): child-step anno
+  mold => ListUtil.map_alt(text', of_segment(color(mold)))
+and of_tile: Tile.t => t =
+  ({label, children, mold}) => cat(of_form(mold, label, children));
+
+let of_ancestor: (Ancestor.t, t) => t =
+  ({label, children: (l_kids, r_kids), mold}, layout) => {
+    assert(
+      List.length(label) - 2 == List.length(l_kids) + List.length(r_kids),
+    );
+    let (l_label, r_label) =
+      ListUtil.split_n(List.length(l_kids) + 1, label);
+    cat(
+      of_form(mold, l_label, List.rev(l_kids))
+      @ [layout]
+      @ of_form(mold, r_label, r_kids),
+    );
+  };
+
+let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
+  (layout, (ancestor, (l_pibs, r_pibs))) => {
+    pad_spaces(
+      color(ancestor.mold),
+      //TODO(andrew): piece-step annos
+      of_pieces(List.rev(l_pibs))
+      @ [of_ancestor(ancestor, layout)]
+      @ of_pieces(r_pibs),
+    );
+  };
+
+let ann_selection: (t, (list('a), list('b))) => t =
+  (layout, (l_sibs, content)) => {
+    let l = List.length(l_sibs);
+    let r = l + List.length(content);
+    //NOTE: increment indicies because of space padding
+    update_ann(layout, _ => SelectionRange(l + 1, r + 1));
+  };
+
+let mk_zipper: Zipper.t => t =
+  (
+    {
+      relatives: {siblings: (l_sibs, r_sibs), ancestors},
+      selection: {content, _},
+      _,
+    },
+  ) => {
+    let color = ancestors |> Ancestors.sort |> Color.of_sort;
+    let segments = List.rev(l_sibs) @ content @ r_sibs;
+    let layout = of_segment(color, segments);
+    let current = ann_selection(layout, (l_sibs, content));
+    List.fold_left(of_generation, current, ancestors);
+  };
+
+// OLD
+
 let measured_fold' =
     (
       ~text: (measurement, string) => 'acc,
@@ -124,7 +212,6 @@ let measured_fold' =
           ls,
         );
       cat(m, acc);
-    //| Annot(ann, l) => annot(go(~origin), m, ann, l)
     };
   };
   go(~origin, l);
@@ -196,7 +283,7 @@ let piece_children =
             ? ([{origin, length}], []) : ([], [{origin, length}])
         | _ => ([], [])
         },
-  );
+  ) /* }*/;
 //let piece_holes =
 //  measured_fold(
 //    ~text=(_, _) => [],
@@ -523,96 +610,3 @@ let piece_children =
 //   |> List.flatten
 //   |> List.cons(space(0, Color.of_sort(Frame.sort(frame))))
 //   |> cats;
-// };
-
-let pad_spaces: (Color.t, list(t)) => t =
-  (color, ls) =>
-    switch (ls) {
-    | [] => cat([])
-    | _ =>
-      let spaces = List.init(List.length(ls) + 1, i => space(i, color));
-      cat(ListUtil.interleave(spaces, ls));
-    };
-
-let delims =
-  List.flatten([
-    ["(", ")"],
-    ["λ", "{", "}"],
-    ["[", "]"],
-    [","],
-    ["?", ":"],
-    ["let", "=", "in"],
-  ]);
-
-let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
-
-let of_grout: Grout.t => t =
-  fun
-  | Convex => text("TODO:CONVEX_GROUT")
-  | Concave => text("TODO:CONCAVE_GROUT");
-
-let of_shard: Base.Shard.t => t =
-  ({label: (n, label), _}) => text(List.nth(label, n));
-
-let rec of_piece: Piece.t => t =
-  fun
-  | Tile(t) => of_tile(t)
-  | Grout(g) => of_grout(g)
-  | Shard(s) => of_shard(s)
-and of_pieces = ps => List.map(of_piece, ps)
-and of_segment: (Color.t, Segment.t) => t =
-  //TODO(andrew): piece step annos
-  (color, ps) => ps |> of_pieces |> pad_spaces(color)
-and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
-  //TODO(andrew): child-step anno
-  mold => ListUtil.map_alt(text', of_segment(color(mold)))
-and of_tile: Tile.t => t =
-  ({label, children, mold}) => cat(of_form(mold, label, children));
-
-let of_ancestor: (Ancestor.t, t) => t =
-  ({label, children: (l_kids, r_kids), mold}, layout) => {
-    assert(
-      List.length(label) - 2 == List.length(l_kids) + List.length(r_kids),
-    );
-    let (l_label, r_label) =
-      ListUtil.split_n(List.length(l_kids) + 1, label);
-    cat(
-      of_form(mold, l_label, List.rev(l_kids))
-      @ [layout]
-      @ of_form(mold, r_label, r_kids),
-    );
-  };
-
-let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
-  (layout, (ancestor, (l_pibs, r_pibs))) => {
-    pad_spaces(
-      color(ancestor.mold),
-      //TODO(andrew): piece-step annos
-      of_pieces(List.rev(l_pibs))
-      @ [of_ancestor(ancestor, layout)]
-      @ of_pieces(r_pibs),
-    );
-  };
-
-let ann_selection: (t, (list('a), list('b))) => t =
-  (layout, (l_sibs, content)) => {
-    let l = List.length(l_sibs);
-    let r = l + List.length(content);
-    //NOTE: increment indicies because of space padding
-    update_ann(layout, _ => SelectionRange(l + 1, r + 1));
-  };
-
-let mk_zipper: Zipper.t => t =
-  (
-    {
-      relatives: {siblings: (l_sibs, r_sibs), ancestors},
-      selection: {content, _},
-      _,
-    },
-  ) => {
-    let color = ancestors |> Ancestors.sort |> Color.of_sort;
-    let segments = List.rev(l_sibs) @ content @ r_sibs;
-    let layout = of_segment(color, segments);
-    let current = ann_selection(layout, (l_sibs, content));
-    List.fold_left(of_generation, current, ancestors);
-  };

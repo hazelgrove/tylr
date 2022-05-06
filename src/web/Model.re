@@ -52,7 +52,7 @@ let mk_empty_sibs: Ancestor.t => (Ancestor.t, Siblings.t) =
   ancestor => (ancestor, ([], []));
 
 let r_sibling: Segment.t = [Tile(paren_plus12)];
-let selection: Segment.t = [Tile(exp_foo), Tile(exp_foo)];
+let selection: Segment.t = [Tile(exp_foo), Grout(Convex)];
 let ancestors: Ancestors.t = [
   mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
   mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
