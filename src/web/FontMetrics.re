@@ -7,4 +7,4 @@ type t = {
   col_width: float,
 };
 
-let init = {row_height: 1., col_width: 1.};
+let init = {row_height: 10., col_width: 10.};

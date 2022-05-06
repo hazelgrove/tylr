@@ -9,7 +9,7 @@ type tip_shape = (Nib.t, int);
 type piece_shape = (tip_shape, tip_shape);
 
 [@deriving show]
-type annot_cat =
+type ann_cat =
   | None
   | SelectionRange(int, int)
   | Child({
@@ -28,7 +28,7 @@ type annot_cat =
 //   });
 
 [@deriving show]
-type annot_text =
+type ann_text =
   | None
   | Delim
   | DelimBold
@@ -38,34 +38,32 @@ type annot_text =
 
 [@deriving show]
 type t =
-  | Text(string, annot_text)
-  | Cat(list(t), annot_cat);
+  | Text(string, ann_text)
+  | Cat(list(t), ann_cat);
 
 [@deriving show]
 type measurement = {
   origin: int,
   length: int,
 };
-let mk_M: (int, int) => measurement = (origin, length) => {origin, length};
 
 [@deriving show]
-type measured_layout =
-  | TextM(string, annot_text)
-  | CatM(list(measured), annot_cat)
+type layoutM =
+  | TextM(string, ann_text)
+  | CatM(list(measured), ann_cat)
 and measured = {
-  layout: measured_layout,
+  layout: layoutM,
   measurement,
 };
 
 let cat: list(t) => t = xs => Cat(xs, None);
-//let cat_annot: (list(t), annot_cat) => t = (xs, ann) => Cat(xs, ann);
 let text: string => t = t => Text(t, None);
 let delim: string => t = s => Text(s, Delim);
 let delim_bold = s => Text(s, DelimBold);
 let space = (n, color) => Text(Unicode.nbsp, Space(n, color));
 let empty_hole = (color, tip) => Text(Unicode.nbsp, EmptyHole(color, tip));
 
-let update_ann: (t, annot_cat => annot_cat) => t =
+let update_ann: (t, ann_cat => ann_cat) => t =
   (t, f) =>
     switch (t) {
     | Cat(x, ann) => Cat(x, f(ann))
@@ -84,27 +82,23 @@ let rec length =
   | Text(s, _) => Unicode.length(s)
   | Cat(ls, _) => List.fold_left((acc, l) => length(l) + acc, 0, ls);
 
-let rec to_measured = (~offset=0, layout: t): measured =>
+let rec to_measured = (~origin=0, layout: t): measured =>
   switch (layout) {
   | Text(s, ann) =>
-    let length = Unicode.length(s);
-    {layout: TextM(s, ann), measurement: mk_M(offset, length)};
-  | Cat(ls, annot) =>
-    let (ls_new, offset_final) =
+    let measurement = {origin, length: Unicode.length(s)};
+    {layout: TextM(s, ann), measurement};
+  | Cat(ls, ann) =>
+    let (ms, final) =
       List.fold_left(
-        ((ms, offset), l) => {
-          let new_layout = to_measured(l, ~offset);
-          let new_offset = offset + new_layout.measurement.length;
-          ([new_layout, ...ms], new_offset);
+        ((ms, origin), l) => {
+          let m = to_measured(l, ~origin);
+          ([m, ...ms], origin + m.measurement.length);
         },
-        ([], offset),
+        ([], origin),
         ls,
       );
-    let length = offset_final - offset;
-    {
-      layout: CatM(List.rev(ls_new), annot),
-      measurement: mk_M(offset, length),
-    };
+    let measurement = {origin, length: final - origin};
+    {layout: CatM(List.rev(ms), ann), measurement};
   };
 
 let measured_fold' =
@@ -112,7 +106,7 @@ let measured_fold' =
       ~text: (measurement, string) => 'acc,
       ~cat: (measurement, list('acc)) => 'acc,
       // let client cut off recursion
-      ~annot as _: (t => 'acc, measurement, annot_cat, t) => 'acc,
+      ~annot as _: (t => 'acc, measurement, ann_cat, t) => 'acc,
       ~origin=0,
       l: t,
     ) => {
@@ -135,8 +129,7 @@ let measured_fold' =
   };
   go(~origin, l);
 };
-let measured_fold =
-    (~annot: (measurement, annot_cat, 'acc) => 'acc, ~origin=0) =>
+let measured_fold = (~annot: (measurement, ann_cat, 'acc) => 'acc, ~origin=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~origin);
 
 let find_space =

@@ -80,28 +80,20 @@ let view_of_layout =
   //            });
   //          },
   //      );
-  let dec_switch = (annot: Layout.annot_cat, _ls, _offset): list(Node.t) =>
-    switch (annot) {
-    | SelectionRange(_start, _last) => []
+  let rec get_decs = (layout: Layout.measured) =>
+    switch (layout) {
+    | {layout: CatM(ms, SelectionRange(first, last)), _} =>
+      let f = List.nth(ms, first).measurement.origin;
+      let l =
+        List.nth(ms, last).measurement.origin
+        + List.nth(ms, last).measurement.length;
+      Printf.printf("SELECTION RANGE: %d %d\n", f, l);
+      [SelectedBoxDec.view(~font_metrics, {origin: f, length: l - f})];
+    | {layout: CatM(ms, _), _} => List.concat(List.map(get_decs, ms))
     | _ => []
     };
-  let rec get_decs = (layout, ~offset) => {
-    let len = Layout.length(layout);
-    switch (layout) {
-    | Text(_) => ([], offset + len)
-    | Cat(ls, annot) =>
-      List.fold_left(
-        ((acc_decs, offset), l) => {
-          let (some_decs, offset) = get_decs(l, ~offset);
-          let new_decs = dec_switch(annot, ls, offset);
-          (acc_decs @ some_decs @ new_decs, offset);
-        },
-        ([], offset),
-        ls,
-      )
-    };
-  };
-  let (_decs, _) = get_decs(l, ~offset=0);
+  let decs = get_decs(Layout.to_measured(l));
+
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let rec go =
           (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
@@ -159,7 +151,7 @@ let view_of_layout =
       | None => go_cat(~piece_step?, [])
       | SelectionRange(_) =>
         //TODO(andrew)
-        go_cat(~piece_step?, [])
+        go_cat(~piece_step?, decs)
       | Piece({color, shape, step}) =>
         let new_ds =
           DecPaths.current_piece(
