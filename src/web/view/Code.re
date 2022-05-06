@@ -80,6 +80,28 @@ let view_of_layout =
   //            });
   //          },
   //      );
+  let dec_switch = (annot: Layout.annot_cat, _ls, _offset): list(Node.t) =>
+    switch (annot) {
+    | SelectionRange(_start, _last) => []
+    | _ => []
+    };
+  let rec get_decs = (layout, ~offset) => {
+    let len = Layout.length(layout);
+    switch (layout) {
+    | Text(_) => ([], offset + len)
+    | Cat(ls, annot) =>
+      List.fold_left(
+        ((acc_decs, offset), l) => {
+          let (some_decs, offset) = get_decs(l, ~offset);
+          let new_decs = dec_switch(annot, ls, offset);
+          (acc_decs @ some_decs @ new_decs, offset);
+        },
+        ([], offset),
+        ls,
+      )
+    };
+  };
+  let (_decs, _) = get_decs(l, ~offset=0);
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let rec go =
           (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
@@ -119,30 +141,25 @@ let view_of_layout =
           ],
         );
       };
-    | Cat(ls) =>
-      let (ns, _) =
-        List.fold_left(
-          (((txt1, ds1), origin), l) => {
-            let (txt2, ds2) = go(~piece_step?, ~indent, ~origin, dpaths, l);
-            ((txt1 @ txt2, ds1 @ ds2), origin + Layout.length(l));
-          },
-          (([], []), origin),
-          ls,
-        );
-      ns;
-    /*
-     let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
-     let (txt2, ds2) =
-       go(
-         ~piece_step?,
-         ~indent,
-         ~origin=origin + Layout.length(l1),
-         dpaths,
-         l2,
-       );
-     (txt1 @ txt2, ds1 @ ds2);*/
-    | Annot(annot, l) =>
+    | Cat(ls, annot) =>
+      let go_cat = (~piece_step=?, new_ds) => {
+        let (ns, _) =
+          List.fold_left(
+            (((txt1, ds1), origin), l) => {
+              let (txt2, ds2) =
+                go(~piece_step?, ~indent, ~origin, dpaths, l);
+              ((txt1 @ txt2, ds1 @ ds2), origin + Layout.length(l));
+            },
+            (([], new_ds), origin),
+            ls,
+          );
+        ns;
+      };
       switch (annot) {
+      | None => go_cat(~piece_step?, [])
+      | SelectionRange(_) =>
+        //TODO(andrew)
+        go_cat(~piece_step?, [])
       | Piece({color, shape, step}) =>
         let new_ds =
           DecPaths.current_piece(
@@ -155,21 +172,9 @@ let view_of_layout =
             dpaths,
           )
           |> List.map(Dec.view(~font_metrics));
-        let (txt, ds) = go(~piece_step=step, ~indent, ~origin, dpaths, l);
-        (txt, new_ds @ ds);
-
-      // | TargetBounds({sort, mode, strict_bounds}) =>
-      //   let len = len();
-      //   add_decorations([
-      //     TargetBoundsDec.view(
-      //       ~font_metrics,
-      //       ~origin=start,
-      //       ~len,
-      //       strict_bounds,
-      //       sort,
-      //       mode,
-      //     ),
-      //   ]);
+        //(~piece_step=step, ~indent, ~origin, dpaths, l);
+        //(txt, new_ds @ ds);
+        go_cat(~piece_step=step, new_ds);
       | Child({step, sort: (_, s_in)}) =>
         let piece_step =
           piece_step
@@ -184,9 +189,34 @@ let view_of_layout =
             dpaths,
           )
           |> List.map(Dec.view(~font_metrics));
-        let (txt, ds) = go(~indent, ~origin, dpaths, l);
-        (txt, new_ds @ ds);
-      }
+        // let (txt, ds) = go(~indent, ~origin, dpaths, l);
+        //(txt, new_ds @ ds);
+        go_cat(~piece_step, new_ds);
+      // | TargetBounds({sort, mode, strict_bounds}) =>
+      //   let len = len();
+      //   add_decorations([
+      //     TargetBoundsDec.view(
+      //       ~font_metrics,
+      //       ~origin=start,
+      //       ~len,
+      //       strict_bounds,
+      //       sort,
+      //       mode,
+      //     ),
+      //   ]);
+      };
+    /*
+     let (txt1, ds1) = go(~piece_step?, ~indent, ~origin, dpaths, l1);
+     let (txt2, ds2) =
+       go(
+         ~piece_step?,
+         ~indent,
+         ~origin=origin + Layout.length(l1),
+         dpaths,
+         l2,
+       );
+     (txt1 @ txt2, ds1 @ ds2);*/
+    //| Annot(annot, l) =>
     };
   };
 

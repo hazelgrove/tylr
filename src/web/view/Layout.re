@@ -9,7 +9,9 @@ type tip_shape = (Nib.t, int);
 type piece_shape = (tip_shape, tip_shape);
 
 [@deriving show]
-type annot =
+type annot_cat =
+  | None
+  | SelectionRange(int, int)
   | Child({
       step: ChildStep.t,
       sort: (Sort.t, Sort.t),
@@ -26,60 +28,91 @@ type annot =
 //   });
 
 [@deriving show]
-type text_annot =
+type annot_text =
   | None
-  | DelimBold //annot(DelimBold, text(s))
-  | Delim //annot(Delim, Text(s))
-  | EmptyHole(Color.t, Nib.t) //annot(EmptyHole(color, tip), text(Unicode.nbsp))
-  | Ap //?
-  | Space(int, Color.t); //annot(Space(n, color), text(Unicode.nbsp));
+  | Delim
+  | DelimBold
+  | EmptyHole(Color.t, Nib.t)
+  | Space(int, Color.t)
+  | Ap; //TODO(andrew): deprecate?
 
 [@deriving show]
 type t =
-  | Text(string, text_annot)
-  | Cat(list(t))
-  | Annot(annot, t);
+  | Text(string, annot_text)
+  | Cat(list(t), annot_cat);
 
-let cat: list(t) => t = xs => Cat(xs);
+[@deriving show]
+type measurement = {
+  origin: int,
+  length: int,
+};
+let mk_M: (int, int) => measurement = (origin, length) => {origin, length};
+
+[@deriving show]
+type measured_layout =
+  | TextM(string, annot_text)
+  | CatM(list(measured), annot_cat)
+and measured = {
+  layout: measured_layout,
+  measurement,
+};
+
+let cat: list(t) => t = xs => Cat(xs, None);
+//let cat_annot: (list(t), annot_cat) => t = (xs, ann) => Cat(xs, ann);
 let text: string => t = t => Text(t, None);
-let annot: (annot, t) => t = (annot, l) => Annot(annot, l);
 let delim: string => t = s => Text(s, Delim);
+let delim_bold = s => Text(s, DelimBold);
 let space = (n, color) => Text(Unicode.nbsp, Space(n, color));
+let empty_hole = (color, tip) => Text(Unicode.nbsp, EmptyHole(color, tip));
+
+let update_ann: (t, annot_cat => annot_cat) => t =
+  (t, f) =>
+    switch (t) {
+    | Cat(x, ann) => Cat(x, f(ann))
+    | _ => t
+    };
 
 let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
 
 let join = (sep: t, ls: list(t)) => ls |> ListUtil.join(sep) |> cat;
 
-let extra_bold_delim = s => Text(s, DelimBold);
-let empty_hole = (color, tip) => Text(Unicode.nbsp, EmptyHole(color, tip));
-let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
-let closed_child = (sort, step) => annot(Child({step, sort}));
+//let open_child = (sort, step) => annot(Child({step, sort: (sort, sort)}));
+//let closed_child = (sort, step) => annot(Child({step, sort}));
 
-let length = {
-  let rec go =
-    lazy(
-      Memo.memoize(
-        fun
-        | Text(s, _) => Unicode.length(s)
-        | Cat(ls) =>
-          List.fold_left((acc, l) => Lazy.force(go, l) + acc, 0, ls)
-        | Annot(_, l) => Lazy.force(go, l),
-      )
-    );
-  Lazy.force(go);
-};
+let rec length =
+  fun
+  | Text(s, _) => Unicode.length(s)
+  | Cat(ls, _) => List.fold_left((acc, l) => length(l) + acc, 0, ls);
 
-type measurement = {
-  origin: int,
-  length: int,
-};
+let rec to_measured = (~offset=0, layout: t): measured =>
+  switch (layout) {
+  | Text(s, ann) =>
+    let length = Unicode.length(s);
+    {layout: TextM(s, ann), measurement: mk_M(offset, length)};
+  | Cat(ls, annot) =>
+    let (ls_new, offset_final) =
+      List.fold_left(
+        ((ms, offset), l) => {
+          let new_layout = to_measured(l, ~offset);
+          let new_offset = offset + new_layout.measurement.length;
+          ([new_layout, ...ms], new_offset);
+        },
+        ([], offset),
+        ls,
+      );
+    let length = offset_final - offset;
+    {
+      layout: CatM(List.rev(ls_new), annot),
+      measurement: mk_M(offset, length),
+    };
+  };
 
 let measured_fold' =
     (
       ~text: (measurement, string) => 'acc,
       ~cat: (measurement, list('acc)) => 'acc,
       // let client cut off recursion
-      ~annot: (t => 'acc, measurement, annot, t) => 'acc,
+      ~annot as _: (t => 'acc, measurement, annot_cat, t) => 'acc,
       ~origin=0,
       l: t,
     ) => {
@@ -87,7 +120,7 @@ let measured_fold' =
     let m = {origin, length: length(l)};
     switch (l) {
     | Text(s, _) => text(m, s)
-    | Cat(ls) =>
+    | Cat(ls, _) =>
       let (acc, _) =
         List.fold_left(
           ((acc, origin), l) => {
@@ -97,12 +130,13 @@ let measured_fold' =
           ls,
         );
       cat(m, acc);
-    | Annot(ann, l) => annot(go(~origin), m, ann, l)
+    //| Annot(ann, l) => annot(go(~origin), m, ann, l)
     };
   };
   go(~origin, l);
 };
-let measured_fold = (~annot: (measurement, annot, 'acc) => 'acc, ~origin=0) =>
+let measured_fold =
+    (~annot: (measurement, annot_cat, 'acc) => 'acc, ~origin=0) =>
   measured_fold'(~annot=(k, m, ann, l) => annot(m, ann, k(l)), ~origin);
 
 let find_space =
@@ -206,22 +240,22 @@ let piece_children =
 //    lam_close,
 //  ]);
 
-let mk_Let = (p, def) => {
-  cat([
-    delim("let"),
-    closed_child((Exp, Pat), ChildStep.let_pat, p),
-    delim("="),
-    open_child(Exp, ChildStep.let_def, def),
-    delim("in"),
-  ]);
-};
+//let mk_Let = (p, def) => {
+//  cat([
+//    delim("let"),
+//    closed_child((Exp, Pat), ChildStep.let_pat, p),
+//    delim("="),
+//    open_child(Exp, ChildStep.let_def, def),
+//    delim("in"),
+//  ]);
+//};
 
-let mk_Cond = then_ =>
-  cat([
-    delim("?"),
-    open_child(Exp, ChildStep.cond_then, then_),
-    delim(":"),
-  ]);
+//let mk_Cond = then_ =>
+//  cat([
+//    delim("?"),
+//    open_child(Exp, ChildStep.cond_then, then_),
+//    delim(":"),
+//  ]);
 
 //let mk_Fact = () => Text("!");
 //let mk_Plus = () => Text("+");
@@ -567,10 +601,30 @@ let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
     );
   };
 
+let cat_select = (ls, (before, selection)) => {
+  let first = List.length(before);
+  let last = first + List.length(selection);
+  Cat(ls, SelectionRange(first, last));
+};
+
+let ann_selection: (t, (list('a), list('b))) => t =
+  (layout, (l_sibs, content)) => {
+    let first = List.length(l_sibs);
+    let last = first + List.length(content);
+    update_ann(layout, _ => SelectionRange(first, last));
+  };
+
 let mk_zipper: Zipper.t => t =
-  ({relatives: {siblings: (l_sibs, r_sibs), ancestors}, selection, _}) => {
+  (
+    {
+      relatives: {siblings: (l_sibs, r_sibs), ancestors},
+      selection: {content, _},
+      _,
+    },
+  ) => {
     let color = ancestors |> Ancestors.sort |> Color.of_sort;
-    let segments = [List.rev(l_sibs), selection.content, r_sibs];
-    let current = cat(List.map(of_segment(color), segments));
+    let segments = List.rev(l_sibs) @ content @ r_sibs;
+    let layout = of_segment(color, segments);
+    let current = ann_selection(layout, (l_sibs, content));
     List.fold_left(of_generation, current, ancestors);
   };

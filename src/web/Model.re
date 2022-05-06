@@ -20,8 +20,8 @@ let mk_exp_atom = mk_atom(Exp);
 let mk_pat_atom = mk_atom(Pat);
 let one = mk_exp_atom("1");
 let two = mk_exp_atom("2");
-let pat_foo = mk_pat_atom("foo");
 let exp_foo = mk_exp_atom("foo");
+let pat_foo = mk_pat_atom("foo");
 let pat_bar = mk_pat_atom("bar");
 let pat_taz = mk_pat_atom("taz");
 
@@ -51,8 +51,8 @@ let mk_lambda_ancestor:
 let mk_empty_sibs: Ancestor.t => (Ancestor.t, Siblings.t) =
   ancestor => (ancestor, ([], []));
 
-let inner_stx: Segment.t = [Tile(paren_plus12)];
-
+let r_sibling: Segment.t = [Tile(paren_plus12)];
+let selection: Segment.t = [Tile(exp_foo), Tile(plus_12)];
 let ancestors: Ancestors.t = [
   mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
   mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
@@ -63,11 +63,11 @@ let init = () => {
     Zipper.{
       selection: {
         focus: Left,
-        content: Segment.empty,
+        content: selection,
       },
       backpack: Backpack.empty,
       relatives: {
-        siblings: (Siblings.Prefix.empty, inner_stx),
+        siblings: (Siblings.Prefix.empty, r_sibling),
         ancestors,
       },
     },

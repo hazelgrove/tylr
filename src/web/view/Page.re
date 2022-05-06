@@ -92,6 +92,7 @@ let view = (~inject, model: Model.t) => {
   //print_endline(Core.Zipper.show(zipper));
   let l = Layout.mk_zipper(zipper);
   print_endline(Layout.show(l));
+  print_endline(Layout.show_measured(Layout.to_measured(l)));
   Node.div(
     Attr.[
       id("page"),
