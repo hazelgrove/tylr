@@ -52,8 +52,8 @@ type layoutM =
   | TextM(string, ann_text)
   | CatM(list(measured), ann_cat)
 and measured = {
-  layout: layoutM,
   measurement,
+  layout: layoutM,
 };
 
 let cat: list(t) => t = xs => Cat(xs, None);
@@ -594,17 +594,12 @@ let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
     );
   };
 
-let cat_select = (ls, (before, selection)) => {
-  let first = List.length(before);
-  let last = first + List.length(selection);
-  Cat(ls, SelectionRange(first, last));
-};
-
 let ann_selection: (t, (list('a), list('b))) => t =
   (layout, (l_sibs, content)) => {
-    let first = List.length(l_sibs);
-    let last = first + List.length(content);
-    update_ann(layout, _ => SelectionRange(first, last));
+    let l = List.length(l_sibs);
+    let r = l + List.length(content);
+    //NOTE: increment indicies because of space padding
+    update_ann(layout, _ => SelectionRange(l + 1, r + 1));
   };
 
 let mk_zipper: Zipper.t => t =

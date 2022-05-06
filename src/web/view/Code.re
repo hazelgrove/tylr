@@ -2,6 +2,34 @@ open Virtual_dom.Vdom;
 open Util;
 open Core;
 
+let get_range_measurement =
+    (ms: list(Layout.measured), i, j): Layout.measurement => {
+  //assert(0 <= i && i <= j && j <= List.length(ms));
+  print_endline("RET2MONKE");
+  print_endline(Layout.show_measured(List.nth(ms, i)));
+  print_endline(Layout.show_measured(List.nth(ms, j)));
+  let origin = List.nth(ms, i).measurement.origin;
+  let r =
+    List.nth(ms, j).measurement.origin + List.nth(ms, j).measurement.length;
+  {origin, length: r - origin};
+};
+
+let cat_decos = (~font_metrics, ann: Layout.ann_cat, _measurement, ms) =>
+  switch (ann) {
+  | SelectionRange(i, j) =>
+    let measurement = get_range_measurement(ms, i, j);
+    [SelectedBoxDec.view(~font_metrics, measurement)];
+  | _ => []
+  };
+
+let rec get_decos = (~font_metrics, layout: Layout.measured) =>
+  switch (layout) {
+  | {layout: CatM(ms, ann), measurement} =>
+    cat_decos(~font_metrics, ann, measurement, ms)
+    @ List.concat(List.map(get_decos(~font_metrics), ms))
+  | {layout: TextM(_s, _ann), _} => []
+  };
+
 // let delete_actions =
 //   fun
 //   | (Subject.Pointing((prefix, suffix)), frame)
@@ -38,6 +66,7 @@ let view_of_layout =
       l,
     )
     : Node.t => {
+  let decs = get_decos(~font_metrics, Layout.to_measured(l));
   // let delete_actions = Option.map(delete_actions, zipper);
   // let caret_mode =
   //   zipper
@@ -80,20 +109,6 @@ let view_of_layout =
   //            });
   //          },
   //      );
-  let rec get_decs = (layout: Layout.measured) =>
-    switch (layout) {
-    | {layout: CatM(ms, SelectionRange(first, last)), _} =>
-      let f = List.nth(ms, first).measurement.origin;
-      let l =
-        List.nth(ms, last).measurement.origin
-        + List.nth(ms, last).measurement.length;
-      Printf.printf("SELECTION RANGE: %d %d\n", f, l);
-      [SelectedBoxDec.view(~font_metrics, {origin: f, length: l - f})];
-    | {layout: CatM(ms, _), _} => List.concat(List.map(get_decs, ms))
-    | _ => []
-    };
-  let decs = get_decs(Layout.to_measured(l));
-
   let with_cls = cls => Node.span([Attr.classes([cls])]);
   let rec go =
           (~piece_step=?, ~indent=0, ~origin=0, dpaths, l: Layout.t)
