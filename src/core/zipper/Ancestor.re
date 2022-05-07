@@ -55,12 +55,9 @@ module Match = {
 
   let complete = (m: t): option(ancestor) => {
     let label = label(m);
+    // arbitrary mold to typecheck, to be remolded
+    let mold = List.hd(Molds.get(label));
     length(m) == Tile.Label.length(label)
-      ? Some({
-          label,
-          mold: failwith("todo complete ancestor"),
-          children: children(m),
-        })
-      : None;
+      ? Some({label, mold, children: children(m)}) : None;
   };
 };
