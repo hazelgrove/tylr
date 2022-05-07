@@ -50,7 +50,7 @@ module Match = {
     length(m) == Tile.Label.length(label)
       ? Some({
           label,
-          mold: failwith("todo complete"),
+          mold: failwith("todo complete ancestor"),
           children: children(m),
         })
       : None;

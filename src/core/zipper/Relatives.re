@@ -16,7 +16,7 @@ let push = (d: Direction.t, p: Piece.t, rs: t): t => {
   siblings: Siblings.push(d, p, rs.siblings),
 };
 
-let prepend = (d: Direction.t, tiles, rs: t) => {
+let prepend = (d: Direction.t, tiles: Segment.t, rs: t): t => {
   let siblings = Siblings.prepend(d, tiles, rs.siblings);
   {...rs, siblings};
 };

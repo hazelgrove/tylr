@@ -8,7 +8,12 @@ type t = (Prefix.t, Suffix.t);
 
 let empty = (Prefix.empty, Suffix.empty);
 
-let prepend = (_: Direction.t, _, _) => failwith("todo prepend");
+let prepend = (d: Direction.t, tiles: Segment.t, (l_sibs, r_sibs): t): t =>
+  //TODO(andrew)TO(david): does this make sense
+  switch (d) {
+  | Left => (l_sibs @ tiles, r_sibs)
+  | Right => (l_sibs, tiles @ r_sibs)
+  };
 
 let concat = _ => failwith("todo concat");
 

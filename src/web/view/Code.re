@@ -122,8 +122,6 @@ let view =
     : Node.t => {
   let l = Layout.mk_zipper(zipper);
   let m = Layout.to_measured(l);
-  print_endline(Layout.show(l));
-  print_endline(Layout.show_measured(m));
   let text_view = text_view(l);
   let deco_view = deco_view(~font_metrics, m);
   let with_id: option('a) => list(Attr.t) =
