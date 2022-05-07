@@ -93,8 +93,7 @@ let shift_piece = (~balanced: bool, from: Direction.t, z: t): option(t) => {
 let move = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     let balanced = !Backpack.is_balanced(z.backpack);
-    let from = Direction.toggle(d);
-    shift_piece(~balanced, from, z);
+    shift_piece(~balanced, d, z);
   } else {
     // TODO restore logic attempting to move d
     Some(unselect(z));
