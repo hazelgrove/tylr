@@ -48,7 +48,7 @@ let contains_matching = (_, _) => failwith("todo contains_matching");
 let push = (onto: Direction.t, p: Piece.t, (pre, suf): t): t =>
   switch (onto) {
   | Left => (Prefix.push(p, pre), suf)
-  | Right => (suf, Suffix.push(p, suf))
+  | Right => (pre, Suffix.push(p, suf))
   };
 
 let pop =
