@@ -5,7 +5,10 @@ include Base.Shard;
 module Label = {
   include Label;
 
-  let token = ((n, lbl)) => List.nth(lbl, n);
+  let token = ((n, lbl)) => {
+    assert(n >= 0 && n < List.length(lbl));
+    List.nth(lbl, n);
+  };
 
   let is_next = (d: Direction.t, (n, lbl), (n', lbl')) =>
     lbl == lbl' && (d == Right ? n + 1 == n' : n == 1 + n');

@@ -21,7 +21,7 @@ let rec text_view = (l: Layout.t): list(Node.t) => {
 };
 
 let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
-  assert(0 <= i && i <= j && j <= List.length(ms));
+  assert(0 <= i && i <= j && j < List.length(ms));
   let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
   let origin = ith.measurement.origin;
   let length = jth.measurement.origin - origin;
@@ -29,16 +29,25 @@ let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
 };
 
 let get_closed_children_measurements =
-    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) =>
+    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
   |> ListUtil.p_indices((==)(true))
-  |> List.map(idx => List.nth(ms, Layout.segment_idx(idx)).measurement);
+  |> List.map(idx => {
+       let i = Layout.segment_idx(idx);
+       assert(i >= 0 && i < List.length(ms));
+       List.nth(ms, i).measurement;
+     });
+};
 
 let get_open_children_measurements =
     (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
   |> ListUtil.p_indices((==)(false))
-  |> List.map(idx => List.nth(ms, Layout.segment_idx(idx)).measurement);
+  |> List.map(idx => {
+       let i = Layout.segment_idx(idx);
+       assert(i >= 0 && i < List.length(ms));
+       List.nth(ms, i).measurement;
+     });
 };
 
 let sel_piece_profile =

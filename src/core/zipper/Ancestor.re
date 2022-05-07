@@ -19,8 +19,12 @@ let step = (frame: t): step => {
 let remold = (a: t): list(t) =>
   Molds.get(a.label) |> List.map(mold => {...a, mold});
 
-let sort = (frame: t): Sort.t =>
+let sort = (frame: t): Sort.t => {
+  assert(
+    step(frame) >= 0 && step(frame) < List.length(frame.mold.sorts.in_),
+  );
   List.nth(frame.mold.sorts.in_, step(frame));
+};
 
 let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   let s = a.mold.sorts.out;

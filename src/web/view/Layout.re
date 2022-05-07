@@ -148,8 +148,10 @@ let of_grout: (Sort.t, Grout.t) => t =
   };
 
 let of_shard: Base.Shard.t => t =
-  ({label: (n, label), nibs}) =>
+  ({label: (n, label), nibs}) => {
+    assert(n >= 0 && n < List.length(label));
     cat_piece(Mold.of_nibs(nibs), [text(List.nth(label, n))]);
+  };
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
   (sort, focus, p) => {
