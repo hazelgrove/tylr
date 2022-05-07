@@ -30,7 +30,9 @@ let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
       open OptUtil.Syntax;
       let siblings' = Ancestor.disassemble(ancestor);
       let+ (p, siblings) =
-        Siblings.(pop(~balanced, d, concat([siblings, siblings'])));
+        Siblings.(
+          pop(~balanced, d, concat([rs.siblings, siblings', siblings]))
+        );
       (p, {siblings, ancestors});
     | _ => None
     }
