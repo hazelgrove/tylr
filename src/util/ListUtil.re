@@ -224,7 +224,9 @@ module Syntax = {
 
 let map_alt: ('a => 'c, 'b => 'c, list('a), list('b)) => list('c) =
   (fx, fy, xs, ys) => {
-    assert(List.length(xs) == List.length(ys) + 1);
+    if (List.length(xs) != List.length(ys) + 1) {
+      raise(Invalid_argument("ListUtil.map_alt"));
+    };
     List.fold_left2(
       (acc, x, y) => acc @ [fy(y), fx(x)],
       [fx(List.hd(xs))],
