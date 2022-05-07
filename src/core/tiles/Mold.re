@@ -28,7 +28,16 @@ let mk_post = (p, sorts) => {sorts, shape: Post(p)};
 let mk_bin = (p, sorts) => {sorts, shape: Bin(p)};
 
 let nibs: (~index: int=?, t) => Nibs.t =
-  (~index as _=?, _) => failwith("todo Mold.nibs");
+  (~index as _=?, {shape, sorts: {out: sort, _}}) => {
+    let convex: Nib.t = {shape: Convex, sort};
+    let concave: Precedence.t => Nib.t = p => {shape: Concave(p), sort};
+    switch (shape) {
+    | Op => (convex, convex)
+    | Pre(p) => (convex, concave(p))
+    | Post(p) => (concave(p), convex)
+    | Bin(p) => (concave(p), concave(p))
+    };
+  };
 
 module Map = {
   type mold = t;

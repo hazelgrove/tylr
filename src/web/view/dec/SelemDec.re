@@ -44,7 +44,7 @@ module Profile = {
       ) => {
     // let empty_holes = Layout.piece_holes(layout);
     let (open_children, closed_children) = Layout.piece_children(layout);
-    let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
+    //let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
     mk(
       ~measurement,
       ~open_children,

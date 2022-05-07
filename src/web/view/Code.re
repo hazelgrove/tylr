@@ -16,7 +16,7 @@ let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
 let cat_decos =
     (~font_metrics, ann: Layout.ann_cat, measurement: Layout.measurement, ms) =>
   switch (ann) {
-  | SelectionRange(i, j) => [
+  | Segment(Range(i, j)) => [
       SelectedBoxDec.view(~font_metrics, range_profile(ms, i, j)),
       CaretDec.simple_view(~font_metrics, measurement.origin),
     ]
@@ -25,8 +25,8 @@ let cat_decos =
 
 let text_decos = (~font_metrics, ann: Layout.ann_text, measurement) =>
   switch (ann) {
-  | EmptyHole(tip) => [
-      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, tip}),
+  | EmptyHole(mold) => [
+      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
     ]
   | _ => []
   };

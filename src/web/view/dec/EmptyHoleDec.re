@@ -5,7 +5,7 @@ open DecUtil;
 module Profile = {
   type t = {
     measurement: Layout.measurement,
-    tip: Core.Nib.t,
+    mold: Core.Mold.t,
   };
 };
 
@@ -25,8 +25,18 @@ let path = (tip, offset, s: float) => {
   );
 };
 
-let view = (~font_metrics, {measurement, tip}: Profile.t): Node.t => {
-  let c_cls = Color.to_string(Color.of_sort(tip.sort));
+let view = (~font_metrics, {measurement, mold}: Profile.t): Node.t => {
+  let sort = mold.sorts.out;
+  let c_cls = Color.to_string(Color.of_sort(sort));
+  let tip: Core.Nib.t = {
+    sort,
+    shape:
+      switch (mold.shape) {
+      | Op => Convex
+      | Bin(p) => Concave(p)
+      | _ => failwith("EmptyHoleDec.view bad shape")
+      },
+  };
   container(
     ~font_metrics,
     ~measurement,
