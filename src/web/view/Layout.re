@@ -83,6 +83,7 @@ and measured = {
 
 let text: string => t = t => Text(t, None);
 let delim: string => t = s => Text(s, Delim);
+let delim_bold: string => t = s => Text(s, DelimBold);
 let placeholder = annot => Text(Unicode.nbsp, annot);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
 
@@ -150,7 +151,8 @@ let of_grout: (Sort.t, Grout.t) => t =
 let of_shard: Base.Shard.t => t =
   ({label: (n, label), nibs}) => {
     assert(n >= 0 && n < List.length(label));
-    cat_piece(Mold.of_nibs(nibs), [text(List.nth(label, n))]);
+    //TODO(andrew): rendering shards differently for debugging
+    cat_piece(Mold.of_nibs(nibs), [delim_bold(List.nth(label, n))]);
   };
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =

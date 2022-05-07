@@ -20,13 +20,17 @@ let rec text_view = (l: Layout.t): list(Node.t) => {
   };
 };
 
-let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
-  assert(0 <= i && i <= j && j < List.length(ms));
-  let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
-  let origin = ith.measurement.origin;
-  let length = jth.measurement.origin - origin;
-  {origin, length};
-};
+let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
+  if (j == List.length(ms)) {
+    print_endline("WARNING: TODO(andrew): handling of rightmost cursorpos");
+    {origin: 0, length: 0};
+  } else {
+    assert(0 <= i && i <= j && j < List.length(ms));
+    let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
+    let origin = ith.measurement.origin;
+    let length = jth.measurement.origin - origin;
+    {origin, length};
+  };
 
 let get_closed_children_measurements =
     (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
