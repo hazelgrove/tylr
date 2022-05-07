@@ -82,18 +82,16 @@ let shrink_selection = (z: t): option(t) => {
   };
 };
 
-// balanced specifies whether shifted piece must be balanced
-let shift_piece = (~balanced: bool, from: Direction.t, z: t): option(t) => {
-  open OptUtil.Syntax;
-  let+ (p, relatives) = Relatives.pop(~balanced, from, z.relatives);
-  let relatives = Relatives.push(Direction.toggle(from), p, relatives);
-  {...z, relatives};
-};
-
 let move = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
+    open OptUtil.Syntax;
     let balanced = !Backpack.is_balanced(z.backpack);
-    shift_piece(~balanced, d, z);
+    let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
+    let relatives =
+      relatives
+      |> Relatives.push(Direction.toggle(d), p)
+      |> Relatives.reassemble;
+    {...z, relatives};
   } else {
     // TODO restore logic attempting to move d
     Some(unselect(z));
