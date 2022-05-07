@@ -190,7 +190,7 @@ let of_ancestor: (Ancestor.t, t) => t =
       ListUtil.split_n(List.length(l_kids) + 1, label);
     cat_piece(
       mold,
-      of_form(mold, List.rev(l_label), List.rev(l_kids))
+      of_form(mold, l_label, List.rev(l_kids))
       @ [layout]
       @ of_form(mold, r_label, r_kids),
     );
