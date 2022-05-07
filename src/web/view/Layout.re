@@ -1,12 +1,15 @@
 open Util;
 open Core;
 
+let segment_idx: int => int = x => 2 * x + 1;
+
 // TODO: get rid of these and better organize
 // types around new mold/nib model
 [@deriving show]
 type tip_shape = (Nib.t, int);
 [@deriving show]
 type piece_shape = (tip_shape, tip_shape);
+
 let piece_shape_of_mold = (m: Mold.t): piece_shape => {
   let sort = m.sorts.out;
   let (sl: Nib.Shape.t, sr: Nib.Shape.t) =
@@ -209,7 +212,7 @@ let ann_selection: (t, (list('a), list('b))) => t =
     update_ann(layout, ann =>
       switch (ann) {
       | Piece(_) => ann
-      | Segment(_) => Segment(Range(2 * l + 1, 2 * r + 1))
+      | Segment(_) => Segment(Range(segment_idx(l), segment_idx(r)))
       }
     );
   };
@@ -229,7 +232,7 @@ let mk_zipper: Zipper.t => t =
     let selection_ls = content |> List.map(select_piece);
     let l_sibs_ls = List.map(normal_piece, List.rev(l_sibs));
     let r_sibs_ls =
-      switch (selection_ls, r_sibs) {
+      switch (content, r_sibs) {
       | (_, []) => []
       | ([], [p, ...ps]) =>
         List.cons(indicate_piece(p), List.map(normal_piece, ps))

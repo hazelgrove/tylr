@@ -1,97 +1,9 @@
 open Virtual_dom.Vdom;
 open Node;
 open Core;
-//open Util;
+open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
-
-let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
-  assert(0 <= i && i <= j && j <= List.length(ms));
-  let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
-  let origin = ith.measurement.origin;
-  let length = jth.measurement.origin - origin;
-  {origin, length};
-};
-
-let indicators = (mold: Mold.t): list(bool) =>
-  List.map((==)(mold.sorts.out), mold.sorts.in_);
-
-let get_closed_children_measurements =
-    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
-  let indicators = indicators(mold);
-  let closed_indices = Util.ListUtil.p_indices((==)(true), indicators);
-  let closed_indices = List.map((+)(1), closed_indices);
-  List.map(idx => List.nth(ms, idx).measurement, closed_indices);
-};
-
-let get_open_children_measurements =
-    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
-  let indicators = indicators(mold);
-  let oepn_indices = Util.ListUtil.p_indices((==)(false), indicators);
-  let open_indices = List.map((+)(1), oepn_indices);
-  List.map(idx => List.nth(ms, idx).measurement, open_indices);
-};
-
-let sel_piece_profile =
-    (mold: Mold.t, measurement, ms: list(Layout.measured))
-    : SelemDec.Profile.t => {
-  // take list of in_ sorts
-  // map against (=)out
-  // trues are closed children, falses are open children
-  // collect indicies of trues, incremeneted by one. these are indicies of closed children
-  // similarly for open children
-  print_endline("sel_piece_profile");
-  print_endline(string_of_int(List.length(ms)));
-  print_endline(String.concat(" ", List.map(Layout.show_measured, ms)));
-  print_endline("777");
-  print_endline(
-    String.concat(
-      " ",
-      List.map(
-        Layout.show_measurement,
-        get_closed_children_measurements(mold, ms),
-      ),
-    ),
-  );
-  {
-    measurement,
-    color: Color.of_sort(mold.sorts.out),
-    shape: Layout.piece_shape_of_mold(mold),
-    style: Root,
-    open_children: get_open_children_measurements(mold, ms),
-    closed_children: get_closed_children_measurements(mold, ms),
-  };
-};
-
-let cat_decos =
-    (~font_metrics, ann: Layout.ann_cat, measurement: Layout.measurement, ms) =>
-  switch (ann) {
-  | Segment(Range(i, j)) => [
-      SelectedBoxDec.view(~font_metrics, range_profile(ms, i, j)),
-      CaretDec.simple_view(~font_metrics, measurement.origin),
-    ]
-  | Piece(mold, InsideFocalSeg(Selected)) => [
-      SelemDec.view(~font_metrics, sel_piece_profile(mold, measurement, ms)),
-    ]
-  | _ => []
-  };
-
-let text_decos = (~font_metrics, ann: Layout.ann_text, measurement) =>
-  switch (ann) {
-  | EmptyHole(mold) => [
-      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
-    ]
-  | _ => []
-  };
-
-let rec deco_view: (~font_metrics: FontMetrics.t, Layout.measured) => list(t) =
-  (~font_metrics, layout) =>
-    switch (layout.layout) {
-    | CatM(ms, ann) =>
-      cat_decos(~font_metrics, ann, layout.measurement, ms)
-      @ List.concat(List.map(deco_view(~font_metrics), ms))
-    | TextM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
-    };
 
 let rec text_view = (l: Layout.t): list(Node.t) => {
   switch (l) {
@@ -108,6 +20,127 @@ let rec text_view = (l: Layout.t): list(Node.t) => {
   };
 };
 
+let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
+  assert(0 <= i && i <= j && j <= List.length(ms));
+  let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
+  let origin = ith.measurement.origin;
+  let length = jth.measurement.origin - origin;
+  {origin, length};
+};
+
+let get_closed_children_measurements =
+    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) =>
+  List.map((==)(mold.sorts.out), mold.sorts.in_)
+  |> ListUtil.p_indices((==)(true))
+  |> List.map(idx => List.nth(ms, Layout.segment_idx(idx)).measurement);
+
+let get_open_children_measurements =
+    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
+  List.map((==)(mold.sorts.out), mold.sorts.in_)
+  |> ListUtil.p_indices((==)(false))
+  |> List.map(idx => List.nth(ms, Layout.segment_idx(idx)).measurement);
+};
+
+let sel_piece_profile =
+    (mold: Mold.t, measurement, ms: list(Layout.measured))
+    : SelemDec.Profile.t => {
+  print_endline("sel_piece_profile");
+  print_endline(
+    String.concat(
+      " ",
+      List.map(
+        Layout.show_measurement,
+        get_closed_children_measurements(mold, ms),
+      ),
+    ),
+  );
+  {
+    measurement,
+    color: Color.of_sort(mold.sorts.out),
+    shape: Layout.piece_shape_of_mold(mold),
+    style: Selected,
+    open_children: get_open_children_measurements(mold, ms),
+    closed_children: get_closed_children_measurements(mold, ms),
+  };
+};
+
+let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
+  let l = Layout.of_segment(Exp, content); // TODO(andrew): Exp
+  let text_view = text_view(l);
+  div([Attr.classes(["code-text", "backpack-selection"])], text_view);
+};
+
+let selection_length = (s: Selection.t): int =>
+  // TODO(andrew): Exp
+  Layout.to_measured(Layout.of_segment(Exp, s.content)).measurement.length;
+
+let genie_profile = (backpack: Backpack.t, origin: int): Layout.measurement => {
+  length: backpack |> List.map(selection_length) |> List.fold_left((+), 0),
+  origin,
+};
+
+let backpack_view =
+    (~font_metrics: FontMetrics.t, ~origin, backpack: Backpack.t): Node.t => {
+  let style =
+    Printf.sprintf(
+      "position: absolute; left: %fpx; top: %fpx;",
+      (Float.of_int(origin) -. 0.) *. font_metrics.col_width,
+      (-2.) *. font_metrics.row_height,
+    );
+  let selections_view =
+    div(
+      [Attr.create("style", style), Attr.classes(["backpack"])],
+      List.map(backpack_sel_view, backpack),
+    );
+  let genie_view =
+    RestructuringGenieDec.view(
+      ~font_metrics,
+      genie_profile(backpack, origin),
+    );
+  div([Attr.classes(["backpack"])], [selections_view, genie_view]);
+};
+
+let cat_decos =
+    (
+      ~font_metrics,
+      ~backpack,
+      ann: Layout.ann_cat,
+      measurement: Layout.measurement,
+      ms,
+    ) =>
+  switch (ann) {
+  | Segment(Range(i, j)) =>
+    let origin = measurement.origin;
+    [
+      SelectedBoxDec.view(~font_metrics, range_profile(ms, i, j)),
+      CaretDec.simple_view(~font_metrics, origin),
+      backpack_view(~font_metrics, ~origin, backpack),
+    ];
+  | Piece(mold, InsideFocalSeg(Selected)) => [
+      SelemDec.view(~font_metrics, sel_piece_profile(mold, measurement, ms)),
+    ]
+  | _ => []
+  };
+
+let text_decos = (~font_metrics, ann: Layout.ann_text, measurement) =>
+  switch (ann) {
+  | EmptyHole(mold) => [
+      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
+    ]
+  | _ => []
+  };
+
+let rec deco_view:
+  (~font_metrics: FontMetrics.t, ~backpack: Backpack.t, Layout.measured) =>
+  list(t) =
+  (~font_metrics, ~backpack, layout) =>
+    switch (layout.layout) {
+    | CatM(ms, ann) =>
+      cat_decos(~font_metrics, ~backpack, ann, layout.measurement, ms)
+      @ List.concat(List.map(deco_view(~font_metrics, ~backpack), ms))
+    | TextM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
+    };
+
 let view =
     (
       ~id=?,
@@ -120,10 +153,11 @@ let view =
       _dpaths,
     )
     : Node.t => {
+  let backpack = zipper.backpack;
   let l = Layout.mk_zipper(zipper);
   let m = Layout.to_measured(l);
   let text_view = text_view(l);
-  let deco_view = deco_view(~font_metrics, m);
+  let deco_view = deco_view(~font_metrics, ~backpack, m);
   let with_id: option('a) => list(Attr.t) =
     fun
     | None => []
@@ -279,7 +313,6 @@ let view =
 //       switch (annot) {
 //       | None => go_cat(~piece_step?, [])
 //       | SelectionRange(_) =>
-//         //TODO(andrew)
 //         go_cat(~piece_step?, decs)
 //       | Piece({color, shape, step}) =>
 //         let new_ds =

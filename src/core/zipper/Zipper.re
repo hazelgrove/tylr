@@ -158,9 +158,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   switch (a) {
-  | Move(d) =>
-    print_endline("tried to move");
-    Result.of_option(~error=Action.Failure.Cant_move, move(d, z));
+  | Move(d) => Result.of_option(~error=Action.Failure.Cant_move, move(d, z))
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct => Ok(destruct(z))

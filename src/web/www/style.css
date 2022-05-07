@@ -461,7 +461,7 @@ svg.rail line.unsorted {
 .restructuring-genie-path {
   stroke-width: 0;
   fill: var(--selection-color);
-  filter: url(#restructuring-genie-filter);
+  /*filter: url(#restructuring-genie-filter);*/
   vector-effect: non-scaling-stroke;
 }
 

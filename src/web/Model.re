@@ -51,30 +51,38 @@ let mk_lambda_ancestor:
 let mk_empty_sibs: Ancestor.t => (Ancestor.t, Siblings.t) =
   ancestor => (ancestor, ([], []));
 
+let l_sibling: Segment.t = [];
 let r_sibling: Segment.t = [Tile(paren_plus12)];
-let selection: Segment.t = [
+
+let content: Segment.t = [
   Tile(exp_foo),
+  Grout(Concave),
   Tile(paren_plus12),
+  Grout(Concave),
   Grout(Convex),
+  Grout(Concave),
 ];
 let ancestors: Ancestors.t = [
   mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
   mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
 ];
 
+let backpack: list(Selection.t) = [
+  {focus: Left, content: [Tile(exp_foo)]},
+];
+
 let init = () => {
-  zipper:
-    Zipper.{
-      selection: {
-        focus: Left,
-        content: selection,
-      },
-      backpack: Backpack.empty,
-      relatives: {
-        siblings: (Siblings.Prefix.empty, r_sibling),
-        ancestors,
-      },
+  zipper: {
+    selection: {
+      focus: Left,
+      content,
     },
+    backpack,
+    relatives: {
+      siblings: (l_sibling, r_sibling),
+      ancestors,
+    },
+  },
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
