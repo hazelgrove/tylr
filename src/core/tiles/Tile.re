@@ -92,11 +92,13 @@ module Match = {
 
     let complete = (m: t): option(tile) => {
       let label = label(m);
+      // arbitrary mold to typecheck, will be subsequently remolded
+      let mold = List.hd(Molds.get(label));
       length(m) == Label.length(label)
         ? Some(
             Base.Tile.{
               label,
-              mold: failwith("todo complete tile"),
+              mold,
               children: List.map(ListUtil.rev_if(O.d == Left), children(m)),
             },
           )

@@ -27,11 +27,15 @@ let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
 };
 
-let disassemble = ({children: (l, r), _}: t): Siblings.t => (
-  // YOLO(andrew)
-  List.flatten(l),
-  List.flatten(r),
-);
+let disassemble = ({label, mold, children: (kids_l, kids_r)}: t): Siblings.t => {
+  let (shards_l, shards_r) =
+    Shard.mk_s(label, mold)
+    |> List.map(Shard.to_piece)
+    |> ListUtil.split_n(List.length(kids_l) + 1);
+  let flatten = (shards, kids) =>
+    List.flatten(ListUtil.map_alt(p => [p], Fun.id, shards, kids));
+  (flatten(shards_l, kids_l), flatten(shards_r, kids_r));
+};
 
 module Match = {
   module Prefix = Tile.Match.Make(Orientation.L);
