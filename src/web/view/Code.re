@@ -9,8 +9,58 @@ let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement => {
   assert(0 <= i && i <= j && j <= List.length(ms));
   let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
   let origin = ith.measurement.origin;
-  let length = jth.measurement.origin + jth.measurement.length - origin;
+  let length = jth.measurement.origin - origin;
   {origin, length};
+};
+
+let indicators = (mold: Mold.t): list(bool) =>
+  List.map((==)(mold.sorts.out), mold.sorts.in_);
+
+let get_closed_children_measurements =
+    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
+  let indicators = indicators(mold);
+  let closed_indices = Util.ListUtil.p_indices((==)(true), indicators);
+  let closed_indices = List.map((+)(1), closed_indices);
+  List.map(idx => List.nth(ms, idx).measurement, closed_indices);
+};
+
+let get_open_children_measurements =
+    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
+  let indicators = indicators(mold);
+  let oepn_indices = Util.ListUtil.p_indices((==)(false), indicators);
+  let open_indices = List.map((+)(1), oepn_indices);
+  List.map(idx => List.nth(ms, idx).measurement, open_indices);
+};
+
+let sel_piece_profile =
+    (mold: Mold.t, measurement, ms: list(Layout.measured))
+    : SelemDec.Profile.t => {
+  // take list of in_ sorts
+  // map against (=)out
+  // trues are closed children, falses are open children
+  // collect indicies of trues, incremeneted by one. these are indicies of closed children
+  // similarly for open children
+  print_endline("sel_piece_profile");
+  print_endline(string_of_int(List.length(ms)));
+  print_endline(String.concat(" ", List.map(Layout.show_measured, ms)));
+  print_endline("777");
+  print_endline(
+    String.concat(
+      " ",
+      List.map(
+        Layout.show_measurement,
+        get_closed_children_measurements(mold, ms),
+      ),
+    ),
+  );
+  {
+    measurement,
+    color: Color.of_sort(mold.sorts.out),
+    shape: Layout.piece_shape_of_mold(mold),
+    style: Root,
+    open_children: get_open_children_measurements(mold, ms),
+    closed_children: get_closed_children_measurements(mold, ms),
+  };
 };
 
 let cat_decos =
@@ -19,6 +69,9 @@ let cat_decos =
   | Segment(Range(i, j)) => [
       SelectedBoxDec.view(~font_metrics, range_profile(ms, i, j)),
       CaretDec.simple_view(~font_metrics, measurement.origin),
+    ]
+  | Piece(mold, InsideFocalSeg(Selected)) => [
+      SelemDec.view(~font_metrics, sel_piece_profile(mold, measurement, ms)),
     ]
   | _ => []
   };

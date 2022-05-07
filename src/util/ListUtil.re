@@ -234,3 +234,13 @@ let map_alt: ('a => 'c, 'b => 'c, list('a), list('b)) => list('c) =
   };
 
 let interleave = (xs, ys) => map_alt(x => x, y => y, xs, ys);
+
+let p_indices = (p: 'a => bool, xs: list('a)): list(int) => {
+  let (_, idxs) =
+    List.fold_left(
+      ((n, idxs), x) => (n + 1, idxs @ (p(x) ? [n] : [])),
+      (0, []),
+      xs,
+    );
+  idxs;
+};

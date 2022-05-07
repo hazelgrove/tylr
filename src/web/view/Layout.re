@@ -7,6 +7,17 @@ open Core;
 type tip_shape = (Nib.t, int);
 [@deriving show]
 type piece_shape = (tip_shape, tip_shape);
+let piece_shape_of_mold = (m: Mold.t): piece_shape => {
+  let sort = m.sorts.out;
+  let (sl: Nib.Shape.t, sr: Nib.Shape.t) =
+    switch (m.shape) {
+    | Op => (Convex, Convex)
+    | Pre(p) => (Convex, Concave(p))
+    | Post(p) => (Concave(p), Convex)
+    | Bin(p) => (Concave(p), Concave(p))
+    };
+  (({shape: sl, sort}, 0), ({shape: sr, sort}, 0));
+};
 
 [@deriving show]
 type measurement = {
@@ -67,26 +78,21 @@ and measured = {
   layout: layoutM,
 };
 
-//let cat: list(t) => t = xs => Cat(xs, init_ann_cat);
-let cat_segment: list(t) => t = xs => Cat(xs, Segment(None)); //TODO(andrew): remove None?
-let cat_piece: (Mold.t, piece_focus, list(t)) => t =
-  (mold, piece_focus, xs) => Cat(xs, Piece(mold, piece_focus));
-let cat_piece_outside: (Mold.t, list(t)) => t =
-  (mold, xs) => Cat(xs, Piece(mold, OutsideFocalSeg));
 let text: string => t = t => Text(t, None);
 let delim: string => t = s => Text(s, Delim);
 let placeholder = annot => Text(Unicode.nbsp, annot);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
 
-let color: Mold.t => Color.t = m => Color.of_sort(m.sorts.out);
+let cat_piece: (Mold.t, list(t)) => t =
+  (mold, xs) => Cat(xs, Piece(mold, OutsideFocalSeg));
 
-let pad_spaces_segment: (Sort.t, list(t)) => t =
+let cat_segment: (Sort.t, list(t)) => t =
   (sort, ls) =>
     switch (ls) {
-    | [] => cat_segment([])
+    | [] => Cat([], Segment(None))
     | _ =>
       let spaces = List.init(List.length(ls) + 1, i => space(i, sort));
-      cat_segment(ListUtil.interleave(spaces, ls));
+      Cat(ListUtil.interleave(spaces, ls), Segment(None));
     };
 
 let update_ann: (t, ann_cat => ann_cat) => t =
@@ -132,27 +138,15 @@ let delims =
 
 let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 
-let hole_mold: (Grout.t, Sort.t) => Mold.t =
-  (g, sort) => {
-    shape:
-      switch (g) {
-      | Convex => Op
-      | Concave => Bin(Precedence.min)
-      },
-    sorts: {
-      out: sort,
-      in_: [],
-    },
-  };
-
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
-    let mold: Mold.t = hole_mold(g, sort);
-    cat_piece_outside(mold, [placeholder(EmptyHole(mold))]);
+    let mold = Mold.of_grout(g, sort);
+    cat_piece(mold, [placeholder(EmptyHole(mold))]);
   };
 
 let of_shard: Base.Shard.t => t =
-  ({label: (n, label), _}) => text(List.nth(label, n));
+  ({label: (n, label), nibs}) =>
+    cat_piece(Mold.of_nibs(nibs), [text(List.nth(label, n))]);
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
   (sort, focus, p) => {
@@ -172,13 +166,13 @@ let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
 and of_pieces = (sort, ps) => List.map(of_piece(sort, OutsideFocalSeg), ps)
 and of_segment: (Sort.t, Segment.t) => t =
   //TODO(andrew): piece step annos
-  (sort, ps) => ps |> of_pieces(sort) |> pad_spaces_segment(sort)
+  (sort, ps) => ps |> of_pieces(sort) |> cat_segment(sort)
 and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
   //TODO(andrew): child-step anno
   mold => ListUtil.map_alt(text', of_segment(mold.sorts.out))
 and of_tile: Tile.t => t =
   ({label, children, mold}) =>
-    cat_piece(mold, OutsideFocalSeg, of_form(mold, label, children));
+    cat_piece(mold, of_form(mold, label, children));
 
 let of_ancestor: (Ancestor.t, t) => t =
   ({label, children: (l_kids, r_kids), mold}, layout) => {
@@ -189,7 +183,6 @@ let of_ancestor: (Ancestor.t, t) => t =
       ListUtil.split_n(List.length(l_kids) + 1, label);
     cat_piece(
       mold,
-      OutsideFocalSeg,
       of_form(mold, l_label, List.rev(l_kids))
       @ [layout]
       @ of_form(mold, r_label, r_kids),
@@ -199,7 +192,7 @@ let of_ancestor: (Ancestor.t, t) => t =
 let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
   (layout, (ancestor, (l_pibs, r_pibs))) => {
     let sort = ancestor.mold.sorts.out;
-    pad_spaces_segment(
+    cat_segment(
       sort,
       //TODO(andrew): piece-step annos
       of_pieces(sort, List.rev(l_pibs))
@@ -216,7 +209,7 @@ let ann_selection: (t, (list('a), list('b))) => t =
     update_ann(layout, ann =>
       switch (ann) {
       | Piece(_) => ann
-      | Segment(_) => Segment(Range(l + 1, r + 1))
+      | Segment(_) => Segment(Range(2 * l + 1, 2 * r + 1))
       }
     );
   };
@@ -230,20 +223,21 @@ let mk_zipper: Zipper.t => t =
     },
   ) => {
     let sort = Ancestors.sort(ancestors);
-    let select = of_piece(sort, InsideFocalSeg(Selected));
-    let indicate = of_piece(sort, InsideFocalSeg(Indicated));
-    let dont = of_piece(sort, InsideFocalSeg(NotIndicated));
-    let selection_ls = content |> List.map(select);
-    let l_sibs_ls = List.map(dont, List.rev(l_sibs));
+    let select_piece = of_piece(sort, InsideFocalSeg(Selected));
+    let indicate_piece = of_piece(sort, InsideFocalSeg(Indicated));
+    let normal_piece = of_piece(sort, InsideFocalSeg(NotIndicated));
+    let selection_ls = content |> List.map(select_piece);
+    let l_sibs_ls = List.map(normal_piece, List.rev(l_sibs));
     let r_sibs_ls =
       switch (selection_ls, r_sibs) {
       | (_, []) => []
-      | ([], [p, ...ps]) => [indicate(p), ...List.map(dont, ps)]
-      | _ => List.map(dont, r_sibs)
+      | ([], [p, ...ps]) =>
+        List.cons(indicate_piece(p), List.map(normal_piece, ps))
+      | _ => List.map(normal_piece, r_sibs)
       };
+    // TODO(andrew): case where caret is at end of segment
     let ls = l_sibs_ls @ selection_ls @ r_sibs_ls;
-
-    let layout = pad_spaces_segment(sort, ls);
+    let layout = cat_segment(sort, ls);
     let current = ann_selection(layout, (l_sibs, content));
     List.fold_left(of_generation, current, ancestors);
   };

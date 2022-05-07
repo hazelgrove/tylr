@@ -44,3 +44,33 @@ module Map = {
   include Id.Map;
   type nonrec t = Id.Map.t(list(mold));
 };
+
+let of_grout: (Grout.t, Sort.t) => t =
+  // TODO(andrew): dont do this
+  (g, sort) => {
+    shape:
+      switch (g) {
+      | Convex => Op
+      | Concave => Bin(Precedence.min)
+      },
+    sorts: {
+      out: sort,
+      in_: [],
+    },
+  };
+
+let of_nibs: Nibs.t => t =
+  // TODO(andrew): dont do this
+  ((l_nib, r_nib)) => {
+    shape:
+      switch (l_nib.shape, r_nib.shape) {
+      | (Convex, Convex) => Op
+      | (Concave(p), Concave(_)) => Bin(p)
+      | (Convex, Concave(p)) => Pre(p)
+      | (Concave(p), Convex) => Post(p)
+      },
+    sorts: {
+      out: l_nib.sort,
+      in_: [],
+    },
+  };

@@ -102,7 +102,7 @@
 
   --selection-box-z: 1;
   --genie-z: 1;
-  --empty-hole-z: 2;
+  --empty-hole-z: 20; /* andrew: changed this lol */
   --err-hole-z: 2;
   --revealed-tile-z: 3;
   --uni-child-z: 4;
