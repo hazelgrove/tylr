@@ -48,11 +48,18 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
     let updates: list(Update.t) =
       if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
         switch (key) {
+        | "F2" =>
+          zipper |> Zipper.show |> print_endline;
+          [];
         | "F3" =>
-          let l = Layout.mk_zipper(zipper);
-          let m = Layout.to_measured(l);
-          print_endline(Layout.show(l));
-          print_endline(Layout.show_measured(m));
+          zipper |> Layout.mk_zipper |> Layout.show |> print_endline;
+          [];
+        | "F4" =>
+          zipper
+          |> Layout.mk_zipper
+          |> Layout.to_measured
+          |> Layout.show_measured
+          |> print_endline;
           [];
         | "ArrowLeft" => [Update.PerformAction(Move(Left))]
         | "ArrowRight" => [Update.PerformAction(Move(Right))]
