@@ -8,9 +8,21 @@ type t = (Prefix.t, Suffix.t);
 
 let empty = (Prefix.empty, Suffix.empty);
 
-let prepend = (_: Direction.t, _, _) => failwith("todo prepend");
+let prepend = (d: Direction.t, tiles: Segment.t, (l_sibs, r_sibs): t): t =>
+  //YOLO(andrew)
+  switch (d) {
+  | Left => (l_sibs @ tiles, r_sibs)
+  | Right => (l_sibs, tiles @ r_sibs)
+  };
 
-let concat = _ => failwith("todo concat");
+let concat:
+  list((list(Piece.t), list(Piece.t))) => (list(Piece.t), list(Piece.t)) =
+  //YOLO(andrew)
+  pspss =>
+    pspss
+    |> List.split
+    |> PairUtil.map_fst(List.concat)
+    |> PairUtil.map_snd(List.concat);
 
 let consistent_shards = ((pre, suf): t): bool => {
   let shards_pre = Prefix.shards(pre);

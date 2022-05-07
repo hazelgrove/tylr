@@ -88,8 +88,6 @@ let view = (~inject, model: Model.t) => {
         history,
         show_neighbor_tiles,
       } = model;
-  // let dpaths = DecPaths.of_zipper(zipper);
-  let l = Layout.mk_zipper(zipper);
   Node.div(
     Attr.[
       id("page"),
@@ -180,7 +178,7 @@ let view = (~inject, model: Model.t) => {
         [Attr.id("code-container")],
         [
           BarDec.view(~font_metrics),
-          Code.view_of_layout(
+          Code.view(
             ~id="under-the-rail",
             ~text_id="under-the-rail-text",
             ~font_metrics,
@@ -188,8 +186,7 @@ let view = (~inject, model: Model.t) => {
             ~filler=Model.filler(model),
             ~just_failed=history.just_failed,
             ~show_neighbor_tiles,
-            DecPaths.empty, // dpaths,
-            l,
+            DecPaths.empty // dpaths,
           ),
         ],
       ),

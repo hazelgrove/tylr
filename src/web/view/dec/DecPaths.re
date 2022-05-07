@@ -19,13 +19,13 @@ open OptUtil.Syntax;
 type t = {
   // TODO rename to anchors
   caret: option(Path.range),
+  selection_boxes: list(Path.range),
+  selection_bars: list(Path.range),
   siblings: option((Path.steps, list(Path.caret_step))),
   root_term: option((Path.steps, Skel.t)),
   filtered_pieces: option((Path.steps, list(Path.piece_step))),
   revealed_pieces: option((Path.steps, list(Path.piece_step))),
   neighbor_pieces: option((Path.steps, list(Path.piece_step))),
-  selection_boxes: list(Path.range),
-  selection_bars: list(Path.range),
   // logo hack
   logo_pieces: list(Path.piece_step),
 };
@@ -400,7 +400,7 @@ let current_piece =
   let filtered_piece_ds =
     switch (filtered_pieces) {
     | Some(([], filtered_pieces)) when List.mem(step, filtered_pieces) =>
-      let _empty_holes = Layout.piece_holes(piece_l);
+      //let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Selem({
@@ -418,7 +418,7 @@ let current_piece =
   let revealed_piece_ds =
     switch (revealed_pieces) {
     | Some(([], revealed_pieces)) when List.mem(step, revealed_pieces) =>
-      let _empty_holes = Layout.piece_holes(piece_l);
+      //let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Selem({
@@ -436,7 +436,7 @@ let current_piece =
   let neighbor_piece_ds =
     switch (neighbor_pieces) {
     | Some(([], neighbor_pieces)) when List.mem(step, neighbor_pieces) =>
-      let _empty_holes = Layout.piece_holes(piece_l);
+      //let _empty_holes = Layout.piece_holes(piece_l);
       let (open_children, closed_children) = Layout.piece_children(piece_l);
       [
         Dec.Profile.Rail({measurement, color}),

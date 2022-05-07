@@ -60,7 +60,8 @@ module rec Aba: {
   let get_a = ((a, baba)) => [a, ...List.map(snd, baba)];
   let get_b = ((_, baba)) => List.map(fst, baba);
 
-  let map_to_list = (_, _, _) => failwith("todo Aba.map_to_list");
+  let map_to_list: ('a => 'c, 'b => 'c, t('a, 'b)) => list('c) =
+    (fa, fb, (a, baba)) => [fa(a), ...Baba.map_to_list(fb, fa, baba)];
 
   let map_a = (f_a, (a, baba)) => (
     f_a(a),
@@ -179,7 +180,9 @@ and Baba: {
   let join = (q: 'c => 'b, cabacaba: t('c, Aba.t('a, 'b))): t('b, 'a) =>
     cabacaba |> List.map(((c, aba)) => cons(q(c), aba)) |> List.concat;
 
-  let map_to_list = (_, _, _) => failwith("todo map_to_list");
+  let map_to_list: ('b => 'c, 'a => 'c, Baba.t('b, 'a)) => list('c) =
+    (fb, fa, baba) =>
+      List.flatten(List.map(((b, a)) => [fb(b), fa(a)], baba));
 };
 
 module Frame = {

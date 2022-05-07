@@ -19,7 +19,7 @@ module Make = (O: Orientation.S) => {
       ? Some(
           Base.Tile.{
             label,
-            mold: failwith("todo complete"),
+            mold: failwith("todo complete match"),
             children:
               Aba.get_b(m) |> List.map(ListUtil.rev_if(O.d == Left)),
           },

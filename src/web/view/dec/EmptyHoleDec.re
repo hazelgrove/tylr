@@ -5,9 +5,7 @@ open DecUtil;
 module Profile = {
   type t = {
     measurement: Layout.measurement,
-    color: Color.t,
-    // TODO refactor types around new Nib datatype
-    // tip: Nib.shape,
+    mold: Core.Mold.t,
   };
 };
 
@@ -27,9 +25,18 @@ let path = (tip, offset, s: float) => {
   );
 };
 
-let view = (~font_metrics, {measurement, color}: Profile.t): Node.t => {
-  let c_cls = Color.to_string(color);
-  let _ = failwith("fix EmptyHoleDec");
+let view = (~font_metrics, {measurement, mold}: Profile.t): Node.t => {
+  let sort = mold.sorts.out;
+  let c_cls = Color.to_string(Color.of_sort(sort));
+  let tip: Core.Nib.t = {
+    sort,
+    shape:
+      switch (mold.shape) {
+      | Op => Convex
+      | Bin(p) => Concave(p)
+      | _ => failwith("EmptyHoleDec.view bad shape")
+      },
+  };
   container(
     ~font_metrics,
     ~measurement,
@@ -37,8 +44,7 @@ let view = (~font_metrics, {measurement, color}: Profile.t): Node.t => {
     SvgUtil.Path.[
       view(
         ~attrs=[Attr.classes(["empty-hole-path", c_cls])],
-        [],
-        // path(tip, 0., 0.28),
+        path(tip, 0., 0.28),
       ),
     ],
   );

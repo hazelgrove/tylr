@@ -46,10 +46,14 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
-  | PerformAction(_a) =>
+  | PerformAction(a) =>
     // let result = Action.perform(a, model.zipper);
     // update_result(a, result, model);
-    model
+    let result = Zipper.perform(a, model.zipper);
+    switch (result) {
+    | Error(_) => model
+    | Ok(zipper) => {...model, zipper}
+    };
   | FailedInput(reason) => {
       ...model,
       history: ActionHistory.just_failed(reason, model.history),

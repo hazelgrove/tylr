@@ -28,7 +28,7 @@ let p = a => Update.PerformAction(a);
 let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keypress(_ => Event.Prevent_default),
   Attr.on_keyup(evt => {
-    let _ = failwith("todo fix on_keyup");
+    //let _ = failwith("todo fix on_keyup");
     Event.Many(
       switch (JsUtil.get_key(evt), zipper) {
       // | ("Shift", (Selecting(_, [], _), _)) => [
@@ -38,16 +38,24 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
       | ("Alt", _) => [inject(SetShowNeighborTiles(false))]
       | _ => []
       },
-    );
+    )
   }),
   Attr.on_keydown(evt => {
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
     let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
-    let _ = failwith("todo: update on_keydown handler");
+    //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
       if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
         switch (key) {
+        | "F3" =>
+          let l = Layout.mk_zipper(zipper);
+          let m = Layout.to_measured(l);
+          print_endline(Layout.show(l));
+          print_endline(Layout.show_measured(m));
+          [];
+        | "ArrowLeft" => [Update.PerformAction(Move(Left))]
+        | "ArrowRight" => [Update.PerformAction(Move(Right))]
         // | "ArrowLeft"
         // | "ArrowRight" => arrow_l_r(key, evt, zipper)
         // | "ArrowUp" =>

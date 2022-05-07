@@ -35,7 +35,7 @@ let view = (~font_metrics, measurement: Profile.t) =>
           [
             // slightly boost genie tip for better visibility
             // when restructuring selection gets large
-            M({x: 0.5, y: (-0.3) +. (-0.1)}),
+            M({x: 0.5, y: (-0.25) +. (-0.1)}),
             // TODO unify with caret height numbers (-1.8)
             V({y: (-2.4)}),
             H_({dx: Float.of_int(measurement.length - 1)}),

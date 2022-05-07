@@ -96,7 +96,7 @@ module Match = {
         ? Some(
             Base.Tile.{
               label,
-              mold: failwith("todo complete"),
+              mold: failwith("todo complete tile"),
               children: List.map(ListUtil.rev_if(O.d == Left), children(m)),
             },
           )

@@ -44,7 +44,7 @@ module Profile = {
       ) => {
     // let empty_holes = Layout.piece_holes(layout);
     let (open_children, closed_children) = Layout.piece_children(layout);
-    let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
+    //let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
     mk(
       ~measurement,
       ~open_children,
@@ -207,14 +207,13 @@ let open_child_path = ({origin, length}: Layout.measurement) =>
 let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
   open SvgUtil.Path;
   let empty_hole_paths = {
-    let _ = failwith("fix SelemDec.contour_path");
-    // let raised_holes =
-    //   SelemStyle.show_children(profile.style)
-    //     // always show holes in empty hole tiles
-    //     ? List.filter(((n, _, _)) => n == 0, profile.empty_holes)
-    //     : profile.empty_holes;
-    // List.map(empty_hole_path(~font_metrics), raised_holes);
-    [];
+    []//     // always show holes in empty hole tiles
+      //     ? List.filter(((n, _, _)) => n == 0, profile.empty_holes)
+      //     : profile.empty_holes;
+      //let _ = failwith("fix SelemDec.contour_path");
+      ; //   SelemStyle.show_children(profile.style)
+ // let raised_holes =
+      // List.map(empty_hole_path(~font_metrics), raised_holes);
   };
   let closed_child_paths =
     List.map(closed_child_path, profile.closed_children);

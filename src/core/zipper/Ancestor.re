@@ -27,7 +27,11 @@ let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
 };
 
-let disassemble = (_: t): Siblings.t => failwith("todo disassemble");
+let disassemble = ({children: (l, r), _}: t): Siblings.t => (
+  // YOLO(andrew)
+  List.flatten(l),
+  List.flatten(r),
+);
 
 module Match = {
   module Prefix = Tile.Match.Make(Orientation.L);
@@ -50,7 +54,7 @@ module Match = {
     length(m) == Tile.Label.length(label)
       ? Some({
           label,
-          mold: failwith("todo complete"),
+          mold: failwith("todo complete ancestor"),
           children: children(m),
         })
       : None;
