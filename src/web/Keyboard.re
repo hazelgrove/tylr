@@ -43,6 +43,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keydown(evt => {
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
+    let now = a => [Update.PerformAction(a)];
     let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
@@ -61,10 +62,22 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           |> Layout.show_measured
           |> print_endline;
           [];
-        | "ArrowLeft" => [Update.PerformAction(Move(Left))]
-        | "ArrowRight" => [Update.PerformAction(Move(Right))]
-        // | "ArrowLeft"
-        // | "ArrowRight" => arrow_l_r(key, evt, zipper)
+        | "ArrowLeft" when held(Shift) => now(Select(Left))
+        | "ArrowLeft" => now(Move(Left))
+        | "ArrowRight" when held(Shift) => now(Select(Right))
+        | "ArrowRight" => now(Move(Right))
+        | "ArrowUp" =>
+          // BUG: throws (Failure hd)
+          now(Pick_up)
+        | "ArrowDown" =>
+          // BUG: throws (Failure hd)
+          now(Put_down)
+        | "Backspace" =>
+          // BUG: throws (Failure hd)
+          now(Destruct)
+        | "x" =>
+          // BUG: throws (Failure hd)
+          now(Construct(Left, ["x"]))
         // | "ArrowUp" =>
         //   switch (zipper) {
         //   | (Pointing(_) | Selecting(_, [], _), _) => [

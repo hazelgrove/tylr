@@ -92,8 +92,10 @@ module Match = {
 
     let complete = (m: t): option(tile) => {
       let label = label(m);
+      let molds = Molds.get(label);
+      assert(molds != []);
       // arbitrary mold to typecheck, will be subsequently remolded
-      let mold = List.hd(Molds.get(label));
+      let mold = List.hd(molds);
       length(m) == Label.length(label)
         ? Some(
             Base.Tile.{

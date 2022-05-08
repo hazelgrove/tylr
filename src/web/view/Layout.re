@@ -272,7 +272,7 @@ let mk_zipper: Zipper.t => t =
     | ([], []) => current
     | ([], [x, ...xs]) =>
       // NOTE: if there are no pieces to the right, indicate parent
-      let previous = of_generation(~indicate=true, current, x);
+      let previous = of_generation(~indicate=content == [], current, x);
       List.fold_left(of_generation(~indicate=false), previous, xs);
     | _ => List.fold_left(of_generation(~indicate=false), current, ancestors)
     };

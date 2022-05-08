@@ -60,7 +60,9 @@ module Match = {
   let complete = (m: t): option(ancestor) => {
     let label = label(m);
     // arbitrary mold to typecheck, to be remolded
-    let mold = List.hd(Molds.get(label));
+    let molds = Molds.get(label);
+    assert(molds != []);
+    let mold = List.hd(molds);
     length(m) == Tile.Label.length(label)
       ? Some({label, mold, children: children(m)}) : None;
   };

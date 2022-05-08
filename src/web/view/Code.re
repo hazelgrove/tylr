@@ -21,7 +21,16 @@ let rec text_views = (l: Layout.t): list(Node.t) => {
 };
 
 let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
-  if (j == List.length(ms)) {
+  if (j == List.length(ms) && i < j) {
+    let ith = List.nth(ms, i);
+    let origin = ith.measurement.origin;
+    let last = List.nth(ms, List.length(ms) - 1);
+    let length =
+      last.measurement.origin
+      + last.measurement.length
+      - ith.measurement.origin;
+    {origin, length};
+  } else if (j == List.length(ms)) {
     let last = List.nth(ms, List.length(ms) - 1);
     let origin = last.measurement.origin + last.measurement.length;
     {origin, length: 0};
