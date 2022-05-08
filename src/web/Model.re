@@ -48,7 +48,7 @@ let mk_lambda_ancestor:
     children: (left, right),
   };
 
-let mk_empty_sibs: Ancestor.t => (Ancestor.t, Siblings.t) =
+let mk_empty_sibs: Ancestor.t => Ancestors.generation =
   ancestor => (ancestor, ([], []));
 
 let l_sibling: Segment.t = [];

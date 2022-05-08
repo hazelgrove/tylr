@@ -126,6 +126,14 @@ let update_ann: (t, ann_cat => ann_cat) => t =
     | _ => t
     };
 
+let set_piece_focus = (focus: piece_focus, l: t): t =>
+  update_ann(l, x =>
+    switch (x) {
+    | Piece(p, m, _) => Piece(p, m, focus)
+    | _ => x
+    }
+  );
+
 let rec length =
   fun
   | Atom(s, _) => Unicode.length(s)
@@ -184,12 +192,7 @@ let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
       | Grout(g) => of_grout(sort, g)
       | Shard(s) => of_shard(s)
       };
-    update_ann(t, x =>
-      switch (x) {
-      | Piece(p, m, _) => Piece(p, m, focus)
-      | _ => x
-      }
-    );
+    set_piece_focus(focus, t);
   }
 and of_pieces = sort => List.map(of_piece(sort, OutsideFocalSegment))
 and of_segment: (Sort.t, Segment.t) => t =
@@ -200,8 +203,8 @@ and of_tile: Tile.t => t =
   ({label, children, mold}) =>
     cat_piece(Tile, mold, of_form(mold, label, children));
 
-let of_ancestor: (Ancestor.t, t) => t =
-  ({label, children: (l_kids, r_kids), mold}, layout) => {
+let of_ancestor: (~escaped: bool, Ancestor.t, t) => t =
+  (~escaped, {label, children: (l_kids, r_kids), mold}, layout) => {
     assert(List.length(label) == 2 + List.length(l_kids @ r_kids));
     let (lb_l, lb_r) = ListUtil.split_n(1 + List.length(l_kids), label);
     cat_piece(
@@ -210,16 +213,17 @@ let of_ancestor: (Ancestor.t, t) => t =
       of_form(mold, lb_l, List.rev(l_kids))
       @ [layout]
       @ of_form(mold, lb_r, r_kids),
-    );
+    )
+    |> (escaped ? set_piece_focus(InsideFocalSegment(Indicated)) : (p => p));
   };
 
-let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
-  (layout, (ancestor, (l_pibs, r_pibs))) => {
+let of_generation: (~escaped: bool, t, Ancestors.generation) => t =
+  (~escaped, layout, (ancestor, (l_pibs, r_pibs))) => {
     let sort = ancestor.mold.sorts.out;
     cat_segment(
       sort,
       of_pieces(sort, List.rev(l_pibs))
-      @ [of_ancestor(ancestor, layout)]
+      @ [of_ancestor(~escaped, ancestor, layout)]
       @ of_pieces(sort, r_pibs),
     );
   };
@@ -258,11 +262,16 @@ let mk_zipper: Zipper.t => t =
         List.cons(indicate_piece(p), List.map(snub_piece, ps))
       | _ => List.map(snub_piece, r_sibs)
       };
-    // TODO(andrew): case where caret is at end of segment
     let ls = l_sibs_ls @ selection_ls @ r_sibs_ls;
     let layout = cat_segment(sort, ls);
     let current = ann_selection(layout, (l_sibs, content));
-    List.fold_left(of_generation, current, ancestors);
+    switch (r_sibs, ancestors) {
+    | ([], []) => current //TODO(andrew):select whole
+    | ([], [x, ...xs]) =>
+      let previous = of_generation(~escaped=true, current, x);
+      List.fold_left(of_generation(~escaped=false), previous, xs);
+    | _ => List.fold_left(of_generation(~escaped=false), current, ancestors)
+    };
   };
 
 // OLD

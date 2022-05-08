@@ -1,7 +1,10 @@
 open Util;
 
 [@deriving show]
-type t = list((Ancestor.t, Siblings.t));
+type generation = (Ancestor.t, Siblings.t);
+
+[@deriving show]
+type t = list(generation);
 
 let empty = [];
 
