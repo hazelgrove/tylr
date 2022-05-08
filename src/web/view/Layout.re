@@ -2,7 +2,6 @@ open Util;
 open Core;
 
 let pad_segments = true; // set segments as space-padded
-let segment_idx: int => int = x => pad_segments ? 2 * x + 1 : x;
 
 // TODO: get rid of these and better organize
 // types around new mold/nib model
@@ -160,6 +159,33 @@ let rec to_measured = (~origin=0, layout: t): measured =>
     let measurement = {origin, length: final - origin};
     {layout: CatM(List.rev(ms), ann), measurement};
   };
+
+let segment_idx: int => int = x => pad_segments ? 2 * x + 1 : x;
+
+let select_segment_idxs = xs =>
+  List.map(idx => {
+    let i = segment_idx(idx);
+    assert(i >= 0 && i < List.length(xs));
+    List.nth(xs, i);
+  });
+
+let get_closed_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
+  List.map((==)(mold.sorts.out), mold.sorts.in_)
+  |> ListUtil.p_indices((==)(false))
+  |> select_segment_idxs(ms);
+};
+
+let get_open_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
+  List.map((==)(mold.sorts.out), mold.sorts.in_)
+  |> ListUtil.p_indices((==)(true))
+  |> select_segment_idxs(ms);
+};
+
+let relativize_measurements: (int, list(measurement)) => list(measurement) =
+  parent_origin =>
+    List.map(({origin, length}) =>
+      {origin: origin - parent_origin, length}
+    );
 
 let delims =
   List.flatten([

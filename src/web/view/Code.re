@@ -38,48 +38,29 @@ let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
     {origin, length};
   };
 
-let get_closed_children_measurements =
-    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
-  List.map((==)(mold.sorts.out), mold.sorts.in_)
-  |> ListUtil.p_indices((==)(false))
-  |> List.map(idx => {
-       let i = Layout.segment_idx(idx);
-       assert(i >= 0 && i < List.length(ms));
-       List.nth(ms, i).measurement;
-     });
-};
-
-let get_open_children_measurements =
-    (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
-  List.map((==)(mold.sorts.out), mold.sorts.in_)
-  |> ListUtil.p_indices((==)(true))
-  |> List.map(idx => {
-       let i = Layout.segment_idx(idx);
-       assert(i >= 0 && i < List.length(ms));
-       List.nth(ms, i).measurement;
-     });
-};
-
 let sel_piece_profile =
-    (s: SelemStyle.t, mold: Mold.t, measurement, ms: list(Layout.measured))
+    (
+      style: SelemStyle.t,
+      mold: Mold.t,
+      measurement: Layout.measurement,
+      ms: list(Layout.measured),
+    )
     : SelemDec.Profile.t => {
-  print_endline("DEBUG sel_piece_profile");
-  print_endline(
-    String.concat(
-      " ",
-      List.map(
-        Layout.show_measurement,
-        get_closed_children_measurements(mold, ms),
-      ),
-    ),
-  );
+  let open_children =
+    Layout.get_open_children(mold, ms)
+    |> List.map((c: Layout.measured) => c.measurement)
+    |> Layout.relativize_measurements(measurement.origin);
+  let closed_children =
+    Layout.get_closed_children(mold, ms)
+    |> List.map((c: Layout.measured) => c.measurement)
+    |> Layout.relativize_measurements(measurement.origin);
   {
-    measurement,
     color: Color.of_sort(mold.sorts.out),
     shape: Layout.piece_shape_of_mold(mold),
-    style: s,
-    open_children: get_open_children_measurements(mold, ms),
-    closed_children: get_closed_children_measurements(mold, ms),
+    measurement,
+    style,
+    open_children,
+    closed_children,
   };
 };
 
@@ -190,14 +171,14 @@ let view =
     )
     : Node.t => {
   let layout = Layout.mk_zipper(zipper);
-  let measuredL = Layout.to_measured(layout);
+  let measured = Layout.to_measured(layout);
   let backpack = zipper.backpack;
   let direction = zipper.selection.focus;
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [
       span_c("code-text", text_views(layout)),
-      ...deco_views(~font_metrics, ~backpack, ~direction, measuredL),
+      ...deco_views(~font_metrics, ~backpack, ~direction, measured),
     ],
   );
 };
