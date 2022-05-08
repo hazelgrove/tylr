@@ -55,7 +55,7 @@ let get_open_children_measurements =
 };
 
 let sel_piece_profile =
-    (mold: Mold.t, measurement, ms: list(Layout.measured))
+    (s: SelemStyle.t, mold: Mold.t, measurement, ms: list(Layout.measured))
     : SelemDec.Profile.t => {
   print_endline("sel_piece_profile");
   print_endline(
@@ -71,7 +71,7 @@ let sel_piece_profile =
     measurement,
     color: Color.of_sort(mold.sorts.out),
     shape: Layout.piece_shape_of_mold(mold),
-    style: Selected,
+    style: s,
     open_children: get_open_children_measurements(mold, ms),
     closed_children: get_closed_children_measurements(mold, ms),
   };
@@ -129,9 +129,12 @@ let cat_decos =
       CaretDec.simple_view(~font_metrics, origin),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
-  | Piece(_p, mold, InsideFocalSegment(Selected)) => [
-      SelemDec.view(~font_metrics, sel_piece_profile(mold, measurement, ms)),
-    ]
+  | Piece(_p, mold, InsideFocalSegment(Selected)) =>
+    let profile = sel_piece_profile(Filtered, mold, measurement, ms);
+    [SelemDec.view(~font_metrics, profile)];
+  | Piece(_p, mold, InsideFocalSegment(Indicated)) =>
+    let profile = sel_piece_profile(Root, mold, measurement, ms);
+    [SelemDec.view(~font_metrics, profile)];
   | _ => []
   };
 
