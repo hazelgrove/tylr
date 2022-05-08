@@ -38,7 +38,7 @@ let disassemble = ({label, mold, children: (kids_l, kids_r)}: t): Siblings.t => 
     |> ListUtil.split_n(List.length(kids_l) + 1);
   let flatten = (shards, kids) =>
     List.flatten(ListUtil.map_alt(p => [p], Fun.id, shards, kids));
-  (flatten(shards_l, kids_l), flatten(shards_r, kids_r));
+  (flatten(List.rev(shards_l), kids_l), flatten(shards_r, kids_r));
 };
 
 module Match = {
