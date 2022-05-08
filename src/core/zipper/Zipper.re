@@ -3,7 +3,7 @@ open Util;
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
 type t = {
-  // id_gen: IdGen.t,
+  id_gen: IdGen.t,
   selection: Selection.t,
   backpack: Backpack.t,
   relatives: Relatives.t,
@@ -86,11 +86,17 @@ let move = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
     let balanced = !Backpack.is_balanced(z.backpack);
+    print_endline("0");
+    print_endline(Relatives.show(z.relatives));
     let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
+    print_endline("1");
+    print_endline(Relatives.show(relatives));
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
       |> Relatives.reassemble;
+    print_endline("2");
+    print_endline(Relatives.show(relatives));
     {...z, relatives};
   } else {
     // TODO restore logic attempting to move d
@@ -144,13 +150,14 @@ let put_down = (z: t): option(t) => {
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let z = destruct(z);
   let mold = Relatives.default_mold(label, z.relatives);
+  let (id, id_gen) = IdGen.next(z.id_gen);
   let selections =
-    Shard.mk_s(label, mold)
+    Shard.mk_s(id, label, mold)
     |> List.map(Segment.of_shard)
     |> List.map(Selection.mk(from))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
-  Option.get(put_down({...z, backpack}));
+  Option.get(put_down({...z, id_gen, backpack}));
 };
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>

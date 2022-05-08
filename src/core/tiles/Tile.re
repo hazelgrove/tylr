@@ -36,9 +36,9 @@ let remold = (t: t): list(t) =>
 // postcond: output segment is nonempty
 // TODO double shard indices
 let disassemble =
-    (from: Direction.t, {label, mold, children}: t): Base.Segment.t => {
+    (from: Direction.t, {id, label, mold, children}: t): Base.Segment.t => {
   let r = from == Right;
-  let shards = List.map(Shard.to_piece, Shard.mk_s(label, mold));
+  let shards = List.map(Shard.to_piece, Shard.mk_s(id, label, mold));
   let (hd, tl) =
     switch (ListUtil.rev_if(r, shards)) {
     | [] => raise(Label.Empty_label)
@@ -67,6 +67,7 @@ let pop = (from: Direction.t, tile: t): (Base.Piece.t, Base.Segment.t) =>
 
 let unique_mold = _ => failwith("todo unique_mold");
 
+// probably no longer necessary given tile ids
 module Match = {
   type tile = t;
 
@@ -77,6 +78,8 @@ module Match = {
     let init = s => (s, []);
 
     let shards = Aba.get_a;
+
+    let id = ((hd, _): t) => hd.tile_id;
 
     let label = ((hd, _): t) => snd(hd.label);
 
@@ -93,6 +96,7 @@ module Match = {
       |> List.flatten;
 
     let complete = (m: t): option(tile) => {
+      let id = id(m);
       let label = label(m);
       let molds =
         switch (Shard.consistent_molds(shards(m))) {
@@ -113,7 +117,7 @@ module Match = {
                 List.map(rev_if(O.d == Left), children(m)),
               )
             );
-          Some(Base.Tile.{label, mold, children});
+          Some(Base.Tile.{id, label, mold, children});
         }
         : None;
     };

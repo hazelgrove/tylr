@@ -5,6 +5,7 @@ type step = int;
 
 [@deriving show]
 type t = {
+  id: Id.t,
   label: Tile.Label.t,
   mold: Mold.t,
   children: ListFrame.t(Segment.t),
@@ -31,9 +32,10 @@ let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
   Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
 };
 
-let disassemble = ({label, mold, children: (kids_l, kids_r)}: t): Siblings.t => {
+let disassemble =
+    ({id, label, mold, children: (kids_l, kids_r)}: t): Siblings.t => {
   let (shards_l, shards_r) =
-    Shard.mk_s(label, mold)
+    Shard.mk_s(id, label, mold)
     |> List.map(Shard.to_piece)
     |> ListUtil.split_n(List.length(kids_l) + 1);
   let flatten = (shards, kids) =>
@@ -48,6 +50,8 @@ module Match = {
   type ancestor = t;
   type t = (Prefix.t, Suffix.t);
 
+  let id = ((pre, _): t) => Prefix.id(pre);
+
   let shards = ((pre, suf): t) =>
     List.rev(Prefix.shards(pre)) @ Suffix.shards(suf);
 
@@ -61,6 +65,7 @@ module Match = {
   );
 
   let complete = (m: t): option(ancestor) => {
+    let id = id(m);
     let label = label(m);
     let molds =
       switch (Shard.consistent_molds(shards(m))) {
@@ -73,6 +78,6 @@ module Match = {
     assert(molds != []);
     let mold = List.hd(molds);
     length(m) == Tile.Label.length(label)
-      ? Some({label, mold, children: children(m)}) : None;
+      ? Some({id, label, mold, children: children(m)}) : None;
   };
 };

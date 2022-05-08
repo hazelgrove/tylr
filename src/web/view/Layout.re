@@ -206,7 +206,7 @@ let of_grout: (Sort.t, Grout.t) => t =
   };
 
 let of_shard: Base.Shard.t => t =
-  ({label: (n, label), nibs}) => {
+  ({tile_id: _, label: (n, label), nibs}) => {
     assert(n >= 0 && n < List.length(label));
     let label = List.nth(label, n);
     //TODO(andrew): rendering shards differently for debugging
@@ -229,11 +229,11 @@ and of_segment: (Sort.t, Segment.t) => t =
 and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
   mold => ListUtil.map_alt(text', of_segment(mold.sorts.out))
 and of_tile: Tile.t => t =
-  ({label, children, mold}) =>
+  ({id: _, label, children, mold}) =>
     cat_piece(Tile, mold, of_form(mold, label, children));
 
 let of_ancestor: (~indicate: bool, Ancestor.t, t) => t =
-  (~indicate, {label, children: (l_kids, r_kids), mold}, layout) => {
+  (~indicate, {id: _, label, children: (l_kids, r_kids), mold}, layout) => {
     assert(List.length(label) == 2 + List.length(l_kids @ r_kids));
     let (lb_l, lb_r) = ListUtil.split_n(1 + List.length(l_kids), label);
     cat_piece(

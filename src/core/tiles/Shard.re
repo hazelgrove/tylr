@@ -14,10 +14,17 @@ module Label = {
     lbl == lbl' && (d == Right ? n + 1 == n' : n == 1 + n');
 };
 
-let mk = (label: Label.t, nibs: Nibs.t) => {label, nibs};
+let mk = (tile_id: Id.t, label: Label.t, nibs: Nibs.t) => {
+  tile_id,
+  label,
+  nibs,
+};
 
-let mk_s = (label: Base.Tile.Label.t, mold: Mold.t): list(t) =>
-  label |> List.mapi((i, _) => mk((i, label), Mold.nibs(~index=i, mold)));
+let mk_s = (tile_id: Id.t, label: Base.Tile.Label.t, mold: Mold.t): list(t) =>
+  label
+  |> List.mapi((i, _) =>
+       mk(tile_id, (i, label), Mold.nibs(~index=i, mold))
+     );
 
 let to_piece = s => Base.Piece.Shard(s);
 

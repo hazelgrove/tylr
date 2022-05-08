@@ -1,4 +1,5 @@
 module T = {
+  [@deriving show]
   type t = int;
   let compare = Int.compare;
 };

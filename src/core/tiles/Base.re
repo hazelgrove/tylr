@@ -34,6 +34,7 @@ and Tile: {
   // invariant: each child is a list of elements, either tiles or grout (assuming single backpack)
   [@deriving show]
   type t = {
+    id: Id.t,
     label: Label.t,
     mold: Mold.t,
     children: list(Segment.t),
@@ -50,6 +51,7 @@ and Tile: {
   // invariant: each child is a list of elements, either tiles or grout (assuming single backpack)
   [@deriving show]
   type t = {
+    id: Id.t,
     label: Label.t,
     mold: Mold.t,
     children: list(Segment.t),
@@ -63,6 +65,7 @@ and Shard: {
 
   [@deriving show]
   type t = {
+    tile_id: Id.t,
     label: Label.t,
     nibs: Nibs.t,
   };
@@ -74,6 +77,7 @@ and Shard: {
 
   [@deriving show]
   type t = {
+    tile_id: Id.t,
     label: Label.t,
     nibs: Nibs.t,
   };
