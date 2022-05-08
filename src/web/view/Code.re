@@ -129,7 +129,7 @@ let cat_decos =
       CaretDec.simple_view(~font_metrics, origin),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
-  | Piece(mold, InsideFocalSeg(Selected)) => [
+  | Piece(_p, mold, InsideFocalSegment(Selected)) => [
       SelemDec.view(~font_metrics, sel_piece_profile(mold, measurement, ms)),
     ]
   | _ => []

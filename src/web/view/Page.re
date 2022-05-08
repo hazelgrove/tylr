@@ -177,7 +177,8 @@ let view = (~inject, model: Model.t) => {
       div(
         [Attr.id("code-container")],
         [
-          BarDec.view(~font_metrics),
+          //TODO(andrew): temp disable
+          //BarDec.view(~font_metrics),
           Code.view(
             ~id="under-the-rail",
             ~text_id="under-the-rail-text",

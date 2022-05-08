@@ -46,7 +46,7 @@ module Map = {
 };
 
 let of_grout: (Grout.t, Sort.t) => t =
-  // TODO(andrew): dont do this
+  // TODO(andrew): dont do this?
   (g, sort) => {
     shape:
       switch (g) {
@@ -60,7 +60,7 @@ let of_grout: (Grout.t, Sort.t) => t =
   };
 
 let of_nibs: Nibs.t => t =
-  // TODO(andrew): dont do this
+  // TODO(andrew): dont do this?
   ((l_nib, r_nib)) => {
     shape:
       switch (l_nib.shape, r_nib.shape) {

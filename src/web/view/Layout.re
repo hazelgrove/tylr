@@ -37,25 +37,45 @@ type composite_shape = {
 };
 
 [@deriving show]
-type selection_relation =
-  | Indicated // selection is empty, immediately right of caret
-  | Selected // selection nonempty, inside selection
-  | PartnerSelected // TODO(andrew): shard outside selection but partner is inside
-  | NotIndicated; // not inside selection nor indicated by caret
+type selection_focus =
+  /* The selection is a range in the focal segment. The left and right
+     extremes of the selection correspond to spaces between the pieces
+     of the segment. An empty selecton is equivalent/coincident to/with
+     the caret. If there is a piece directly to the right of an empty
+     selection, that pience is Indicated. If the empty selection is at the
+     last space in the focal segment, the containing piece is Indicated */
+  | Indicated
+  /* A Selected piece contained inside the selection, unless it is... */
+  | Selected
+  /* TODO: A shard inside the selction which has partner(s) on the outside.
+     Are there actually any cases of shards outside the backpack which aren't
+     either SelectedPartner/PartnerSelected? If not we don't need these
+     and could instead just store whether a piece is a shard */
+  | SelectedPartner
+  /* TODO: A shard outside the selection which has partner(s) inside */
+  | PartnerSelected
+  /* A non-shard piece which is outside the selection and not indicated */
+  | NotIndicated;
 
 [@deriving show]
 type piece_focus =
-  | OutsideFocalSeg
-  | InsideFocalSeg(selection_relation);
+  | OutsideFocalSegment
+  | InsideFocalSegment(selection_focus);
 
 [@deriving show]
 type segment_focus =
-  | None //NOTE: could do Above, Below, Besides
-  | Range(int, int); // denotes bidi ctx of cursor
+  | None // NOTE: Could add (eg) Above, Below, SiblingOf cursor
+  | Range(int, int); // Marks the focal segment, which contains the selection
+
+[@deriving show]
+type piece =
+  | TileL
+  | ShardL
+  | GroutL;
 
 [@deriving show]
 type ann_cat =
-  | Piece(Mold.t, piece_focus)
+  | Piece(piece, Mold.t, piece_focus)
   | Segment(segment_focus);
 
 [@deriving show]
@@ -87,8 +107,8 @@ let delim_bold: string => t = s => Text(s, DelimBold);
 let placeholder = annot => Text(Unicode.nbsp, annot);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
 
-let cat_piece: (Mold.t, list(t)) => t =
-  (mold, xs) => Cat(xs, Piece(mold, OutsideFocalSeg));
+let cat_piece: (piece, Mold.t, list(t)) => t =
+  (p, m, ls) => Cat(ls, Piece(p, m, OutsideFocalSegment));
 
 let cat_segment: (Sort.t, list(t)) => t =
   (sort, ls) =>
@@ -145,14 +165,15 @@ let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
     let mold = Mold.of_grout(g, sort);
-    cat_piece(mold, [placeholder(EmptyHole(mold))]);
+    cat_piece(GroutL, mold, [placeholder(EmptyHole(mold))]);
   };
 
 let of_shard: Base.Shard.t => t =
   ({label: (n, label), nibs}) => {
     assert(n >= 0 && n < List.length(label));
+    let label = List.nth(label, n);
     //TODO(andrew): rendering shards differently for debugging
-    cat_piece(Mold.of_nibs(nibs), [delim_bold(List.nth(label, n))]);
+    cat_piece(ShardL, Mold.of_nibs(nibs), [delim_bold(label)]);
   };
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
@@ -165,34 +186,30 @@ let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
       };
     update_ann(t, x =>
       switch (x) {
-      | Piece(mold, _) => Piece(mold, focus)
+      | Piece(p, m, _) => Piece(p, m, focus)
       | _ => x
       }
     );
   }
-and of_pieces = (sort, ps) => List.map(of_piece(sort, OutsideFocalSeg), ps)
+and of_pieces = sort => List.map(of_piece(sort, OutsideFocalSegment))
 and of_segment: (Sort.t, Segment.t) => t =
-  //TODO(andrew): piece step annos
   (sort, ps) => ps |> of_pieces(sort) |> cat_segment(sort)
 and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
-  //TODO(andrew): child-step anno
   mold => ListUtil.map_alt(text', of_segment(mold.sorts.out))
 and of_tile: Tile.t => t =
   ({label, children, mold}) =>
-    cat_piece(mold, of_form(mold, label, children));
+    cat_piece(TileL, mold, of_form(mold, label, children));
 
 let of_ancestor: (Ancestor.t, t) => t =
   ({label, children: (l_kids, r_kids), mold}, layout) => {
-    assert(
-      List.length(label) - 2 == List.length(l_kids) + List.length(r_kids),
-    );
-    let (l_label, r_label) =
-      ListUtil.split_n(List.length(l_kids) + 1, label);
+    assert(List.length(label) == 2 + List.length(l_kids @ r_kids));
+    let (lb_l, lb_r) = ListUtil.split_n(1 + List.length(l_kids), label);
     cat_piece(
+      TileL,
       mold,
-      of_form(mold, l_label, List.rev(l_kids))
+      of_form(mold, lb_l, List.rev(l_kids))
       @ [layout]
-      @ of_form(mold, r_label, r_kids),
+      @ of_form(mold, lb_r, r_kids),
     );
   };
 
@@ -201,7 +218,6 @@ let of_generation: (t, (Ancestor.t, Siblings.t)) => t =
     let sort = ancestor.mold.sorts.out;
     cat_segment(
       sort,
-      //TODO(andrew): piece-step annos
       of_pieces(sort, List.rev(l_pibs))
       @ [of_ancestor(ancestor, layout)]
       @ of_pieces(sort, r_pibs),
@@ -212,10 +228,10 @@ let ann_selection: (t, (list('a), list('b))) => t =
   (layout, (l_sibs, content)) => {
     let l = List.length(l_sibs);
     let r = l + List.length(content);
-    //NOTE: increment indicies because of space padding
     update_ann(layout, ann =>
       switch (ann) {
       | Piece(_) => ann
+      //NOTE: increment indicies because of space padding
       | Segment(_) => Segment(Range(segment_idx(l), segment_idx(r)))
       }
     );
@@ -230,17 +246,17 @@ let mk_zipper: Zipper.t => t =
     },
   ) => {
     let sort = Ancestors.sort(ancestors);
-    let select_piece = of_piece(sort, InsideFocalSeg(Selected));
-    let indicate_piece = of_piece(sort, InsideFocalSeg(Indicated));
-    let normal_piece = of_piece(sort, InsideFocalSeg(NotIndicated));
+    let select_piece = of_piece(sort, InsideFocalSegment(Selected));
+    let indicate_piece = of_piece(sort, InsideFocalSegment(Indicated));
+    let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
     let selection_ls = content |> List.map(select_piece);
-    let l_sibs_ls = List.map(normal_piece, List.rev(l_sibs));
+    let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
     let r_sibs_ls =
       switch (content, r_sibs) {
       | (_, []) => []
       | ([], [p, ...ps]) =>
-        List.cons(indicate_piece(p), List.map(normal_piece, ps))
-      | _ => List.map(normal_piece, r_sibs)
+        List.cons(indicate_piece(p), List.map(snub_piece, ps))
+      | _ => List.map(snub_piece, r_sibs)
       };
     // TODO(andrew): case where caret is at end of segment
     let ls = l_sibs_ls @ selection_ls @ r_sibs_ls;
