@@ -5,18 +5,18 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-let rec text_view = (l: Layout.t): list(Node.t) => {
+let rec text_views = (l: Layout.t): list(Node.t) => {
   switch (l) {
-  | Text(s, ann) =>
+  | Atom(s, ann) =>
     switch (ann) {
     | None
     | Ap
     | Space(_)
     | EmptyHole(_) => [text(s)]
     | Delim => [span_c("delim", [text(s)])]
-    | DelimBold => [span_c("extra-bold-delim", [text(s)])]
+    | Shard => [span_c("extra-bold-delim", [text(s)])]
     }
-  | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_view(l), [], ls)
+  | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
   };
 };
 
@@ -78,14 +78,16 @@ let sel_piece_profile =
 };
 
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
-  let l = Layout.of_segment(Exp, content); // TODO(andrew): Exp
-  let text_view = text_view(l);
+  // TODO(andrew): Maybe use sort at caret instead of root
+  let l = Layout.of_segment(Sort.root, content);
+  let text_view = text_views(l);
   div([Attr.classes(["code-text", "backpack-selection"])], text_view);
 };
 
 let selection_length = (s: Selection.t): int =>
-  // TODO(andrew): Exp
-  Layout.to_measured(Layout.of_segment(Exp, s.content)).measurement.length;
+  // TODO(andrew): Maybe use sort at caret instead of root
+  Layout.to_measured(Layout.of_segment(Sort.root, s.content)).measurement.
+    length;
 
 let genie_profile = (backpack: Backpack.t, origin: int): Layout.measurement => {
   length: backpack |> List.map(selection_length) |> List.fold_left((+), 0),
@@ -105,11 +107,8 @@ let backpack_view =
       [Attr.create("style", style), Attr.classes(["backpack"])],
       List.map(backpack_sel_view, backpack),
     );
-  let genie_view =
-    RestructuringGenieDec.view(
-      ~font_metrics,
-      genie_profile(backpack, origin),
-    );
+  let genie_profile = genie_profile(backpack, origin);
+  let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
@@ -138,7 +137,7 @@ let cat_decos =
   | _ => []
   };
 
-let text_decos = (~font_metrics, ann: Layout.ann_text, measurement) =>
+let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
   switch (ann) {
   | EmptyHole(mold) => [
       EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
@@ -146,53 +145,35 @@ let text_decos = (~font_metrics, ann: Layout.ann_text, measurement) =>
   | _ => []
   };
 
-let rec deco_view:
+let rec deco_views:
   (~font_metrics: FontMetrics.t, ~backpack: Backpack.t, Layout.measured) =>
   list(t) =
   (~font_metrics, ~backpack, layout) =>
     switch (layout.layout) {
     | CatM(ms, ann) =>
       cat_decos(~font_metrics, ~backpack, ann, layout.measurement, ms)
-      @ List.concat(List.map(deco_view(~font_metrics, ~backpack), ms))
-    | TextM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
+      @ List.concat(List.map(deco_views(~font_metrics, ~backpack), ms))
+    | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
     };
 
 let view =
     (
-      ~id=?,
-      ~text_id=?,
       ~font_metrics,
-      ~zipper: Zipper.t,
-      ~filler=0,
       ~just_failed as _: option(FailedInput.t)=None,
       ~show_neighbor_tiles as _: bool=false,
-      _dpaths,
+      ~zipper: Zipper.t,
     )
     : Node.t => {
+  let layout = Layout.mk_zipper(zipper);
+  let measuredL = Layout.to_measured(layout);
   let backpack = zipper.backpack;
-  let l = Layout.mk_zipper(zipper);
-  let m = Layout.to_measured(l);
-  let text_view = text_view(l);
-  let deco_view = deco_view(~font_metrics, ~backpack, m);
-  let with_id: option('a) => list(Attr.t) =
-    fun
-    | None => []
-    | Some(id) => [Attr.id(id)];
-  let filler =
-    filler == 0
-      ? []
-      : [
-        span(
-          [Attr.class_("filler")],
-          [text(String.concat("", List.init(filler, _ => Unicode.nbsp)))],
-        ),
-      ];
-  let text =
-    span(
-      [Attr.class_("code-text"), ...with_id(text_id)],
-      text_view @ filler,
-    );
-  div([Attr.classes(["code"]), ...with_id(id)], [text, ...deco_view]);
+  div(
+    [Attr.class_("code"), Attr.id("under-the-rail")],
+    [
+      span_c("code-text", text_views(layout)),
+      ...deco_views(~font_metrics, ~backpack, measuredL),
+    ],
+  );
 };
 
 // let delete_actions =
@@ -283,7 +264,7 @@ let view =
 //       switch (text_ann) {
 //       | None => (t, [])
 //       | Delim => ([with_cls("delim", t)], [])
-//       | DelimBold => ([with_cls("extra-bold-delim", t)], [])
+//       | Shard => ([with_cls("extra-bold-delim", t)], [])
 //       | Ap => (
 //           [with_cls("ap", t)],
 //           [ApDec.view(~font_metrics, {origin, length: 1})],

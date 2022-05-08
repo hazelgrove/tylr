@@ -51,9 +51,9 @@ type selection_focus =
      Are there actually any cases of shards outside the backpack which aren't
      either SelectedPartner/PartnerSelected? If not we don't need these
      and could instead just store whether a piece is a shard */
-  | SelectedPartner
+  //| SelectedPartner
   /* TODO: A shard outside the selection which has partner(s) inside */
-  | PartnerSelected
+  //| PartnerSelected
   /* A non-shard piece which is outside the selection and not indicated */
   | NotIndicated;
 
@@ -69,9 +69,9 @@ type segment_focus =
 
 [@deriving show]
 type piece =
-  | TileL
-  | ShardL
-  | GroutL;
+  | Tile
+  | Shard
+  | Grout;
 
 [@deriving show]
 type ann_cat =
@@ -79,32 +79,32 @@ type ann_cat =
   | Segment(segment_focus);
 
 [@deriving show]
-type ann_text =
+type ann_atom =
   | None
   | Delim
-  | DelimBold
+  | Shard
   | EmptyHole(Mold.t)
   | Space(int, Color.t)
   | Ap; //TODO(andrew): deprecate?
 
 [@deriving show]
 type t =
-  | Text(string, ann_text)
+  | Atom(string, ann_atom)
   | Cat(list(t), ann_cat);
 
 [@deriving show]
 type layoutM =
-  | TextM(string, ann_text)
+  | AtomM(string, ann_atom)
   | CatM(list(measured), ann_cat)
 and measured = {
   measurement,
   layout: layoutM,
 };
 
-let text: string => t = t => Text(t, None);
-let delim: string => t = s => Text(s, Delim);
-let delim_bold: string => t = s => Text(s, DelimBold);
-let placeholder = annot => Text(Unicode.nbsp, annot);
+let text: string => t = t => Atom(t, None);
+let delim: string => t = s => Atom(s, Delim);
+let shard: string => t = s => Atom(s, Shard);
+let placeholder = ann => Atom(Unicode.nbsp, ann);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
 
 let cat_piece: (piece, Mold.t, list(t)) => t =
@@ -128,14 +128,14 @@ let update_ann: (t, ann_cat => ann_cat) => t =
 
 let rec length =
   fun
-  | Text(s, _) => Unicode.length(s)
+  | Atom(s, _) => Unicode.length(s)
   | Cat(ls, _) => List.fold_left((acc, l) => length(l) + acc, 0, ls);
 
 let rec to_measured = (~origin=0, layout: t): measured =>
   switch (layout) {
-  | Text(s, ann) =>
+  | Atom(s, ann) =>
     let measurement = {origin, length: Unicode.length(s)};
-    {layout: TextM(s, ann), measurement};
+    {layout: AtomM(s, ann), measurement};
   | Cat(ls, ann) =>
     let (ms, final) =
       List.fold_left(
@@ -165,7 +165,7 @@ let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
     let mold = Mold.of_grout(g, sort);
-    cat_piece(GroutL, mold, [placeholder(EmptyHole(mold))]);
+    cat_piece(Grout, mold, [placeholder(EmptyHole(mold))]);
   };
 
 let of_shard: Base.Shard.t => t =
@@ -173,7 +173,7 @@ let of_shard: Base.Shard.t => t =
     assert(n >= 0 && n < List.length(label));
     let label = List.nth(label, n);
     //TODO(andrew): rendering shards differently for debugging
-    cat_piece(ShardL, Mold.of_nibs(nibs), [delim_bold(label)]);
+    cat_piece(Shard, Mold.of_nibs(nibs), [shard(label)]);
   };
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
@@ -198,14 +198,14 @@ and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
   mold => ListUtil.map_alt(text', of_segment(mold.sorts.out))
 and of_tile: Tile.t => t =
   ({label, children, mold}) =>
-    cat_piece(TileL, mold, of_form(mold, label, children));
+    cat_piece(Tile, mold, of_form(mold, label, children));
 
 let of_ancestor: (Ancestor.t, t) => t =
   ({label, children: (l_kids, r_kids), mold}, layout) => {
     assert(List.length(label) == 2 + List.length(l_kids @ r_kids));
     let (lb_l, lb_r) = ListUtil.split_n(1 + List.length(l_kids), label);
     cat_piece(
-      TileL,
+      Tile,
       mold,
       of_form(mold, lb_l, List.rev(l_kids))
       @ [layout]
@@ -279,7 +279,7 @@ let measured_fold' =
   let rec go = (~origin, l: t) => {
     let m = {origin, length: length(l)};
     switch (l) {
-    | Text(s, _) => text(m, s)
+    | Atom(s, _) => text(m, s)
     | Cat(ls, _) =>
       let (acc, _) =
         List.fold_left(
@@ -307,7 +307,7 @@ let find_space =
        ~annot=
          (_k, measurement, _annot, l) =>
            switch (l) {
-           | Text(_, Space(m, color)) when m == n => [(color, measurement)]
+           | Atom(_, Space(m, color)) when m == n => [(color, measurement)]
            | _ => []
            },
      )

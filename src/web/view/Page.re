@@ -180,14 +180,10 @@ let view = (~inject, model: Model.t) => {
           //TODO(andrew): temp disable
           //BarDec.view(~font_metrics),
           Code.view(
-            ~id="under-the-rail",
-            ~text_id="under-the-rail-text",
             ~font_metrics,
-            ~zipper,
-            ~filler=Model.filler(model),
             ~just_failed=history.just_failed,
             ~show_neighbor_tiles,
-            DecPaths.empty // dpaths,
+            ~zipper,
           ),
         ],
       ),
