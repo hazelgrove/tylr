@@ -1,7 +1,7 @@
 open Util;
 open Core;
 
-let pad_segments = true; // set segments as space-padded
+let pad_segments = false; // set segments as space-padded
 
 // TODO: get rid of these and better organize
 // types around new mold/nib model
@@ -102,9 +102,38 @@ and measured = {
   layout: layoutM,
 };
 
-let text: string => t = t => Atom(t, None);
-let delim: string => t = s => Atom(s, Delim);
-let shard: string => t = s => Atom(s, Shard);
+let delims =
+  List.flatten([
+    ["(", ")"],
+    ["[", "]"],
+    ["λ", "{", "}"],
+    ["let", "=", "in"],
+    ["?", ":"],
+  ]);
+
+let ops_in = ["+", "-", "*", "/", ","];
+
+let pad_delim: Token.t => string =
+  t =>
+    switch (
+      List.mem(t, ops_in @ ["=", "in", "?", ":"]),
+      List.mem(t, ["λ", "let"]),
+      List.mem(t, ["{"]),
+    ) {
+    | (true, _, _) => " " ++ t ++ " "
+    | (_, true, _) => t ++ " "
+    | (_, _, true) => " " ++ t
+    | _ => t
+    };
+
+let text: Token.t => t = t => Atom(t, None);
+let delim: Token.t => t = s => Atom(s, Delim);
+let text': Token.t => t =
+  t => {
+    let t = pad_segments ? t : pad_delim(t);
+    List.mem(t, delims) ? delim(t) : text(t);
+  };
+let shard: Token.t => t = s => Atom(s, Shard);
 let placeholder = ann => Atom(Unicode.nbsp, ann);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
 
@@ -186,18 +215,6 @@ let relativize_measurements: (int, list(measurement)) => list(measurement) =
     List.map(({origin, length}) =>
       {origin: origin - parent_origin, length}
     );
-
-let delims =
-  List.flatten([
-    ["(", ")"],
-    ["λ", "{", "}"],
-    ["[", "]"],
-    [","],
-    ["?", ":"],
-    ["let", "=", "in"],
-  ]);
-
-let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
