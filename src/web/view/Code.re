@@ -22,8 +22,9 @@ let rec text_views = (l: Layout.t): list(Node.t) => {
 
 let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
   if (j == List.length(ms)) {
-    print_endline("WARNING: TODO(andrew): handling of rightmost cursorpos");
-    {origin: 0, length: 0};
+    let last = List.nth(ms, List.length(ms) - 1);
+    let origin = last.measurement.origin + last.measurement.length;
+    {origin, length: 0};
   } else {
     assert(0 <= i && i <= j && j < List.length(ms));
     let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
@@ -99,7 +100,7 @@ let backpack_view =
   let style =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
-      (Float.of_int(origin) -. 0.) *. font_metrics.col_width,
+      (Float.of_int(origin) -. 1.0) *. font_metrics.col_width,
       (-2.) *. font_metrics.row_height,
     );
   let selections_view =
@@ -122,16 +123,17 @@ let cat_decos =
     ) =>
   switch (ann) {
   | Segment(Range(i, j)) =>
-    let origin = measurement.origin;
+    let profile = range_profile(ms, i, j);
+    let origin = profile.origin;
     [
-      SelectedBoxDec.view(~font_metrics, range_profile(ms, i, j)),
+      SelectedBoxDec.view(~font_metrics, profile),
       CaretDec.simple_view(~font_metrics, origin),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
     let profile = sel_piece_profile(Filtered, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
-  | Piece(_p, mold, InsideFocalSegment(Indicated)) =>
+  | Piece(_p, mold, Indicated) =>
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
   | _ => []

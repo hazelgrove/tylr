@@ -44,7 +44,7 @@ type selection_focus =
      the caret. If there is a piece directly to the right of an empty
      selection, that pience is Indicated. If the empty selection is at the
      last space in the focal segment, the containing piece is Indicated */
-  | Indicated
+  //| Indicated
   /* A Selected piece contained inside the selection, unless it is... */
   | Selected
   /* TODO: A shard inside the selction which has partner(s) on the outside.
@@ -59,6 +59,7 @@ type selection_focus =
 
 [@deriving show]
 type piece_focus =
+  | Indicated
   | OutsideFocalSegment
   | InsideFocalSegment(selection_focus);
 
@@ -203,8 +204,8 @@ and of_tile: Tile.t => t =
   ({label, children, mold}) =>
     cat_piece(Tile, mold, of_form(mold, label, children));
 
-let of_ancestor: (~escaped: bool, Ancestor.t, t) => t =
-  (~escaped, {label, children: (l_kids, r_kids), mold}, layout) => {
+let of_ancestor: (~indicate: bool, Ancestor.t, t) => t =
+  (~indicate, {label, children: (l_kids, r_kids), mold}, layout) => {
     assert(List.length(label) == 2 + List.length(l_kids @ r_kids));
     let (lb_l, lb_r) = ListUtil.split_n(1 + List.length(l_kids), label);
     cat_piece(
@@ -214,16 +215,16 @@ let of_ancestor: (~escaped: bool, Ancestor.t, t) => t =
       @ [layout]
       @ of_form(mold, lb_r, r_kids),
     )
-    |> (escaped ? set_piece_focus(InsideFocalSegment(Indicated)) : (p => p));
+    |> (indicate ? set_piece_focus(Indicated) : (p => p));
   };
 
-let of_generation: (~escaped: bool, t, Ancestors.generation) => t =
-  (~escaped, layout, (ancestor, (l_pibs, r_pibs))) => {
+let of_generation: (~indicate: bool, t, Ancestors.generation) => t =
+  (~indicate, layout, (ancestor, (l_pibs, r_pibs))) => {
     let sort = ancestor.mold.sorts.out;
     cat_segment(
       sort,
       of_pieces(sort, List.rev(l_pibs))
-      @ [of_ancestor(~escaped, ancestor, layout)]
+      @ [of_ancestor(~indicate, ancestor, layout)]
       @ of_pieces(sort, r_pibs),
     );
   };
@@ -251,7 +252,7 @@ let mk_zipper: Zipper.t => t =
   ) => {
     let sort = Ancestors.sort(ancestors);
     let select_piece = of_piece(sort, InsideFocalSegment(Selected));
-    let indicate_piece = of_piece(sort, InsideFocalSegment(Indicated));
+    let indicate_piece = of_piece(sort, Indicated);
     let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
     let selection_ls = content |> List.map(select_piece);
     let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
@@ -266,11 +267,12 @@ let mk_zipper: Zipper.t => t =
     let layout = cat_segment(sort, ls);
     let current = ann_selection(layout, (l_sibs, content));
     switch (r_sibs, ancestors) {
-    | ([], []) => current //TODO(andrew):select whole
+    | ([], []) => current
     | ([], [x, ...xs]) =>
-      let previous = of_generation(~escaped=true, current, x);
-      List.fold_left(of_generation(~escaped=false), previous, xs);
-    | _ => List.fold_left(of_generation(~escaped=false), current, ancestors)
+      // NOTE: if there are no pieces to the right, indicate parent
+      let previous = of_generation(~indicate=true, current, x);
+      List.fold_left(of_generation(~indicate=false), previous, xs);
+    | _ => List.fold_left(of_generation(~indicate=false), current, ancestors)
     };
   };
 
