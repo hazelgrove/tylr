@@ -48,15 +48,15 @@ let unselect = (z: t): t => {
 let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
   let old = z.selection;
   let z = unselect({...z, selection});
-  let relatives =
+  let ls_relatives =
     Relatives.remold(z.relatives)
     |> List.sort((rel, rel') => {
          open Relatives;
          let c = Int.compare(sort_rank(rel), sort_rank(rel'));
          c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
-       })
-    |> List.hd
-    |> Relatives.regrout;
+       });
+  assert(ls_relatives != []);
+  let relatives = ls_relatives |> List.hd |> Relatives.regrout;
   (old, {...z, relatives});
 };
 

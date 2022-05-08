@@ -51,7 +51,9 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     // update_result(a, result, model);
     let result = Zipper.perform(a, model.zipper);
     switch (result) {
-    | Error(_) => model
+    | Error(err) =>
+      print_endline(Zipper.Action.Failure.show(err));
+      model;
     | Ok(zipper) => {...model, zipper}
     };
   | FailedInput(reason) => {

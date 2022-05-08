@@ -41,7 +41,7 @@ let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
 let get_closed_children_measurements =
     (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
-  |> ListUtil.p_indices((==)(true))
+  |> ListUtil.p_indices((==)(false))
   |> List.map(idx => {
        let i = Layout.segment_idx(idx);
        assert(i >= 0 && i < List.length(ms));
@@ -52,7 +52,7 @@ let get_closed_children_measurements =
 let get_open_children_measurements =
     (mold: Mold.t, ms: list(Layout.measured)): list(Layout.measurement) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
-  |> ListUtil.p_indices((==)(false))
+  |> ListUtil.p_indices((==)(true))
   |> List.map(idx => {
        let i = Layout.segment_idx(idx);
        assert(i >= 0 && i < List.length(ms));

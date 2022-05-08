@@ -67,16 +67,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowRight" when held(Shift) => now(Select(Right))
         | "ArrowRight" => now(Move(Right))
         | "ArrowUp" =>
-          // BUG: throws (Failure hd)
+          // BUG: throws assert in Zipper.update_selection
           now(Pick_up)
         | "ArrowDown" =>
-          // BUG: throws (Failure hd)
+          // BUG: throws assert in Zipper.update_selection
           now(Put_down)
         | "Backspace" =>
-          // BUG: throws (Failure hd)
+          // BUG: throws assert in Zipper.update_selection
           now(Destruct)
         | "x" =>
-          // BUG: throws (Failure hd)
+          // BUG: throws assert in Zipper.update_selection
           now(Construct(Left, ["x"]))
         // | "ArrowUp" =>
         //   switch (zipper) {

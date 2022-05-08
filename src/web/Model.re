@@ -18,26 +18,17 @@ let mk_atom = (sort, name): Tile.t => {
 
 let mk_exp_atom = mk_atom(Exp);
 let mk_pat_atom = mk_atom(Pat);
-let one = mk_exp_atom("1");
-let two = mk_exp_atom("2");
-let exp_foo = mk_exp_atom("foo");
-let pat_foo = mk_pat_atom("foo");
-let pat_bar = mk_pat_atom("bar");
-let pat_taz = mk_pat_atom("taz");
 
-let plus_12: Tile.t = {
-  label: ["+"],
-  mold: Mold.(mk_bin(Precedence.plus, Sorts.mk(Exp))),
+let mk_infix_op = (s: string, p: Precedence.t): Tile.t => {
+  label: [s],
+  mold: Mold.(mk_bin(p, Sorts.mk(Exp))),
   children: [],
 };
 
-let segment_of_tiles: list(Tile.t) => Segment.t =
-  List.map(t => Piece.Tile(t));
-
-let paren_plus12: Tile.t = {
+let mk_parens_exp = (children): Tile.t => {
   label: ["(", ")"],
   mold: Mold.(mk_op(Sorts.mk(~in_=[Exp], Exp))),
-  children: [segment_of_tiles([one, plus_12, two])],
+  children,
 };
 
 let mk_lambda_ancestor:
@@ -48,28 +39,37 @@ let mk_lambda_ancestor:
     children: (left, right),
   };
 
-let mk_empty_sibs: Ancestor.t => Ancestors.generation =
+let mk_empty_generation: Ancestor.t => Ancestors.generation =
   ancestor => (ancestor, ([], []));
 
-let l_sibling: Segment.t = [];
-let r_sibling: Segment.t = [Tile(paren_plus12)];
+let segment_of_tiles: list(Tile.t) => Segment.t =
+  List.map(t => Piece.Tile(t));
+
+let one: Piece.t = Tile(mk_exp_atom("1"));
+let two: Piece.t = Tile(mk_exp_atom("2"));
+let exp_foo: Piece.t = Tile(mk_exp_atom("foo"));
+let pat_foo: Piece.t = Tile(mk_pat_atom("foo"));
+let pat_bar: Piece.t = Tile(mk_pat_atom("bar"));
+let pat_taz: Piece.t = Tile(mk_pat_atom("taz"));
+let plus: Piece.t = Tile(mk_infix_op("+", Precedence.plus));
+let paren_one_plus_two = Piece.Tile(mk_parens_exp([[one, plus, two]]));
+
+let l_sibling: Segment.t = [plus, Grout(Convex)];
+let r_sibling: Segment.t = [paren_one_plus_two];
 
 let content: Segment.t = [
-  Tile(exp_foo),
+  exp_foo,
   Grout(Concave),
-  Tile(paren_plus12),
+  paren_one_plus_two,
   Grout(Concave),
-  Grout(Convex),
-  Grout(Concave),
-];
-let ancestors: Ancestors.t = [
-  mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_bar)]], [])),
-  mk_empty_sibs(mk_lambda_ancestor([[Tile(pat_taz)]], [])),
 ];
 
-let backpack: list(Selection.t) = [
-  {focus: Left, content: [Tile(exp_foo)]},
+let ancestors: Ancestors.t = [
+  mk_empty_generation(mk_lambda_ancestor([[pat_bar]], [])),
+  mk_empty_generation(mk_lambda_ancestor([[pat_taz]], [])),
 ];
+
+let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];
 
 let init = () => {
   zipper: {
