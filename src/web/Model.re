@@ -39,19 +39,16 @@ let mk_lambda_ancestor:
     children: (left, right),
   };
 
-let mk_empty_generation: Ancestor.t => Ancestors.generation =
+let mk_singleton_generation: Ancestor.t => Ancestors.generation =
   ancestor => (ancestor, ([], []));
 
-let segment_of_tiles: list(Tile.t) => Segment.t =
-  List.map(t => Piece.Tile(t));
-
-let one: Piece.t = Tile(mk_exp_atom("1"));
-let two: Piece.t = Tile(mk_exp_atom("2"));
-let exp_foo: Piece.t = Tile(mk_exp_atom("foo"));
-let pat_foo: Piece.t = Tile(mk_pat_atom("foo"));
-let pat_bar: Piece.t = Tile(mk_pat_atom("bar"));
-let pat_taz: Piece.t = Tile(mk_pat_atom("taz"));
-let plus: Piece.t = Tile(mk_infix_op("+", Precedence.plus));
+let one = Piece.Tile(mk_exp_atom("1"));
+let two = Piece.Tile(mk_exp_atom("2"));
+let exp_foo = Piece.Tile(mk_exp_atom("foo"));
+let pat_foo = Piece.Tile(mk_pat_atom("foo"));
+let pat_bar = Piece.Tile(mk_pat_atom("bar"));
+let pat_taz = Piece.Tile(mk_pat_atom("taz"));
+let plus = Piece.Tile(mk_infix_op("+", Precedence.plus));
 let paren_one_plus_two = Piece.Tile(mk_parens_exp([[one, plus, two]]));
 
 let l_sibling: Segment.t = [plus, Grout(Convex)];
@@ -65,8 +62,8 @@ let content: Segment.t = [
 ];
 
 let ancestors: Ancestors.t = [
-  mk_empty_generation(mk_lambda_ancestor([[pat_bar]], [])),
-  mk_empty_generation(mk_lambda_ancestor([[pat_taz]], [])),
+  mk_singleton_generation(mk_lambda_ancestor([[pat_bar]], [])),
+  mk_singleton_generation(mk_lambda_ancestor([[pat_taz]], [])),
 ];
 
 let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];
