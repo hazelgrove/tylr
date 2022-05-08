@@ -97,13 +97,16 @@ module Match = {
       // arbitrary mold to typecheck, will be subsequently remolded
       let mold = List.hd(molds);
       length(m) == Label.length(label)
-        ? Some(
-            Base.Tile.{
-              label,
-              mold,
-              children: List.map(ListUtil.rev_if(O.d == Left), children(m)),
-            },
-          )
+        ? {
+          let children =
+            ListUtil.(
+              rev_if(
+                O.d == Left,
+                List.map(rev_if(O.d == Left), children(m)),
+              )
+            );
+          Some(Base.Tile.{label, mold, children});
+        }
         : None;
     };
   };
