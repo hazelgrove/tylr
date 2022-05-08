@@ -58,7 +58,7 @@ let get_open_children_measurements =
 let sel_piece_profile =
     (s: SelemStyle.t, mold: Mold.t, measurement, ms: list(Layout.measured))
     : SelemDec.Profile.t => {
-  print_endline("sel_piece_profile");
+  print_endline("DEBUG sel_piece_profile");
   print_endline(
     String.concat(
       " ",

@@ -1,7 +1,8 @@
 open Util;
 open Core;
 
-let segment_idx: int => int = x => 2 * x + 1;
+let pad_segments = true; // set segments as space-padded
+let segment_idx: int => int = x => pad_segments ? 2 * x + 1 : x;
 
 // TODO: get rid of these and better organize
 // types around new mold/nib model
@@ -117,7 +118,8 @@ let cat_segment: (Sort.t, list(t)) => t =
     | [] => Cat([], Segment(None))
     | _ =>
       let spaces = List.init(List.length(ls) + 1, i => space(i, sort));
-      Cat(ListUtil.interleave(spaces, ls), Segment(None));
+      let ls = pad_segments ? ListUtil.interleave(spaces, ls) : ls;
+      Cat(ls, Segment(None));
     };
 
 let update_ann: (t, ann_cat => ann_cat) => t =
