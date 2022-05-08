@@ -549,23 +549,39 @@ let view =
   );
 };
 
-let simple_view = (~font_metrics: FontMetrics.t, origin: int) => {
+let simple_view =
+    (~font_metrics: FontMetrics.t, origin: int, caret_curve: Direction.t) => {
+  let caret =
+    switch (caret_curve) {
+    | Left => "caret-left"
+    | Right => "caret-right"
+    };
   Node.div(
     [
       Attr.id("caret-temp"),
+      Attr.class_(caret),
       Attr.create(
         "style",
         Printf.sprintf(
-          "position: absolute; background-color: red; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-          (Float.of_int(origin) -. (Layout.pad_segments ? 0.5 : 0.))
+          "position: absolute; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+          (Float.of_int(origin) -. (Layout.pad_segments ? 0.5 : 0.5))
           *. font_metrics.col_width,
-          (-0.25) *. font_metrics.row_height,
+          /*(-0.25) *. font_metrics.row_height*/ 2.,
           2.,
           // not sure why this needs to be 1.6 and not 1.5
-          1.6 *. font_metrics.row_height,
+          /*1.6 *.*/ font_metrics.row_height,
         ),
       ),
     ],
-    [],
+    [
+      Node.create(
+        "img",
+        [
+          Attr.create("src", caret ++ ".png"),
+          Attr.create("style", "height: 100%"),
+        ],
+        [],
+      ),
+    ],
   );
 };

@@ -11,8 +11,8 @@ let rec text_views = (l: Layout.t): list(Node.t) => {
     switch (ann) {
     | None
     | Ap
-    | Space(_)
-    | EmptyHole(_) => [text(s)]
+    | Space(_) => [text(s)]
+    | EmptyHole(_) => [span_c("empty-hole", [text(s)])]
     | Delim => [span_c("delim", [text(s)])]
     | Shard => [span_c("extra-bold-delim", [text(s)])]
     }
@@ -46,6 +46,21 @@ let sel_piece_profile =
       ms: list(Layout.measured),
     )
     : SelemDec.Profile.t => {
+  print_endline("SEL PIECE PROFILE START");
+  print_endline(String.concat(" ", List.map(Layout.show_measured, ms)));
+  print_endline(
+    String.concat(
+      " ",
+      List.map(Layout.show_measured, Layout.get_open_children(mold, ms)),
+    ),
+  );
+  print_endline(
+    String.concat(
+      " ",
+      List.map(Layout.show_measured, Layout.get_closed_children(mold, ms)),
+    ),
+  );
+  print_endline("SEL PIECE PROFILE END");
   let open_children =
     Layout.get_open_children(mold, ms)
     |> List.map((c: Layout.measured) => c.measurement)
@@ -99,8 +114,18 @@ let backpack_view =
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
+let rec ind_hack = (l: Layout.t): string => {
+  switch (l) {
+  | Atom(_) => ""
+  | Cat(ls, Piece(_, _, Indicated(s))) =>
+    s ++ List.fold_left((ts, l) => ts ++ ind_hack(l), "", ls)
+  | Cat(ls, _) => List.fold_left((ts, l) => ts ++ ind_hack(l), "", ls)
+  };
+};
+
 let cat_decos =
     (
+      ind_token,
       ~font_metrics,
       ~backpack,
       ~direction: Direction.t,
@@ -116,30 +141,83 @@ let cat_decos =
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
+    // TODO(andrew): hack
+    let pd = Layout.pad_delim(ind_token);
+    let origin =
+      String.length(pd) > 0
+      && (
+        String.sub(pd, 0, 1) == " " || String.sub(pd, 0, 1) == Unicode.nbsp
+      )
+        ? origin + 1 : origin;
+    let caret_curve: Direction.t =
+      switch (
+        List.mem(
+          ind_token,
+          ["+", "-", "*", "/", ",", "=", "in", "{", "}", "?", ":", ")", "]"],
+        )
+      ) {
+      | _
+          when
+            String.length(pd) > 0
+            && (
+              String.sub(pd, 0, 1) == " "
+              || String.sub(pd, 0, 1) == Unicode.nbsp
+            ) =>
+        //grout case
+        Right
+      | true => Right
+      | _ => Left
+      };
+    print_endline(string_of_int(origin));
     [
-      SelectedBoxDec.view(~font_metrics, profile),
-      CaretDec.simple_view(~font_metrics, origin),
+      //TODO(andrew): restore
+      //SelectedBoxDec.view(~font_metrics, profile),
+      CaretDec.simple_view(~font_metrics, origin, caret_curve),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
     let profile = sel_piece_profile(Filtered, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
-  | Piece(_p, mold, Indicated) =>
+  | Piece(Grout, mold, Indicated(_s)) =>
+    // TODO(andrew): hack
+    let measurement: Layout.measurement =
+      switch (measurement.length) {
+      | 1 => measurement
+      | _ => {length: 1, origin: measurement.origin + 1}
+      };
+    let profile = sel_piece_profile(Root, mold, measurement, ms);
+    [SelemDec.view(~font_metrics, profile)];
+  | Piece(_, mold, Indicated(_s)) when List.mem(ind_token, Layout.ops_in) =>
+    // TODO(andrew): hack
+    let measurement: Layout.measurement =
+      switch (measurement.length) {
+      | 1 => measurement
+      | _ => {length: 1, origin: measurement.origin + 1}
+      };
+    let profile = sel_piece_profile(Root, mold, measurement, ms);
+    [SelemDec.view(~font_metrics, profile)];
+  | Piece(_p, mold, Indicated(_s)) =>
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
   | _ => []
   };
 
-let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
+let text_decos =
+    (~font_metrics, ann: Layout.ann_atom, measurement: Layout.measurement) =>
   switch (ann) {
-  | EmptyHole(mold) => [
-      EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
-    ]
+  | EmptyHole(mold) =>
+    let measurement: Layout.measurement =
+      switch (mold.shape) {
+      | Bin(_) => {length: 1, origin: measurement.origin + 1}
+      | _ => measurement
+      };
+    [EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold})];
   | _ => []
   };
 
 let rec deco_views =
         (
+          ind_token,
           ~font_metrics: FontMetrics.t,
           ~backpack: Backpack.t,
           ~direction: Direction.t,
@@ -149,6 +227,7 @@ let rec deco_views =
   switch (layout.layout) {
   | CatM(ms, ann) =>
     cat_decos(
+      ind_token,
       ~font_metrics,
       ~backpack,
       ~direction,
@@ -157,7 +236,10 @@ let rec deco_views =
       ms,
     )
     @ List.concat(
-        List.map(deco_views(~font_metrics, ~backpack, ~direction), ms),
+        List.map(
+          deco_views(ind_token, ~font_metrics, ~backpack, ~direction),
+          ms,
+        ),
       )
   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
   };
@@ -174,11 +256,18 @@ let view =
   let measured = Layout.to_measured(layout);
   let backpack = zipper.backpack;
   let direction = zipper.selection.focus;
+  let ind_token = ind_hack(layout);
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [
       span_c("code-text", text_views(layout)),
-      ...deco_views(~font_metrics, ~backpack, ~direction, measured),
+      ...deco_views(
+           ind_token,
+           ~font_metrics,
+           ~backpack,
+           ~direction,
+           measured,
+         ),
     ],
   );
 };

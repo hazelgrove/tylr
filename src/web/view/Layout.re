@@ -55,11 +55,11 @@ type selection_focus =
   /* TODO: A shard outside the selection which has partner(s) inside */
   //| PartnerSelected
   /* A non-shard piece which is outside the selection and not indicated */
-  | NotIndicated;
+  | NotSelected;
 
 [@deriving show]
 type piece_focus =
-  | Indicated
+  | Indicated(string)
   | OutsideFocalSegment
   | InsideFocalSegment(selection_focus);
 
@@ -133,9 +133,8 @@ let text': Token.t => t =
     let t = pad_segments ? t : pad_delim(t);
     List.mem(t, delims) ? delim(t) : text(t);
   };
-let shard: Token.t => t = s => Atom(s, Shard);
-let placeholder = ann => Atom(Unicode.nbsp, ann);
-let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
+let shard: Token.t => t = s => Atom(pad_segments ? s : pad_delim(s), Shard);
+let space = (n, sort) => Atom(Unicode.nbsp, Space(n, Color.of_sort(sort)));
 
 let cat_piece: (piece, Mold.t, list(t)) => t =
   (p, m, ls) => Cat(ls, Piece(p, m, OutsideFocalSegment));
@@ -191,9 +190,10 @@ let rec to_measured = (~origin=0, layout: t): measured =>
 
 let segment_idx: int => int = x => pad_segments ? 2 * x + 1 : x;
 
-let select_segment_idxs = xs =>
+let select_piece_idxs = xs =>
   List.map(idx => {
-    let i = segment_idx(idx);
+    // NOTE: This re-indexing is because of delims, NOT padding
+    let i = 2 * idx + 1;
     assert(i >= 0 && i < List.length(xs));
     List.nth(xs, i);
   });
@@ -201,13 +201,13 @@ let select_segment_idxs = xs =>
 let get_closed_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
   |> ListUtil.p_indices((==)(false))
-  |> select_segment_idxs(ms);
+  |> select_piece_idxs(ms);
 };
 
 let get_open_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
   |> ListUtil.p_indices((==)(true))
-  |> select_segment_idxs(ms);
+  |> select_piece_idxs(ms);
 };
 
 let relativize_measurements: (int, list(measurement)) => list(measurement) =
@@ -216,10 +216,17 @@ let relativize_measurements: (int, list(measurement)) => list(measurement) =
       {origin: origin - parent_origin, length}
     );
 
+let grout_token = (g: Grout.t) =>
+  switch (g) {
+  | _ when pad_segments => " "
+  | Concave => " " ++ Unicode.nbsp ++ " " // "⧗"
+  | Convex => Unicode.nbsp //"⬣"
+  };
+
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
     let mold = Mold.of_grout(g, sort);
-    cat_piece(Grout, mold, [placeholder(EmptyHole(mold))]);
+    cat_piece(Grout, mold, [Atom(grout_token(g), EmptyHole(mold))]);
   };
 
 let of_shard: Base.Shard.t => t =
@@ -249,6 +256,9 @@ and of_tile: Tile.t => t =
   ({id: _, label, children, mold}) =>
     cat_piece(Tile, mold, of_form(mold, label, children));
 
+let indicate_ancestor = lb =>
+  set_piece_focus(Indicated(lb == [] ? "" : List.hd(lb)));
+
 let of_ancestor: (~indicate: bool, Ancestor.t, t) => t =
   (~indicate, {id: _, label, children: (l_kids, r_kids), mold}, layout) => {
     assert(List.length(label) == 2 + List.length(l_kids @ r_kids));
@@ -260,7 +270,7 @@ let of_ancestor: (~indicate: bool, Ancestor.t, t) => t =
       @ [layout]
       @ of_form(mold, lb_r, r_kids),
     )
-    |> (indicate ? set_piece_focus(Indicated) : (p => p));
+    |> (indicate ? indicate_ancestor(lb_r) : (p => p));
   };
 
 let of_generation: (~indicate: bool, t, Ancestors.generation) => t =
@@ -287,6 +297,13 @@ let ann_selection: (t, (list('a), list('b))) => t =
     );
   };
 
+let token_of = (idx: int, p: Piece.t): string =>
+  switch (p) {
+  | Tile({label, _}) => List.nth(label, idx)
+  | Grout(g) => grout_token(g)
+  | Shard({label: (n, ls), _}) => List.nth(ls, n)
+  };
+
 let mk_zipper: Zipper.t => t =
   (
     {
@@ -297,8 +314,8 @@ let mk_zipper: Zipper.t => t =
   ) => {
     let sort = Ancestors.sort(ancestors);
     let select_piece = of_piece(sort, InsideFocalSegment(Selected));
-    let indicate_piece = of_piece(sort, Indicated);
-    let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
+    let indicate_piece = p => of_piece(sort, Indicated(token_of(0, p)), p);
+    let snub_piece = of_piece(sort, InsideFocalSegment(NotSelected));
     let selection_ls = content |> List.map(select_piece);
     let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
     let r_sibs_ls =

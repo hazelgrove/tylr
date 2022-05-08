@@ -345,6 +345,10 @@ svg.rail line.unsorted {
   vertical-align: middle;
 }
 
+
+.empty-hole {
+  color: #0000;
+}
 .empty-hole-path {
   fill: none;
   stroke-width: 1px;
@@ -486,7 +490,7 @@ svg.rail line.unsorted {
 }
 .code .extra-bold-delim {
   color: var(--delim-color);
-  color: red;
+  color: black;
   font-weight: 900;
 }
 .code .ap {
