@@ -29,11 +29,20 @@ let is_next = (d: Direction.t, l: t, r: t) =>
 
 let id = _ => failwith("todo id");
 
-let index = _ => failwith("todo index");
+let index = s => fst(s.label);
 
 let remold = (s: t) =>
   Molds.get(tile_label(s))
   |> List.map(mold => {...s, nibs: Mold.nibs(~index=index(s), mold)})
   |> ListUtil.dedup;
 
-let consistent = (_shards: list(t)) => failwith("todo consistent");
+let consistent_molds = (shards: list(t)): list(Mold.t) =>
+  switch (shards) {
+  | [] => raise(Invalid_argument("Shard.consistent"))
+  | [s, ..._] =>
+    Molds.get(tile_label(s))
+    |> List.filter(mold =>
+         shards
+         |> List.for_all(s => s.nibs == Mold.nibs(~index=index(s), mold))
+       )
+  };

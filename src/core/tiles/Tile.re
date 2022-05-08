@@ -76,6 +76,8 @@ module Match = {
 
     let init = s => (s, []);
 
+    let shards = Aba.get_a;
+
     let label = ((hd, _): t) => snd(hd.label);
 
     let length = m => List.length(Aba.get_a(m));
@@ -92,9 +94,15 @@ module Match = {
 
     let complete = (m: t): option(tile) => {
       let label = label(m);
-      let molds = Molds.get(label);
+      let molds =
+        switch (Shard.consistent_molds(shards(m))) {
+        | [] =>
+          // this should only happen upon construct/destruct,
+          // in which case everything will be subsequently remolded
+          Molds.get(label)
+        | [_, ..._] as molds => molds
+        };
       assert(molds != []);
-      // arbitrary mold to typecheck, will be subsequently remolded
       let mold = List.hd(molds);
       length(m) == Label.length(label)
         ? {

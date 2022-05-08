@@ -48,6 +48,9 @@ module Match = {
   type ancestor = t;
   type t = (Prefix.t, Suffix.t);
 
+  let shards = ((pre, suf): t) =>
+    List.rev(Prefix.shards(pre)) @ Suffix.shards(suf);
+
   let label = ((_, suf)) => Suffix.label(suf);
 
   let length = ((pre, suf)) => Prefix.length(pre) + Suffix.length(suf);
@@ -59,8 +62,14 @@ module Match = {
 
   let complete = (m: t): option(ancestor) => {
     let label = label(m);
-    // arbitrary mold to typecheck, to be remolded
-    let molds = Molds.get(label);
+    let molds =
+      switch (Shard.consistent_molds(shards(m))) {
+      | [] =>
+        // this should only happen upon construct/destruct,
+        // in which case everything will be subsequently remolded
+        Molds.get(label)
+      | [_, ..._] as molds => molds
+      };
     assert(molds != []);
     let mold = List.hd(molds);
     length(m) == Tile.Label.length(label)

@@ -24,7 +24,7 @@ let consistent_shards = ((pre, suf): t): bool => {
   let shards_pre = Prefix.shards(pre);
   let shards_suf = Suffix.shards(suf);
   ListUtil.group_by(Shard.id, shards_pre @ shards_suf)
-  |> List.for_all(((_, shards)) => Shard.consistent(shards));
+  |> List.for_all(((_, shards)) => Shard.consistent_molds(shards) != []);
 };
 
 let remold = ((pre, suf): t): list(t) => {
