@@ -22,23 +22,19 @@ let rec text_views = (l: Layout.t): list(Node.t) => {
 
 let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
   if (j == List.length(ms) && i < j) {
-    let ith = List.nth(ms, i);
-    let origin = ith.measurement.origin;
     let last = List.nth(ms, List.length(ms) - 1);
-    let length =
-      last.measurement.origin
-      + last.measurement.length
-      - ith.measurement.origin;
+    let origin = List.nth(ms, i).measurement.origin;
+    let length = last.measurement.origin + last.measurement.length - origin;
     {origin, length};
-  } else if (j == List.length(ms)) {
+  } else if (j == List.length(ms) && i == j) {
     let last = List.nth(ms, List.length(ms) - 1);
     let origin = last.measurement.origin + last.measurement.length;
-    {origin, length: 0};
+    let length = 0;
+    {origin, length};
   } else {
     assert(0 <= i && i <= j && j < List.length(ms));
-    let (ith, jth) = (List.nth(ms, i), List.nth(ms, j));
-    let origin = ith.measurement.origin;
-    let length = jth.measurement.origin - origin;
+    let origin = List.nth(ms, i).measurement.origin;
+    let length = List.nth(ms, j).measurement.origin - origin;
     {origin, length};
   };
 
@@ -126,6 +122,7 @@ let cat_decos =
     (
       ~font_metrics,
       ~backpack,
+      ~direction: Direction.t,
       ann: Layout.ann_cat,
       measurement: Layout.measurement,
       ms,
@@ -133,7 +130,11 @@ let cat_decos =
   switch (ann) {
   | Segment(Range(i, j)) =>
     let profile = range_profile(ms, i, j);
-    let origin = profile.origin;
+    let origin =
+      switch (direction) {
+      | Left => profile.origin
+      | Right => profile.origin + profile.length
+      };
     [
       SelectedBoxDec.view(~font_metrics, profile),
       CaretDec.simple_view(~font_metrics, origin),
@@ -156,16 +157,29 @@ let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
   | _ => []
   };
 
-let rec deco_views:
-  (~font_metrics: FontMetrics.t, ~backpack: Backpack.t, Layout.measured) =>
-  list(t) =
-  (~font_metrics, ~backpack, layout) =>
-    switch (layout.layout) {
-    | CatM(ms, ann) =>
-      cat_decos(~font_metrics, ~backpack, ann, layout.measurement, ms)
-      @ List.concat(List.map(deco_views(~font_metrics, ~backpack), ms))
-    | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
-    };
+let rec deco_views =
+        (
+          ~font_metrics: FontMetrics.t,
+          ~backpack: Backpack.t,
+          ~direction: Direction.t,
+          layout: Layout.measured,
+        )
+        : list(t) =>
+  switch (layout.layout) {
+  | CatM(ms, ann) =>
+    cat_decos(
+      ~font_metrics,
+      ~backpack,
+      ~direction,
+      ann,
+      layout.measurement,
+      ms,
+    )
+    @ List.concat(
+        List.map(deco_views(~font_metrics, ~backpack, ~direction), ms),
+      )
+  | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
+  };
 
 let view =
     (
@@ -178,11 +192,12 @@ let view =
   let layout = Layout.mk_zipper(zipper);
   let measuredL = Layout.to_measured(layout);
   let backpack = zipper.backpack;
+  let direction = zipper.selection.focus;
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [
       span_c("code-text", text_views(layout)),
-      ...deco_views(~font_metrics, ~backpack, measuredL),
+      ...deco_views(~font_metrics, ~backpack, ~direction, measuredL),
     ],
   );
 };
