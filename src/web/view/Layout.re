@@ -130,8 +130,8 @@ let text: Token.t => t = t => Atom(t, None);
 let delim: Token.t => t = s => Atom(s, Delim);
 let text': Token.t => t =
   t => {
-    let t = pad_segments ? t : pad_delim(t);
-    List.mem(t, delims) ? delim(t) : text(t);
+    let f = t => pad_segments ? t : pad_delim(t);
+    List.mem(t, delims) ? delim(f(t)) : text(f(t));
   };
 let shard: Token.t => t = s => Atom(pad_segments ? s : pad_delim(s), Shard);
 let space = (n, sort) => Atom(Unicode.nbsp, Space(n, Color.of_sort(sort)));

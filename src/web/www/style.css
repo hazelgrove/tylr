@@ -551,10 +551,16 @@ svg.rail line.unsorted {
   flood-color: var(--unsorted-shadow-color);
 }
 
-.tile-path.Exp {
+
+/*TODO(andrew): HACK */
+/*.tile-path.Exp {
   stroke: var(--exp-shadow-color);
   filter: url(#drop-shadow-Exp);
+}*/
+.tile-path.Exp {
+  stroke: #48be5a;
 }
+
 .tile-path.Exp.highlighted {
   fill: var(--exp-bg-color);
 }

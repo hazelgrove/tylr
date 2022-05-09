@@ -92,7 +92,7 @@ let selection_length = (s: Selection.t): int =>
     length;
 
 let genie_profile = (backpack: Backpack.t, origin: int): Layout.measurement => {
-  length: backpack |> List.map(selection_length) |> List.fold_left((+), 0),
+  length: backpack |> List.map(selection_length) |> List.fold_left((+), 2),
   origin,
 };
 
@@ -101,7 +101,7 @@ let backpack_view =
   let style =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
-      (Float.of_int(origin) -. 1.0) *. font_metrics.col_width,
+      (Float.of_int(origin) -. 0.0) *. font_metrics.col_width,
       (-2.) *. font_metrics.row_height,
     );
   let selections_view =

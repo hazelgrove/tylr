@@ -4,6 +4,7 @@ open Util;
 open Diag;
 open DecUtil;
 
+let c_fudge = 0.4; //fudges child width to prevent overlap
 module Profile = {
   type t = {
     measurement: Layout.measurement,
@@ -101,10 +102,15 @@ let shadow_filter = (~color: Color.t) => {
 let closed_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
     SvgUtil.Path.[
-      [M({x: Float.of_int(origin) +. 0.5, y: child_border_thickness})],
+      [
+        M({
+          x: -. c_fudge /. 2. +. Float.of_int(origin) +. 0.5,
+          y: child_border_thickness,
+        }),
+      ],
       Diag.tr_bl(~with_child_border=true, ~hemi=`North, ()),
       Diag.tl_br(~with_child_border=true, ~hemi=`South, ()),
-      [H_({dx: Float.of_int(length - 1)})],
+      [H_({dx: c_fudge +. Float.of_int(length - 1)})],
       Diag.bl_tr(~with_child_border=true, ~hemi=`South, ()),
       Diag.br_tl(~with_child_border=true, ~hemi=`North, ()),
       [Z],
@@ -195,10 +201,10 @@ let open_child_paths =
 let open_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
     SvgUtil.Path.[
-      [H({x: Float.of_int(origin) +. tip_width})],
+      [H({x: -. c_fudge /. 2. +. Float.of_int(origin) +. tip_width})],
       tr_bl(~hemi=`North, ()),
       tl_br(~with_child_border=true, ~hemi=`South, ()),
-      [H_({dx: Float.of_int(length - 1)})],
+      [H_({dx: c_fudge +. Float.of_int(length - 1)})],
       bl_tr(~with_child_border=true, ~hemi=`South, ()),
       br_tl(~hemi=`North, ()),
     ],
@@ -243,7 +249,7 @@ let contour_path_attrs = (profile: Profile.t) => {
     let highlighted =
       SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
     let filtered = SelemStyle.filtered(profile.style) ? ["filtered"] : [];
-    let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
+    let raised = []; // ["raised"]; // profile.style.raised ? ["raised"] : [];
     List.concat([["tile-path", c_cls], highlighted, raised, filtered]);
   };
   Attr.[classes(clss), create("vector-effect", "non-scaling-stroke")];
