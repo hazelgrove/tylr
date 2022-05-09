@@ -102,8 +102,21 @@ and measured = {
   layout: layoutM,
 };
 
+let delims =
+  List.flatten([
+    ["(", ")"],
+    ["λ", "{", "}"],
+    ["[", "]"],
+    ["?", ":"],
+    ["let", "=", "in"],
+  ]);
+
+let ops_in = ["+", "-", "*", "/", ","];
+let special_chars = delims @ ops_in;
+
 let text: string => t = t => Atom(t, None);
 let delim: string => t = s => Atom(s, Delim);
+let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 let shard: string => t = s => Atom(s, Shard);
 let placeholder = ann => Atom(Unicode.nbsp, ann);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
@@ -161,10 +174,10 @@ let rec to_measured = (~origin=0, layout: t): measured =>
   };
 
 let segment_idx: int => int = x => pad_segments ? 2 * x + 1 : x;
-
-let select_segment_idxs = xs =>
+let select_piece_idxs = xs =>
   List.map(idx => {
-    let i = segment_idx(idx);
+    // NOTE: This re-indexing is because of delims, NOT padding
+    let i = 2 * idx + 1;
     assert(i >= 0 && i < List.length(xs));
     List.nth(xs, i);
   });
@@ -172,13 +185,13 @@ let select_segment_idxs = xs =>
 let get_closed_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
   |> ListUtil.p_indices((==)(false))
-  |> select_segment_idxs(ms);
+  |> select_piece_idxs(ms);
 };
 
 let get_open_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
   List.map((==)(mold.sorts.out), mold.sorts.in_)
   |> ListUtil.p_indices((==)(true))
-  |> select_segment_idxs(ms);
+  |> select_piece_idxs(ms);
 };
 
 let relativize_measurements: (int, list(measurement)) => list(measurement) =
@@ -186,18 +199,6 @@ let relativize_measurements: (int, list(measurement)) => list(measurement) =
     List.map(({origin, length}) =>
       {origin: origin - parent_origin, length}
     );
-
-let delims =
-  List.flatten([
-    ["(", ")"],
-    ["λ", "{", "}"],
-    ["[", "]"],
-    [","],
-    ["?", ":"],
-    ["let", "=", "in"],
-  ]);
-
-let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
 
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
