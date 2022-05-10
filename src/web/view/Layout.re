@@ -29,12 +29,25 @@ type measurement = {
 };
 
 [@deriving show]
-type composite_shape = {
-  mold: Mold.t,
-  parent: measurement,
-  children_open: list(measurement),
-  children_closed: list(measurement),
+type padding =
+  | None
+  | Bi
+  | Pre
+  | Post;
+
+[@deriving show]
+type token = {
+  string,
+  padding,
 };
+
+/*[@deriving show]
+  type composite_shape = {
+    mold: Mold.t,
+    parent: measurement,
+    children_open: list(measurement),
+    children_closed: list(measurement),
+  };*/
 
 [@deriving show]
 type selection_focus =
@@ -59,7 +72,7 @@ type selection_focus =
 
 [@deriving show]
 type piece_focus =
-  | Indicated(string)
+  | Indicated(token)
   | OutsideFocalSegment
   | InsideFocalSegment(selection_focus);
 
@@ -90,12 +103,12 @@ type ann_atom =
 
 [@deriving show]
 type t =
-  | Atom(string, ann_atom)
+  | Atom(token, ann_atom)
   | Cat(list(t), ann_cat);
 
 [@deriving show]
 type layoutM =
-  | AtomM(string, ann_atom)
+  | AtomM(token, ann_atom)
   | CatM(list(measured), ann_cat)
 and measured = {
   measurement,
@@ -113,37 +126,76 @@ let delims =
 
 let ops_in = ["+", "-", "*", "/", ","];
 
-let pad_delim: Token.t => string =
-  t =>
-    switch (
-      List.mem(t, ops_in @ ["=", "in", "?", ":"]),
-      List.mem(t, ["λ", "let"]),
-      List.mem(t, ["{"]),
-    ) {
-    | (true, _, _) => " " ++ t ++ " "
-    | (_, true, _) => t ++ " "
-    | (_, _, true) => " " ++ t
-    | _ => t
-    };
+let padding: string => padding =
+  fun
+  | "λ"
+  | "let" => Post
+  | "{" => Pre
+  | "+"
+  | "-"
+  | "*"
+  | "/"
+  | ","
+  | "="
+  | "in"
+  | "?"
+  | ":" => Bi
+  | "("
+  | ")"
+  | "["
+  | "]"
+  | "}"
+  | _ => None;
 
-let text: Token.t => t = t => Atom(t, None);
-let delim: Token.t => t = s => Atom(s, Delim);
-let text': Token.t => t =
-  t => {
-    let f = t => pad_segments ? t : pad_delim(t);
-    List.mem(t, delims) ? delim(f(t)) : text(f(t));
+let string_of_token = ({string, padding}: token) =>
+  switch (padding) {
+  | None => string
+  | Pre => " " ++ string
+  | Post => string ++ " "
+  | Bi => " " ++ string ++ " "
   };
-let shard: Token.t => t = s => Atom(pad_segments ? s : pad_delim(s), Shard);
-let space = (n, sort) => Atom(Unicode.nbsp, Space(n, Color.of_sort(sort)));
+
+let token_length: token => int = t => t |> string_of_token |> Unicode.length;
+
+let unpadded = (string): token => {string, padding: None};
+
+let delim_token: Token.t => token =
+  string => {string, padding: pad_segments ? None : padding(string)};
 
 let cat_piece: (piece, Mold.t, list(t)) => t =
   (p, m, ls) => Cat(ls, Piece(p, m, OutsideFocalSegment));
+
+let grout_token = (g: Grout.t): token => {
+  let padding: padding =
+    switch (g) {
+    | _ when pad_segments => None
+    | Convex => None
+    | Concave => Bi
+    };
+  // alternate string forms: "⬣" "⧗"
+  {string: Unicode.nbsp, padding};
+};
+
+let shard_token = (n, label): token => {
+  assert(n >= 0 && n < List.length(label));
+  let string = List.nth(label, n);
+  delim_token(string);
+};
+
+let token_of_deprecate = (idx: int, p: Piece.t): token =>
+  switch (p) {
+  | Tile({label, _}) => delim_token(List.nth(label, idx))
+  | Grout(g) => grout_token(g)
+  | Shard({label: (n, lb), _}) => shard_token(n, lb)
+  };
 
 let cat_segment: (Sort.t, list(t)) => t =
   (sort, ls) =>
     switch (ls) {
     | [] => Cat([], Segment(None))
     | _ =>
+      let space = (n, sort) =>
+        Atom(unpadded(Unicode.nbsp), Space(n, Color.of_sort(sort)));
       let spaces = List.init(List.length(ls) + 1, i => space(i, sort));
       let ls = pad_segments ? ListUtil.interleave(spaces, ls) : ls;
       Cat(ls, Segment(None));
@@ -166,14 +218,14 @@ let set_piece_focus = (focus: piece_focus, l: t): t =>
 
 let rec length =
   fun
-  | Atom(s, _) => Unicode.length(s)
+  | Atom(t, _) => token_length(t)
   | Cat(ls, _) => List.fold_left((acc, l) => length(l) + acc, 0, ls);
 
 let rec to_measured = (~origin=0, layout: t): measured =>
   switch (layout) {
-  | Atom(s, ann) =>
-    let measurement = {origin, length: Unicode.length(s)};
-    {layout: AtomM(s, ann), measurement};
+  | Atom(t, ann) =>
+    let measurement = {origin, length: token_length(t)};
+    {layout: AtomM(t, ann), measurement};
   | Cat(ls, ann) =>
     let (ms, final) =
       List.fold_left(
@@ -216,26 +268,22 @@ let relativize_measurements: (int, list(measurement)) => list(measurement) =
       {origin: origin - parent_origin, length}
     );
 
-let grout_token = (g: Grout.t) =>
-  switch (g) {
-  | _ when pad_segments => " "
-  | Concave => " " ++ Unicode.nbsp ++ " " // "⧗"
-  | Convex => Unicode.nbsp //"⬣"
-  };
-
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
+    let token = grout_token(g);
     let mold = Mold.of_grout(g, sort);
-    cat_piece(Grout, mold, [Atom(grout_token(g), EmptyHole(mold))]);
+    cat_piece(Grout, mold, [Atom(token, EmptyHole(mold))]);
   };
 
 let of_shard: Base.Shard.t => t =
-  ({tile_id: _, label: (n, label), nibs}) => {
-    assert(n >= 0 && n < List.length(label));
-    let label = List.nth(label, n);
-    //TODO(andrew): rendering shards differently for debugging
-    cat_piece(Shard, Mold.of_nibs(nibs), [shard(label)]);
+  ({nibs, label: (n, label), _}) => {
+    let token = shard_token(n, label);
+    let mold = Mold.of_nibs(nibs);
+    cat_piece(Shard, mold, [Atom(token, Shard)]);
   };
+
+let of_tile_token: (Base.Tile.Label.t, Token.t) => t =
+  (_lb, s) => Atom(delim_token(s), List.mem(s, delims) ? Delim : None);
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
   (sort, focus, p) => {
@@ -251,13 +299,20 @@ and of_pieces = sort => List.map(of_piece(sort, OutsideFocalSegment))
 and of_segment: (Sort.t, Segment.t) => t =
   (sort, ps) => ps |> of_pieces(sort) |> cat_segment(sort)
 and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
-  mold => ListUtil.map_alt(text', of_segment(mold.sorts.out))
+  (mold, label) =>
+    ListUtil.map_alt(
+      of_tile_token(label),
+      of_segment(mold.sorts.out),
+      label,
+    )
 and of_tile: Tile.t => t =
   ({id: _, label, children, mold}) =>
     cat_piece(Tile, mold, of_form(mold, label, children));
 
 let indicate_ancestor = lb =>
-  set_piece_focus(Indicated(lb == [] ? "" : List.hd(lb)));
+  set_piece_focus(
+    Indicated(lb == [] ? unpadded("") : delim_token(List.hd(lb))),
+  );
 
 let of_ancestor: (~indicate: bool, Ancestor.t, t) => t =
   (~indicate, {id: _, label, children: (l_kids, r_kids), mold}, layout) => {
@@ -297,13 +352,6 @@ let ann_selection: (t, (list('a), list('b))) => t =
     );
   };
 
-let token_of = (idx: int, p: Piece.t): string =>
-  switch (p) {
-  | Tile({label, _}) => List.nth(label, idx)
-  | Grout(g) => grout_token(g)
-  | Shard({label: (n, ls), _}) => List.nth(ls, n)
-  };
-
 let mk_zipper: Zipper.t => t =
   (
     {
@@ -314,7 +362,8 @@ let mk_zipper: Zipper.t => t =
   ) => {
     let sort = Ancestors.sort(ancestors);
     let select_piece = of_piece(sort, InsideFocalSegment(Selected));
-    let indicate_piece = p => of_piece(sort, Indicated(token_of(0, p)), p);
+    let indicate_piece = p =>
+      of_piece(sort, Indicated(token_of_deprecate(0, p)), p);
     let snub_piece = of_piece(sort, InsideFocalSegment(NotSelected));
     let selection_ls = content |> List.map(select_piece);
     let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
@@ -352,7 +401,7 @@ let measured_fold' =
   let rec go = (~origin, l: t) => {
     let m = {origin, length: length(l)};
     switch (l) {
-    | Atom(s, _) => text(m, s)
+    | Atom(s, _) => text(m, s.string)
     | Cat(ls, _) =>
       let (acc, _) =
         List.fold_left(

@@ -7,15 +7,16 @@ let span_c = cls => span([Attr.class_(cls)]);
 
 let rec text_views = (l: Layout.t): list(Node.t) => {
   switch (l) {
-  | Atom(s, ann) =>
+  | Atom(token, ann) =>
+    let ns = [text(Layout.string_of_token(token))];
     switch (ann) {
     | None
     | Ap
-    | Space(_) => [text(s)]
-    | EmptyHole(_) => [span_c("empty-hole", [text(s)])]
-    | Delim => [span_c("delim", [text(s)])]
-    | Shard => [span_c("extra-bold-delim", [text(s)])]
-    }
+    | Space(_) => ns
+    | EmptyHole(_) => [span_c("empty-hole", ns)]
+    | Delim => [span_c("delim", ns)]
+    | Shard => [span_c("extra-bold-delim", ns)]
+    };
   | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
   };
 };
@@ -114,18 +115,19 @@ let backpack_view =
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
-let rec ind_hack = (l: Layout.t): string => {
+let rec ind_hack = (l: Layout.t): list(Layout.token) => {
   switch (l) {
-  | Atom(_) => ""
-  | Cat(ls, Piece(_, _, Indicated(s))) =>
-    s ++ List.fold_left((ts, l) => ts ++ ind_hack(l), "", ls)
-  | Cat(ls, _) => List.fold_left((ts, l) => ts ++ ind_hack(l), "", ls)
+  | Atom(_) => []
+  | Cat(ls, Piece(_, _, Indicated(token))) =>
+    //TODO(andrew): hack
+    [token] @ List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
+  | Cat(ls, _) => List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
   };
 };
 
 let cat_decos =
     (
-      ind_token,
+      pd: list(Layout.token),
       ~font_metrics,
       ~backpack,
       ~direction: Direction.t,
@@ -142,30 +144,39 @@ let cat_decos =
       | Right => profile.origin + profile.length
       };
     // TODO(andrew): hack
-    let pd = Layout.pad_delim(ind_token);
     let origin =
-      String.length(pd) > 0
-      && (
-        String.sub(pd, 0, 1) == " " || String.sub(pd, 0, 1) == Unicode.nbsp
-      )
-        ? origin + 1 : origin;
+      switch (pd) {
+      | [{padding: Pre, _}]
+      | [{padding: Bi, _}] => origin + 1
+      | _ => origin
+      };
     let caret_curve: Direction.t =
-      switch (
-        List.mem(
-          ind_token,
-          ["+", "-", "*", "/", ",", "=", "in", "{", "}", "?", ":", ")", "]"],
-        )
-      ) {
-      | _
+      switch (pd) {
+      | [{string, _}]
           when
-            String.length(pd) > 0
-            && (
-              String.sub(pd, 0, 1) == " "
-              || String.sub(pd, 0, 1) == Unicode.nbsp
+            List.mem(
+              string,
+              [
+                "+",
+                "-",
+                "*",
+                "/",
+                ",",
+                "=",
+                "in",
+                "{",
+                "}",
+                "?",
+                ":",
+                ")",
+                "]",
+              ],
             ) =>
+        Right
+      | [{string, padding}]
+          when padding == Bi && (string == " " || string == Unicode.nbsp) =>
         //grout case
         Right
-      | true => Right
       | _ => Left
       };
     print_endline(string_of_int(origin));
@@ -187,7 +198,12 @@ let cat_decos =
       };
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
-  | Piece(_, mold, Indicated(_s)) when List.mem(ind_token, Layout.ops_in) =>
+  | Piece(_, mold, Indicated(_s))
+      when
+        switch (pd) {
+        | [{string, _}] => List.mem(string, Layout.ops_in)
+        | _ => false
+        } =>
     // TODO(andrew): hack
     let measurement: Layout.measurement =
       switch (measurement.length) {
