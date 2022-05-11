@@ -71,6 +71,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Backspace" =>
           Update.[PerformAction(Select(Left)), PerformAction(Destruct)]
         | "Delete" =>
+          // TODO(d): fix broken repeated delete
           Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
         | "(" => now(Construct(Left, ["(", ")"]))
         | ")" => now(Construct(Right, ["(", ")"]))
