@@ -76,8 +76,9 @@ let selection_length = (s: Selection.t): int =>
   Layout.to_measured(Layout.of_segment(Sort.root, s.content)).measurement.
     length;
 
-let genie_profile = (backpack: Backpack.t, origin: int): Layout.measurement => {
-  length: backpack |> List.map(selection_length) |> List.fold_left((+), 0),
+let genie_profile =
+    (backpack: Backpack.t, origin: int): RestructuringGenieDec.Profile.t => {
+  length: backpack |> List.map(selection_length) |> List.fold_left(max, 0),
   origin,
 };
 
@@ -85,14 +86,14 @@ let backpack_view =
     (~font_metrics: FontMetrics.t, ~origin, backpack: Backpack.t): Node.t => {
   let style =
     Printf.sprintf(
-      "position: absolute; left: %fpx; top: %fpx;",
+      "position: absolute; left: %fpx; bottom: %fpx;",
       (Float.of_int(origin) -. 1.0) *. font_metrics.col_width,
-      (-2.) *. font_metrics.row_height,
+      2. *. font_metrics.row_height,
     );
   let selections_view =
     div(
       [Attr.create("style", style), Attr.classes(["backpack"])],
-      List.map(backpack_sel_view, backpack),
+      List.map(backpack_sel_view, List.rev(backpack)),
     );
   let genie_profile = genie_profile(backpack, origin);
   let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
