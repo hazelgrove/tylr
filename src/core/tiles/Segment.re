@@ -137,17 +137,18 @@ let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
       (p: Piece.t, regrouted) =>
         switch (p) {
         | Grout(g) =>
-          Grout.fits(g, shape(regrouted, r)) ? [p, ...regrouted] : regrouted
+          Grout.fits_shape(g, shape(regrouted, r))
+            ? [p, ...regrouted] : regrouted
         | Shard(shard) =>
           let (_, n_r) = shard.nibs;
           let s_r = n_r.shape;
           switch (regrouted) {
           | [Grout(g), ...tl] =>
-            Grout.fits(g, s_r) ? [p, ...regrouted] : [p, ...tl]
+            Grout.fits_shape(g, s_r) ? [p, ...regrouted] : [p, ...tl]
           | _ =>
             Nib.Shape.fits(s_r, shape(regrouted, r))
               ? [p, ...regrouted]
-              : [p, Grout(Grout.mk_fits(s_r)), ...regrouted]
+              : [p, Grout(Grout.mk_fits_shape(s_r)), ...regrouted]
           };
         | Tile(tile) =>
           let p =
@@ -163,21 +164,21 @@ let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
           let s_r = n_r.shape;
           switch (regrouted) {
           | [Grout(g), ...tl] =>
-            Grout.fits(g, s_r) ? [p, ...regrouted] : [p, ...tl]
+            Grout.fits_shape(g, s_r) ? [p, ...regrouted] : [p, ...tl]
           | _ =>
             Nib.Shape.fits(s_r, shape(regrouted, r))
               ? [p, ...regrouted]
-              : [p, Grout(Grout.mk_fits(s_r)), ...regrouted]
+              : [p, Grout(Grout.mk_fits_shape(s_r)), ...regrouted]
           };
         },
       seg,
       empty,
     );
   switch (regrouted) {
-  | [Grout(g), ...tl] => Grout.fits(g, l) ? regrouted : tl
+  | [Grout(g), ...tl] => Grout.fits_shape(g, l) ? regrouted : tl
   | _ =>
     Nib.Shape.fits(l, shape(regrouted, r))
-      ? regrouted : [Grout(Grout.mk_fits(l)), ...regrouted]
+      ? regrouted : [Grout(Grout.mk_fits_shape(l)), ...regrouted]
   };
 };
 

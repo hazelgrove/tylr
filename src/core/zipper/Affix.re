@@ -112,17 +112,18 @@ module Make = (O: Orientation.S) => {
       (p: Piece.t, regrouted) =>
         switch (p) {
         | Grout(g) =>
-          Grout.fits(g, shape(regrouted)) ? [p, ...regrouted] : regrouted
+          Grout.fits_shape(g, shape(regrouted))
+            ? [p, ...regrouted] : regrouted
         | Shard(shard) =>
           let (n_far, _) = O.orient(shard.nibs);
           let s_far = n_far.shape;
           switch (regrouted) {
           | [Grout(g), ...tl] =>
-            Grout.fits(g, s_far) ? [p, ...regrouted] : [p, ...tl]
+            Grout.fits_shape(g, s_far) ? [p, ...regrouted] : [p, ...tl]
           | _ =>
             Nib.Shape.fits(s_far, shape(regrouted))
               ? [p, ...regrouted]
-              : [p, Grout(Grout.mk_fits(s_far)), ...regrouted]
+              : [p, Grout(Grout.mk_fits_shape(s_far)), ...regrouted]
           };
         | Tile(tile) =>
           let p =
@@ -138,11 +139,11 @@ module Make = (O: Orientation.S) => {
           let s_far = n_far.shape;
           switch (regrouted) {
           | [Grout(g), ...tl] =>
-            Grout.fits(g, s_far) ? [p, ...regrouted] : [p, ...tl]
+            Grout.fits_shape(g, s_far) ? [p, ...regrouted] : [p, ...tl]
           | _ =>
             Nib.Shape.fits(s_far, shape(regrouted))
               ? [p, ...regrouted]
-              : [p, Grout(Grout.mk_fits(s_far)), ...regrouted]
+              : [p, Grout(Grout.mk_fits_shape(s_far)), ...regrouted]
           };
         },
       affix,
