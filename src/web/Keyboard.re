@@ -79,46 +79,14 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           //TODO(andrew): fix allowed chars
           // d: restricted to ops_in for now
           now(Construct(Left, [key]))
-        // | "ArrowUp" =>
-        //   switch (zipper) {
-        //   | (Pointing(_) | Selecting(_, [], _), _) => [
-        //       FailedInput(Failure(Cant_move)),
-        //     ]
-        //   | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
-        //   | (Restructuring((_, rframe)), _) =>
-        //     switch (rframe) {
-        //     | ([Selection(selection), ..._], _)
-        //         when Option.is_some(Selection.is_restructurable(selection)) => [
-        //         p(Move(Left)),
-        //       ]
-        //     | (_, [Selection(selection), ..._])
-        //         when Option.is_some(Selection.is_restructurable(selection)) => [
-        //         p(Move(Right)),
-        //       ]
-        //     | _ => [FailedInput(Failure(Cant_move))]
-        //     }
-        //   }
-        // | "ArrowDown" =>
-        //   switch (zipper) {
-        //   | (Pointing(_) | Selecting(_), _) => [
-        //       FailedInput(Failure(Cant_move)),
-        //     ]
-        //   | (Restructuring(_), _) => [p(Mark)]
-        //   }
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];
-        // | "Backspace" => [p(Delete(Left))]
-        // | "Delete" => [p(Delete(Right))]
         // | "Enter" =>
         //   switch (zipper) {
         //   | (Restructuring(_), _) => [p(Mark)]
         //   | _ => []
         //   }
-        // | "+" => [p(Construct(Tile(Exp(Plus))))]
-        // | "-" => [p(Construct(Tile(Exp(Minus))))]
-        // | "*" => [p(Construct(Tile(Exp(Times))))]
-        // | "/" => [p(Construct(Tile(Exp(Div))))]
         // | "(" =>
         //   switch (fst(zipper)) {
         //   | Restructuring((
