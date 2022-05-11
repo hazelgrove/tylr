@@ -86,17 +86,11 @@ let move = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
     let balanced = !Backpack.is_balanced(z.backpack);
-    print_endline("0");
-    print_endline(Relatives.show(z.relatives));
     let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
-    print_endline("1");
-    print_endline(Relatives.show(relatives));
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
       |> Relatives.reassemble;
-    print_endline("2");
-    print_endline(Relatives.show(relatives));
     {...z, relatives};
   } else {
     // TODO restore logic attempting to move d
