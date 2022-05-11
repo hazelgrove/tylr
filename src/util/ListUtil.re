@@ -2,7 +2,20 @@ let rev_if = b => b ? List.rev : Fun.id;
 
 let dedup = _ => failwith("todo dedup");
 
-let group_by = (_, _) => failwith("todo group_by");
+let group_by = (key: 'x => 'k, xs: list('x)): list(('k, list('x))) =>
+  List.fold_left(
+    (grouped, x) => {
+      let k = key(x);
+      let k_group =
+        switch (List.assoc_opt(k, grouped)) {
+        | None => []
+        | Some(xs) => xs
+        };
+      [(k, [x, ...k_group]), ...List.remove_assoc(k, grouped)];
+    },
+    [],
+    xs,
+  );
 
 let rec range = (~lo=0, hi) =>
   if (lo > hi) {
