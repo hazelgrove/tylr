@@ -109,7 +109,7 @@ let select = (d: Direction.t, z: t): option(t) =>
 let destruct = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
   let (to_pick_up, to_remove) =
-    Segment.shards(selected)
+    Segment.shards(selected.content)
     |> List.partition(shard =>
          Siblings.contains_matching(shard, z.relatives.siblings)
        );
@@ -127,7 +127,7 @@ let destruct = (z: t): t => {
 let pick_up = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
   let selections =
-    selected
+    selected.content
     |> Segment.split_by_grout
     |> Aba.get_a
     |> List.filter((!=)(Segment.empty))
@@ -149,12 +149,15 @@ let put_down = (z: t): option(t) => {
 
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let z = destruct(z);
-  let mold = Relatives.default_mold(label, z.relatives);
+  let molds = Molds.get(label);
+  assert(molds != []);
+  // initial mold to typecheck, will be remolded
+  let mold = List.hd(molds);
   let (id, id_gen) = IdGen.next(z.id_gen);
   let selections =
     Shard.mk_s(id, label, mold)
     |> List.map(Segment.of_shard)
-    |> List.map(Selection.mk(from))
+    |> List.map(Selection.mk(Direction.toggle(from)))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));

@@ -165,7 +165,6 @@ let cat_decos =
                 "=",
                 "in",
                 "{",
-                ".{",
                 "}",
                 "?",
                 ":",
@@ -177,6 +176,7 @@ let cat_decos =
       | [{string, padding}]
           when padding == Bi && (string == " " || string == Unicode.nbsp) =>
         //grout case
+        //TODO(andrew): improve logic
         Right
       | _ when j == List.length(ms) => Right // at end of program (hacky)
       | _ => Left
@@ -226,7 +226,11 @@ let text_decos =
   | EmptyHole(mold) =>
     let measurement: Layout.measurement =
       switch (mold.shape) {
-      | Bin(_) => {length: 1, origin: measurement.origin + 1}
+      | Bin(_) => {
+          length: 1,
+          origin:
+            Layout.pad_segments ? measurement.origin : measurement.origin + 1,
+        }
       | _ => measurement
       };
     [EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold})];

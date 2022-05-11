@@ -66,62 +66,27 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))
         | "ArrowRight" => now(Move(Right))
-        | "ArrowUp" =>
-          // BUG: throws assert in Zipper.update_selection
-          now(Pick_up)
-        | "ArrowDown" =>
-          // BUG: throws assert in Zipper.update_selection
-          now(Put_down)
+        | "ArrowUp" => now(Pick_up)
+        | "ArrowDown" => now(Put_down)
         | "Backspace" =>
-          // BUG: throws assert in Zipper.update_selection
-          now(Destruct)
-        | _
-            when
-              is_num(key)
-              || is_var(key)
-              || List.mem(key, Layout.delims @ Layout.ops_in) =>
-          // BUG: throws assert in Zipper.update_selection
+          Update.[PerformAction(Select(Left)), PerformAction(Destruct)]
+        | "Delete" =>
+          // TODO(d): fix broken repeated delete
+          Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
+        | "(" => now(Construct(Left, ["(", ")"]))
+        | ")" => now(Construct(Right, ["(", ")"]))
+        | _ when is_num(key) || is_var(key) || List.mem(key, Layout.ops_in) =>
+          //TODO(andrew): fix allowed chars
+          // d: restricted to ops_in for now
           now(Construct(Left, [key]))
-        // | "ArrowUp" =>
-        //   switch (zipper) {
-        //   | (Pointing(_) | Selecting(_, [], _), _) => [
-        //       FailedInput(Failure(Cant_move)),
-        //     ]
-        //   | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
-        //   | (Restructuring((_, rframe)), _) =>
-        //     switch (rframe) {
-        //     | ([Selection(selection), ..._], _)
-        //         when Option.is_some(Selection.is_restructurable(selection)) => [
-        //         p(Move(Left)),
-        //       ]
-        //     | (_, [Selection(selection), ..._])
-        //         when Option.is_some(Selection.is_restructurable(selection)) => [
-        //         p(Move(Right)),
-        //       ]
-        //     | _ => [FailedInput(Failure(Cant_move))]
-        //     }
-        //   }
-        // | "ArrowDown" =>
-        //   switch (zipper) {
-        //   | (Pointing(_) | Selecting(_), _) => [
-        //       FailedInput(Failure(Cant_move)),
-        //     ]
-        //   | (Restructuring(_), _) => [p(Mark)]
-        //   }
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];
-        // | "Backspace" => [p(Delete(Left))]
-        // | "Delete" => [p(Delete(Right))]
         // | "Enter" =>
         //   switch (zipper) {
         //   | (Restructuring(_), _) => [p(Mark)]
         //   | _ => []
         //   }
-        // | "+" => [p(Construct(Tile(Exp(Plus))))]
-        // | "-" => [p(Construct(Tile(Exp(Minus))))]
-        // | "*" => [p(Construct(Tile(Exp(Times))))]
-        // | "/" => [p(Construct(Tile(Exp(Div))))]
         // | "(" =>
         //   switch (fst(zipper)) {
         //   | Restructuring((
