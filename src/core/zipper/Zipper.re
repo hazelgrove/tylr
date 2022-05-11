@@ -157,7 +157,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let selections =
     Shard.mk_s(id, label, mold)
     |> List.map(Segment.of_shard)
-    |> List.map(Selection.mk(from))
+    |> List.map(Selection.mk(Direction.toggle(from)))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));
