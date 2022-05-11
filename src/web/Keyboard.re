@@ -69,6 +69,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowUp" => now(Pick_up)
         | "ArrowDown" => now(Put_down)
         | "Backspace" =>
+          // TODO(d): check whether selection is empty, only select if so
           Update.[PerformAction(Select(Left)), PerformAction(Destruct)]
         | "Delete" =>
           // TODO(d): fix broken repeated delete
