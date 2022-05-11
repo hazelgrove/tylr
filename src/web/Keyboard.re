@@ -76,6 +76,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
         | "(" => now(Construct(Left, ["(", ")"]))
         | ")" => now(Construct(Right, ["(", ")"]))
+        | "[" => now(Construct(Left, ["[", "]"]))
+        | "]" => now(Construct(Right, ["[", "]"]))
         | _ when is_num(key) || is_var(key) || List.mem(key, Layout.ops_in) =>
           //TODO(andrew): fix allowed chars
           // d: restricted to ops_in for now
