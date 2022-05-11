@@ -23,7 +23,7 @@ let remold = (ancestors: t): list(t) =>
       [(a, sibs), ...ancestors];
     },
     ancestors,
-    [],
+    [empty],
   );
 
 let sort_rank = (ancestors: t) =>

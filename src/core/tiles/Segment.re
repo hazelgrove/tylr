@@ -35,7 +35,7 @@ let remold = (seg: t): list(t) =>
       [p, ...seg];
     },
     seg,
-    [],
+    [empty],
   );
 
 let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
