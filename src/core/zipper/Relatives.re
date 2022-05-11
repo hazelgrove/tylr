@@ -94,14 +94,8 @@ let shape_rank = ({siblings, ancestors}: t) => {
 let regrout = ({siblings, ancestors}: t): t => {
   let ancestors = Ancestors.regrout(ancestors);
   let siblings = {
-    print_endline("0");
-    print_endline(Siblings.show(siblings));
     let (pre, suf) = Siblings.regrout(siblings);
-    print_endline("1");
-    print_endline(Siblings.show((pre, suf)));
     let (s_pre, s_suf) = Siblings.shapes(siblings);
-    print_endline(Nib.Shape.show(s_pre));
-    print_endline(Nib.Shape.show(s_suf));
     switch (pre, suf) {
     | ([Grout(g), ...pre'], [Grout(g'), ...suf']) =>
       Grout.fits(g, g') ? (pre', suf') : (pre', suf)
