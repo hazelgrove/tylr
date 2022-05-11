@@ -69,9 +69,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowUp" =>
           // BUG: throws assert in Zipper.update_selection
           now(Pick_up)
-        | "ArrowDown" =>
-          // BUG: throws assert in Zipper.update_selection
-          now(Put_down)
+        | "ArrowDown" => now(Put_down)
         | "Backspace" =>
           // BUG: throws assert in Zipper.update_selection
           now(Destruct)
