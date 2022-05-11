@@ -75,6 +75,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Backspace" =>
           // BUG: throws assert in Zipper.update_selection
           now(Destruct)
+        | "(" => now(Construct(Left, ["(", ")"]))
+        | ")" => now(Construct(Right, ["(", ")"]))
         | _ when is_num(key) || is_var(key) || List.mem(key, Layout.ops_in) =>
           //TODO(andrew): fix allowed chars
           // d: restricted to ops_in for now

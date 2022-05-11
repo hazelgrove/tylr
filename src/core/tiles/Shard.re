@@ -34,7 +34,7 @@ let tile_label = s => snd(s.label);
 let is_next = (d: Direction.t, l: t, r: t) =>
   Label.is_next(d, l.label, r.label);
 
-let id = _ => failwith("todo id");
+let id = s => s.tile_id;
 
 let index = s => fst(s.label);
 

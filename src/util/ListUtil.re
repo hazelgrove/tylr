@@ -1,6 +1,11 @@
 let rev_if = b => b ? List.rev : Fun.id;
 
-let dedup = _ => failwith("todo dedup");
+let dedup = xs =>
+  List.fold_right(
+    (x, deduped) => List.mem(x, deduped) ? deduped : [x, ...deduped],
+    xs,
+    [],
+  );
 
 let group_by = (key: 'x => 'k, xs: list('x)): list(('k, list('x))) =>
   List.fold_left(
