@@ -69,8 +69,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowUp" => now(Pick_up)
         | "ArrowDown" => now(Put_down)
         | "Backspace" =>
-          // BUG: throws assert in Zipper.update_selection
-          now(Destruct)
+          Update.[PerformAction(Select(Left)), PerformAction(Destruct)]
+        | "Delete" =>
+          Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
         | "(" => now(Construct(Left, ["(", ")"]))
         | ")" => now(Construct(Right, ["(", ")"]))
         | _ when is_num(key) || is_var(key) || List.mem(key, Layout.ops_in) =>
