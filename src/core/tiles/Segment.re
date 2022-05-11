@@ -30,11 +30,16 @@ let contains_matching = (shard: Shard.t) =>
     | _ => false,
   );
 
+let remove_matching = (shard: Shard.t) =>
+  List.filter_map(
+    fun
+    | Piece.Shard(s) when s.tile_id == shard.tile_id => None
+    | p => Some(p),
+  );
+
 let snoc = (tiles, tile) => tiles @ [tile];
 
 let is_balanced = List.for_all(Piece.is_balanced);
-
-let remove_matching = (_, _) => failwith("todo remove_matching");
 
 let split_by_grout = seg =>
   List.fold_right(
