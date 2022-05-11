@@ -159,20 +159,18 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
-let insert = (char: string, z: t) => {
+let insert =
+    (
+      char: string,
+      {relatives: {siblings: (_l_sibs, _r_sibs), _}, _} as z: t,
+    )
+    : option(t) => {
   switch (char) {
   | "(" => Some(construct(Left, ["(", ")"], z))
   | ")" => Some(construct(Right, ["(", ")"], z))
   | "[" => Some(construct(Left, ["[", "]"], z))
   | "]" => Some(construct(Right, ["[", "]"], z))
-  | _
-      when
-        Token.is_num(char)
-        || Token.is_var(char)
-        || List.mem(char, Token.ops_in) =>
-    //TODO(andrew): fix allowed chars
-    // d: restricted to ops_in for now
-    Some(construct(Left, [char], z))
+  | _ when Token.is_valid_char(char) => Some(construct(Left, [char], z))
   | _ => None
   };
 };

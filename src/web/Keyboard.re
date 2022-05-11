@@ -71,13 +71,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Delete" =>
           // TODO(d): fix broken repeated delete
           Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
-        | _
-            when
-              Token.is_num(key)
-              || Token.is_var(key)
-              || List.mem(key, Token.special) =>
-          // d: restricted to ops_in for now
-          now(Insert(key))
+        | _ when Token.is_valid_char(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];

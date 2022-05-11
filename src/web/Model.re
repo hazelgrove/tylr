@@ -34,12 +34,29 @@ let mk_parens_exp = (id, children): Tile.t => {
   children,
 };
 
+let mk_lambda_exp: (Id.t, list(list(Piece.t))) => Tile.t =
+  (id, children) => {
+    id,
+    label: ["fun", "=>"],
+    mold: Mold.mk_pre(Precedence.fun_, Mold.Sorts.mk(~in_=[Pat], Exp)),
+    children,
+  };
+
 let mk_lambda_ancestor:
   (Id.t, list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
   (id, left, right) => {
     id,
-    label: ["λ", "{", "}"],
-    mold: Mold.(mk_op(Sorts.mk(~in_=[Pat, Exp], Exp))),
+    label: ["fun", "=>"],
+    mold: Mold.mk_pre(Precedence.fun_, Mold.Sorts.mk(~in_=[Pat], Exp)),
+    children: (left, right),
+  };
+
+let mk_parens_ancestor:
+  (Id.t, list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
+  (id, left, right) => {
+    id,
+    label: ["(", ")"],
+    mold: Mold.(mk_op(Sorts.mk(~in_=[Exp], Exp))),
     children: (left, right),
   };
 
@@ -66,8 +83,14 @@ let content: Segment.t = [
 ];
 
 let ancestors: Ancestors.t = [
-  mk_singleton_generation(mk_lambda_ancestor(8, [[pat_bar]], [])),
-  mk_singleton_generation(mk_lambda_ancestor(9, [[pat_taz]], [])),
+  (
+    mk_parens_ancestor(8, [], []),
+    ([Tile(mk_lambda_exp(9, [[pat_bar]]))], []),
+  ),
+  (
+    mk_parens_ancestor(10, [], []),
+    ([Tile(mk_lambda_exp(11, [[pat_taz]]))], []),
+  ),
 ];
 
 let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];
