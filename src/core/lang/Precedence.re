@@ -15,6 +15,7 @@ let plus = 4;
 let prod = 5;
 let cond = 6;
 let let_ = 7;
+let fun_ = 8;
 
 let min = 10;
 

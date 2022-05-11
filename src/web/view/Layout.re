@@ -1,7 +1,7 @@
 open Util;
 open Core;
 
-let pad_segments = true; // set segments as space-padded
+let pad_segments = false; // set segments as space-padded
 
 // TODO: get rid of these and better organize
 // types around new mold/nib model
@@ -115,23 +115,11 @@ and measured = {
   layout: layoutM,
 };
 
-let delims =
-  List.flatten([
-    ["(", ")"],
-    ["[", "]"],
-    ["λ", "{", "}"],
-    ["?", ":"],
-    ["let", "=", "in"],
-  ]);
-
-let ops_in = ["+", "-", "*", "/", ","];
-let special_chars = delims @ ops_in;
-
 let padding: string => padding =
   fun
-  | "λ"
+  | "fun"
   | "let" => Post
-  | "{" => Pre
+  | "=>"
   | "+"
   | "-"
   | "*"
@@ -291,7 +279,7 @@ let of_shard: Base.Shard.t => t =
   };
 
 let of_tile_token: (Base.Tile.Label.t, Token.t) => t =
-  (_lb, s) => Atom(delim_token(s), List.mem(s, delims) ? Delim : None);
+  (_lb, s) => Atom(delim_token(s), Token.is_delim(s) ? Delim : None);
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
   (sort, focus, p) => {

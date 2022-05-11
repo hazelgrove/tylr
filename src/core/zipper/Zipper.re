@@ -1,4 +1,5 @@
 open Util;
+open Sexplib.Std;
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
@@ -15,6 +16,7 @@ module Action = {
     | Move(Direction.t)
     | Select(Direction.t)
     | Destruct
+    | Insert(string)
     // `Construct(d, lbl)` constructs `lbl` starting from `d` side
     | Construct(Direction.t, Tile.Label.t)
     | Pick_up
@@ -86,17 +88,11 @@ let move = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
     let balanced = !Backpack.is_balanced(z.backpack);
-    print_endline("0");
-    print_endline(Relatives.show(z.relatives));
     let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
-    print_endline("1");
-    print_endline(Relatives.show(relatives));
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
       |> Relatives.reassemble;
-    print_endline("2");
-    print_endline(Relatives.show(relatives));
     {...z, relatives};
   } else {
     // TODO restore logic attempting to move d
@@ -163,12 +159,31 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
+let insert =
+    (
+      char: string,
+      {relatives: {siblings: (_l_sibs, _r_sibs), _}, _} as z: t,
+    )
+    : option(t) => {
+  switch (char) {
+  | "(" => Some(construct(Left, ["(", ")"], z))
+  | ")" => Some(construct(Right, ["(", ")"], z))
+  | "[" => Some(construct(Left, ["[", "]"], z))
+  | "]" => Some(construct(Right, ["[", "]"], z))
+  | _ when Token.is_valid_char(char) => Some(construct(Left, [char], z))
+  | _ => None
+  };
+};
+
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   switch (a) {
   | Move(d) => Result.of_option(~error=Action.Failure.Cant_move, move(d, z))
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct => Ok(destruct(z))
+  | Insert(char) =>
+    //TODO(andrew): error type
+    Result.of_option(~error=Action.Failure.Cant_move, insert(char, z))
   | Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>

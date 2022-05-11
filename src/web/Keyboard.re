@@ -2,9 +2,6 @@ open Virtual_dom.Vdom;
 // open Util;
 open Core;
 
-let is_var = s => Re.Str.(string_match(regexp("^[a-z]$"), s, 0));
-let is_num = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
-
 let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
 let p = a => Update.PerformAction(a);
@@ -69,16 +66,12 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowUp" => now(Pick_up)
         | "ArrowDown" => now(Put_down)
         | "Backspace" =>
+          // TODO(d): check whether selection is empty, only select if so
           Update.[PerformAction(Select(Left)), PerformAction(Destruct)]
         | "Delete" =>
           // TODO(d): fix broken repeated delete
           Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
-        | "(" => now(Construct(Left, ["(", ")"]))
-        | ")" => now(Construct(Right, ["(", ")"]))
-        | _ when is_num(key) || is_var(key) || List.mem(key, Layout.ops_in) =>
-          //TODO(andrew): fix allowed chars
-          // d: restricted to ops_in for now
-          now(Construct(Left, [key]))
+        | _ when Token.is_valid_char(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];

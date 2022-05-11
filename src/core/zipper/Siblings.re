@@ -43,7 +43,9 @@ let sorts = ((pre, suf): t, s: Sort.t) => (
 );
 let shapes = ((pre, suf): t) => (Prefix.shape(pre), Suffix.shape(suf));
 
-let contains_matching = (_, _) => failwith("todo contains_matching");
+let contains_matching = (shard: Shard.t, (pre, suf): t) =>
+  Prefix.contains_matching(shard, pre)
+  || Suffix.contains_matching(shard, suf);
 
 let push = (onto: Direction.t, p: Piece.t, (pre, suf): t): t =>
   switch (onto) {

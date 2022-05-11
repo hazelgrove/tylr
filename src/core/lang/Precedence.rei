@@ -9,6 +9,7 @@ let plus: t;
 let prod: t;
 let cond: t;
 let let_: t;
+let fun_: t;
 let min: t;
 
 let compare: (t, t) => int;

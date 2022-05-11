@@ -55,17 +55,17 @@ let regrout =
     let (pre, suf) = Siblings.regrout(sibs);
     let pre =
       switch (pre) {
-      | [Grout(g), ...pre'] => Grout.fits(g, s_l) ? pre : pre'
+      | [Grout(g), ...pre'] => Grout.fits_shape(g, s_l) ? pre : pre'
       | _ =>
         Nib.Shape.fits(s_l, Siblings.Prefix.shape(pre))
-          ? pre : [Grout(Grout.mk_fits(s_l)), ...pre]
+          ? pre : [Grout(Grout.mk_fits_shape(s_l)), ...pre]
       };
     let suf =
       switch (suf) {
-      | [Grout(g), ...suf'] => Grout.fits(g, s_r) ? suf : suf'
+      | [Grout(g), ...suf'] => Grout.fits_shape(g, s_r) ? suf : suf'
       | _ =>
         Nib.Shape.fits(s_r, Siblings.Prefix.shape(suf))
-          ? suf : [Grout(Grout.mk_fits(s_r)), ...suf]
+          ? suf : [Grout(Grout.mk_fits_shape(s_r)), ...suf]
       };
     (a, (pre, suf));
   });
