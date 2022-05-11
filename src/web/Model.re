@@ -10,35 +10,52 @@ type t = {
 
 let cutoff = (===);
 
-let mk_atom = (id, sort, name): Tile.t => {
-  id,
+let id_gen: ref(int) = ref(0);
+
+let mk_id = (): int => {
+  let uid = id_gen^;
+  id_gen := id_gen^ + 1;
+  uid;
+};
+
+let mk_atom = (sort, name): Tile.t => {
+  id: mk_id(),
   label: [name],
   mold: Mold.(mk_op(Sorts.mk(sort))),
   children: [],
 };
 
-let mk_exp_atom = id => mk_atom(id, Exp);
-let mk_pat_atom = id => mk_atom(id, Pat);
+let mk_exp_atom = mk_atom(Exp);
+let mk_pat_atom = mk_atom(Pat);
 
-let mk_infix_op = (id, s: string, p: Precedence.t): Tile.t => {
-  id,
+let mk_infix_op = (s: string, p: Precedence.t): Tile.t => {
+  id: mk_id(),
   label: [s],
   mold: Mold.(mk_bin(p, Sorts.mk(Exp))),
   children: [],
 };
 
-let mk_parens_exp = (id, children): Tile.t => {
-  id,
+let mk_parens_exp = (children): Tile.t => {
+  id: mk_id(),
   label: ["(", ")"],
   mold: Mold.(mk_op(Sorts.mk(~in_=[Exp], Exp))),
   children,
 };
 
 let mk_lambda_ancestor:
-  (Id.t, list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
-  (id, left, right) => {
-    id,
+  (list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
+  (left, right) => {
+    id: mk_id(),
     label: ["λ", "{", "}"],
+    mold: Mold.(mk_op(Sorts.mk(~in_=[Pat, Exp], Exp))),
+    children: (left, right),
+  };
+
+let mk_let_ancestor:
+  (list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
+  (left, right) => {
+    id: mk_id(),
+    label: ["let", "=", "in"],
     mold: Mold.(mk_op(Sorts.mk(~in_=[Pat, Exp], Exp))),
     children: (left, right),
   };
@@ -46,14 +63,14 @@ let mk_lambda_ancestor:
 let mk_singleton_generation: Ancestor.t => Ancestors.generation =
   ancestor => (ancestor, ([], []));
 
-let one = Piece.Tile(mk_exp_atom(0, "1"));
-let two = Piece.Tile(mk_exp_atom(1, "2"));
-let exp_foo = Piece.Tile(mk_exp_atom(2, "foo"));
-let pat_foo = Piece.Tile(mk_pat_atom(3, "foo"));
-let pat_bar = Piece.Tile(mk_pat_atom(4, "bar"));
-let pat_taz = Piece.Tile(mk_pat_atom(5, "taz"));
-let plus = Piece.Tile(mk_infix_op(6, "+", Precedence.plus));
-let paren_one_plus_two = Piece.Tile(mk_parens_exp(7, [[one, plus, two]]));
+let one = Piece.Tile(mk_exp_atom("1"));
+let two = Piece.Tile(mk_exp_atom("2"));
+let exp_foo = Piece.Tile(mk_exp_atom("foo"));
+let pat_foo = Piece.Tile(mk_pat_atom("foo"));
+let pat_bar = Piece.Tile(mk_pat_atom("bar"));
+let pat_taz = Piece.Tile(mk_pat_atom("taz"));
+let plus = Piece.Tile(mk_infix_op("+", Precedence.plus));
+let paren_one_plus_two = Piece.Tile(mk_parens_exp([[one, plus, two]]));
 
 let l_sibling: Segment.t = [plus, Grout(Convex)];
 let r_sibling: Segment.t = [paren_one_plus_two];
@@ -66,8 +83,9 @@ let content: Segment.t = [
 ];
 
 let ancestors: Ancestors.t = [
-  mk_singleton_generation(mk_lambda_ancestor(8, [[pat_bar]], [])),
-  mk_singleton_generation(mk_lambda_ancestor(9, [[pat_taz]], [])),
+  mk_singleton_generation(mk_lambda_ancestor([[pat_bar]], [])),
+  mk_singleton_generation(mk_lambda_ancestor([[pat_taz]], [])),
+  (mk_let_ancestor([[pat_foo]], []), ([], [two])),
 ];
 
 let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];

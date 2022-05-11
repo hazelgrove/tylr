@@ -120,6 +120,7 @@ let delims =
     ["(", ")"],
     ["[", "]"],
     ["λ", "{", "}"],
+    ["λ", ".{", "}"],
     ["let", "=", "in"],
     ["?", ":"],
   ]);
@@ -377,9 +378,19 @@ let mk_zipper: Zipper.t => t =
     let ls = l_sibs_ls @ selection_ls @ r_sibs_ls;
     let layout = cat_segment(sort, ls);
     let current = ann_selection(layout, (l_sibs, content));
-    switch (r_sibs, ancestors) {
-    | ([], []) => current
-    | ([], [x, ...xs]) =>
+    switch (r_sibs, ancestors, content) {
+    | ([], [], []) =>
+      // TODO(andrew): cleanup. end of program case
+      let ls =
+        switch (l_sibs) {
+        | [] => []
+        | [p, ...ps] =>
+          List.rev(List.cons(indicate_piece(p), List.map(snub_piece, ps)))
+        };
+      let layout = cat_segment(sort, ls);
+      let current = ann_selection(layout, (l_sibs, content));
+      current;
+    | ([], [x, ...xs], _) =>
       // NOTE: if there are no pieces to the right, indicate parent
       let previous = of_generation(~indicate=content == [], current, x);
       List.fold_left(of_generation(~indicate=false), previous, xs);

@@ -165,6 +165,7 @@ let cat_decos =
                 "=",
                 "in",
                 "{",
+                ".{",
                 "}",
                 "?",
                 ":",
@@ -177,6 +178,7 @@ let cat_decos =
           when padding == Bi && (string == " " || string == Unicode.nbsp) =>
         //grout case
         Right
+      | _ when j == List.length(ms) => Right // at end of program (hacky)
       | _ => Left
       };
     print_endline(string_of_int(origin));

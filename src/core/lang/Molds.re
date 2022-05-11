@@ -9,6 +9,7 @@ let get = (label: Base.Tile.Label.t): list(Mold.t) => {
       mk_op(s(~in_=[Pat], Pat)),
       mk_op(s(~in_=[Exp], Exp)),
     ]
+  //| ["λ", ".{", "}"] // temp andrew
   | ["λ", "{", "}"] => [mk_op(s(~in_=[Pat, Exp], Exp))]
   | ["!"] => [mk_post(Precedence.fact, s(Exp))]
   | ["[", "]"] => [mk_post(Precedence.ap, s(~in_=[Exp], Exp))]

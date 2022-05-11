@@ -179,6 +179,9 @@
 }
 
 #code-container {
+  width: 100%;
+    display: flex;
+    justify-content: center;
   position: fixed;
   /* 350px is height of action table */
   /* 50px is height of logo */
@@ -333,9 +336,9 @@ svg.rail line.unsorted {
   line-height: var(--line-height);
 }
 .code#under-the-rail {
-  position: fixed;
+  /*position: fixed;
   left: 50%;
-  transform: translate(-50%, 0%);
+  transform: translate(-50%, 0%);*/
   z-index: 1;
 }
 
