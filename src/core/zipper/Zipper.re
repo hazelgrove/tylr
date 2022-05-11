@@ -109,7 +109,7 @@ let select = (d: Direction.t, z: t): option(t) =>
 let destruct = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
   let (to_pick_up, to_remove) =
-    Segment.shards(selected)
+    Segment.shards(selected.content)
     |> List.partition(shard =>
          Siblings.contains_matching(shard, z.relatives.siblings)
        );

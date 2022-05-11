@@ -16,7 +16,12 @@ let nibs = tiles =>
   | ([_first, ..._], Some((_, _last))) => failwith("todo Tiles.nibs")
   };
 
-let shards = _ => failwith("todo shards");
+let shards =
+  List.filter_map(
+    fun
+    | Piece.Shard(s) => Some(s)
+    | _ => None,
+  );
 
 let snoc = (tiles, tile) => tiles @ [tile];
 
