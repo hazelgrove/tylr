@@ -127,7 +127,7 @@ let destruct = (z: t): t => {
 let pick_up = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
   let selections =
-    selected
+    selected.content
     |> Segment.split_by_grout
     |> Aba.get_a
     |> List.filter((!=)(Segment.empty))

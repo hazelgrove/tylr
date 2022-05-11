@@ -29,7 +29,17 @@ let is_balanced = List.for_all(Piece.is_balanced);
 
 let remove_matching = (_, _) => failwith("todo remove_matching");
 
-let split_by_grout = _ => failwith("todo split_by_grout");
+let split_by_grout = seg =>
+  List.fold_right(
+    (p: Piece.t, (hd, tl)) =>
+      switch (p) {
+      | Grout(g) => ([], [(g, hd), ...tl])
+      | Tile(_)
+      | Shard(_) => ([p, ...hd], tl)
+      },
+    seg,
+    ([], []),
+  );
 
 let remold = (seg: t): list(t) =>
   fold_right(
