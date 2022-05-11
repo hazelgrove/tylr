@@ -69,8 +69,6 @@ let reassemble = (rs: t) => {
   go((rev(matched_pre), rev(matched_suf)), rs.ancestors);
 };
 
-let default_mold = (_, _) => failwith("todo default_mold");
-
 let remold = ({siblings, ancestors}: t): list(t) => {
   open ListUtil.Syntax;
   let+ ancestors = Ancestors.remold(ancestors)

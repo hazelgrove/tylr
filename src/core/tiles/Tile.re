@@ -50,15 +50,6 @@ let disassemble =
   |> List.cons(hd);
 };
 
-let default_mold =
-    (_form: Label.t, _sibling: Sort.t, _ancestor: Sort.t): Mold.t =>
-  failwith("todo Tile.default_mold");
-
-// let reshape = (tile: intact) =>
-//   assignable_molds(Intact.label(tile))
-//   |> List.filter((mold: Mold.t) => mold.sorts == tile.mold.sorts)
-//   |> List.map(mold => {...tile, mold});
-
 let pop = (from: Direction.t, tile: t): (Base.Piece.t, Base.Segment.t) =>
   tile
   |> disassemble(from)

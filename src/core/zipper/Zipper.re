@@ -149,7 +149,8 @@ let put_down = (z: t): option(t) => {
 
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let z = destruct(z);
-  let mold = Relatives.default_mold(label, z.relatives);
+  // initial mold to typecheck, will be remolded
+  let mold = List.hd(Molds.get(label));
   let (id, id_gen) = IdGen.next(z.id_gen);
   let selections =
     Shard.mk_s(id, label, mold)
