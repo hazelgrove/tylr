@@ -102,21 +102,10 @@ and measured = {
   layout: layoutM,
 };
 
-let delims =
-  List.flatten([
-    ["(", ")"],
-    ["λ", "{", "}"],
-    ["[", "]"],
-    ["?", ":"],
-    ["let", "=", "in"],
-  ]);
-
-let ops_in = ["+", "-", "*", "/", ","];
-let special_chars = delims @ ops_in;
-
 let text: string => t = t => Atom(t, None);
 let delim: string => t = s => Atom(s, Delim);
-let text': Token.t => t = t => List.mem(t, delims) ? delim(t) : text(t);
+let text': Token.t => t =
+  t => List.mem(t, Token.delims) ? delim(t) : text(t);
 let shard: string => t = s => Atom(s, Shard);
 let placeholder = ann => Atom(Unicode.nbsp, ann);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));

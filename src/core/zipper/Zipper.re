@@ -1,4 +1,5 @@
 open Util;
+open Sexplib.Std;
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
@@ -15,6 +16,7 @@ module Action = {
     | Move(Direction.t)
     | Select(Direction.t)
     | Destruct
+    | Insert(string)
     // `Construct(d, lbl)` constructs `lbl` starting from `d` side
     | Construct(Direction.t, Tile.Label.t)
     | Pick_up
@@ -157,12 +159,33 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
+let insert = (char: string, z: t) => {
+  switch (char) {
+  | "(" => Some(construct(Left, ["(", ")"], z))
+  | ")" => Some(construct(Right, ["(", ")"], z))
+  | "[" => Some(construct(Left, ["[", "]"], z))
+  | "]" => Some(construct(Right, ["[", "]"], z))
+  | _
+      when
+        Token.is_num(char)
+        || Token.is_var(char)
+        || List.mem(char, Token.ops_in) =>
+    //TODO(andrew): fix allowed chars
+    // d: restricted to ops_in for now
+    Some(construct(Left, [char], z))
+  | _ => None
+  };
+};
+
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   switch (a) {
   | Move(d) => Result.of_option(~error=Action.Failure.Cant_move, move(d, z))
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct => Ok(destruct(z))
+  | Insert(char) =>
+    //TODO(andrew): error type
+    Result.of_option(~error=Action.Failure.Cant_move, insert(char, z))
   | Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>

@@ -2,9 +2,6 @@ open Virtual_dom.Vdom;
 // open Util;
 open Core;
 
-let is_var = s => Re.Str.(string_match(regexp("^[a-z]$"), s, 0));
-let is_num = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
-
 let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
 let p = a => Update.PerformAction(a);
@@ -74,14 +71,13 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Delete" =>
           // TODO(d): fix broken repeated delete
           Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
-        | "(" => now(Construct(Left, ["(", ")"]))
-        | ")" => now(Construct(Right, ["(", ")"]))
-        | "[" => now(Construct(Left, ["[", "]"]))
-        | "]" => now(Construct(Right, ["[", "]"]))
-        | _ when is_num(key) || is_var(key) || List.mem(key, Layout.ops_in) =>
-          //TODO(andrew): fix allowed chars
+        | _
+            when
+              Token.is_num(key)
+              || Token.is_var(key)
+              || List.mem(key, Token.special) =>
           // d: restricted to ops_in for now
-          now(Construct(Left, [key]))
+          now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];
