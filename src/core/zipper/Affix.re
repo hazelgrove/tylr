@@ -52,6 +52,8 @@ module Make = (O: Orientation.S) => {
 
   let shards = Segment.shards;
 
+  let contains_matching = Segment.contains_matching;
+
   let remold = Segment.remold;
 
   let sort_rank = (affix: t, s: Sort.t) =>

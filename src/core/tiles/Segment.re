@@ -23,6 +23,13 @@ let shards =
     | _ => None,
   );
 
+let contains_matching = (shard: Shard.t) =>
+  List.exists(
+    fun
+    | Piece.Shard(s) => s.tile_id == shard.tile_id
+    | _ => false,
+  );
+
 let snoc = (tiles, tile) => tiles @ [tile];
 
 let is_balanced = List.for_all(Piece.is_balanced);
