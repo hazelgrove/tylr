@@ -13,6 +13,13 @@ let sort =
   | [] => Sort.root
   | [(a, _), ..._] => Ancestor.sort(a);
 
+let disassemble = ancs =>
+  ancs
+  |> List.map(((a, sibs)) =>
+       Siblings.concat([Ancestor.disassemble(a), sibs])
+     )
+  |> Siblings.concat;
+
 let remold = (ancestors: t): list(t) =>
   List.fold_right(
     ((a, sibs), remolded) => {

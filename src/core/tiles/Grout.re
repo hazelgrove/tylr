@@ -1,27 +1,30 @@
-[@deriving show]
-type t =
-  | Convex
-  // TODO add precedence
-  | Concave;
+open Nib.Shape;
 
+[@deriving show]
+type t = (Nib.Shape.t, Nib.Shape.t);
+
+// assumes same shape on both sides
 let mk_fits_shape = (s: Nib.Shape.t) =>
   switch (s) {
-  | Convex => Concave
-  | Concave(_) => Convex
+  | Convex => (concave(), concave())
+  | Concave(_) => (Convex, Convex)
   };
 
+// assumes same shape on both sides
+// currently used such s may be left or right side of g
 let fits_shape = (g: t, s: Nib.Shape.t): bool =>
   switch (g, s) {
-  | (Convex, Convex)
-  | (Concave, Concave(_)) => false
-  | (Convex, Concave(_))
-  | (Concave, Convex) => true
+  | ((_, Convex), Convex)
+  | ((_, Concave(_)), Concave(_)) => false
+  | ((_, Convex), Concave(_))
+  | ((_, Concave(_)), Convex) => true
   };
 
+// assumes same shape on both sides
 let fits = (g: t, g': t) =>
   switch (g, g') {
-  | (Convex, Convex)
-  | (Concave, Concave) => false
-  | (Convex, Concave)
-  | (Concave, Convex) => true
+  | ((_, Convex), (Convex, _))
+  | ((_, Concave(_)), (Concave(_), _)) => false
+  | ((_, Convex), (Concave(_), _))
+  | ((_, Concave(_)), (Convex, _)) => true
   };

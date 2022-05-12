@@ -27,17 +27,32 @@ let mk_pre = (p, sorts) => {sorts, shape: Pre(p)};
 let mk_post = (p, sorts) => {sorts, shape: Post(p)};
 let mk_bin = (p, sorts) => {sorts, shape: Bin(p)};
 
-let nibs: (~index: int=?, t) => Nibs.t =
-  (~index as _=?, {shape, sorts: {out: sort, _}}) => {
-    let convex: Nib.t = {shape: Convex, sort};
-    let concave: Precedence.t => Nib.t = p => {shape: Concave(p), sort};
-    switch (shape) {
-    | Op => (convex, convex)
-    | Pre(p) => (convex, concave(p))
-    | Post(p) => (concave(p), convex)
-    | Bin(p) => (concave(p), concave(p))
-    };
+let outer_nibs = ({shape, sorts}: t): Nibs.t => {
+  let sort = sorts.out;
+  let convex: Nib.t = {shape: Convex, sort};
+  let concave: Precedence.t => Nib.t = p => {shape: Concave(p), sort};
+  switch (shape) {
+  | Op => (convex, convex)
+  | Pre(p) => (convex, concave(p))
+  | Post(p) => (concave(p), convex)
+  | Bin(p) => (concave(p), concave(p))
   };
+};
+
+let nibs = (~index=?, mold: t): Nibs.t => {
+  let (l, r) = outer_nibs(mold);
+  switch (index) {
+  | None => (l, r)
+  | Some(i) =>
+    let in_ = mold.sorts.in_;
+    let l =
+      i == 0 ? l : Nib.{shape: Shape.concave(), sort: List.nth(in_, i - 1)};
+    let r =
+      i == List.length(in_)
+        ? r : Nib.{shape: Shape.concave(), sort: List.nth(in_, i)};
+    (l, r);
+  };
+};
 
 module Map = {
   type mold = t;
@@ -49,9 +64,12 @@ let of_grout: (Grout.t, Sort.t) => t =
   // TODO(andrew): dont do this?
   (g, sort) => {
     shape:
+      // TODO(d): revisit this when reformulating molds
       switch (g) {
-      | Convex => Op
-      | Concave => Bin(Precedence.min)
+      | (Convex, Convex) => Op
+      | (Convex, Concave(p)) => Pre(p)
+      | (Concave(p), Convex) => Post(p)
+      | (Concave(p), Concave(_)) => Bin(p)
       },
     sorts: {
       out: sort,
@@ -84,43 +102,3 @@ let of_shard =
     shape,
   };
 };
-
-/*
- switch (get(label)) {
- | [mold, ..._] =>
-   let sorts = mold.sorts;
-   //let indicators = List.map((==)(mold.sorts.out), mold.sorts.in_);
-   //assert(n < List.length(indicators));
-   switch (n, mold.shape) {
-   | (0, Op | Pre(_)) => {shape: Pre(Precedence.max), sorts}
-   | (_, Op | Post(_)) when n == List.length(mold.sorts.in_) => {
-       shape: Post(Precedence.max),
-       sorts,
-     }
-   | (0, Bin(_) | Post(_)) => {shape: Bin(Precedence.max), sorts}
-   | (_, Bin(_) | Pre(_)) when n == List.length(mold.sorts.in_) => {
-       shape: Bin(Precedence.max),
-       sorts,
-     }
-   | _ => {shape: Bin(Precedence.max), sorts}
-   };
- | _ => {
-     shape: Op,
-     sorts: {
-       out: Exp,
-       in_: [],
-     },
-   }
-
-  {
-  shape:
-    switch (l_nib.shape, r_nib.shape) {
-    | (Convex, Convex) => Op
-    | (Concave(p), Concave(_)) => Bin(p)
-    | (Convex, Concave(p)) => Pre(p)
-    | (Concave(p), Convex) => Post(p)
-    },
-  sorts: {
-    out: l_nib.sort,
-    in_: [],
-  },*/

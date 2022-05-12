@@ -163,8 +163,8 @@ let grout_token = (g: Grout.t): token => {
   let padding: padding =
     switch (g) {
     | _ when pad_segments => None
-    | Convex => None
-    | Concave => Bi
+    | (Concave(_), Concave(_)) => Bi
+    | _ => None
     };
   // alternate string forms: "⬣" "⧗"
   {string: Unicode.nbsp, padding};
@@ -270,6 +270,7 @@ let of_grout: (Sort.t, Grout.t) => t =
 
 let of_shard: Base.Shard.t => t =
   ({nibs, label: (n, label), _}) => {
+    assert(n >= 0 && n < List.length(label));
     let token = shard_token(n, label);
     let mold = Mold.of_shard(nibs, n, label);
     cat_piece(Shard, mold, [Atom(token, Shard)]);

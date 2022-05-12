@@ -42,27 +42,27 @@ let mk_parens_exp = (children): Tile.t => {
   children,
 };
 
-let mk_lambda_exp: (Id.t, list(list(Piece.t))) => Tile.t =
-  (id, children) => {
-    id,
+let mk_lambda_exp: list(list(Piece.t)) => Tile.t =
+  children => {
+    id: mk_id(),
     label: ["fun", "=>"],
     mold: Mold.mk_pre(Precedence.fun_, Mold.Sorts.mk(~in_=[Pat], Exp)),
     children,
   };
 
 let mk_lambda_ancestor:
-  (Id.t, list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
-  (id, left, right) => {
-    id,
+  (list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
+  (left, right) => {
+    id: mk_id(),
     label: ["fun", "=>"],
     mold: Mold.mk_pre(Precedence.fun_, Mold.Sorts.mk(~in_=[Pat], Exp)),
     children: (left, right),
   };
 
 let mk_parens_ancestor:
-  (Id.t, list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
-  (id, left, right) => {
-    id,
+  (list(list(Piece.t)), list(list(Piece.t))) => Ancestor.t =
+  (left, right) => {
+    id: mk_id(),
     label: ["(", ")"],
     mold: Mold.(mk_op(Sorts.mk(~in_=[Exp], Exp))),
     children: (left, right),
@@ -89,19 +89,22 @@ let pat_taz = Piece.Tile(mk_pat_atom("taz"));
 let plus = Piece.Tile(mk_infix_op("+", Precedence.plus));
 let paren_one_plus_two = Piece.Tile(mk_parens_exp([[one, plus, two]]));
 
-let l_sibling: Segment.t = [plus, Grout(Convex)];
+let l_sibling: Segment.t = [plus, Grout((Convex, Convex))];
 let r_sibling: Segment.t = [paren_one_plus_two];
 
-let content: Segment.t = [exp_foo, Grout(Concave)];
+let content: Segment.t = [
+  exp_foo,
+  Grout((Concave(Precedence.min), Concave(Precedence.min))),
+];
 
 let ancestors: Ancestors.t = [
   (
-    mk_parens_ancestor(8, [], []),
-    ([Tile(mk_lambda_exp(9, [[pat_bar]]))], []),
+    mk_parens_ancestor([], []),
+    ([Tile(mk_lambda_exp([[pat_bar]]))], []),
   ),
   (
-    mk_parens_ancestor(10, [], []),
-    ([Tile(mk_lambda_exp(11, [[pat_taz]]))], []),
+    mk_parens_ancestor([], []),
+    ([Tile(mk_lambda_exp([[pat_taz]]))], []),
   ),
   (mk_let_ancestor([[pat_foo]], []), ([], [two])),
 ];
@@ -110,7 +113,7 @@ let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];
 
 let init = () => {
   zipper: {
-    id_gen: 10,
+    id_gen: id_gen^,
     selection: {
       focus: Left,
       content,
