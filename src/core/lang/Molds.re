@@ -12,7 +12,7 @@ let get = (label: Base.Tile.Label.t): list(Mold.t) => {
   | ["fun", "=>"] => [mk_pre(Precedence.fun_, s(~in_=[Pat], Exp))]
   | ["!"] => [mk_post(Precedence.fact, s(Exp))]
   | ["[", "]"] => [mk_post(Precedence.ap, s(~in_=[Exp], Exp))]
-  | ["*" | "/"] => [mk_bin(Precedence.mult, s(Exp))]
+  | ["*" | "/" | "=" | ">"] => [mk_bin(Precedence.mult, s(Exp))]
   | ["+" | "-"] => [mk_bin(Precedence.plus, s(Exp))]
   | [","] => [
       mk_bin(Precedence.prod, s(Pat)),

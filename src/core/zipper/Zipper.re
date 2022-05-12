@@ -180,6 +180,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
 
 /*
   ROUGH NOTES ON INSERTION
+  (will clean up and move out eventually -andrew)
   char can be alphanum or symbol or whitespace
   dont do whitespace for now
   want to either make new piece or add to left or right adjancent token
@@ -223,16 +224,6 @@ type side_decision =
   | CanAddToRight(string)
   | CanAddToNeither;
 
-let check_sibs: Siblings.t => side_decision =
-  siblings =>
-    switch (neighbors(siblings)) {
-    | (Some(Tile({label: [t], mold: {shape: Op, _}, _})), _) =>
-      CanAddToLeft(t)
-    | (_, Some(Tile({label: [t], mold: {shape: Op, _}, _}))) =>
-      CanAddToRight(t)
-    | _ => CanAddToNeither
-    };
-
 let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     switch (s) {
@@ -241,9 +232,43 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
     | "[" => (["[", "]"], Left)
     | "]" => (["[", "]"], Right)
     | "?" => (["?", ":"], Left)
-    | "let" => (["let", "=", "in"], Left)
     | "fun" => (["fun", "=>"], Left)
+    | "in" => (["let", "=", "in"], Right)
+    | "let" => (["let", "=", "in"], Left)
+    | "=>" => (["fun", "=>"], Right)
     | t => ([t], direction_preference)
+    };
+
+let check_sibs_alphanum: (string, Siblings.t) => side_decision =
+  /* NOTE: logic here could probably be based on character classes
+       as opposed to mold shape
+     */
+  (char, siblings) =>
+    switch (neighbors(siblings)) {
+    | (Some(Tile({label: [t], mold, _})), _)
+        when mold.shape == Op && Token.is_valid(t ++ char) =>
+      CanAddToLeft(t)
+    | (_, Some(Tile({label: [t], mold, _})))
+        when mold.shape == Op && Token.is_valid(char ++ t) =>
+      CanAddToRight(t)
+    | _ => CanAddToNeither
+    };
+
+let check_sibs_symbol: (string, Siblings.t) => side_decision =
+  (char, siblings) =>
+    /* NOTE: this is slightly more iffy than the alphanum case,
+         as it if post/pre draw from the same char set as infix,
+         both left and right could be valid add targets. right now
+         we favor right
+       */
+    switch (neighbors(siblings)) {
+    | (Some(Tile({label: [t], mold, _})), _)
+        when mold.shape != Op && Token.is_valid(t ++ char) =>
+      CanAddToLeft(t)
+    | (_, Some(Tile({label: [t], mold, _})))
+        when mold.shape != Op && Token.is_valid(char ++ t) =>
+      CanAddToRight(t)
+    | _ => CanAddToNeither
     };
 
 let barf_or_construct =
@@ -258,15 +283,21 @@ let barf_or_construct =
 
 let insert =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
-  //ISSUE(andrew): do we allow isolated "in", "=", "=>", ":"? can't type = to enter "=>"" fun delimiter?
   //ISSUE(andrew): barf too eager? eg "foo" in bp drops if add "o" to existing "fo"
   //NOTE(andrew): cant type "in" in let without space
   //IDEA(andrew): since eg 4in invalid could autosplit
   switch (char) {
   | _ when Token.is_whitespace(char) => None //TODO(andrew)
-  | _ when Token.is_symbol(char) => barf_or_construct(char, Left, z)
+  | _ when Token.is_symbol(char) =>
+    switch (check_sibs_symbol(char, siblings)) {
+    | CanAddToNeither => barf_or_construct(char, Left, z)
+    | CanAddToLeft(left_token) =>
+      barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
+    | CanAddToRight(right_token) =>
+      barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
+    }
   | _ when Token.is_alphanum(char) =>
-    switch (check_sibs(siblings)) {
+    switch (check_sibs_alphanum(char, siblings)) {
     | CanAddToNeither => barf_or_construct(char, Left, z)
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
