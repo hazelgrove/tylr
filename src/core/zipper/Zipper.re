@@ -252,6 +252,7 @@ let try_to_barf = (t: Token.t, f, z: t): option(t) => {
 let insert =
     (char: string, {relatives: {siblings, _}, backpack, _} as z: t)
     : option(t) => {
+  //ISSUE(andrew): do we allow isolated "in", "=", "=>", ":"?
   //ISSUE(andrew): cant really type in in let without space
   //ISSUE(andrew): can't type = to enter 2nd fun delimiter
   switch (char) {
