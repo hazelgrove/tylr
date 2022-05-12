@@ -241,15 +241,17 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
 
 let check_sibs_alphanum: (string, Siblings.t) => side_decision =
   /* NOTE: logic here could probably be based on character classes
-       as opposed to mold shape
+       as opposed to mold shape. Actually, the shape part might
+       not even be necessary now that we're checking validity
+       TODO(andrew): think about this
      */
   (char, siblings) =>
     switch (neighbors(siblings)) {
-    | (Some(Tile({label: [t], mold, _})), _)
-        when mold.shape == Op && Token.is_valid(t ++ char) =>
+    | (Some(Tile({label: [t], _ /*mold,*/})), _)
+        when /*mold.shape == Op &&*/ Token.is_valid(t ++ char) =>
       CanAddToLeft(t)
-    | (_, Some(Tile({label: [t], mold, _})))
-        when mold.shape == Op && Token.is_valid(char ++ t) =>
+    | (_, Some(Tile({label: [t], _ /*mold,*/})))
+        when /*mold.shape == Op &&*/ Token.is_valid(char ++ t) =>
       CanAddToRight(t)
     | _ => CanAddToNeither
     };
@@ -262,11 +264,11 @@ let check_sibs_symbol: (string, Siblings.t) => side_decision =
          we favor right
        */
     switch (neighbors(siblings)) {
-    | (Some(Tile({label: [t], mold, _})), _)
-        when mold.shape != Op && Token.is_valid(t ++ char) =>
+    | (Some(Tile({label: [t], _ /*mold,*/})), _)
+        when /*mold.shape != Op &&*/ Token.is_valid(t ++ char) =>
       CanAddToLeft(t)
-    | (_, Some(Tile({label: [t], mold, _})))
-        when mold.shape != Op && Token.is_valid(char ++ t) =>
+    | (_, Some(Tile({label: [t], _ /*mold,*/})))
+        when /*mold.shape != Op &&*/ Token.is_valid(char ++ t) =>
       CanAddToRight(t)
     | _ => CanAddToNeither
     };
@@ -284,7 +286,7 @@ let barf_or_construct =
 let insert =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   //ISSUE(andrew): barf too eager? eg "foo" in bp drops if add "o" to existing "fo"
-  //NOTE(andrew): cant type "in" in let without space
+  //NOTE(andrew): cant type "in" in let without having space
   //IDEA(andrew): since eg 4in invalid could autosplit
   switch (char) {
   | _ when Token.is_whitespace(char) => None //TODO(andrew)
