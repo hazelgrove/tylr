@@ -41,7 +41,10 @@ let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
   relatives: f(z.relatives),
 };
 let update_siblings: (Siblings.t => Siblings.t, t) => t =
-  f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
+  f =>
+    update_relatives(rs =>
+      {...rs, siblings: f(rs.siblings)}
+    );
 
 let remove_right_sib: t => t =
   update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
@@ -158,8 +161,6 @@ let put_down = (z: t): option(t) => {
 
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let z = destruct(z);
-  print_endline("construct: label:");
-  print_endline(String.concat(" ", label));
   let molds = Molds.get(label);
   assert(molds != []);
   // initial mold to typecheck, will be remolded
