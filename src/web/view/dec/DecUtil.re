@@ -10,8 +10,8 @@ let stretch_dx = 0.15;
 
 let raised_shadow_dx = "0.1";
 let raised_shadow_dy = "0.03";
-let shadow_dx = "0.06";
-let shadow_dy = "0.024";
+let shadow_dx = "0.12";
+let shadow_dy = "0.05";
 
 let extra_tail = 0.;
 let jagged_edge_h = child_border_thickness /. 3.;

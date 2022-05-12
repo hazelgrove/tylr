@@ -84,7 +84,7 @@
   --typ-shadow-color: #6168d4;
 
   --unsorted-bg-color: #ffd0e6;
-  --unsorted-shadow-color: #c76695;
+  --unsorted-shadow-color: #c2a964;
   --unsorted-rail-color: #e7bdd0;
 
   --bar-color: #dfdacc;
@@ -492,9 +492,9 @@ svg.rail line.unsorted {
   font-weight: bold;
 }
 .code .extra-bold-delim {
-  color: var(--delim-color);
-  color: black;
-  font-weight: 900;
+  /*color: var(--delim-color);*/
+  color: #ce9600;
+  font-weight: bold;
 }
 .code .ap {
   color: var(--ap-color);
@@ -555,17 +555,24 @@ svg.rail line.unsorted {
 }
 
 
-/*TODO(andrew): HACK */
-/*.tile-path.Exp {
-  stroke: var(--exp-shadow-color);
-  filter: url(#drop-shadow-Exp);
-}*/
 .tile-path.Exp {
-  stroke: #48be5a;
+  /*stroke: var(--exp-shadow-color);*/
+  filter: url(#drop-shadow-Exp);
+}
+.tile-path.Exp {
+  /*stroke: #48be5a;*/
+}
+
+.Filtered {
+  stroke: #a18c52;
+  flood-color: black;
+}
+.Filtered .tile-path{
+  filter: url(#drop-shadow-unsorted) !important;
 }
 
 .tile-path.Exp.highlighted {
-  fill: var(--exp-bg-color);
+  fill:#b9e3be;
 }
 .tile-path.Exp.raised {
   filter: url(#raised-drop-shadow-Exp);
@@ -576,7 +583,7 @@ svg.rail line.unsorted {
 }
 
 .tile-path.Pat {
-  stroke: var(--pat-shadow-color);
+  /*stroke: var(--pat-shadow-color);*/
   filter: url(#drop-shadow-Pat);
 }
 .tile-path.Pat.highlighted {
@@ -591,7 +598,7 @@ svg.rail line.unsorted {
 }
 
 .tile-path.Typ {
-  stroke: var(--typ-shadow-color);
+  /*stroke: var(--typ-shadow-color);*/
   filter: url(#drop-shadow-Typ);
 }
 .tile-path.Typ.highlighted {

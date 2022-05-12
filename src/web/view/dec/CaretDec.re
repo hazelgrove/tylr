@@ -562,6 +562,7 @@ let simple_view =
     | Right => "caret-right"
     | Straight => "caret-straight"
     };
+  let fudge = 0.0; //0.1;
   Node.div(
     [
       Attr.id("caret-temp"),
@@ -570,11 +571,9 @@ let simple_view =
         "style",
         Printf.sprintf(
           "position: absolute; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-          (Float.of_int(origin) -. (Layout.pad_segments ? 0.5 : 0.5))
-          *. font_metrics.col_width
-          +. 1., //fudge
+          (Float.of_int(origin) -. 0.5) *. font_metrics.col_width +. fudge, //fudge
           /*(-0.25) *. font_metrics.row_height*/ 2.,
-          2.,
+          0.0, //2.,
           // not sure why this needs to be 1.6 and not 1.5
           /*1.6 *.*/ font_metrics.row_height,
         ),

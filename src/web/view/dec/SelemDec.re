@@ -4,7 +4,7 @@ open Util;
 open Diag;
 open DecUtil;
 
-let c_fudge = 0.4; //fudges child width to prevent overlap
+let c_fudge = 0.0; //0.4; //fudges child width to prevent overlap
 module Profile = {
   type t = {
     measurement: Layout.measurement,
