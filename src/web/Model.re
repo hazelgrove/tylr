@@ -89,10 +89,13 @@ let pat_taz = Piece.Tile(mk_pat_atom("taz"));
 let plus = Piece.Tile(mk_infix_op("+", Precedence.plus));
 let paren_one_plus_two = Piece.Tile(mk_parens_exp([[one, plus, two]]));
 
-let l_sibling: Segment.t = [plus, Grout(Convex)];
+let l_sibling: Segment.t = [plus, Grout((Convex, Convex))];
 let r_sibling: Segment.t = [paren_one_plus_two];
 
-let content: Segment.t = [exp_foo, Grout(Concave)];
+let content: Segment.t = [
+  exp_foo,
+  Grout((Concave(Precedence.min), Concave(Precedence.min))),
+];
 
 let ancestors: Ancestors.t = [
   (
