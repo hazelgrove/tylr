@@ -59,18 +59,68 @@ let of_grout: (Grout.t, Sort.t) => t =
     },
   };
 
-let of_nibs: Nibs.t => t =
-  // TODO(andrew): dont do this?
-  ((l_nib, r_nib)) => {
-    shape:
-      switch (l_nib.shape, r_nib.shape) {
-      | (Convex, Convex) => Op
-      | (Concave(p), Concave(_)) => Bin(p)
-      | (Convex, Concave(p)) => Pre(p)
-      | (Concave(p), Convex) => Post(p)
-      },
+let of_shard =
+    // TODO(andrew): dont do this?
+    (nibs: Nibs.t, n: int, label: list(string)): t => {
+  let shape: Shape.t =
+    switch (nibs) {
+    | (l_nib, _) when n == 0 =>
+      switch (l_nib.shape) {
+      | Convex => Pre(Precedence.min)
+      | Concave(_) => Bin(Precedence.min)
+      }
+    | (_, r_nib) when n == List.length(label) - 1 =>
+      switch (r_nib.shape) {
+      | Convex => Post(Precedence.min)
+      | Concave(_) => Bin(Precedence.min)
+      }
+    | _ => Bin(Precedence.min)
+    };
+  {
     sorts: {
-      out: l_nib.sort,
+      out: Exp,
       in_: [],
     },
+    shape,
   };
+};
+
+/*
+ switch (get(label)) {
+ | [mold, ..._] =>
+   let sorts = mold.sorts;
+   //let indicators = List.map((==)(mold.sorts.out), mold.sorts.in_);
+   //assert(n < List.length(indicators));
+   switch (n, mold.shape) {
+   | (0, Op | Pre(_)) => {shape: Pre(Precedence.max), sorts}
+   | (_, Op | Post(_)) when n == List.length(mold.sorts.in_) => {
+       shape: Post(Precedence.max),
+       sorts,
+     }
+   | (0, Bin(_) | Post(_)) => {shape: Bin(Precedence.max), sorts}
+   | (_, Bin(_) | Pre(_)) when n == List.length(mold.sorts.in_) => {
+       shape: Bin(Precedence.max),
+       sorts,
+     }
+   | _ => {shape: Bin(Precedence.max), sorts}
+   };
+ | _ => {
+     shape: Op,
+     sorts: {
+       out: Exp,
+       in_: [],
+     },
+   }
+
+  {
+  shape:
+    switch (l_nib.shape, r_nib.shape) {
+    | (Convex, Convex) => Op
+    | (Concave(p), Concave(_)) => Bin(p)
+    | (Convex, Concave(p)) => Pre(p)
+    | (Concave(p), Convex) => Post(p)
+    },
+  sorts: {
+    out: l_nib.sort,
+    in_: [],
+  },*/

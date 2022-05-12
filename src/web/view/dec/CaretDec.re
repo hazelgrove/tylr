@@ -2,6 +2,11 @@ open Virtual_dom.Vdom;
 open Util;
 // open Core;
 
+type caret_shape =
+  | Straight
+  | Left
+  | Right;
+
 module Profile = {
   type t = {
     mode: CaretMode.t,
@@ -550,11 +555,12 @@ let view =
 };
 
 let simple_view =
-    (~font_metrics: FontMetrics.t, origin: int, caret_curve: Direction.t) => {
+    (~font_metrics: FontMetrics.t, origin: int, caret_shape: caret_shape) => {
   let caret =
-    switch (caret_curve) {
+    switch (caret_shape) {
     | Left => "caret-left"
     | Right => "caret-right"
+    | Straight => "caret-straight"
     };
   Node.div(
     [

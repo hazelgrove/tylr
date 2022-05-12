@@ -11,15 +11,8 @@ type tip_shape = (Nib.t, int);
 type piece_shape = (tip_shape, tip_shape);
 
 let piece_shape_of_mold = (m: Mold.t): piece_shape => {
-  let sort = m.sorts.out;
-  let (sl: Nib.Shape.t, sr: Nib.Shape.t) =
-    switch (m.shape) {
-    | Op => (Convex, Convex)
-    | Pre(p) => (Convex, Concave(p))
-    | Post(p) => (Concave(p), Convex)
-    | Bin(p) => (Concave(p), Concave(p))
-    };
-  (({shape: sl, sort}, 0), ({shape: sr, sort}, 0));
+  let (l, r) = Mold.nibs(m);
+  ((l, 0), (r, 0));
 };
 
 [@deriving show]
@@ -52,10 +45,10 @@ type token = {
 [@deriving show]
 type selection_focus =
   /* The selection is a range in the focal segment. The left and right
-     extremes of the selection correspond to spaces between the pieces
-     of the segment. An empty selecton is equivalent/coincident to/with
-     the caret. If there is a piece directly to the right of an empty
-     selection, that pience is Indicated. If the empty selection is at the
+      extremes of the selection correspond to spaces between the pieces
+      of the segment. An empty selecton is equivalent/coincident to/with
+      the caret. If there is a piece directly to the right of an empty
+      selection, that pience is Indicated. If the empty selection is at the
      last space in the focal segment, the containing piece is Indicated */
   //| Indicated
   /* A Selected piece contained inside the selection, unless it is... */
@@ -114,6 +107,11 @@ and measured = {
   measurement,
   layout: layoutM,
 };
+
+let get_shape: layoutM => option(Mold.Shape.t) =
+  fun
+  | CatM(_, Piece(_, {shape, _}, _)) => Some(shape)
+  | _ => None;
 
 let padding: string => padding =
   fun
@@ -257,7 +255,6 @@ let get_open_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
   |> ListUtil.p_indices((==)(true))
   |> select_piece_idxs(ms);
 };
-
 let relativize_measurements: (int, list(measurement)) => list(measurement) =
   parent_origin =>
     List.map(({origin, length}) =>
@@ -274,7 +271,7 @@ let of_grout: (Sort.t, Grout.t) => t =
 let of_shard: Base.Shard.t => t =
   ({nibs, label: (n, label), _}) => {
     let token = shard_token(n, label);
-    let mold = Mold.of_nibs(nibs);
+    let mold = Mold.of_shard(nibs, n, label);
     cat_piece(Shard, mold, [Atom(token, Shard)]);
   };
 

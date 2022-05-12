@@ -47,21 +47,6 @@ let sel_piece_profile =
       ms: list(Layout.measured),
     )
     : SelemDec.Profile.t => {
-  print_endline("SEL PIECE PROFILE START");
-  print_endline(String.concat(" ", List.map(Layout.show_measured, ms)));
-  print_endline(
-    String.concat(
-      " ",
-      List.map(Layout.show_measured, Layout.get_open_children(mold, ms)),
-    ),
-  );
-  print_endline(
-    String.concat(
-      " ",
-      List.map(Layout.show_measured, Layout.get_closed_children(mold, ms)),
-    ),
-  );
-  print_endline("SEL PIECE PROFILE END");
   let open_children =
     Layout.get_open_children(mold, ms)
     |> List.map((c: Layout.measured) => c.measurement)
@@ -116,26 +101,80 @@ let backpack_view =
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
-let rec ind_hack = (l: Layout.t): list(Layout.token) => {
+let rec ind_hack = (l: Layout.t): list((Mold.t, Layout.token)) => {
   switch (l) {
   | Atom(_) => []
-  | Cat(ls, Piece(_, _, Indicated(token))) =>
+  | Cat(ls, Piece(_, mold, Indicated(token))) =>
     //TODO(andrew): hack
-    [token] @ List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
+    [(mold, token)] @ List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
   | Cat(ls, _) => List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
   };
 };
 
+let caret_shape =
+    (
+      pd: list((Mold.t, Layout.token)),
+      i: int,
+      j: int,
+      ms: list(Layout.measured),
+      ~direction: Direction.t,
+    )
+    : CaretDec.caret_shape =>
+  if (i == j) {
+    //selection empty
+    switch (pd) {
+    /*| [({shape, _}, _)] =>
+        switch (shape, direction) {
+        | (Pre(_), _) => Left
+        | (Post(_), _) => Right
+        | (Op, Left) => Left
+        | (Op, Right) => Right
+        | (Bin(_), Left) => Right
+        | (Bin(_), Right) => Left
+        }
+      | _ => Straight*/
+    | [(_, {string, _})]
+        when
+          List.mem(
+            string,
+            ["+", "-", "*", "/", ",", "=", "in", "=>", "?", ":", ")", "]"],
+          ) =>
+      Right
+    | [(_, {string, padding})]
+        when padding == Bi && (string == " " || string == Unicode.nbsp) =>
+      //grout case
+      //TODO(andrew): improve logic
+      Right
+    | _ when j == List.length(ms) => Right // at end of program (hacky)
+    | _ => Left
+    };
+  } else {
+    switch (Util.ListUtil.split_sublist_opt(i, j, ms)) {
+    | Some((_, [{layout, _}, ..._], _)) when direction == Left =>
+      switch (Layout.get_shape(layout)) {
+      | Some(Op | Pre(_)) => Left
+      | _ => Right
+      }
+    | Some((_, sel, _)) when direction == Right =>
+      let {layout, _}: Layout.measured = sel |> List.rev |> List.hd;
+      switch (Layout.get_shape(layout)) {
+      | Some(Op | Post(_)) => Right
+      | _ => Left
+      };
+    | _ => Straight
+    };
+  };
+
 let cat_decos =
     (
-      pd: list(Layout.token),
+      pd: list((Mold.t, Layout.token)),
       ~font_metrics,
-      ~backpack,
+      ~backpack: Backpack.t,
       ~direction: Direction.t,
       ann: Layout.ann_cat,
       measurement: Layout.measurement,
-      ms,
-    ) =>
+      ms: list(Layout.measured),
+    ) => {
   switch (ann) {
   | Segment(Range(i, j)) =>
     let profile = range_profile(ms, i, j);
@@ -144,68 +183,54 @@ let cat_decos =
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
-    // TODO(andrew): hack
-    let origin =
+    // uncomment below for caret to be over by one for internal delims, infix ops
+    /*let origin =
       switch (pd) {
-      | [{padding: Pre, _}]
-      | [{padding: Bi, _}] => origin + 1
+      | [(_, {padding: Pre, _})]
+      | [(_, {padding: Bi, _})] => origin + 1
       | _ => origin
-      };
-    let caret_curve: Direction.t =
-      switch (pd) {
-      | [{string, _}]
-          when
-            List.mem(
-              string,
-              ["+", "-", "*", "/", ",", "=", "in", "=>", "?", ":", ")", "]"],
-            ) =>
-        Right
-      | [{string, padding}]
-          when padding == Bi && (string == " " || string == Unicode.nbsp) =>
-        //grout case
-        //TODO(andrew): improve logic
-        Right
-      | _ when j == List.length(ms) => Right // at end of program (hacky)
-      | _ => Left
-      };
-    print_endline(string_of_int(origin));
+      };*/
+    let caret_shape = caret_shape(pd, i, j, ms, ~direction);
     [
       //TODO(andrew): restore
       //SelectedBoxDec.view(~font_metrics, profile),
-      CaretDec.simple_view(~font_metrics, origin, caret_curve),
+      CaretDec.simple_view(~font_metrics, origin, caret_shape),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
     let profile = sel_piece_profile(Filtered, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
   | Piece(Grout, mold, Indicated(_s)) =>
-    // TODO(andrew): hack
-    let measurement: Layout.measurement =
+    /*let measurement: Layout.measurement =
       switch (measurement.length) {
       | 1 => measurement
       | _ => {length: 1, origin: measurement.origin + 1}
-      };
+      };*/
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
+  //uncomment below to unfatten infix grout deco
+  // TODO(andrew): hack
   | Piece(_, mold, Indicated(_s))
       when
         switch (pd) {
-        | [{string, _}] => List.mem(string, Token.ops)
+        | [(_, {string, _})] => List.mem(string, Token.ops)
         | _ => false
         } =>
-    // TODO(andrew): hack
-    let measurement: Layout.measurement =
+    /*let measurement: Layout.measurement =
       switch (measurement.length) {
       | 1 => measurement
       | _ => {length: 1, origin: measurement.origin + 1}
-      };
+      };*/
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
+  //uncomment below to unfatten infix op deco
+  // TODO(andrew): hack
   | Piece(_p, mold, Indicated(_s)) =>
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
   | _ => []
   };
+};
 
 let text_decos =
     (~font_metrics, ann: Layout.ann_atom, measurement: Layout.measurement) =>
