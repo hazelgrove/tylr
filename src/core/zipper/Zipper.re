@@ -146,7 +146,7 @@ let pick_up = (z: t): t => {
     |> Segment.split_by_grout
     |> Aba.get_a
     |> List.filter((!=)(Segment.empty))
-    |> List.map(Selection.mk(z.selection.focus));
+    |> List.map(Selection.mk(selected.focus));
   let backpack =
     Backpack.push_s(
       (z.selection.focus == Left ? Fun.id : List.rev)(selections),
