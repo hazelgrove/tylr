@@ -197,9 +197,9 @@ let of_grout: (Sort.t, Grout.t) => t =
 let of_shard: Base.Shard.t => t =
   ({tile_id: _, label: (n, label), nibs}) => {
     assert(n >= 0 && n < List.length(label));
-    let label = List.nth(label, n);
+    let lbl = List.nth(label, n);
     //TODO(andrew): rendering shards differently for debugging
-    cat_piece(Shard, Mold.of_nibs(nibs), [shard(label)]);
+    cat_piece(Shard, Mold.of_shard(nibs, n, label), [shard(lbl)]);
   };
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
