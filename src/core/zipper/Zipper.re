@@ -242,27 +242,56 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
     | t => ([t], direction_preference)
     };
 
+let try_to_barf = (t: Token.t, f, z: t): option(t) => {
+  switch (Backpack.is_first_matching(t, z.backpack)) {
+  | false => None
+  | true => z |> f |> put_down
+  };
+};
+
 let insert =
-    (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
+    (char: string, {relatives: {siblings, _}, backpack, _} as z: t)
+    : option(t) => {
+  //ISSUE(andrew): cant really type in in let without space
+  //ISSUE(andrew): can't type = to enter 2nd fun delimiter
   switch (char) {
   | _ when Token.is_whitespace(char) => None //TODO(andrew): implement space
   | _ when Token.is_symbol(char) =>
-    let (new_label, direction) = multilabels(char, Left);
-    Some(construct(direction, new_label, z));
+    if (Backpack.is_first_matching(char, backpack)) {
+      put_down(z);
+    } else {
+      let (new_label, direction) = multilabels(char, Left);
+      Some(construct(direction, new_label, z));
+    }
   | _ when Token.is_alphanum(char) =>
-    let z =
-      switch (check_sibs(siblings)) {
-      | CanAddToLeft(left_token) =>
-        let (new_label, direction) = multilabels(left_token ++ char, Left);
-        z |> remove_left_sib |> construct(direction, new_label);
-      | CanAddToRight(right_token) =>
-        let (new_label, direction) = multilabels(char ++ right_token, Right);
-        z |> remove_right_sib |> construct(direction, new_label);
-      | CanAddToNeither =>
-        let (new_label, direction) = multilabels(char, Left);
-        construct(direction, new_label, z);
+    switch (check_sibs(siblings)) {
+    | CanAddToLeft(left_token) =>
+      let new_token = left_token ++ char;
+      if (Backpack.is_first_matching(new_token, backpack)) {
+        z |> remove_left_sib |> put_down;
+      } else {
+        let (new_label, direction) = multilabels(new_token, Left);
+        z |> remove_left_sib |> construct(direction, new_label) |> Option.some;
       };
-    Some(z);
+    | CanAddToRight(right_token) =>
+      let new_token = char ++ right_token;
+      if (Backpack.is_first_matching(new_token, backpack)) {
+        z |> remove_right_sib |> put_down;
+      } else {
+        let (new_label, direction) = multilabels(new_token, Right);
+        z
+        |> remove_right_sib
+        |> construct(direction, new_label)
+        |> Option.some;
+      };
+    | CanAddToNeither =>
+      if (Backpack.is_first_matching(char, backpack)) {
+        put_down(z);
+      } else {
+        let (new_label, direction) = multilabels(char, Left);
+        Some(construct(direction, new_label, z));
+      }
+    }
   | _ => None
   };
 };
