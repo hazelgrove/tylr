@@ -242,56 +242,32 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
     | t => ([t], direction_preference)
     };
 
-let try_to_barf = (t: Token.t, f, z: t): option(t) => {
-  switch (Backpack.is_first_matching(t, z.backpack)) {
-  | false => None
-  | true => z |> f |> put_down
+let barf_or_construct =
+    (new_token: string, direction_preference: Direction.t, z: t) =>
+  if (Backpack.is_first_matching(new_token, z.backpack)) {
+    put_down(z);
+  } else {
+    let (new_label, direction) =
+      multilabels(new_token, direction_preference);
+    Some(construct(direction, new_label, z));
   };
-};
 
 let insert =
-    (char: string, {relatives: {siblings, _}, backpack, _} as z: t)
-    : option(t) => {
-  //ISSUE(andrew): do we allow isolated "in", "=", "=>", ":"?
-  //ISSUE(andrew): cant really type in in let without space
-  //ISSUE(andrew): can't type = to enter 2nd fun delimiter
+    (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
+  //ISSUE(andrew): do we allow isolated "in", "=", "=>", ":"? can't type = to enter "=>"" fun delimiter?
+  //ISSUE(andrew): barf too eager? eg "foo" in bp drops if add "o" to existing "fo"
+  //NOTE(andrew): cant type "in" in let without space
+  //IDEA(andrew): since eg 4in invalid could autosplit
   switch (char) {
-  | _ when Token.is_whitespace(char) => None //TODO(andrew): implement space
-  | _ when Token.is_symbol(char) =>
-    if (Backpack.is_first_matching(char, backpack)) {
-      put_down(z);
-    } else {
-      let (new_label, direction) = multilabels(char, Left);
-      Some(construct(direction, new_label, z));
-    }
+  | _ when Token.is_whitespace(char) => None //TODO(andrew)
+  | _ when Token.is_symbol(char) => barf_or_construct(char, Left, z)
   | _ when Token.is_alphanum(char) =>
     switch (check_sibs(siblings)) {
+    | CanAddToNeither => barf_or_construct(char, Left, z)
     | CanAddToLeft(left_token) =>
-      let new_token = left_token ++ char;
-      if (Backpack.is_first_matching(new_token, backpack)) {
-        z |> remove_left_sib |> put_down;
-      } else {
-        let (new_label, direction) = multilabels(new_token, Left);
-        z |> remove_left_sib |> construct(direction, new_label) |> Option.some;
-      };
+      barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
     | CanAddToRight(right_token) =>
-      let new_token = char ++ right_token;
-      if (Backpack.is_first_matching(new_token, backpack)) {
-        z |> remove_right_sib |> put_down;
-      } else {
-        let (new_label, direction) = multilabels(new_token, Right);
-        z
-        |> remove_right_sib
-        |> construct(direction, new_label)
-        |> Option.some;
-      };
-    | CanAddToNeither =>
-      if (Backpack.is_first_matching(char, backpack)) {
-        put_down(z);
-      } else {
-        let (new_label, direction) = multilabels(char, Left);
-        Some(construct(direction, new_label, z));
-      }
+      barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
     }
   | _ => None
   };
