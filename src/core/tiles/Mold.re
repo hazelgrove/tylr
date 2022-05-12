@@ -27,17 +27,32 @@ let mk_pre = (p, sorts) => {sorts, shape: Pre(p)};
 let mk_post = (p, sorts) => {sorts, shape: Post(p)};
 let mk_bin = (p, sorts) => {sorts, shape: Bin(p)};
 
-let nibs: (~index: int=?, t) => Nibs.t =
-  (~index as _=?, {shape, sorts: {out: sort, _}}) => {
-    let convex: Nib.t = {shape: Convex, sort};
-    let concave: Precedence.t => Nib.t = p => {shape: Concave(p), sort};
-    switch (shape) {
-    | Op => (convex, convex)
-    | Pre(p) => (convex, concave(p))
-    | Post(p) => (concave(p), convex)
-    | Bin(p) => (concave(p), concave(p))
-    };
+let outer_nibs = ({shape, sorts}: t): Nibs.t => {
+  let sort = sorts.out;
+  let convex: Nib.t = {shape: Convex, sort};
+  let concave: Precedence.t => Nib.t = p => {shape: Concave(p), sort};
+  switch (shape) {
+  | Op => (convex, convex)
+  | Pre(p) => (convex, concave(p))
+  | Post(p) => (concave(p), convex)
+  | Bin(p) => (concave(p), concave(p))
   };
+};
+
+let nibs = (~index=?, mold: t): Nibs.t => {
+  let (l, r) = outer_nibs(mold);
+  switch (index) {
+  | None => (l, r)
+  | Some(i) =>
+    let in_ = mold.sorts.in_;
+    let l =
+      i == 0 ? l : Nib.{shape: Shape.concave(), sort: List.nth(in_, i - 1)};
+    let r =
+      i == List.length(in_)
+        ? r : Nib.{shape: Shape.concave(), sort: List.nth(in_, i)};
+    (l, r);
+  };
+};
 
 module Map = {
   type mold = t;
