@@ -39,3 +39,19 @@ let remove_matching = (ss: list(Shard.t), bp: t) =>
     bp,
     ss,
   );
+
+let is_first_matching = (t: Token.t, bp: t): bool =>
+  /* Does the first selection in the backpack consist
+     of a single token which matches the one provided? */
+  switch (bp) {
+  | [] => false
+  | [{content: [p], _}, ..._] =>
+    switch (p) {
+    | Tile({label: [s], _}) => s == t
+    | Shard({label: (n, label), _}) =>
+      assert(n < List.length(label));
+      List.nth(label, n) == t;
+    | _ => false
+    }
+  | _ => false
+  };

@@ -26,6 +26,7 @@ module Action = {
     [@deriving (show, sexp)]
     type t =
       | Cant_move
+      | Cant_insert
       | Nothing_to_put_down;
   };
 
@@ -34,6 +35,21 @@ module Action = {
     type t('success) = Result.t('success, Failure.t);
   };
 };
+
+let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
+  ...z,
+  relatives: f(z.relatives),
+};
+let update_siblings: (Siblings.t => Siblings.t, t) => t =
+  f =>
+    update_relatives(rs =>
+      {...rs, siblings: f(rs.siblings)}
+    );
+
+let remove_right_sib: t => t =
+  update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
+let remove_left_sib: t => t =
+  update_siblings(((l, r)) => (l == [] ? [] : List.tl(l), r));
 
 let unselect = (z: t): t => {
   let relatives =
@@ -159,18 +175,101 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
+/*
+  ROUGH NOTES ON INSERTION
+  char can be alphanum or symbol or whitespace
+  dont do whitespace for now
+  want to either make new piece or add to left or right adjancent token
+  we make assumption for now that multi-token tile tokens are inviolate,
+  so only consider focal segment
+  if there's nothing to left/right, can't add.
+  if there is only one adjacency, we can only add to that; no decision to be made
+  if thing to left/right is shard, can't add.
+  if thing is grout, cant add.
+  so only care if tile
+  if multitoken tile cant add
+  so only care if single token tile
+  that that if we are between two pieces
+  the only situations we care about here are up to symmetry:
+  1. >Bin< | <Op>
+  2. <Pre< | <Op>
+  3. >Post> | >Bin<
+  4. <Pre< | <Pre<
+  5. >Post> | >Post>
+  (1-2) are not ambiguous because of alphanum/symbol disjointness
+  (3-5) require length/disjointness critera
+  we are good for now though as currently these are all single-char,
+  so for nor (3-5) will always be inserts
+  so for now we can just do:
+  if char symbol, new piece
+  if char alphanum, and op to left, add to op string, and goto check
+  if char alphanum, and op to right, add to op string, and goto check
+  check: if resulting string is_delim_kw, remove existing token
+  and call construct on string
+  otherwise, just replace string of current token with new string
+ */
+
+let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
+  ((l, r)) => (
+    l == [] ? None : Some(List.hd(l)),
+    r == [] ? None : Some(List.hd(r)),
+  );
+
+type side_decision =
+  | CanAddToLeft(string)
+  | CanAddToRight(string)
+  | CanAddToNeither;
+
+let check_sibs: Siblings.t => side_decision =
+  siblings =>
+    switch (neighbors(siblings)) {
+    | (Some(Tile({label: [t], mold: {shape: Op, _}, _})), _) =>
+      CanAddToLeft(t)
+    | (_, Some(Tile({label: [t], mold: {shape: Op, _}, _}))) =>
+      CanAddToRight(t)
+    | _ => CanAddToNeither
+    };
+
+let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
+  (s, direction_preference) =>
+    switch (s) {
+    | "(" => (["(", ")"], Left)
+    | ")" => (["(", ")"], Right)
+    | "[" => (["[", "]"], Left)
+    | "]" => (["[", "]"], Right)
+    | "?" => (["?", ":"], Left)
+    | "let" => (["let", "=", "in"], Left)
+    | "fun" => (["fun", "=>"], Left)
+    | t => ([t], direction_preference)
+    };
+
+let barf_or_construct =
+    (new_token: string, direction_preference: Direction.t, z: t) =>
+  if (Backpack.is_first_matching(new_token, z.backpack)) {
+    put_down(z);
+  } else {
+    let (new_label, direction) =
+      multilabels(new_token, direction_preference);
+    Some(construct(direction, new_label, z));
+  };
+
 let insert =
-    (
-      char: string,
-      {relatives: {siblings: (_l_sibs, _r_sibs), _}, _} as z: t,
-    )
-    : option(t) => {
+    (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
+  //ISSUE(andrew): do we allow isolated "in", "=", "=>", ":"? can't type = to enter "=>"" fun delimiter?
+  //ISSUE(andrew): barf too eager? eg "foo" in bp drops if add "o" to existing "fo"
+  //NOTE(andrew): cant type "in" in let without space
+  //IDEA(andrew): since eg 4in invalid could autosplit
   switch (char) {
-  | "(" => Some(construct(Left, ["(", ")"], z))
-  | ")" => Some(construct(Right, ["(", ")"], z))
-  | "[" => Some(construct(Left, ["[", "]"], z))
-  | "]" => Some(construct(Right, ["[", "]"], z))
-  | _ when Token.is_valid_char(char) => Some(construct(Left, [char], z))
+  | _ when Token.is_whitespace(char) => None //TODO(andrew)
+  | _ when Token.is_symbol(char) => barf_or_construct(char, Left, z)
+  | _ when Token.is_alphanum(char) =>
+    switch (check_sibs(siblings)) {
+    | CanAddToNeither => barf_or_construct(char, Left, z)
+    | CanAddToLeft(left_token) =>
+      barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
+    | CanAddToRight(right_token) =>
+      barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
+    }
   | _ => None
   };
 };
@@ -182,8 +281,7 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct => Ok(destruct(z))
   | Insert(char) =>
-    //TODO(andrew): error type
-    Result.of_option(~error=Action.Failure.Cant_move, insert(char, z))
+    Result.of_option(~error=Action.Failure.Cant_insert, insert(char, z))
   | Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>
