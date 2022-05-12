@@ -41,10 +41,7 @@ let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
   relatives: f(z.relatives),
 };
 let update_siblings: (Siblings.t => Siblings.t, t) => t =
-  f =>
-    update_relatives(rs =>
-      {...rs, siblings: f(rs.siblings)}
-    );
+  f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
 
 let remove_right_sib: t => t =
   update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));

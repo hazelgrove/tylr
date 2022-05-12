@@ -190,7 +190,7 @@ let cat_decos =
   | Piece(_, mold, Indicated(_s))
       when
         switch (pd) {
-        | [{string, _}] => List.mem(string, Token.ops_in)
+        | [{string, _}] => List.mem(string, Token.ops)
         | _ => false
         } =>
     // TODO(andrew): hack
