@@ -41,6 +41,32 @@ let snoc = (tiles, tile) => tiles @ [tile];
 
 let is_balanced = List.for_all(Piece.is_balanced);
 
+let rec convex = seg => {
+  open OptUtil.Syntax;
+  let l =
+    fold_right(
+      (p: Piece.t, shape) => {
+        let* s = shape;
+        switch (p) {
+        | Grout((l, r)) => Nib.Shape.fits(r, s) ? Some(l) : None
+        | Shard(sh) =>
+          let (l, r) = sh.nibs;
+          Nib.Shape.fits(r.shape, s) ? Some(l.shape) : None;
+        | Tile(t) =>
+          let (l, r) = Mold.nibs(t.mold);
+          let convex_kids = List.for_all(convex, t.children);
+          convex_kids && Nib.Shape.fits(r.shape, s) ? Some(l.shape) : None;
+        };
+      },
+      seg,
+      Some(Nib.Shape.concave()),
+    );
+  switch (l) {
+  | None => false
+  | Some(l) => Nib.Shape.fits(Nib.Shape.concave(), l)
+  };
+};
+
 let split_by_grout = seg =>
   List.fold_right(
     (p: Piece.t, (hd, tl)) =>

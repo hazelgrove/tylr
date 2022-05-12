@@ -38,6 +38,9 @@ let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
     }
   };
 
+let disassemble = ({siblings, ancestors}: t): Siblings.t =>
+  Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
+
 let reassemble = (rs: t) => {
   let rev = Aba.rev(Fun.id, Fun.id);
 
