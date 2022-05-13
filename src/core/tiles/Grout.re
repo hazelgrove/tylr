@@ -3,6 +3,8 @@ open Nib.Shape;
 [@deriving show]
 type t = (Nib.Shape.t, Nib.Shape.t);
 
+let shapes = Fun.id;
+
 // assumes same shape on both sides
 let mk_fits_shape = (s: Nib.Shape.t) =>
   switch (s) {

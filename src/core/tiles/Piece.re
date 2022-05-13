@@ -5,6 +5,13 @@ let grout = g => Grout(g);
 let shard = s => Shard(s);
 let tile = t => Tile(t);
 
+let get = (f_g, f_s, f_t, p: t) =>
+  switch (p) {
+  | Grout(g) => f_g(g)
+  | Shard(s) => f_s(s)
+  | Tile(t) => f_t(t)
+  };
+
 let is_balanced =
   fun
   | Shard(_) => false
@@ -31,3 +38,5 @@ let remold = (p: t) =>
   | Shard(s) => List.map(shard, Shard.remold(s))
   | Tile(t) => List.map(tile, Tile.remold(t))
   };
+
+let shapes = get(Grout.shapes, Shard.shapes, Tile.shapes);
