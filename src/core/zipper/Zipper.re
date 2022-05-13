@@ -51,10 +51,7 @@ let remove_left_sib: t => t =
 let unselect = (z: t): t => {
   let relatives =
     z.relatives
-    |> Relatives.prepend(
-         Direction.toggle(z.selection.focus),
-         z.selection.content,
-       )
+    |> Relatives.prepend(z.selection.focus, z.selection.content)
     |> Relatives.reassemble;
   let selection = Selection.clear(z.selection);
   {...z, selection, relatives};
@@ -146,7 +143,7 @@ let pick_up = (z: t): t => {
     |> Segment.split_by_grout
     |> Aba.get_a
     |> List.filter((!=)(Segment.empty))
-    |> List.map(Selection.mk(z.selection.focus));
+    |> List.map(Selection.mk(selected.focus));
   let backpack =
     Backpack.push_s(
       (z.selection.focus == Left ? Fun.id : List.rev)(selections),
@@ -172,45 +169,11 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let selections =
     Shard.mk_s(id, label, mold)
     |> List.map(Segment.of_shard)
-    |> List.map(Selection.mk(Direction.toggle(from)))
+    |> List.map(Selection.mk(from))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));
 };
-
-/*
-  ROUGH NOTES ON INSERTION
-  char can be alphanum or symbol or whitespace
-  dont do whitespace for now
-  want to either make new piece or add to left or right adjancent token
-  we make assumption for now that multi-token tile tokens are inviolate,
-  so only consider focal segment
-  if there's nothing to left/right, can't add.
-  if there is only one adjacency, we can only add to that; no decision to be made
-  if thing to left/right is shard, can't add.
-  if thing is grout, cant add.
-  so only care if tile
-  if multitoken tile cant add
-  so only care if single token tile
-  that that if we are between two pieces
-  the only situations we care about here are up to symmetry:
-  1. >Bin< | <Op>
-  2. <Pre< | <Op>
-  3. >Post> | >Bin<
-  4. <Pre< | <Pre<
-  5. >Post> | >Post>
-  (1-2) are not ambiguous because of alphanum/symbol disjointness
-  (3-5) require length/disjointness critera
-  we are good for now though as currently these are all single-char,
-  so for nor (3-5) will always be inserts
-  so for now we can just do:
-  if char symbol, new piece
-  if char alphanum, and op to left, add to op string, and goto check
-  if char alphanum, and op to right, add to op string, and goto check
-  check: if resulting string is_delim_kw, remove existing token
-  and call construct on string
-  otherwise, just replace string of current token with new string
- */
 
 let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
   ((l, r)) => (
@@ -223,16 +186,6 @@ type side_decision =
   | CanAddToRight(string)
   | CanAddToNeither;
 
-let check_sibs: Siblings.t => side_decision =
-  siblings =>
-    switch (neighbors(siblings)) {
-    | (Some(Tile({label: [t], mold: {shape: Op, _}, _})), _) =>
-      CanAddToLeft(t)
-    | (_, Some(Tile({label: [t], mold: {shape: Op, _}, _}))) =>
-      CanAddToRight(t)
-    | _ => CanAddToNeither
-    };
-
 let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     switch (s) {
@@ -241,9 +194,45 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
     | "[" => (["[", "]"], Left)
     | "]" => (["[", "]"], Right)
     | "?" => (["?", ":"], Left)
-    | "let" => (["let", "=", "in"], Left)
     | "fun" => (["fun", "=>"], Left)
+    | "in" => (["let", "=", "in"], Right)
+    | "let" => (["let", "=", "in"], Left)
+    | "=>" => (["fun", "=>"], Right)
     | t => ([t], direction_preference)
+    };
+
+let check_sibs_alphanum: (string, Siblings.t) => side_decision =
+  /* NOTE: logic here could probably be based on character classes
+       as opposed to mold shape. Actually, the shape part might
+       not even be necessary now that we're checking validity
+       TODO(andrew): think about this
+     */
+  (char, siblings) =>
+    switch (neighbors(siblings)) {
+    | (Some(Tile({label: [t], _ /*mold,*/})), _)
+        when /*mold.shape == Op &&*/ Token.is_valid(t ++ char) =>
+      CanAddToLeft(t)
+    | (_, Some(Tile({label: [t], _ /*mold,*/})))
+        when /*mold.shape == Op &&*/ Token.is_valid(char ++ t) =>
+      CanAddToRight(t)
+    | _ => CanAddToNeither
+    };
+
+let check_sibs_symbol: (string, Siblings.t) => side_decision =
+  (char, siblings) =>
+    /* NOTE: this is slightly more iffy than the alphanum case,
+         as it if post/pre draw from the same char set as infix,
+         both left and right could be valid add targets. right now
+         we favor right
+       */
+    switch (neighbors(siblings)) {
+    | (Some(Tile({label: [t], _ /*mold,*/})), _)
+        when /*mold.shape != Op &&*/ Token.is_valid(t ++ char) =>
+      CanAddToLeft(t)
+    | (_, Some(Tile({label: [t], _ /*mold,*/})))
+        when /*mold.shape != Op &&*/ Token.is_valid(char ++ t) =>
+      CanAddToRight(t)
+    | _ => CanAddToNeither
     };
 
 let barf_or_construct =
@@ -258,15 +247,18 @@ let barf_or_construct =
 
 let insert =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
-  //ISSUE(andrew): do we allow isolated "in", "=", "=>", ":"? can't type = to enter "=>"" fun delimiter?
-  //ISSUE(andrew): barf too eager? eg "foo" in bp drops if add "o" to existing "fo"
-  //NOTE(andrew): cant type "in" in let without space
-  //IDEA(andrew): since eg 4in invalid could autosplit
   switch (char) {
   | _ when Token.is_whitespace(char) => None //TODO(andrew)
-  | _ when Token.is_symbol(char) => barf_or_construct(char, Left, z)
+  | _ when Token.is_symbol(char) =>
+    switch (check_sibs_symbol(char, siblings)) {
+    | CanAddToNeither => barf_or_construct(char, Left, z)
+    | CanAddToLeft(left_token) =>
+      barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
+    | CanAddToRight(right_token) =>
+      barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
+    }
   | _ when Token.is_alphanum(char) =>
-    switch (check_sibs(siblings)) {
+    switch (check_sibs_alphanum(char, siblings)) {
     | CanAddToNeither => barf_or_construct(char, Left, z)
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))

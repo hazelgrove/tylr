@@ -53,3 +53,5 @@ let consistent_molds = (shards: list(t)): list(Mold.t) =>
          |> List.for_all(s => s.nibs == Mold.nibs(~index=index(s), mold))
        )
   };
+
+let shapes = ({nibs: (l, r), _}: t) => (l.shape, r.shape);
