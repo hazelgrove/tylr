@@ -178,41 +178,6 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
-/*
-  ROUGH NOTES ON INSERTION
-  (will clean up and move out eventually -andrew)
-  char can be alphanum or symbol or whitespace
-  dont do whitespace for now
-  want to either make new piece or add to left or right adjancent token
-  we make assumption for now that multi-token tile tokens are inviolate,
-  so only consider focal segment
-  if there's nothing to left/right, can't add.
-  if there is only one adjacency, we can only add to that; no decision to be made
-  if thing to left/right is shard, can't add.
-  if thing is grout, cant add.
-  so only care if tile
-  if multitoken tile cant add
-  so only care if single token tile
-  that that if we are between two pieces
-  the only situations we care about here are up to symmetry:
-  1. >Bin< | <Op>
-  2. <Pre< | <Op>
-  3. >Post> | >Bin<
-  4. <Pre< | <Pre<
-  5. >Post> | >Post>
-  (1-2) are not ambiguous because of alphanum/symbol disjointness
-  (3-5) require length/disjointness critera
-  we are good for now though as currently these are all single-char,
-  so for nor (3-5) will always be inserts
-  so for now we can just do:
-  if char symbol, new piece
-  if char alphanum, and op to left, add to op string, and goto check
-  if char alphanum, and op to right, add to op string, and goto check
-  check: if resulting string is_delim_kw, remove existing token
-  and call construct on string
-  otherwise, just replace string of current token with new string
- */
-
 let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
   ((l, r)) => (
     l == [] ? None : Some(List.hd(l)),
@@ -285,9 +250,6 @@ let barf_or_construct =
 
 let insert =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
-  //ISSUE(andrew): barf too eager? eg "foo" in bp drops if add "o" to existing "fo"
-  //NOTE(andrew): cant type "in" in let without having space
-  //IDEA(andrew): since eg 4in invalid could autosplit
   switch (char) {
   | _ when Token.is_whitespace(char) => None //TODO(andrew)
   | _ when Token.is_symbol(char) =>
