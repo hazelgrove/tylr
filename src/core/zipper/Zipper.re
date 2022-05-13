@@ -51,10 +51,7 @@ let remove_left_sib: t => t =
 let unselect = (z: t): t => {
   let relatives =
     z.relatives
-    |> Relatives.prepend(
-         Direction.toggle(z.selection.focus),
-         z.selection.content,
-       )
+    |> Relatives.prepend(z.selection.focus, z.selection.content)
     |> Relatives.reassemble;
   let selection = Selection.clear(z.selection);
   {...z, selection, relatives};
@@ -146,7 +143,7 @@ let pick_up = (z: t): t => {
     |> Segment.split_by_grout
     |> Aba.get_a
     |> List.filter((!=)(Segment.empty))
-    |> List.map(Selection.mk(z.selection.focus));
+    |> List.map(Selection.mk(selected.focus));
   let backpack =
     Backpack.push_s(
       (z.selection.focus == Left ? Fun.id : List.rev)(selections),
@@ -172,7 +169,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let selections =
     Shard.mk_s(id, label, mold)
     |> List.map(Segment.of_shard)
-    |> List.map(Selection.mk(Direction.toggle(from)))
+    |> List.map(Selection.mk(from))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));

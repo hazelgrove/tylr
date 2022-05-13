@@ -22,6 +22,11 @@ module Label = {
     };
 };
 
+let shapes = (t: t) => {
+  let (l, r) = Mold.nibs(t.mold);
+  (l.shape, r.shape);
+};
+
 let to_piece = t => Base.Piece.Tile(t);
 
 let sorted_children = ({mold, children, _}: t) =>
