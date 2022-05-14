@@ -110,9 +110,13 @@ let move = (d: Direction.t, z: t): option(t) =>
       |> Relatives.push(Direction.toggle(d), p)
       |> Relatives.reassemble;
     {...z, relatives};
+  } else if (d != z.selection.focus
+             || Selection.is_balanced(z.selection)
+             || Backpack.is_balanced(z.backpack)) {
+    let selection = {...z.selection, focus: Direction.toggle(d)};
+    Some(unselect({...z, selection}));
   } else {
-    // TODO restore logic attempting to move d
-    Some(unselect(z));
+    None;
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
