@@ -373,7 +373,8 @@ svg.rail line.unsorted {
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  background-color: var(--selection-color);
+  /* background-color: var(--selection-color); */
+  background-color: transparent;
   position: absolute;
   height: 100%;
   width: 100%;
