@@ -30,3 +30,9 @@ let fits = (g: t, g': t) =>
   | ((_, Convex), (Concave(_), _))
   | ((_, Concave(_)), (Convex, _)) => true
   };
+
+let is_space: t => bool =
+  fun
+  | (Convex, Concave(_))
+  | (Concave(_), Convex) => true
+  | _ => false;

@@ -23,7 +23,12 @@ module Shape = {
 
   let fitting =
     fun
-    | Convex => Concave(Precedence.min)
+    | Convex => concave()
+    | Concave(_) => Convex;
+
+  let flip =
+    fun
+    | Convex => concave()
     | Concave(_) => Convex;
 };
 

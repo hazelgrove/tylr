@@ -254,13 +254,11 @@ let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
     (l.shape, r.shape);
   };
 
-let is_next_to_space: Siblings.t => bool =
+let is_neighboring_space: Siblings.t => bool =
   siblings =>
     switch (neighbors(siblings)) {
-    | (Some(Grout((Convex, Concave(_)))), _)
-    | (Some(Grout((Concave(_), Convex))), _)
-    | (_, Some(Grout((Convex, Concave(_)))))
-    | (_, Some(Grout((Concave(_), Convex)))) => true
+    | (Some(Grout(p)), _) when Grout.is_space(p) => true
+    | (_, Some(Grout(p))) when Grout.is_space(p) => true
     | _ => false
     };
 
@@ -272,16 +270,10 @@ let insert_space_grout =
   let new_grout =
     switch (l_sibs, r_sibs) {
     | ([], []) => failwith("TODO(andrew): is this impossible?")
-    | ([], [p, ..._]) =>
-      let nib_shape_l = nib_shapes(p) |> fst;
-      let nib_shape_r: Nib.Shape.t =
-        nib_shape_l == Convex ? Concave(Precedence.min) : Convex;
-      Base.Piece.Grout((nib_shape_l, nib_shape_r));
+    | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
     | ([p, ..._], _) =>
-      let nib_shape_r = nib_shapes(p) |> snd;
-      let nib_shape_l: Nib.Shape.t =
-        nib_shape_r == Convex ? Concave(Precedence.min) : Convex;
-      Grout((nib_shape_l, nib_shape_r));
+      let nib_shape_r = p |> nib_shapes |> snd;
+      Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
     };
   update_siblings(((l, r)) => ([new_grout] @ l, r), z);
 };
@@ -289,7 +281,7 @@ let insert_space_grout =
 let insert =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   switch (char) {
-  | _ when Token.is_whitespace(char) && !is_next_to_space(siblings) =>
+  | _ when Token.is_whitespace(char) && !is_neighboring_space(siblings) =>
     Some(insert_space_grout(char, z))
   //None //TODO(andrew)
   | _ when Token.is_symbol(char) =>
