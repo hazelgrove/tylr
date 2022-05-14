@@ -128,6 +128,15 @@ let cat_decos =
   | Piece(_p, mold, Indicated) =>
     let profile = sel_piece_profile(Root, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
+  | Piece(_p, mold, Revealed) =>
+    let profile =
+      sel_piece_profile(
+        Revealed({show_children: false}),
+        mold,
+        measurement,
+        ms,
+      );
+    [SelemDec.view(~font_metrics, profile)];
   | _ => []
   };
 

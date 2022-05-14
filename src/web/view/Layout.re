@@ -60,6 +60,7 @@ type selection_focus =
 [@deriving show]
 type piece_focus =
   | Indicated
+  | Revealed
   | OutsideFocalSegment
   | InsideFocalSegment(selection_focus);
 
@@ -259,11 +260,21 @@ let ann_selection: (t, (list('a), list('b))) => t =
     );
   };
 
+let mk_revealed_affix = (sort, affix: Segment.t): list(t) => {
+  let reveal_piece = of_piece(sort, Revealed);
+  let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
+  let (balanced_ps, rest) = ListUtil.take_while(Piece.is_balanced, affix);
+  let balanced_ls = List.map(reveal_piece, balanced_ps);
+  let rest_ls = List.map(snub_piece, rest);
+  balanced_ls @ rest_ls;
+};
+
 let mk_zipper: Zipper.t => t =
   (
     {
       relatives: {siblings: (l_sibs, r_sibs), ancestors},
       selection: {content, _},
+      backpack,
       _,
     },
   ) => {
@@ -272,10 +283,17 @@ let mk_zipper: Zipper.t => t =
     let indicate_piece = of_piece(sort, Indicated);
     let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
     let selection_ls = content |> List.map(select_piece);
-    let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
+    let balanced = Backpack.is_balanced(backpack);
+    let l_sibs_ls =
+      if (balanced) {
+        List.map(snub_piece, List.rev(l_sibs));
+      } else {
+        List.rev(mk_revealed_affix(sort, l_sibs));
+      };
     let r_sibs_ls =
       switch (content, r_sibs) {
       | (_, []) => []
+      | (_, _) when !balanced => mk_revealed_affix(sort, r_sibs)
       | ([], [p, ...ps]) =>
         List.cons(indicate_piece(p), List.map(snub_piece, ps))
       | _ => List.map(snub_piece, r_sibs)
@@ -285,7 +303,7 @@ let mk_zipper: Zipper.t => t =
     let current = ann_selection(layout, (l_sibs, content));
     switch (r_sibs, ancestors) {
     | ([], []) => current
-    | ([], [x, ...xs]) =>
+    | ([], [x, ...xs]) when balanced =>
       // NOTE: if there are no pieces to the right, indicate parent
       let previous = of_generation(~indicate=content == [], current, x);
       List.fold_left(of_generation(~indicate=false), previous, xs);
