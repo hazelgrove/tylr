@@ -198,7 +198,7 @@ let cat_decos =
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
-    let profile = sel_piece_profile(Filtered, mold, measurement, ms);
+    let profile = sel_piece_profile(Selected, mold, measurement, ms);
     [SelemDec.view(~font_metrics, profile)];
   | Piece(Grout, mold, Indicated(_s)) =>
     /*let measurement: Layout.measurement =

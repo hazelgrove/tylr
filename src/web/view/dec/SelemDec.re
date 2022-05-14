@@ -248,9 +248,9 @@ let contour_path_attrs = (profile: Profile.t) => {
     let c_cls = Color.to_string(profile.color);
     let highlighted =
       SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
-    let filtered = SelemStyle.filtered(profile.style) ? ["filtered"] : [];
-    let raised = []; // ["raised"]; // profile.style.raised ? ["raised"] : [];
-    List.concat([["tile-path", c_cls], highlighted, raised, filtered]);
+    let selected = SelemStyle.selected(profile.style) ? ["selected"] : [];
+    let raised = ["raised"]; // profile.style.raised ? ["raised"] : [];
+    List.concat([["tile-path", c_cls], highlighted, raised, selected]);
   };
   Attr.[classes(clss), create("vector-effect", "non-scaling-stroke")];
 };

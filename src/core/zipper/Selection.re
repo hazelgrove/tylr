@@ -17,7 +17,7 @@ let toggle_focus = selection => {
   focus: Util.Direction.toggle(selection.focus),
 };
 
-let is_balanced = _ => failwith("todo Selection.is_balanced");
+let is_balanced = sel => Segment.is_balanced(sel.content);
 
 let is_empty = (selection: t) => selection.content == Segment.empty;
 
@@ -38,8 +38,12 @@ let pop = (sel: t): option((Piece.t, t)) =>
   switch (sel.focus, sel.content, ListUtil.split_last_opt(sel.content)) {
   | (_, [], _)
   | (_, _, None) => None
-  | (Left, [p, ...content], _)
-  | (Right, _, Some((content, p))) => Some((p, {...sel, content}))
+  | (Left, [p, ...content], _) =>
+    let (p, suffix) = Piece.pop(Left, p);
+    Some((p, {...sel, content: suffix @ content}));
+  | (Right, _, Some((content, p))) =>
+    let (p, prefix) = Piece.pop(Right, p);
+    Some((p, {...sel, content: content @ List.rev(prefix)}));
   };
 
 let split_piece = _: option((Piece.t, t)) => failwith("todo split_piece");

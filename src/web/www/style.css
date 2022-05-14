@@ -380,7 +380,8 @@ svg.rail line.unsorted {
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  background-color: var(--selection-color);
+  /* background-color: var(--selection-color); */
+  background-color: transparent;
   position: absolute;
   height: 100%;
   width: 100%;
@@ -511,10 +512,6 @@ svg.rail line.unsorted {
 .tile-path, .tessera-path {
   stroke-width: 0.4;
   fill-rule: evenodd;
-}
-
-.tile-path.filtered {
-  fill: var(--selection-color);
 }
 
 .tessera-path {
