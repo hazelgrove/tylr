@@ -506,10 +506,6 @@ svg.rail line.unsorted {
   fill-rule: evenodd;
 }
 
-.tile-path.filtered {
-  fill: var(--selection-color);
-}
-
 .tessera-path {
   filter: url(#drop-shadow-tessera);
   fill: var(--unselected-tessera-color);
