@@ -245,10 +245,53 @@ let barf_or_construct =
     Some(construct(direction, new_label, z));
   };
 
+let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
+  switch (p) {
+  | Grout(nibs) => nibs
+  | Shard({nibs: (l, r), _}) => (l.shape, r.shape)
+  | Tile({mold, _}) =>
+    let (l, r) = Mold.outer_nibs(mold);
+    (l.shape, r.shape);
+  };
+
+let is_next_to_space: Siblings.t => bool =
+  siblings =>
+    switch (neighbors(siblings)) {
+    | (Some(Grout((Convex, Concave(_)))), _)
+    | (Some(Grout((Concave(_), Convex))), _)
+    | (_, Some(Grout((Convex, Concave(_)))))
+    | (_, Some(Grout((Concave(_), Convex)))) => true
+    | _ => false
+    };
+
+let insert_space_grout =
+    (
+      _char: string,
+      {relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+    ) => {
+  let new_grout =
+    switch (l_sibs, r_sibs) {
+    | ([], []) => failwith("TODO(andrew): is this impossible?")
+    | ([], [p, ..._]) =>
+      let nib_shape_l = nib_shapes(p) |> fst;
+      let nib_shape_r: Nib.Shape.t =
+        nib_shape_l == Convex ? Concave(Precedence.min) : Convex;
+      Base.Piece.Grout((nib_shape_l, nib_shape_r));
+    | ([p, ..._], _) =>
+      let nib_shape_r = nib_shapes(p) |> snd;
+      let nib_shape_l: Nib.Shape.t =
+        nib_shape_r == Convex ? Concave(Precedence.min) : Convex;
+      Grout((nib_shape_l, nib_shape_r));
+    };
+  update_siblings(((l, r)) => ([new_grout] @ l, r), z);
+};
+
 let insert =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   switch (char) {
-  | _ when Token.is_whitespace(char) => None //TODO(andrew)
+  | _ when Token.is_whitespace(char) && !is_next_to_space(siblings) =>
+    Some(insert_space_grout(char, z))
+  //None //TODO(andrew)
   | _ when Token.is_symbol(char) =>
     switch (check_sibs_symbol(char, siblings)) {
     | CanAddToNeither => barf_or_construct(char, Left, z)
