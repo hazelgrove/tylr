@@ -17,7 +17,7 @@ let toggle_focus = selection => {
   focus: Util.Direction.toggle(selection.focus),
 };
 
-let is_balanced = _ => failwith("todo Selection.is_balanced");
+let is_balanced = sel => Segment.is_balanced(sel.content);
 
 let is_empty = (selection: t) => selection.content == Segment.empty;
 
