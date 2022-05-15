@@ -103,8 +103,8 @@ let shrink_selection = (z: t): option(t) => {
 let move = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
-    let balanced = !Backpack.is_balanced(z.backpack);
-    let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
+    // let balanced = !Backpack.is_balanced(z.backpack);
+    let+ (p, relatives) = Relatives.pop(~balanced=false, d, z.relatives);
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
