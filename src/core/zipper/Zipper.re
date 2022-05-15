@@ -27,7 +27,7 @@ module Action = {
     type t =
       | Cant_move
       | Cant_insert
-      | Nothing_to_put_down;
+      | Cant_put_down;
   };
 
   module Result = {
@@ -135,7 +135,8 @@ let destruct = (z: t): t => {
     |> Backpack.push_s(
          to_pick_up
          |> List.map(Segment.of_shard)
-         |> List.map(Selection.mk(z.selection.focus)),
+         |> List.map(Selection.mk(z.selection.focus))
+         |> List.map(sel => (Ancestors.ids(z.relatives.ancestors), sel)),
        );
   {...z, backpack};
 };
@@ -147,7 +148,8 @@ let pick_up = (z: t): t => {
     |> Segment.split_by_grout
     |> Aba.get_a
     |> List.filter((!=)(Segment.empty))
-    |> List.map(Selection.mk(selected.focus));
+    |> List.map(Selection.mk(selected.focus))
+    |> List.map(sel => (Ancestors.ids(z.relatives.ancestors), sel));
   let backpack =
     Backpack.push_s(
       (z.selection.focus == Left ? Fun.id : List.rev)(selections),
@@ -159,7 +161,8 @@ let pick_up = (z: t): t => {
 let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
   let z = destruct(z);
-  let+ (popped, backpack) = Backpack.pop(z.backpack);
+  let ids = Ancestors.ids(z.relatives.ancestors);
+  let+ (popped, backpack) = Backpack.pop(ids, z.backpack);
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
@@ -174,6 +177,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
     Shard.mk_s(id, label, mold)
     |> List.map(Segment.of_shard)
     |> List.map(Selection.mk(from))
+    |> List.map(sel => (Ancestors.ids(z.relatives.ancestors), sel))
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));
@@ -319,5 +323,5 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   | Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>
-    Result.of_option(~error=Action.Failure.Nothing_to_put_down, put_down(z))
+    Result.of_option(~error=Action.Failure.Cant_put_down, put_down(z))
   };

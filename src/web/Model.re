@@ -109,7 +109,9 @@ let ancestors: Ancestors.t = [
   (mk_let_ancestor([[pat_foo]], []), ([], [two])),
 ];
 
-let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];
+let backpack: list((list(Id.t), Selection.t)) = [
+  ([], {focus: Left, content: [exp_foo]}),
+];
 
 let init = () => {
   zipper: {

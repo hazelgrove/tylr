@@ -64,7 +64,8 @@ let sel_piece_profile =
   };
 };
 
-let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
+let backpack_sel_view =
+    ((_, {focus: _, content}): (list(Id.t), Selection.t)): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let l = Layout.of_segment(Sort.root, content);
   let text_view = text_views(l);
@@ -78,7 +79,10 @@ let selection_length = (s: Selection.t): int =>
 
 let genie_profile =
     (backpack: Backpack.t, origin: int): RestructuringGenieDec.Profile.t => {
-  length: backpack |> List.map(selection_length) |> List.fold_left(max, 0),
+  length:
+    backpack
+    |> List.map(((_, sel)) => selection_length(sel))
+    |> List.fold_left(max, 0),
   origin,
 };
 
