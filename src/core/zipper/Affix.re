@@ -1,16 +1,35 @@
 open Util;
 
 module Make = (O: Orientation.S) => {
-  module Stack = Stack.Make(O);
+  // module Stack = Stack.Make(O);
+  module Match = Tile.Match.Make(O);
 
   [@deriving show]
   type t = Segment.t;
 
   let empty = Segment.empty;
 
-  let match = affix => List.fold_right(Stack.push, affix, Stack.init);
+  // let match = affix => List.fold_right(Stack.push, affix, Stack.init);
 
-  let reassemble = (affix: t): t => Stack.flatten(match(affix));
+  let shards = Segment.shards;
+  let split_by_matching_shard = Segment.split_by_matching_shard;
+
+  // let reassemble = (affix: t): t => Stack.flatten(match(affix));
+  let rec reassemble = (affix: t): t =>
+    switch (shards(affix)) {
+    | [] => affix
+    | [s, ..._] =>
+      switch (Aba.trim(split_by_matching_shard(s.tile_id, affix))) {
+      | None => affix
+      | Some((affix_inner, match, affix_outer)) =>
+        let affix_m =
+          switch (Match.complete(match)) {
+          | None => Match.join(match)
+          | Some(t) => [Tile.to_piece(t)]
+          };
+        Segment.concat([affix_inner, affix_m, reassemble(affix_outer)]);
+      }
+    };
 
   let rec shape = (affix: t) =>
     switch (affix) {

@@ -67,16 +67,11 @@ let rec convex = seg => {
   };
 };
 
-let split_by_grout = seg =>
-  List.fold_right(
-    (p: Piece.t, (hd, tl)) =>
-      switch (p) {
-      | Grout(g) => ([], [(g, hd), ...tl])
-      | Tile(_)
-      | Shard(_) => ([p, ...hd], tl)
-      },
-    seg,
-    ([], []),
+let split_by_grout: t => Aba.t(t, Grout.t) =
+  Aba.split(
+    fun
+    | Piece.Grout(g) => Either.R(g)
+    | p => L(p),
   );
 
 let remold = (seg: t): list(t) =>
@@ -208,7 +203,31 @@ let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
   };
 };
 
-module Stack = Stack.Make(Orientation.R);
-// TODO use direction parameter
-let reassemble = (seg: t): t =>
-  List.fold_right(Stack.push, seg, Stack.init) |> Stack.flatten;
+// module Stack = Stack.Make(Orientation.R);
+// // TODO use direction parameter
+// let reassemble = (seg: t): t =>
+//   List.fold_right(Stack.push, seg, Stack.init) |> Stack.flatten;
+
+let split_by_matching_shard = (tile_id: Id.t): (t => Aba.t(t, Shard.t)) =>
+  Aba.split(
+    fun
+    | Piece.Shard(s) when s.tile_id == tile_id => Either.R(s)
+    | p => L(p),
+  );
+
+module Match = Tile.Match.Make(Orientation.R);
+let rec reassemble = (seg: t): t =>
+  switch (shards(seg)) {
+  | [] => seg
+  | [s, ..._] =>
+    switch (Aba.trim(split_by_matching_shard(s.tile_id, seg))) {
+    | None => seg
+    | Some((seg_l, match, seg_r)) =>
+      let seg_m =
+        switch (Match.complete(match)) {
+        | None => Match.join(match)
+        | Some(t) => [Tile.to_piece(t)]
+        };
+      List.concat([seg_l, seg_m, reassemble(seg_r)]);
+    }
+  };

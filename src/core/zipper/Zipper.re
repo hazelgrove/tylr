@@ -146,7 +146,7 @@ let pick_up = (z: t): t => {
   let selections =
     selected.content
     |> Segment.split_by_grout
-    |> Aba.get_a
+    |> Aba.get_as
     |> List.filter((!=)(Segment.empty))
     |> List.map(Selection.mk(selected.focus))
     |> List.map(sel => (Ancestors.ids(z.relatives.ancestors), sel));
