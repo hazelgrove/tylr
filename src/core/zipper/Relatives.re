@@ -143,8 +143,27 @@ let rec reassemble = (rs: t): t => {
       |> Siblings.split_by_matching_shard(s.tile_id)
       |> TupleUtil.map2(Aba.trim)
     ) {
-    | (None, _)
-    | (_, None) => {...rs, siblings}
+    | (None, None) => {...rs, siblings}
+    | (None, Some((inner_r, match_r, outer_r))) =>
+      let {siblings: (l, r), ancestors} =
+        reassemble({...rs, siblings: (fst(rs.siblings), outer_r)});
+      {
+        siblings: (
+          l,
+          Segment.concat([inner_r, Ancestor.Match.Suffix.join(match_r), r]),
+        ),
+        ancestors,
+      };
+    | (Some((inner_l, match_l, outer_l)), None) =>
+      let {siblings: (l, r), ancestors} =
+        reassemble({...rs, siblings: (outer_l, snd(rs.siblings))});
+      {
+        siblings: (
+          Segment.concat([inner_l, Ancestor.Match.Suffix.join(match_l), l]),
+          r,
+        ),
+        ancestors,
+      };
     | (Some((inner_l, match_l, outer_l)), Some((inner_r, match_r, outer_r))) =>
       let match = (match_l, match_r);
       let rs_inner =
