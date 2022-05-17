@@ -65,7 +65,7 @@ let sel_piece_profile =
 };
 
 let backpack_sel_view =
-    ((_, {focus: _, content}): (list(Id.t), Selection.t)): t => {
+    ((_, {focus: _, content}): (Backpack.meta, Selection.t)): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let l = Layout.of_segment(Sort.root, content);
   let text_view = text_views(l);

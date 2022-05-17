@@ -30,7 +30,6 @@ let to_piece = s => Base.Piece.Shard(s);
 
 let tile_label = s => snd(s.label);
 
-// TODO generalize direction
 let is_next = (d: Direction.t, l: t, r: t) =>
   Label.is_next(d, l.label, r.label);
 
