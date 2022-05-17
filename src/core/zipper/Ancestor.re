@@ -105,21 +105,25 @@ module Match = {
     Suffix.children(suf),
   );
 
-  let join = ((pre, suf): t) => (Prefix.join(pre), Suffix.join(suf));
-
-  let complete = (m: t): option(ancestor) => {
-    let id = id(m);
-    let label = label(m);
+  let mold = (m: t) => {
     let molds =
       switch (Shard.consistent_molds(shards(m))) {
       | [] =>
         // this should only happen upon construct/destruct,
         // in which case everything will be subsequently remolded
-        Molds.get(label)
+        Molds.get(label(m))
       | [_, ..._] as molds => molds
       };
     assert(molds != []);
-    let mold = List.hd(molds);
+    List.hd(molds);
+  };
+
+  let join = ((pre, suf): t) => (Prefix.join(pre), Suffix.join(suf));
+
+  let complete = (m: t): option(ancestor) => {
+    let id = id(m);
+    let label = label(m);
+    let mold = mold(m);
     length(m) == Tile.Label.length(label)
       ? Some({id, label, mold, children: children(m)}) : None;
   };
