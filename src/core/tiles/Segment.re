@@ -226,7 +226,9 @@ let rec reassemble = (seg: t): t =>
       let seg_m =
         switch (Match.complete(match)) {
         | None => Match.join(match)
-        | Some(t) => [Tile.to_piece(t)]
+        | Some(t) =>
+          let children = List.map(reassemble, t.children);
+          [Tile.to_piece({...t, children})];
         };
       List.concat([seg_l, seg_m, reassemble(seg_r)]);
     }

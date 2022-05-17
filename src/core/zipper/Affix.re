@@ -25,7 +25,9 @@ module Make = (O: Orientation.S) => {
         let affix_m =
           switch (Match.complete(match)) {
           | None => Match.join(match)
-          | Some(t) => [Tile.to_piece(t)]
+          | Some(t) =>
+            let children = List.map(Segment.reassemble, t.children);
+            [Tile.to_piece({...t, children})];
           };
         Segment.concat([affix_inner, affix_m, reassemble(affix_outer)]);
       }
