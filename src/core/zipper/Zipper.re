@@ -57,11 +57,13 @@ let unselect = (z: t): t => {
   {...z, selection, relatives};
 };
 
-let convex = (z: t): bool => {
+let zip = (z: t): Segment.t => {
   let z = unselect(z);
   let (pre, suf) = Relatives.disassemble(z.relatives);
-  Segment.convex(List.rev(pre) @ suf);
+  Segment.reassemble(List.rev(pre) @ suf);
 };
+
+let convex = (z: t): bool => Segment.convex(zip(z));
 
 let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
   let old = z.selection;
