@@ -48,6 +48,75 @@ module Decos = {
       [SelectedBoxDec.view(~font_metrics, {origin, length})];
     };
 
+  let targets = (~font_metrics, z: Zipper.t) => {
+    let rec go_segment =
+            (meta: list(Shard.t), seg: Measured.segment): list(Node.t) =>
+      if (List.for_all(
+            (s: Shard.t) =>
+              List.exists(
+                (s': Shard.t) => s.tile_id == s'.tile_id,
+                Measured.shards(seg),
+              ),
+            meta,
+          )) {
+        ListUtil.splits(seg)
+        |> List.map(((l, r)) => {
+             let shards_l = Measured.shards(l);
+             let shards_r = Measured.shards(r);
+             let valid =
+               meta
+               |> List.for_all((s: Shard.t) => {
+                    let after_l =
+                      shards_l
+                      |> List.for_all(s' => Shard.index(s') < Shard.index(s));
+                    let before_r =
+                      shards_r
+                      |> List.for_all(s' => Shard.index(s') > Shard.index(s));
+                    after_l && before_r;
+                  });
+             if (valid) {
+               let measurement =
+                 switch (l, r) {
+                 | ([], []) => failwith("impossible")
+                 | (_, [(m, _), ..._]) =>
+                   Layout.{origin: m.origin, length: 1}
+                 | ([(m, _), ..._], _) =>
+                   Layout.{origin: m.origin + m.length, length: 1}
+                 };
+               let profile =
+                 CaretPosDec.Profile.{
+                   style: `Sibling,
+                   measurement,
+                   color: Color.Exp,
+                   just_failed: None,
+                 };
+               [CaretPosDec.view(~font_metrics, profile)];
+             } else {
+               [];
+             };
+           })
+        |> List.concat;
+      } else {
+        seg
+        |> List.filter_map(
+             fun
+             | (_, Measured.Tile(t)) => Some(t)
+             | _ => None,
+           )
+        |> List.map((t: Measured.tile) =>
+             List.concat(List.map(go_segment(meta), t.children))
+           )
+        |> List.concat;
+      };
+
+    switch (Backpack.pop(z.backpack)) {
+    | Some((([_, ..._] as meta, _), _)) =>
+      let seg = Zipper.zip(z);
+      go_segment(meta, Measured.of_segment(seg));
+    | _ => []
+    };
+  };
+
   let of_zipper = (~font_metrics, z: Zipper.t) => {
     let mz = Measured.of_zipper(z);
     List.concat([of_selection(~font_metrics, mz.selection)]);

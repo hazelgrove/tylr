@@ -42,4 +42,19 @@ type zipper = {
   relatives,
 };
 
+let shards: segment => list(Shard.t) =
+  List.filter_map(
+    fun
+    | (_, Shard(s)) => Some(s)
+    | _ => None,
+  );
+
+// let split_segment_by_matching_shard = (tile_id: Id.t): (segment => Aba.t(segment, Shard.t)) =>
+//   Aba.split(
+//     fun
+//     | Shard(s) when s.tile_id == tile_id => Either.R(s)
+//     | p => L(p)
+//   );
+
+let of_segment = _: segment => failwith("todo Measured.of_segment");
 let of_zipper = _: zipper => failwith("todo Measured.of_zipper");

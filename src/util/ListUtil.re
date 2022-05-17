@@ -265,3 +265,12 @@ let p_indices = (p: 'a => bool, xs: list('a)): list(int) => {
     );
   idxs;
 };
+
+let splits = (xs: list('x) as 'xs): list(('xs, 'xs)) => {
+  let rec go = (split: ('xs, 'xs)): list(('xs, 'xs)) =>
+    switch (split) {
+    | (_, []) => [split]
+    | (l, [hd, ...tl]) => [split, ...go(([hd, ...l], tl))]
+    };
+  go(([], xs));
+};
