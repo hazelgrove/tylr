@@ -38,15 +38,15 @@ module Text = {
 };
 
 module Decos = {
-  let of_selection = (~font_metrics, ms: Measured.selection) =>
-    switch (ms.content) {
-    | [] => []
-    | [({origin, _}, _), ..._] =>
-      let length =
-        ms.content
-        |> List.fold_left((len, (m: Measurement.t, _)) => len + m.length, 0);
-      [SelectedBoxDec.view(~font_metrics, {origin, length})];
-    };
+  // let of_selection = (~font_metrics, ms: Measured.selection) =>
+  //   switch (ms.content) {
+  //   | [] => []
+  //   | [({origin, _}, _), ..._] =>
+  //     let length =
+  //       ms.content
+  //       |> List.fold_left((len, (m: Measurement.t, _)) => len + m.length, 0);
+  //     [SelectedBoxDec.view(~font_metrics, {origin, length})];
+  //   };
 
   let targets = (~font_metrics, z: Zipper.t) => {
     let rec go_segment =
@@ -79,7 +79,7 @@ module Decos = {
                  switch (l, r) {
                  | ([], []) => failwith("impossible")
                  | (_, [(m, _), ..._]) =>
-                   Layout.{origin: m.origin, length: 1}
+                   Layout.{origin: m.origin - 1, length: 1}
                  | ([(m, _), ..._], _) =>
                    Layout.{origin: m.origin + m.length, length: 1}
                  };
@@ -112,20 +112,19 @@ module Decos = {
     switch (Backpack.pop(z.backpack)) {
     | Some((([_, ..._] as meta, _), _)) =>
       let seg = Zipper.zip(z);
-      go_segment(meta, Measured.of_segment(seg));
+      go_segment(meta, snd(Measured.of_segment(seg)));
     | _ => []
     };
   };
-
-  let of_zipper = (~font_metrics, z: Zipper.t) => {
-    let mz = Measured.of_zipper(z);
-    List.concat([of_selection(~font_metrics, mz.selection)]);
-  };
+  // let of_zipper = (~font_metrics, z: Zipper.t) => {
+  //   let mz = Measured.of_zipper(z);
+  //   List.concat([of_selection(~font_metrics, mz.selection)]);
+  // };
 };
 
 let view =
     (
-      ~font_metrics: FontMetrics.t,
+      ~font_metrics as _: FontMetrics.t,
       ~just_failed as _: option(FailedInput.t)=None,
       ~show_neighbor_tiles as _: bool=false,
       z: Zipper.t,
@@ -135,6 +134,6 @@ let view =
     Attr.[id("under-the-rail"), class_("code")],
     [
       span_c("code-text", Text.of_segment(Zipper.zip(z))),
-      ...Decos.of_zipper(~font_metrics, z),
+      // ...Decos.of_zipper(~font_metrics, z),
     ],
   );

@@ -167,6 +167,75 @@ let rec deco_views =
   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
   };
 
+let targets = (~font_metrics, z: Zipper.t) => {
+  let rec go_segment =
+          (meta: list(Shard.t), seg: Measured.segment): list(Node.t) =>
+    if (List.for_all(
+          (s: Shard.t) =>
+            List.exists(
+              (s': Shard.t) => s.tile_id == s'.tile_id,
+              Measured.shards(seg),
+            ),
+          meta,
+        )) {
+      ListUtil.splits(seg)
+      |> List.map(((l, r)) => {
+           let shards_l = Measured.shards(l);
+           let shards_r = Measured.shards(r);
+           let valid =
+             meta
+             |> List.for_all((s: Shard.t) => {
+                  let after_l =
+                    shards_l
+                    |> List.for_all(s' => Shard.index(s') < Shard.index(s));
+                  let before_r =
+                    shards_r
+                    |> List.for_all(s' => Shard.index(s') > Shard.index(s));
+                  after_l && before_r;
+                });
+           if (valid) {
+             let measurement =
+               switch (l, r) {
+               | ([], []) => failwith("impossible")
+               | (_, [(m, _), ..._]) =>
+                 Layout.{origin: m.origin - 1, length: 1}
+               | ([(m, _), ..._], _) =>
+                 Layout.{origin: m.origin + m.length, length: 1}
+               };
+             let profile =
+               CaretPosDec.Profile.{
+                 style: `Sibling,
+                 measurement,
+                 color: Color.Exp,
+                 just_failed: None,
+               };
+             [CaretPosDec.view(~font_metrics, profile)];
+           } else {
+             [];
+           };
+         })
+      |> List.concat;
+    } else {
+      seg
+      |> List.filter_map(
+           fun
+           | (_, Measured.Tile(t)) => Some(t)
+           | _ => None,
+         )
+      |> List.map((t: Measured.tile) =>
+           List.concat(List.map(go_segment(meta), t.children))
+         )
+      |> List.concat;
+    };
+
+  switch (Backpack.pop(z.backpack)) {
+  | Some((([_, ..._] as meta, _), _)) =>
+    let seg = Zipper.zip(z);
+    go_segment(meta, snd(Measured.of_segment(seg)));
+  | _ => []
+  };
+};
+
 let view =
     (
       ~font_metrics,
@@ -184,7 +253,8 @@ let view =
     [
       span_c("code-text", text_views(layout)),
       ...deco_views(~font_metrics, ~backpack, ~direction, measured),
-    ],
+    ]
+    @ targets(~font_metrics, zipper),
   );
 };
 
