@@ -25,7 +25,10 @@ type ancestor = {
 type generation = ((Measurement.t, ancestor), siblings);
 type ancestors = list(generation);
 
-type relatives = {siblings, ancestors};
+type relatives = {
+  siblings,
+  ancestors,
+};
 
 type selection = {
   focus: Direction.t,
@@ -39,4 +42,4 @@ type zipper = {
   relatives,
 };
 
-let of_zipper = _ => failwith("todo Measured.of_zipper");
+let of_zipper = _: zipper => failwith("todo Measured.of_zipper");
