@@ -272,21 +272,21 @@ let mk_zipper: Zipper.t => t =
     let indicate_piece = of_piece(sort, Indicated);
     let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
     let selection_ls = content |> List.map(select_piece);
-    let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
-    let r_sibs_ls =
-      switch (content, r_sibs) {
+    let r_sibs_ls = List.map(snub_piece, r_sibs);
+    let l_sibs_ls =
+      switch (content, l_sibs) {
       | (_, []) => []
       | ([], [p, ...ps]) =>
-        List.cons(indicate_piece(p), List.map(snub_piece, ps))
-      | _ => List.map(snub_piece, r_sibs)
+        List.rev(List.cons(indicate_piece(p), List.map(snub_piece, ps)))
+      | _ => List.rev(List.map(snub_piece, l_sibs))
       };
     let ls = l_sibs_ls @ selection_ls @ r_sibs_ls;
     let layout = cat_segment(sort, ls);
     let current = ann_selection(layout, (l_sibs, content));
-    switch (r_sibs, ancestors) {
+    switch (l_sibs, ancestors) {
     | ([], []) => current
     | ([], [x, ...xs]) =>
-      // NOTE: if there are no pieces to the right, indicate parent
+      // NOTE: if there are no pieces to the left, indicate parent
       let previous = of_generation(~indicate=content == [], current, x);
       List.fold_left(of_generation(~indicate=false), previous, xs);
     | _ => List.fold_left(of_generation(~indicate=false), current, ancestors)
