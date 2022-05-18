@@ -117,30 +117,6 @@ let shrink_selection = (z: t): option(t) => {
   };
 };
 
-let indicated_piece: t => Base.Piece.t = failwith("TODO");
-
-let inner_caret_len: Base.Piece.t => int =
-  fun
-  | Tile(_t) => 0
-  | Shard(_s) => 0
-  | Grout(_g) => 0;
-
-/*
- moving left:
- simplifying assumption: multitile tokens are un-enterable
- thus:
- if caret is on initial oute  r position
-  move_outer, caret: Outer
- if caret is on non-initial outer position.
-  get leftwards piece
-  get enterability: CaretPositions(n)
-  if leftwards piece is not enterable (n==0), set caret=Outer, call move_outer
-  if leftwards piece is enterable (n!=0), set caret=Inner(n-1), done
- if caret is on inner position
-  if caret=Inner(0) set caret=Outer, call move_outer (????)
-  if caret=Inner(n>0) set caret=Inner(n-1), done
- */
-
 let move_outer = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
@@ -160,12 +136,42 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
     None;
   };
 
-let move = (d: Direction.t, {caret, relatives:{siblings: (l_sibs,r_sibs)},_} as z: t): option(t) =>
-  switch (caret) {
-  | Outer when l_sibs == []=> move_outer(d, z)
-  | Outer => move_outer(d, z) //TODO
-  | Inner(0) => move_outer(d, z)
-  | Inner(_n) => move_outer(d, z)
+let inner_caret_len: Base.Piece.t => int =
+  fun
+  | Tile(_t) => 0
+  | Shard(_s) => 0
+  | Grout(_g) => 0;
+
+/*
+ moving left:
+ simplifying assumption: multitile tokens are un-enterable
+ thus:
+ if caret is on initial outer position
+  move_outer, caret: Outer
+ if caret is on non-initial outer position.
+  get leftwards piece
+  get enterability: CaretPositions(n)
+  if leftwards piece is not enterable (n==0), set caret=Outer, call move_outer
+  if leftwards piece is enterable (n!=0), set caret=Inner(n-1), done
+ if caret is on inner position
+  if caret=Inner(0) set caret=Outer, call move_outer (????)
+  if caret=Inner(n>0) set caret=Inner(n-1), done
+ */
+
+let move =
+    (
+      d: Direction.t,
+      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+    )
+    : option(t) =>
+  switch (d, caret, neighbors((l_sibs, r_sibs))) {
+  | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
+  | (Left, Outer, (Some(Tile({label: [t], _})), _)) /* enterable condition */ =>
+    Some(update_caret(_ => Inner(String.length(t) - 1), z))
+  | (Left, Outer, _) => move_outer(d, z)
+  | (Left, Inner(0), _) => z |> update_caret(_ => Outer) |> move_outer(d)
+  | (Left, Inner(n), _) => Some(update_caret(_ => Inner(n - 1), z))
+  | _ => move_outer(d, z)
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
@@ -322,7 +328,8 @@ let insert_space_grout =
       let nib_shape_r = p |> nib_shapes |> snd;
       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
     };
-  update_siblings(((l, r)) => ([new_grout] @ l, r), z);
+  update_siblings(((l, r)) => ([new_grout] @ l, r), z)
+  |> update_relatives(Relatives.regrout); //regrout TODO(andrew): do i want to do this?
 };
 
 let insert =
