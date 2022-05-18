@@ -42,6 +42,10 @@ module Action = {
   };
 };
 
+let update_caret = (f: caret => caret, z: t): t => {
+  ...z,
+  caret: f(z.caret),
+};
 let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
   ...z,
   relatives: f(z.relatives),
@@ -125,7 +129,7 @@ let inner_caret_len: Base.Piece.t => int =
  moving left:
  simplifying assumption: multitile tokens are un-enterable
  thus:
- if caret is on initial outer position
+ if caret is on initial oute  r position
   move_outer, caret: Outer
  if caret is on non-initial outer position.
   get leftwards piece
@@ -156,7 +160,13 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
     None;
   };
 
-let move = (d: Direction.t, z: t): option(t) => move_outer(d, z);
+let move = (d: Direction.t, {caret, relatives:{siblings: (l_sibs,r_sibs)},_} as z: t): option(t) =>
+  switch (caret) {
+  | Outer when l_sibs == []=> move_outer(d, z)
+  | Outer => move_outer(d, z) //TODO
+  | Inner(0) => move_outer(d, z)
+  | Inner(_n) => move_outer(d, z)
+  };
 
 let select = (d: Direction.t, z: t): option(t) =>
   d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
