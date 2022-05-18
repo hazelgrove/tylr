@@ -123,6 +123,7 @@ let init = () => {
       siblings: (l_sibling, r_sibling),
       ancestors,
     },
+    caret: Outer,
   },
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,

@@ -1,6 +1,11 @@
 open Util;
 open Sexplib.Std;
 
+[@deriving show]
+type caret =
+  | Outer
+  | Inner(int);
+
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
 type t = {
@@ -8,6 +13,7 @@ type t = {
   selection: Selection.t,
   backpack: Backpack.t,
   relatives: Relatives.t,
+  caret,
 };
 
 module Action = {
@@ -45,8 +51,15 @@ let update_siblings: (Siblings.t => Siblings.t, t) => t =
 
 let remove_right_sib: t => t =
   update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
+
 let remove_left_sib: t => t =
   update_siblings(((l, r)) => (l == [] ? [] : List.tl(l), r));
+
+let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
+  ((l, r)) => (
+    l == [] ? None : Some(List.hd(l)),
+    r == [] ? None : Some(List.hd(r)),
+  );
 
 let unselect = (z: t): t => {
   let relatives =
@@ -100,7 +113,31 @@ let shrink_selection = (z: t): option(t) => {
   };
 };
 
-let move = (d: Direction.t, z: t): option(t) =>
+let indicated_piece: t => Base.Piece.t = failwith("TODO");
+
+let inner_caret_len: Base.Piece.t => int =
+  fun
+  | Tile(_t) => 0
+  | Shard(_s) => 0
+  | Grout(_g) => 0;
+
+/*
+ moving left:
+ simplifying assumption: multitile tokens are un-enterable
+ thus:
+ if caret is on initial outer position
+  move_outer, caret: Outer
+ if caret is on non-initial outer position.
+  get leftwards piece
+  get enterability: CaretPositions(n)
+  if leftwards piece is not enterable (n==0), set caret=Outer, call move_outer
+  if leftwards piece is enterable (n!=0), set caret=Inner(n-1), done
+ if caret is on inner position
+  if caret=Inner(0) set caret=Outer, call move_outer (????)
+  if caret=Inner(n>0) set caret=Inner(n-1), done
+ */
+
+let move_outer = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
     let balanced = !Backpack.is_balanced(z.backpack);
@@ -118,6 +155,8 @@ let move = (d: Direction.t, z: t): option(t) =>
   } else {
     None;
   };
+
+let move = (d: Direction.t, z: t): option(t) => move_outer(d, z);
 
 let select = (d: Direction.t, z: t): option(t) =>
   d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
@@ -178,12 +217,6 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));
 };
-
-let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
-  ((l, r)) => (
-    l == [] ? None : Some(List.hd(l)),
-    r == [] ? None : Some(List.hd(r)),
-  );
 
 type side_decision =
   | CanAddToLeft(string)
