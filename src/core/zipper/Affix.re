@@ -109,17 +109,44 @@ module Make = (O: Orientation.S) => {
 
   let regrout = (affix: t) =>
     Segment.fold_right(
-      (p: Piece.t, regrouted) =>
+      (p: Piece.t, regrouted: t) =>
         switch (p) {
-        | Grout(g) =>
-          Grout.fits_shape(g, shape(regrouted))
-            ? [p, ...regrouted] : regrouted
+        | Grout(ss) =>
+          let (s_far, s_near) = O.orient(ss);
+          switch (regrouted) {
+          | [Grout(ss'), ...regrouted] =>
+            let (s_far', _) = O.orient(ss');
+            let ss = O.orient((s_far', s_near));
+            [Grout(ss), ...regrouted];
+          | _ =>
+            if (Nib.Shape.fits(s_far, shape(regrouted))) {
+              [p, ...regrouted];
+            } else if (Nib.Shape.fits(s_far, s_near)) {
+              [
+                Grout(O.orient((Nib.Shape.flip(s_far), s_near))),
+                ...regrouted,
+              ];
+            } else {
+              regrouted;
+            }
+          };
         | Shard(shard) =>
           let (n_far, _) = O.orient(shard.nibs);
           let s_far = n_far.shape;
           switch (regrouted) {
-          | [Grout(g), ...tl] =>
-            Grout.fits_shape(g, s_far) ? [p, ...regrouted] : [p, ...tl]
+          | [Grout(ss) as g, ...tl] =>
+            let (s_far', s_near') = O.orient(ss);
+            if (Nib.Shape.fits(s_far, s_near')) {
+              [p, g, ...tl];
+            } else if (Nib.Shape.fits(s_far', s_near')) {
+              [
+                p,
+                Grout(O.orient((s_far', Nib.Shape.flip(s_near')))),
+                ...tl,
+              ];
+            } else {
+              [p, ...tl];
+            };
           | _ =>
             Nib.Shape.fits(s_far, shape(regrouted))
               ? [p, ...regrouted]
@@ -137,9 +164,21 @@ module Make = (O: Orientation.S) => {
             });
           let (n_far, _) = O.orient(Mold.nibs(tile.mold));
           let s_far = n_far.shape;
+          // exact same as shard case
           switch (regrouted) {
-          | [Grout(g), ...tl] =>
-            Grout.fits_shape(g, s_far) ? [p, ...regrouted] : [p, ...tl]
+          | [Grout(ss) as g, ...tl] =>
+            let (s_far', s_near') = O.orient(ss);
+            if (Nib.Shape.fits(s_far, s_near')) {
+              [p, g, ...tl];
+            } else if (Nib.Shape.fits(s_far', s_near')) {
+              [
+                p,
+                Grout(O.orient((s_far', Nib.Shape.flip(s_near')))),
+                ...tl,
+              ];
+            } else {
+              [p, ...tl];
+            };
           | _ =>
             Nib.Shape.fits(s_far, shape(regrouted))
               ? [p, ...regrouted]
