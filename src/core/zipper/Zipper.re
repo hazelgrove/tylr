@@ -46,6 +46,7 @@ let update_caret = (f: caret => caret, z: t): t => {
   ...z,
   caret: f(z.caret),
 };
+let set_caret = (caret: caret) => update_caret(_ => caret);
 let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
   ...z,
   relatives: f(z.relatives),
@@ -136,28 +137,6 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
     None;
   };
 
-let inner_caret_len: Base.Piece.t => int =
-  fun
-  | Tile(_t) => 0
-  | Shard(_s) => 0
-  | Grout(_g) => 0;
-
-/*
- moving left:
- simplifying assumption: multitile tokens are un-enterable
- thus:
- if caret is on initial outer position
-  move_outer, caret: Outer
- if caret is on non-initial outer position.
-  get leftwards piece
-  get enterability: CaretPositions(n)
-  if leftwards piece is not enterable (n==0), set caret=Outer, call move_outer
-  if leftwards piece is enterable (n!=0), set caret=Inner(n-1), done
- if caret is on inner position
-  if caret=Inner(0) set caret=Outer, call move_outer (????)
-  if caret=Inner(n>0) set caret=Inner(n-1), done
- */
-
 let move =
     (
       d: Direction.t,
@@ -166,21 +145,25 @@ let move =
     : option(t) =>
   switch (d, caret, neighbors((l_sibs, r_sibs))) {
   | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
-  | (Left, Outer, (Some(Tile({label: [t], _})), _)) /* enterable condition */ =>
-    Some(update_caret(_ => Inner(String.length(t) - 1), z))
+  | (Left, Outer, (Some(Tile({label: [t], _})), _))
+      when String.length(t) > 1 /* enterable condition */ =>
+    // NOTE: move outer first and then move inner (TODO explain why)
+    z
+    |> move_outer(d)
+    |> Option.map(set_caret(Inner(String.length(t) - 2)))
   | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Left, Inner(0), _) => z |> update_caret(_ => Outer) |> move_outer(d)
-  | (Left, Inner(n), _) => Some(update_caret(_ => Inner(n - 1), z))
+  | (Left, Inner(0), _) => z |> set_caret(Outer) |> move_outer(d)
+  | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
   | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
-  | (Right, Outer, (_, Some(Tile({label: [_t], _})))) /* enterable condition */ =>
-    Some(update_caret(_ => Inner(0), z))
+  | (Right, Outer, (_, Some(Tile({label: [t], _}))))
+      when String.length(t) > 1 /* enterable condition */ =>
+    Some(set_caret(Inner(0), z))
   | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
   | (Right, Inner(k), (_, Some(Tile({label: [t], _}))))
-      when k == String.length(t) - 1 =>
+      when k == String.length(t) - 2 =>
     //TODO(andrew): not sure getting length of right thing
-    z |> update_caret(_ => Outer) |> move_outer(d)
-  | (Right, Inner(n), _) => Some(update_caret(_ => Inner(n + 1), z))
-  //| _ => move_outer(d, z)
+    z |> set_caret(Outer) |> move_outer(d)
+  | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
