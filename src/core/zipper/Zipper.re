@@ -143,6 +143,7 @@ let move =
       {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
     )
     : option(t) =>
+  //TODO(andrew): cleanup
   switch (d, caret, neighbors((l_sibs, r_sibs))) {
   | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
   | (Left, Outer, (Some(Tile({label: [t], _})), _))
@@ -324,7 +325,16 @@ let insert_space_grout =
   |> update_relatives(Relatives.regrout); //regrout TODO(andrew): do i want to do this?
 };
 
-let insert =
+/*
+ insert char (inner caret): insert to left of caret
+ try to add char at inner caret point
+ if produces valid token, done
+ otherwise try to split
+ do two-way splits make sense? not sure, ignore for now
+ (space counts as a token here so space insert is generally 3-way)
+ */
+
+let insert_outer =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   switch (char) {
   | _ when Token.is_whitespace(char) && !is_neighboring_space(siblings) =>
@@ -336,6 +346,7 @@ let insert =
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
     | CanAddToRight(right_token) =>
+      //TODO(andrew): will need to move now in this case
       barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
     }
   | _ when Token.is_alphanum(char) =>
@@ -344,10 +355,16 @@ let insert =
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
     | CanAddToRight(right_token) =>
+      //TODO(andrew): will need to move now in this case
       barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
     }
   | _ => None
   };
+};
+
+let insert =
+    (char: string, {relatives: {siblings: _, _}, _} as z: t): option(t) => {
+  insert_outer(char, z);
 };
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
@@ -357,7 +374,10 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct => Ok(destruct(z))
   | Insert(char) =>
-    Result.of_option(~error=Action.Failure.Cant_insert, insert(char, z))
+    Result.of_option(
+      ~error=Action.Failure.Cant_insert,
+      insert_outer(char, z),
+    )
   | Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>
