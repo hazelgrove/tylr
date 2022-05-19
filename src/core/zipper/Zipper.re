@@ -137,6 +137,19 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
     None;
   };
 
+let token_len: Base.Piece.t => option(string) =
+  fun
+  | Tile({label: [t], _}) => Some(t)
+  | _ => None;
+
+let neighbors_tokens = siblings =>
+  switch (neighbors(siblings)) {
+  | (Some(l), Some(r)) => (token_len(l), token_len(r))
+  | (Some(l), None) => (token_len(l), None)
+  | (None, Some(r)) => (None, token_len(r))
+  | (None, None) => (None, None)
+  };
+
 let move =
     (
       d: Direction.t,
@@ -144,9 +157,9 @@ let move =
     )
     : option(t) =>
   //TODO(andrew): cleanup
-  switch (d, caret, neighbors((l_sibs, r_sibs))) {
+  switch (d, caret, neighbors_tokens((l_sibs, r_sibs))) {
   | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
-  | (Left, Outer, (Some(Tile({label: [t], _})), _))
+  | (Left, Outer, (Some(t), _))
       when String.length(t) > 1 /* enterable condition */ =>
     // NOTE: move outer first and then move inner (TODO explain why)
     z
@@ -156,12 +169,11 @@ let move =
   | (Left, Inner(0), _) => z |> set_caret(Outer) |> move_outer(d)
   | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
   | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
-  | (Right, Outer, (_, Some(Tile({label: [t], _}))))
+  | (Right, Outer, (_, Some(t)))
       when String.length(t) > 1 /* enterable condition */ =>
     Some(set_caret(Inner(0), z))
   | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Right, Inner(k), (_, Some(Tile({label: [t], _}))))
-      when k == String.length(t) - 2 =>
+  | (Right, Inner(k), (_, Some(t))) when k == String.length(t) - 2 =>
     //TODO(andrew): not sure getting length of right thing
     z |> set_caret(Outer) |> move_outer(d)
   | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
@@ -169,24 +181,6 @@ let move =
 
 let select = (d: Direction.t, z: t): option(t) =>
   d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
-
-let destruct = (z: t): t => {
-  let (selected, z) = update_selection(Selection.empty, z);
-  let (to_pick_up, to_remove) =
-    Segment.shards(selected.content)
-    |> List.partition(shard =>
-         Siblings.contains_matching(shard, z.relatives.siblings)
-       );
-  let backpack =
-    z.backpack
-    |> Backpack.remove_matching(to_remove)
-    |> Backpack.push_s(
-         to_pick_up
-         |> List.map(Segment.of_shard)
-         |> List.map(Selection.mk(z.selection.focus)),
-       );
-  {...z, backpack};
-};
 
 let pick_up = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
@@ -204,15 +198,33 @@ let pick_up = (z: t): t => {
   {...z, backpack};
 };
 
+let destruct_outer = (z: t): t => {
+  let (selected, z) = update_selection(Selection.empty, z);
+  let (to_pick_up, to_remove) =
+    Segment.shards(selected.content)
+    |> List.partition(shard =>
+         Siblings.contains_matching(shard, z.relatives.siblings)
+       );
+  let backpack =
+    z.backpack
+    |> Backpack.remove_matching(to_remove)
+    |> Backpack.push_s(
+         to_pick_up
+         |> List.map(Segment.of_shard)
+         |> List.map(Selection.mk(z.selection.focus)),
+       );
+  {...z, backpack};
+};
+
 let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
-  let z = destruct(z);
+  let z = destruct_outer(z);
   let+ (popped, backpack) = Backpack.pop(z.backpack);
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
-  let z = destruct(z);
+  let z = destruct_outer(z);
   let molds = Molds.get(label);
   assert(molds != []);
   // initial mold to typecheck, will be remolded
@@ -225,6 +237,37 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
     |> ListUtil.rev_if(from == Right);
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));
+};
+
+//let update_left_neighbor_monotile
+
+let destruct =
+    ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t): t => {
+  switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
+  | (Outer, (Some(_t), _)) =>
+    print_endline("1");
+    destruct_outer(z); // TODO
+  | (Outer, (None, _)) =>
+    print_endline("2");
+    destruct_outer(z);
+  /*| (Inner(0), _) =>
+    print_endline("3");
+    destruct_outer(z); //TODO:???*/
+  | (Inner(k), (_, Some(t))) =>
+    print_endline("4");
+    z
+    |> remove_right_sib
+    |> construct(
+         Left,
+         [
+           String.sub(t, 0, k)
+           ++ String.sub(t, k + 1, String.length(t) - k - 1),
+         ],
+       );
+  | _ =>
+    print_endline("5");
+    destruct_outer(z); // TODO
+  };
 };
 
 type side_decision =
