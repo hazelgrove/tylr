@@ -168,10 +168,19 @@ let move =
   | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
   | (Left, Outer, (Some(Tile({label: [t], _})), _)) /* enterable condition */ =>
     Some(update_caret(_ => Inner(String.length(t) - 1), z))
-  | (Left, Outer, _) => move_outer(d, z)
+  | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
   | (Left, Inner(0), _) => z |> update_caret(_ => Outer) |> move_outer(d)
   | (Left, Inner(n), _) => Some(update_caret(_ => Inner(n - 1), z))
-  | _ => move_outer(d, z)
+  | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
+  | (Right, Outer, (_, Some(Tile({label: [_t], _})))) /* enterable condition */ =>
+    Some(update_caret(_ => Inner(0), z))
+  | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
+  | (Right, Inner(k), (_, Some(Tile({label: [t], _}))))
+      when k == String.length(t) - 1 =>
+    //TODO(andrew): not sure getting length of right thing
+    z |> update_caret(_ => Outer) |> move_outer(d)
+  | (Right, Inner(n), _) => Some(update_caret(_ => Inner(n + 1), z))
+  //| _ => move_outer(d, z)
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
