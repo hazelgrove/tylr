@@ -166,7 +166,7 @@ let move =
     |> move_outer(d)
     |> Option.map(set_caret(Inner(String.length(t) - 2)))
   | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Left, Inner(0), _) => z |> set_caret(Outer) |> move_outer(d)
+  | (Left, Inner(0), _) => z |> set_caret(Outer) |> Option.some //|> move_outer(d)
   | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
   | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
   | (Right, Outer, (_, Some(t)))
@@ -290,50 +290,6 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
     | t => ([t], direction_preference)
     };
 
-let check_sibs_alphanum: (string, Siblings.t) => side_decision =
-  /* NOTE: logic here could probably be based on character classes
-       as opposed to mold shape. Actually, the shape part might
-       not even be necessary now that we're checking validity
-       TODO(andrew): think about this
-     */
-  (char, siblings) =>
-    switch (neighbors(siblings)) {
-    | (Some(Tile({label: [t], _ /*mold,*/})), _)
-        when /*mold.shape == Op &&*/ Token.is_valid(t ++ char) =>
-      CanAddToLeft(t)
-    | (_, Some(Tile({label: [t], _ /*mold,*/})))
-        when /*mold.shape == Op &&*/ Token.is_valid(char ++ t) =>
-      CanAddToRight(t)
-    | _ => CanAddToNeither
-    };
-
-let check_sibs_symbol: (string, Siblings.t) => side_decision =
-  (char, siblings) =>
-    /* NOTE: this is slightly more iffy than the alphanum case,
-         as it if post/pre draw from the same char set as infix,
-         both left and right could be valid add targets. right now
-         we favor right
-       */
-    switch (neighbors(siblings)) {
-    | (Some(Tile({label: [t], _ /*mold,*/})), _)
-        when /*mold.shape != Op &&*/ Token.is_valid(t ++ char) =>
-      CanAddToLeft(t)
-    | (_, Some(Tile({label: [t], _ /*mold,*/})))
-        when /*mold.shape != Op &&*/ Token.is_valid(char ++ t) =>
-      CanAddToRight(t)
-    | _ => CanAddToNeither
-    };
-
-let barf_or_construct =
-    (new_token: string, direction_preference: Direction.t, z: t) =>
-  if (Backpack.is_first_matching(new_token, z.backpack)) {
-    put_down(z);
-  } else {
-    let (new_label, direction) =
-      multilabels(new_token, direction_preference);
-    Some(construct(direction, new_label, z));
-  };
-
 let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
   switch (p) {
   | Grout(nibs) => nibs
@@ -368,14 +324,23 @@ let insert_space_grout =
   |> update_relatives(Relatives.regrout); //regrout TODO(andrew): do i want to do this?
 };
 
-/*
- insert char (inner caret): insert to left of caret
- try to add char at inner caret point
- if produces valid token, done
- otherwise try to split
- do two-way splits make sense? not sure, ignore for now
- (space counts as a token here so space insert is generally 3-way)
- */
+let check_sibs: (string, Siblings.t) => side_decision =
+  (char, siblings) =>
+    switch (neighbors_tokens(siblings)) {
+    | (Some(t), _) when Token.is_valid(t ++ char) => CanAddToLeft(t)
+    | (_, Some(t)) when Token.is_valid(char ++ t) => CanAddToRight(t)
+    | _ => CanAddToNeither
+    };
+
+let barf_or_construct =
+    (new_token: string, direction_preference: Direction.t, z: t) =>
+  if (Backpack.is_first_matching(new_token, z.backpack)) {
+    put_down(z);
+  } else {
+    let (new_label, direction) =
+      multilabels(new_token, direction_preference);
+    Some(construct(direction, new_label, z));
+  };
 
 let insert_outer =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
@@ -383,17 +348,8 @@ let insert_outer =
   | _ when Token.is_whitespace(char) && !is_neighboring_space(siblings) =>
     Some(insert_space_grout(char, z))
   //None //TODO(andrew)
-  | _ when Token.is_symbol(char) =>
-    switch (check_sibs_symbol(char, siblings)) {
-    | CanAddToNeither => barf_or_construct(char, Left, z)
-    | CanAddToLeft(left_token) =>
-      barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
-    | CanAddToRight(right_token) =>
-      //TODO(andrew): will need to move now in this case
-      barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
-    }
-  | _ when Token.is_alphanum(char) =>
-    switch (check_sibs_alphanum(char, siblings)) {
+  | _ when Token.is_symbol(char) || Token.is_alphanum(char) =>
+    switch (check_sibs(char, siblings)) {
     | CanAddToNeither => barf_or_construct(char, Left, z)
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
@@ -404,6 +360,15 @@ let insert_outer =
   | _ => None
   };
 };
+
+/*
+ insert char (inner caret): insert to left of caret
+ try to add char at inner caret point
+ if produces valid token, done
+ otherwise try to split
+ do two-way splits make sense? not sure, ignore for now
+ (space counts as a token here so space insert is generally 3-way)
+ */
 
 let insert =
     (char: string, {relatives: {siblings: _, _}, _} as z: t): option(t) => {
