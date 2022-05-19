@@ -241,28 +241,56 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
 
 //let update_left_neighbor_monotile
 
+let remove_kth = (t, k) =>
+  String.sub(t, 0, k) ++ String.sub(t, k + 1, String.length(t) - k - 1);
+
+let reconstruct_simple_right = (f: Token.t => Token.t, z: t): t => {
+  update_siblings(
+    ((l, r)) => {
+      let r_new: list(Piece.t) =
+        switch (r) {
+        | [Tile({label: [t], _} as tt), ...tl] => [
+            Tile({...tt, label: [f(t)]}),
+            ...tl,
+          ]
+        | _ => r
+        };
+      (l, r_new);
+    },
+    z,
+  )
+  |> update_selection(z.selection)
+  |> snd;
+};
+
 let destruct =
     ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t): t => {
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Outer, (Some(_t), _)) =>
+  | (Outer, (Some(t), _)) =>
     print_endline("1");
-    destruct_outer(z); // TODO
+    print_endline(t);
+    print_endline("zzt");
+    z
+    |> reconstruct_simple_right(t => remove_kth(t, String.length(t) - 2))
+    |> set_caret(Inner(String.length(t) - 2));
   | (Outer, (None, _)) =>
     print_endline("2");
     destruct_outer(z);
   /*| (Inner(0), _) =>
     print_endline("3");
     destruct_outer(z); //TODO:???*/
-  | (Inner(k), (_, Some(t))) =>
+  | (Inner(k), (_, Some(_t))) =>
     print_endline("4");
     z
-    |> remove_right_sib
-    |> construct(
-         Left,
-         [
-           String.sub(t, 0, k)
-           ++ String.sub(t, k + 1, String.length(t) - k - 1),
-         ],
+    |> reconstruct_simple_right(t => remove_kth(t, k))
+    //|> remove_right_sib
+    //|> construct(Right, [remove_kth(t, k)])
+    |> update_caret(c =>
+         switch (c) {
+         | Inner(0)
+         | Outer => Outer
+         | Inner(k) => Inner(k - 1)
+         }
        );
   | _ =>
     print_endline("5");
@@ -270,7 +298,7 @@ let destruct =
   };
 };
 
-type side_decision =
+type side_dispatch =
   | CanAddToLeft(string)
   | CanAddToRight(string)
   | CanAddToNeither;
@@ -324,7 +352,7 @@ let insert_space_grout =
   |> update_relatives(Relatives.regrout); //regrout TODO(andrew): do i want to do this?
 };
 
-let check_sibs: (string, Siblings.t) => side_decision =
+let check_sibs: (string, Siblings.t) => side_dispatch =
   (char, siblings) =>
     switch (neighbors_tokens(siblings)) {
     | (Some(t), _) when Token.is_valid(t ++ char) => CanAddToLeft(t)
