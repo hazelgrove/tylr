@@ -239,31 +239,32 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
-//let update_left_neighbor_monotile
-
-let remove_kth = (t, k) =>
+let remove_kth = (k, t) =>
   String.sub(t, 0, k) ++ String.sub(t, k + 1, String.length(t) - k - 1);
 
-let blah = (r: list(Base.Piece.t), f): list(Base.Piece.t) =>
-  switch (r) {
-  | [Tile({label: [t], _} as tt), ...tl] => [
-      Tile({...tt, label: [f(t)]}),
-      ...tl,
-    ]
-  | _ => r
+let reconstruct_monotile = (f, p: Base.Piece.t): Base.Piece.t =>
+  switch (p) {
+  | Tile({label: [t], _} as tile) => Tile({...tile, label: [f(t)]})
+  | _ => p
   };
 
-let reconstruct_simple_right = (f: Token.t => Token.t, z: t): t => {
-  update_siblings(((l, r)) => (l, blah(r, f)), z)
-  |> update_selection(z.selection)
-  |> snd;
-};
+let map_hd = (f: 'a => 'b, xs: list('a)): list('b) =>
+  switch (xs) {
+  | [] => []
+  | [x, ...xss] => [f(x), ...xss]
+  };
 
-let reconstruct_simple_left = (f: Token.t => Token.t, z: t): t => {
-  update_siblings(((l, r)) => (blah(l, f), r), z)
+let reconstruct_right_monotile = (f: Token.t => Token.t, z: t): t =>
+  z
+  |> update_siblings(PairUtil.map_snd(map_hd(reconstruct_monotile(f))))
   |> update_selection(z.selection)
   |> snd;
-};
+
+let reconstruct_left_monotile = (f: Token.t => Token.t, z: t): t =>
+  z
+  |> update_siblings(PairUtil.map_fst(map_hd(reconstruct_monotile(f))))
+  |> update_selection(z.selection)
+  |> snd;
 
 let destruct =
     ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t)
@@ -279,22 +280,23 @@ let destruct =
    | None => Printf.printf("n_1: None\n")
    | Some(p) => Printf.printf("n_1: %s\n", Base.Piece.show(p))
    };*/
+  let d_outer = z => z |> select(Left) |> Option.map(destruct_outer);
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
   | (Outer, (Some(t), _)) when String.length(t) == 1 =>
     //print_endline("1");
-    z |> select(Left) |> Option.map(destruct_outer)
-  | (Outer, (Some(_), _)) =>
+    d_outer(z)
+  | (Outer, (Some(t), _)) =>
     //print_endline("2");
     z
-    |> reconstruct_simple_left(t => remove_kth(t, String.length(t) - 1))
+    |> reconstruct_left_monotile(remove_kth(String.length(t) - 1))
     |> Option.some
   | (Outer, (None, _)) =>
     //print_endline("3");
-    z |> select(Left) |> Option.map(destruct_outer)
+    d_outer(z)
   | (Inner(k), (_, Some(_t))) =>
     //print_endline("4");
     z
-    |> reconstruct_simple_right(t => remove_kth(t, k))
+    |> reconstruct_right_monotile(remove_kth(k))
     |> update_caret(c =>
          switch (c) {
          | Inner(0)
@@ -305,7 +307,9 @@ let destruct =
     |> Option.some
   | (Inner(_), (_, None)) =>
     //print_endline("5");
-    z |> select(Left) |> Option.map(destruct_outer) // TODO
+    failwith("TODO(andrew) destruct impossible?")
+  // TODO(andrew): what is this case???
+  //d_outer(z);
   };
 };
 
