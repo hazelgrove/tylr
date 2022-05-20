@@ -129,7 +129,13 @@ let cat_decos =
       };
     [
       SelectedBoxDec.view(~font_metrics, profile),
-      CaretDec.simple_view(~font_metrics, ~sub_offset, origin + caret_offset),
+      CaretDec.simple_view(~font_metrics, ~sub_offset, origin, "#00f8"),
+      CaretDec.simple_view(
+        ~font_metrics,
+        ~sub_offset,
+        origin + caret_offset,
+        "#f008",
+      ),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>

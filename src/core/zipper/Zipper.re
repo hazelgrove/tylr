@@ -244,57 +244,68 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
 let remove_kth = (t, k) =>
   String.sub(t, 0, k) ++ String.sub(t, k + 1, String.length(t) - k - 1);
 
+let blah = (r: list(Base.Piece.t), f): list(Base.Piece.t) =>
+  switch (r) {
+  | [Tile({label: [t], _} as tt), ...tl] => [
+      Tile({...tt, label: [f(t)]}),
+      ...tl,
+    ]
+  | _ => r
+  };
+
 let reconstruct_simple_right = (f: Token.t => Token.t, z: t): t => {
-  update_siblings(
-    ((l, r)) => {
-      let r_new: list(Piece.t) =
-        switch (r) {
-        | [Tile({label: [t], _} as tt), ...tl] => [
-            Tile({...tt, label: [f(t)]}),
-            ...tl,
-          ]
-        | _ => r
-        };
-      (l, r_new);
-    },
-    z,
-  )
+  update_siblings(((l, r)) => (l, blah(r, f)), z)
+  |> update_selection(z.selection)
+  |> snd;
+};
+
+let reconstruct_simple_left = (f: Token.t => Token.t, z: t): t => {
+  update_siblings(((l, r)) => (blah(l, f), r), z)
   |> update_selection(z.selection)
   |> snd;
 };
 
 let destruct =
-    ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t): t => {
+    ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t)
+    : option(t) => {
+  /*
+   let (n_1, n_2) = neighbors((l_sibs, r_sibs));
+   print_endline("destruct");
+   switch (n_1) {
+   | None => Printf.printf("n_1: None\n")
+   | Some(p) => Printf.printf("n_1: %s\n", Base.Piece.show(p))
+   };
+   switch (n_2) {
+   | None => Printf.printf("n_1: None\n")
+   | Some(p) => Printf.printf("n_1: %s\n", Base.Piece.show(p))
+   };*/
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Outer, (Some(t), _)) =>
-    print_endline("1");
-    print_endline(t);
-    print_endline("zzt");
+  | (Outer, (Some(t), _)) when String.length(t) == 1 =>
+    //print_endline("1");
+    z |> select(Left) |> Option.map(destruct_outer)
+  | (Outer, (Some(_), _)) =>
+    //print_endline("2");
     z
-    |> reconstruct_simple_right(t => remove_kth(t, String.length(t) - 2))
-    |> set_caret(Inner(String.length(t) - 2));
+    |> reconstruct_simple_left(t => remove_kth(t, String.length(t) - 1))
+    |> Option.some
   | (Outer, (None, _)) =>
-    print_endline("2");
-    destruct_outer(z);
-  /*| (Inner(0), _) =>
-    print_endline("3");
-    destruct_outer(z); //TODO:???*/
+    //print_endline("3");
+    z |> select(Left) |> Option.map(destruct_outer)
   | (Inner(k), (_, Some(_t))) =>
-    print_endline("4");
+    //print_endline("4");
     z
     |> reconstruct_simple_right(t => remove_kth(t, k))
-    //|> remove_right_sib
-    //|> construct(Right, [remove_kth(t, k)])
     |> update_caret(c =>
          switch (c) {
          | Inner(0)
          | Outer => Outer
          | Inner(k) => Inner(k - 1)
          }
-       );
-  | _ =>
-    print_endline("5");
-    destruct_outer(z); // TODO
+       )
+    |> Option.some
+  | (Inner(_), (_, None)) =>
+    //print_endline("5");
+    z |> select(Left) |> Option.map(destruct_outer) // TODO
   };
 };
 
@@ -408,7 +419,8 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   | Move(d) => Result.of_option(~error=Action.Failure.Cant_move, move(d, z))
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
-  | Destruct => Ok(destruct(z))
+  | Destruct =>
+    Result.of_option(~error=Action.Failure.Cant_move, destruct(z))
   | Insert(char) =>
     Result.of_option(
       ~error=Action.Failure.Cant_insert,
