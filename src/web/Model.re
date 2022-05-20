@@ -109,7 +109,7 @@ let ancestors: Ancestors.t = [
   (mk_let_ancestor([[pat_foo]], []), ([], [two])),
 ];
 
-let backpack: Backpack.t = [([], {focus: Left, content: [exp_foo]})];
+let backpack: Backpack.t = [{focus: Left, content: [exp_foo]}];
 
 let init = () => {
   zipper: {

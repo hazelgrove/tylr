@@ -140,17 +140,22 @@ let destruct = (z: t): t => {
     |> Backpack.remove_matching(to_remove)
     |> Backpack.push_s(
          to_pick_up
-         |> List.map(s => {
-              let (pre, suf) = z.relatives.siblings;
-              Segment.(
-                contains_matching(s, pre) || contains_matching(s, suf)
-              )
-                ? ([s], s) : ([], s);
-            })
-         |> List.map(((meta, s)) =>
-              (meta, Selection.mk(z.selection.focus, Segment.of_shard(s)))
-            ),
+         |> List.map(Segment.of_shard)
+         |> List.map(Selection.mk(z.selection.focus)),
        );
+  // |> Backpack.push_s(
+  //      to_pick_up
+  //      |> List.map(s => {
+  //           let (pre, suf) = z.relatives.siblings;
+  //           Segment.(
+  //             contains_matching(s, pre) || contains_matching(s, suf)
+  //           )
+  //             ? ([s], s) : ([], s);
+  //         })
+  //      |> List.map(((meta, s)) =>
+  //           (meta, Selection.mk(z.selection.focus, Segment.of_shard(s)))
+  //         ),
+  //    );
   {...z, backpack};
 };
 
@@ -161,18 +166,18 @@ let pick_up = (z: t): t => {
     |> Segment.split_by_grout
     |> Aba.get_as
     |> List.filter((!=)(Segment.empty))
-    |> List.map(Selection.mk(selected.focus))
-    |> List.map((sel: Selection.t) => {
-         let meta =
-           Segment.shards(sel.content)
-           |> List.filter((s: Shard.t) => {
-                let (pre, suf) = z.relatives.siblings;
-                Segment.(
-                  contains_matching(s, pre) || contains_matching(s, suf)
-                );
-              });
-         (meta, sel);
-       });
+    |> List.map(Selection.mk(selected.focus));
+  // |> List.map((sel: Selection.t) => {
+  //      let meta =
+  //        Segment.shards(sel.content)
+  //        |> List.filter((s: Shard.t) => {
+  //             let (pre, suf) = z.relatives.siblings;
+  //             Segment.(
+  //               contains_matching(s, pre) || contains_matching(s, suf)
+  //             );
+  //           });
+  //      (meta, sel);
+  //    });
   let backpack =
     Backpack.push_s(
       (z.selection.focus == Left ? Fun.id : List.rev)(selections),
@@ -184,22 +189,24 @@ let pick_up = (z: t): t => {
 let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
   let z = destruct(z);
-  let* ((meta, popped), backpack) = Backpack.pop(z.backpack);
-  let (pre, suf) = Siblings.shards(z.relatives.siblings);
-  let can_put_down =
-    meta
-    |> List.for_all((s: Shard.t) => {
-         let contains_matching =
-           List.exists((s': Shard.t) => s.tile_id == s'.tile_id);
-         let valid_segment =
-           contains_matching(pre) || contains_matching(suf);
-         let valid_order =
-           List.for_all(s' => Shard.index(s') < Shard.index(s), pre)
-           && List.for_all(s' => Shard.index(s') > Shard.index(s), suf);
-         valid_segment && valid_order;
-       });
-  can_put_down
-    ? Some({...z, backpack} |> put_selection(popped) |> unselect) : None;
+  let+ (popped, backpack) =
+    Backpack.pop(Siblings.shards(z.relatives.siblings), z.backpack);
+  // let (pre, suf) = Siblings.shards(z.relatives.siblings);
+  // let can_put_down =
+  //   meta
+  //   |> List.for_all((s: Shard.t) => {
+  //        let contains_matching =
+  //          List.exists((s': Shard.t) => s.tile_id == s'.tile_id);
+  //        let valid_segment =
+  //          contains_matching(pre) || contains_matching(suf);
+  //        let valid_order =
+  //          List.for_all(s' => Shard.index(s') < Shard.index(s), pre)
+  //          && List.for_all(s' => Shard.index(s') > Shard.index(s), suf);
+  //        valid_segment && valid_order;
+  //      });
+  // can_put_down
+  //   ? Some({...z, backpack} |> put_selection(popped) |> unselect) : None;
+  {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
@@ -212,10 +219,12 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   let selections =
     Shard.mk_s(id, label, mold)
     |> ListUtil.rev_if(from == Right)
-    |> List.mapi((i, s) => i == 0 ? ([], s) : ([s], s))
-    |> List.map(((meta, s)) =>
-         (meta, Selection.mk(from, Segment.of_shard(s)))
-       );
+    |> List.map(Segment.of_shard)
+    |> List.map(Selection.mk(from));
+  // |> List.mapi((i, s) => i == 0 ? ([], s) : ([s], s))
+  // |> List.map(((meta, s)) =>
+  //      (meta, Selection.mk(from, Segment.of_shard(s)))
+  //    );
   let backpack = Backpack.push_s(selections, z.backpack);
   Option.get(put_down({...z, id_gen, backpack}));
 };

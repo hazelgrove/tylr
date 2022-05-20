@@ -1,7 +1,7 @@
+open Util;
+
 [@deriving show]
-type meta = list(Shard.t);
-[@deriving show]
-type t = list((meta, Selection.t));
+type t = list(Selection.t);
 
 let empty = [];
 
@@ -22,10 +22,9 @@ let empty = [];
 //   |> Segment.reassemble
 //   |> Segment.is_balanced;
 
-let push = ((_, sel) as meta_sel) =>
-  Selection.is_empty(sel) ? Fun.id : List.cons(meta_sel);
+let push = sel => Selection.is_empty(sel) ? Fun.id : List.cons(sel);
 
-let push_s: (list((meta, Selection.t)), t) => t = List.fold_right(push);
+let push_s: (list(Selection.t), t) => t = List.fold_right(push);
 
 // let pop = (ids: list(Id.t), bp: t): option((Selection.t, t)) =>
 //   switch (Util.ListUtil.split_first_opt(bp)) {
@@ -33,22 +32,104 @@ let push_s: (list((meta, Selection.t)), t) => t = List.fold_right(push);
 //     Some((sel, bp))
 //   | _ => None
 //   };
-let pop = Util.ListUtil.split_first_opt;
+
+// let labels = (bp: t) => Id.Map.t(Tile.Label.t) =>
+//   Id.Map.empty
+//   |> List.fold_right(
+//     ((_, sel: Selection.t)) =>
+//       List.fold_right(
+
+//         Segment.shards(sel.content),
+//       )
+//     bp,
+//   );
+
+// Shards are considered selection-matching if they are related transitively
+// by normal within-tile matching or by same-selection-containment.
+// Returns a map whose keys are tile ids of all shards selection-matching
+// those in the head selection of the backpack,
+// values are their tile labels and shard counts in the backpack.
+let selection_matching =
+    (hd: Selection.t, tl: t): Id.Map.t((Tile.Label.t, int)) => {
+  let init_shards: (list(Shard.t), Id.Map.t(_)) => Id.Map.t(_) =
+    List.fold_right((s: Shard.t) =>
+      Id.Map.add(s.tile_id, (Shard.tile_label(s), 0))
+    );
+  let count_shards: (list(Shard.t), Id.Map.t(_)) => Id.Map.t(_) =
+    List.fold_right((s: Shard.t) =>
+      Id.Map.update(
+        s.tile_id,
+        fun
+        | None => Some((Shard.tile_label(s), 1))
+        | Some((lbl, n)) => Some((lbl, n + 1)),
+      )
+    );
+  // initialize map indexed with tile ids of shards
+  // selection-matching shards in hd
+  let init_map =
+    Id.Map.empty
+    |> init_shards(Segment.shards(hd.content))
+    |> List.fold_right(
+         (sel: Selection.t, map) => {
+           let ss = Segment.shards(sel.content);
+           List.exists((s: Shard.t) => Id.Map.mem(s.tile_id, map), ss)
+             ? init_shards(ss, map) : map;
+         },
+         tl,
+       );
+  // count selection-matching shards in total backpack
+  init_map
+  |> List.fold_right(
+       (sel: Selection.t) => count_shards(Segment.shards(sel.content)),
+       [hd, ...tl],
+     );
+};
+
+let has_selection_matching =
+    (map: Id.Map.t((Tile.Label.t, int)), (pre, suf): ListFrame.t(Shard.t)) => {
+  let has_matching = List.exists((s: Shard.t) => Id.Map.mem(s.tile_id, map));
+  has_matching(pre) || has_matching(suf);
+};
+
+let valid_order = (sel: Selection.t, (pre, suf): ListFrame.t(Shard.t)) =>
+  Segment.shards(sel.content)
+  |> List.for_all((s: Shard.t) => {
+       let after_pre =
+         pre
+         |> List.for_all((s': Shard.t) =>
+              s'.tile_id != s.tile_id || Shard.index(s') < Shard.index(s)
+            );
+       let before_suf =
+         suf
+         |> List.for_all((s': Shard.t) =>
+              s'.tile_id != s.tile_id || Shard.index(s') > Shard.index(s)
+            );
+       after_pre && before_suf;
+     });
+
+let pop = (sibs: ListFrame.t(Shard.t), bp: t): option((Selection.t, t)) => {
+  open OptUtil.Syntax;
+  let* (hd, tl) = ListUtil.split_first_opt(bp);
+  let map = selection_matching(hd, tl);
+  let complete =
+    map
+    |> Id.Map.for_all((_, (label, count)) => List.length(label) == count);
+  if (complete || has_selection_matching(map, sibs) && valid_order(hd, sibs)) {
+    Some((hd, tl));
+  } else {
+    None;
+  };
+};
 
 let remove_matching = (ss: list(Shard.t), bp: t) =>
   List.fold_left(
     (bp, s: Shard.t) =>
       bp
-      |> List.map(((meta, sel)) =>
-           (
-             List.filter((s': Shard.t) => s'.tile_id != s.tile_id, meta),
-             Selection.map(Segment.remove_matching(s), sel),
-           )
-         )
+      |> List.map(Selection.map(Segment.remove_matching(s)))
       |> List.filter_map(
            fun
-           | (_, Selection.{content: [], _}) => None
-           | meta_sel => Some(meta_sel),
+           | Selection.{content: [], _} => None
+           | sel => Some(sel),
          ),
     bp,
     ss,
@@ -59,7 +140,7 @@ let is_first_matching = (t: Token.t, bp: t): bool =>
      of a single token which matches the one provided? */
   switch (bp) {
   | [] => false
-  | [(_, {content: [p], _}), ..._] =>
+  | [{content: [p], _}, ..._] =>
     switch (p) {
     | Tile({label: [s], _}) => s == t
     | Shard({label: (n, label), _}) =>

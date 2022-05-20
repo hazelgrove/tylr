@@ -64,8 +64,7 @@ let sel_piece_profile =
   };
 };
 
-let backpack_sel_view =
-    ((_, {focus: _, content}): (Backpack.meta, Selection.t)): t => {
+let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let l = Layout.of_segment(Sort.root, content);
   let text_view = text_views(l);
@@ -79,10 +78,7 @@ let selection_length = (s: Selection.t): int =>
 
 let genie_profile =
     (backpack: Backpack.t, origin: int): RestructuringGenieDec.Profile.t => {
-  length:
-    backpack
-    |> List.map(((_, sel)) => selection_length(sel))
-    |> List.fold_left(max, 0),
+  length: backpack |> List.map(selection_length) |> List.fold_left(max, 0),
   origin,
 };
 
@@ -167,74 +163,61 @@ let rec deco_views =
   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
   };
 
-let targets = (~font_metrics, z: Zipper.t) => {
-  let rec go_segment =
-          (meta: list(Shard.t), seg: Measured.segment): list(Node.t) =>
-    if (List.for_all(
-          (s: Shard.t) =>
-            List.exists(
-              (s': Shard.t) => s.tile_id == s'.tile_id,
-              Measured.shards(seg),
-            ),
-          meta,
-        )) {
-      ListUtil.splits(seg)
-      |> List.map(((l, r)) => {
-           let shards_l = Measured.shards(l);
-           let shards_r = Measured.shards(r);
-           let valid =
-             meta
-             |> List.for_all((s: Shard.t) => {
-                  let after_l =
-                    shards_l
-                    |> List.for_all(s' => Shard.index(s') < Shard.index(s));
-                  let before_r =
-                    shards_r
-                    |> List.for_all(s' => Shard.index(s') > Shard.index(s));
-                  after_l && before_r;
-                });
-           if (valid) {
-             let measurement =
-               switch (l, r) {
-               | ([], []) => failwith("impossible")
-               | (_, [(m, _), ..._]) =>
-                 Layout.{origin: m.origin - 1, length: 1}
-               | ([(m, _), ..._], _) =>
-                 Layout.{origin: m.origin + m.length, length: 1}
-               };
-             let profile =
-               CaretPosDec.Profile.{
-                 style: `Sibling,
-                 measurement,
-                 color: Color.Exp,
-                 just_failed: None,
-               };
-             [CaretPosDec.view(~font_metrics, profile)];
-           } else {
-             [];
-           };
-         })
-      |> List.concat;
+let targets = (~font_metrics, z: Zipper.t) =>
+  switch (ListUtil.split_first_opt(z.backpack)) {
+  | None => []
+  | Some((hd, tl)) =>
+    let map = Backpack.selection_matching(hd, tl);
+    if (Id.Map.is_empty(map)) {
+      [];
     } else {
-      seg
-      |> List.filter_map(
-           fun
-           | (_, Measured.Tile(t)) => Some(t)
-           | _ => None,
-         )
-      |> List.map((t: Measured.tile) =>
-           List.concat(List.map(go_segment(meta), t.children))
-         )
-      |> List.concat;
+      let has_matching = Backpack.has_selection_matching(map);
+      let valid_order = Backpack.valid_order(hd);
+      let rec go = (seg: Measured.segment): list(Node.t) => {
+        let targets =
+          ListUtil.splits(seg)
+          |> List.map(((l, r)) => {
+               let sibs = (Measured.shards(l), Measured.shards(r));
+               if (has_matching(sibs) && valid_order(sibs)) {
+                 let measurement =
+                   switch (l, r) {
+                   | ([], []) => failwith("impossible")
+                   | (_, [(m, _), ..._]) =>
+                     Layout.{origin: m.origin - 1, length: 1}
+                   | ([(m, _), ..._], _) =>
+                     Layout.{origin: m.origin + m.length, length: 1}
+                   };
+                 let profile =
+                   CaretPosDec.Profile.{
+                     style: `Sibling,
+                     measurement,
+                     color: Color.Exp,
+                     just_failed: None,
+                   };
+                 [CaretPosDec.view(~font_metrics, profile)];
+               } else {
+                 [];
+               };
+             })
+          |> List.concat;
+        switch (targets) {
+        | [_, ..._] => targets
+        | [] =>
+          seg
+          |> List.filter_map(
+               fun
+               | (_, Measured.Tile(t)) => Some(t)
+               | _ => None,
+             )
+          |> List.map((t: Measured.tile) =>
+               List.concat(List.map(go, t.children))
+             )
+          |> List.concat
+        };
+      };
+      go(snd(Measured.of_segment(Zipper.zip(z))));
     };
-
-  switch (Backpack.pop(z.backpack)) {
-  | Some((([_, ..._] as meta, _), _)) =>
-    let seg = Zipper.zip(z);
-    go_segment(meta, snd(Measured.of_segment(seg)));
-  | _ => []
   };
-};
 
 let view =
     (
