@@ -129,7 +129,8 @@ let cat_decos =
       };
     [
       SelectedBoxDec.view(~font_metrics, profile),
-      CaretDec.simple_view(~font_metrics, ~sub_offset, origin, "#00f8"),
+      //debug caret:
+      //CaretDec.simple_view(~font_metrics, ~sub_offset, origin, "#00f8"),
       CaretDec.simple_view(
         ~font_metrics,
         ~sub_offset,

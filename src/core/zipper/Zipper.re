@@ -137,48 +137,6 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
     None;
   };
 
-let token_len: Base.Piece.t => option(string) =
-  fun
-  | Tile({label: [t], _}) => Some(t)
-  | _ => None;
-
-let neighbors_tokens = siblings =>
-  switch (neighbors(siblings)) {
-  | (Some(l), Some(r)) => (token_len(l), token_len(r))
-  | (Some(l), None) => (token_len(l), None)
-  | (None, Some(r)) => (None, token_len(r))
-  | (None, None) => (None, None)
-  };
-
-let move =
-    (
-      d: Direction.t,
-      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
-    )
-    : option(t) =>
-  //TODO(andrew): cleanup
-  switch (d, caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
-  | (Left, Outer, (Some(t), _))
-      when String.length(t) > 1 /* enterable condition */ =>
-    // NOTE: move outer first and then move inner (TODO explain why)
-    z
-    |> move_outer(d)
-    |> Option.map(set_caret(Inner(String.length(t) - 2)))
-  | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Left, Inner(0), _) => z |> set_caret(Outer) |> Option.some //|> move_outer(d)
-  | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
-  | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
-  | (Right, Outer, (_, Some(t)))
-      when String.length(t) > 1 /* enterable condition */ =>
-    Some(set_caret(Inner(0), z))
-  | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Right, Inner(k), (_, Some(t))) when k == String.length(t) - 2 =>
-    //TODO(andrew): not sure getting length of right thing
-    z |> set_caret(Outer) |> move_outer(d)
-  | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
-  };
-
 let select = (d: Direction.t, z: t): option(t) =>
   d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
 
@@ -239,19 +197,64 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
-let remove_kth = (k, t) =>
-  String.sub(t, 0, k) ++ String.sub(t, k + 1, String.length(t) - k - 1);
+let token_len: Base.Piece.t => option(string) =
+  fun
+  | Tile({label: [t], _}) => Some(t)
+  | _ => None;
 
-let reconstruct_monotile = (f, p: Base.Piece.t): Base.Piece.t =>
-  switch (p) {
-  | Tile({label: [t], _} as tile) => Tile({...tile, label: [f(t)]})
-  | _ => p
+let neighbors_tokens = siblings =>
+  switch (neighbors(siblings)) {
+  | (Some(l), Some(r)) => (token_len(l), token_len(r))
+  | (Some(l), None) => (token_len(l), None)
+  | (None, Some(r)) => (None, token_len(r))
+  | (None, None) => (None, None)
   };
+
+let move =
+    (
+      d: Direction.t,
+      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+    )
+    : option(t) =>
+  //TODO(andrew): cleanup
+  switch (d, caret, neighbors_tokens((l_sibs, r_sibs))) {
+  | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
+  | (Left, Outer, (Some(t), _))
+      when String.length(t) > 1 /* enterable condition */ =>
+    // NOTE: move outer first and then move inner (TODO explain why)
+    z
+    |> move_outer(d)
+    |> Option.map(set_caret(Inner(String.length(t) - 2)))
+  | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
+  | (Left, Inner(0), _) => z |> set_caret(Outer) |> Option.some //|> move_outer(d)
+  | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
+  | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
+  | (Right, Outer, (_, Some(t)))
+      when String.length(t) > 1 /* enterable condition */ =>
+    Some(set_caret(Inner(0), z))
+  | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
+  | (Right, Inner(k), (_, Some(t))) when k == String.length(t) - 2 =>
+    //TODO(andrew): not sure getting length of right thing
+    z |> set_caret(Outer) |> move_outer(d)
+  | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
+  };
+
+let remove_nth = (n, t) =>
+  String.sub(t, 0, n) ++ String.sub(t, n + 1, String.length(t) - n - 1);
+
+let insert_nth = (n, s, t) =>
+  String.sub(t, 0, n) ++ s ++ String.sub(t, n, String.length(t) - n);
 
 let map_hd = (f: 'a => 'b, xs: list('a)): list('b) =>
   switch (xs) {
   | [] => []
   | [x, ...xss] => [f(x), ...xss]
+  };
+
+let reconstruct_monotile = (f, p: Base.Piece.t): Base.Piece.t =>
+  switch (p) {
+  | Tile({label: [t], _} as tile) => Tile({...tile, label: [f(t)]})
+  | _ => p
   };
 
 let reconstruct_right_monotile = (f: Token.t => Token.t, z: t): t =>
@@ -269,17 +272,19 @@ let reconstruct_left_monotile = (f: Token.t => Token.t, z: t): t =>
 let destruct =
     ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t)
     : option(t) => {
+  //TODO(andrew): merge!!!!
+  //TODO(andrew): check if result is valid token
   let d_outer = z => z |> select(Left) |> Option.map(destruct_outer);
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
   | (Outer, (Some(t), _)) when String.length(t) == 1 => d_outer(z)
   | (Outer, (Some(t), _)) =>
     z
-    |> reconstruct_left_monotile(remove_kth(String.length(t) - 1))
+    |> reconstruct_left_monotile(remove_nth(String.length(t) - 1))
     |> Option.some
   | (Outer, (None, _)) => d_outer(z)
   | (Inner(k), (_, Some(_t))) =>
     z
-    |> reconstruct_right_monotile(remove_kth(k))
+    |> reconstruct_right_monotile(remove_nth(k))
     |> update_caret(
          fun
          | Outer => failwith("destruct: impossible")
@@ -377,25 +382,35 @@ let insert_outer =
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
     | CanAddToRight(right_token) =>
-      //TODO(andrew): will need to move now in this case
+      //TODO(andrew): will need to move now in this case?
       barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
     }
   | _ => None
   };
 };
 
-/*
- insert char (inner caret): insert to left of caret
- try to add char at inner caret point
- if produces valid token, done
- otherwise try to split
- do two-way splits make sense? not sure, ignore for now
- (space counts as a token here so space insert is generally 3-way)
- */
-
 let insert =
-    (char: string, {relatives: {siblings: _, _}, _} as z: t): option(t) => {
-  insert_outer(char, z);
+    (char: string, {caret, relatives: {siblings, _}, _} as z: t): option(t) => {
+  //TODO(andrew): split!!!
+  //TODO(andrew): check if result is valid token
+  switch (caret, neighbors_tokens(siblings)) {
+  | (Outer, (_, Some(_))) =>
+    //print_endline("1");
+    z |> insert_outer(char) |> Option.map(set_caret(Inner(0)))
+  | (Inner(k), (_, Some(_))) =>
+    //print_endline("2");
+    z
+    |> reconstruct_right_monotile(insert_nth(k + 1, char))
+    |> update_caret(
+         fun
+         | Outer => failwith("insert: impossible")
+         | Inner(k) => Inner(k + 1),
+       )
+    |> Option.some
+  | _ =>
+    //print_endline("3");
+    insert_outer(char, z)
+  };
 };
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
@@ -406,10 +421,7 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   | Destruct =>
     Result.of_option(~error=Action.Failure.Cant_move, destruct(z))
   | Insert(char) =>
-    Result.of_option(
-      ~error=Action.Failure.Cant_insert,
-      insert_outer(char, z),
-    )
+    Result.of_option(~error=Action.Failure.Cant_insert, insert(char, z))
   | Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>
