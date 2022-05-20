@@ -269,47 +269,27 @@ let reconstruct_left_monotile = (f: Token.t => Token.t, z: t): t =>
 let destruct =
     ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t)
     : option(t) => {
-  /*
-   let (n_1, n_2) = neighbors((l_sibs, r_sibs));
-   print_endline("destruct");
-   switch (n_1) {
-   | None => Printf.printf("n_1: None\n")
-   | Some(p) => Printf.printf("n_1: %s\n", Base.Piece.show(p))
-   };
-   switch (n_2) {
-   | None => Printf.printf("n_1: None\n")
-   | Some(p) => Printf.printf("n_1: %s\n", Base.Piece.show(p))
-   };*/
   let d_outer = z => z |> select(Left) |> Option.map(destruct_outer);
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Outer, (Some(t), _)) when String.length(t) == 1 =>
-    //print_endline("1");
-    d_outer(z)
+  | (Outer, (Some(t), _)) when String.length(t) == 1 => d_outer(z)
   | (Outer, (Some(t), _)) =>
-    //print_endline("2");
     z
     |> reconstruct_left_monotile(remove_kth(String.length(t) - 1))
     |> Option.some
-  | (Outer, (None, _)) =>
-    //print_endline("3");
-    d_outer(z)
+  | (Outer, (None, _)) => d_outer(z)
   | (Inner(k), (_, Some(_t))) =>
-    //print_endline("4");
     z
     |> reconstruct_right_monotile(remove_kth(k))
-    |> update_caret(c =>
-         switch (c) {
-         | Inner(0)
-         | Outer => Outer
-         | Inner(k) => Inner(k - 1)
-         }
+    |> update_caret(
+         fun
+         | Outer => failwith("destruct: impossible")
+         | Inner(0) => Outer
+         | Inner(k) => Inner(k - 1),
        )
     |> Option.some
   | (Inner(_), (_, None)) =>
-    //print_endline("5");
+    // TODO(andrew): what is this case???
     failwith("TODO(andrew) destruct impossible?")
-  // TODO(andrew): what is this case???
-  //d_outer(z);
   };
 };
 
