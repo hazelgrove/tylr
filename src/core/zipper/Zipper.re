@@ -255,12 +255,36 @@ let reconstruct_left_monotile = (f: Token.t => Token.t, z: t): t =>
   |> update_selection(z.selection)
   |> snd;
 
+let is_grout: Base.Piece.t => bool =
+  fun
+  | Grout(_) => true
+  | _ => false;
+
+let is_length_one_monotile: Base.Piece.t => bool =
+  p =>
+    switch (token_len(p)) {
+    | Some(t) => String.length(t) == 1
+    | None => false
+    };
+
 let can_merge: (caret, Siblings.t) => option((string, string)) =
   (caret, (l_sibs, r_sibs)) =>
     switch (l_sibs) {
     | [Grout(_), ...l_sibs_rest] =>
       switch (caret, neighbors_tokens((l_sibs_rest, r_sibs))) {
-      | (Outer, (Some(l), Some(r))) when Molds.get([l ++ r]) != [] =>
+      | (Outer, (Some(l), Some(r))) when Molds.has_mold(l ++ r) =>
+        Some((l, r))
+      | _ => None
+      }
+    | _ => None
+    };
+
+let can_merge_single: (caret, Siblings.t) => option((string, string)) =
+  (caret, (l_sibs, r_sibs)) =>
+    switch (l_sibs) {
+    | [p, ...l_sibs_rest] when is_length_one_monotile(p) =>
+      switch (caret, neighbors_tokens((l_sibs_rest, r_sibs))) {
+      | (Outer, (Some(l), Some(r))) when Molds.has_mold(l ++ r) =>
         Some((l, r))
       | _ => None
       }
@@ -274,6 +298,19 @@ let merge = (z, (l, r)) => {
   |> select(Right)
   |> Option.map(destruct_outer)
   |> OptUtil.and_then(select(Left))
+  |> Option.map(destruct_outer)
+  |> Option.map(construct(Left, [l ++ r]))
+  |> OptUtil.and_then(move_outer(Left));
+};
+
+// TODO(andrew): cleanup/combine with above
+let merge_single = (z, (l, r)) => {
+  z
+  |> set_caret(Inner(String.length(l) - 1))
+  |> select(Right)
+  |> Option.map(destruct_outer)
+  |> OptUtil.and_then(select(Left))
+  |> OptUtil.and_then(select(Left))  // to get operator
   |> Option.map(destruct_outer)
   |> Option.map(construct(Left, [l ++ r]))
   |> OptUtil.and_then(move_outer(Left));
@@ -310,9 +347,13 @@ let destruct =
 
 let destruct_or_merge =
     ({caret, relatives: {siblings, _}, _} as z: t): option(t) =>
-  switch (can_merge(caret, siblings)) {
-  | Some(lr) => merge(z, lr)
-  | None => destruct(z)
+  switch (can_merge_single(caret, siblings)) {
+  | Some(lr) => merge_single(z, lr)
+  | None =>
+    switch (can_merge(caret, siblings)) {
+    | Some(lr) => merge(z, lr)
+    | None => destruct(z)
+    }
   };
 
 type side_dispatch =
@@ -431,16 +472,19 @@ let insert =
   | (Inner(n), (_, Some(t))) =>
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
-    switch (Molds.get([new_t])) {
-    | [] =>
-      /* if inserting wouldn't produce a valid token, split */
-      split(z, char, idx, t)
-    | _ =>
-      //TODO(andrew): check if result is valid token
+    if (Molds.has_mold(new_t)) {
       z
       |> reconstruct_right_monotile(_ => new_t)
       |> set_caret(Inner(idx))
-      |> Option.some
+      |> Option.some;
+    } else {
+      /* if inserting wouldn't produce a valid token, split */
+      split(
+        z,
+        char,
+        idx,
+        t,
+      );
     };
   | (Inner(_k), (_, None)) =>
     failwith("insert: caret is inner, but left nhbr has no inner positions")
