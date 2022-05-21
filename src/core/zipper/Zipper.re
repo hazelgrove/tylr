@@ -370,6 +370,7 @@ let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
   };
 
 let is_neighboring_space: Siblings.t => bool =
+  //TODO(andrew): rename
   siblings =>
     switch (neighbors(siblings)) {
     | (Some(Grout(_p)), _) /*when Grout.is_space(p)*/ => true
@@ -442,19 +443,31 @@ let insert =
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
   | (Outer, (_, Some(_))) =>
     //TODO(andrew): something with character class; dispatching to wrong side, space grout is fucky, etc
+    // at the least, have to set caret based on whether it dispatched right or left
     print_endline("1");
-    z |> insert_outer(char) |> Option.map(set_caret(Inner(0)));
+    z
+    |> insert_outer(char)
+    |> Option.map(
+         set_caret(
+           switch (check_sibs(char, (l_sibs, r_sibs))) {
+           | CanAddToNeither => Outer //TODO(andrew): ?
+           | CanAddToLeft(_) => Outer
+           | CanAddToRight(_) => Inner(0)
+           },
+         ),
+       );
   | (Inner(k), (_, Some(_))) =>
     print_endline("2");
     z
     |> reconstruct_right_monotile(insert_nth(k + 1, char))
     |> update_caret(
          fun
-         | Outer => failwith("insert: impossible")
+         | Outer => failwith("insert: impossible 1")
          | Inner(k) => Inner(k + 1),
        )
     |> Option.some;
-  | _ =>
+  | (Inner(_k), (_, None)) => failwith("insert: impossible 2")
+  | (Outer, (_, None)) =>
     print_endline("3");
     insert_outer(char, z);
   };
