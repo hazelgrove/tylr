@@ -239,11 +239,21 @@ let move =
   | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
   };
 
-let remove_nth = (n, t) =>
+let remove_nth = (n, t) => {
+  assert(n < String.length(t));
   String.sub(t, 0, n) ++ String.sub(t, n + 1, String.length(t) - n - 1);
+};
 
-let insert_nth = (n, s, t) =>
+let insert_nth = (n, s, t) => {
+  if (n >= String.length(t)) {
+    print_endline("ERROR: insert_nth");
+    print_endline(string_of_int(n));
+    print_endline(s);
+    print_endline(t);
+  };
+  assert(n < String.length(t));
   String.sub(t, 0, n) ++ s ++ String.sub(t, n, String.length(t) - n);
+};
 
 let map_hd = (f: 'a => 'b, xs: list('a)): list('b) =>
   switch (xs) {
@@ -269,10 +279,36 @@ let reconstruct_left_monotile = (f: Token.t => Token.t, z: t): t =>
   |> update_selection(z.selection)
   |> snd;
 
+let can_merge: (caret, Siblings.t) => option((string, string)) =
+  (caret, (l_sibs, r_sibs)) =>
+    switch (l_sibs) {
+    | [Grout(_), ...l_sibs_rest] =>
+      switch (caret, neighbors_tokens((l_sibs_rest, r_sibs))) {
+      | (Outer, (Some(l), Some(r))) when Molds.get([l ++ r]) != [] =>
+        Some((l, r))
+      | _ => None
+      }
+    | _ => None
+    };
+
+let merge = (z, (l, r)) =>
+  z
+  |> select(Right)
+  |> Option.get
+  |> destruct_outer
+  |> select(Left)
+  |> Option.get
+  |> destruct_outer
+  |> construct(Left, [l ++ r])
+  |> move_outer(Left)
+  |> Option.get
+  |> set_caret(Inner(String.length(l) - 1))
+  |> Option.some;
+//TODO(andrew): cleanup
+
 let destruct =
     ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t)
     : option(t) => {
-  //TODO(andrew): merge!!!!
   //TODO(andrew): check if result is valid token
   let d_outer = z => z |> select(Left) |> Option.map(destruct_outer);
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
@@ -287,16 +323,21 @@ let destruct =
     |> reconstruct_right_monotile(remove_nth(k))
     |> update_caret(
          fun
-         | Outer => failwith("destruct: impossible")
+         | Outer => failwith("destruct: impossible 1")
          | Inner(0) => Outer
          | Inner(k) => Inner(k - 1),
        )
     |> Option.some
-  | (Inner(_), (_, None)) =>
-    // TODO(andrew): what is this case???
-    failwith("TODO(andrew) destruct impossible?")
+  | (Inner(_), (_, None)) => failwith("destruct: impossible 2")
   };
 };
+
+let destruct_or_merge =
+    ({caret, relatives: {siblings, _}, _} as z: t): option(t) =>
+  switch (can_merge(caret, siblings)) {
+  | Some(lr) => merge(z, lr)
+  | None => destruct(z)
+  };
 
 type side_dispatch =
   | CanAddToLeft(string)
@@ -390,10 +431,14 @@ let insert_outer =
 };
 
 let insert =
-    (char: string, {caret, relatives: {siblings, _}, _} as z: t): option(t) => {
+    (
+      char: string,
+      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+    )
+    : option(t) => {
   //TODO(andrew): split!!!
   //TODO(andrew): check if result is valid token
-  switch (caret, neighbors_tokens(siblings)) {
+  switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
   | (Outer, (_, Some(_))) =>
     //print_endline("1");
     z |> insert_outer(char) |> Option.map(set_caret(Inner(0)))
@@ -419,7 +464,7 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct =>
-    Result.of_option(~error=Action.Failure.Cant_move, destruct(z))
+    Result.of_option(~error=Action.Failure.Cant_move, destruct_or_merge(z))
   | Insert(char) =>
     Result.of_option(~error=Action.Failure.Cant_insert, insert(char, z))
   | Construct(from, label) => Ok(construct(from, label, z))
