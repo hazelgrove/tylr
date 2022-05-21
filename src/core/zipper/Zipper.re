@@ -246,6 +246,7 @@ let remove_nth = (n, t) => {
 
 let insert_nth = (n, s, t) => {
   if (n >= String.length(t)) {
+    //TODO(andrew): there is some kind of bug involving inserting spaces, infix ops, and inner caret
     print_endline("ERROR: insert_nth");
     print_endline(string_of_int(n));
     print_endline(s);
@@ -371,8 +372,8 @@ let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
 let is_neighboring_space: Siblings.t => bool =
   siblings =>
     switch (neighbors(siblings)) {
-    | (Some(Grout(p)), _) when Grout.is_space(p) => true
-    | (_, Some(Grout(p))) when Grout.is_space(p) => true
+    | (Some(Grout(_p)), _) /*when Grout.is_space(p)*/ => true
+    | (_, Some(Grout(_p))) /*when Grout.is_space(p)*/ => true
     | _ => false
     };
 
@@ -440,10 +441,11 @@ let insert =
   //TODO(andrew): check if result is valid token
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
   | (Outer, (_, Some(_))) =>
-    //print_endline("1");
-    z |> insert_outer(char) |> Option.map(set_caret(Inner(0)))
+    //TODO(andrew): something with character class; dispatching to wrong side, space grout is fucky, etc
+    print_endline("1");
+    z |> insert_outer(char) |> Option.map(set_caret(Inner(0)));
   | (Inner(k), (_, Some(_))) =>
-    //print_endline("2");
+    print_endline("2");
     z
     |> reconstruct_right_monotile(insert_nth(k + 1, char))
     |> update_caret(
@@ -451,10 +453,10 @@ let insert =
          | Outer => failwith("insert: impossible")
          | Inner(k) => Inner(k + 1),
        )
-    |> Option.some
+    |> Option.some;
   | _ =>
-    //print_endline("3");
-    insert_outer(char, z)
+    print_endline("3");
+    insert_outer(char, z);
   };
 };
 
