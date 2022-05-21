@@ -218,48 +218,18 @@ let move =
     : option(t) =>
   //TODO(andrew): cleanup
   switch (d, caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Left, Outer, _) when l_sibs == [] => move_outer(d, z)
-  | (Left, Outer, (Some(t), _))
-      when String.length(t) > 1 /* enterable condition */ =>
-    // NOTE: move outer first and then move inner (TODO explain why)
-    z
-    |> move_outer(d)
-    |> Option.map(set_caret(Inner(String.length(t) - 2)))
+  | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
+    z |> set_caret(Inner(String.length(t) - 2)) |> move_outer(d)
   | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Left, Inner(0), _) => z |> set_caret(Outer) |> Option.some //|> move_outer(d)
+  | (Left, Inner(0), _) => Some(set_caret(Outer, z))
   | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
-  | (Right, Outer, _) when r_sibs == [] => move_outer(d, z)
-  | (Right, Outer, (_, Some(t)))
-      when String.length(t) > 1 /* enterable condition */ =>
+  | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
     Some(set_caret(Inner(0), z))
   | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Right, Inner(k), (_, Some(t))) when k == String.length(t) - 2 =>
-    //TODO(andrew): not sure getting length of right thing
+  | (Right, Inner(n), (_, Some(t))) when n == String.length(t) - 2 =>
     z |> set_caret(Outer) |> move_outer(d)
   | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
   };
-
-let remove_nth = (n, t) => {
-  assert(n < String.length(t));
-  String.sub(t, 0, n) ++ String.sub(t, n + 1, String.length(t) - n - 1);
-};
-
-let insert_nth = (n, s, t) => {
-  if (n >= String.length(t)) {
-    //TODO(andrew): there is some kind of bug involving inserting spaces, infix ops, and inner caret
-    print_endline("ERROR: insert_nth");
-    print_endline(string_of_int(n));
-    print_endline(s);
-    print_endline(t);
-  };
-  assert(n < String.length(t));
-  String.sub(t, 0, n) ++ s ++ String.sub(t, n, String.length(t) - n);
-};
-
-let split_nth = (n, t) => {
-  assert(n < String.length(t));
-  (String.sub(t, 0, n), String.sub(t, n, String.length(t) - n));
-};
 
 let map_hd = (f: 'a => 'b, xs: list('a)): list('b) =>
   switch (xs) {
@@ -297,20 +267,23 @@ let can_merge: (caret, Siblings.t) => option((string, string)) =
     | _ => None
     };
 
-let merge = (z, (l, r)) =>
+/* merge precondition: ... <Monotile> Grout | <Monotile> */
+let merge = (z, (l, r)) => {
   z
-  |> select(Right)
-  |> Option.get
-  |> destruct_outer
-  |> select(Left)
-  |> Option.get
-  |> destruct_outer
-  |> construct(Left, [l ++ r])
-  |> move_outer(Left)
-  |> Option.get
   |> set_caret(Inner(String.length(l) - 1))
-  |> Option.some;
-//TODO(andrew): cleanup
+  |> select(Right)
+  |> Option.map(destruct_outer)
+  |> OptUtil.and_then(select(Left))
+  |> Option.map(destruct_outer)
+  |> Option.map(construct(Left, [l ++ r]))
+  |> OptUtil.and_then(move_outer(Left));
+};
+
+let decrement_caret: caret => caret =
+  fun
+  | Outer
+  | Inner(0) => Outer
+  | Inner(k) => Inner(k - 1);
 
 let destruct =
     ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t)
@@ -318,23 +291,20 @@ let destruct =
   //TODO(andrew): check if result is valid token
   let d_outer = z => z |> select(Left) |> Option.map(destruct_outer);
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Outer, (Some(t), _)) when String.length(t) == 1 => d_outer(z)
-  | (Outer, (Some(t), _)) =>
-    z
-    |> reconstruct_left_monotile(remove_nth(String.length(t) - 1))
-    |> Option.some
-  | (Outer, (None, _)) => d_outer(z)
   | (Inner(k), (_, Some(_t))) =>
     z
-    |> reconstruct_right_monotile(remove_nth(k))
-    |> update_caret(
-         fun
-         | Outer => failwith("destruct: impossible 1")
-         | Inner(0) => Outer
-         | Inner(k) => Inner(k - 1),
-       )
+    |> reconstruct_right_monotile(StringUtil.remove_nth(k))
+    |> update_caret(decrement_caret)
     |> Option.some
   | (Inner(_), (_, None)) => failwith("destruct: impossible 2")
+  | (Outer, (Some(t), _)) when String.length(t) > 1 =>
+    z
+    |> reconstruct_left_monotile(
+         StringUtil.remove_nth(String.length(t) - 1),
+       )
+    |> Option.some
+  | (Outer, (Some(_), _)) /* t.length == 1 */
+  | (Outer, (None, _)) => d_outer(z)
   };
 };
 
@@ -374,8 +344,7 @@ let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
     (l.shape, r.shape);
   };
 
-let is_neighboring_space: Siblings.t => bool =
-  //TODO(andrew): rename
+let has_grout_neighbor: Siblings.t => bool =
   siblings =>
     switch (neighbors(siblings)) {
     | (Some(Grout(_p)), _) /*when Grout.is_space(p)*/ => true
@@ -390,7 +359,7 @@ let insert_space_grout =
     ) => {
   let new_grout =
     switch (l_sibs, r_sibs) {
-    | ([], []) => failwith("TODO(andrew): is this impossible?")
+    | ([], []) => failwith("TODO(andrew): insert_space_grout: impossible??")
     | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
     | ([p, ..._], _) =>
       let nib_shape_r = p |> nib_shapes |> snd;
@@ -421,7 +390,7 @@ let barf_or_construct =
 let insert_outer =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   switch (char) {
-  | _ when Token.is_whitespace(char) && !is_neighboring_space(siblings) =>
+  | _ when Token.is_whitespace(char) && !has_grout_neighbor(siblings) =>
     Some(insert_space_grout(char, z))
   //None //TODO(andrew)
   | _ when Token.is_symbol(char) || Token.is_alphanum(char) =>
@@ -437,71 +406,59 @@ let insert_outer =
   };
 };
 
-let split = (z, char, l, r) =>
-  //TODO(andrew): cleanup
+let split = (z: t, char: string, idx: int, t: string): option(t) => {
+  let (l, r) = StringUtil.split_nth(idx, t);
   z
-  |> select(Right)
-  |> Option.get
-  |> destruct_outer
-  |> construct(Left, [l])
-  |> (
-    Token.is_whitespace(char)
-      ? z => z |> insert_space_grout(char)
-      //|> move_outer(Right)
-      //|> Option.get
-      : construct(Left, [char])
-  )
   |> set_caret(Outer)
-  |> construct(Right, [r])
-  |> Option.some;
+  |> select(Right)
+  |> Option.map(destruct_outer)
+  |> Option.map(construct(Right, [r]))
+  |> Option.map(construct(Left, [l]))
+  |> OptUtil.and_then(z =>
+       Token.is_whitespace(char)
+         ? z |> insert_space_grout(char) |> move_outer(Right)
+         : z |> construct(Left, [char]) |> Option.some
+     );
+};
 
 let insert =
     (
       char: string,
       {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
     )
-    : option(t) => {
-  //TODO(andrew): split!!!
-  //TODO(andrew): check if result is valid token
+    : option(t) =>
   switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
+  | (Inner(n), (_, Some(t))) =>
+    let idx = n + 1;
+    let new_t = StringUtil.insert_nth(idx, char, t);
+    switch (Molds.get([new_t])) {
+    | [] =>
+      /* if inserting wouldn't produce a valid token, split */
+      split(z, char, idx, t)
+    | _ =>
+      //TODO(andrew): check if result is valid token
+      z
+      |> reconstruct_right_monotile(_ => new_t)
+      |> set_caret(Inner(idx))
+      |> Option.some
+    };
+  | (Inner(_k), (_, None)) =>
+    failwith("insert: caret is inner, but left nhbr has no inner positions")
   | (Outer, (_, Some(_))) =>
-    //TODO(andrew): something with character class; dispatching to wrong side, space grout is fucky, etc
-    // at the least, have to set caret based on whether it dispatched right or left
-    print_endline("1");
     z
     |> insert_outer(char)
     |> Option.map(
          set_caret(
-           //TODO(andrew): unfuck this
+           //TODO(andrew): unfuck this (hacky dispatch to proper side)
            switch (check_sibs(char, (l_sibs, r_sibs))) {
            | CanAddToNeither => Outer //TODO(andrew): ?
            | CanAddToLeft(_) => Outer
            | CanAddToRight(_) => Inner(0)
            },
          ),
-       );
-  | (Inner(k), (_, Some(t))) =>
-    print_endline("2");
-    switch (Molds.get([insert_nth(k + 1, char, t)])) {
-    | [] =>
-      let (l, r) = split_nth(k + 1, t);
-      split(z, char, l, r);
-    | _ =>
-      z
-      |> reconstruct_right_monotile(insert_nth(k + 1, char))
-      |> update_caret(
-           fun
-           | Outer => failwith("insert: impossible 1")
-           | Inner(k) => Inner(k + 1),
-         )
-      |> Option.some
-    };
-  | (Inner(_k), (_, None)) => failwith("insert: impossible 2")
-  | (Outer, (_, None)) =>
-    print_endline("3");
-    insert_outer(char, z);
+       )
+  | (Outer, (_, None)) => insert_outer(char, z)
   };
-};
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   switch (a) {
