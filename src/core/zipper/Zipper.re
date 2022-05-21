@@ -256,6 +256,11 @@ let insert_nth = (n, s, t) => {
   String.sub(t, 0, n) ++ s ++ String.sub(t, n, String.length(t) - n);
 };
 
+let split_nth = (n, t) => {
+  assert(n < String.length(t));
+  (String.sub(t, 0, n), String.sub(t, n, String.length(t) - n));
+};
+
 let map_hd = (f: 'a => 'b, xs: list('a)): list('b) =>
   switch (xs) {
   | [] => []
@@ -432,6 +437,24 @@ let insert_outer =
   };
 };
 
+let split = (z, char, l, r) =>
+  //TODO(andrew): cleanup
+  z
+  |> select(Right)
+  |> Option.get
+  |> destruct_outer
+  |> construct(Left, [l])
+  |> (
+    Token.is_whitespace(char)
+      ? z => z |> insert_space_grout(char)
+      //|> move_outer(Right)
+      //|> Option.get
+      : construct(Left, [char])
+  )
+  |> set_caret(Outer)
+  |> construct(Right, [r])
+  |> Option.some;
+
 let insert =
     (
       char: string,
@@ -449,6 +472,7 @@ let insert =
     |> insert_outer(char)
     |> Option.map(
          set_caret(
+           //TODO(andrew): unfuck this
            switch (check_sibs(char, (l_sibs, r_sibs))) {
            | CanAddToNeither => Outer //TODO(andrew): ?
            | CanAddToLeft(_) => Outer
@@ -456,16 +480,22 @@ let insert =
            },
          ),
        );
-  | (Inner(k), (_, Some(_))) =>
+  | (Inner(k), (_, Some(t))) =>
     print_endline("2");
-    z
-    |> reconstruct_right_monotile(insert_nth(k + 1, char))
-    |> update_caret(
-         fun
-         | Outer => failwith("insert: impossible 1")
-         | Inner(k) => Inner(k + 1),
-       )
-    |> Option.some;
+    switch (Molds.get([insert_nth(k + 1, char, t)])) {
+    | [] =>
+      let (l, r) = split_nth(k + 1, t);
+      split(z, char, l, r);
+    | _ =>
+      z
+      |> reconstruct_right_monotile(insert_nth(k + 1, char))
+      |> update_caret(
+           fun
+           | Outer => failwith("insert: impossible 1")
+           | Inner(k) => Inner(k + 1),
+         )
+      |> Option.some
+    };
   | (Inner(_k), (_, None)) => failwith("insert: impossible 2")
   | (Outer, (_, None)) =>
     print_endline("3");
