@@ -63,9 +63,8 @@ let convex = (z: t): bool => {
   Segment.convex(List.rev(pre) @ suf);
 };
 
-let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
-  let old = z.selection;
-  let z = unselect({...z, selection});
+let remold_regrout = (z: t): t => {
+  assert(Selection.is_empty(z.selection));
   let ls_relatives =
     Relatives.remold(z.relatives)
     |> List.sort((rel, rel') => {
@@ -75,7 +74,16 @@ let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
        });
   assert(ls_relatives != []);
   let relatives = ls_relatives |> List.hd |> Relatives.regrout;
-  (old, {...z, relatives});
+  {...z, relatives};
+};
+
+let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
+  let old = z.selection;
+  // used to be necessary to unselect when selection update
+  // included remold/regrout, now no longer necessary if needs
+  // to be changed but keeping for now to minimize change
+  let z = unselect({...z, selection});
+  (old, z);
 };
 
 let put_selection = (sel, z) => snd(update_selection(sel, z));
@@ -313,11 +321,16 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   | Move(d) => Result.of_option(~error=Action.Failure.Cant_move, move(d, z))
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
-  | Destruct => Ok(destruct(z))
+  | Destruct => Ok(remold_regrout(destruct(z)))
   | Insert(char) =>
-    Result.of_option(~error=Action.Failure.Cant_insert, insert(char, z))
-  | Construct(from, label) => Ok(construct(from, label, z))
-  | Pick_up => Ok(pick_up(z))
+    z
+    |> insert(char)
+    |> Option.map(remold_regrout)
+    |> Result.of_option(~error=Action.Failure.Cant_insert)
+  | Construct(from, label) => Ok(remold_regrout(construct(from, label, z)))
+  | Pick_up => Ok(remold_regrout(pick_up(z)))
   | Put_down =>
-    Result.of_option(~error=Action.Failure.Nothing_to_put_down, put_down(z))
+    put_down(z)
+    |> Option.map(remold_regrout)
+    |> Result.of_option(~error=Action.Failure.Nothing_to_put_down)
   };
