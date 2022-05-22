@@ -2,7 +2,7 @@
 
 (library
  (name core)
- (libraries util re sexplib)
+ (libraries util re sexplib unionFind)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))

@@ -5,6 +5,50 @@ type t = list(Selection.t);
 
 let empty = [];
 
+module SelMatch = {
+  type t = {
+    labels: Id.Map.t(Tile.Label.t),
+    counts: Id.Map.t(int),
+    lt: (Shard.t, Shard.t) => option(bool),
+  };
+
+  let mem = (id, m) => Id.Map.mem(id, m.labels);
+
+  let exists_mem = (ss: list(Shard.t), m) =>
+    List.exists((s: Shard.t) => mem(s.tile_id, m), ss);
+
+  let is_complete = (m: t) =>
+    m.counts
+    |> Id.Map.for_all((id, n) =>
+         n == List.length(Id.Map.find(id, m.labels))
+       );
+
+  let lt_or_un = (ss: list(Shard.t), ss': list(Shard.t), m: t): bool =>
+    ss
+    |> List.for_all(s =>
+         ss'
+         |> List.for_all(s' =>
+              switch (m.lt(s, s')) {
+              | None => true
+              | Some(b) => b
+              }
+            )
+       );
+
+  let not_all_un = (ss: list(Shard.t), ss': list(Shard.t), m: t): bool =>
+    ss
+    |> List.exists(s =>
+         ss' |> List.exists(s' => Option.is_some(m.lt(s, s')))
+       );
+};
+
+module SelMatches = {
+  type bp = t;
+  type t = Id.Uf.store(SelMatch.t);
+  include Id.Uf;
+  let mk = (_: bp): t => failwith("SelMatches.mk");
+};
+
 // let left_to_right: t => list(Selection.t) =
 //   List.fold_left(
 //     (l2r, (_, sel: Selection.t)) =>
@@ -107,17 +151,22 @@ let valid_order = (sel: Selection.t, (pre, suf): ListFrame.t(Shard.t)) =>
        after_pre && before_suf;
      });
 
-let pop = (sibs: ListFrame.t(Shard.t), bp: t): option((Selection.t, t)) => {
+let pop =
+    ((pre, suf): ListFrame.t(Shard.t), bp: t): option((Selection.t, t)) => {
   open OptUtil.Syntax;
   let* (hd, tl) = ListUtil.split_first_opt(bp);
-  let map = selection_matching(hd, tl);
-  let complete =
-    map
-    |> Id.Map.for_all((_, (label, count)) => List.length(label) == count);
-  if (complete || has_selection_matching(map, sibs) && valid_order(hd, sibs)) {
-    Some((hd, tl));
-  } else {
-    None;
+  let ok = Some((hd, tl));
+  switch (Segment.shards(hd.content)) {
+  | [] => ok
+  | [s, ..._] as ss =>
+    let match = SelMatches.(get(s.tile_id, mk(bp)));
+    SelMatch.(
+      is_complete(match)
+      || (not_all_un(pre, ss, match) || not_all_un(ss, suf, match))
+      && lt_or_un(pre, ss, match)
+      && lt_or_un(ss, suf, match)
+    )
+      ? ok : None;
   };
 };
 
