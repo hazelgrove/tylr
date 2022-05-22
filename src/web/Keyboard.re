@@ -68,10 +68,14 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Tab" => now(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so
-          Update.[/*PerformAction(Select(Left)),*/ PerformAction(Destruct)]
+          Update.[
+            /*PerformAction(Select(Left)),*/ PerformAction(Destruct(Left)),
+          ]
         | "Delete" =>
           // TODO(d): fix broken repeated delete
-          Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
+          Update.[
+            /*PerformAction(Select(Right)),*/ PerformAction(Destruct(Right)),
+          ]
         | _ when Token.is_valid(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
@@ -81,86 +85,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         //   | (Restructuring(_), _) => [p(Mark)]
         //   | _ => []
         //   }
-        // | "(" =>
-        //   switch (fst(zipper)) {
-        //   | Restructuring((
-        //       (_, [Shard(Pat(Paren_l) | Exp(Paren_l))], _),
-        //       _,
-        //     )) => [
-        //       p(Mark),
-        //     ]
-        //   | _ =>
-        //     switch (frame_sort) {
-        //     | Pat => [p(Construct(Shard(Pat(Paren_l))))]
-        //     | Exp => [p(Construct(Shard(Exp(Paren_l))))]
-        //     }
-        //   }
-        // | ")" =>
-        //   switch (zipper) {
-        //   | (
-        //       Restructuring((
-        //         (d, [Shard(Pat(Paren_r) | Exp(Paren_r))], _),
-        //         _,
-        //       )),
-        //       _,
-        //     ) => [
-        //       p(Mark),
-        //       ...d == Right ? [p(Move(Right))] : [],
-        //     ]
-        //   | (Pointing((_, [])), Pat(Paren_body(_)) | Exp(Paren_body(_))) => [
-        //       p(Move(Right)),
-        //     ]
-        //   | _ =>
-        //     switch (frame_sort) {
-        //     | Pat => [p(Construct(Shard(Pat(Paren_r))))]
-        //     | Exp => [p(Construct(Shard(Exp(Paren_r))))]
-        //     }
-        //   }
-        // | "\\" => [p(Construct(Tile(Exp(Lam([OpHole], [OpHole])))))]
-        // | "=" => [p(Construct(Tile(Exp(Let([OpHole], [OpHole])))))]
-        // | "," =>
-        //   switch (zipper) {
-        //   | (_, Pat(_)) => [p(Construct(Tile(Pat(Prod))))]
-        //   | (_, Exp(_)) => [p(Construct(Tile(Exp(Prod))))]
-        //   }
-        // | "[" => [p(Construct(Tile(Exp(Ap([OpHole])))))]
-        // | "]" =>
-        //   switch (zipper) {
-        //   | (Restructuring(((d, [Shard(Exp(Ap_r))], _), _)), _) => [
-        //       p(Mark),
-        //       ...d == Right ? [p(Move(Right))] : [],
-        //     ]
-        //   | (Pointing((_, [])), Exp(Ap_arg(_))) => [p(Move(Right))]
-        //   | _ => [p(Construct(Shard(Exp(Ap_r))))]
-        //   }
-        // | "}" =>
-        //   switch (zipper) {
-        //   | (Restructuring(((d, [Shard(Exp(Lam_close))], _), _)), _) => [
-        //       p(Mark),
-        //       ...d == Right ? [p(Move(Right))] : [],
-        //     ]
-        //   | (Pointing((_, [])), Exp(Lam_body(_))) => [p(Move(Right))]
-        //   | _ => []
-        //   }
         // | "Escape" => [Update.escape()]
-        // | "?" =>
-        //   switch (fst(zipper)) {
-        //   | Restructuring(((_, [Shard(Exp(Cond_que))], _), _)) => [
-        //       p(Mark),
-        //     ]
-        //   | _ => [p(Construct(Shard(Exp(Cond_que))))]
-        //   }
-        // | ":" =>
-        //   switch (fst(zipper)) {
-        //   | Restructuring(((_, [Shard(Exp(Cond_col))], _), _)) => [
-        //       p(Mark),
-        //     ]
-        //   | _ => [p(Construct(Shard(Exp(Cond_col))))]
-        //   }
-        // | "!" => [p(Construct(Tile(Exp(Fact))))]
-        // | _ when is_num(key) => [
-        //     p(Construct(Tile(Exp(Num(int_of_string(key)))))),
-        //   ]
         // | _ when is_var(key) =>
         //   switch (zipper) {
         //   | (_, Pat(_)) => [p(Construct(Tile(Pat(Var(key)))))]
