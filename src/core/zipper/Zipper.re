@@ -290,20 +290,39 @@ let destruct_or_merge =
   | None => destruct(z)
   };
 
-let keyword_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
+let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
+    /* Completions which can or must be executed immediately */
     switch (s) {
     | "(" => (["(", ")"], Left)
     | ")" => (["(", ")"], Right)
     | "[" => (["[", "]"], Left)
     | "]" => (["[", "]"], Right)
     | "?" => (["?", ":"], Left)
+    | "=>" => (["fun", "=>"], Right) /* Must as => not monotile */
+    | t => ([t], direction_preference)
+    };
+
+let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
+  (s, direction_preference) =>
+    /* Completions which must be defered as they are ambiguous prefixes */
+    switch (s) {
     | "fun" => (["fun", "=>"], Left)
     | "in" => (["let", "=", "in"], Right)
     | "let" => (["let", "=", "in"], Left)
-    | "=>" => (["fun", "=>"], Right)
     | t => ([t], direction_preference)
     };
+
+let keyword_expand = (z: t): option(t) =>
+  /* NOTE(andrew): we may want to allow editing of shards when only 1 of set
+     is down (removing the rest of the set from backpack on edit) as something
+     like this is necessary for backspace to act as undo after kw-expansion */
+  switch (neighbor_monotiles(z.relatives.siblings)) {
+  | (Some(kw), _) =>
+    let (new_label, direction) = delayed_completion(kw, Left);
+    z |> replace_construct(direction, new_label);
+  | _ => Some(z)
+  };
 
 let barf_or_construct =
     (new_token: string, direction_preference: Direction.t, z: t) =>
@@ -311,7 +330,7 @@ let barf_or_construct =
     put_down(z);
   } else {
     let (new_label, direction) =
-      keyword_completion(new_token, direction_preference);
+      instant_completion(new_token, direction_preference);
     Some(construct(direction, new_label, z));
   };
 
@@ -319,18 +338,21 @@ let insert_space_grout =
     (
       _char: string,
       {relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
-    ) => {
-  let new_grout =
-    switch (l_sibs, r_sibs) {
-    | ([], []) => failwith("insert_space_grout: impossible")
-    | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
-    | ([p, ..._], _) =>
-      let nib_shape_r = p |> Base.nib_shapes |> snd;
-      Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
-    };
-  update_siblings(((l, r)) => ([new_grout] @ l, r), z)
-  |> update_relatives(Relatives.regrout);
-};
+    ) =>
+  if (has_grout_neighbor((l_sibs, r_sibs))) {
+    z;
+  } else {
+    let new_grout =
+      switch (l_sibs, r_sibs) {
+      | ([], []) => failwith("insert_space_grout: impossible")
+      | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
+      | ([p, ..._], _) =>
+        let nib_shape_r = p |> Base.nib_shapes |> snd;
+        Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
+      };
+    update_siblings(((l, r)) => ([new_grout] @ l, r), z)
+    |> update_relatives(Relatives.regrout);
+  };
 
 type appendability =
   | CanAddToLeft(string)
@@ -348,15 +370,17 @@ let sibling_appendability: (string, Siblings.t) => appendability =
 let insert_outer =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   switch (char) {
-  | _ when Token.is_whitespace(char) && !has_grout_neighbor(siblings) =>
-    Some(insert_space_grout(char, z))
+  | _ when Token.is_whitespace(char) =>
+    z |> keyword_expand |> Option.map(insert_space_grout(char))
   | _ when Token.is_symbol(char) || Token.is_alphanum(char) =>
     switch (sibling_appendability(char, siblings)) {
-    | CanAddToNeither => barf_or_construct(char, Left, z)
+    | CanAddToNeither =>
+      z |> keyword_expand |> OptUtil.and_then(barf_or_construct(char, Left))
+    //TODO(andrew): keyword-expand first thing
     | CanAddToLeft(left_token) =>
-      barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
+      z |> remove_left_sib |> barf_or_construct(left_token ++ char, Left)
     | CanAddToRight(right_token) =>
-      barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
+      z |> remove_right_sib |> barf_or_construct(char ++ right_token, Right)
     }
   | _ => None
   };
@@ -364,16 +388,18 @@ let insert_outer =
 
 let split = (z: t, char: string, idx: int, t: string): option(t) => {
   let (l, r) = StringUtil.split_nth(idx, t);
-  let (lbl, direction) = keyword_completion(char, Left);
+  let (lbl, direction) = instant_completion(char, Left);
   z
   |> set_caret(Outer)
   |> replace_construct(Right, [r])
   |> Option.map(construct(Left, [l]))
+  |> OptUtil.and_then(keyword_expand)
   |> OptUtil.and_then(z =>
        Token.is_whitespace(char)
          ? z |> insert_space_grout(char) |> move_outer(Right)
          : Some(construct(direction, lbl, z))
      );
+  //TODO(andrew): keyword-expand first thing
 };
 
 let insert =
