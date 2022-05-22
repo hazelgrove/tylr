@@ -78,6 +78,7 @@ let sort_rank = ((pre, suf): t, s: Sort.t) =>
 let shape_rank = ((pre, suf): t) =>
   Prefix.shape_rank(pre) + Suffix.shape_rank(suf);
 
+// regrouts prefix/suffix independently, doesn't consider boundary
 let regrout = ((pre, suf): t) => (
   Prefix.regrout(pre),
   Suffix.regrout(suf),

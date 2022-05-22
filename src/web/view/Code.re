@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 open Node;
 open Core;
-open Util;
+//open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
@@ -113,14 +113,17 @@ let rec ind_hack = (l: Layout.t): list((Mold.t, Layout.token)) => {
 
 let caret_shape =
     (
+      caret: Zipper.caret,
       pd: list((Mold.t, Layout.token)),
       i: int,
       j: int,
       ms: list(Layout.measured),
-      ~direction: Direction.t,
+      ~focus: Util.Direction.t,
     )
     : CaretDec.caret_shape =>
-  if (i == j) {
+  if (caret != Outer) {
+    Straight;
+  } else if (i == j) {
     //selection empty
     switch (pd) {
     /*| [({shape, _}, _)] =>
@@ -150,12 +153,12 @@ let caret_shape =
     };
   } else {
     switch (Util.ListUtil.split_sublist_opt(i, j, ms)) {
-    | Some((_, [{layout, _}, ..._], _)) when direction == Left =>
+    | Some((_, [{layout, _}, ..._], _)) when focus == Left =>
       switch (Layout.get_shape(layout)) {
       | Some(Op | Pre(_)) => Left
       | _ => Right
       }
-    | Some((_, sel, _)) when direction == Right =>
+    | Some((_, sel, _)) when focus == Right =>
       let {layout, _}: Layout.measured = sel |> List.rev |> List.hd;
       switch (Layout.get_shape(layout)) {
       | Some(Op | Post(_)) => Right
@@ -169,17 +172,27 @@ let cat_decos =
     (
       pd: list((Mold.t, Layout.token)),
       ~font_metrics,
-      ~backpack: Backpack.t,
-      ~direction: Direction.t,
+      ~zipper as {backpack, selection: {focus, _}, caret, _}: Zipper.t,
       ann: Layout.ann_cat,
       measurement: Layout.measurement,
-      ms: list(Layout.measured),
+      ms,
     ) => {
+  let caret_offset =
+    switch (caret) {
+    | Outer => 0
+    | Inner(n) => n + 1
+    };
+  //NOTE(andrew): below related to generic spacing
+  let sub_offset =
+    switch (caret) {
+    | Outer => (-0.5)
+    | Inner(_) => 0.0
+    };
   switch (ann) {
   | Segment(Range(i, j)) =>
     let profile = range_profile(ms, i, j);
     let origin =
-      switch (direction) {
+      switch (focus) {
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
@@ -190,11 +203,17 @@ let cat_decos =
       | [(_, {padding: Bi, _})] => origin + 1
       | _ => origin
       };*/
-    let caret_shape = caret_shape(pd, i, j, ms, ~direction);
+    let caret_shape = caret_shape(caret, pd, i, j, ms, ~focus);
     [
       //TODO(andrew): restore
       //SelectedBoxDec.view(~font_metrics, profile),
-      CaretDec.simple_view(~font_metrics, origin, caret_shape),
+      CaretDec.simple_view(
+        ~font_metrics,
+        ~sub_offset,
+        origin + caret_offset,
+        "#f008",
+        caret_shape,
+      ),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
@@ -253,30 +272,19 @@ let rec deco_views =
         (
           ind_token,
           ~font_metrics: FontMetrics.t,
-          ~backpack: Backpack.t,
-          ~direction: Direction.t,
+          ~zipper: Zipper.t,
           layout: Layout.measured,
         )
-        : list(t) =>
+        : list(t) => {
   switch (layout.layout) {
   | CatM(ms, ann) =>
-    cat_decos(
-      ind_token,
-      ~font_metrics,
-      ~backpack,
-      ~direction,
-      ann,
-      layout.measurement,
-      ms,
-    )
+    cat_decos(ind_token, ~font_metrics, ~zipper, ann, layout.measurement, ms)
     @ List.concat(
-        List.map(
-          deco_views(ind_token, ~font_metrics, ~backpack, ~direction),
-          ms,
-        ),
+        List.map(deco_views(ind_token, ~font_metrics, ~zipper), ms),
       )
   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
   };
+};
 
 let view =
     (
@@ -288,20 +296,12 @@ let view =
     : Node.t => {
   let layout = Layout.mk_zipper(zipper);
   let measured = Layout.to_measured(layout);
-  let backpack = zipper.backpack;
-  let direction = zipper.selection.focus;
   let ind_token = ind_hack(layout);
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [
       span_c("code-text", text_views(layout)),
-      ...deco_views(
-           ind_token,
-           ~font_metrics,
-           ~backpack,
-           ~direction,
-           measured,
-         ),
+      ...deco_views(ind_token, ~font_metrics, ~zipper, measured),
     ],
   );
 };

@@ -25,3 +25,5 @@ let get = (label: Base.Tile.Label.t): list(Mold.t) => {
   | _ => []
   };
 };
+
+let has_mold: string => bool = t => get([t]) != [];

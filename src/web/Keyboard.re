@@ -68,7 +68,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Tab" => now(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so
-          Update.[PerformAction(Select(Left)), PerformAction(Destruct)]
+          Update.[/*PerformAction(Select(Left)),*/ PerformAction(Destruct)]
         | "Delete" =>
           // TODO(d): fix broken repeated delete
           Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
