@@ -166,7 +166,20 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
-  d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
+  if (d == z.selection.focus) {
+    if (z.caret == Outer) {
+      grow_selection(z);
+    } else if (d == Left) {
+      z
+      |> set_caret(Outer)
+      |> move_outer(Right)
+      |> OptUtil.and_then(grow_selection);
+    } else {
+      z |> set_caret(Outer) |> grow_selection;
+    };
+  } else {
+    shrink_selection(z);
+  };
 
 let pick_up = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
