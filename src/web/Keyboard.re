@@ -68,10 +68,14 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "Tab" => now(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so
-          Update.[/*PerformAction(Select(Left)),*/ PerformAction(Destruct)]
+          Update.[
+            /*PerformAction(Select(Left)),*/ PerformAction(Destruct(Left)),
+          ]
         | "Delete" =>
           // TODO(d): fix broken repeated delete
-          Update.[PerformAction(Select(Right)), PerformAction(Destruct)]
+          Update.[
+            /*PerformAction(Select(Right)),*/ PerformAction(Destruct(Right)),
+          ]
         | _ when Token.is_valid(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
