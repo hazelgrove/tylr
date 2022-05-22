@@ -225,7 +225,7 @@ let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
       empty,
     );
   switch (regrouted) {
-  | [Grout(g), ...tl] => Grout.fits_shape(g, l) ? regrouted : tl
+  | [Grout((s_l, _)), ...tl] => Nib.Shape.fits(l, s_l) ? regrouted : tl
   | _ =>
     Nib.Shape.fits(l, shape(regrouted, r))
       ? regrouted : [Grout(Grout.mk_fits_shape(l)), ...regrouted]
