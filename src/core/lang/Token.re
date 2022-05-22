@@ -25,7 +25,8 @@ let is_delim_kw = t => List.mem(t, List.flatten(delims_kw));
 let delims = List.flatten(delims_non_kw @ delims_kw);
 let is_delim = t => is_delim_kw(t) || is_delim_non_kw(t);
 let is_symbol = t => is_op(t) || is_delim_kw(t) || is_delim_non_kw(t);
-let is_valid = t => is_alphanum(t) || is_whitespace(t) || is_symbol(t);
+let is_non_whitespace = t => is_alphanum(t) || is_symbol(t);
+let is_valid = t => is_non_whitespace(t) || is_whitespace(t);
 
 module Index = {
   type t = int;

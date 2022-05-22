@@ -241,7 +241,7 @@ let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
     | [l_nhbr, ...ps] when can_merge_through(l_nhbr) =>
       switch (caret, neighbor_monotiles((ps, r_sibs))) {
       | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
-          when Molds.has_mold(l_2nd_nhbr ++ r_nhbr) =>
+          when Token.is_valid(l_2nd_nhbr ++ r_nhbr) =>
         Some((l_2nd_nhbr, r_nhbr))
       | _ => None
       }
@@ -273,7 +273,7 @@ let destruct =
       {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
     )
     : option(t) => {
-  //TODO(andrew): more checks on valid tokens
+  /* could add checks on valid tokens (all of these hold assuming substring) */
   let d_outer = z => z |> select_outer(d) |> Option.map(destruct_outer);
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(n), (_, Some(t))) =>
@@ -384,22 +384,21 @@ let sibling_appendability: (string, Siblings.t) => appendability =
     };
 
 let insert_outer =
-    (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
-  switch (char) {
-  | _ when Token.is_whitespace(char) =>
-    z |> keyword_expand |> Option.map(insert_space_grout(char))
-  | _ when Token.is_symbol(char) || Token.is_alphanum(char) =>
-    switch (sibling_appendability(char, siblings)) {
-    | CanAddToNeither =>
-      z |> keyword_expand |> OptUtil.and_then(barf_or_construct(char, Left))
-    | CanAddToLeft(left_token) =>
-      z |> remove_left_sib |> barf_or_construct(left_token ++ char, Left)
-    | CanAddToRight(right_token) =>
-      z |> remove_right_sib |> barf_or_construct(char ++ right_token, Right)
-    }
-  | _ => None
+    (char: string, {relatives: {siblings, _}, _} as z: t): option(t) =>
+  switch (sibling_appendability(char, siblings)) {
+  | CanAddToNeither =>
+    z
+    |> keyword_expand
+    |> (
+      Token.is_whitespace(char)
+        ? Option.map(insert_space_grout(char))
+        : OptUtil.and_then(barf_or_construct(char, Left))
+    )
+  | CanAddToLeft(left_token) =>
+    z |> remove_left_sib |> barf_or_construct(left_token ++ char, Left)
+  | CanAddToRight(right_token) =>
+    z |> remove_right_sib |> barf_or_construct(char ++ right_token, Right)
   };
-};
 
 let split = (z: t, char: string, idx: int, t: string): option(t) => {
   let (l, r) = StringUtil.split_nth(idx, t);
@@ -423,7 +422,7 @@ let insert =
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
     /* If inserting wouldn't produce a valid token, split */
-    Molds.has_mold(new_t)
+    Token.is_valid(new_t)
       ? z |> set_caret(Inner(idx)) |> replace_construct(Right, [new_t])
       : split(z, char, idx, t);
   | (Inner(_), (_, None)) =>
@@ -450,8 +449,9 @@ let move =
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
     z |> set_caret(Inner(last_inner_pos(t))) |> move_outer(d)
   | (Left, Outer, _) => move_outer(d, z)
-  | (Left, Inner(0), _) => Some(set_caret(Outer, z))
-  | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
+  //| (Left, Inner(0), _) => Some(set_caret(Outer, z))
+  //| (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
+  | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
   | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
     Some(set_caret(Inner(0), z))
   | (Right, Outer, _) => move_outer(d, z)
@@ -478,7 +478,7 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   | Select(d) =>
     Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
   | Destruct(d) =>
-    //hey david: noticed delete doesnt move thru grout like bksp does
+    //hey david: noticed delete doesnt move thru grout like bksp does?
     Result.of_option(
       ~error=Action.Failure.Cant_move,
       destruct_or_merge(d, z),
@@ -488,6 +488,7 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
   //| Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(pick_up(z))
   | Put_down =>
+    /* Alternatively, putting down inside token could eiter merge-in or split */
     z.caret != Outer
       ? Error(Action.Failure.Cant_put_down_inside_token)
       : Result.of_option(
