@@ -4,9 +4,8 @@ open Sexplib.Std;
 [@deriving (show, sexp)]
 type t = string;
 
-/* NOTE: right now I am attempting to maintain the invariant that
-     that every substring of every token is a valid token.
-   */
+/* NOTE: right now I am attempting to maintain the invariant
+   that every substring of every token is a valid token. */
 
 let is_var = token =>
   Re.Str.string_match(Re.Str.regexp("^[a-z]*$"), token, 0);

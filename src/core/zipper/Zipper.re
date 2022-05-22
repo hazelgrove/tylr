@@ -218,23 +218,21 @@ let put_down = (z: t): option(t) => {
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
+let grout_between: Siblings.t => Piece.t =
+  fun
+  | ([], []) => failwith("insert_space_grout: impossible")
+  | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
+  | ([p, ..._], _) => {
+      let nib_shape_r = p |> Base.nib_shapes |> snd;
+      Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
+    };
+
 let insert_space_grout =
-    (
-      _char: string,
-      {relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
-    ) =>
-  if (has_grout_neighbor((l_sibs, r_sibs))) {
+    (_char: string, {relatives: {siblings, _}, _} as z: t) =>
+  if (has_grout_neighbor(siblings)) {
     z;
   } else {
-    let new_grout =
-      switch (l_sibs, r_sibs) {
-      | ([], []) => failwith("insert_space_grout: impossible")
-      | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
-      | ([p, ..._], _) =>
-        let nib_shape_r = p |> Base.nib_shapes |> snd;
-        Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
-      };
-    update_siblings(((l, r)) => ([new_grout] @ l, r), z)
+    update_siblings(((l, r)) => ([grout_between(siblings)] @ l, r), z)
     |> update_relatives(Relatives.regrout); //TODO(andrew): david is this necessary?
   };
 
@@ -267,8 +265,19 @@ let replace_construct = (d: Direction.t, l: Tile.Label.t, z: t): option(t) =>
 let can_merge_through: Base.Piece.t => bool =
   p => Base.is_grout(p) || is_length_one_monotile(p);
 
-let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
-  (caret, (l_sibs, r_sibs)) =>
+let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
+  /* This is a bit of a hack. If we are Deleting (d==Right),
+     we move the first right sibling to the left so the
+     arrangement is the same as that used for Backspacing (d==Left).
+     We do this both for checking mergability and doing the merge */
+  d == Left || r_sibs == []
+    ? (l_sibs, r_sibs)
+    : (List.cons(List.hd(r_sibs), l_sibs), List.tl(r_sibs));
+
+let merge_candidates:
+  (Direction.t, caret, Siblings.t) => option((Token.t, Token.t)) =
+  (d, caret, siblings) => {
+    let (l_sibs, r_sibs) = shift_siblings_maybe(d, siblings);
     switch (l_sibs) {
     | [l_nhbr, ...ps] when can_merge_through(l_nhbr) =>
       switch (caret, neighbor_monotiles((ps, r_sibs))) {
@@ -279,9 +288,10 @@ let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
       }
     | _ => None
     };
+  };
 
 /* merge precondition: ... <Monotile> <DontCare> | <Monotile> ... */
-let merge = (z: t, (l, r): (Token.t, Token.t)): option(t) =>
+let merge = ((l, r): (Token.t, Token.t), z: t): option(t) =>
   z
   |> set_caret(Inner(String.length(l) - 1))
   |> move_outer(Right)
@@ -305,7 +315,7 @@ let destruct =
       {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
     )
     : option(t) => {
-  /* could add checks on valid tokens (all of these hold assuming substring) */
+  /* Could add checks on valid tokens (all of these hold assuming substring) */
   let d_outer = z => z |> select_outer(d) |> Option.map(destruct_outer);
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(n), (_, Some(t))) =>
@@ -332,10 +342,10 @@ let destruct =
 let destruct_or_merge =
     (d: Direction.t, {caret, relatives: {siblings, _}, _} as z: t)
     : option(t) =>
-  switch (d, merge_candidates(caret, siblings)) {
-  | (_, None) => destruct(d, z)
-  | (Left, Some(candidates)) => merge(z, candidates)
-  | (Right, Some(_)) => failwith("TODO(andrew): delete: destruct_or_merge")
+  switch (merge_candidates(d, caret, siblings)) {
+  | None => destruct(d, z)
+  | Some(candidates) =>
+    z |> update_siblings(shift_siblings_maybe(d)) |> merge(candidates)
   };
 
 let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
