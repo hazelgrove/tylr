@@ -66,6 +66,34 @@ let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
     r == [] ? None : Some(List.hd(r)),
   );
 
+let has_grout_neighbor: Siblings.t => bool =
+  siblings =>
+    switch (neighbors(siblings)) {
+    | (Some(Grout(_)), _)
+    | (_, Some(Grout(_))) => true
+    | _ => false
+    };
+
+let monotile: Base.Piece.t => option(string) =
+  fun
+  | Tile({label: [t], _}) => Some(t)
+  | _ => None;
+
+let neighbor_monotiles = siblings =>
+  switch (neighbors(siblings)) {
+  | (Some(l), Some(r)) => (monotile(l), monotile(r))
+  | (Some(l), None) => (monotile(l), None)
+  | (None, Some(r)) => (None, monotile(r))
+  | (None, None) => (None, None)
+  };
+
+let is_length_one_monotile: Base.Piece.t => bool =
+  p =>
+    switch (monotile(p)) {
+    | Some(t) => String.length(t) == 1
+    | None => false
+    };
+
 let unselect = (z: t): t => {
   let relatives =
     z.relatives
@@ -197,124 +225,38 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   Option.get(put_down({...z, id_gen, backpack}));
 };
 
-let token_len: Base.Piece.t => option(string) =
-  fun
-  | Tile({label: [t], _}) => Some(t)
-  | _ => None;
-
-let neighbors_tokens = siblings =>
-  switch (neighbors(siblings)) {
-  | (Some(l), Some(r)) => (token_len(l), token_len(r))
-  | (Some(l), None) => (token_len(l), None)
-  | (None, Some(r)) => (None, token_len(r))
-  | (None, None) => (None, None)
-  };
-
-let move =
-    (
-      d: Direction.t,
-      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
-    )
-    : option(t) =>
-  //TODO(andrew): cleanup
-  switch (d, caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
-    z |> set_caret(Inner(String.length(t) - 2)) |> move_outer(d)
-  | (Left, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Left, Inner(0), _) => Some(set_caret(Outer, z))
-  | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
-  | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
-    Some(set_caret(Inner(0), z))
-  | (Right, Outer, _) => move_outer(d, z) /* non-enerterable */
-  | (Right, Inner(n), (_, Some(t))) when n == String.length(t) - 2 =>
-    z |> set_caret(Outer) |> move_outer(d)
-  | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
-  };
-
-let map_hd = (f: 'a => 'b, xs: list('a)): list('b) =>
-  switch (xs) {
-  | [] => []
-  | [x, ...xss] => [f(x), ...xss]
-  };
-
-let reconstruct_monotile = (f, p: Base.Piece.t): Base.Piece.t =>
-  switch (p) {
-  | Tile({label: [t], _} as tile) => Tile({...tile, label: [f(t)]})
-  | _ => p
-  };
-
-let reconstruct_right_monotile = (f: Token.t => Token.t, z: t): t =>
+let replace_construct = (d: Direction.t, l: Tile.Label.t, z: t): option(t) =>
   z
-  |> update_siblings(PairUtil.map_snd(map_hd(reconstruct_monotile(f))))
-  |> update_selection(z.selection)
-  |> snd;
+  |> select(d)
+  |> Option.map(destruct_outer)
+  |> Option.map(construct(d, l));
 
-let reconstruct_left_monotile = (f: Token.t => Token.t, z: t): t =>
-  z
-  |> update_siblings(PairUtil.map_fst(map_hd(reconstruct_monotile(f))))
-  |> update_selection(z.selection)
-  |> snd;
+let can_merge_through: Base.Piece.t => bool =
+  p => Base.is_grout(p) || is_length_one_monotile(p);
 
-let is_grout: Base.Piece.t => bool =
-  fun
-  | Grout(_) => true
-  | _ => false;
-
-let is_length_one_monotile: Base.Piece.t => bool =
-  p =>
-    switch (token_len(p)) {
-    | Some(t) => String.length(t) == 1
-    | None => false
-    };
-
-let can_merge: (caret, Siblings.t) => option((string, string)) =
+let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
   (caret, (l_sibs, r_sibs)) =>
     switch (l_sibs) {
-    | [Grout(_), ...l_sibs_rest] =>
-      switch (caret, neighbors_tokens((l_sibs_rest, r_sibs))) {
-      | (Outer, (Some(l), Some(r))) when Molds.has_mold(l ++ r) =>
-        Some((l, r))
+    | [l_nhbr, ...ps] when can_merge_through(l_nhbr) =>
+      switch (caret, neighbor_monotiles((ps, r_sibs))) {
+      | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
+          when Molds.has_mold(l_2nd_nhbr ++ r_nhbr) =>
+        Some((l_2nd_nhbr, r_nhbr))
       | _ => None
       }
     | _ => None
     };
 
-let can_merge_single: (caret, Siblings.t) => option((string, string)) =
-  (caret, (l_sibs, r_sibs)) =>
-    switch (l_sibs) {
-    | [p, ...l_sibs_rest] when is_length_one_monotile(p) =>
-      switch (caret, neighbors_tokens((l_sibs_rest, r_sibs))) {
-      | (Outer, (Some(l), Some(r))) when Molds.has_mold(l ++ r) =>
-        Some((l, r))
-      | _ => None
-      }
-    | _ => None
-    };
-
-/* merge precondition: ... <Monotile> Grout | <Monotile> */
-let merge = (z, (l, r)) => {
+/* merge precondition: ... <Monotile> <DontCare> | <Monotile> ... */
+let merge = (z: t, (l, r): (Token.t, Token.t)): option(t) =>
   z
   |> set_caret(Inner(String.length(l) - 1))
-  |> select(Right)
-  |> Option.map(destruct_outer)
+  |> move_outer(Right)
+  |> OptUtil.and_then(select(Left))
+  |> OptUtil.and_then(select(Left))
   |> OptUtil.and_then(select(Left))
   |> Option.map(destruct_outer)
-  |> Option.map(construct(Left, [l ++ r]))
-  |> OptUtil.and_then(move_outer(Left));
-};
-
-// TODO(andrew): cleanup/combine with above
-let merge_single = (z, (l, r)) => {
-  z
-  |> set_caret(Inner(String.length(l) - 1))
-  |> select(Right)
-  |> Option.map(destruct_outer)
-  |> OptUtil.and_then(select(Left))
-  |> OptUtil.and_then(select(Left))  // to get operator
-  |> Option.map(destruct_outer)
-  |> Option.map(construct(Left, [l ++ r]))
-  |> OptUtil.and_then(move_outer(Left));
-};
+  |> Option.map(construct(Right, [l ++ r]));
 
 let decrement_caret: caret => caret =
   fun
@@ -327,19 +269,15 @@ let destruct =
     : option(t) => {
   //TODO(andrew): check if result is valid token
   let d_outer = z => z |> select(Left) |> Option.map(destruct_outer);
-  switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
-  | (Inner(k), (_, Some(_t))) =>
+  switch (caret, neighbor_monotiles((l_sibs, r_sibs))) {
+  | (Inner(k), (_, Some(t))) =>
     z
-    |> reconstruct_right_monotile(StringUtil.remove_nth(k))
     |> update_caret(decrement_caret)
-    |> Option.some
-  | (Inner(_), (_, None)) => failwith("destruct: impossible 2")
+    |> replace_construct(Right, [StringUtil.remove_nth(k, t)])
+  | (Inner(_), (_, None)) => failwith("destruct: impossible")
   | (Outer, (Some(t), _)) when String.length(t) > 1 =>
-    z
-    |> reconstruct_left_monotile(
-         StringUtil.remove_nth(String.length(t) - 1),
-       )
-    |> Option.some
+    let new_t = StringUtil.remove_nth(String.length(t) - 1, t);
+    replace_construct(Left, [new_t], z);
   | (Outer, (Some(_), _)) /* t.length == 1 */
   | (Outer, (None, _)) => d_outer(z)
   };
@@ -347,21 +285,12 @@ let destruct =
 
 let destruct_or_merge =
     ({caret, relatives: {siblings, _}, _} as z: t): option(t) =>
-  switch (can_merge_single(caret, siblings)) {
-  | Some(lr) => merge_single(z, lr)
-  | None =>
-    switch (can_merge(caret, siblings)) {
-    | Some(lr) => merge(z, lr)
-    | None => destruct(z)
-    }
+  switch (merge_candidates(caret, siblings)) {
+  | Some(candidates) => merge(z, candidates)
+  | None => destruct(z)
   };
 
-type side_dispatch =
-  | CanAddToLeft(string)
-  | CanAddToRight(string)
-  | CanAddToNeither;
-
-let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
+let keyword_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     switch (s) {
     | "(" => (["(", ")"], Left)
@@ -376,22 +305,15 @@ let multilabels: (string, Direction.t) => (list(Token.t), Direction.t) =
     | t => ([t], direction_preference)
     };
 
-let nib_shapes = (p: Base.Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
-  switch (p) {
-  | Grout(nibs) => nibs
-  | Shard({nibs: (l, r), _}) => (l.shape, r.shape)
-  | Tile({mold, _}) =>
-    let (l, r) = Mold.outer_nibs(mold);
-    (l.shape, r.shape);
+let barf_or_construct =
+    (new_token: string, direction_preference: Direction.t, z: t) =>
+  if (Backpack.is_first_matching(new_token, z.backpack)) {
+    put_down(z);
+  } else {
+    let (new_label, direction) =
+      keyword_completion(new_token, direction_preference);
+    Some(construct(direction, new_label, z));
   };
-
-let has_grout_neighbor: Siblings.t => bool =
-  siblings =>
-    switch (neighbors(siblings)) {
-    | (Some(Grout(_p)), _) /*when Grout.is_space(p)*/ => true
-    | (_, Some(Grout(_p))) /*when Grout.is_space(p)*/ => true
-    | _ => false
-    };
 
 let insert_space_grout =
     (
@@ -400,47 +322,40 @@ let insert_space_grout =
     ) => {
   let new_grout =
     switch (l_sibs, r_sibs) {
-    | ([], []) => failwith("TODO(andrew): insert_space_grout: impossible??")
+    | ([], []) => failwith("insert_space_grout: impossible")
     | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
     | ([p, ..._], _) =>
-      let nib_shape_r = p |> nib_shapes |> snd;
+      let nib_shape_r = p |> Base.nib_shapes |> snd;
       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
     };
   update_siblings(((l, r)) => ([new_grout] @ l, r), z)
-  |> update_relatives(Relatives.regrout); //regrout TODO(andrew): do i want to do this?
+  |> update_relatives(Relatives.regrout);
 };
 
-let check_sibs: (string, Siblings.t) => side_dispatch =
+type appendability =
+  | CanAddToLeft(string)
+  | CanAddToRight(string)
+  | CanAddToNeither;
+
+let sibling_appendability: (string, Siblings.t) => appendability =
   (char, siblings) =>
-    switch (neighbors_tokens(siblings)) {
+    switch (neighbor_monotiles(siblings)) {
     | (Some(t), _) when Token.is_valid(t ++ char) => CanAddToLeft(t)
     | (_, Some(t)) when Token.is_valid(char ++ t) => CanAddToRight(t)
     | _ => CanAddToNeither
     };
-
-let barf_or_construct =
-    (new_token: string, direction_preference: Direction.t, z: t) =>
-  if (Backpack.is_first_matching(new_token, z.backpack)) {
-    put_down(z);
-  } else {
-    let (new_label, direction) =
-      multilabels(new_token, direction_preference);
-    Some(construct(direction, new_label, z));
-  };
 
 let insert_outer =
     (char: string, {relatives: {siblings, _}, _} as z: t): option(t) => {
   switch (char) {
   | _ when Token.is_whitespace(char) && !has_grout_neighbor(siblings) =>
     Some(insert_space_grout(char, z))
-  //None //TODO(andrew)
   | _ when Token.is_symbol(char) || Token.is_alphanum(char) =>
-    switch (check_sibs(char, siblings)) {
+    switch (sibling_appendability(char, siblings)) {
     | CanAddToNeither => barf_or_construct(char, Left, z)
     | CanAddToLeft(left_token) =>
       barf_or_construct(left_token ++ char, Left, remove_left_sib(z))
     | CanAddToRight(right_token) =>
-      //TODO(andrew): will need to move now in this case?
       barf_or_construct(char ++ right_token, Right, remove_right_sib(z))
     }
   | _ => None
@@ -449,59 +364,60 @@ let insert_outer =
 
 let split = (z: t, char: string, idx: int, t: string): option(t) => {
   let (l, r) = StringUtil.split_nth(idx, t);
+  let (lbl, direction) = keyword_completion(char, Left);
   z
   |> set_caret(Outer)
-  |> select(Right)
-  |> Option.map(destruct_outer)
-  |> Option.map(construct(Right, [r]))
+  |> replace_construct(Right, [r])
   |> Option.map(construct(Left, [l]))
   |> OptUtil.and_then(z =>
        Token.is_whitespace(char)
          ? z |> insert_space_grout(char) |> move_outer(Right)
-         : z |> construct(Left, [char]) |> Option.some
+         : Some(construct(direction, lbl, z))
      );
 };
 
 let insert =
-    (
-      char: string,
-      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
-    )
-    : option(t) =>
-  switch (caret, neighbors_tokens((l_sibs, r_sibs))) {
+    (char: string, {caret, relatives: {siblings, _}, _} as z: t): option(t) =>
+  switch (caret, neighbor_monotiles(siblings)) {
   | (Inner(n), (_, Some(t))) =>
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
-    if (Molds.has_mold(new_t)) {
-      z
-      |> reconstruct_right_monotile(_ => new_t)
-      |> set_caret(Inner(idx))
-      |> Option.some;
-    } else {
-      /* if inserting wouldn't produce a valid token, split */
-      split(
-        z,
-        char,
-        idx,
-        t,
-      );
-    };
-  | (Inner(_k), (_, None)) =>
+    /* If inserting wouldn't produce a valid token, split */
+    Molds.has_mold(new_t)
+      ? z |> set_caret(Inner(idx)) |> replace_construct(Right, [new_t])
+      : split(z, char, idx, t);
+  | (Inner(_), (_, None)) =>
     failwith("insert: caret is inner, but left nhbr has no inner positions")
   | (Outer, (_, Some(_))) =>
-    z
-    |> insert_outer(char)
-    |> Option.map(
-         set_caret(
-           //TODO(andrew): unfuck this (hacky dispatch to proper side)
-           switch (check_sibs(char, (l_sibs, r_sibs))) {
-           | CanAddToNeither => Outer //TODO(andrew): ?
-           | CanAddToLeft(_) => Outer
-           | CanAddToRight(_) => Inner(0)
-           },
-         ),
-       )
+    let caret =
+      /* If we're adding to the right, move caret inside right nhbr */
+      switch (sibling_appendability(char, siblings)) {
+      | CanAddToRight(_) => Inner(0)
+      | CanAddToNeither
+      | CanAddToLeft(_) => Outer
+      };
+    z |> insert_outer(char) |> Option.map(set_caret(caret));
   | (Outer, (_, None)) => insert_outer(char, z)
+  };
+
+let move =
+    (
+      d: Direction.t,
+      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+    )
+    : option(t) =>
+  switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
+  | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
+    z |> set_caret(Inner(String.length(t) - 2)) |> move_outer(d)
+  | (Left, Outer, _) => move_outer(d, z)
+  | (Left, Inner(0), _) => Some(set_caret(Outer, z))
+  | (Left, Inner(n), _) => Some(set_caret(Inner(n - 1), z))
+  | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
+    Some(set_caret(Inner(0), z))
+  | (Right, Outer, _) => move_outer(d, z)
+  | (Right, Inner(n), (_, Some(t))) when n == String.length(t) - 2 =>
+    z |> set_caret(Outer) |> move_outer(d)
+  | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
   };
 
 let perform = (a: Action.t, z: t): Action.Result.t(t) =>
