@@ -12,6 +12,7 @@ module Uf: {
   let init: unit => store(_);
   let add: (t, 'a, store('a)) => unit;
   let get: (t, store('a)) => 'a;
+  let merge: (('a, 'a) => 'a, t, t, store('a)) => unit;
 } = {
   module M = UnionFind.Make(UnionFind.StoreMap);
   type store('a) = {
@@ -19,9 +20,15 @@ module Uf: {
     store: M.store('a),
   };
   let init = () => {refs: ref(Map.empty), store: M.new_store()};
-  let add = (id, a, s) => {
-    let r = M.make(s.store, a);
-    s.refs := Map.add(id, r, s.refs^);
-  };
+  let rref = (id, s) => Map.find(id, s.refs^);
+  let add = (id, a, s) =>
+    switch (Map.find_opt(id, s.refs^)) {
+    | None =>
+      let r = M.make(s.store, a);
+      s.refs := Map.add(id, r, s.refs^);
+    | Some(_) => ()
+    };
   let get = (id, s) => M.get(s.store, Map.find(id, s.refs^));
+  let merge = (f, id, id', s) =>
+    ignore(M.merge(s.store, f, rref(id, s), rref(id', s)));
 };

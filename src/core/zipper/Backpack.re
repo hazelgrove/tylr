@@ -1,52 +1,130 @@
 open Util;
 
+module ShardInfo = {
+  module Order = {
+    type key = (Id.t, int);
+    let key = (s: Shard.t) => (s.tile_id, Shard.index(s));
+
+    open Hashtbl;
+    type t = Hashtbl.t(key, Hashtbl.t(key, unit));
+
+    let n = 20;
+    let init = () => create(n);
+
+    let lt = (l: Shard.t, r: Shard.t, ord: t): bool =>
+      switch (find_opt(ord, key(l))) {
+      | None => false
+      | Some(row) => Option.is_some(find_opt(row, key(r)))
+      };
+    let gt = (l, r, ord) => lt(r, l, ord);
+    let un = (l, r, ord) => !lt(l, r, ord) && !gt(l, r, ord);
+
+    let lt_or_un = (ls, rs, ord) =>
+      ls
+      |> List.for_all(l =>
+           rs |> List.for_all(r => lt(l, r, ord) || un(l, r, ord))
+         );
+
+    let get = (i, j, m) => {
+      open OptUtil.Syntax;
+      let* r = find_opt(m, key(i));
+      find_opt(r, key(j));
+    };
+
+    let set = (i, j, m) => {
+      let r =
+        switch (find_opt(m, key(i))) {
+        | None => create(n)
+        | Some(r) => r
+        };
+      replace(r, key(j), ());
+      replace(m, key(i), r);
+    };
+
+    let add_tile = (_, _, _) => failwith("todo add_tile");
+
+    let tran_close = _: unit => failwith("todo tran_close");
+  };
+
+  module Count = {
+    type t = {
+      labels: Id.Map.t(Tile.Label.t),
+      counts: Id.Map.t(int),
+    };
+
+    let of_shard = (s: Shard.t) => {
+      labels: Id.Map.singleton(s.tile_id, Shard.tile_label(s)),
+      counts: Id.Map.singleton(s.tile_id, 1),
+    };
+
+    let merge = (m: t, m': t) => {
+      labels: Id.Map.union((_, lbl, _) => Some(lbl), m.labels, m'.labels),
+      counts: Id.Map.union((_, n, n') => Some(n + n'), m.counts, m'.counts),
+    };
+
+    let mem = (id, m) => Id.Map.mem(id, m.labels);
+
+    let exists_mem = (ss: list(Shard.t), m) =>
+      List.exists((s: Shard.t) => mem(s.tile_id, m), ss);
+
+    let is_complete = (m: t) =>
+      m.counts
+      |> Id.Map.for_all((id, n) =>
+           n == List.length(Id.Map.find(id, m.labels))
+         );
+  };
+
+  module Counts = {
+    type t = Id.Uf.store(Count.t);
+    include Id.Uf;
+    let merge = merge(Count.merge);
+  };
+
+  type t = {
+    order: Order.t,
+    counts: Counts.t,
+  };
+
+  let init = () => {order: Order.init(), counts: Counts.init()};
+
+  let add_sel = (sel: Selection.t, {counts, order}: t): unit => {
+    let ss = Segment.shards(sel.content);
+    // initialize
+    ss
+    |> List.iter((s: Shard.t) => {
+         Counts.add(s.tile_id, Count.of_shard(s), counts);
+         Order.add_tile(s.tile_id, Shard.tile_label(s), order);
+       });
+    // merge
+    ignore(
+      ss
+      |> List.fold_left(
+           (prev: option(Shard.t), curr: Shard.t) => {
+             switch (prev) {
+             | None => ()
+             | Some(prev) =>
+               Counts.merge(prev.tile_id, curr.tile_id, counts);
+               Order.set(prev, curr, order);
+             };
+             Some(curr);
+           },
+           None,
+         ),
+    );
+  };
+};
+
 [@deriving show]
 type t = list(Selection.t);
 
 let empty = [];
 
-module SelMatch = {
-  type t = {
-    labels: Id.Map.t(Tile.Label.t),
-    counts: Id.Map.t(int),
-    lt: (Shard.t, Shard.t) => option(bool),
-  };
-
-  let mem = (id, m) => Id.Map.mem(id, m.labels);
-
-  let exists_mem = (ss: list(Shard.t), m) =>
-    List.exists((s: Shard.t) => mem(s.tile_id, m), ss);
-
-  let is_complete = (m: t) =>
-    m.counts
-    |> Id.Map.for_all((id, n) =>
-         n == List.length(Id.Map.find(id, m.labels))
-       );
-
-  let lt_or_un = (ss: list(Shard.t), ss': list(Shard.t), m: t): bool =>
-    ss
-    |> List.for_all(s =>
-         ss'
-         |> List.for_all(s' =>
-              switch (m.lt(s, s')) {
-              | None => true
-              | Some(b) => b
-              }
-            )
-       );
-
-  let not_all_un = (ss: list(Shard.t), ss': list(Shard.t), m: t): bool =>
-    ss
-    |> List.exists(s =>
-         ss' |> List.exists(s' => Option.is_some(m.lt(s, s')))
-       );
-};
-
-module SelMatches = {
-  type bp = t;
-  type t = Id.Uf.store(SelMatch.t);
-  include Id.Uf;
-  let mk = (_: bp): t => failwith("SelMatches.mk");
+let shard_info = (bp: t) => {
+  open ShardInfo;
+  let info = init();
+  bp |> List.iter(sel => add_sel(sel, info));
+  Order.tran_close(info.order);
+  info;
 };
 
 // let left_to_right: t => list(Selection.t) =
@@ -159,13 +237,13 @@ let pop =
   switch (Segment.shards(hd.content)) {
   | [] => ok
   | [s, ..._] as ss =>
-    let match = SelMatches.(get(s.tile_id, mk(bp)));
-    SelMatch.(
-      is_complete(match)
-      || (not_all_un(pre, ss, match) || not_all_un(ss, suf, match))
-      && lt_or_un(pre, ss, match)
-      && lt_or_un(ss, suf, match)
-    )
+    open ShardInfo;
+    let {counts, order} = shard_info(bp);
+    let count = Counts.get(s.tile_id, counts);
+    Count.is_complete(count)
+    || (Count.exists_mem(pre, count) || Count.exists_mem(suf, count))
+    && Order.lt_or_un(pre, ss, order)
+    && Order.lt_or_un(ss, suf, order)
       ? ok : None;
   };
 };
