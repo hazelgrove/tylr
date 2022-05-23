@@ -1,29 +1,26 @@
 open Mold;
 
-let get = (label: Base.Tile.Label.t): list(Mold.t) => {
-  let s = Sorts.mk;
-  switch (label) {
-  | [t] when Token.is_num(t) => [mk_op(s(Exp))]
-  | [t] when Token.is_var(t) => [mk_op(s(Pat)), mk_op(s(Exp))]
-  | ["(", ")"] => [
-      mk_op(s(~in_=[Pat], Pat)),
-      mk_op(s(~in_=[Exp], Exp)),
-    ]
-  | ["fun", "=>"] => [mk_pre(Precedence.fun_, s(~in_=[Pat], Exp))]
-  | ["!"] => [mk_post(Precedence.fact, s(Exp))]
-  | ["[", "]"] => [mk_post(Precedence.ap, s(~in_=[Exp], Exp))]
-  | ["*" | "/" | "=" | ">"] => [mk_bin(Precedence.mult, s(Exp))]
-  | ["+" | "-"] => [mk_bin(Precedence.plus, s(Exp))]
-  | [","] => [
-      mk_bin(Precedence.prod, s(Pat)),
-      mk_bin(Precedence.prod, s(Exp)),
-    ]
-  | ["?", ":"] => [mk_bin(Precedence.cond, s(~in_=[Exp], Exp))]
-  | ["let", "=", "in"] => [
-      mk_pre(Precedence.let_, s(~in_=[Pat, Exp], Exp)),
-    ]
-  | _ => []
-  };
-};
+let forms_assoc: list((Base.Tile.Label.t, list(Mold.t))) =
+  List.fold_left(
+    (acc, {label, mold}: Form.t) => {
+      let molds =
+        switch (List.assoc_opt(label, acc)) {
+        | Some(old_molds) => old_molds @ [mold]
+        | None => [mold]
+        };
+      List.cons((label, molds), List.remove_assoc(label, acc));
+    },
+    [],
+    Form.forms,
+  );
 
-let has_mold: string => bool = t => get([t]) != [];
+let get = (label: Base.Tile.Label.t): list(Mold.t) =>
+  switch (label, List.assoc_opt(label, forms_assoc)) {
+  | ([t], _) when Token.is_num(t) => [mk_op(Sorts.mk(Exp))]
+  | ([t], _) when Token.is_var(t) => [
+      mk_op(Sorts.mk(Pat)),
+      mk_op(Sorts.mk(Exp)),
+    ]
+  | (_, Some(molds)) => molds
+  | (_, None) => []
+  };

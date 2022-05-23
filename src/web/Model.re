@@ -34,35 +34,31 @@ let mk_ancestor:
   };
 
 let mk_monotile = form => mk_tile(form, []); //TODO: asserts
-
+let int = n => mk_monotile(Form.int_exp(n));
+let exp = v => mk_monotile(Form.var_exp(v));
+let pat = v => mk_monotile(Form.var_pat(v));
 let mk_parens_exp = mk_tile(Form.parens_exp);
-let mk_lambda_exp = mk_tile(Form.lambda);
-let mk_lambda_ancestor = mk_ancestor(Form.lambda);
+let mk_fun = mk_tile(Form.fun_);
+let mk_fun_ancestor = mk_ancestor(Form.fun_);
 let mk_parens_ancestor = mk_ancestor(Form.parens_exp);
 let mk_let_ancestor = mk_ancestor(Form.let_);
 let plus = mk_monotile(Form.plus);
-let one = mk_monotile(Form.int_exp(1));
-let two = mk_monotile(Form.int_exp(2));
-let exp_foo = mk_monotile(Form.var_exp("foo"));
-let pat_foo = mk_monotile(Form.var_pat("foo"));
-let pat_bar = mk_monotile(Form.var_pat("bar"));
-let pat_taz = mk_monotile(Form.var_pat("taz"));
 
 let l_sibling: Segment.t = [plus, Grout((Convex, Convex))];
-let r_sibling: Segment.t = [mk_parens_exp([[one, plus, two]])];
+let r_sibling: Segment.t = [mk_parens_exp([[int(1), plus, int(2)]])];
 
 let content: Segment.t = [
-  exp_foo,
+  exp("foo"),
   Grout((Concave(Precedence.min), Concave(Precedence.min))),
 ];
 
 let ancestors: Ancestors.t = [
-  (mk_parens_ancestor(([], [])), ([mk_lambda_exp([[pat_bar]])], [])),
-  (mk_parens_ancestor(([], [])), ([mk_lambda_exp([[pat_taz]])], [])),
-  (mk_let_ancestor(([[pat_foo]], [])), ([], [two])),
+  (mk_parens_ancestor(([], [])), ([mk_fun([[pat("bar")]])], [])),
+  (mk_parens_ancestor(([], [])), ([mk_fun([[pat("taz")]])], [])),
+  (mk_let_ancestor(([[pat("foo")]], [])), ([], [int(2)])),
 ];
 
-let backpack: list(Selection.t) = [{focus: Left, content: [exp_foo]}];
+let backpack: list(Selection.t) = [{focus: Left, content: [exp("foo")]}];
 
 let init = () => {
   zipper: {

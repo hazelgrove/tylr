@@ -351,6 +351,7 @@ let destruct_or_merge =
 let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     /* Completions which can or must be executed immediately */
+    //TODO(andrew): refactor to depend on Forms.re
     switch (s) {
     | "(" => (["(", ")"], Left)
     | ")" => (["(", ")"], Right)
@@ -364,6 +365,7 @@ let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
 let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     /* Completions which must be defered as they are ambiguous prefixes */
+    //TODO(andrew): refactor to depend on Forms.re
     switch (s) {
     | "fun" => (["fun", "=>"], Left)
     | "in" => (["let", "=", "in"], Right)
