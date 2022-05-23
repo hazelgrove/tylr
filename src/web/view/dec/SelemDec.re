@@ -4,7 +4,9 @@ open Util;
 open Diag;
 open DecUtil;
 
-let c_fudge = 0.0; //0.4; //fudges child width to prevent overlap
+let c_fudge = 0.6; //fudges child width to prevent overlap
+let d_fudge = 0.4; // fudges outer concave nibs
+
 module Profile = {
   type t = {
     measurement: Layout.measurement,
@@ -231,10 +233,18 @@ let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
       SelemStyle.stretched(profile.style)
         ? Float.of_int(profile.measurement.length) +. stretch_dx
         : Float.of_int(profile.measurement.length);
+    let fudge_x =
+      fst(fst(profile.shape)).shape != Core.Nib.Shape.Convex ? d_fudge : 0.0;
     List.concat([
-      [M({x: start, y: 1.}), ...Diag.left_tip_path(fst(profile.shape))],
+      [
+        M({x: fudge_x +. start, y: 1.}),
+        ...Diag.left_tip_path(fst(profile.shape)),
+      ],
       ListUtil.flat_map(open_child_path, profile.open_children),
-      [H({x: end_}), ...Diag.right_tip_path(snd(profile.shape))],
+      [
+        H({x: -. fudge_x +. end_}),
+        ...Diag.right_tip_path(snd(profile.shape)),
+      ],
       [Z],
     ]);
   };

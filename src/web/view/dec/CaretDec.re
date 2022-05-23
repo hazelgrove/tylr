@@ -568,7 +568,12 @@ let simple_view =
     | Right => "caret-right"
     | Straight => "caret-straight"
     };
-  let fudge = 0.0; //0.1;
+  let fudge =
+    switch (caret_shape) {
+    | Left => 0.0
+    | Right => 4.0
+    | Straight => 0.0
+    };
   Node.div(
     [
       Attr.id("caret-temp"),
@@ -583,7 +588,7 @@ let simple_view =
           /*(-0.25) *. font_metrics.row_height*/ 2.,
           0.0, //2.,
           // not sure why this needs to be 1.6 and not 1.5
-          /*1.6 *.*/ font_metrics.row_height,
+          /*1.6 *.*/ font_metrics.row_height +. 1.0, //extra 1.0 for piece deco shadow
           color,
         ),
       ),
