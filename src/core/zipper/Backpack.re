@@ -111,6 +111,16 @@ module ShardInfo = {
     type t = Id.Uf.store(Count.t);
     include Id.Uf;
     let merge = merge(Count.merge);
+    let add_shard = (s: Shard.t, cs: t): unit =>
+      switch (get_opt(s.tile_id, cs)) {
+      | None => add(s.tile_id, Count.of_shard(s), cs)
+      | Some(c) =>
+        let c = {
+          ...c,
+          counts: Id.Map.update(s.tile_id, Option.map((+)(1)), c.counts),
+        };
+        set(s.tile_id, c, cs);
+      };
   };
 
   type t = {
@@ -125,7 +135,7 @@ module ShardInfo = {
     // initialize
     ss
     |> List.iter((s: Shard.t) => {
-         Counts.add(s.tile_id, Count.of_shard(s), counts);
+         Counts.add_shard(s, counts);
          Order.add_tile(s.tile_id, Shard.tile_label(s), order);
        });
     // merge counts
