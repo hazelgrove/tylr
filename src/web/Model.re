@@ -81,3 +81,22 @@ let init = () => {
 };
 
 let filler = _ => 0;
+let blank = {
+  zipper: {
+    id_gen: id_gen^,
+    selection: {
+      focus: Left,
+      content: [],
+    },
+    backpack: [],
+    relatives: {
+      siblings: ([Grout((Convex, Convex))], []),
+      ancestors: [],
+    },
+    caret: Outer,
+  },
+  history: ActionHistory.empty,
+  font_metrics: FontMetrics.init,
+  logo_font_metrics: FontMetrics.init,
+  show_neighbor_tiles: false,
+};
