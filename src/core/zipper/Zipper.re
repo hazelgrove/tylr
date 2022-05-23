@@ -189,7 +189,7 @@ let pick_up = (z: t): t => {
 let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
   let z = destruct(z);
-  let+ (popped, backpack) =
+  let+ (_, popped, backpack) =
     Backpack.pop(Siblings.shards(z.relatives.siblings), z.backpack);
   // let (pre, suf) = Siblings.shards(z.relatives.siblings);
   // let can_put_down =

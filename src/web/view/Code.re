@@ -163,61 +163,52 @@ let rec deco_views =
   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
   };
 
-let targets = (~font_metrics, z: Zipper.t) =>
-  switch (ListUtil.split_first_opt(z.backpack)) {
-  | None => []
-  | Some((hd, tl)) =>
-    let map = Backpack.selection_matching(hd, tl);
-    if (Id.Map.is_empty(map)) {
-      [];
-    } else {
-      let has_matching = Backpack.has_selection_matching(map);
-      let valid_order = Backpack.valid_order(hd);
-      let rec go = (seg: Measured.segment): list(Node.t) => {
-        let targets =
-          ListUtil.splits(seg)
-          |> List.map(((l, r)) => {
-               let sibs = (Measured.shards(l), Measured.shards(r));
-               if (has_matching(sibs) && valid_order(sibs)) {
-                 let measurement =
-                   switch (l, r) {
-                   | ([], []) => failwith("impossible")
-                   | (_, [(m, _), ..._]) =>
-                     Layout.{origin: m.origin - 1, length: 1}
-                   | ([(m, _), ..._], _) =>
-                     Layout.{origin: m.origin + m.length, length: 1}
-                   };
-                 let profile =
-                   CaretPosDec.Profile.{
-                     style: `Sibling,
-                     measurement,
-                     color: Color.Exp,
-                     just_failed: None,
-                   };
-                 [CaretPosDec.view(~font_metrics, profile)];
-               } else {
-                 [];
+let targets = (~font_metrics, z: Zipper.t) => {
+  let rec go = (seg: Measured.segment): list(Node.t) => {
+    let targets =
+      ListUtil.splits(seg)
+      |> List.map(((l, r)) => {
+           let sibs = (Measured.shards(l), Measured.shards(r));
+           switch (Backpack.pop(sibs, z.backpack)) {
+           | None
+           | Some((true, _, _)) => []
+           | Some(_) =>
+             let measurement =
+               switch (l, r) {
+               | ([], []) => failwith("impossible")
+               | (_, [(m, _), ..._]) =>
+                 Layout.{origin: m.origin - 1, length: 1}
+               | ([(m, _), ..._], _) =>
+                 Layout.{origin: m.origin + m.length, length: 1}
                };
-             })
-          |> List.concat;
-        switch (targets) {
-        | [_, ..._] => targets
-        | [] =>
-          seg
-          |> List.filter_map(
-               fun
-               | (_, Measured.Tile(t)) => Some(t)
-               | _ => None,
-             )
-          |> List.map((t: Measured.tile) =>
-               List.concat(List.map(go, t.children))
-             )
-          |> List.concat
-        };
-      };
-      go(snd(Measured.of_segment(Zipper.zip(z))));
+             let profile =
+               CaretPosDec.Profile.{
+                 style: `Sibling,
+                 measurement,
+                 color: Color.Exp,
+                 just_failed: None,
+               };
+             [CaretPosDec.view(~font_metrics, profile)];
+           };
+         })
+      |> List.concat;
+    switch (targets) {
+    | [_, ..._] => targets
+    | [] =>
+      seg
+      |> List.filter_map(
+           fun
+           | (_, Measured.Tile(t)) => Some(t)
+           | _ => None,
+         )
+      |> List.map((t: Measured.tile) =>
+           List.concat(List.map(go, t.children))
+         )
+      |> List.concat
     };
   };
+  go(snd(Measured.of_segment(Zipper.zip(z))));
+};
 
 let view =
     (

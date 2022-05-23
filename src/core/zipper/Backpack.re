@@ -166,23 +166,6 @@ let shard_info = (bp: t) => {
   info;
 };
 
-// let left_to_right: t => list(Selection.t) =
-//   List.fold_left(
-//     (l2r, (_, sel: Selection.t)) =>
-//       switch (sel.focus) {
-//       | Left => [sel, ...l2r]
-//       | Right => l2r @ [sel]
-//       },
-//     [],
-//   );
-
-// let is_balanced = (bp: t) =>
-//   left_to_right(bp)
-//   |> List.map((s: Selection.t) => s.content)
-//   |> Segment.concat
-//   |> Segment.reassemble
-//   |> Segment.is_balanced;
-
 let push = sel => Selection.is_empty(sel) ? Fun.id : List.cons(sel);
 
 let push_s: (list(Selection.t), t) => t = List.fold_right(push);
@@ -246,12 +229,6 @@ let selection_matching =
      );
 };
 
-let has_selection_matching =
-    (map: Id.Map.t((Tile.Label.t, int)), (pre, suf): ListFrame.t(Shard.t)) => {
-  let has_matching = List.exists((s: Shard.t) => Id.Map.mem(s.tile_id, map));
-  has_matching(pre) || has_matching(suf);
-};
-
 let valid_order = (sel: Selection.t, (pre, suf): ListFrame.t(Shard.t)) =>
   Segment.shards(sel.content)
   |> List.for_all((s: Shard.t) => {
@@ -269,21 +246,22 @@ let valid_order = (sel: Selection.t, (pre, suf): ListFrame.t(Shard.t)) =>
      });
 
 let pop =
-    ((pre, suf): ListFrame.t(Shard.t), bp: t): option((Selection.t, t)) => {
+    ((pre, suf): ListFrame.t(Shard.t), bp: t)
+    : option((bool, Selection.t, t)) => {
   open OptUtil.Syntax;
   let* (hd, tl) = ListUtil.split_first_opt(bp);
-  let ok = Some((hd, tl));
   switch (Segment.shards(hd.content)) {
-  | [] => ok
+  | [] => Some((true, hd, tl))
   | [s, ..._] as ss =>
     open ShardInfo;
     let {counts, order} = shard_info(bp);
     let count = Counts.get(s.tile_id, counts);
-    Count.is_complete(count)
+    let first = Count.is_complete(count);
+    first
     || (Count.exists_mem(pre, count) || Count.exists_mem(suf, count))
     && Order.lt_or_un(pre, ss, order)
     && Order.lt_or_un(ss, suf, order)
-      ? ok : None;
+      ? Some((first, hd, tl)) : None;
   };
 };
 
