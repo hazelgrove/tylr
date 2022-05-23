@@ -43,7 +43,13 @@ module ShardInfo = {
 
     let add_tile = (id, lbl, ord) =>
       lbl
-      |> List.iteri((i, _) => i == 0 ? () : set((id, i - 1), (id, i), ord));
+      |> List.iteri((i, _) => {
+           switch (find_opt(ord, (id, i))) {
+           | Some(_) => ()
+           | None => replace(ord, (id, i), create(n))
+           };
+           i == 0 ? () : set((id, i - 1), (id, i), ord);
+         });
 
     // Warshall's algorithm https://cs.winona.edu/lin/cs440/ch08-2.pdf
     let tran_close = (ord: t): unit => {
