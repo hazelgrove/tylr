@@ -67,9 +67,9 @@ module ShardInfo = {
                        | Some(_) => ()
                        | None =>
                          switch (get(i, k, ord), get(k, j, ord)) {
-                         | (None, None) => ()
-                         | (Some(_), _)
-                         | (_, Some(_)) => set(i, j, ord)
+                         | (None, _)
+                         | (_, None) => ()
+                         | (Some(_), Some(_)) => set(i, j, ord)
                          }
                        }
                      )
