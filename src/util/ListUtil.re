@@ -235,6 +235,12 @@ let rec take_while = (p: 'x => bool, xs: list('x)): (list('x), list('x)) =>
 let product = (xs, ys) =>
   xs |> List.map(x => ys |> List.map(y => (x, y))) |> List.flatten;
 
+let rec ordered_pairs = (xs: list('x)): list(('x, 'x)) =>
+  switch (xs) {
+  | [] => []
+  | [hd, ...tl] => List.map(x => (hd, x), tl) @ ordered_pairs(tl)
+  };
+
 module Syntax = {
   let (let+) = (xs, f) => List.map(f, xs);
   let (and+) = product;

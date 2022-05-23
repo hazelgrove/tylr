@@ -122,22 +122,34 @@ module ShardInfo = {
          Counts.add(s.tile_id, Count.of_shard(s), counts);
          Order.add_tile(s.tile_id, Shard.tile_label(s), order);
        });
-    // merge
+    // merge counts
     ignore(
       ss
       |> List.fold_left(
            (prev: option(Shard.t), curr: Shard.t) => {
              switch (prev) {
              | None => ()
-             | Some(prev) =>
-               Counts.merge(prev.tile_id, curr.tile_id, counts);
-               Order.(set(key(prev), key(curr), order));
+             | Some(prev) => Counts.merge(prev.tile_id, curr.tile_id, counts)
              };
              Some(curr);
            },
            None,
          ),
     );
+    // propagate well-nested ordering constraints
+    ListUtil.ordered_pairs(ss)
+    |> List.iter(((l: Shard.t, r: Shard.t)) => {
+         let Count.{labels, _} = Counts.get(l.tile_id, counts);
+         let (i_l, i_r) = (Shard.index(l), Shard.index(r));
+         let n_l = List.length(Id.Map.find(l.tile_id, labels));
+         let n_r = List.length(Id.Map.find(r.tile_id, labels));
+         if (i_l == n_l - 1 && i_r != 0) {
+           Order.set((r.tile_id, i_r - 1), (l.tile_id, 0), order);
+         } else if (i_l != n_l - 1 && i_r == 0) {
+           Order.set((r.tile_id, n_r - 1), (l.tile_id, i_l + 1), order);
+         };
+         Order.(set(key(l), key(r), order));
+       });
   };
 };
 
