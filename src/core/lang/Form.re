@@ -1,5 +1,11 @@
 open Mold;
-let s = Sorts.mk;
+module P = Precedence;
+
+let s = sorts =>
+  switch (List.rev(sorts)) {
+  | [hd, ...tl] => Sorts.mk(~in_=List.rev(tl), hd)
+  | [] => failwith("Form: empty sort list")
+  };
 
 [@deriving show]
 type label = list(string);
@@ -10,65 +16,44 @@ type t = {
   mold: Mold.t,
 };
 
-let var_exp = (str: string) => {label: [str], mold: Mold.(mk_op(s(Exp)))};
+let mk = (label, mold) => {label, mold};
 
-let var_pat = (str: string) => {label: [str], mold: Mold.(mk_op(s(Pat)))};
+let var_exp = (t: string) => {
+  assert(Token.is_var(t));
+  mk([t], Mold.(mk_op(s([Exp]))));
+};
+
+let var_pat = (t: string) => {
+  assert(Token.is_var(t));
+  mk([t], Mold.(mk_op(s([Pat]))));
+};
 
 let int_exp = (n: int) => {
-  label: [string_of_int(n)],
-  mold: Mold.(mk_op(s(Exp))),
+  assert(Token.is_num(string_of_int(n)));
+  mk([string_of_int(n)], Mold.(mk_op(s([Exp]))));
 };
 
-let bin = (str: string, sort: Sort.t, prec) => {
-  label: [str],
-  mold: mk_bin(prec, s(sort)),
-};
-
-let times = bin("*", Exp, Precedence.mult);
-let divide = bin("/", Exp, Precedence.mult);
-let equals = bin("=", Exp, Precedence.mult); //TODO prec
-let greater_than = bin(">", Exp, Precedence.mult); //TODO prec
-let plus = bin("+", Exp, Precedence.plus);
-let minus = bin("-", Exp, Precedence.plus);
-let comma_exp = bin(",", Exp, Precedence.prod);
-let comma_pat = bin(",", Pat, Precedence.prod);
-
-let fact = {label: ["!"], mold: mk_post(Precedence.fact, s(Exp))};
-let parens_exp = {label: ["(", ")"], mold: mk_op(s(~in_=[Exp], Exp))};
-let parens_pat = {label: ["(", ")"], mold: mk_op(s(~in_=[Pat], Pat))};
-let fun_ = {
-  label: ["fun", "=>"],
-  mold: mk_pre(Precedence.fun_, s(~in_=[Pat], Exp)),
-};
-let ap = {
-  label: ["[", "]"],
-  mold: mk_post(Precedence.ap, s(~in_=[Exp], Exp)),
-};
-let let_ = {
-  label: ["let", "=", "in"],
-  mold: mk_pre(Precedence.let_, s(~in_=[Pat, Exp], Exp)),
-};
-let cond = {
-  label: ["?", ":"],
-  mold: mk_bin(Precedence.cond, s(~in_=[Exp], Exp)),
-};
+let mk_in = (str: string, sort: Sort.t, prec) =>
+  mk([str], mk_bin(prec, s([sort])));
 
 /* Order in this list determines relative remolding
    priority for forms which share the same labels */
 let forms = [
-  parens_exp,
-  parens_pat,
-  fun_,
-  fact,
-  ap,
-  times,
-  divide,
-  equals,
-  greater_than,
-  plus,
-  minus,
-  comma_exp,
-  comma_pat,
-  cond,
-  let_,
+  ("times", mk_in("*", Exp, P.mult)),
+  ("divide", mk_in("/", Exp, P.mult)),
+  ("equals", mk_in("=", Exp, P.eqs)),
+  ("gt", mk_in(">", Exp, P.gt)),
+  ("plus", mk_in("+", Exp, P.plus)),
+  ("minus", mk_in("-", Exp, P.plus)),
+  ("comma_exp", mk_in(",", Exp, P.prod)),
+  ("comma_pat", mk_in(",", Pat, P.prod)),
+  ("fact", mk(["!"], mk_post(P.fact, s([Exp])))),
+  ("parens_exp", mk(["(", ")"], mk_op(s([Exp, Exp])))),
+  ("parens_pat", mk(["(", ")"], mk_op(s([Pat, Pat])))),
+  ("fun_", mk(["fun", "=>"], mk_pre(P.fun_, s([Pat, Exp])))),
+  ("ap", mk(["[", "]"], mk_post(P.ap, s([Exp, Exp])))),
+  ("let_", mk(["let", "=", "in"], mk_pre(P.let_, s([Pat, Exp, Exp])))),
+  ("cond", mk(["?", ":"], mk_bin(P.cond, s([Exp, Exp])))),
 ];
+
+let get: string => t = name => List.assoc(name, forms);

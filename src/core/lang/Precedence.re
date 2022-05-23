@@ -13,10 +13,11 @@ let ap = 2;
 let mult = 3;
 let plus = 4;
 let prod = 5;
-let cond = 6;
-let let_ = 7;
-let fun_ = 8;
-
+let eqs = 6;
+let gt = 6;
+let cond = 7;
+let let_ = 8;
+let fun_ = 9;
 let min = 10;
 
 let compare = (p1: t, p2: t): int =>

@@ -2,7 +2,7 @@ open Mold;
 
 let forms_assoc: list((Base.Tile.Label.t, list(Mold.t))) =
   List.fold_left(
-    (acc, {label, mold}: Form.t) => {
+    (acc, (_, {label, mold}: Form.t)) => {
       let molds =
         switch (List.assoc_opt(label, acc)) {
         | Some(old_molds) => old_molds @ [mold]

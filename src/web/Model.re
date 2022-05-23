@@ -37,12 +37,12 @@ let mk_monotile = form => mk_tile(form, []); //TODO: asserts
 let int = n => mk_monotile(Form.int_exp(n));
 let exp = v => mk_monotile(Form.var_exp(v));
 let pat = v => mk_monotile(Form.var_pat(v));
-let mk_parens_exp = mk_tile(Form.parens_exp);
-let mk_fun = mk_tile(Form.fun_);
-let mk_fun_ancestor = mk_ancestor(Form.fun_);
-let mk_parens_ancestor = mk_ancestor(Form.parens_exp);
-let mk_let_ancestor = mk_ancestor(Form.let_);
-let plus = mk_monotile(Form.plus);
+let mk_parens_exp = mk_tile(Form.get("parens_exp"));
+let mk_fun = mk_tile(Form.get("fun_"));
+let mk_fun_ancestor = mk_ancestor(Form.get("fun_"));
+let mk_parens_ancestor = mk_ancestor(Form.get("parens_exp"));
+let mk_let_ancestor = mk_ancestor(Form.get("let_"));
+let plus = mk_monotile(Form.get("plus"));
 
 let l_sibling: Segment.t = [plus, Grout((Convex, Convex))];
 let r_sibling: Segment.t = [mk_parens_exp([[int(1), plus, int(2)]])];
