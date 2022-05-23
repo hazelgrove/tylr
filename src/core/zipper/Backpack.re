@@ -41,7 +41,9 @@ module ShardInfo = {
       replace(m, i, r);
     };
 
-    let add_tile = (_, _, _) => failwith("todo add_tile");
+    let add_tile = (id, lbl, ord) =>
+      lbl
+      |> List.iteri((i, _) => i == 0 ? () : set((id, i - 1), (id, i), ord));
 
     // Warshall's algorithm https://cs.winona.edu/lin/cs440/ch08-2.pdf
     let tran_close = (ord: t): unit => {
