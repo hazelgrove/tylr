@@ -27,23 +27,48 @@ module ShardInfo = {
 
     let get = (i, j, m) => {
       open OptUtil.Syntax;
-      let* r = find_opt(m, key(i));
-      find_opt(r, key(j));
+      let* r = find_opt(m, i);
+      find_opt(r, j);
     };
 
     let set = (i, j, m) => {
       let r =
-        switch (find_opt(m, key(i))) {
+        switch (find_opt(m, i)) {
         | None => create(n)
         | Some(r) => r
         };
-      replace(r, key(j), ());
-      replace(m, key(i), r);
+      replace(r, j, ());
+      replace(m, i, r);
     };
 
     let add_tile = (_, _, _) => failwith("todo add_tile");
 
-    let tran_close = _: unit => failwith("todo tran_close");
+    // Warshall's algorithm https://cs.winona.edu/lin/cs440/ch08-2.pdf
+    let tran_close = (ord: t): unit => {
+      let keys = List.of_seq(Hashtbl.to_seq_keys(ord));
+      keys
+      |> List.iteri((n, k) =>
+           if (n == 0) {
+             ();
+           } else {
+             keys
+             |> List.iter(i =>
+                  keys
+                  |> List.iter(j =>
+                       switch (get(i, j, ord)) {
+                       | Some(_) => ()
+                       | None =>
+                         switch (get(i, k, ord), get(k, j, ord)) {
+                         | (None, None) => ()
+                         | (Some(_), _)
+                         | (_, Some(_)) => set(i, j, ord)
+                         }
+                       }
+                     )
+                );
+           }
+         );
+    };
   };
 
   module Count = {
@@ -104,7 +129,7 @@ module ShardInfo = {
              | None => ()
              | Some(prev) =>
                Counts.merge(prev.tile_id, curr.tile_id, counts);
-               Order.set(prev, curr, order);
+               Order.(set(key(prev), key(curr), order));
              };
              Some(curr);
            },
