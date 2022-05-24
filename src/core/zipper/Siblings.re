@@ -90,3 +90,17 @@ let regrout = ((pre, suf): t) => (
   Prefix.regrout(pre),
   Suffix.regrout(suf),
 );
+
+let neighbors: t => (option(Piece.t), option(Piece.t)) =
+  ((l, r)) => (
+    l == [] ? None : Some(List.hd(l)),
+    r == [] ? None : Some(List.hd(r)),
+  );
+
+let has_space_neighbor: t => bool =
+  siblings =>
+    switch (neighbors(siblings)) {
+    | (Some(p), _) when Piece.is_space(p) => true
+    | (_, Some(p)) when Piece.is_space(p) => true
+    | _ => false
+    };

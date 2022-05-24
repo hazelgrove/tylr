@@ -562,7 +562,7 @@ let simple_view =
       Attr.create(
         "style",
         Printf.sprintf(
-          "position: absolute; background-color: red; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
+          "position: absolute; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s;",
           (Float.of_int(origin) +. sub_offset) *. font_metrics.col_width,
           (-0.25) *. font_metrics.row_height,
           2.,

@@ -40,3 +40,35 @@ let remold = (p: t) =>
   };
 
 let shapes = get(Grout.shapes, Shard.shapes, Tile.shapes);
+
+let is_grout: t => bool =
+  fun
+  | Grout(_) => true
+  | _ => false;
+
+let is_space: t => bool =
+  fun
+  | Grout((Convex, Concave(_)))
+  | Grout((Concave(_), Convex)) => true
+  | _ => false;
+
+let nib_shapes = (p: t): (Nib.Shape.t, Nib.Shape.t) =>
+  switch (p) {
+  | Grout(nibs) => nibs
+  | Shard({nibs: (l, r), _}) => (l.shape, r.shape)
+  | Tile({mold, _}) =>
+    let (l, r) = Mold.outer_nibs(mold);
+    (l.shape, r.shape);
+  };
+
+let monotile: t => option(string) =
+  fun
+  | Tile({label: [t], _}) => Some(t)
+  | _ => None;
+
+let is_length_one_monotile: t => bool =
+  p =>
+    switch (monotile(p)) {
+    | Some(t) => String.length(t) == 1
+    | None => false
+    };

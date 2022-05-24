@@ -61,39 +61,13 @@ let remove_right_sib: t => t =
 let remove_left_sib: t => t =
   update_siblings(((l, r)) => (l == [] ? [] : List.tl(l), r));
 
-let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
-  ((l, r)) => (
-    l == [] ? None : Some(List.hd(l)),
-    r == [] ? None : Some(List.hd(r)),
-  );
-
-let has_grout_neighbor: Siblings.t => bool =
-  siblings =>
-    switch (neighbors(siblings)) {
-    | (Some(Grout(_)), _)
-    | (_, Some(Grout(_))) => true
-    | _ => false
-    };
-
-let monotile: Base.Piece.t => option(string) =
-  fun
-  | Tile({label: [t], _}) => Some(t)
-  | _ => None;
-
 let neighbor_monotiles = siblings =>
-  switch (neighbors(siblings)) {
-  | (Some(l), Some(r)) => (monotile(l), monotile(r))
-  | (Some(l), None) => (monotile(l), None)
-  | (None, Some(r)) => (None, monotile(r))
+  switch (Siblings.neighbors(siblings)) {
+  | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
+  | (Some(l), None) => (Piece.monotile(l), None)
+  | (None, Some(r)) => (None, Piece.monotile(r))
   | (None, None) => (None, None)
   };
-
-let is_length_one_monotile: Base.Piece.t => bool =
-  p =>
-    switch (monotile(p)) {
-    | Some(t) => String.length(t) == 1
-    | None => false
-    };
 
 let unselect = (z: t): t => {
   let relatives =
@@ -222,13 +196,13 @@ let grout_between: Siblings.t => Piece.t =
   | ([], []) => failwith("insert_space_grout: impossible")
   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
   | ([p, ..._], _) => {
-      let nib_shape_r = p |> Base.nib_shapes |> snd;
+      let nib_shape_r = p |> Piece.nib_shapes |> snd;
       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
     };
 
 let insert_space_grout =
     (_char: string, {relatives: {siblings, _}, _} as z: t) =>
-  if (has_grout_neighbor(siblings)) {
+  if (Siblings.has_space_neighbor(siblings)) {
     z;
   } else {
     update_siblings(((l, r)) => ([grout_between(siblings)] @ l, r), z)
@@ -262,7 +236,7 @@ let replace_construct = (d: Direction.t, l: Tile.Label.t, z: t): option(t) =>
   |> Option.map(construct(d, l));
 
 let can_merge_through: Base.Piece.t => bool =
-  p => Base.is_grout(p) || is_length_one_monotile(p);
+  p => Piece.is_grout(p) || Piece.is_length_one_monotile(p);
 
 let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
   /* This is a bit of a hack. If we are Deleting (d==Right),

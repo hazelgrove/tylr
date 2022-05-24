@@ -82,17 +82,3 @@ and Shard: {
     nibs: Nibs.t,
   };
 };
-
-let is_grout: Piece.t => bool =
-  fun
-  | Grout(_) => true
-  | _ => false;
-
-let nib_shapes = (p: Piece.t): (Nib.Shape.t, Nib.Shape.t) =>
-  switch (p) {
-  | Grout(nibs) => nibs
-  | Shard({nibs: (l, r), _}) => (l.shape, r.shape)
-  | Tile({mold, _}) =>
-    let (l, r) = Mold.outer_nibs(mold);
-    (l.shape, r.shape);
-  };
