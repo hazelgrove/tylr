@@ -549,19 +549,26 @@ let view =
   );
 };
 
-let simple_view = (~font_metrics: FontMetrics.t, origin: int) => {
+let simple_view =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~sub_offset: float,
+      origin: int,
+      color: string,
+    ) => {
   Node.div(
     [
       Attr.id("caret-temp"),
       Attr.create(
         "style",
         Printf.sprintf(
-          "position: absolute; background-color: red; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-          (Float.of_int(origin) -. 0.5) *. font_metrics.col_width,
+          "position: absolute; background-color: red; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
+          (Float.of_int(origin) +. sub_offset) *. font_metrics.col_width,
           (-0.25) *. font_metrics.row_height,
           2.,
           // not sure why this needs to be 1.6 and not 1.5
           1.6 *. font_metrics.row_height,
+          color,
         ),
       ),
     ],
