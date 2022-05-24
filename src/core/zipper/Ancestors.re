@@ -6,8 +6,6 @@ type generation = (Ancestor.t, Siblings.t);
 [@deriving show]
 type t = list(generation);
 
-let ids = List.map(((a, _): generation) => a.id);
-
 let empty = [];
 
 let sort =
