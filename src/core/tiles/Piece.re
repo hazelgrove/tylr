@@ -52,15 +52,6 @@ let is_space: t => bool =
   | Grout((Concave(_), Convex)) => true
   | _ => false;
 
-let nib_shapes = (p: t): (Nib.Shape.t, Nib.Shape.t) =>
-  switch (p) {
-  | Grout(nibs) => nibs
-  | Shard({nibs: (l, r), _}) => (l.shape, r.shape)
-  | Tile({mold, _}) =>
-    let (l, r) = Mold.outer_nibs(mold);
-    (l.shape, r.shape);
-  };
-
 let monotile: t => option(string) =
   fun
   | Tile({label: [t], _}) => Some(t)

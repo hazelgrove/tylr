@@ -195,7 +195,7 @@ let grout_between: Siblings.t => Piece.t =
   | ([], []) => failwith("insert_space_grout: impossible")
   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
   | ([p, ..._], _) => {
-      let nib_shape_r = p |> Piece.nib_shapes |> snd;
+      let nib_shape_r = p |> Piece.shapes |> snd;
       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
     };
 
