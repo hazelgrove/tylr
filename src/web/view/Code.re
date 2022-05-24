@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 open Node;
 open Core;
-//open Util;
+open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
@@ -172,6 +172,53 @@ let rec deco_views =
   };
 };
 
+let targets = (~font_metrics, z: Zipper.t) => {
+  let rec go = (seg: Measured.segment): list(Node.t) => {
+    let targets =
+      ListUtil.splits(seg)
+      |> List.map(((l, r)) => {
+           let sibs = (Measured.shards(l), Measured.shards(r));
+           switch (Backpack.pop(sibs, z.backpack)) {
+           | None
+           | Some((true, _, _)) => []
+           | Some(_) =>
+             let measurement =
+               switch (l, r) {
+               | ([], []) => failwith("impossible")
+               | (_, [(m, _), ..._]) =>
+                 Layout.{origin: m.origin - 1, length: 1}
+               | ([(m, _), ..._], _) =>
+                 Layout.{origin: m.origin + m.length, length: 1}
+               };
+             let profile =
+               CaretPosDec.Profile.{
+                 style: `Sibling,
+                 measurement,
+                 color: Color.Exp,
+                 just_failed: None,
+               };
+             [CaretPosDec.view(~font_metrics, profile)];
+           };
+         })
+      |> List.concat;
+    switch (targets) {
+    | [_, ..._] => targets
+    | [] =>
+      seg
+      |> List.filter_map(
+           fun
+           | (_, Measured.Tile(t)) => Some(t)
+           | _ => None,
+         )
+      |> List.map((t: Measured.tile) =>
+           List.concat(List.map(go, t.children))
+         )
+      |> List.concat
+    };
+  };
+  go(snd(Measured.of_segment(Zipper.zip(z))));
+};
+
 let view =
     (
       ~font_metrics,
@@ -187,7 +234,8 @@ let view =
     [
       span_c("code-text", text_views(layout)),
       ...deco_views(~font_metrics, ~zipper, measured),
-    ],
+    ]
+    @ targets(~font_metrics, zipper),
   );
 };
 

@@ -67,6 +67,13 @@ let pop =
     }
   );
 
+let shards = ((pre, suf): t) => (Prefix.shards(pre), Suffix.shards(suf));
+
+let split_by_matching_shard = (tile_id: Id.t, (pre, suf): t) => (
+  Prefix.split_by_matching_shard(tile_id, pre),
+  Suffix.split_by_matching_shard(tile_id, suf),
+);
+
 let reassemble = ((pre, suf): t) => (
   Prefix.reassemble(pre),
   Suffix.reassemble(suf),

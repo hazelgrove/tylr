@@ -63,7 +63,6 @@ let pop = (from: Direction.t, tile: t): (Base.Piece.t, Base.Segment.t) =>
 
 let unique_mold = _ => failwith("todo unique_mold");
 
-// probably no longer necessary given tile ids
 module Match = {
   type tile = t;
 
@@ -71,48 +70,41 @@ module Match = {
     [@deriving show]
     type t = Aba.t(Shard.t, Base.Segment.t);
 
-    let init = s => (s, []);
+    let id = (m: t) => Aba.hd(m).tile_id;
 
-    let shards = Aba.get_a;
+    let label = (m: t) => snd(Aba.hd(m).label);
 
-    let id = ((hd, _): t) => hd.tile_id;
+    let shards: t => list(Shard.t) = Aba.get_as;
+    // let children: t => list(Base.Segment.t) = Aba.get_bs;
 
-    let label = ((hd, _): t) => snd(hd.label);
+    let length = (m: t) => List.length(shards(m));
 
-    let length = m => List.length(Aba.get_a(m));
-
-    let children = Aba.get_b;
-
-    let extend = (s: Shard.t, seg: Base.Segment.t, (hd, tl): t) =>
-      Shard.is_next(O.d, s, hd) ? Some((s, [(seg, hd), ...tl])) : None;
-
-    let flatten = (m: t): Base.Segment.t =>
-      m
-      |> Aba.map_to_list(s => [Base.Piece.Shard(s)], Fun.id)
-      |> List.flatten;
-
-    let complete = (m: t): option(tile) => {
-      let id = id(m);
-      let label = label(m);
+    let mold = (m: t) => {
       let molds =
         switch (Shard.consistent_molds(shards(m))) {
         | [] =>
           // this should only happen upon construct/destruct,
           // in which case everything will be subsequently remolded
-          Molds.get(label)
+          Molds.get(label(m))
         | [_, ..._] as molds => molds
         };
       assert(molds != []);
-      let mold = List.hd(molds);
+      List.hd(molds);
+    };
+
+    let children = m =>
+      List.map(ListUtil.rev_if(O.d == Left), Aba.get_bs(m));
+
+    let join = (m: t): Base.Segment.t =>
+      m |> Aba.join(s => [Shard.to_piece(s)], Fun.id) |> List.flatten;
+
+    let complete = (m: t): option(tile) => {
+      let id = id(m);
+      let label = label(m);
+      let mold = mold(m);
       length(m) == Label.length(label)
         ? {
-          let children =
-            ListUtil.(
-              rev_if(
-                O.d == Left,
-                List.map(rev_if(O.d == Left), children(m)),
-              )
-            );
+          let children = ListUtil.rev_if(O.d == Left, children(m));
           Some(Base.Tile.{id, label, mold, children});
         }
         : None;

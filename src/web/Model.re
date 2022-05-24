@@ -58,7 +58,7 @@ let ancestors: Ancestors.t = [
   (mk_let_ancestor(([[pat("foo")]], [])), ([], [int(2)])),
 ];
 
-let backpack: list(Selection.t) = [{focus: Left, content: [exp("foo")]}];
+let backpack: Backpack.t = [{focus: Left, content: [exp("foo")]}];
 
 let init = () => {
   zipper: {

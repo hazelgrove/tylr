@@ -34,7 +34,7 @@ module Action = {
       | Cant_move
       | Cant_insert
       | Cant_put_down_inside_token
-      | Nothing_to_put_down;
+      | Cant_put_down;
   };
 
   module Result = {
@@ -104,11 +104,13 @@ let unselect = (z: t): t => {
   {...z, selection, relatives};
 };
 
-let convex = (z: t): bool => {
+let zip = (z: t): Segment.t => {
   let z = unselect(z);
   let (pre, suf) = Relatives.disassemble(z.relatives);
-  Segment.convex(List.rev(pre) @ suf);
+  Segment.reassemble(List.rev(pre) @ suf);
 };
+
+let convex = (z: t): bool => Segment.convex(zip(z));
 
 let remold_regrout = (z: t): t => {
   assert(Selection.is_empty(z.selection));
@@ -158,20 +160,16 @@ let shrink_selection = (z: t): option(t) => {
 let move_outer = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
-    let balanced = !Backpack.is_balanced(z.backpack);
-    let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
+    // let balanced = !Backpack.is_balanced(z.backpack);
+    let+ (p, relatives) = Relatives.pop(~balanced=false, d, z.relatives);
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
       |> Relatives.reassemble;
     {...z, relatives};
-  } else if (d != z.selection.focus
-             || Selection.is_balanced(z.selection)
-             || Backpack.is_balanced(z.backpack)) {
+  } else {
     let selection = {...z.selection, focus: Direction.toggle(d)};
     Some(unselect({...z, selection}));
-  } else {
-    None;
   };
 
 let select_outer = (d: Direction.t, z: t): option(t) =>
@@ -182,7 +180,7 @@ let pick_up = (z: t): t => {
   let selections =
     selected.content
     |> Segment.split_by_grout
-    |> Aba.get_a
+    |> Aba.get_as
     |> List.filter((!=)(Segment.empty))
     |> List.map(Selection.mk(selected.focus));
   let backpack =
@@ -214,7 +212,8 @@ let destruct_outer = (z: t): t => {
 let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
   let z = destruct_outer(z);
-  let+ (popped, backpack) = Backpack.pop(z.backpack);
+  let+ (_, popped, backpack) =
+    Backpack.pop(Siblings.shards(z.relatives.siblings), z.backpack);
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
@@ -512,7 +511,7 @@ let perform = (a: Action.t, z: t): Action.Result.t(t) =>
     z.caret != Outer
       ? Error(Action.Failure.Cant_put_down_inside_token)
       : Result.of_option(
-          ~error=Action.Failure.Nothing_to_put_down,
+          ~error=Action.Failure.Cant_put_down,
           z |> put_down |> Option.map(remold_regrout),
         )
   };
