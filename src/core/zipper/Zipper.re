@@ -80,8 +80,7 @@ let unselect = (z: t): t => {
 
 let zip = (z: t): Segment.t => {
   let z = unselect(z);
-  let (pre, suf) = Relatives.disassemble(z.relatives);
-  Segment.reassemble(List.rev(pre) @ suf);
+  Relatives.zip(z.relatives);
 };
 
 let convex = (z: t): bool => Segment.convex(zip(z));

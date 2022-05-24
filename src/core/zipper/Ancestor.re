@@ -11,6 +11,13 @@ type t = {
   children: ListFrame.t(Segment.t),
 };
 
+let zip = (child: Segment.t, {id, label, mold, children}: t): Tile.t => {
+  id,
+  label,
+  mold,
+  children: ListFrame.to_list(~subject=[child], children),
+};
+
 // TODO flatten with shard indices
 let step = (frame: t): step => {
   let (prefix, _) = frame.children;

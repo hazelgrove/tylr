@@ -21,6 +21,7 @@ let prepend = (d: Direction.t, tiles: Segment.t, rs: t): t => {
   {...rs, siblings};
 };
 
+// TODO get rid of ~balanced
 let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
   switch (Siblings.pop(~balanced, d, rs.siblings)) {
   | Some((p, siblings)) => Some((p, {...rs, siblings}))
@@ -37,6 +38,9 @@ let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
     | _ => None
     }
   };
+
+let zip = ({siblings, ancestors}: t) =>
+  Ancestors.zip(ListFrame.to_list(siblings), ancestors);
 
 let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);

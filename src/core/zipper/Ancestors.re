@@ -13,6 +13,17 @@ let sort =
   | [] => Sort.root
   | [(a, _), ..._] => Ancestor.sort(a);
 
+let zip = (seg: Segment.t, ancs: t) =>
+  ancs
+  |> List.fold_left(
+       (seg, (a, sibs)) =>
+         ListFrame.to_list(
+           ~subject=[Piece.Tile(Ancestor.zip(seg, a))],
+           sibs,
+         ),
+       seg,
+     );
+
 let disassemble = ancs =>
   ancs
   |> List.map(((a, sibs)) =>
