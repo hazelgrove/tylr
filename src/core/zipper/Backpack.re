@@ -123,6 +123,14 @@ module ShardInfo = {
       };
   };
 
+  // Shards are considered selection-matching if they are related transitively
+  // by normal within-tile matching or by same-selection-containment.
+  // Selection-matching shards are ordered transitively by within-tile
+  // ordering and same-selection ordering combined with well-nestedness.
+  // Represents the expected order of all selection-matching shards as
+  // imposed by selections in the backpack, along with counts of those
+  // shards contained in the backpack.
+  // Counts are partitioned by the selection-matching relation.
   type t = {
     order: Order.t,
     counts: Counts.t,
@@ -185,81 +193,6 @@ let shard_info = (bp: t) => {
 let push = sel => Selection.is_empty(sel) ? Fun.id : List.cons(sel);
 
 let push_s: (list(Selection.t), t) => t = List.fold_right(push);
-
-// let pop = (ids: list(Id.t), bp: t): option((Selection.t, t)) =>
-//   switch (Util.ListUtil.split_first_opt(bp)) {
-//   | Some(((ids', sel), bp)) when Selection.is_balanced(sel) || ids == ids' =>
-//     Some((sel, bp))
-//   | _ => None
-//   };
-
-// let labels = (bp: t) => Id.Map.t(Tile.Label.t) =>
-//   Id.Map.empty
-//   |> List.fold_right(
-//     ((_, sel: Selection.t)) =>
-//       List.fold_right(
-
-//         Segment.shards(sel.content),
-//       )
-//     bp,
-//   );
-
-// Shards are considered selection-matching if they are related transitively
-// by normal within-tile matching or by same-selection-containment.
-// Returns a map whose keys are tile ids of all shards selection-matching
-// those in the head selection of the backpack,
-// values are their tile labels and shard counts in the backpack.
-let selection_matching =
-    (hd: Selection.t, tl: t): Id.Map.t((Tile.Label.t, int)) => {
-  let init_shards: (list(Shard.t), Id.Map.t(_)) => Id.Map.t(_) =
-    List.fold_right((s: Shard.t) =>
-      Id.Map.add(s.tile_id, (Shard.tile_label(s), 0))
-    );
-  let count_shards: (list(Shard.t), Id.Map.t(_)) => Id.Map.t(_) =
-    List.fold_right((s: Shard.t) =>
-      Id.Map.update(
-        s.tile_id,
-        fun
-        | None => Some((Shard.tile_label(s), 1))
-        | Some((lbl, n)) => Some((lbl, n + 1)),
-      )
-    );
-  // initialize map indexed with tile ids of shards
-  // selection-matching shards in hd
-  let init_map =
-    Id.Map.empty
-    |> init_shards(Segment.shards(hd.content))
-    |> List.fold_right(
-         (sel: Selection.t, map) => {
-           let ss = Segment.shards(sel.content);
-           List.exists((s: Shard.t) => Id.Map.mem(s.tile_id, map), ss)
-             ? init_shards(ss, map) : map;
-         },
-         tl,
-       );
-  // count selection-matching shards in total backpack
-  init_map
-  |> List.fold_right(
-       (sel: Selection.t) => count_shards(Segment.shards(sel.content)),
-       [hd, ...tl],
-     );
-};
-
-let valid_order = (sel: Selection.t, (pre, suf): ListFrame.t(Shard.t)) =>
-  Segment.shards(sel.content)
-  |> List.for_all((s: Shard.t) => {
-       let after_pre =
-         pre
-         |> List.for_all((s': Shard.t) =>
-              s'.tile_id != s.tile_id || Shard.index(s') < Shard.index(s)
-            );
-       let before_suf =
-         suf
-         |> List.for_all((s': Shard.t) =>
-              s'.tile_id != s.tile_id || Shard.index(s') > Shard.index(s)
-            );
-       after_pre && before_suf;
-     });
 
 let pop =
     ((pre, suf): ListFrame.t(Shard.t), bp: t)

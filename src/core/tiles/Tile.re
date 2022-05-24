@@ -63,53 +63,12 @@ let pop = (from: Direction.t, tile: t): (Base.Piece.t, Base.Segment.t) =>
 
 let unique_mold = _ => failwith("todo unique_mold");
 
-// module Match = {
-//   type tile = t;
-//   type t = Aba.t(Shard.t, Base.Segment.t);
-
-//   let id = (m: t) => Aba.hd(m).tile_id;
-
-//   let label = (m: t) => snd(Aba.hd(m).label);
-
-//   let shards: t => list(Shard.t) = Aba.get_as;
-//   let children: t => list(Base.Segment.t) = Aba.get_bs;
-
-//   let length = (m: t) => List.length(shards(m));
-
-//   let mold = (m: t) => {
-//     let molds =
-//       switch (Shard.consistent_molds(shards(m))) {
-//       | [] =>
-//         // this should only happen upon construct/destruct,
-//         // in which case everything will be subsequently remolded
-//         Molds.get(label(m))
-//       | [_, ..._] as molds => molds
-//       };
-//     assert(molds != []);
-//     List.hd(molds);
-//   };
-
-//   let complete = (m: t): option(tile) => {
-//     let id = id(m);
-//     let label = label(m);
-//     let mold = mold(m);
-//     let children = children(m);
-//     length(m) == Label.length(label)
-//       ? Some({id, label, mold, children}) : None;
-//   };
-
-//   let join = (m: t): Base.Segment.t =>
-//     m |> Aba.join(s => [Shard.to_piece(s)], Fun.id) |> List.flatten;
-// };
-
 module Match = {
   type tile = t;
 
   module Make = (O: Orientation.S) => {
     [@deriving show]
     type t = Aba.t(Shard.t, Base.Segment.t);
-
-    // let init = s => (s, []);
 
     let id = (m: t) => Aba.hd(m).tile_id;
 
@@ -135,14 +94,6 @@ module Match = {
 
     let children = m =>
       List.map(ListUtil.rev_if(O.d == Left), Aba.get_bs(m));
-
-    // let extend = (s: Shard.t, seg: Base.Segment.t, (hd, tl): t) =>
-    //   Shard.is_next(O.d, s, hd) ? Some((s, [(seg, hd), ...tl])) : None;
-
-    // let flatten = (m: t): Base.Segment.t =>
-    //   m
-    //   |> Aba.join(s => [Base.Piece.Shard(s)], Fun.id)
-    //   |> List.flatten;
 
     let join = (m: t): Base.Segment.t =>
       m |> Aba.join(s => [Shard.to_piece(s)], Fun.id) |> List.flatten;

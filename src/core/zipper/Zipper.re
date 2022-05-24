@@ -171,14 +171,6 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
     let selection = {...z.selection, focus: Direction.toggle(d)};
     Some(unselect({...z, selection}));
   };
-// else if (d != z.selection.focus
-//            || Selection.is_balanced(z.selection)
-//            || Backpack.is_balanced(z.backpack)) {
-//   let selection = {...z.selection, focus: Direction.toggle(d)};
-//   Some(unselect({...z, selection}));
-// } else {
-//   None;
-// };
 
 let select_outer = (d: Direction.t, z: t): option(t) =>
   d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
@@ -225,19 +217,6 @@ let destruct_outer = (z: t): t => {
          |> List.map(Segment.of_shard)
          |> List.map(Selection.mk(z.selection.focus)),
        );
-  // |> Backpack.push_s(
-  //      to_pick_up
-  //      |> List.map(s => {
-  //           let (pre, suf) = z.relatives.siblings;
-  //           Segment.(
-  //             contains_matching(s, pre) || contains_matching(s, suf)
-  //           )
-  //             ? ([s], s) : ([], s);
-  //         })
-  //      |> List.map(((meta, s)) =>
-  //           (meta, Selection.mk(z.selection.focus, Segment.of_shard(s)))
-  //         ),
-  //    );
   {...z, backpack};
 };
 
@@ -246,21 +225,6 @@ let put_down = (z: t): option(t) => {
   let z = destruct_outer(z);
   let+ (_, popped, backpack) =
     Backpack.pop(Siblings.shards(z.relatives.siblings), z.backpack);
-  // let (pre, suf) = Siblings.shards(z.relatives.siblings);
-  // let can_put_down =
-  //   meta
-  //   |> List.for_all((s: Shard.t) => {
-  //        let contains_matching =
-  //          List.exists((s': Shard.t) => s.tile_id == s'.tile_id);
-  //        let valid_segment =
-  //          contains_matching(pre) || contains_matching(suf);
-  //        let valid_order =
-  //          List.for_all(s' => Shard.index(s') < Shard.index(s), pre)
-  //          && List.for_all(s' => Shard.index(s') > Shard.index(s), suf);
-  //        valid_segment && valid_order;
-  //      });
-  // can_put_down
-  //   ? Some({...z, backpack} |> put_selection(popped) |> unselect) : None;
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 

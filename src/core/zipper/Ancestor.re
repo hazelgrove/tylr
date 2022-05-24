@@ -43,47 +43,6 @@ let disassemble =
   (flatten(List.rev(shards_l), kids_l), flatten(shards_r, kids_r));
 };
 
-// module Match = {
-//   type ancestor = t;
-//   type t = (Tile.Match.t, Tile.Match.t);
-
-//   let id = ((pre, _): t) => Tile.Match.id(pre);
-
-//   let shards = ((pre, suf): t) =>
-//     List.rev(Tile.Match.shards(pre)) @ Tile.Match.shards(suf);
-
-//   let label = ((_, suf)) => Tile.Match.label(suf);
-
-//   let length = ((pre, suf)) => Tile.Match.(length(pre) + length(suf));
-
-//   let children = ((pre, suf)) => (
-//     List.rev(Tile.Match.children(List.map(List.rev, pre))),
-//     Tile.Match.children(suf),
-//   );
-
-//   let mold = (m: t) => {
-//     let molds =
-//       switch (Shard.consistent_molds(shards(m))) {
-//       | [] =>
-//         // this should only happen upon construct/destruct,
-//         // in which case everything will be subsequently remolded
-//         Molds.get(label(m))
-//       | [_, ..._] as molds => molds
-//       };
-//     assert(molds != []);
-//     List.hd(molds);
-//   };
-
-//   let complete = (m: t): option(ancestor) => {
-//     let id = id(m);
-//     let label = label(m);
-//     let mold = mold(m);
-//     let children = children(m);
-//     length(m) == Tile.Label.length(label)
-//       ? Some({id, label, mold, children}) : None;
-//   };
-// };
-
 module Match = {
   module Prefix = Tile.Match.Make(Orientation.L);
   module Suffix = Tile.Match.Make(Orientation.R);
