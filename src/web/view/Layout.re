@@ -272,21 +272,21 @@ let mk_zipper: Zipper.t => t =
     let indicate_piece = of_piece(sort, Indicated);
     let snub_piece = of_piece(sort, InsideFocalSegment(NotIndicated));
     let selection_ls = content |> List.map(select_piece);
-    let r_sibs_ls = List.map(snub_piece, r_sibs);
-    let l_sibs_ls =
-      switch (content, l_sibs) {
+    let l_sibs_ls = List.map(snub_piece, List.rev(l_sibs));
+    let r_sibs_ls =
+      switch (content, r_sibs) {
       | (_, []) => []
       | ([], [p, ...ps]) =>
-        List.rev(List.cons(indicate_piece(p), List.map(snub_piece, ps)))
-      | _ => List.rev(List.map(snub_piece, l_sibs))
+        List.cons(indicate_piece(p), List.map(snub_piece, ps))
+      | _ => List.map(snub_piece, r_sibs)
       };
     let ls = l_sibs_ls @ selection_ls @ r_sibs_ls;
     let layout = cat_segment(sort, ls);
     let current = ann_selection(layout, (l_sibs, content));
-    switch (l_sibs, ancestors) {
+    switch (r_sibs, ancestors) {
     | ([], []) => current
     | ([], [x, ...xs]) =>
-      // NOTE: if there are no pieces to the left, indicate parent
+      // NOTE: if there are no pieces to the right, indicate parent
       let previous = of_generation(~indicate=content == [], current, x);
       List.fold_left(of_generation(~indicate=false), previous, xs);
     | _ => List.fold_left(of_generation(~indicate=false), current, ancestors)
@@ -401,6 +401,16 @@ let piece_children =
 //        | _ => holes
 //        },
 //  );
+
+//let paren_l = extra_bold_delim("(");
+//let paren_r = extra_bold_delim(")");
+
+//let ap_l = extra_bold_delim("[");
+//let ap_r = extra_bold_delim("]");
+
+//let lam_lam = extra_bold_delim("\\");
+//let lam_open = extra_bold_delim("{");
+//let lam_close = extra_bold_delim("}");
 
 //let mk_Paren = (sort, body) =>
 //  cat([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
