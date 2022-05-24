@@ -227,11 +227,6 @@ let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
   };
 };
 
-// module Stack = Stack.Make(Orientation.R);
-// // TODO use direction parameter
-// let reassemble = (seg: t): t =>
-//   List.fold_right(Stack.push, seg, Stack.init) |> Stack.flatten;
-
 let split_by_matching_shard = (tile_id: Id.t): (t => Aba.t(t, Shard.t)) =>
   Aba.split(
     fun

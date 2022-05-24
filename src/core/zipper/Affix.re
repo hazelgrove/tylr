@@ -9,12 +9,9 @@ module Make = (O: Orientation.S) => {
 
   let empty = Segment.empty;
 
-  // let match = affix => List.fold_right(Stack.push, affix, Stack.init);
-
   let shards = Segment.shards;
   let split_by_matching_shard = Segment.split_by_matching_shard;
 
-  // let reassemble = (affix: t): t => Stack.flatten(match(affix));
   let rec reassemble = (affix: t): t =>
     switch (shards(affix)) {
     | [] => affix

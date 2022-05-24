@@ -41,37 +41,6 @@ let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
 let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
 
-// let reassemble = (rs: t) => {
-//   let rev = Aba.rev(Fun.id, Fun.id);
-
-//   let rec go = ((rev_pre, rev_suf), ancestors) => {
-//     let flatten = () => {
-//       let pre = Prefix.Stack.flatten(rev(rev_pre));
-//       let suf = Suffix.Stack.flatten(rev(rev_suf));
-//       {siblings: (pre, suf), ancestors};
-//     };
-//     let (hd_pre, tl_pre) = rev_pre;
-//     let (hd_suf, tl_suf) = rev_suf;
-//     switch (tl_pre, tl_suf) {
-//     | ([(m_pre, seg_pre), ...tl_pre], [(m_suf, seg_suf), ...tl_suf]) =>
-//       switch (Ancestor.Match.complete((m_pre, m_suf))) {
-//       | Some(ancestor) =>
-//         let rev_pre = (seg_pre, tl_pre);
-//         let rev_suf = (seg_suf, tl_suf);
-//         let ancestors = [(ancestor, (hd_pre, hd_suf)), ...ancestors];
-//         go((rev_pre, rev_suf), ancestors);
-//       | None => flatten()
-//       }
-//     | _ => flatten()
-//     };
-//   };
-
-//   let (pre, suf) = Siblings.reassemble(rs.siblings);
-//   let matched_pre = Prefix.match(pre);
-//   let matched_suf = Suffix.match(suf);
-//   go((rev(matched_pre), rev(matched_suf)), rs.ancestors);
-// };
-
 let remold = ({siblings, ancestors}: t): list(t) => {
   open ListUtil.Syntax;
   let+ ancestors = Ancestors.remold(ancestors)

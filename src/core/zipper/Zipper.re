@@ -183,17 +183,6 @@ let pick_up = (z: t): t => {
     |> Aba.get_as
     |> List.filter((!=)(Segment.empty))
     |> List.map(Selection.mk(selected.focus));
-  // |> List.map((sel: Selection.t) => {
-  //      let meta =
-  //        Segment.shards(sel.content)
-  //        |> List.filter((s: Shard.t) => {
-  //             let (pre, suf) = z.relatives.siblings;
-  //             Segment.(
-  //               contains_matching(s, pre) || contains_matching(s, suf)
-  //             );
-  //           });
-  //      (meta, sel);
-  //    });
   let backpack =
     Backpack.push_s(
       (z.selection.focus == Left ? Fun.id : List.rev)(selections),
