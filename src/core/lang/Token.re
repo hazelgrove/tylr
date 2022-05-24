@@ -4,9 +4,8 @@ open Sexplib.Std;
 [@deriving (show, sexp)]
 type t = string;
 
-/* NOTE: right now I am attempting to maintain the invariant that
-     that every substring of every token is a valid token.
-   */
+/* NOTE: right now I am attempting to maintain the invariant
+   that every substring of every token is a valid token. */
 
 let is_var = token =>
   Re.Str.string_match(Re.Str.regexp("^[a-z]*$"), token, 0);
@@ -25,7 +24,8 @@ let is_delim_kw = t => List.mem(t, List.flatten(delims_kw));
 let delims = List.flatten(delims_non_kw @ delims_kw);
 let is_delim = t => is_delim_kw(t) || is_delim_non_kw(t);
 let is_symbol = t => is_op(t) || is_delim_kw(t) || is_delim_non_kw(t);
-let is_valid = t => is_alphanum(t) || is_whitespace(t) || is_symbol(t);
+let is_non_whitespace = t => is_alphanum(t) || is_symbol(t);
+let is_valid = t => is_non_whitespace(t) || is_whitespace(t);
 
 module Index = {
   type t = int;

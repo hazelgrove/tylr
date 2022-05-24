@@ -103,23 +103,40 @@ let backpack_view =
 let cat_decos =
     (
       ~font_metrics,
-      ~backpack,
-      ~direction: Direction.t,
+      ~zipper as {backpack, selection: {focus, _}, caret, _}: Zipper.t,
       ann: Layout.ann_cat,
       measurement: Layout.measurement,
       ms,
-    ) =>
+    ) => {
+  let caret_offset =
+    switch (caret) {
+    | Outer => 0
+    | Inner(n) => n + 1
+    };
+  //NOTE(andrew): below related to generic spacing
+  let sub_offset =
+    switch (caret) {
+    | Outer => (-0.5)
+    | Inner(_) => 0.0
+    };
   switch (ann) {
   | Segment(Range(i, j)) =>
     let profile = range_profile(ms, i, j);
     let origin =
-      switch (direction) {
+      switch (focus) {
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
     [
       SelectedBoxDec.view(~font_metrics, profile),
-      CaretDec.simple_view(~font_metrics, origin),
+      //debug caret:
+      //CaretDec.simple_view(~font_metrics, ~sub_offset, origin, "#00f8"),
+      CaretDec.simple_view(
+        ~font_metrics,
+        ~sub_offset,
+        origin + caret_offset,
+        "#f008",
+      ),
       backpack_view(~font_metrics, ~origin, backpack),
     ];
   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
@@ -130,6 +147,7 @@ let cat_decos =
     [SelemDec.view(~font_metrics, profile)];
   | _ => []
   };
+};
 
 let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
   switch (ann) {
@@ -142,26 +160,17 @@ let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
 let rec deco_views =
         (
           ~font_metrics: FontMetrics.t,
-          ~backpack: Backpack.t,
-          ~direction: Direction.t,
+          ~zipper: Zipper.t,
           layout: Layout.measured,
         )
-        : list(t) =>
+        : list(t) => {
   switch (layout.layout) {
   | CatM(ms, ann) =>
-    cat_decos(
-      ~font_metrics,
-      ~backpack,
-      ~direction,
-      ann,
-      layout.measurement,
-      ms,
-    )
-    @ List.concat(
-        List.map(deco_views(~font_metrics, ~backpack, ~direction), ms),
-      )
+    cat_decos(~font_metrics, ~zipper, ann, layout.measurement, ms)
+    @ List.concat(List.map(deco_views(~font_metrics, ~zipper), ms))
   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
   };
+};
 
 let targets = (~font_metrics, z: Zipper.t) => {
   let rec go = (seg: Measured.segment): list(Node.t) => {
@@ -220,13 +229,11 @@ let view =
     : Node.t => {
   let layout = Layout.mk_zipper(zipper);
   let measured = Layout.to_measured(layout);
-  let backpack = zipper.backpack;
-  let direction = zipper.selection.focus;
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [
       span_c("code-text", text_views(layout)),
-      ...deco_views(~font_metrics, ~backpack, ~direction, measured),
+      ...deco_views(~font_metrics, ~zipper, measured),
     ]
     @ targets(~font_metrics, zipper),
   );

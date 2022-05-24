@@ -58,5 +58,5 @@ Incr_dom.Start_app.start(
   (module App),
   ~debug=false,
   ~bind_to_element_with_id="container",
-  ~initial_model=Web.Model.init(),
+  ~initial_model=Web.Update.init2 //Model.init(),
 );
