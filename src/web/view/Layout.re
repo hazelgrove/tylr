@@ -402,16 +402,6 @@ let piece_children =
 //        },
 //  );
 
-//let paren_l = extra_bold_delim("(");
-//let paren_r = extra_bold_delim(")");
-
-//let ap_l = extra_bold_delim("[");
-//let ap_r = extra_bold_delim("]");
-
-//let lam_lam = extra_bold_delim("\\");
-//let lam_open = extra_bold_delim("{");
-//let lam_close = extra_bold_delim("}");
-
 //let mk_Paren = (sort, body) =>
 //  cat([paren_l, open_child(sort, ChildStep.paren_body, body), paren_r]);
 
