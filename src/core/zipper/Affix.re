@@ -33,7 +33,7 @@ module Make = (O: Orientation.S) => {
   let rec shape = (affix: t) =>
     switch (affix) {
     | [] => Nib.Shape.concave()
-    | [Grout(_), ...affix] => shape(affix)
+    | [Whitespace(_) | Grout(_), ...affix] => shape(affix)
     | [Shard(s), ..._] =>
       let (_, near) = O.orient(s.nibs);
       near.shape;
@@ -45,7 +45,7 @@ module Make = (O: Orientation.S) => {
   let rec sort = (affix: t, s: Sort.t) =>
     switch (affix) {
     | [] => s
-    | [Grout(_), ...affix] => sort(affix, s)
+    | [Whitespace(_) | Grout(_), ...affix] => sort(affix, s)
     | [Shard(s), ..._] =>
       let (_, near) = O.orient(s.nibs);
       near.sort;
@@ -85,7 +85,7 @@ module Make = (O: Orientation.S) => {
           let (s_far, s_near) = (n_far.sort, n_near.sort);
           (s_near, rank + Bool.to_int(!Sort.consistent(s_far, s)));
         | Tile(tile) =>
-          let s' = tile.mold.sorts.out;
+          let s' = tile.mold.out;
           let children_ranks =
             Tile.sorted_children(tile)
             |> List.map(((s, child)) => Segment.sort_rank(child, (s, s)))
@@ -128,83 +128,12 @@ module Make = (O: Orientation.S) => {
     |> snd;
 
   let regrout = (affix: t) => {
-    let rec go = (s, rev_affix: t) =>
-      switch (rev_affix: t) {
-      | [] => []
-      | [hd, ...tl] =>
-        switch (hd) {
-        | Tile(t) =>
-          let hd = {
-            let children =
-              List.map(
-                regrout((Nib.Shape.concave(), Nib.Shape.concave())),
-                t.children,
-              );
-            Piece.Tile({...t, children});
-          };
-          let s = snd(O.orient(Mold.nibs(t.mold))).shape;
-          [hd, ...go((l, r), tl)];
-        | Shard(shard) =>
-          let l = snd(shard.nibs).shape;
-          [hd, ...regrout((l, r), tl)];
-        | Whitespace(_) => [hd, ...regrout((l, r), tl)]
-        | Grout(g) =>
-          if (!Grout.fits_shape(g, l)) {
-            regrout((l, r), tl);
-          } else {
-            let ((wss, gs), _, tl) = shape(tl, r);
-            let ws = List.map(Piece.whitespace, List.concat(wss));
-            let (g, l) =
-              switch (Grout.merge([g, ...gs])) {
-              | None => (None, l)
-              | Some(g) => (Some(Piece.Grout(g)), snd(Grout.shapes(g)))
-              };
-            List.concat([Option.to_list(g), ws, regrout((l, r), tl)]);
-          }
-      };
-    go(Nib.Shape.concave(), Segment.rev(affix));
+    let r = Nib.Shape.concave();
+    switch (O.d) {
+    | Left =>
+      let (trim, s, tl) = Segment.regrout_tl(Segment.flip_nibs(affix), r);
+      (trim, s, Segment.flip_nibs(tl));
+    | Right => Segment.regrout_tl(affix, r)
+    };
   };
-
-  let regrout = (affix: t) =>
-    Segment.fold_right(
-      (p: Piece.t, regrouted) =>
-        switch (p) {
-        | Grout(g) =>
-          Grout.fits_shape(g, shape(regrouted))
-            ? [p, ...regrouted] : regrouted
-        | Shard(shard) =>
-          let (n_far, _) = O.orient(shard.nibs);
-          let s_far = n_far.shape;
-          switch (regrouted) {
-          | [Grout(g), ...tl] =>
-            Grout.fits_shape(g, s_far) ? [p, ...regrouted] : [p, ...tl]
-          | _ =>
-            Nib.Shape.fits(s_far, shape(regrouted))
-              ? [p, ...regrouted]
-              : [p, Grout(Grout.mk_fits_shape(s_far)), ...regrouted]
-          };
-        | Tile(tile) =>
-          let p =
-            Piece.Tile({
-              ...tile,
-              children:
-                List.map(
-                  Segment.regrout((Nib.Shape.concave(), Nib.Shape.concave())),
-                  tile.children,
-                ),
-            });
-          let (n_far, _) = O.orient(Mold.nibs(tile.mold));
-          let s_far = n_far.shape;
-          switch (regrouted) {
-          | [Grout(g), ...tl] =>
-            Grout.fits_shape(g, s_far) ? [p, ...regrouted] : [p, ...tl]
-          | _ =>
-            Nib.Shape.fits(s_far, shape(regrouted))
-              ? [p, ...regrouted]
-              : [p, Grout(Grout.mk_fits_shape(s_far)), ...regrouted]
-          };
-        },
-      affix,
-      empty,
-    );
 };

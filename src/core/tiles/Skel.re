@@ -51,6 +51,7 @@ let rec skel_at = (n, skel) =>
     }
   };
 
+// TODO(d): clean up use of Option.get
 type ip = (int, Piece.t);
 let mk = (seg: Segment.t): t => {
   if (!Segment.convex(seg)) {
@@ -58,7 +59,7 @@ let mk = (seg: Segment.t): t => {
   };
 
   let push_output = ((i, p): ip, output_stack: list(t)): list(t) =>
-    switch (Piece.shapes(p)) {
+    switch (Option.get(Piece.shapes(p))) {
     | (Convex, Convex) => [Op(i), ...output_stack]
     | (Convex, Concave(_)) =>
       switch (output_stack) {
@@ -89,7 +90,7 @@ let mk = (seg: Segment.t): t => {
     switch (shunted_stack) {
     | [] => (output_stack, [ipre, ...shunted_stack])
     | [(_, p) as ip, ...ips] =>
-      switch (Piece.shapes(p)) {
+      switch (Option.get(Piece.shapes(p))) {
       | (_, Concave(_)) => (output_stack, [ipre, ...shunted_stack])
       | (_, Convex) =>
         process_pre(
@@ -111,7 +112,7 @@ let mk = (seg: Segment.t): t => {
     switch (shunted_stack) {
     | [] => (output_stack, [ipost, ...shunted_stack])
     | [(_, p) as ip, ...ips] =>
-      switch (Piece.shapes(p)) {
+      switch (Option.get(Piece.shapes(p))) {
       | (_, Convex) =>
         process_post(
           ~output_stack=push_output(ip, output_stack),
@@ -143,7 +144,7 @@ let mk = (seg: Segment.t): t => {
     switch (shunted_stack) {
     | [] => (output_stack, [ibin, ...shunted_stack])
     | [(_, p) as ip, ...ips] =>
-      switch (Piece.shapes(p)) {
+      switch (Option.get(Piece.shapes(p))) {
       | (_, Convex) =>
         process_bin(
           ~output_stack=push_output(ip, output_stack),
@@ -180,7 +181,7 @@ let mk = (seg: Segment.t): t => {
          )
     | [(_, p) as ip, ...ips] =>
       let process =
-        switch (Piece.shapes(p)) {
+        switch (Option.get(Piece.shapes(p))) {
         | (Convex, Convex) => process_op
         | (Convex, Concave(_)) => process_pre
         | (Concave(prec), Convex) => process_post(~prec)
@@ -192,5 +193,13 @@ let mk = (seg: Segment.t): t => {
     };
   };
 
-  seg |> List.mapi((i, p) => (i, p)) |> go |> List.hd;
+  seg
+  |> List.mapi((i, p) => (i, p))
+  |> List.filter(
+       fun
+       | (_, Piece.Whitespace(_)) => false
+       | _ => true,
+     )
+  |> go
+  |> List.hd;
 };

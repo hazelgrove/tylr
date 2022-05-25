@@ -11,15 +11,8 @@ type tip_shape = (Nib.t, int);
 type piece_shape = (tip_shape, tip_shape);
 
 let piece_shape_of_mold = (m: Mold.t): piece_shape => {
-  let sort = m.sorts.out;
-  let (sl: Nib.Shape.t, sr: Nib.Shape.t) =
-    switch (m.shape) {
-    | Op => (Convex, Convex)
-    | Pre(p) => (Convex, Concave(p))
-    | Post(p) => (Concave(p), Convex)
-    | Bin(p) => (Concave(p), Concave(p))
-    };
-  (({shape: sl, sort}, 0), ({shape: sr, sort}, 0));
+  let (l, r) = m.nibs;
+  ((l, 0), (r, 0));
 };
 
 [@deriving show]
@@ -86,6 +79,7 @@ type ann_atom =
   | Shard
   | EmptyHole(Mold.t)
   | Space(int, Color.t)
+  | Whitespace
   | Ap; //TODO(andrew): deprecate?
 
 [@deriving show]
@@ -106,6 +100,7 @@ let text: string => t = t => Atom(t, None);
 let delim: string => t = s => Atom(s, Delim);
 let text': Token.t => t = t => Token.is_delim(t) ? delim(t) : text(t);
 let shard: string => t = s => Atom(s, Shard);
+let ws = s => Atom(s, Whitespace);
 let placeholder = ann => Atom(Unicode.nbsp, ann);
 let space = (n, sort) => placeholder(Space(n, Color.of_sort(sort)));
 
@@ -171,13 +166,13 @@ let select_piece_idxs = xs =>
   });
 
 let get_closed_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
-  List.map((==)(mold.sorts.out), mold.sorts.in_)
+  List.map((==)(mold.out), mold.in_)
   |> ListUtil.p_indices((==)(false))
   |> select_piece_idxs(ms);
 };
 
 let get_open_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
-  List.map((==)(mold.sorts.out), mold.sorts.in_)
+  List.map((==)(mold.out), mold.in_)
   |> ListUtil.p_indices((==)(true))
   |> select_piece_idxs(ms);
 };
@@ -187,6 +182,8 @@ let relativize_measurements: (int, list(measurement)) => list(measurement) =
     List.map(({origin, length}) =>
       {origin: origin - parent_origin, length}
     );
+
+let of_whitespace = ({content}: Whitespace.t) => Atom(content, Whitespace);
 
 let of_grout: (Sort.t, Grout.t) => t =
   (sort, g) => {
@@ -199,13 +196,14 @@ let of_shard: Base.Shard.t => t =
     assert(n >= 0 && n < List.length(label));
     let lbl = List.nth(label, n);
     //TODO(andrew): rendering shards differently for debugging
-    cat_piece(Shard, Mold.of_shard(nibs, n, label), [shard(lbl)]);
+    cat_piece(Shard, Mold.of_shard(nibs), [shard(lbl)]);
   };
 
 let rec of_piece: (Sort.t, piece_focus, Piece.t) => t =
   (sort, focus, p) => {
     let t =
       switch (p) {
+      | Whitespace(w) => of_whitespace(w)
       | Tile(t) => of_tile(t)
       | Grout(g) => of_grout(sort, g)
       | Shard(s) => of_shard(s)
@@ -216,7 +214,7 @@ and of_pieces = sort => List.map(of_piece(sort, OutsideFocalSegment))
 and of_segment: (Sort.t, Segment.t) => t =
   (sort, ps) => ps |> of_pieces(sort) |> cat_segment(sort)
 and of_form: (Mold.t, list(Token.t), list(Segment.t)) => list(t) =
-  mold => ListUtil.map_alt(text', of_segment(mold.sorts.out))
+  mold => ListUtil.map_alt(text', of_segment(mold.out))
 and of_tile: Tile.t => t =
   ({id: _, label, children, mold}) =>
     cat_piece(Tile, mold, of_form(mold, label, children));
@@ -237,7 +235,7 @@ let of_ancestor: (~indicate: bool, Ancestor.t, t) => t =
 
 let of_generation: (~indicate: bool, t, Ancestors.generation) => t =
   (~indicate, layout, (ancestor, (l_pibs, r_pibs))) => {
-    let sort = ancestor.mold.sorts.out;
+    let sort = ancestor.mold.out;
     cat_segment(
       sort,
       of_pieces(sort, List.rev(l_pibs))

@@ -32,7 +32,7 @@ and Tile: {
   };
 
   // invariant: length(children) + 1 == length(label)
-  // invariant: length(mold.sorts.in_) == length(children)
+  // invariant: length(mold.in_) == length(children)
   // invariant: each child is a list of elements, either tiles or grout (assuming single backpack)
   [@deriving show]
   type t = {
@@ -49,7 +49,7 @@ and Tile: {
   };
 
   // invariant: length(children) + 1 == length(label)
-  // invariant: length(mold.sorts.in_) == length(children)
+  // invariant: length(mold.in_) == length(children)
   // invariant: each child is a list of elements, either tiles or grout (assuming single backpack)
   [@deriving show]
   type t = {

@@ -70,19 +70,30 @@ let shape_rank = ({siblings, ancestors}: t) => {
 let regrout = ({siblings, ancestors}: t): t => {
   let ancestors = Ancestors.regrout(ancestors);
   let siblings = {
-    let (pre, suf) = Siblings.regrout(siblings);
-    let (s_pre, s_suf) = Siblings.shapes(siblings);
-    switch (pre, suf) {
-    | ([Grout(g), ...pre'], [Grout(g'), ...suf']) =>
-      Grout.fits(g, g') ? (pre', suf') : (pre', suf)
-    | ([Grout(g), ...pre'], _) =>
-      Grout.fits_shape(g, s_suf) ? (pre, suf) : (pre', suf)
-    | (_, [Grout(g), ...suf']) =>
-      Grout.fits_shape(g, s_pre) ? (pre, suf) : (pre, suf')
-    | _ =>
-      Nib.Shape.fits(s_pre, s_suf)
-        ? (pre, suf) : (pre, [Grout(Grout.mk_fits_shape(s_suf)), ...suf])
+    let ((trim_l, s_l, pre), (trim_r, s_r, suf)) =
+      Siblings.regrout(siblings);
+    let (trim_l, trim_r) = {
+      open Segment.Trim;
+      let ((_, gs_l), (_, gs_r)) = (trim_l, trim_r);
+      let (seg_l, seg_r) = (to_seg(trim_l), to_seg(trim_r));
+      switch (gs_l, gs_r) {
+      | ([g_l, ..._], [g_r, ..._]) =>
+        Grout.fits(g_l, g_r)
+          ? (ws(trim_l), ws(trim_r))
+          // note: can modulate as needed using a directional arg
+          : (ws(trim_l), seg_r)
+      | ([g, ..._], []) =>
+        Grout.fits_shape(g, s_r) ? (ws(trim_l), seg_r) : (seg_l, seg_r)
+      | ([], [g, ..._]) =>
+        Grout.fits_shape(g, s_l) ? (seg_l, ws(trim_r)) : (seg_l, seg_r)
+      | ([], []) =>
+        Nib.Shape.fits(s_l, s_r)
+          ? (seg_l, seg_r)
+          // can modulate with directional arg
+          : (seg_l, to_seg(cons_g(Grout.mk_fits_shape(s_r), trim_r)))
+      };
     };
+    (trim_l @ pre, trim_r @ suf);
   };
   {siblings, ancestors};
 };

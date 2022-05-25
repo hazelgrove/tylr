@@ -10,6 +10,7 @@ let rec text_views = (l: Layout.t): list(Node.t) => {
   | Atom(s, ann) =>
     switch (ann) {
     | None
+    | Whitespace
     | Ap
     | Space(_)
     | EmptyHole(_) => [text(s)]
@@ -55,7 +56,7 @@ let sel_piece_profile =
     |> List.map((c: Layout.measured) => c.measurement)
     |> Layout.relativize_measurements(measurement.origin);
   {
-    color: Color.of_sort(mold.sorts.out),
+    color: Color.of_sort(mold.out),
     shape: Layout.piece_shape_of_mold(mold),
     measurement,
     style,

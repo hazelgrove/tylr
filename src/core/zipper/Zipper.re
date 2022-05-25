@@ -190,23 +190,19 @@ let put_down = (z: t): option(t) => {
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
-let grout_between: Siblings.t => Piece.t =
-  fun
-  | ([], []) => failwith("insert_space_grout: impossible")
-  | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
-  | ([p, ..._], _) => {
-      let nib_shape_r = p |> Piece.shapes |> snd;
-      Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
-    };
+// let grout_between: Siblings.t => Piece.t =
+//   fun
+//   | ([], []) => failwith("insert_space_grout: impossible")
+//   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
+//   | ([p, ..._], _) => {
+//       let nib_shape_r = p |> Piece.shapes |> snd;
+//       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
+//     };
 
-let insert_space_grout =
-    (_char: string, {relatives: {siblings, _}, _} as z: t) =>
-  if (Siblings.has_space_neighbor(siblings)) {
-    z;
-  } else {
-    update_siblings(((l, r)) => ([grout_between(siblings)] @ l, r), z)
-    |> update_relatives(Relatives.regrout); //TODO(andrew): david is this necessary?
-  };
+let insert_space_grout = (char: string) =>
+  update_siblings(((l, r)) =>
+    ([Piece.Whitespace({content: char}), ...l], r)
+  );
 
 let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   switch (label) {

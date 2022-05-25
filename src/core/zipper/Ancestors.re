@@ -68,22 +68,12 @@ let shape_rank = (ancestors: t): int =>
 
 let regrout =
   List.map(((a: Ancestor.t, sibs: Siblings.t)) => {
-    let (n_l, n_r) = Mold.nibs(a.mold);
-    let (s_l, s_r) = (n_l.shape, n_r.shape);
-    let (pre, suf) = Siblings.regrout(sibs);
-    let pre =
-      switch (pre) {
-      | [Grout(g), ...pre'] => Grout.fits_shape(g, s_l) ? pre : pre'
-      | _ =>
-        Nib.Shape.fits(s_l, Siblings.Prefix.shape(pre))
-          ? pre : [Grout(Grout.mk_fits_shape(s_l)), ...pre]
-      };
-    let suf =
-      switch (suf) {
-      | [Grout(g), ...suf'] => Grout.fits_shape(g, s_r) ? suf : suf'
-      | _ =>
-        Nib.Shape.fits(s_r, Siblings.Prefix.shape(suf))
-          ? suf : [Grout(Grout.mk_fits_shape(s_r)), ...suf]
-      };
-    (a, (pre, suf));
+    let ((trim_l, l, pre), (trim_r, r, suf)) = Siblings.regrout(sibs);
+    let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(a.mold));
+    let (trim_l, trim_r) =
+      Segment.Trim.(
+        trim_l |> regrout((l', l)) |> to_seg,
+        trim_r |> regrout((r', r)) |> to_seg,
+      );
+    (a, (trim_l @ pre, trim_r @ suf));
   });

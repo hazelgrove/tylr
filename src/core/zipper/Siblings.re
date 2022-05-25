@@ -99,7 +99,7 @@ let neighbors: t => (option(Piece.t), option(Piece.t)) =
 let has_space_neighbor: t => bool =
   siblings =>
     switch (neighbors(siblings)) {
-    | (Some(p), _) when Piece.is_space(p) => true
-    | (_, Some(p)) when Piece.is_space(p) => true
+    | (Some(p), _) when Piece.is_whitespace(p) => true
+    | (_, Some(p)) when Piece.is_whitespace(p) => true
     | _ => false
     };

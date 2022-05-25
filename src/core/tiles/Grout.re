@@ -27,6 +27,14 @@ let fits_shape = (g: t, s: Nib.Shape.t) =>
   | (Concave, Convex) => true
   };
 
+let fits = (g: t, g': t) =>
+  switch (g, g') {
+  | (Convex, Convex)
+  | (Concave, Concave) => false
+  | (Convex, Concave)
+  | (Concave, Convex) => true
+  };
+
 let merge = (gs: list(t)): option(t) =>
   switch (gs) {
   | [] => None

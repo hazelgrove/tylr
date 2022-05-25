@@ -3,6 +3,7 @@ open Core;
 
 type segment = list((Layout.measurement, piece))
 and piece =
+  | Whitespace(Whitespace.t)
   | Grout(Grout.t)
   | Shard(Shard.t)
   | Tile(tile)
@@ -70,6 +71,8 @@ let rec of_segment = (~origin=1, seg: Segment.t): (int, segment) =>
      )
 and of_piece = (~origin=0, p: Piece.t): (Layout.measurement, piece) =>
   switch (p) {
+  // TODO(d) change once w includes newlines
+  | Whitespace(w) => ({origin, length: 1}, Whitespace(w))
   | Grout(g) => ({origin, length: 1}, Grout(g))
   | Shard(s) => (
       {origin, length: Unicode.length(Shard.Label.token(s.label))},

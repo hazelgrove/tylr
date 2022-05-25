@@ -1,50 +1,41 @@
-module Shape = {
-  [@deriving show]
-  type t =
-    | Op
-    | Pre(Precedence.t)
-    | Post(Precedence.t)
-    | Bin(Precedence.t);
-};
-
-module Sorts = {
-  [@deriving show]
-  type t = {
-    out: Sort.t,
-    in_: list(Sort.t),
-  };
-  let mk = (~in_=[], out) => {out, in_};
-};
-
+// supports tiles that take different-sorted unichildren
+// but for now the codebase assumes that tiles only take
+// same-sorted unichildren
+// TODO refactor nibs
 [@deriving show]
 type t = {
-  shape: Shape.t,
-  sorts: Sorts.t,
+  out: Sort.t,
+  in_: list(Sort.t),
+  nibs: Nibs.t,
 };
 
-let mk_op = sorts => {sorts, shape: Op};
-let mk_pre = (p, sorts) => {sorts, shape: Pre(p)};
-let mk_post = (p, sorts) => {sorts, shape: Post(p)};
-let mk_bin = (p, sorts) => {sorts, shape: Bin(p)};
+let flip_nibs = m => {...m, nibs: Nibs.flip(m.nibs)};
 
-let outer_nibs = ({shape, sorts}: t): Nibs.t => {
-  let sort = sorts.out;
-  let convex: Nib.t = {shape: Convex, sort};
-  let concave: Precedence.t => Nib.t = p => {shape: Concave(p), sort};
-  switch (shape) {
-  | Op => (convex, convex)
-  | Pre(p) => (convex, concave(p))
-  | Post(p) => (concave(p), convex)
-  | Bin(p) => (concave(p), concave(p))
-  };
+let mk_op = (out, in_) => {
+  let n = Nib.{shape: Convex, sort: out};
+  {out, in_, nibs: (n, n)};
+};
+let mk_pre = (p, out, in_) => {
+  let l = Nib.{shape: Convex, sort: out};
+  let r = Nib.{shape: Concave(p), sort: out};
+  {out, in_, nibs: (l, r)};
+};
+let mk_post = (p, out, in_) => {
+  let l = Nib.{shape: Concave(p), sort: out};
+  let r = Nib.{shape: Convex, sort: out};
+  {out, in_, nibs: (l, r)};
+};
+let mk_bin = (p, out, in_) => {
+  let n = Nib.{shape: Concave(p), sort: out};
+  {out, in_, nibs: (n, n)};
 };
 
-let nibs = (~index=?, mold: t): Nibs.t => {
-  let (l, r) = outer_nibs(mold);
+let nibs = (~index=?, mold: t): Nibs.t =>
   switch (index) {
-  | None => (l, r)
+  | None => mold.nibs
   | Some(i) =>
-    let in_ = mold.sorts.in_;
+    let (l, r) = mold.nibs;
+    let in_ = mold.in_;
     let l =
       i == 0 ? l : Nib.{shape: Shape.concave(), sort: List.nth(in_, i - 1)};
     let r =
@@ -52,7 +43,6 @@ let nibs = (~index=?, mold: t): Nibs.t => {
         ? r : Nib.{shape: Shape.concave(), sort: List.nth(in_, i)};
     (l, r);
   };
-};
 
 module Map = {
   type mold = t;
@@ -63,40 +53,23 @@ module Map = {
 let of_grout: (Grout.t, Sort.t) => t =
   // TODO(andrew): dont do this?
   (g, sort) => {
-    shape:
+    nibs:
       // TODO(d): revisit this when reformulating molds
       switch (g) {
-      | Convex => Op
-      | Concave => Bin(Precedence.min)
+      | Convex =>
+        let n = Nib.{shape: Convex, sort};
+        (n, n);
+      | Concave =>
+        let n = Nib.{shape: Concave(Precedence.min), sort};
+        (n, n);
       },
-    sorts: {
-      out: sort,
-      in_: [],
-    },
+    out: sort,
+    in_: [],
   };
 
+// TODO(d): remove once shards unified with tiles
 let of_shard =
     // TODO(andrew): dont do this?
-    (nibs: Nibs.t, n: int, label: list(string)): t => {
-  let shape: Shape.t =
-    switch (nibs) {
-    | (l_nib, _) when n == 0 =>
-      switch (l_nib.shape) {
-      | Convex => Pre(Precedence.min)
-      | Concave(_) => Bin(Precedence.min)
-      }
-    | (_, r_nib) when n == List.length(label) - 1 =>
-      switch (r_nib.shape) {
-      | Convex => Post(Precedence.min)
-      | Concave(_) => Bin(Precedence.min)
-      }
-    | _ => Bin(Precedence.min)
-    };
-  {
-    sorts: {
-      out: Exp,
-      in_: [],
-    },
-    shape,
-  };
+    (nibs: Nibs.t): t => {
+  {out: Exp, in_: [], nibs};
 };

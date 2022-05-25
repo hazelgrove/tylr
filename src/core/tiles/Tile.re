@@ -30,7 +30,7 @@ let shapes = (t: t) => {
 let to_piece = t => Base.Piece.Tile(t);
 
 let sorted_children = ({mold, children, _}: t) =>
-  switch (List.combine(mold.sorts.in_, children)) {
+  switch (List.combine(mold.in_, children)) {
   | exception (Invalid_argument(_)) => raise(Invalid_mold)
   | r => r
   };

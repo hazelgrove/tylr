@@ -124,7 +124,7 @@ let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
           let (s_l, s_r) = (n_l.sort, n_r.sort);
           (s_l, rank + Bool.to_int(s_r != s));
         | Tile(tile) =>
-          let s' = tile.mold.sorts.out;
+          let s' = tile.mold.out;
           let children_ranks =
             Tile.sorted_children(tile)
             |> List.map(((s, child)) => sort_rank(child, (s, s)))
@@ -180,43 +180,98 @@ let rec shape_rank = (seg, (s_l, s_r): (Nib.Shape.t, Nib.Shape.t)) => {
 //     l.shape;
 //   };
 
-let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
-  let mk_fits = (l, r) => Option.to_list(Grout.mk_fits((l, r)));
-  switch (seg) {
-  | [] => mk_fits(l, r)
-  | [hd, ...tl] =>
-    switch (hd) {
-    | Tile(t) =>
-      let hd = {
-        let children =
-          List.map(
-            regrout((Nib.Shape.concave(), Nib.Shape.concave())),
-            t.children,
-          );
-        Piece.Tile({...t, children});
-      };
-      let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(t.mold));
-      mk_fits(l, l') @ [hd, ...regrout((r', r), tl)];
-    | Shard(shard) =>
-      let (l', r') = TupleUtil.map2(Nib.shape, shard.nibs);
-      mk_fits(l, l') @ [hd, ...regrout((l, r), tl)];
-    | Whitespace(_) => [hd, ...regrout((l, r), tl)]
-    | Grout(g) =>
-      if (!Grout.fits_shape(g, l)) {
-        regrout((l, r), tl);
-      } else {
-        let ((wss, gs), _, tl) = shape(tl, r);
-        let ws = List.map(Piece.whitespace, List.concat(wss));
-        let (g, l) =
-          switch (Grout.merge([g, ...gs])) {
-          | None => (None, l)
-          | Some(g) => (Some(Piece.Grout(g)), snd(Grout.shapes(g)))
-          };
-        List.concat([Option.to_list(g), ws, regrout((l, r), tl)]);
-      }
-    }
+// let mk_grout = (l, r) =>
+//   Grout.mk_fits((l, r)) |> Option.map(Piece.grout) |> Option.to_list;
+
+module Trim = {
+  type seg = t;
+  type t = Aba.t(list(Whitespace.t), Grout.t);
+
+  let empty = Aba.mk([[]], []);
+
+  let cons_w = (w: Whitespace.t, (wss, gs)) => {
+    // safe bc Aba always has at least one A element
+    let (ws, wss) = ListUtil.split_first(wss);
+    Aba.mk([[w, ...ws], ...wss], gs);
   };
+  let cons_g = (g: Grout.t, (wss, gs)) =>
+    Aba.mk([[], ...wss], [g, ...gs]);
+
+  let ws = ((wss, _): t): seg => List.(map(Piece.whitespace, concat(wss)));
+
+  // postcond: result is either <ws> or <ws,g,ws'>
+  let merge = ((wss, gs): t): t => {
+    switch (Grout.merge(gs)) {
+    | None => Aba.mk([List.concat(wss)], [])
+    | Some(g) =>
+      let (ws, wss) = ListUtil.split_first(wss);
+      Aba.mk([ws, List.concat(wss)], [g]);
+    };
+  };
+  // same as merge but type encodes postcond
+  // let merged = (trim: t): (list(Whitespace.t), option((Grout.t, list(Whitespace.t)))) => {
+  //   let (wss, gs) = merge(trim);
+  //   let (ws, wss) = ListUtil.split_first(wss);
+  //   switch (gs) {
+  //   | [] => (ws, None)
+  //   | [g, ..._] => (ws, Some((g, List.concat(wss))))
+  //   };
+  // };
+
+  // assumes grout in trim fit r but may not fit l
+  let regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), trim: t): t =>
+    if (Nib.Shape.fits(l, r)) {
+      let (wss, _) = trim;
+      Aba.mk([List.concat(wss)], []);
+    } else {
+      let (_, gs) as merged = merge(trim);
+      switch (gs) {
+      | [] => cons_g(Grout.mk_fits_shape(l), merged)
+      | [_, ..._] => merged
+      };
+    };
+
+  let to_seg = (trim: t) =>
+    trim
+    |> Aba.join(List.map(Piece.whitespace), g => [Piece.Grout(g)])
+    |> List.concat;
 };
+
+let rec regrout = ((l, r), seg) => {
+  let (trim, r, tl) = regrout_tl(seg, r);
+  let trim = Trim.regrout((l, r), trim);
+  Trim.to_seg(trim) @ tl;
+}
+and regrout_tl = (seg: t, r: Nib.Shape.t): (Trim.t, Nib.Shape.t, t) =>
+  fold_right(
+    (p: Piece.t, (trim, r, tl)) =>
+      switch (p) {
+      | Whitespace(w) => (Trim.cons_w(w, trim), r, tl)
+      | Grout(g) => (Trim.(merge(cons_g(g, trim))), r, tl)
+      | Shard(s) =>
+        let (l', r') = TupleUtil.map2(Nib.shape, s.nibs);
+        let trim = trim |> Trim.regrout((r', r)) |> Trim.to_seg;
+        (Trim.empty, l', [p, ...trim] @ tl);
+      | Tile(t) =>
+        let children =
+          List.map(regrout(Nib.Shape.(concave(), concave())), t.children);
+        let p = Piece.Tile({...t, children});
+        let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(t.mold));
+        let trim = trim |> Trim.regrout((r', r)) |> Trim.to_seg;
+        (Trim.empty, l', [p, ...trim] @ tl);
+      },
+    seg,
+    (Aba.mk([[]], []), r, empty),
+  );
+
+// for internal use when dealing with segments in reverse order (eg Affix.re)
+let flip_nibs =
+  List.map(
+    fun
+    | (Piece.Whitespace(_) | Grout(_)) as p => p
+    | Shard(s) => Shard({...s, nibs: Nibs.flip(s.nibs)})
+    | Tile(t) => Tile({...t, mold: Mold.flip_nibs(t.mold)}),
+  );
 
 let split_by_matching_shard = (tile_id: Id.t): (t => Aba.t(t, Shard.t)) =>
   Aba.split(
