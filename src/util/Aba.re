@@ -7,6 +7,11 @@ let mk = (as_: list('a), bs: list('b)): t('a, 'b) => {
   (as_, bs);
 };
 
+let cons = (a: 'a, b: 'b, (as_, bs): t('a, 'b)): t('a, 'b) => (
+  [a, ...as_],
+  [b, ...bs],
+);
+
 let get_as: t('a, _) => list('a) = fst;
 let get_bs: t(_, 'b) => list('b) = snd;
 

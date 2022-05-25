@@ -66,10 +66,8 @@ let of_grout: (Grout.t, Sort.t) => t =
     shape:
       // TODO(d): revisit this when reformulating molds
       switch (g) {
-      | (Convex, Convex) => Op
-      | (Convex, Concave(p)) => Pre(p)
-      | (Concave(p), Convex) => Post(p)
-      | (Concave(p), Concave(_)) => Bin(p)
+      | Convex => Op
+      | Concave => Bin(Precedence.min)
       },
     sorts: {
       out: sort,

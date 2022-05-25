@@ -38,6 +38,8 @@ type t = {
   sort: Sort.t,
 };
 
+let shape = n => n.shape;
+
 let fits = (l: t, r: t): bool =>
   l.sort == r.sort && Shape.fits(l.shape, r.shape);
 

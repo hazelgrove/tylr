@@ -78,6 +78,7 @@ module Make = (O: Orientation.S) => {
     Segment.fold_right(
       (p: Piece.t, (s, rank)) =>
         switch (p) {
+        | Whitespace(_)
         | Grout(_) => (s, rank)
         | Shard(shard) =>
           let (n_far, n_near) = O.orient(shard.nibs);
@@ -102,6 +103,7 @@ module Make = (O: Orientation.S) => {
     Segment.fold_right(
       (p: Piece.t, (s, rank)) =>
         switch (p) {
+        | Whitespace(_)
         | Grout(_) => (s, rank)
         | Shard(shard) =>
           let (n_far, n_near) = O.orient(shard.nibs);
@@ -124,6 +126,44 @@ module Make = (O: Orientation.S) => {
       (Nib.Shape.concave(), 0),
     )
     |> snd;
+
+  let regrout = (affix: t) => {
+    let rec go = (s, rev_affix: t) =>
+      switch (rev_affix: t) {
+      | [] => []
+      | [hd, ...tl] =>
+        switch (hd) {
+        | Tile(t) =>
+          let hd = {
+            let children =
+              List.map(
+                regrout((Nib.Shape.concave(), Nib.Shape.concave())),
+                t.children,
+              );
+            Piece.Tile({...t, children});
+          };
+          let s = snd(O.orient(Mold.nibs(t.mold))).shape;
+          [hd, ...go((l, r), tl)];
+        | Shard(shard) =>
+          let l = snd(shard.nibs).shape;
+          [hd, ...regrout((l, r), tl)];
+        | Whitespace(_) => [hd, ...regrout((l, r), tl)]
+        | Grout(g) =>
+          if (!Grout.fits_shape(g, l)) {
+            regrout((l, r), tl);
+          } else {
+            let ((wss, gs), _, tl) = shape(tl, r);
+            let ws = List.map(Piece.whitespace, List.concat(wss));
+            let (g, l) =
+              switch (Grout.merge([g, ...gs])) {
+              | None => (None, l)
+              | Some(g) => (Some(Piece.Grout(g)), snd(Grout.shapes(g)))
+              };
+            List.concat([Option.to_list(g), ws, regrout((l, r), tl)]);
+          }
+      };
+    go(Nib.Shape.concave(), Segment.rev(affix));
+  };
 
   let regrout = (affix: t) =>
     Segment.fold_right(

@@ -14,13 +14,15 @@ and Piece: {
   type t =
     | Tile(Tile.t)
     | Shard(Shard.t)
-    | Grout(Grout.t);
+    | Grout(Grout.t)
+    | Whitespace(Whitespace.t);
 } = {
   [@deriving show]
   type t =
     | Tile(Tile.t)
     | Shard(Shard.t)
-    | Grout(Grout.t);
+    | Grout(Grout.t)
+    | Whitespace(Whitespace.t);
 }
 and Tile: {
   module Label: {
