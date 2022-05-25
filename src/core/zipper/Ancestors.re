@@ -73,36 +73,14 @@ let regrout =
     let (pre, suf) = Siblings.regrout(sibs);
     let pre =
       switch (pre) {
-      | [Grout((l, r)), ...pre'] =>
-        if (/* necessary */ Nib.Shape.fits(s_l, l)) {
-          pre;
-        } else if (/* prefix/postfix */ Nib.Shape.fits(l, r)) {
-          [
-            // change
-            Grout((l, Nib.Shape.flip(r))),
-            ...pre',
-          ];
-        } else {
-          pre';
-        }
+      | [Grout(g), ...pre'] => Grout.fits_shape(g, s_l) ? pre : pre'
       | _ =>
         Nib.Shape.fits(s_l, Siblings.Prefix.shape(pre))
           ? pre : [Grout(Grout.mk_fits_shape(s_l)), ...pre]
       };
     let suf =
       switch (suf) {
-      | [Grout((l, r)), ...suf'] =>
-        if (/* necessary */ Nib.Shape.fits(r, s_r)) {
-          suf;
-        } else if (/* prefix/postfix */ Nib.Shape.fits(l, r)) {
-          [
-            // change
-            Grout((Nib.Shape.flip(l), r)),
-            ...suf',
-          ];
-        } else {
-          suf';
-        }
+      | [Grout(g), ...suf'] => Grout.fits_shape(g, s_r) ? suf : suf'
       | _ =>
         Nib.Shape.fits(s_r, Siblings.Prefix.shape(suf))
           ? suf : [Grout(Grout.mk_fits_shape(s_r)), ...suf]

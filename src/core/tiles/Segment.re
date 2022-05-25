@@ -155,35 +155,17 @@ let rec shape = (seg: t, r: Nib.Shape.t) =>
 let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
   let regrouted =
     fold_right(
-      (p: Piece.t, regrouted: t) =>
+      (p: Piece.t, regrouted) =>
         switch (p) {
-        | Grout((s_l, s_r)) =>
-          switch (regrouted) {
-          | [Grout((_, s_r')), ...regrouted] => [
-              Grout((s_l, s_r')),
-              ...regrouted,
-            ]
-          | _ =>
-            if (Nib.Shape.fits(s_r, shape(regrouted, r))) {
-              [p, ...regrouted];
-            } else if (Nib.Shape.fits(s_l, s_r)) {
-              [Grout((l, Nib.Shape.flip(r))), ...regrouted];
-            } else {
-              regrouted;
-            }
-          }
+        | Grout(g) =>
+          Grout.fits_shape(g, shape(regrouted, r))
+            ? [p, ...regrouted] : regrouted
         | Shard(shard) =>
           let (_, n_r) = shard.nibs;
           let s_r = n_r.shape;
           switch (regrouted) {
-          | [Grout((s_l', s_r')) as g, ...tl] =>
-            if (Nib.Shape.fits(s_r, s_l')) {
-              [p, g, ...tl];
-            } else if (Nib.Shape.fits(s_l', s_r')) {
-              [p, Grout((Nib.Shape.flip(s_l'), s_r')), ...tl];
-            } else {
-              [p, ...tl];
-            }
+          | [Grout(g), ...tl] =>
+            Grout.fits_shape(g, s_r) ? [p, ...regrouted] : [p, ...tl]
           | _ =>
             Nib.Shape.fits(s_r, shape(regrouted, r))
               ? [p, ...regrouted]
@@ -202,14 +184,8 @@ let rec regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), seg: t) => {
           let (_, n_r) = Mold.nibs(tile.mold);
           let s_r = n_r.shape;
           switch (regrouted) {
-          | [Grout((s_l', s_r')) as g, ...tl] =>
-            if (Nib.Shape.fits(s_r, s_l')) {
-              [p, g, ...tl];
-            } else if (Nib.Shape.fits(s_l', s_r')) {
-              [p, Grout((Nib.Shape.flip(s_l'), s_r')), ...tl];
-            } else {
-              [p, ...tl];
-            }
+          | [Grout(g), ...tl] =>
+            Grout.fits_shape(g, s_r) ? [p, ...regrouted] : [p, ...tl]
           | _ =>
             Nib.Shape.fits(s_r, shape(regrouted, r))
               ? [p, ...regrouted]

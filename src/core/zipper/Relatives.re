@@ -67,40 +67,18 @@ let shape_rank = ({siblings, ancestors}: t) => {
   + Bool.to_int(!Nib.Shape.fits(l, r));
 };
 
-// called when selection is empty
 let regrout = ({siblings, ancestors}: t): t => {
   let ancestors = Ancestors.regrout(ancestors);
   let siblings = {
     let (pre, suf) = Siblings.regrout(siblings);
     let (s_pre, s_suf) = Siblings.shapes(siblings);
     switch (pre, suf) {
-    | ([Grout((l, _)), ...pre'], [Grout((_, r)), ...suf']) =>
-      // Grout.fits(g, g') ? (pre', suf') : (pre', suf)
-      (pre', [Piece.Grout((l, r)), ...suf'])
-    | ([Grout((l, r)), ...pre'], _) =>
-      if (/* necessary */ Nib.Shape.fits(r, s_suf)) {
-        (pre, suf);
-      } else if (/* prefix/postfix */ Nib.Shape.fits(l, r)) {
-        (
-          // change
-          [Grout((l, Nib.Shape.flip(r))), ...pre'],
-          suf,
-        );
-      } else {
-        (pre', suf);
-      }
-    | (_, [Grout((l, r)), ...suf']) =>
-      if (/* necessary */ Nib.Shape.fits(s_pre, l)) {
-        (pre, suf);
-      } else if (/* prefix/postfix */ Nib.Shape.fits(l, r)) {
-        (
-          // change
-          pre,
-          [Grout((Nib.Shape.flip(l), r)), ...suf'],
-        );
-      } else {
-        (pre, suf');
-      }
+    | ([Grout(g), ...pre'], [Grout(g'), ...suf']) =>
+      Grout.fits(g, g') ? (pre', suf') : (pre', suf)
+    | ([Grout(g), ...pre'], _) =>
+      Grout.fits_shape(g, s_suf) ? (pre, suf) : (pre', suf)
+    | (_, [Grout(g), ...suf']) =>
+      Grout.fits_shape(g, s_pre) ? (pre, suf) : (pre, suf')
     | _ =>
       Nib.Shape.fits(s_pre, s_suf)
         ? (pre, suf) : (pre, [Grout(Grout.mk_fits_shape(s_suf)), ...suf])
