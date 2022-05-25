@@ -80,8 +80,7 @@ let unselect = (z: t): t => {
 
 let zip = (z: t): Segment.t => {
   let z = unselect(z);
-  let (pre, suf) = Relatives.disassemble(z.relatives);
-  Segment.reassemble(List.rev(pre) @ suf);
+  Relatives.zip(z.relatives);
 };
 
 let convex = (z: t): bool => Segment.convex(zip(z));
@@ -196,7 +195,7 @@ let grout_between: Siblings.t => Piece.t =
   | ([], []) => failwith("insert_space_grout: impossible")
   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
   | ([p, ..._], _) => {
-      let nib_shape_r = p |> Piece.nib_shapes |> snd;
+      let nib_shape_r = p |> Piece.shapes |> snd;
       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
     };
 
