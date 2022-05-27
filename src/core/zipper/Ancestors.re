@@ -44,20 +44,21 @@ let remold = (ancestors: t): list(t) =>
     [empty],
   );
 
-let sort_rank = (ancestors: t) =>
-  List.fold_right(
-    ((a, sibs), (s, rank)) => {
-      let rank =
-        rank
-        + Siblings.sort_rank(sibs, s)
-        + Ancestor.sort_rank(a, Siblings.sorts(sibs, s));
-      let s' = Ancestor.sort(a);
-      (s', rank);
-    },
-    ancestors,
-    (Sort.root, 0),
-  )
-  |> snd;
+// let sort_rank = (ancestors: t) =>
+//   List.fold_right(
+//     ((a, sibs), (s, rank)) => {
+//       let rank =
+//         rank
+//         + Siblings.sort_rank(sibs, s)
+//         + Ancestor.sort_rank(a, Siblings.sorts(sibs, s));
+//       let s' = Ancestor.sort(a);
+//       (s', rank);
+//     },
+//     ancestors,
+//     (Sort.root, 0),
+//   )
+//   |> snd;
+let sort_rank = _ => failwith("todo Ancestors.sort_rank");
 
 let shape_rank = (ancestors: t): int =>
   List.fold_right(

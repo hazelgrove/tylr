@@ -10,12 +10,14 @@ type t = tile;
 
 let is_complete = (t: t) => List.length(t.label) == List.length(t.shards);
 
+let l_shard = t =>
+  OptUtil.get_or_raise(Empty_tile, ListUtil.hd_opt(t.shards));
+let r_shard = t =>
+  OptUtil.get_or_raise(Empty_tile, ListUtil.last_opt(t.shards));
+
 let nibs = (~flip=false, t: t) => {
-  let get = OptUtil.get_or_raise(Empty_tile);
-  let first = get(ListUtil.hd_opt(t.shards));
-  let last = get(ListUtil.last_opt(t.shards));
-  let (l, _) = Mold.nibs(~index=first, t.mold);
-  let (_, r) = Mold.nibs(~index=last, t.mold);
+  let (l, _) = Mold.nibs(~index=l_shard(t), t.mold);
+  let (_, r) = Mold.nibs(~index=r_shard(t), t.mold);
   flip ? (r, l) : (l, r);
 };
 let shapes = (~flip=false, t: t) => {
@@ -52,7 +54,15 @@ let disassemble =
 
 let reassemble = (match: Aba.t(t, segment)): t => {
   let t = Aba.hd(match);
-  let shards = Aba.get_as(match) |> List.map(t => t.shards) |> List.concat;
+  let (shards, children) =
+    match
+    |> Aba.fold_right(
+         (t, child, (shards, children)) =>
+           (t.shards @ shards, t.children @ [child, ...children]),
+         t => (t.shards, t.children),
+       );
+  // check lengths
+  let _ = Aba.mk(shards, children);
   assert(List.sort(Int.compare, shards) == shards);
   {
     id: t.id,
@@ -62,7 +72,7 @@ let reassemble = (match: Aba.t(t, segment)): t => {
     // should undergo subsequent remolding.
     mold: t.mold,
     shards,
-    children: Aba.get_bs(match),
+    children,
   };
 };
 

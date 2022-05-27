@@ -21,21 +21,18 @@ let prepend = (d: Direction.t, tiles: Segment.t, rs: t): t => {
   {...rs, siblings};
 };
 
-// TODO get rid of ~balanced
-let pop = (~balanced: bool, d: Direction.t, rs: t): option((Piece.t, t)) =>
-  switch (Siblings.pop(~balanced, d, rs.siblings)) {
+let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
+  switch (Siblings.pop(d, rs.siblings)) {
   | Some((p, siblings)) => Some((p, {...rs, siblings}))
   | None =>
     switch (rs.ancestors) {
-    | [(ancestor, siblings), ...ancestors] when !balanced =>
+    | [] => None
+    | [(ancestor, siblings), ...ancestors] =>
       open OptUtil.Syntax;
       let siblings' = Ancestor.disassemble(ancestor);
       let+ (p, siblings) =
-        Siblings.(
-          pop(~balanced, d, concat([rs.siblings, siblings', siblings]))
-        );
+        Siblings.(pop(d, concat([rs.siblings, siblings', siblings])));
       (p, {siblings, ancestors});
-    | _ => None
     }
   };
 
@@ -116,57 +113,84 @@ let concat = (rss: list(t)): t =>
     empty,
   );
 
-let rec reassemble = (rs: t): t => {
-  let siblings = Siblings.reassemble(rs.siblings);
-  switch (Siblings.shards(siblings)) {
-  | ([], _)
-  | (_, []) => {...rs, siblings}
-  | ([_, ..._], [s, ..._]) =>
-    switch (
-      siblings
-      |> Siblings.split_by_matching(s.tile_id)
-      |> TupleUtil.map2(Aba.trim)
-    ) {
-    | (None, None) => {...rs, siblings}
-    | (None, Some((inner_r, match_r, outer_r))) =>
-      let {siblings: (l, r), ancestors} =
-        reassemble({...rs, siblings: (fst(rs.siblings), outer_r)});
-      {
-        siblings: (
-          l,
-          Segment.concat([inner_r, Ancestor.Match.Suffix.join(match_r), r]),
-        ),
-        ancestors,
-      };
-    | (Some((inner_l, match_l, outer_l)), None) =>
-      let {siblings: (l, r), ancestors} =
-        reassemble({...rs, siblings: (outer_l, snd(rs.siblings))});
-      {
-        siblings: (
-          Segment.concat([inner_l, Ancestor.Match.Suffix.join(match_l), l]),
-          r,
-        ),
-        ancestors,
-      };
-    | (Some((inner_l, match_l, outer_l)), Some((inner_r, match_r, outer_r))) =>
-      let match = (match_l, match_r);
-      let rs_inner =
-        switch (Ancestor.Match.complete(match)) {
-        | None => {
-            siblings:
-              Siblings.concat([
-                (inner_l, inner_r),
-                Ancestor.Match.join(match),
-              ]),
-            ancestors: Ancestors.empty,
-          }
-        | Some(a) => {
-            siblings: (inner_l, inner_r),
-            ancestors: [(a, Siblings.empty)],
-          }
-        };
-      let rs_outer = reassemble({...rs, siblings: (outer_l, outer_r)});
-      concat([rs_inner, rs_outer]);
-    }
-  };
+let reassemble = (rs: t): t => {
+  let rec go = (rs: t): t =>
+    switch (Segment.incomplete_tiles(snd(rs.siblings))) {
+    | [] => rs
+    | [t, ..._] =>
+      switch (
+        rs.siblings
+        |> Siblings.split_by_matching(t.id)
+        |> TupleUtil.map2(Aba.trim)
+      ) {
+      | (
+          Some((inner_l, match_l, outer_l)),
+          Some((inner_r, match_r, outer_r)),
+        ) =>
+        let rs = go({...rs, siblings: (outer_l, outer_r)});
+        let ancestors = [
+          (Ancestor.reassemble(match_l, match_r), rs.siblings),
+          ...rs.ancestors,
+        ];
+        let siblings = (inner_l, inner_r);
+        {ancestors, siblings};
+      | _ => failwith("todo")
+      }
+    };
+  go({...rs, siblings: Siblings.reassemble(rs.siblings)});
 };
+
+// let rec reassemble = (rs: t): t => {
+//   let siblings = Siblings.reassemble(rs.siblings);
+//   switch (Siblings.incomplete_tiles(siblings)) {
+//   | ([], _)
+//   | (_, []) => {...rs, siblings}
+//   | ([_, ..._], [t, ..._]) =>
+//     switch (
+//       siblings
+//       |> Siblings.split_by_matching(t.id)
+//       |> TupleUtil.map2(Aba.trim)
+//     ) {
+//     | (None, None) => {...rs, siblings}
+//     | (None, Some((inner_r, match_r, outer_r))) =>
+//       let {siblings: (l, r), ancestors} =
+//         reassemble({...rs, siblings: (fst(siblings), outer_r)});
+//       {
+//         siblings: (
+//           l,
+//           Segment.concat([inner_r, Ancestor.Match.Suffix.join(match_r), r]),
+//         ),
+//         ancestors,
+//       };
+//     | (Some((inner_l, match_l, outer_l)), None) =>
+//       let {siblings: (l, r), ancestors} =
+//         reassemble({...rs, siblings: (outer_l, snd(rs.siblings))});
+//       {
+//         siblings: (
+//           Segment.concat([inner_l, Ancestor.Match.Suffix.join(match_l), l]),
+//           r,
+//         ),
+//         ancestors,
+//       };
+//     | (Some((inner_l, match_l, outer_l)), Some((inner_r, match_r, outer_r))) =>
+//       let match = (match_l, match_r);
+//       let rs_inner =
+//         switch (Ancestor.Match.complete(match)) {
+//         | None => {
+//             siblings:
+//               Siblings.concat([
+//                 (inner_l, inner_r),
+//                 Ancestor.Match.join(match),
+//               ]),
+//             ancestors: Ancestors.empty,
+//           }
+//         | Some(a) => {
+//             siblings: (inner_l, inner_r),
+//             ancestors: [(a, Siblings.empty)],
+//           }
+//         };
+//       let rs_outer = reassemble({...rs, siblings: (outer_l, outer_r)});
+//       concat([rs_inner, rs_outer]);
+//     }
+//   };
+// };

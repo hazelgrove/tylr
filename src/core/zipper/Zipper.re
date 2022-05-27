@@ -112,8 +112,7 @@ let put_selection = (sel, z) => snd(update_selection(sel, z));
 
 let grow_selection = (z: t): option(t) => {
   open OptUtil.Syntax;
-  let+ (p, relatives) =
-    Relatives.pop(~balanced=false, z.selection.focus, z.relatives);
+  let+ (p, relatives) = Relatives.pop(z.selection.focus, z.relatives);
   let selection = Selection.push(p, z.selection);
   {...z, selection, relatives};
 };
@@ -134,7 +133,7 @@ let move_outer = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
     // let balanced = !Backpack.is_balanced(z.backpack);
-    let+ (p, relatives) = Relatives.pop(~balanced=false, d, z.relatives);
+    let+ (p, relatives) = Relatives.pop(d, z.relatives);
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
@@ -186,7 +185,10 @@ let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
   let z = destruct_outer(z);
   let+ (_, popped, backpack) =
-    Backpack.pop(Siblings.shards(z.relatives.siblings), z.backpack);
+    Backpack.pop(
+      Siblings.incomplete_tiles(z.relatives.siblings),
+      z.backpack,
+    );
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
@@ -204,7 +206,7 @@ let insert_space_grout = (char: string) =>
     ([Piece.Whitespace({content: char}), ...l], r)
   );
 
-let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
+let construct = (from: Direction.t, label: Label.t, z: t): t => {
   switch (label) {
   | [t] when Token.is_whitespace(t) => insert_space_grout(t, z)
   | _ =>
@@ -215,7 +217,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
     let mold = List.hd(molds);
     let (id, id_gen) = IdGen.next(z.id_gen);
     let selections =
-      Shard.mk_s(id, label, mold)
+      Tile.split_shards(id, label, mold, List.mapi((i, _) => i, label))
       |> List.map(Segment.of_tile)
       |> List.map(Selection.mk(from))
       |> ListUtil.rev_if(from == Right);
@@ -224,13 +226,13 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
   };
 };
 
-let replace_construct = (d: Direction.t, l: Tile.Label.t, z: t): option(t) =>
+let replace_construct = (d: Direction.t, l: Label.t, z: t): option(t) =>
   z
   |> select_outer(d)
   |> Option.map(destruct_outer)
   |> Option.map(construct(d, l));
 
-let can_merge_through: Base.Piece.t => bool =
+let can_merge_through: Piece.t => bool =
   p => Piece.is_grout(p) || Piece.is_length_one_monotile(p);
 
 let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>

@@ -22,6 +22,11 @@ let get_bs: t(_, 'b) => list('b) = snd;
 
 let hd = ((as_, _): t('a, 'b)): 'a => List.hd(as_);
 
+let map_b = (f_b: 'b => 'c, (as_, bs): t('a, 'b)): t('a, 'c) => (
+  as_,
+  List.map(f_b, bs),
+);
+
 let trim = ((as_, bs): t('a, 'b)): option(('a, t('b, 'a), 'a)) =>
   switch (bs) {
   | [] => None
@@ -53,4 +58,10 @@ let join = (f_a: 'a => 'c, f_b: 'b => 'c, aba: t('a, 'b)): list('c) => {
     bs,
     [f_a(a)],
   );
+};
+
+let fold_right =
+    (f_ab: ('a, 'b, 'c) => 'c, f_a: 'a => 'c, (as_, bs): t('a, 'b)) => {
+  let (as_, a) = ListUtil.split_last(as_);
+  List.fold_right2(f_ab, as_, bs, f_a(a));
 };

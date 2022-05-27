@@ -8,7 +8,7 @@ type t = {
   id: Id.t,
   label: Label.t,
   mold: Mold.t,
-  shards: list(int),
+  shards: ListFrame.t(int),
   children: ListFrame.t(Segment.t),
 };
 
@@ -16,7 +16,7 @@ let zip = (child: Segment.t, {id, label, mold, shards, children}: t): Tile.t => 
   id,
   label,
   mold,
-  shards,
+  shards: ListFrame.to_list(shards),
   children: ListFrame.to_list(~subject=[child], children),
 };
 
@@ -29,25 +29,41 @@ let step = (frame: t): step => {
 let remold = (a: t): list(t) =>
   Molds.get(a.label) |> List.map(mold => {...a, mold});
 
-let sort = (frame: t): Sort.t => {
-  assert(step(frame) >= 0 && step(frame) < List.length(frame.mold.in_));
-  List.nth(frame.mold.in_, step(frame));
-};
+// let sort = (frame: t): Sort.t => {
+//   assert(step(frame) >= 0 && step(frame) < List.length(frame.mold.in_));
+//   List.nth(frame.mold.in_, step(frame));
+// };
+let sort = _ => failwith("todo Ancestor.sort");
 
-let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
-  let s = a.mold.out;
-  Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
-};
+// let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
+//   let s = a.mold.out;
+//   Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
+// };
+let sort_rank = _ => failwith("todo Ancestor.sort_rank");
 
 let disassemble =
     ({id, label, mold, shards, children: (kids_l, kids_r)}: t): Siblings.t => {
   let (shards_l, shards_r) =
-    Tile.split_shards(id, label, mold, shards)
-    |> List.map(Tile.to_piece)
-    |> ListUtil.split_n(List.length(kids_l) + 1);
+    shards
+    |> TupleUtil.map2(Tile.split_shards(id, label, mold))
+    |> TupleUtil.map2(List.map(Tile.to_piece));
   let flatten = (shards, kids) =>
     List.flatten(ListUtil.map_alt(p => [p], Fun.id, shards, kids));
-  (flatten(List.rev(shards_l), kids_l), flatten(shards_r, kids_r));
+  (flatten(shards_l, kids_l), flatten(shards_r, kids_r));
+};
+
+let reassemble = (match_l: Aba.t(Tile.t, Segment.t) as 'm, match_r: 'm): t => {
+  // TODO(d) bit hacky, need to do a flip/orientation pass
+  let match_l = Aba.map_b(Segment.rev, match_l);
+  let (t_l, t_r) = Tile.(reassemble(match_l), reassemble(match_r));
+  assert(t_l.id == t_r.id);
+  {
+    id: t_l.id,
+    label: t_l.label,
+    mold: t_l.mold,
+    shards: (t_l.shards, t_r.shards),
+    children: (t_l.children, t_r.children),
+  };
 };
 
 // module Match = {

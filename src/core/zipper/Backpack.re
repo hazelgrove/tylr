@@ -3,7 +3,7 @@ open Util;
 module ShardInfo = {
   module Order = {
     type key = (Id.t, int);
-    let key = (s: Shard.t) => (s.tile_id, Shard.index(s));
+    // let key = (s: Shard.t) => (s.tile_id, Shard.index(s));
 
     open Hashtbl;
     type t = Hashtbl.t(key, Hashtbl.t(key, unit));
@@ -11,11 +11,13 @@ module ShardInfo = {
     let n = 20;
     let init = () => create(n);
 
-    let lt = (l: Shard.t, r: Shard.t, ord: t): bool =>
-      switch (find_opt(ord, key(l))) {
+    let lt = (l: Tile.t, r: Tile.t, ord: t): bool => {
+      let (i_l, i_r) = Tile.(r_shard(l), l_shard(r));
+      switch (find_opt(ord, (l.id, i_l))) {
       | None => false
-      | Some(row) => Option.is_some(find_opt(row, key(r)))
+      | Some(row) => Option.is_some(find_opt(row, (r.id, i_r)))
       };
+    };
     let gt = (l, r, ord) => lt(r, l, ord);
     let un = (l, r, ord) => !lt(l, r, ord) && !gt(l, r, ord);
 
@@ -81,13 +83,13 @@ module ShardInfo = {
 
   module Count = {
     type t = {
-      labels: Id.Map.t(Tile.Label.t),
+      labels: Id.Map.t(Label.t),
       counts: Id.Map.t(int),
     };
 
-    let of_shard = (s: Shard.t) => {
-      labels: Id.Map.singleton(s.tile_id, Shard.tile_label(s)),
-      counts: Id.Map.singleton(s.tile_id, 1),
+    let of_tile = (t: Tile.t) => {
+      labels: Id.Map.singleton(t.id, t.label),
+      counts: Id.Map.singleton(t.id, List.length(t.shards)),
     };
 
     let merge = (m: t, m': t) => {
@@ -97,8 +99,8 @@ module ShardInfo = {
 
     let mem = (id, m) => Id.Map.mem(id, m.labels);
 
-    let exists_mem = (ss: list(Shard.t), m) =>
-      List.exists((s: Shard.t) => mem(s.tile_id, m), ss);
+    let exists_mem = (ts: list(Tile.t), m) =>
+      List.exists((t: Tile.t) => mem(t.id, m), ts);
 
     let is_complete = (m: t) =>
       m.counts
@@ -111,15 +113,15 @@ module ShardInfo = {
     type t = Id.Uf.store(Count.t);
     include Id.Uf;
     let merge = merge(Count.merge);
-    let add_shard = (s: Shard.t, cs: t): unit =>
-      switch (get_opt(s.tile_id, cs)) {
-      | None => add(s.tile_id, Count.of_shard(s), cs)
+    let add_tile = (t: Tile.t, cs: t): unit =>
+      switch (get_opt(t.id, cs)) {
+      | None => add(t.id, Count.of_tile(t), cs)
       | Some(c) =>
         let c = {
           ...c,
-          counts: Id.Map.update(s.tile_id, Option.map((+)(1)), c.counts),
+          counts: Id.Map.update(t.id, Option.map((+)(1)), c.counts),
         };
-        set(s.tile_id, c, cs);
+        set(t.id, c, cs);
       };
   };
 
@@ -139,21 +141,21 @@ module ShardInfo = {
   let init = () => {order: Order.init(), counts: Counts.init()};
 
   let add_sel = (sel: Selection.t, {counts, order}: t): unit => {
-    let ss = Segment.shards(sel.content);
+    let ts = Segment.incomplete_tiles(sel.content);
     // initialize
-    ss
-    |> List.iter((s: Shard.t) => {
-         Counts.add_shard(s, counts);
-         Order.add_tile(s.tile_id, Shard.tile_label(s), order);
+    ts
+    |> List.iter((t: Tile.t) => {
+         Counts.add_tile(t, counts);
+         Order.add_tile(t.id, t.label, order);
        });
     // merge counts
     ignore(
-      ss
+      ts
       |> List.fold_left(
-           (prev: option(Shard.t), curr: Shard.t) => {
+           (prev: option(Tile.t), curr: Tile.t) => {
              switch (prev) {
              | None => ()
-             | Some(prev) => Counts.merge(prev.tile_id, curr.tile_id, counts)
+             | Some(prev) => Counts.merge(prev.id, curr.id, counts)
              };
              Some(curr);
            },
@@ -161,18 +163,26 @@ module ShardInfo = {
          ),
     );
     // propagate well-nested ordering constraints
-    ListUtil.ordered_pairs(ss)
-    |> List.iter(((l: Shard.t, r: Shard.t)) => {
-         let Count.{labels, _} = Counts.get(l.tile_id, counts);
-         let (i_l, i_r) = (Shard.index(l), Shard.index(r));
-         let n_l = List.length(Id.Map.find(l.tile_id, labels));
-         let n_r = List.length(Id.Map.find(r.tile_id, labels));
+    ListUtil.ordered_pairs(ts)
+    |> List.iter(((l: Tile.t, r: Tile.t)) => {
+         let (n_l, n_r) = List.(length(l.label), length(r.label));
+         let (i_l, i_r) = Tile.(r_shard(l), l_shard(r));
+         Order.set((l.id, i_l), (r.id, i_r), order);
          if (i_l == n_l - 1 && i_r != 0) {
-           Order.set((r.tile_id, i_r - 1), (l.tile_id, 0), order);
+           // l must be nested within r
+           Order.set(
+             (r.id, i_r - 1),
+             (l.id, 0),
+             order,
+           );
          } else if (i_l != n_l - 1 && i_r == 0) {
-           Order.set((r.tile_id, n_r - 1), (l.tile_id, i_l + 1), order);
+           // r must be nested within l
+           Order.set(
+             (r.id, n_r - 1),
+             (l.id, i_l + 1),
+             order,
+           );
          };
-         Order.(set(key(l), key(r), order));
        });
   };
 };
@@ -195,21 +205,21 @@ let push = sel => Selection.is_empty(sel) ? Fun.id : List.cons(sel);
 let push_s: (list(Selection.t), t) => t = List.fold_right(push);
 
 let pop =
-    ((pre, suf): ListFrame.t(Shard.t), bp: t)
+    ((pre, suf): ListFrame.t(Tile.t), bp: t)
     : option((bool, Selection.t, t)) => {
   open OptUtil.Syntax;
   let* (hd, tl) = ListUtil.split_first_opt(bp);
-  switch (Segment.shards(hd.content)) {
+  switch (Segment.incomplete_tiles(hd.content)) {
   | [] => Some((true, hd, tl))
-  | [s, ..._] as ss =>
+  | [t, ..._] as ts =>
     open ShardInfo;
     let {counts, order} = shard_info(bp);
-    let count = Counts.get(s.tile_id, counts);
+    let count = Counts.get(t.id, counts);
     let first = Count.is_complete(count);
     first
     || (Count.exists_mem(pre, count) || Count.exists_mem(suf, count))
-    && Order.lt_or_un(pre, ss, order)
-    && Order.lt_or_un(ss, suf, order)
+    && Order.lt_or_un(pre, ts, order)
+    && Order.lt_or_un(ts, suf, order)
       ? Some((first, hd, tl)) : None;
   };
 };
@@ -235,10 +245,9 @@ let is_first_matching = (t: Token.t, bp: t): bool =>
   | [] => false
   | [{content: [p], _}, ..._] =>
     switch (p) {
-    | Tile({label: [s], _}) => s == t
-    | Shard({label: (n, label), _}) =>
-      assert(n < List.length(label));
-      List.nth(label, n) == t;
+    | Tile({shards: [i], label, _}) =>
+      assert(i < List.length(label));
+      List.nth(label, i) == t;
     | _ => false
     }
   | _ => false
