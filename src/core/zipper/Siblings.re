@@ -20,21 +20,18 @@ let concat = (sibss: list(t)): t =>
   |> PairUtil.map_fst(List.concat)
   |> PairUtil.map_snd(List.concat);
 
-let consistent_shards = ((pre, suf): t): bool => {
-  let shards_pre = Prefix.shards(pre);
-  let shards_suf = Suffix.shards(suf);
-  ListUtil.group_by(Shard.id, shards_pre @ shards_suf)
-  |> List.for_all(((_, shards)) => Shard.consistent_molds(shards) != []);
-};
+// let consistent_shards = ((pre, suf): t): bool => {
+//   let shards_pre = Prefix.shards(pre);
+//   let shards_suf = Suffix.shards(suf);
+//   ListUtil.group_by(Shard.id, shards_pre @ shards_suf)
+//   |> List.for_all(((_, shards)) => Shard.consistent_molds(shards) != []);
+// };
 
 let remold = ((pre, suf): t): list(t) => {
   open ListUtil.Syntax;
-  let sibs = {
-    let+ pre = Prefix.remold(pre)
-    and+ suf = Suffix.remold(suf);
-    (pre, suf);
-  };
-  List.filter(consistent_shards, sibs);
+  let+ pre = Prefix.remold(pre)
+  and+ suf = Suffix.remold(suf);
+  (pre, suf);
 };
 
 let sorts = ((pre, suf): t, s: Sort.t) => (
@@ -43,9 +40,8 @@ let sorts = ((pre, suf): t, s: Sort.t) => (
 );
 let shapes = ((pre, suf): t) => (Prefix.shape(pre), Suffix.shape(suf));
 
-let contains_matching = (shard: Shard.t, (pre, suf): t) =>
-  Prefix.contains_matching(shard, pre)
-  || Suffix.contains_matching(shard, suf);
+let contains_matching = (t: Tile.t, (pre, suf): t) =>
+  Prefix.contains_matching(t, pre) || Suffix.contains_matching(t, suf);
 
 let push = (onto: Direction.t, p: Piece.t, (pre, suf): t): t =>
   switch (onto) {
@@ -53,25 +49,26 @@ let push = (onto: Direction.t, p: Piece.t, (pre, suf): t): t =>
   | Right => (pre, Suffix.push(p, suf))
   };
 
-let pop =
-    (~balanced: bool, from: Direction.t, (pre, suf): t)
-    : option((Piece.t, t)) =>
+let pop = (from: Direction.t, (pre, suf): t): option((Piece.t, t)) =>
   OptUtil.Syntax.(
     switch (from) {
     | Left =>
-      let+ (p, pre) = Prefix.pop(~balanced, pre);
+      let+ (p, pre) = Prefix.pop(pre);
       (p, (pre, suf));
     | Right =>
-      let+ (p, suf) = Suffix.pop(~balanced, suf);
+      let+ (p, suf) = Suffix.pop(suf);
       (p, (pre, suf));
     }
   );
 
-let shards = ((pre, suf): t) => (Prefix.shards(pre), Suffix.shards(suf));
+let incomplete_tiles = ((pre, suf): t) => (
+  Prefix.incomplete_tiles(pre),
+  Suffix.incomplete_tiles(suf),
+);
 
-let split_by_matching_shard = (tile_id: Id.t, (pre, suf): t) => (
-  Prefix.split_by_matching_shard(tile_id, pre),
-  Suffix.split_by_matching_shard(tile_id, suf),
+let split_by_matching = (id: Id.t, (pre, suf): t) => (
+  Prefix.split_by_matching(id, pre),
+  Suffix.split_by_matching(id, suf),
 );
 
 let reassemble = ((pre, suf): t) => (

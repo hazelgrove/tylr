@@ -1,13 +1,15 @@
 open Util;
 
-include Base.Segment;
+[@deriving show]
+type t = Base.segment;
 
 let empty = [];
 let cons = List.cons;
 let concat = List.concat;
 let fold_right = List.fold_right;
+let rev = List.rev;
 
-let of_shard = s => [Piece.Shard(s)];
+let of_tile = t => [Tile.to_piece(t)];
 
 let nibs = tiles =>
   switch (tiles, ListUtil.split_last_opt(tiles)) {
@@ -16,30 +18,30 @@ let nibs = tiles =>
   | ([_first, ..._], Some((_, _last))) => failwith("todo Tiles.nibs")
   };
 
-let shards =
+let incomplete_tiles =
   List.filter_map(
     fun
-    | Piece.Shard(s) => Some(s)
+    | Piece.Tile(t) when !Tile.is_complete(t) => Some(t)
     | _ => None,
   );
 
-let contains_matching = (shard: Shard.t) =>
+let contains_matching = (t: Tile.t) =>
   List.exists(
     fun
-    | Piece.Shard(s) => s.tile_id == shard.tile_id
+    | Piece.Tile(t') => t'.id == t.id
     | _ => false,
   );
 
-let remove_matching = (shard: Shard.t) =>
+let remove_matching = (t: Tile.t) =>
   List.filter_map(
     fun
-    | Piece.Shard(s) when s.tile_id == shard.tile_id => None
+    | Piece.Tile(t') when t'.id == t.id => None
     | p => Some(p),
   );
 
 let snoc = (tiles, tile) => tiles @ [tile];
 
-let is_balanced = List.for_all(Piece.is_balanced);
+// let is_balanced = List.for_all(Piece.is_balanced);
 
 let rec shape =
         (seg: t, r: Nib.Shape.t)
@@ -55,12 +57,9 @@ let rec shape =
       let (ws, wss) = ListUtil.split_first(wss);
       (([[w, ...ws], ...wss], gs), s, tl);
     | Grout(g) => (Aba.cons([], g, wgw), s, tl)
-    | Shard(s) =>
-      let (l, _) = s.nibs;
-      (empty_wgw, l.shape, tl);
     | Tile(t) =>
-      let (l, _) = Mold.nibs(t.mold);
-      (empty_wgw, l.shape, tl);
+      let (l, _) = Tile.shapes(t);
+      (empty_wgw, l, tl);
     };
   };
 };
@@ -75,13 +74,10 @@ let rec convex = seg => {
         | Whitespace(_) => shape
         | Grout(g) =>
           Grout.fits_shape(g, s) ? Some(fst(Grout.shapes(g))) : None
-        | Shard(sh) =>
-          let (l, r) = sh.nibs;
-          Nib.Shape.fits(r.shape, s) ? Some(l.shape) : None;
         | Tile(t) =>
-          let (l, r) = Mold.nibs(t.mold);
-          let convex_kids = List.for_all(convex, t.children);
-          convex_kids && Nib.Shape.fits(r.shape, s) ? Some(l.shape) : None;
+          let (l, r) = Tile.shapes(t);
+          List.for_all(convex, t.children) && Nib.Shape.fits(r, s)
+            ? Some(l) : None;
         };
       },
       seg,
@@ -112,61 +108,54 @@ let remold = (seg: t): list(t) =>
     [empty],
   );
 
-let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
-  let (s_l', rank) =
-    fold_right(
-      (p: Piece.t, (s, rank)) =>
-        switch (p) {
-        | Whitespace(_)
-        | Grout(_) => (s, rank)
-        | Shard(shard) =>
-          let (n_l, n_r) = shard.nibs;
-          let (s_l, s_r) = (n_l.sort, n_r.sort);
-          (s_l, rank + Bool.to_int(s_r != s));
-        | Tile(tile) =>
-          let s' = tile.mold.out;
-          let children_ranks =
-            Tile.sorted_children(tile)
-            |> List.map(((s, child)) => sort_rank(child, (s, s)))
-            |> List.fold_left((+), 0);
-          let rank' = rank + children_ranks + Bool.to_int(s != s');
-          (s', rank');
-        },
-      seg,
-      (s_r, 0),
-    );
-  rank + Bool.to_int(!Sort.consistent(s_l, s_l'));
-};
+// let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
+//   let (s_l', rank) =
+//     fold_right(
+//       (p: Piece.t, (s, rank)) =>
+//         switch (p) {
+//         | Whitespace(_)
+//         | Grout(_) => (s, rank)
+//         | Tile(t) =>
+//           let s' = t.mold.out;
+//           let kid_ranks =
+//             Tile.sorted_children(t)
+//             |> List.map(((s, child)) => sort_rank(child, (s, s)))
+//             |> List.fold_left((+), 0);
+//           let rank' = rank + kid_ranks + Bool.to_int(s != s');
+//           (s', rank');
+//         },
+//       seg,
+//       (s_r, 0),
+//     );
+//   rank + Bool.to_int(!Sort.consistent(s_l, s_l'));
+// };
+let sort_rank = (_, _) => failwith("todo sort_rank");
 
-let rec shape_rank = (seg, (s_l, s_r): (Nib.Shape.t, Nib.Shape.t)) => {
-  let (s_l', rank) =
-    fold_right(
-      (p: Piece.t, (s, rank)) =>
-        switch (p) {
-        | Whitespace(_)
-        | Grout(_) => (s, rank)
-        | Shard(shard) =>
-          let (n_far, n_near) = shard.nibs;
-          let (s_far, s_near) = (n_far.shape, n_near.shape);
-          (s_near, rank + Bool.to_int(!Nib.Shape.fits(s_far, s)));
-        | Tile(tile) =>
-          let (n_far, n_near) = Mold.nibs(tile.mold);
-          let (s_far, s_near) = (n_far.shape, n_near.shape);
-          let children_ranks =
-            tile.children
-            |> List.map(child =>
-                 shape_rank(child, Nib.Shape.(concave(), concave()))
-               )
-            |> List.fold_left((+), 0);
-          let rank' =
-            rank + children_ranks + Bool.to_int(!Nib.Shape.fits(s_far, s));
-          (s_near, rank');
-        },
-      seg,
-      (s_r, 0),
-    );
-  rank + Bool.to_int(!Nib.Shape.fits(s_l, s_l'));
-};
+let rec shape_rank = (seg, (l, r): (Nib.Shape.t, Nib.Shape.t)) => {
+  let (l', rank) = shape_rank_tl(seg, r);
+  rank + Bool.to_int(!Nib.Shape.fits(l, l'));
+}
+and shape_rank_tl = (~flip=false, seg, r: Nib.Shape.t) =>
+  fold_right(
+    (p: Piece.t, (r, rank)) =>
+      switch (p) {
+      | Whitespace(_)
+      | Grout(_) => (r, rank)
+      | Tile(t) =>
+        let (l, r') = Tile.shapes(~flip, t);
+        let children_ranks =
+          t.children
+          |> List.map(child =>
+               shape_rank(child, Nib.Shape.(concave(), concave()))
+             )
+          |> List.fold_left((+), 0);
+        let rank' =
+          rank + children_ranks + Bool.to_int(!Nib.Shape.fits(r', r));
+        (l, rank');
+      },
+    seg,
+    (r, 0),
+  );
 
 // let rec shape = (seg: t, r: Nib.Shape.t) =>
 //   switch (seg) {
@@ -242,21 +231,18 @@ let rec regrout = ((l, r), seg) => {
   let trim = Trim.regrout((l, r), trim);
   Trim.to_seg(trim) @ tl;
 }
-and regrout_tl = (seg: t, r: Nib.Shape.t): (Trim.t, Nib.Shape.t, t) =>
+and regrout_tl =
+    (~flip=false, seg: t, r: Nib.Shape.t): (Trim.t, Nib.Shape.t, t) =>
   fold_right(
     (p: Piece.t, (trim, r, tl)) =>
       switch (p) {
       | Whitespace(w) => (Trim.cons_w(w, trim), r, tl)
       | Grout(g) => (Trim.(merge(cons_g(g, trim))), r, tl)
-      | Shard(s) =>
-        let (l', r') = TupleUtil.map2(Nib.shape, s.nibs);
-        let trim = trim |> Trim.regrout((r', r)) |> Trim.to_seg;
-        (Trim.empty, l', [p, ...trim] @ tl);
       | Tile(t) =>
         let children =
           List.map(regrout(Nib.Shape.(concave(), concave())), t.children);
         let p = Piece.Tile({...t, children});
-        let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(t.mold));
+        let (l', r') = Tile.shapes(~flip, t);
         let trim = trim |> Trim.regrout((r', r)) |> Trim.to_seg;
         (Trim.empty, l', [p, ...trim] @ tl);
       },
@@ -265,36 +251,30 @@ and regrout_tl = (seg: t, r: Nib.Shape.t): (Trim.t, Nib.Shape.t, t) =>
   );
 
 // for internal use when dealing with segments in reverse order (eg Affix.re)
-let flip_nibs =
-  List.map(
-    fun
-    | (Piece.Whitespace(_) | Grout(_)) as p => p
-    | Shard(s) => Shard({...s, nibs: Nibs.flip(s.nibs)})
-    | Tile(t) => Tile({...t, mold: Mold.flip_nibs(t.mold)}),
-  );
+// let flip_nibs =
+//   List.map(
+//     fun
+//     | (Piece.Whitespace(_) | Grout(_)) as p => p
+//     | Tile(t) => Tile({...t, mold: Mold.flip_nibs(t.mold)}),
+//   );
 
-let split_by_matching_shard = (tile_id: Id.t): (t => Aba.t(t, Shard.t)) =>
+let split_by_matching = (id: Id.t): (t => Aba.t(t, Tile.t)) =>
   Aba.split(
     fun
-    | Piece.Shard(s) when s.tile_id == tile_id => Either.R(s)
+    | Piece.Tile(t) when t.id == id => Either.R(t)
     | p => L(p),
   );
 
-module Match = Tile.Match.Make(Orientation.R);
-let rec reassemble = (seg: t): t =>
-  switch (shards(seg)) {
+// module Match = Tile.Match.Make(Orientation.R);
+let rec reassemble = (~flip=false, seg: t): t =>
+  switch (incomplete_tiles(seg)) {
   | [] => seg
-  | [s, ..._] =>
-    switch (Aba.trim(split_by_matching_shard(s.tile_id, seg))) {
+  | [t, ..._] =>
+    switch (Aba.trim(split_by_matching(t.id, seg))) {
     | None => seg
     | Some((seg_l, match, seg_r)) =>
-      let seg_m =
-        switch (Match.complete(match)) {
-        | None => Match.join(match)
-        | Some(t) =>
-          let children = List.map(reassemble, t.children);
-          [Tile.to_piece({...t, children})];
-        };
-      List.concat([seg_l, seg_m, reassemble(seg_r)]);
+      let match = flip ? Aba.rev(Fun.id, rev, match) : match;
+      let t = Tile.(to_piece(reassemble(match)));
+      seg_l @ [t, ...reassemble(seg_r)];
     }
   };

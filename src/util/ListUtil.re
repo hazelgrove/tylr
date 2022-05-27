@@ -1,4 +1,4 @@
-let rev_if = b => b ? List.rev : Fun.id;
+let rev_if = (b: bool) => b ? List.rev : Fun.id;
 
 let dedup = xs =>
   List.fold_right(

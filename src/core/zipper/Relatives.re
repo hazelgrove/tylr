@@ -124,7 +124,7 @@ let rec reassemble = (rs: t): t => {
   | ([_, ..._], [s, ..._]) =>
     switch (
       siblings
-      |> Siblings.split_by_matching_shard(s.tile_id)
+      |> Siblings.split_by_matching(s.tile_id)
       |> TupleUtil.map2(Aba.trim)
     ) {
     | (None, None) => {...rs, siblings}

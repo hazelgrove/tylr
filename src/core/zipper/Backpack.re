@@ -214,18 +214,18 @@ let pop =
   };
 };
 
-let remove_matching = (ss: list(Shard.t), bp: t) =>
+let remove_matching = (ts: list(Tile.t), bp: t) =>
   List.fold_left(
-    (bp, s: Shard.t) =>
+    (bp, t: Tile.t) =>
       bp
-      |> List.map(Selection.map(Segment.remove_matching(s)))
+      |> List.map(Selection.map(Segment.remove_matching(t)))
       |> List.filter_map(
            fun
-           | Selection.{content: [], _} => None
-           | sel => Some(sel),
+           | sel when !Selection.is_empty(sel) => Some(sel)
+           | _ => None,
          ),
     bp,
-    ss,
+    ts,
   );
 
 let is_first_matching = (t: Token.t, bp: t): bool =>

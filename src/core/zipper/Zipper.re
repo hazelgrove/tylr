@@ -167,16 +167,16 @@ let pick_up = (z: t): t => {
 let destruct_outer = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
   let (to_pick_up, to_remove) =
-    Segment.shards(selected.content)
-    |> List.partition(shard =>
-         Siblings.contains_matching(shard, z.relatives.siblings)
+    Segment.incomplete_tiles(selected.content)
+    |> List.partition(t =>
+         Siblings.contains_matching(t, z.relatives.siblings)
        );
   let backpack =
     z.backpack
     |> Backpack.remove_matching(to_remove)
     |> Backpack.push_s(
          to_pick_up
-         |> List.map(Segment.of_shard)
+         |> List.map(Segment.of_tile)
          |> List.map(Selection.mk(z.selection.focus)),
        );
   {...z, backpack};
@@ -216,7 +216,7 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
     let (id, id_gen) = IdGen.next(z.id_gen);
     let selections =
       Shard.mk_s(id, label, mold)
-      |> List.map(Segment.of_shard)
+      |> List.map(Segment.of_tile)
       |> List.map(Selection.mk(from))
       |> ListUtil.rev_if(from == Right);
     let backpack = Backpack.push_s(selections, z.backpack);

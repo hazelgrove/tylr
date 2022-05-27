@@ -7,6 +7,11 @@ let mk = (as_: list('a), bs: list('b)): t('a, 'b) => {
   (as_, bs);
 };
 
+let rev = (rev_a, rev_b, (as_, bs): t('a, 'b)): t('a, 'b) => (
+  List.rev_map(rev_a, as_),
+  List.rev_map(rev_b, bs),
+);
+
 let cons = (a: 'a, b: 'b, (as_, bs): t('a, 'b)): t('a, 'b) => (
   [a, ...as_],
   [b, ...bs],

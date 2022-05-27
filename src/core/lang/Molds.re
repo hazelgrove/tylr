@@ -1,6 +1,6 @@
 open Mold;
 
-let forms_assoc: list((Base.Tile.Label.t, list(Mold.t))) =
+let forms_assoc: list((Label.t, list(Mold.t))) =
   List.fold_left(
     (acc, (_, {label, mold}: Form.t)) => {
       let molds =
@@ -14,7 +14,7 @@ let forms_assoc: list((Base.Tile.Label.t, list(Mold.t))) =
     Form.forms,
   );
 
-let get = (label: Base.Tile.Label.t): list(Mold.t) =>
+let get = (label: Label.t): list(Mold.t) =>
   switch (label, List.assoc_opt(label, forms_assoc)) {
   | ([t], _) when Token.is_num(t) => [mk_op(Exp, [])]
   | ([t], _) when Token.is_var(t) => [mk_op(Pat, []), mk_op(Exp, [])]

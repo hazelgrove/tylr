@@ -1,38 +1,37 @@
 open Util;
-include Base.Piece;
+include Base;
+
+[@deriving show]
+type t = piece;
 
 let whitespace = w => Whitespace(w);
 let grout = g => Grout(g);
-let shard = s => Shard(s);
 let tile = t => Tile(t);
 
-let get = (f_w, f_g, f_s, f_t, p: t) =>
+let get = (f_w, f_g, f_t, p: t) =>
   switch (p) {
   | Whitespace(w) => f_w(w)
   | Grout(g) => f_g(g)
-  | Shard(s) => f_s(s)
   | Tile(t) => f_t(t)
   };
 
-let is_balanced =
-  fun
-  | Shard(_) => false
-  | Whitespace(_)
-  | Grout(_)
-  | Tile(_) => true;
+// let is_balanced =
+//   fun
+//   | Shard(_) => false
+//   | Whitespace(_)
+//   | Grout(_)
+//   | Tile(_) => true;
 
-let pop = (side: Direction.t, p: t): (t, Base.Segment.t) =>
+let pop = (side: Direction.t, p: t): (t, segment) =>
   switch (p) {
   | Tile(t) => Tile.pop(side, t)
-  | Shard(_)
   | Grout(_)
   | Whitespace(_) => (p, [])
   };
 
-let disassemble = (from: Direction.t, p: t): Base.Segment.t =>
+let disassemble = (from: Direction.t, p: t): segment =>
   switch (p) {
   | Grout(_)
-  | Shard(_)
   | Whitespace(_) => [p]
   | Tile(t) => Tile.disassemble(from, t)
   };
@@ -41,17 +40,11 @@ let remold = (p: t) =>
   switch (p) {
   | Grout(_)
   | Whitespace(_) => [p]
-  | Shard(s) => List.map(shard, Shard.remold(s))
   | Tile(t) => List.map(tile, Tile.remold(t))
   };
 
 let shapes =
-  get(
-    _ => None,
-    g => Some(Grout.shapes(g)),
-    s => Some(Shard.shapes(s)),
-    t => Some(Tile.shapes(t)),
-  );
+  get(_ => None, g => Some(Grout.shapes(g)), t => Some(Tile.shapes(t)));
 
 let is_grout: t => bool =
   fun
