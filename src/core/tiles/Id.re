@@ -1,11 +1,8 @@
-module T = {
-  [@deriving show]
-  type t = int;
-  let compare = Int.compare;
-};
-include T;
+[@deriving show]
+type t = int;
+let compare = Int.compare;
 
-module Map = Map.Make(T);
+module Map = Ptmap;
 
 module Uf: {
   type store('a);
