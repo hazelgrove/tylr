@@ -208,15 +208,18 @@ module Trim = {
   // };
 
   // assumes grout in trim fit r but may not fit l
-  let regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), trim: t): t =>
+  let regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), trim: t): IdGen.t(t) =>
     if (Nib.Shape.fits(l, r)) {
       let (wss, _) = trim;
-      Aba.mk([List.concat(wss)], []);
+      IdGen.return(Aba.mk([List.concat(wss)], []));
     } else {
       let (_, gs) as merged = merge(trim);
       switch (gs) {
-      | [] => cons_g(Grout.mk_fits_shape(l), merged)
-      | [_, ..._] => merged
+      | [] =>
+        open IdGen.Syntax;
+        let+ g = Grout.mk_fits_shape(l);
+        cons_g(g, merged);
+      | [_, ..._] => IdGen.return(merged)
       };
     };
 
@@ -227,27 +230,39 @@ module Trim = {
 };
 
 let rec regrout = ((l, r), seg) => {
-  let (trim, r, tl) = regrout_tl(seg, r);
-  let trim = Trim.regrout((l, r), trim);
+  open IdGen.Syntax;
+  let* (trim, r, tl) = regrout_tl(seg, r);
+  let+ trim = Trim.regrout((l, r), trim);
   Trim.to_seg(trim) @ tl;
 }
 and regrout_tl =
-    (~flip=false, seg: t, r: Nib.Shape.t): (Trim.t, Nib.Shape.t, t) =>
+    (~flip=false, seg: t, r: Nib.Shape.t): IdGen.t((Trim.t, Nib.Shape.t, t)) =>
   fold_right(
-    (p: Piece.t, (trim, r, tl)) =>
+    (p: Piece.t, id_gen) => {
+      open IdGen.Syntax;
+      let* (trim, r, tl) = id_gen;
       switch (p) {
-      | Whitespace(w) => (Trim.cons_w(w, trim), r, tl)
-      | Grout(g) => (Trim.(merge(cons_g(g, trim))), r, tl)
+      | Whitespace(w) => IdGen.return((Trim.cons_w(w, trim), r, tl))
+      | Grout(g) => IdGen.return((Trim.(merge(cons_g(g, trim))), r, tl))
       | Tile(t) =>
-        let children =
-          List.map(regrout(Nib.Shape.(concave(), concave())), t.children);
+        let* children =
+          List.fold_right(
+            (hd, tl) => {
+              let* tl = tl;
+              let+ hd = regrout(Nib.Shape.(concave(), concave()), hd);
+              [hd, ...tl];
+            },
+            t.children,
+            IdGen.return([]),
+          );
         let p = Piece.Tile({...t, children});
         let (l', r') = Tile.shapes(~flip, t);
-        let trim = trim |> Trim.regrout((r', r)) |> Trim.to_seg;
-        (Trim.empty, l', [p, ...trim] @ tl);
-      },
+        let+ trim = Trim.regrout((r', r), trim);
+        (Trim.empty, l', [p, ...Trim.to_seg(trim)] @ tl);
+      };
+    },
     seg,
-    (Aba.mk([[]], []), r, empty),
+    IdGen.return((Aba.mk([[]], []), r, empty)),
   );
 
 // for internal use when dealing with segments in reverse order (eg Affix.re)

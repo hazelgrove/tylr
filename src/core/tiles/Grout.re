@@ -1,26 +1,38 @@
 open Util;
 
 [@deriving show]
-type t =
+type shape =
   | Convex
   | Concave;
 
-let shapes =
-  fun
+[@deriving show]
+type t = {
+  id: Id.t,
+  shape,
+};
+
+let shapes = g =>
+  switch (g.shape) {
   | Convex => Nib.Shape.(Convex, Convex)
-  | Concave => Nib.Shape.(Concave(Precedence.min), Concave(Precedence.min));
+  | Concave => Nib.Shape.(Concave(Precedence.min), Concave(Precedence.min))
+  };
 
 // assumes same shape on both sides
-let mk_fits_shape = (s: Nib.Shape.t) =>
-  switch (s) {
-  | Convex => Concave
-  | Concave(_) => Convex
-  };
-let mk_fits = ((l, r): (Nib.Shape.t, Nib.Shape.t)) =>
+let mk_fits_shape = (s: Nib.Shape.t): IdGen.t(t) => {
+  open IdGen.Syntax;
+  let+ id = IdGen.fresh;
+  let shape =
+    switch (s) {
+    | Convex => Concave
+    | Concave(_) => Convex
+    };
+  {id, shape};
+};
+let mk_fits = ((l, r): (Nib.Shape.t, Nib.Shape.t)): option(IdGen.t(t)) =>
   Nib.Shape.fits(l, r) ? None : Some(mk_fits_shape(l));
 
 let fits_shape = (g: t, s: Nib.Shape.t) =>
-  switch (g, s) {
+  switch (g.shape, s) {
   | (Convex, Convex)
   | (Concave, Concave(_)) => false
   | (Convex, Concave(_))
@@ -28,7 +40,7 @@ let fits_shape = (g: t, s: Nib.Shape.t) =>
   };
 
 let fits = (g: t, g': t) =>
-  switch (g, g') {
+  switch (g.shape, g'.shape) {
   | (Convex, Convex)
   | (Concave, Concave) => false
   | (Convex, Concave)

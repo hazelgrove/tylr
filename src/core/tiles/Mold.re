@@ -55,7 +55,7 @@ let of_grout: (Grout.t, Sort.t) => t =
   (g, sort) => {
     nibs:
       // TODO(d): revisit this when reformulating molds
-      switch (g) {
+      switch (g.shape) {
       | Convex =>
         let n = Nib.{shape: Convex, sort};
         (n, n);

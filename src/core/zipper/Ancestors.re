@@ -67,14 +67,19 @@ let shape_rank = (ancestors: t): int =>
     0,
   );
 
-let regrout =
-  List.map(((a: Ancestor.t, sibs: Siblings.t)) => {
-    let ((trim_l, l, pre), (trim_r, r, suf)) = Siblings.regrout(sibs);
-    let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(a.mold));
-    let (trim_l, trim_r) =
-      Segment.Trim.(
-        trim_l |> regrout((l', l)) |> to_seg,
-        trim_r |> regrout((r', r)) |> to_seg,
-      );
-    (a, (trim_l @ pre, trim_r @ suf));
-  });
+let regrout = (ancs: t) =>
+  List.fold_right(
+    ((a, sibs): generation, regrouted) => {
+      open IdGen.Syntax;
+      let* regrouted = regrouted;
+      let* ((trim_l, l, pre), (trim_r, r, suf)) = Siblings.regrout(sibs);
+      let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(a.mold));
+      let* trim_l = Segment.Trim.regrout((l', l), trim_l);
+      let+ trim_r = Segment.Trim.regrout((r', r), trim_r);
+      let pre = Segment.Trim.to_seg(trim_l) @ pre;
+      let suf = Segment.Trim.to_seg(trim_r) @ suf;
+      [(a, (pre, suf)), ...regrouted];
+    },
+    ancs,
+    IdGen.return(empty),
+  );

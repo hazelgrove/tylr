@@ -82,10 +82,12 @@ let sort_rank = ((pre, suf): t, s: Sort.t) =>
 let shape_rank = ((pre, suf): t) =>
   Prefix.shape_rank(pre) + Suffix.shape_rank(suf);
 
-let regrout = ((pre, suf): t) => (
-  Prefix.regrout(pre),
-  Suffix.regrout(suf),
-);
+let regrout = ((pre, suf): t) => {
+  open IdGen.Syntax;
+  let* suf = Suffix.regrout(suf);
+  let+ pre = Prefix.regrout(pre);
+  (pre, suf);
+};
 
 let neighbors: t => (option(Piece.t), option(Piece.t)) =
   ((l, r)) => (

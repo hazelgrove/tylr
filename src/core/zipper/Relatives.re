@@ -64,30 +64,40 @@ let shape_rank = ({siblings, ancestors}: t) => {
   + Bool.to_int(!Nib.Shape.fits(l, r));
 };
 
-let regrout = ({siblings, ancestors}: t): t => {
-  let ancestors = Ancestors.regrout(ancestors);
-  let siblings = {
-    let ((trim_l, s_l, pre), (trim_r, s_r, suf)) =
+let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
+  open IdGen.Syntax;
+  let* ancestors = Ancestors.regrout(ancestors);
+  let+ siblings = {
+    let* ((trim_l, s_l, pre), (trim_r, s_r, suf)) =
       Siblings.regrout(siblings);
-    let (trim_l, trim_r) = {
+    let+ (trim_l, trim_r) = {
       open Segment.Trim;
       let ((_, gs_l), (_, gs_r)) = (trim_l, trim_r);
       let (seg_l, seg_r) = (to_seg(trim_l), to_seg(trim_r));
       switch (gs_l, gs_r) {
       | ([g_l, ..._], [g_r, ..._]) =>
-        Grout.fits(g_l, g_r)
-          ? (ws(trim_l), ws(trim_r))
-          // note: can modulate as needed using a directional arg
-          : (ws(trim_l), seg_r)
+        IdGen.return(
+          Grout.fits(g_l, g_r)
+            ? (ws(trim_l), ws(trim_r))
+            // note: can modulate as needed using a directional arg
+            : (ws(trim_l), seg_r),
+        )
       | ([g, ..._], []) =>
-        Grout.fits_shape(g, s_r) ? (ws(trim_l), seg_r) : (seg_l, seg_r)
+        IdGen.return(
+          Grout.fits_shape(g, s_r) ? (ws(trim_l), seg_r) : (seg_l, seg_r),
+        )
       | ([], [g, ..._]) =>
-        Grout.fits_shape(g, s_l) ? (seg_l, ws(trim_r)) : (seg_l, seg_r)
+        IdGen.return(
+          Grout.fits_shape(g, s_l) ? (seg_l, ws(trim_r)) : (seg_l, seg_r),
+        )
       | ([], []) =>
         Nib.Shape.fits(s_l, s_r)
-          ? (seg_l, seg_r)
+          ? IdGen.return((seg_l, seg_r))
           // can modulate with directional arg
-          : (seg_l, to_seg(cons_g(Grout.mk_fits_shape(s_r), trim_r)))
+          : {
+            let+ g = Grout.mk_fits_shape(s_r);
+            (seg_l, to_seg(cons_g(g, trim_r)));
+          }
       };
     };
     (trim_l @ pre, trim_r @ suf);
