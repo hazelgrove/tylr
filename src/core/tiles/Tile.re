@@ -45,7 +45,7 @@ let split_shards = (id, label, mold, shards) =>
 let disassemble =
     (from: Direction.t, {id, label, mold, shards, children}: t): segment => {
   let r = from == Right;
-  let shards = split_shards(id, label, mold, shards);
+  let shards = ListUtil.rev_if(r, split_shards(id, label, mold, shards));
   let children = List.map(ListUtil.rev_if(r), ListUtil.rev_if(r, children));
   Aba.mk(shards, children)
   |> Aba.join(s => [to_piece(s)], Fun.id)
