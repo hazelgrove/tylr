@@ -485,9 +485,10 @@ let remold_regrout = (z: t): IdGen.t(t) => {
   let ls_relatives =
     Relatives.remold(z.relatives)
     |> List.sort((rel, rel') => {
-         open Relatives;
-         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
-         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
+         Relatives.
+           /* c != 0 ? c : */
+           (Int.compare(shape_rank(rel), shape_rank(rel')))
+           // let c = Int.compare(sort_rank(rel), sort_rank(rel'));
        });
   assert(ls_relatives != []);
   ls_relatives
