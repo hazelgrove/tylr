@@ -1,5 +1,7 @@
 open Util;
 
+exception Empty_segment;
+
 [@deriving show]
 type t = Base.segment;
 

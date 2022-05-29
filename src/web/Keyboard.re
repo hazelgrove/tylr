@@ -49,16 +49,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
-        | "F3" =>
-          zipper |> Layout.mk_zipper |> Layout.show |> print_endline;
-          [];
-        | "F4" =>
-          zipper
-          |> Layout.mk_zipper
-          |> Layout.to_measured
-          |> Layout.show_measured
-          |> print_endline;
-          [];
+        // | "F3" =>
+        //   zipper |> Layout.mk_zipper |> Layout.show |> print_endline;
+        //   [];
+        // | "F4" =>
+        //   zipper
+        //   |> Layout.mk_zipper
+        //   |> Layout.to_measured
+        //   |> Layout.show_measured
+        //   |> print_endline;
+        //   [];
         | "ArrowLeft" when held(Shift) => now(Select(Left))
         | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))

@@ -1,16 +1,16 @@
 open Util;
 open Core;
 
-[@deriving show]
-type measurement = {
-  origin: int,
-  length: int,
-};
+// [@deriving show]
+// type measurement = {
+//   origin: int,
+//   length: int,
+// };
 
 type t = {
-  tiles: Id.Map.t(list((list(int), measurement))),
-  grout: Id.Map.t(measurement),
-  whitespace: Id.Map.t(measurement),
+  tiles: Id.Map.t(list((list(int), Layout.measurement))),
+  grout: Id.Map.t(Layout.measurement),
+  whitespace: Id.Map.t(Layout.measurement),
 };
 
 let empty = {
@@ -43,6 +43,17 @@ let singleton_w = (w, m) => empty |> add_w(w, m);
 let singleton_g = (g, m) => empty |> add_g(g, m);
 let singleton_t = (t, m) => empty |> add_t(t, m);
 
+let find_w = (w: Whitespace.t, map) => Id.Map.find(w.id, map.whitespace);
+let find_g = (g: Grout.t, map) => Id.Map.find(g.id, map.grout);
+let find_t = (t: Tile.t, map) => Id.Map.find(t.id, map.tiles);
+let find_p = (p: Piece.t, map) =>
+  p
+  |> Piece.get(
+       w => find_w(w, map),
+       g => find_g(g, map),
+       t => List.assoc(t.shards, find_t(t, map)),
+     );
+
 let union2 = (map: t, map': t) => {
   tiles:
     Id.Map.union((_, ms, ms') => Some(ms @ ms'), map.tiles, map'.tiles),
@@ -52,6 +63,7 @@ let union2 = (map: t, map': t) => {
 };
 let union = List.fold_left(union2, empty);
 
+// TODO fix weird default
 let rec of_segment = (~origin=1, seg: Segment.t): (int, t) =>
   seg
   |> ListUtil.fold_left_map(
@@ -147,40 +159,40 @@ and of_piece = (~origin=0, p: Piece.t): (int, t) =>
 //   );
 
 // TODO fix weird default
-let rec of_segment = (~origin=1, seg: Segment.t): (int, segment) =>
-  seg
-  |> ListUtil.fold_left_map(
-       (origin, p) => {
-         let (m, p) = of_piece(~origin, p);
-         (m.origin + m.length + 1, (m, p));
-       },
-       origin,
-     )
-and of_piece = (~origin=0, p: Piece.t): (Layout.measurement, piece) =>
-  switch (p) {
-  // TODO(d) change once w includes newlines
-  | Whitespace(w) => ({origin, length: 1}, Whitespace(w))
-  | Grout(g) => ({origin, length: 1}, Grout(g))
-  // | Shard(s) => (
-  //     {origin, length: Unicode.length(Shard.Label.token(s.label))},
-  //     Shard(s),
-  //   )
-  | Tile(t) =>
-    let (hd, tl) = ListUtil.split_first(t.label);
-    let (origin', children) =
-      List.combine(t.children, tl)
-      |> ListUtil.fold_left_map(
-           (origin, (child, token)) => {
-             let (origin, child) = of_segment(~origin, child);
-             (origin + Unicode.length(token) + 1, child);
-           },
-           origin + Unicode.length(hd) + 1,
-         );
-    // TODO -1
-    (
-      {origin, length: origin' - origin - 1},
-      Tile({id: t.id, label: t.label, mold: t.mold, children}),
-    );
-  };
+// let rec of_segment = (~origin=1, seg: Segment.t): (int, segment) =>
+//   seg
+//   |> ListUtil.fold_left_map(
+//        (origin, p) => {
+//          let (m, p) = of_piece(~origin, p);
+//          (m.origin + m.length + 1, (m, p));
+//        },
+//        origin,
+//      )
+// and of_piece = (~origin=0, p: Piece.t): (Layout.measurement, piece) =>
+//   switch (p) {
+//   // TODO(d) change once w includes newlines
+//   | Whitespace(w) => ({origin, length: 1}, Whitespace(w))
+//   | Grout(g) => ({origin, length: 1}, Grout(g))
+//   // | Shard(s) => (
+//   //     {origin, length: Unicode.length(Shard.Label.token(s.label))},
+//   //     Shard(s),
+//   //   )
+//   | Tile(t) =>
+//     let (hd, tl) = ListUtil.split_first(t.label);
+//     let (origin', children) =
+//       List.combine(t.children, tl)
+//       |> ListUtil.fold_left_map(
+//            (origin, (child, token)) => {
+//              let (origin, child) = of_segment(~origin, child);
+//              (origin + Unicode.length(token) + 1, child);
+//            },
+//            origin + Unicode.length(hd) + 1,
+//          );
+//     // TODO -1
+//     (
+//       {origin, length: origin' - origin - 1},
+//       Tile({id: t.id, label: t.label, mold: t.mold, children}),
+//     );
+//   };
 
-let of_zipper = _: zipper => failwith("todo Measured.of_zipper");
+// let of_zipper = _: zipper => failwith("todo Measured.of_zipper");

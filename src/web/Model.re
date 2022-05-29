@@ -2,6 +2,7 @@ open Core;
 
 type t = {
   zipper: Zipper.t,
+  id_gen: IdGen.state,
   history: ActionHistory.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
@@ -21,15 +22,24 @@ let mk_id = (): int => {
 let mk_tile: (Form.t, list(list(Piece.t))) => Piece.t =
   //TODO: asserts
   (form, children) =>
-    Tile({id: mk_id(), label: form.label, mold: form.mold, children});
+    Tile({
+      id: mk_id(),
+      label: form.label,
+      mold: form.mold,
+      shards: List.mapi((i, _) => i, form.label),
+      children,
+    });
 
-let mk_ancestor:
-  (Form.t, (list(list(Piece.t)), list(list(Piece.t)))) => Ancestor.t =
+let mk_ancestor: (Form.t, (list(Segment.t), list(Segment.t))) => Ancestor.t =
   //TODO: asserts
-  (form, children) => {
+  (form, (l, _) as children) => {
     id: mk_id(),
     label: form.label,
     mold: form.mold,
+    shards:
+      List.mapi((i, _) => i, form.label)
+      |> Util.ListUtil.split_n(List.length(l) + 1)
+      |> Util.PairUtil.map_fst(List.rev),
     children,
   };
 
@@ -44,10 +54,10 @@ let mk_parens_ancestor = mk_ancestor(Form.get("parens_exp"));
 let mk_let_ancestor = mk_ancestor(Form.get("let_"));
 let plus = mk_monotile(Form.get("plus"));
 
-let l_sibling: Segment.t = [plus, Grout(Convex)];
+let l_sibling: Segment.t = [plus, Grout({id: mk_id(), shape: Convex})];
 let r_sibling: Segment.t = [mk_parens_exp([[int(1), plus, int(2)]])];
 
-let content: Segment.t = [exp("foo"), Grout(Concave)];
+let content: Segment.t = [exp("foo"), Grout({id: mk_id(), shape: Concave})];
 
 let ancestors: Ancestors.t = [
   (mk_parens_ancestor(([], [])), ([mk_fun([[pat("bar")]])], [])),
@@ -58,8 +68,8 @@ let ancestors: Ancestors.t = [
 let backpack: Backpack.t = [{focus: Left, content: [exp("foo")]}];
 
 let init = () => {
+  id_gen: id_gen^,
   zipper: {
-    id_gen: id_gen^,
     selection: {
       focus: Left,
       content,
@@ -79,21 +89,24 @@ let init = () => {
 
 let filler = _ => 0;
 let blank = {
-  zipper: {
+  let id = mk_id();
+  {
     id_gen: id_gen^,
-    selection: {
-      focus: Left,
-      content: [],
+    zipper: {
+      selection: {
+        focus: Left,
+        content: [],
+      },
+      backpack: [],
+      relatives: {
+        siblings: ([Grout({id, shape: Convex})], []),
+        ancestors: [],
+      },
+      caret: Outer,
     },
-    backpack: [],
-    relatives: {
-      siblings: ([Grout(Convex)], []),
-      ancestors: [],
-    },
-    caret: Outer,
-  },
-  history: ActionHistory.empty,
-  font_metrics: FontMetrics.init,
-  logo_font_metrics: FontMetrics.init,
-  show_neighbor_tiles: false,
+    history: ActionHistory.empty,
+    font_metrics: FontMetrics.init,
+    logo_font_metrics: FontMetrics.init,
+    show_neighbor_tiles: false,
+  };
 };

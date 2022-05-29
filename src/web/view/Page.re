@@ -85,6 +85,7 @@ let view = (~inject, model: Model.t) => {
         font_metrics,
         logo_font_metrics: _,
         zipper,
+        id_gen: _,
         history,
         show_neighbor_tiles,
       } = model;
