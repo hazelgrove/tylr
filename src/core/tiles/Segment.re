@@ -301,7 +301,9 @@ let rec reassemble = (seg: t): t =>
     switch (Aba.trim(split_by_matching(t.id, seg))) {
     | None => seg
     | Some((seg_l, match, seg_r)) =>
-      let t = Tile.(to_piece(reassemble(match)));
-      seg_l @ [t, ...reassemble(seg_r)];
+      let t = Tile.reassemble(match);
+      let children = List.map(reassemble, t.children);
+      let p = Tile.to_piece({...t, children});
+      seg_l @ [p, ...reassemble(seg_r)];
     }
   };
