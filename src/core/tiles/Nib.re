@@ -45,6 +45,8 @@ let fits = (l: t, r: t): bool =>
 
 let fitting = (nib: t): t => {...nib, shape: Shape.fitting(nib.shape)};
 
+let flip = (nib: t) => {...nib, shape: Shape.flip(nib.shape)};
+
 // let toggle = (nib: t) => {
 //   ...nib,
 //   orientation: Direction.toggle(nib.orientation),

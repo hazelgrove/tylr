@@ -228,17 +228,7 @@ module Deco = (M: {
 
   let selection_profile = (z: Zipper.t): Layout.measurement => {
     let sel = z.selection.content;
-    let length =
-      switch (sel) {
-      | [] => 0
-      | [p] =>
-        let m = Measured.find_p(p, M.map);
-        m.length;
-      | [hd, ...tl] =>
-        let first = Measured.find_p(hd, M.map);
-        let last = Measured.find_p(ListUtil.last(tl), M.map);
-        last.origin - first.origin + last.length;
-      };
+    let length = Measured.length(sel, M.map);
     let origin =
       switch (Siblings.neighbors(z.relatives.siblings)) {
       | (_, Some(p)) =>
@@ -280,6 +270,56 @@ module Deco = (M: {
       ),
       backpack_view(~font_metrics, ~origin, z.backpack),
     ];
+  };
+
+  let children = (p: Piece.t): list(Layout.measurement) =>
+    switch (p) {
+    | Whitespace(_)
+    | Grout(_) => []
+    | Tile(t) =>
+      let m = Measured.find_t(t, M.map);
+      let token = List.nth(t.label);
+      Aba.mk(t.shards, t.children)
+      |> Aba.fold_left(
+           shard => (m.origin + Unicode.length(token(shard)), []),
+           ((origin, children: list(Layout.measurement)), child, shard) => {
+             let length = Measured.length(child, M.map);
+             (
+               origin + length + Unicode.length(token(shard)),
+               children @ [{origin, length}],
+             );
+           },
+         )
+      |> snd;
+    };
+
+  let selected_pieces = (z: Zipper.t): list(Node.t) => {
+    let (l, _) = Siblings.shapes(z.relatives.siblings);
+    z.selection.content
+    |> ListUtil.fold_left_map(
+         (l: Nib.Shape.t, p: Piece.t) => {
+           let m = Measured.find_p(p, M.map);
+           // TODO(d) fix sorts
+           let mold =
+             switch (p) {
+             | Whitespace(_) => Mold.of_whitespace({sort: Exp, shape: l})
+             | Grout(g) => Mold.of_grout(g, Exp)
+             | Tile(t) => t.mold
+             };
+           let profile =
+             SelemDec.Profile.{
+               color: Color.of_sort(mold.out),
+               shape: Layout.piece_shape_of_mold(mold),
+               measurement: m,
+               style: Selected,
+               closed_children: [],
+               open_children: children(p),
+             };
+           (snd(mold.nibs).shape, SelemDec.view(~font_metrics, profile));
+         },
+         l,
+       )
+    |> snd;
   };
 
   let rec targets = (bp: Backpack.t, seg: Segment.t) => {
@@ -330,7 +370,12 @@ module Deco = (M: {
 
   let all = (z: Zipper.t) => {
     let seg = Zipper.zip(z);
-    List.concat([holes(seg), caret(z), targets(z.backpack, seg)]);
+    List.concat([
+      holes(seg),
+      caret(z),
+      targets(z.backpack, seg),
+      selected_pieces(z),
+    ]);
   };
 };
 

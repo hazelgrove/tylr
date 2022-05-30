@@ -45,13 +45,14 @@ let singleton_t = (t, m) => empty |> add_t(t, m);
 
 let find_w = (w: Whitespace.t, map) => Id.Map.find(w.id, map.whitespace);
 let find_g = (g: Grout.t, map) => Id.Map.find(g.id, map.grout);
-let find_t = (t: Tile.t, map) => Id.Map.find(t.id, map.tiles);
+let find_t = (t: Tile.t, map) =>
+  List.assoc(t.shards, Id.Map.find(t.id, map.tiles));
 let find_p = (p: Piece.t, map) =>
   p
   |> Piece.get(
        w => find_w(w, map),
        g => find_g(g, map),
-       t => List.assoc(t.shards, find_t(t, map)),
+       t => find_t(t, map),
      );
 
 let union2 = (map: t, map': t) => {
@@ -93,6 +94,18 @@ and of_piece = (~origin=0, p: Piece.t): (int, t) =>
       |> PairUtil.map_snd(union);
     let length = origin' - origin;
     (origin', map |> add_t(t, {origin, length}));
+  };
+
+let length = (seg: Segment.t, map: t): int =>
+  switch (seg) {
+  | [] => 0
+  | [p] =>
+    let m = find_p(p, map);
+    m.length;
+  | [hd, ...tl] =>
+    let first = find_p(hd, map);
+    let last = find_p(ListUtil.last(tl), map);
+    last.origin - first.origin + last.length;
   };
 
 // let of_zipper = _: zipper => failwith("todo Measured.of_zipper");

@@ -60,6 +60,12 @@ let join = (f_a: 'a => 'c, f_b: 'b => 'c, aba: t('a, 'b)): list('c) => {
   );
 };
 
+let fold_left =
+    (f_a: 'a => 'c, f_ba: ('c, 'b, 'a) => 'c, (as_, bs): t('a, 'b)) => {
+  let (a, as_) = ListUtil.split_first(as_);
+  List.fold_left2(f_ba, f_a(a), bs, as_);
+};
+
 let fold_right =
     (f_ab: ('a, 'b, 'c) => 'c, f_a: 'a => 'c, (as_, bs): t('a, 'b)) => {
   let (as_, a) = ListUtil.split_last(as_);

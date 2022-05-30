@@ -67,9 +67,8 @@ let of_grout: (Grout.t, Sort.t) => t =
     in_: [],
   };
 
-// TODO(d): remove once shards unified with tiles
-let of_shard =
-    // TODO(andrew): dont do this?
-    (nibs: Nibs.t): t => {
-  {out: Exp, in_: [], nibs};
+let of_whitespace = (l: Nib.t) => {
+  nibs: (Nib.flip(l), l),
+  out: l.sort,
+  in_: [],
 };
