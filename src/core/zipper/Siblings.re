@@ -8,6 +8,9 @@ type t = (Segment.t, Segment.t);
 
 let empty = Segment.(empty, empty);
 
+let zip = (~sel=Segment.empty, (pre, suf): t) =>
+  Segment.concat([pre, sel, suf]);
+
 let prepend = (d: Direction.t, seg: Segment.t, (l, r): t): t =>
   switch (d) {
   | Left => (l @ seg, r)

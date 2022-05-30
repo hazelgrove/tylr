@@ -78,10 +78,8 @@ let unselect = (z: t): t => {
   {...z, selection, relatives};
 };
 
-let zip = (z: t): Segment.t => {
-  let z = unselect(z);
-  Relatives.zip(z.relatives);
-};
+let zip = (z: t): Segment.t =>
+  Relatives.zip(~sel=z.selection.content, z.relatives);
 
 let convex = (z: t): bool => Segment.convex(zip(z));
 

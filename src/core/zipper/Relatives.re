@@ -33,8 +33,8 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
     }
   };
 
-let zip = ({siblings: (pre, suf), ancestors}: t) =>
-  Ancestors.zip(pre @ suf, ancestors);
+let zip = (~sel=Segment.empty, {siblings, ancestors}: t) =>
+  Ancestors.zip(Siblings.zip(~sel, siblings), ancestors);
 
 let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
