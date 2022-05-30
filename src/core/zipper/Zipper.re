@@ -108,7 +108,10 @@ let shrink_selection = (z: t): option(t) => {
     let selection = Selection.toggle_focus(z.selection);
     grow_selection({...z, selection});
   | Some((p, selection)) =>
-    let relatives = Relatives.push(selection.focus, p, z.relatives);
+    let relatives =
+      z.relatives
+      |> Relatives.push(selection.focus, p)
+      |> Relatives.reassemble;
     Some({...z, selection, relatives});
   };
 };
