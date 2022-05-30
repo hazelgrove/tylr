@@ -15,13 +15,13 @@ let l_shard = t =>
 let r_shard = t =>
   OptUtil.get_or_raise(Empty_tile, ListUtil.last_opt(t.shards));
 
-let nibs = (~flip=false, t: t) => {
+let nibs = (t: t) => {
   let (l, _) = Mold.nibs(~index=l_shard(t), t.mold);
   let (_, r) = Mold.nibs(~index=r_shard(t), t.mold);
-  flip ? (r, l) : (l, r);
+  (l, r);
 };
-let shapes = (~flip=false, t: t) => {
-  let (l, r) = nibs(~flip, t);
+let shapes = (t: t) => {
+  let (l, r) = nibs(t);
   (l.shape, r.shape);
 };
 
@@ -42,11 +42,8 @@ let split_shards = (id, label, mold, shards) =>
   shards |> List.map(i => {id, label, mold, shards: [i], children: []});
 
 // postcond: output segment is nonempty
-let disassemble =
-    (from: Direction.t, {id, label, mold, shards, children}: t): segment => {
-  let r = from == Right;
-  let shards = ListUtil.rev_if(r, split_shards(id, label, mold, shards));
-  let children = List.map(ListUtil.rev_if(r), ListUtil.rev_if(r, children));
+let disassemble = ({id, label, mold, shards, children}: t): segment => {
+  let shards = split_shards(id, label, mold, shards);
   Aba.mk(shards, children)
   |> Aba.join(s => [to_piece(s)], Fun.id)
   |> List.concat;
@@ -76,10 +73,13 @@ let reassemble = (match: Aba.t(t, segment)): t => {
   };
 };
 
-let pop = (from: Direction.t, tile: t): (piece, segment) =>
-  tile
-  |> disassemble(from)
+let pop_l = (tile: t): (piece, segment) =>
+  disassemble(tile)
   |> ListUtil.split_first_opt
+  |> OptUtil.get_or_raise(Empty_tile);
+let pop_r = (tile: t): (segment, piece) =>
+  disassemble(tile)
+  |> ListUtil.split_last_opt
   |> OptUtil.get_or_raise(Empty_tile);
 
 // let unique_mold = _ => failwith("todo unique_mold");

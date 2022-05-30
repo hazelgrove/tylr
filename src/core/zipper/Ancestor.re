@@ -8,23 +8,23 @@ type t = {
   id: Id.t,
   label: Label.t,
   mold: Mold.t,
-  shards: ListFrame.t(int),
-  children: ListFrame.t(Segment.t),
+  shards: (list(int), list(int)),
+  children: (list(Segment.t), list(Segment.t)),
 };
 
 let zip = (child: Segment.t, {id, label, mold, shards, children}: t): Tile.t => {
   id,
   label,
   mold,
-  shards: ListFrame.to_list(shards),
-  children: ListFrame.to_list(~subject=[child], children),
+  shards: fst(shards) @ snd(shards),
+  children: fst(children) @ [child, ...snd(children)],
 };
 
 // TODO flatten with shard indices
-let step = (frame: t): step => {
-  let (prefix, _) = frame.children;
-  List.length(prefix);
-};
+// let step = (frame: t): step => {
+//   let (prefix, _) = frame.children;
+//   List.length(prefix);
+// };
 
 let remold = (a: t): list(t) =>
   Molds.get(a.label) |> List.map(mold => {...a, mold});
@@ -48,13 +48,13 @@ let disassemble =
     |> TupleUtil.map2(Tile.split_shards(id, label, mold))
     |> TupleUtil.map2(List.map(Tile.to_piece));
   let flatten = (shards, kids) =>
-    List.flatten(ListUtil.map_alt(p => [p], Fun.id, shards, kids));
+    Aba.mk(shards, kids) |> Aba.join(p => [p], Fun.id) |> List.flatten;
   (flatten(shards_l, kids_l), flatten(shards_r, kids_r));
 };
 
 let reassemble = (match_l: Aba.t(Tile.t, Segment.t) as 'm, match_r: 'm): t => {
   // TODO(d) bit hacky, need to do a flip/orientation pass
-  let match_l = Aba.map_b(Segment.rev, match_l);
+  // let match_l = Aba.map_b(Segment.rev, match_l);
   let (t_l, t_r) = Tile.(reassemble(match_l), reassemble(match_r));
   assert(t_l.id == t_r.id);
   {

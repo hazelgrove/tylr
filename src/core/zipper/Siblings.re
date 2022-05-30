@@ -1,22 +1,23 @@
 open Util;
 
-module Prefix = Affix.Make(Orientation.L);
-module Suffix = Affix.Make(Orientation.R);
+// module Prefix = Affix.Make(Orientation.L);
+// module Suffix = Affix.Make(Orientation.R);
 
 [@deriving show]
-type t = (Prefix.t, Suffix.t);
+type t = (Segment.t, Segment.t);
 
-let empty = (Prefix.empty, Suffix.empty);
+let empty = Segment.(empty, empty);
 
 let prepend = (d: Direction.t, seg: Segment.t, (l, r): t): t =>
   switch (d) {
-  | Left => (List.rev(seg) @ l, r)
+  | Left => (l @ seg, r)
   | Right => (l, seg @ r)
   };
 
 let concat = (sibss: list(t)): t =>
   sibss
   |> List.split
+  |> PairUtil.map_fst(List.rev)
   |> PairUtil.map_fst(List.concat)
   |> PairUtil.map_snd(List.concat);
 
@@ -29,69 +30,76 @@ let concat = (sibss: list(t)): t =>
 
 let remold = ((pre, suf): t): list(t) => {
   open ListUtil.Syntax;
-  let+ pre = Prefix.remold(pre)
-  and+ suf = Suffix.remold(suf);
+  let+ pre = Segment.remold(pre)
+  and+ suf = Segment.remold(suf);
   (pre, suf);
 };
 
-let sorts = ((pre, suf): t, s: Sort.t) => (
-  Prefix.sort(pre, s),
-  Suffix.sort(suf, s),
-);
-let shapes = ((pre, suf): t) => (Prefix.shape(pre), Suffix.shape(suf));
+// let sorts = ((pre, suf): t, s: Sort.t) => (
+//   Prefix.sort(pre, s),
+//   Suffix.sort(suf, s),
+// );
+let sorts = (_, _) => failwith("todo Siblings.sorts");
+let shapes = ((pre, suf): t) => {
+  let s = Nib.Shape.concave();
+  let (_, l, _) = Segment.shape_affix(Left, pre, s);
+  let (_, r, _) = Segment.shape_affix(Right, suf, s);
+  (l, r);
+};
 
 let contains_matching = (t: Tile.t, (pre, suf): t) =>
-  Prefix.contains_matching(t, pre) || Suffix.contains_matching(t, suf);
+  Segment.(contains_matching(t, pre) || contains_matching(t, suf));
 
 let push = (onto: Direction.t, p: Piece.t, (pre, suf): t): t =>
   switch (onto) {
-  | Left => (Prefix.push(p, pre), suf)
-  | Right => (pre, Suffix.push(p, suf))
+  | Left => (pre @ [p], suf)
+  | Right => (pre, [p, ...suf])
   };
 
 let pop = (from: Direction.t, (pre, suf): t): option((Piece.t, t)) =>
-  OptUtil.Syntax.(
-    switch (from) {
-    | Left =>
-      let+ (p, pre) = Prefix.pop(pre);
-      (p, (pre, suf));
-    | Right =>
-      let+ (p, suf) = Suffix.pop(suf);
-      (p, (pre, suf));
-    }
-  );
+  switch (from) {
+  | Left =>
+    ListUtil.split_last_opt(pre)
+    |> Option.map(((pre, p)) => {
+         let (pre', p) = Piece.pop_r(p);
+         (p, (pre @ pre', suf));
+       })
+  | Right =>
+    ListUtil.split_first_opt(suf)
+    |> Option.map(((p, suf)) => {
+         let (p, suf') = Piece.pop_l(p);
+         (p, (pre, suf' @ suf));
+       })
+  };
 
-let incomplete_tiles = ((pre, suf): t) => (
-  Prefix.incomplete_tiles(pre),
-  Suffix.incomplete_tiles(suf),
-);
+let incomplete_tiles = TupleUtil.map2(Segment.incomplete_tiles);
 
-let split_by_matching = (id: Id.t, (pre, suf): t) => (
-  Prefix.split_by_matching(id, pre),
-  Suffix.split_by_matching(id, suf),
-);
+let split_by_matching = id => TupleUtil.map2(Segment.split_by_matching(id));
 
-let reassemble = ((pre, suf): t) => (
-  Prefix.reassemble(pre),
-  Suffix.reassemble(suf),
-);
+let reassemble = TupleUtil.map2(Segment.reassemble);
 
-let sort_rank = ((pre, suf): t, s: Sort.t) =>
-  Prefix.sort_rank(pre, s) + Suffix.sort_rank(suf, s);
+// let sort_rank = ((pre, suf): t, s: Sort.t) =>
+//   Prefix.sort_rank(pre, s) + Suffix.sort_rank(suf, s);
+let sort_rank = (_, _) => failwith("todo Siblings.sort_rank");
 
-let shape_rank = ((pre, suf): t) =>
-  Prefix.shape_rank(pre) + Suffix.shape_rank(suf);
+let shape_rank = ((pre, suf): t) => {
+  let s = Nib.Shape.concave();
+  let (_, r_pre) = Segment.shape_rank_affix(Left, pre, s);
+  let (_, r_suf) = Segment.shape_rank_affix(Right, suf, s);
+  r_pre + r_suf;
+};
 
 let regrout = ((pre, suf): t) => {
   open IdGen.Syntax;
-  let* suf = Suffix.regrout(suf);
-  let+ pre = Prefix.regrout(pre);
-  (pre, suf);
+  let s = Nib.Shape.concave();
+  let* suf = Segment.regrout_affix(Right, suf, s);
+  let+ (trim_l, s_l, pre) = Segment.regrout_affix(Left, pre, s);
+  ((pre, s_l, trim_l), suf);
 };
 
 let neighbors: t => (option(Piece.t), option(Piece.t)) =
   ((l, r)) => (
-    l == [] ? None : Some(List.hd(l)),
+    l == [] ? None : Some(ListUtil.last(l)),
     r == [] ? None : Some(List.hd(r)),
   );
 

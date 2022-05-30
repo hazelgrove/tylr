@@ -6,9 +6,6 @@ type t = {
   ancestors: Ancestors.t,
 };
 
-module Prefix = Siblings.Prefix;
-module Suffix = Siblings.Suffix;
-
 let empty = {siblings: Siblings.empty, ancestors: Ancestors.empty};
 
 let push = (d: Direction.t, p: Piece.t, rs: t): t => {
@@ -16,8 +13,8 @@ let push = (d: Direction.t, p: Piece.t, rs: t): t => {
   siblings: Siblings.push(d, p, rs.siblings),
 };
 
-let prepend = (d: Direction.t, tiles: Segment.t, rs: t): t => {
-  let siblings = Siblings.prepend(d, tiles, rs.siblings);
+let prepend = (d: Direction.t, seg: Segment.t, rs: t): t => {
+  let siblings = Siblings.prepend(d, seg, rs.siblings);
   {...rs, siblings};
 };
 
@@ -36,8 +33,8 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
     }
   };
 
-let zip = ({siblings, ancestors}: t) =>
-  Ancestors.zip(ListFrame.to_list(siblings), ancestors);
+let zip = ({siblings: (pre, suf), ancestors}: t) =>
+  Ancestors.zip(pre @ suf, ancestors);
 
 let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
@@ -68,29 +65,29 @@ let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
   open IdGen.Syntax;
   let* ancestors = Ancestors.regrout(ancestors);
   let+ siblings = {
-    let* ((trim_l, s_l, pre), (trim_r, s_r, suf)) =
+    let* ((pre, s_l, trim_l), (trim_r, s_r, suf)) =
       Siblings.regrout(siblings);
     let+ (trim_l, trim_r) = {
       open Segment.Trim;
       let ((_, gs_l), (_, gs_r)) = (trim_l, trim_r);
       let (seg_l, seg_r) = (to_seg(trim_l), to_seg(trim_r));
-      switch (gs_l, gs_r) {
-      | ([g_l, ..._], [g_r, ..._]) =>
+      switch (ListUtil.split_last_opt(gs_l), gs_r) {
+      | (Some((_, g_l)), [g_r, ..._]) =>
         IdGen.return(
           Grout.fits(g_l, g_r)
             ? (ws(trim_l), ws(trim_r))
             // note: can modulate as needed using a directional arg
             : (ws(trim_l), seg_r),
         )
-      | ([g, ..._], []) =>
+      | (Some((_, g)), []) =>
         IdGen.return(
           Grout.fits_shape(g, s_r) ? (ws(trim_l), seg_r) : (seg_l, seg_r),
         )
-      | ([], [g, ..._]) =>
+      | (None, [g, ..._]) =>
         IdGen.return(
           Grout.fits_shape(g, s_l) ? (seg_l, ws(trim_r)) : (seg_l, seg_r),
         )
-      | ([], []) =>
+      | (None, []) =>
         Nib.Shape.fits(s_l, s_r)
           ? IdGen.return((seg_l, seg_r))
           // can modulate with directional arg
@@ -100,7 +97,7 @@ let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
           }
       };
     };
-    (trim_l @ pre, trim_r @ suf);
+    (pre @ trim_l, trim_r @ suf);
   };
   {siblings, ancestors};
 };
@@ -134,7 +131,7 @@ let reassemble = (rs: t): t => {
         |> TupleUtil.map2(Aba.trim)
       ) {
       | (
-          Some((inner_l, match_l, outer_l)),
+          Some((outer_l, match_l, inner_l)),
           Some((inner_r, match_r, outer_r)),
         ) =>
         let rs = go({...rs, siblings: (outer_l, outer_r)});

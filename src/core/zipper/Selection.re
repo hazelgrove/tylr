@@ -39,11 +39,11 @@ let pop = (sel: t): option((Piece.t, t)) =>
   | (_, [], _)
   | (_, _, None) => None
   | (Left, [p, ...content], _) =>
-    let (p, suffix) = Piece.pop(Left, p);
-    Some((p, {...sel, content: suffix @ content}));
+    let (p, rest) = Piece.pop_l(p);
+    Some((p, {...sel, content: rest @ content}));
   | (Right, _, Some((content, p))) =>
-    let (p, prefix) = Piece.pop(Right, p);
-    Some((p, {...sel, content: content @ List.rev(prefix)}));
+    let (rest, p) = Piece.pop_r(p);
+    Some((p, {...sel, content: content @ rest}));
   };
 
 let split_piece = _: option((Piece.t, t)) => failwith("todo split_piece");

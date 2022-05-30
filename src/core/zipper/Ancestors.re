@@ -16,11 +16,8 @@ let sort =
 let zip = (seg: Segment.t, ancs: t) =>
   ancs
   |> List.fold_left(
-       (seg, (a, sibs)) =>
-         ListFrame.to_list(
-           ~subject=[Piece.Tile(Ancestor.zip(seg, a))],
-           sibs,
-         ),
+       (seg, (a, (pre, suf))) =>
+         pre @ [Piece.Tile(Ancestor.zip(seg, a)), ...suf],
        seg,
      );
 
@@ -72,11 +69,11 @@ let regrout = (ancs: t) =>
     ((a, sibs): generation, regrouted) => {
       open IdGen.Syntax;
       let* regrouted = regrouted;
-      let* ((trim_l, l, pre), (trim_r, r, suf)) = Siblings.regrout(sibs);
+      let* ((pre, l, trim_l), (trim_r, r, suf)) = Siblings.regrout(sibs);
       let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(a.mold));
-      let* trim_l = Segment.Trim.regrout((l', l), trim_l);
+      let* trim_l = Segment.Trim.regrout((l, l'), trim_l);
       let+ trim_r = Segment.Trim.regrout((r', r), trim_r);
-      let pre = Segment.Trim.to_seg(trim_l) @ pre;
+      let pre = pre @ Segment.Trim.to_seg(trim_l);
       let suf = Segment.Trim.to_seg(trim_r) @ suf;
       [(a, (pre, suf)), ...regrouted];
     },

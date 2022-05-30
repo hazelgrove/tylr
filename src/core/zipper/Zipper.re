@@ -59,7 +59,7 @@ let remove_right_sib: t => t =
   update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
 
 let remove_left_sib: t => t =
-  update_siblings(((l, r)) => (l == [] ? [] : List.tl(l), r));
+  update_siblings(((l, r)) => (l == [] ? [] : ListUtil.leading(l), r));
 
 let neighbor_monotiles = siblings =>
   switch (Siblings.neighbors(siblings)) {
@@ -233,15 +233,14 @@ let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
      arrangement is the same as that used for Backspacing (d==Left).
      We do this both for checking mergability and doing the merge */
   d == Left || r_sibs == []
-    ? (l_sibs, r_sibs)
-    : (List.cons(List.hd(r_sibs), l_sibs), List.tl(r_sibs));
+    ? (l_sibs, r_sibs) : (l_sibs @ [List.hd(r_sibs)], List.tl(r_sibs));
 
 let merge_candidates:
   (Direction.t, caret, Siblings.t) => option((Token.t, Token.t)) =
   (d, caret, siblings) => {
     let (l_sibs, r_sibs) = shift_siblings_maybe(d, siblings);
-    switch (l_sibs) {
-    | [l_nhbr, ...ps] when can_merge_through(l_nhbr) =>
+    switch (ListUtil.split_last_opt(l_sibs)) {
+    | Some((ps, l_nhbr)) when can_merge_through(l_nhbr) =>
       switch (caret, neighbor_monotiles((ps, r_sibs))) {
       | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
           when Token.is_valid(l_2nd_nhbr ++ r_nhbr) =>

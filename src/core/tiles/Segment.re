@@ -45,26 +45,29 @@ let snoc = (tiles, tile) => tiles @ [tile];
 
 // let is_balanced = List.for_all(Piece.is_balanced);
 
-let rec shape =
-        (seg: t, r: Nib.Shape.t)
-        : (Aba.t(list(Whitespace.t), Grout.t), Nib.Shape.t, t) => {
+let shape_affix =
+    (d: Direction.t, affix: t, r: Nib.Shape.t)
+    : (Aba.t(list(Whitespace.t), Grout.t), Nib.Shape.t, t) => {
   let empty_wgw = Aba.mk([[]], []);
-  switch (seg) {
-  | [] => (empty_wgw, r, [])
-  | [p, ...tl] =>
-    let (wgw, s, tl) = shape(tl, r);
-    switch (p) {
-    | Whitespace(w) =>
-      let (wss, gs) = wgw;
-      let (ws, wss) = ListUtil.split_first(wss);
-      (([[w, ...ws], ...wss], gs), s, tl);
-    | Grout(g) => (Aba.cons([], g, wgw), s, tl)
-    | Tile(t) =>
-      let (l, _) = Tile.shapes(t);
-      (empty_wgw, l, tl);
+  let rec go = (affix: t, r: Nib.Shape.t) =>
+    switch (affix) {
+    | [] => (empty_wgw, r, [])
+    | [p, ...tl] =>
+      let (wgw, s, tl) = go(tl, r);
+      switch (p) {
+      | Whitespace(w) =>
+        let (wss, gs) = wgw;
+        let (ws, wss) = ListUtil.split_first(wss);
+        (([[w, ...ws], ...wss], gs), s, tl);
+      | Grout(g) => (Aba.cons([], g, wgw), s, tl)
+      | Tile(t) =>
+        let (l, _) = Tile.shapes(t) |> (d == Left ? TupleUtil.swap : Fun.id);
+        (empty_wgw, l, tl);
+      };
     };
-  };
+  go((d == Left ? List.rev : Fun.id)(affix), r);
 };
+let shape = shape_affix(Right);
 
 let rec convex = seg => {
   open OptUtil.Syntax;
@@ -134,17 +137,18 @@ let remold = (seg: t): list(t) =>
 let sort_rank = (_, _) => failwith("todo sort_rank");
 
 let rec shape_rank = (seg, (l, r): (Nib.Shape.t, Nib.Shape.t)) => {
-  let (l', rank) = shape_rank_tl(seg, r);
+  let (l', rank) = shape_rank_affix(Direction.Right, seg, r);
   rank + Bool.to_int(!Nib.Shape.fits(l, l'));
 }
-and shape_rank_tl = (~flip=false, seg, r: Nib.Shape.t) =>
+and shape_rank_affix = (d: Direction.t, seg, r: Nib.Shape.t) =>
   fold_right(
     (p: Piece.t, (r, rank)) =>
       switch (p) {
       | Whitespace(_)
       | Grout(_) => (r, rank)
       | Tile(t) =>
-        let (l, r') = Tile.shapes(~flip, t);
+        let (l, r') =
+          Tile.shapes(t) |> (d == Left ? TupleUtil.swap : Fun.id);
         let children_ranks =
           t.children
           |> List.map(child =>
@@ -155,7 +159,7 @@ and shape_rank_tl = (~flip=false, seg, r: Nib.Shape.t) =>
           rank + children_ranks + Bool.to_int(!Nib.Shape.fits(r', r));
         (l, rank');
       },
-    seg,
+    (d == Left ? List.rev : Fun.id)(seg),
     (r, 0),
   );
 
@@ -179,6 +183,8 @@ module Trim = {
   type t = Aba.t(list(Whitespace.t), Grout.t);
 
   let empty = Aba.mk([[]], []);
+
+  let rev = Aba.rev(List.rev, Fun.id);
 
   let cons_w = (w: Whitespace.t, (wss, gs)) => {
     // safe bc Aba always has at least one A element
@@ -233,39 +239,44 @@ module Trim = {
 
 let rec regrout = ((l, r), seg) => {
   open IdGen.Syntax;
-  let* (trim, r, tl) = regrout_tl(seg, r);
+  let* (trim, r, tl) = regrout_affix(Direction.Right, seg, r);
   let+ trim = Trim.regrout((l, r), trim);
   Trim.to_seg(trim) @ tl;
 }
-and regrout_tl =
-    (~flip=false, seg: t, r: Nib.Shape.t): IdGen.t((Trim.t, Nib.Shape.t, t)) =>
-  fold_right(
-    (p: Piece.t, id_gen) => {
-      open IdGen.Syntax;
-      let* (trim, r, tl) = id_gen;
-      switch (p) {
-      | Whitespace(w) => IdGen.return((Trim.cons_w(w, trim), r, tl))
-      | Grout(g) => IdGen.return((Trim.(merge(cons_g(g, trim))), r, tl))
-      | Tile(t) =>
-        let* children =
-          List.fold_right(
-            (hd, tl) => {
-              let* tl = tl;
-              let+ hd = regrout(Nib.Shape.(concave(), concave()), hd);
-              [hd, ...tl];
-            },
-            t.children,
-            IdGen.return([]),
-          );
-        let p = Piece.Tile({...t, children});
-        let (l', r') = Tile.shapes(~flip, t);
-        let+ trim = Trim.regrout((r', r), trim);
-        (Trim.empty, l', [p, ...Trim.to_seg(trim)] @ tl);
-      };
-    },
-    seg,
-    IdGen.return((Aba.mk([[]], []), r, empty)),
-  );
+and regrout_affix =
+    (d: Direction.t, affix: t, r: Nib.Shape.t)
+    : IdGen.t((Trim.t, Nib.Shape.t, t)) => {
+  open IdGen.Syntax;
+  let+ (trim, s, affix) =
+    fold_right(
+      (p: Piece.t, id_gen) => {
+        let* (trim, r, tl) = id_gen;
+        switch (p) {
+        | Whitespace(w) => IdGen.return((Trim.cons_w(w, trim), r, tl))
+        | Grout(g) => IdGen.return((Trim.(merge(cons_g(g, trim))), r, tl))
+        | Tile(t) =>
+          let* children =
+            List.fold_right(
+              (hd, tl) => {
+                let* tl = tl;
+                let+ hd = regrout(Nib.Shape.(concave(), concave()), hd);
+                [hd, ...tl];
+              },
+              t.children,
+              IdGen.return([]),
+            );
+          let p = Piece.Tile({...t, children});
+          let (l', r') =
+            Tile.shapes(t) |> (d == Left ? TupleUtil.swap : Fun.id);
+          let+ trim = Trim.regrout((r', r), trim);
+          (Trim.empty, l', [p, ...Trim.to_seg(trim)] @ tl);
+        };
+      },
+      (d == Left ? List.rev : Fun.id)(affix),
+      IdGen.return((Aba.mk([[]], []), r, empty)),
+    );
+  d == Left ? (Trim.rev(trim), s, rev(affix)) : (trim, s, affix);
+};
 
 // for internal use when dealing with segments in reverse order (eg Affix.re)
 // let flip_nibs =
@@ -283,14 +294,13 @@ let split_by_matching = (id: Id.t): (t => Aba.t(t, Tile.t)) =>
   );
 
 // module Match = Tile.Match.Make(Orientation.R);
-let rec reassemble = (~flip=false, seg: t): t =>
+let rec reassemble = (seg: t): t =>
   switch (incomplete_tiles(seg)) {
   | [] => seg
   | [t, ..._] =>
     switch (Aba.trim(split_by_matching(t.id, seg))) {
     | None => seg
     | Some((seg_l, match, seg_r)) =>
-      let match = flip ? Aba.rev(Fun.id, rev, match) : match;
       let t = Tile.(to_piece(reassemble(match)));
       seg_l @ [t, ...reassemble(seg_r)];
     }

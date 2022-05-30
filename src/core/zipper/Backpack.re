@@ -205,7 +205,7 @@ let push = sel => Selection.is_empty(sel) ? Fun.id : List.cons(sel);
 let push_s: (list(Selection.t), t) => t = List.fold_right(push);
 
 let pop =
-    ((pre, suf): ListFrame.t(Tile.t), bp: t)
+    ((pre, suf): (list(Tile.t), list(Tile.t)), bp: t)
     : option((bool, Selection.t, t)) => {
   open OptUtil.Syntax;
   let* (hd, tl) = ListUtil.split_first_opt(bp);

@@ -38,8 +38,7 @@ let mk_ancestor: (Form.t, (list(Segment.t), list(Segment.t))) => Ancestor.t =
     mold: form.mold,
     shards:
       List.mapi((i, _) => i, form.label)
-      |> Util.ListUtil.split_n(List.length(l) + 1)
-      |> Util.PairUtil.map_fst(List.rev),
+      |> Util.ListUtil.split_n(List.length(l) + 1),
     children,
   };
 

@@ -199,6 +199,7 @@ let split_last = (xs: list('x)): (list('x), 'x) =>
   | Some(r) => r
   };
 let leading = xs => fst(split_last(xs));
+let last = xs => snd(split_last(xs));
 
 let split_first_opt = (xs: list('x)): option(('x, list('x))) =>
   switch (xs) {

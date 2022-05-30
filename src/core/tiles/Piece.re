@@ -1,4 +1,4 @@
-open Util;
+// open Util;
 include Base;
 
 [@deriving show]
@@ -22,18 +22,24 @@ let get = (f_w, f_g, f_t, p: t) =>
 //   | Grout(_)
 //   | Tile(_) => true;
 
-let pop = (side: Direction.t, p: t): (t, segment) =>
+let pop_l = (p: t): (t, segment) =>
   switch (p) {
-  | Tile(t) => Tile.pop(side, t)
+  | Tile(t) => Tile.pop_l(t)
   | Grout(_)
   | Whitespace(_) => (p, [])
   };
+let pop_r = (p: t): (segment, t) =>
+  switch (p) {
+  | Tile(t) => Tile.pop_r(t)
+  | Grout(_)
+  | Whitespace(_) => ([], p)
+  };
 
-let disassemble = (from: Direction.t, p: t): segment =>
+let disassemble = (p: t): segment =>
   switch (p) {
   | Grout(_)
   | Whitespace(_) => [p]
-  | Tile(t) => Tile.disassemble(from, t)
+  | Tile(t) => Tile.disassemble(t)
   };
 
 let remold = (p: t) =>
