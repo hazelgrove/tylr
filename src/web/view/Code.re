@@ -16,10 +16,13 @@ module Text = {
        )
     |> List.concat
   and of_tile = (t: Tile.t): list(Node.t) => {
-    let cls = Tile.is_complete(t) ? "delim" : "extra-bold-delim";
+    let span =
+      List.length(t.label) == 1
+        ? Node.span([])
+        : span_c(Tile.is_complete(t) ? "delim" : "extra-bold-delim");
     Aba.mk(t.shards, t.children)
     |> Aba.join(
-         i => [span_c(cls, [Node.text(List.nth(t.label, i))])],
+         i => [span([Node.text(List.nth(t.label, i))])],
          of_segment,
        )
     |> List.concat;
