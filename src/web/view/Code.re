@@ -256,7 +256,7 @@ module Deco = (M: {
     let (caret_offset, sub_offset) =
       switch (z.caret) {
       | Outer => (0, 0.0) /* -(0.5) */
-      | Inner(n) => (n, 0.0)
+      | Inner(n) => (n + 1, 0.0)
       };
     [
       SelectedBoxDec.view(~font_metrics, profile),
