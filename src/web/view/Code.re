@@ -294,28 +294,32 @@ module Deco = (M: {
     };
 
   let selected_pieces = (z: Zipper.t): list(Node.t) => {
+    // TODO mold/nibs/selemdec clean up pass
     let (l, _) = Siblings.shapes(z.relatives.siblings);
     z.selection.content
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
            let m = Measured.find_p(p, M.map);
            // TODO(d) fix sorts
-           let mold =
+           let (sort: Sort.t, nibs) =
              switch (p) {
-             | Whitespace(_) => Mold.of_whitespace({sort: Exp, shape: l})
-             | Grout(g) => Mold.of_grout(g, Exp)
-             | Tile(t) => t.mold
+             | Whitespace(_) => (
+                 Exp,
+                 Mold.of_whitespace({sort: Exp, shape: l}).nibs,
+               )
+             | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
+             | Tile(t) => (t.mold.out, Tile.nibs(t))
              };
            let profile =
              SelemDec.Profile.{
-               color: Color.of_sort(mold.out),
-               shape: Layout.piece_shape_of_mold(mold),
+               color: Color.of_sort(sort),
+               shape: Layout.piece_shape_of_nibs(nibs),
                measurement: m,
                style: Selected,
                closed_children: [],
                open_children: children(p),
              };
-           (snd(mold.nibs).shape, SelemDec.view(~font_metrics, profile));
+           (snd(nibs).shape, SelemDec.view(~font_metrics, profile));
          },
          l,
        )

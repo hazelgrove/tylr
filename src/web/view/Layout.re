@@ -29,10 +29,10 @@ open Core;
 type tip_shape = (Nib.t, int);
 [@deriving show]
 type piece_shape = (tip_shape, tip_shape);
-let piece_shape_of_mold = (m: Mold.t): piece_shape => {
-  let (l, r) = m.nibs;
-  ((l, 0), (r, 0));
-};
+let piece_shape_of_nibs = ((l, r): Nibs.t): piece_shape => (
+  (l, 0),
+  (r, 0),
+);
 [@deriving show]
 type measurement = {
   origin: int,
