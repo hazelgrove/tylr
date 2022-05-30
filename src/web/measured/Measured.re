@@ -64,12 +64,9 @@ let union2 = (map: t, map': t) => {
 let union = List.fold_left(union2, empty);
 
 // TODO fix weird default
-let rec of_segment = (~origin=1, seg: Segment.t): (int, t) =>
+let rec of_segment = (~origin=0, seg: Segment.t): (int, t) =>
   seg
-  |> ListUtil.fold_left_map(
-       (origin, p) => PairUtil.map_fst((+)(1), of_piece(~origin, p)),
-       origin,
-     )
+  |> ListUtil.fold_left_map((origin, p) => of_piece(~origin, p), origin)
   |> PairUtil.map_snd(union)
 //  (m.origin + m.length + 1, (m, p));
 and of_piece = (~origin=0, p: Piece.t): (int, t) =>
@@ -82,20 +79,20 @@ and of_piece = (~origin=0, p: Piece.t): (int, t) =>
     let length = 1;
     (origin + length, singleton_g(g, {origin, length}));
   | Tile(t) =>
-    let (hd, tl) = ListUtil.split_first(t.label);
+    let (hd, tl) = ListUtil.split_first(t.shards);
+    let token = List.nth(t.label);
     let (origin', map) =
       List.combine(t.children, tl)
       |> ListUtil.fold_left_map(
-           (origin, (child, token)) => {
+           (origin, (child, i)) => {
              let (origin, map) = of_segment(~origin, child);
-             (origin + Unicode.length(token) + 1, map);
+             (origin + Unicode.length(token(i)), map);
            },
-           origin + Unicode.length(hd) + 1,
+           origin + Unicode.length(token(hd)),
          )
       |> PairUtil.map_snd(union);
-    // TODO clean up - 1
-    let length = origin' - origin - 1;
-    (origin + length, map |> add_t(t, {origin, length}));
+    let length = origin' - origin;
+    (origin', map |> add_t(t, {origin, length}));
   };
 
 // let of_zipper = _: zipper => failwith("todo Measured.of_zipper");

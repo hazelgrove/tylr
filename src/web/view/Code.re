@@ -228,25 +228,29 @@ module Deco = (M: {
 
   let selection_profile = (z: Zipper.t): Layout.measurement => {
     let sel = z.selection.content;
-    let origin =
-      switch (z.relatives.siblings) {
-      | (_, [p, ..._]) => Measured.find_p(p, M.map).origin
-      | ([p, ..._], _) =>
+    let length =
+      switch (sel) {
+      | [] => 0
+      | [p] =>
         let m = Measured.find_p(p, M.map);
-        m.origin + m.length + 1;
-      | ([], []) =>
+        m.length;
+      | [hd, ...tl] =>
+        let first = Measured.find_p(hd, M.map);
+        let last = Measured.find_p(ListUtil.last(tl), M.map);
+        last.origin - first.origin + last.length;
+      };
+    let origin =
+      switch (Siblings.neighbors(z.relatives.siblings)) {
+      | (_, Some(p)) =>
+        let m = Measured.find_p(p, M.map);
+        m.origin - length;
+      | (Some(p), _) =>
+        let m = Measured.find_p(p, M.map);
+        m.origin + m.length;
+      | (None, None) =>
         let p =
           ListUtil.hd_opt(sel) |> OptUtil.get_or_raise(Segment.Empty_segment);
         Measured.find_p(p, M.map).origin;
-      };
-    let length =
-      switch (ListUtil.hd_opt(sel), ListUtil.last_opt(sel)) {
-      | (None, _)
-      | (_, None) => 0
-      | (Some(first), Some(last)) =>
-        let first = Measured.find_p(first, M.map);
-        let last = Measured.find_p(last, M.map);
-        last.origin + last.length + 1 - first.origin;
       };
     {origin, length};
   };
@@ -261,8 +265,8 @@ module Deco = (M: {
     //NOTE(andrew): below related to generic spacing
     let (caret_offset, sub_offset) =
       switch (z.caret) {
-      | Outer => (0, (-0.5))
-      | Inner(n) => (n + 1, 0.0)
+      | Outer => (0, 0.0) /* -(0.5) */
+      | Inner(n) => (n, 0.0)
       };
     [
       SelectedBoxDec.view(~font_metrics, profile),
@@ -288,12 +292,12 @@ module Deco = (M: {
            | Some((true, _, _)) => []
            | Some(_) =>
              let measurement =
-               switch (l, r) {
-               | ([], []) => failwith("impossible")
-               | (_, [p, ..._]) =>
+               switch (Siblings.neighbors((l, r))) {
+               | (None, None) => failwith("impossible")
+               | (_, Some(p)) =>
                  let m = Measured.find_p(p, M.map);
                  Layout.{origin: m.origin - 1, length: 1};
-               | ([p, ..._], _) =>
+               | (Some(p), _) =>
                  let m = Measured.find_p(p, M.map);
                  Layout.{origin: m.origin + m.length, length: 1};
                };
