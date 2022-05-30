@@ -192,7 +192,7 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
   let+ id = IdGen.fresh;
   z
   |> update_siblings(((l, r)) =>
-       ([Piece.Whitespace({id, content: char}), ...l], r)
+       (l @ [Piece.Whitespace({id, content: char})], r)
      );
 };
 
