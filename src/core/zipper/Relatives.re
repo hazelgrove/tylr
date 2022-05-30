@@ -130,6 +130,13 @@ let reassemble = (rs: t): t => {
         |> Siblings.split_by_matching(t.id)
         |> TupleUtil.map2(Aba.trim)
       ) {
+      | (_, None) => failwith("impossible")
+      | (None, Some((inner_r, match_r, outer_r))) =>
+        let {siblings: (pre, suf), ancestors} =
+          go({...rs, siblings: (fst(rs.siblings), outer_r)});
+        let t = Tile.reassemble(match_r);
+        let suf = Segment.concat([inner_r, [Tile.to_piece(t), ...suf]]);
+        {siblings: (pre, suf), ancestors};
       | (
           Some((outer_l, match_l, inner_l)),
           Some((inner_r, match_r, outer_r)),
@@ -141,7 +148,6 @@ let reassemble = (rs: t): t => {
         ];
         let siblings = (inner_l, inner_r);
         {ancestors, siblings};
-      | _ => failwith("todo")
       }
     };
   go({...rs, siblings: Siblings.reassemble(rs.siblings)});
