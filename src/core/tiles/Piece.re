@@ -1,42 +1,75 @@
-open Util;
-include Base.Piece;
+// open Util;
+include Base;
 
+[@deriving show]
+type t = piece;
+
+let whitespace = w => Whitespace(w);
 let grout = g => Grout(g);
-let shard = s => Shard(s);
 let tile = t => Tile(t);
 
-let get = (f_g, f_s, f_t, p: t) =>
+let get = (f_w, f_g, f_t, p: t) =>
   switch (p) {
+  | Whitespace(w) => f_w(w)
   | Grout(g) => f_g(g)
-  | Shard(s) => f_s(s)
   | Tile(t) => f_t(t)
   };
 
-let is_balanced =
-  fun
-  | Shard(_) => false
-  | Grout(_)
-  | Tile(_) => true;
+// let is_balanced =
+//   fun
+//   | Shard(_) => false
+//   | Whitespace(_)
+//   | Grout(_)
+//   | Tile(_) => true;
 
-let pop = (side: Direction.t, p: t): (t, Base.Segment.t) =>
+let pop_l = (p: t): (t, segment) =>
   switch (p) {
-  | Tile(t) => Tile.pop(side, t)
-  | Shard(_)
-  | Grout(_) => (p, [])
+  | Tile(t) => Tile.pop_l(t)
+  | Grout(_)
+  | Whitespace(_) => (p, [])
+  };
+let pop_r = (p: t): (segment, t) =>
+  switch (p) {
+  | Tile(t) => Tile.pop_r(t)
+  | Grout(_)
+  | Whitespace(_) => ([], p)
   };
 
-let disassemble = (from: Direction.t, p: t): Base.Segment.t =>
+let disassemble = (p: t): segment =>
   switch (p) {
   | Grout(_)
-  | Shard(_) => [p]
-  | Tile(t) => Tile.disassemble(from, t)
+  | Whitespace(_) => [p]
+  | Tile(t) => Tile.disassemble(t)
   };
 
 let remold = (p: t) =>
   switch (p) {
-  | Grout(_) => [p]
-  | Shard(s) => List.map(shard, Shard.remold(s))
+  | Grout(_)
+  | Whitespace(_) => [p]
   | Tile(t) => List.map(tile, Tile.remold(t))
   };
 
-let shapes = get(Grout.shapes, Shard.shapes, Tile.shapes);
+let shapes =
+  get(_ => None, g => Some(Grout.shapes(g)), t => Some(Tile.shapes(t)));
+
+let is_grout: t => bool =
+  fun
+  | Grout(_) => true
+  | _ => false;
+
+let is_whitespace: t => bool =
+  fun
+  | Whitespace(_) => true
+  | _ => false;
+
+let monotile: t => option(string) =
+  fun
+  | Tile({label: [t], _}) => Some(t)
+  | _ => None;
+
+let is_length_one_monotile: t => bool =
+  p =>
+    switch (monotile(p)) {
+    | Some(t) => String.length(t) == 1
+    | None => false
+    };

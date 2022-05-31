@@ -62,7 +62,7 @@ let view =
       Node.create_svg(
         "rect",
         Attr.[
-          create("x", Printf.sprintf("%fpx", 0.5 -. r_x)),
+          create("x", Printf.sprintf("%fpx", -. r_x)),
           create("y", Printf.sprintf("%fpx", (-0.3) -. r_y)),
           create("width", Printf.sprintf("%fpx", 2. *. r_x)),
           create("height", Printf.sprintf("%fpx", 2. *. r_y)),

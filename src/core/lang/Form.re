@@ -1,85 +1,53 @@
 open Mold;
-let s = Sorts.mk;
+module P = Precedence;
 
+[@deriving show]
+type label = list(string);
+
+[@deriving show]
 type t = {
-  label: Base.Tile.Label.t,
+  label,
   mold: Mold.t,
 };
 
-let var_exp = (str: string) => {
-  label: [str],
-  mold: Mold.(mk_op(Sorts.mk(Exp))),
+let mk = (label, mold) => {label, mold};
+
+let var_exp = (t: string) => {
+  assert(Token.is_var(t));
+  mk([t], Mold.(mk_op(Exp, [])));
 };
 
-let var_pat = (str: string) => {
-  label: [str],
-  mold: Mold.(mk_op(Sorts.mk(Pat))),
+let var_pat = (t: string) => {
+  assert(Token.is_var(t));
+  mk([t], Mold.(mk_op(Pat, [])));
 };
 
 let int_exp = (n: int) => {
-  label: [string_of_int(n)],
-  mold: Mold.(mk_op(Sorts.mk(Exp))),
+  assert(Token.is_num(string_of_int(n)));
+  mk([string_of_int(n)], Mold.(mk_op(Exp, [])));
 };
 
-let bin = (str: string, sort: Sort.t, prec) => {
-  label: [str],
-  mold: mk_bin(prec, s(sort)),
-};
+let mk_in = (str: string, sort: Sort.t, prec) =>
+  mk([str], mk_bin(prec, sort, []));
 
-let parens_exp = {
-  label: ["(", ")"],
-  mold: mk_op(Sorts.mk(~in_=[Exp], Exp)),
-};
-let parens_pat = {
-  label: ["(", ")"],
-  mold: mk_op(Sorts.mk(~in_=[Pat], Pat)),
-};
-
-let lambda = {
-  label: ["fun", "=>"],
-  mold: mk_pre(Precedence.fun_, Mold.Sorts.mk(~in_=[Pat], Exp)),
-};
-
-let fact = {label: ["!"], mold: mk_post(Precedence.fact, s(Exp))};
-
-let app = {
-  label: ["[", "]"],
-  mold: mk_post(Precedence.ap, s(~in_=[Exp], Exp)),
-};
-
-let times = bin("*", Exp, Precedence.mult);
-let divide = bin("/", Exp, Precedence.mult);
-let equals = bin("=", Exp, Precedence.mult); //TODO prec
-let greater_than = bin(">", Exp, Precedence.mult); //TODO prec
-let plus = bin("+", Exp, Precedence.plus);
-let minus = bin("-", Exp, Precedence.plus);
-let comma_exp = bin(",", Exp, Precedence.prod);
-let comma_pat = bin(",", Pat, Precedence.prod);
-
-let ternary = {
-  label: ["?", ":"],
-  mold: mk_bin(Precedence.cond, s(~in_=[Exp], Exp)),
-};
-
-let let_ = {
-  label: ["let", "=", "in"],
-  mold: mk_op(Sorts.mk(~in_=[Pat, Exp], Exp)),
-};
-
+/* Order in this list determines relative remolding
+   priority for forms which share the same labels */
 let forms = [
-  parens_exp,
-  parens_pat,
-  lambda,
-  fact,
-  app,
-  times,
-  divide,
-  equals,
-  greater_than,
-  plus,
-  minus,
-  comma_exp,
-  comma_pat,
-  ternary,
-  let_,
+  ("times", mk_in("*", Exp, P.mult)),
+  ("divide", mk_in("/", Exp, P.mult)),
+  ("equals", mk_in("=", Exp, P.eqs)),
+  ("gt", mk_in(">", Exp, P.gt)),
+  ("plus", mk_in("+", Exp, P.plus)),
+  ("minus", mk_in("-", Exp, P.plus)),
+  ("comma_exp", mk_in(",", Exp, P.prod)),
+  ("comma_pat", mk_in(",", Pat, P.prod)),
+  ("fact", mk(["!"], mk_post(P.fact, Exp, []))),
+  ("parens_exp", mk(["(", ")"], mk_op(Exp, [Exp]))),
+  ("parens_pat", mk(["(", ")"], mk_op(Pat, [Pat]))),
+  ("fun_", mk(["fun", "=>"], mk_pre(P.fun_, Pat, [Exp]))),
+  ("ap", mk(["[", "]"], mk_post(P.ap, Exp, [Exp]))),
+  ("let_", mk(["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
+  ("cond", mk(["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
 ];
+
+let get: string => t = name => List.assoc(name, forms);

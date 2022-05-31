@@ -13,6 +13,14 @@ let sort =
   | [] => Sort.root
   | [(a, _), ..._] => Ancestor.sort(a);
 
+let zip = (seg: Segment.t, ancs: t) =>
+  ancs
+  |> List.fold_left(
+       (seg, (a, (pre, suf))) =>
+         pre @ [Piece.Tile(Ancestor.zip(seg, a)), ...suf],
+       seg,
+     );
+
 let disassemble = ancs =>
   ancs
   |> List.map(((a, sibs)) =>
@@ -33,20 +41,21 @@ let remold = (ancestors: t): list(t) =>
     [empty],
   );
 
-let sort_rank = (ancestors: t) =>
-  List.fold_right(
-    ((a, sibs), (s, rank)) => {
-      let rank =
-        rank
-        + Siblings.sort_rank(sibs, s)
-        + Ancestor.sort_rank(a, Siblings.sorts(sibs, s));
-      let s' = Ancestor.sort(a);
-      (s', rank);
-    },
-    ancestors,
-    (Sort.root, 0),
-  )
-  |> snd;
+// let sort_rank = (ancestors: t) =>
+//   List.fold_right(
+//     ((a, sibs), (s, rank)) => {
+//       let rank =
+//         rank
+//         + Siblings.sort_rank(sibs, s)
+//         + Ancestor.sort_rank(a, Siblings.sorts(sibs, s));
+//       let s' = Ancestor.sort(a);
+//       (s', rank);
+//     },
+//     ancestors,
+//     (Sort.root, 0),
+//   )
+//   |> snd;
+let sort_rank = _ => failwith("todo Ancestors.sort_rank");
 
 let shape_rank = (ancestors: t): int =>
   List.fold_right(
@@ -55,46 +64,19 @@ let shape_rank = (ancestors: t): int =>
     0,
   );
 
-let regrout =
-  List.map(((a: Ancestor.t, sibs: Siblings.t)) => {
-    let (n_l, n_r) = Mold.nibs(a.mold);
-    let (s_l, s_r) = (n_l.shape, n_r.shape);
-    let (pre, suf) = Siblings.regrout(sibs);
-    let pre =
-      switch (pre) {
-      | [Grout((l, r)), ...pre'] =>
-        if (/* necessary */ Nib.Shape.fits(s_l, l)) {
-          pre;
-        } else if (/* prefix/postfix */ Nib.Shape.fits(l, r)) {
-          [
-            // change
-            Grout((l, Nib.Shape.flip(r))),
-            ...pre',
-          ];
-        } else {
-          pre';
-        }
-      | _ =>
-        Nib.Shape.fits(s_l, Siblings.Prefix.shape(pre))
-          ? pre : [Grout(Grout.mk_fits_shape(s_l)), ...pre]
-      };
-    let suf =
-      switch (suf) {
-      | [Grout((l, r)), ...suf'] =>
-        if (/* necessary */ Nib.Shape.fits(r, s_r)) {
-          suf;
-        } else if (/* prefix/postfix */ Nib.Shape.fits(l, r)) {
-          [
-            // change
-            Grout((Nib.Shape.flip(l), r)),
-            ...suf',
-          ];
-        } else {
-          suf';
-        }
-      | _ =>
-        Nib.Shape.fits(s_r, Siblings.Prefix.shape(suf))
-          ? suf : [Grout(Grout.mk_fits_shape(s_r)), ...suf]
-      };
-    (a, (pre, suf));
-  });
+let regrout = (ancs: t) =>
+  List.fold_right(
+    ((a, sibs): generation, regrouted) => {
+      open IdGen.Syntax;
+      let* regrouted = regrouted;
+      let* ((pre, l, trim_l), (trim_r, r, suf)) = Siblings.regrout(sibs);
+      let (l', r') = TupleUtil.map2(Nib.shape, Mold.nibs(a.mold));
+      let* trim_l = Segment.Trim.regrout((l, l'), trim_l);
+      let+ trim_r = Segment.Trim.regrout((r', r), trim_r);
+      let pre = pre @ Segment.Trim.to_seg(trim_l);
+      let suf = Segment.Trim.to_seg(trim_r) @ suf;
+      [(a, (pre, suf)), ...regrouted];
+    },
+    ancs,
+    IdGen.return(empty),
+  );

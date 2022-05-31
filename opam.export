@@ -1,12 +1,5 @@
 opam-version: "2.0"
-compiler: [
-  "base-bigarray.base"
-  "base-threads.base"
-  "base-unix.base"
-  "ocaml.4.08.1"
-  "ocaml-base-compiler.4.08.1"
-  "ocaml-config.1"
-]
+compiler: ["ocaml-base-compiler.4.08.1"]
 roots: [
   "bark.0.1.4"
   "deriving.0.8.1"
@@ -26,11 +19,13 @@ roots: [
   "ppx_inline_test.v0.14.1"
   "ppx_let.v0.14.0"
   "ppx_sexp_conv.v0.14.1"
+  "ptmap.2.0.5"
   "re.1.9.0"
   "reactiveData.0.2.2"
   "reason.3.7.0"
   "rtop.3.6.2"
   "sexplib.v0.14.0"
+  "unionFind.20220122"
   "utop.2.7.0"
 ]
 installed: [
@@ -153,6 +148,7 @@ installed: [
   "ppxfind.1.4"
   "ppxlib.0.15.0"
   "protocol_version_header.v0.14.0"
+  "ptmap.2.0.5"
   "re.1.9.0"
   "react.1.2.1"
   "reactiveData.0.2.2"
@@ -172,6 +168,7 @@ installed: [
   "typerep.v0.14.0"
   "tyxml.4.4.0"
   "uchar.0.0.2"
+  "unionFind.20220122"
   "uri.4.1.0"
   "uri-sexp.4.1.0"
   "utop.2.7.0"

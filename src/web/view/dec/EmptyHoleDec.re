@@ -26,16 +26,10 @@ let path = (tip_l, tip_r, offset, s: float) => {
 };
 
 let view = (~font_metrics, {measurement, mold}: Profile.t): Node.t => {
-  let sort = mold.sorts.out;
+  let sort = mold.out;
   let c_cls = Color.to_string(Color.of_sort(sort));
   let (tip_l, tip_r): (Core.Nib.Shape.t, Core.Nib.Shape.t) =
-    switch (mold.shape) {
-    | Op => (Convex, Convex)
-    | Bin(p) => (Concave(p), Concave(p))
-    | Pre(p) => (Convex, Concave(p))
-    | Post(p) => (Concave(p), Convex)
-    //| _ => failwith("EmptyHoleDec.view bad shape")
-    };
+    Util.TupleUtil.map2(Core.Nib.shape, mold.nibs);
   let (tip_l, tip_r): (Core.Nib.t, Core.Nib.t) = (
     {sort, shape: tip_l},
     {sort, shape: tip_r},

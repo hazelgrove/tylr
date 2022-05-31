@@ -1,6 +1,7 @@
 open OptUtil.Syntax;
 
 // heads of prefix and suffix neighbor the subject
+// NOTE: DEPRECATED
 [@deriving show]
 type t('x) = (list('x), list('x));
 

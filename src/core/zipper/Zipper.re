@@ -9,12 +9,12 @@ type caret =
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
 type t = {
-  id_gen: IdGen.t,
   selection: Selection.t,
   backpack: Backpack.t,
   relatives: Relatives.t,
   caret,
 };
+type state = (t, IdGen.state);
 
 module Action = {
   [@deriving (show, sexp)]
@@ -34,7 +34,7 @@ module Action = {
       | Cant_move
       | Cant_insert
       | Cant_put_down_inside_token
-      | Nothing_to_put_down;
+      | Cant_put_down;
   };
 
   module Result = {
@@ -59,41 +59,15 @@ let remove_right_sib: t => t =
   update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
 
 let remove_left_sib: t => t =
-  update_siblings(((l, r)) => (l == [] ? [] : List.tl(l), r));
-
-let neighbors: Siblings.t => (option(Piece.t), option(Piece.t)) =
-  ((l, r)) => (
-    l == [] ? None : Some(List.hd(l)),
-    r == [] ? None : Some(List.hd(r)),
-  );
-
-let has_grout_neighbor: Siblings.t => bool =
-  siblings =>
-    switch (neighbors(siblings)) {
-    | (Some(Grout(_)), _)
-    | (_, Some(Grout(_))) => true
-    | _ => false
-    };
-
-let monotile: Base.Piece.t => option(string) =
-  fun
-  | Tile({label: [t], _}) => Some(t)
-  | _ => None;
+  update_siblings(((l, r)) => (l == [] ? [] : ListUtil.leading(l), r));
 
 let neighbor_monotiles = siblings =>
-  switch (neighbors(siblings)) {
-  | (Some(l), Some(r)) => (monotile(l), monotile(r))
-  | (Some(l), None) => (monotile(l), None)
-  | (None, Some(r)) => (None, monotile(r))
+  switch (Siblings.neighbors(siblings)) {
+  | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
+  | (Some(l), None) => (Piece.monotile(l), None)
+  | (None, Some(r)) => (None, Piece.monotile(r))
   | (None, None) => (None, None)
   };
-
-let is_length_one_monotile: Base.Piece.t => bool =
-  p =>
-    switch (monotile(p)) {
-    | Some(t) => String.length(t) == 1
-    | None => false
-    };
 
 let unselect = (z: t): t => {
   let relatives =
@@ -104,25 +78,10 @@ let unselect = (z: t): t => {
   {...z, selection, relatives};
 };
 
-let convex = (z: t): bool => {
-  let z = unselect(z);
-  let (pre, suf) = Relatives.disassemble(z.relatives);
-  Segment.convex(List.rev(pre) @ suf);
-};
+let zip = (z: t): Segment.t =>
+  Relatives.zip(~sel=z.selection.content, z.relatives);
 
-let remold_regrout = (z: t): t => {
-  assert(Selection.is_empty(z.selection));
-  let ls_relatives =
-    Relatives.remold(z.relatives)
-    |> List.sort((rel, rel') => {
-         open Relatives;
-         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
-         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
-       });
-  assert(ls_relatives != []);
-  let relatives = ls_relatives |> List.hd |> Relatives.regrout;
-  {...z, relatives};
-};
+let convex = (z: t): bool => Segment.convex(zip(z));
 
 let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
   let old = z.selection;
@@ -137,8 +96,7 @@ let put_selection = (sel, z) => snd(update_selection(sel, z));
 
 let grow_selection = (z: t): option(t) => {
   open OptUtil.Syntax;
-  let+ (p, relatives) =
-    Relatives.pop(~balanced=false, z.selection.focus, z.relatives);
+  let+ (p, relatives) = Relatives.pop(z.selection.focus, z.relatives);
   let selection = Selection.push(p, z.selection);
   {...z, selection, relatives};
 };
@@ -150,7 +108,10 @@ let shrink_selection = (z: t): option(t) => {
     let selection = Selection.toggle_focus(z.selection);
     grow_selection({...z, selection});
   | Some((p, selection)) =>
-    let relatives = Relatives.push(selection.focus, p, z.relatives);
+    let relatives =
+      z.relatives
+      |> Relatives.push(selection.focus, p)
+      |> Relatives.reassemble;
     Some({...z, selection, relatives});
   };
 };
@@ -158,20 +119,16 @@ let shrink_selection = (z: t): option(t) => {
 let move_outer = (d: Direction.t, z: t): option(t) =>
   if (Selection.is_empty(z.selection)) {
     open OptUtil.Syntax;
-    let balanced = !Backpack.is_balanced(z.backpack);
-    let+ (p, relatives) = Relatives.pop(~balanced, d, z.relatives);
+    // let balanced = !Backpack.is_balanced(z.backpack);
+    let+ (p, relatives) = Relatives.pop(d, z.relatives);
     let relatives =
       relatives
       |> Relatives.push(Direction.toggle(d), p)
       |> Relatives.reassemble;
     {...z, relatives};
-  } else if (d != z.selection.focus
-             || Selection.is_balanced(z.selection)
-             || Backpack.is_balanced(z.backpack)) {
+  } else {
     let selection = {...z.selection, focus: Direction.toggle(d)};
     Some(unselect({...z, selection}));
-  } else {
-    None;
   };
 
 let select_outer = (d: Direction.t, z: t): option(t) =>
@@ -182,7 +139,7 @@ let pick_up = (z: t): t => {
   let selections =
     selected.content
     |> Segment.split_by_grout
-    |> Aba.get_a
+    |> Aba.get_as
     |> List.filter((!=)(Segment.empty))
     |> List.map(Selection.mk(selected.focus));
   let backpack =
@@ -196,16 +153,16 @@ let pick_up = (z: t): t => {
 let destruct_outer = (z: t): t => {
   let (selected, z) = update_selection(Selection.empty, z);
   let (to_pick_up, to_remove) =
-    Segment.shards(selected.content)
-    |> List.partition(shard =>
-         Siblings.contains_matching(shard, z.relatives.siblings)
+    Segment.incomplete_tiles(selected.content)
+    |> List.partition(t =>
+         Siblings.contains_matching(t, z.relatives.siblings)
        );
   let backpack =
     z.backpack
     |> Backpack.remove_matching(to_remove)
     |> Backpack.push_s(
          to_pick_up
-         |> List.map(Segment.of_shard)
+         |> List.map(Segment.of_tile)
          |> List.map(Selection.mk(z.selection.focus)),
        );
   {...z, backpack};
@@ -214,29 +171,33 @@ let destruct_outer = (z: t): t => {
 let put_down = (z: t): option(t) => {
   open OptUtil.Syntax;
   let z = destruct_outer(z);
-  let+ (popped, backpack) = Backpack.pop(z.backpack);
+  let+ (_, popped, backpack) =
+    Backpack.pop(
+      Siblings.incomplete_tiles(z.relatives.siblings),
+      z.backpack,
+    );
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
-let grout_between: Siblings.t => Piece.t =
-  fun
-  | ([], []) => failwith("insert_space_grout: impossible")
-  | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
-  | ([p, ..._], _) => {
-      let nib_shape_r = p |> Base.nib_shapes |> snd;
-      Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
-    };
+// let grout_between: Siblings.t => Piece.t =
+//   fun
+//   | ([], []) => failwith("insert_space_grout: impossible")
+//   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
+//   | ([p, ..._], _) => {
+//       let nib_shape_r = p |> Piece.shapes |> snd;
+//       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
+//     };
 
-let insert_space_grout =
-    (_char: string, {relatives: {siblings, _}, _} as z: t) =>
-  if (has_grout_neighbor(siblings)) {
-    z;
-  } else {
-    update_siblings(((l, r)) => ([grout_between(siblings)] @ l, r), z)
-    |> update_relatives(Relatives.regrout); //TODO(andrew): david is this necessary?
-  };
+let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
+  open IdGen.Syntax;
+  let+ id = IdGen.fresh;
+  z
+  |> update_siblings(((l, r)) =>
+       (l @ [Piece.Whitespace({id, content: char})], r)
+     );
+};
 
-let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
+let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
   switch (label) {
   | [t] when Token.is_whitespace(t) => insert_space_grout(t, z)
   | _ =>
@@ -245,25 +206,27 @@ let construct = (from: Direction.t, label: Tile.Label.t, z: t): t => {
     assert(molds != []);
     // initial mold to typecheck, will be remolded
     let mold = List.hd(molds);
-    let (id, id_gen) = IdGen.next(z.id_gen);
+    open IdGen.Syntax;
+    let+ id = IdGen.fresh;
     let selections =
-      Shard.mk_s(id, label, mold)
-      |> List.map(Segment.of_shard)
+      Tile.split_shards(id, label, mold, List.mapi((i, _) => i, label))
+      |> List.map(Segment.of_tile)
       |> List.map(Selection.mk(from))
       |> ListUtil.rev_if(from == Right);
     let backpack = Backpack.push_s(selections, z.backpack);
-    Option.get(put_down({...z, id_gen, backpack}));
+    Option.get(put_down({...z, backpack}));
   };
 };
 
-let replace_construct = (d: Direction.t, l: Tile.Label.t, z: t): option(t) =>
+let replace_construct =
+    (d: Direction.t, l: Label.t, (z, id_gen): state): option(state) =>
   z
   |> select_outer(d)
   |> Option.map(destruct_outer)
-  |> Option.map(construct(d, l));
+  |> Option.map(z => construct(d, l, z, id_gen));
 
-let can_merge_through: Base.Piece.t => bool =
-  p => Base.is_grout(p) || is_length_one_monotile(p);
+let can_merge_through: Piece.t => bool =
+  p => Piece.is_grout(p) || Piece.is_length_one_monotile(p);
 
 let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
   /* This is a bit of a hack. If we are Deleting (d==Right),
@@ -271,15 +234,14 @@ let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
      arrangement is the same as that used for Backspacing (d==Left).
      We do this both for checking mergability and doing the merge */
   d == Left || r_sibs == []
-    ? (l_sibs, r_sibs)
-    : (List.cons(List.hd(r_sibs), l_sibs), List.tl(r_sibs));
+    ? (l_sibs, r_sibs) : (l_sibs @ [List.hd(r_sibs)], List.tl(r_sibs));
 
 let merge_candidates:
   (Direction.t, caret, Siblings.t) => option((Token.t, Token.t)) =
   (d, caret, siblings) => {
     let (l_sibs, r_sibs) = shift_siblings_maybe(d, siblings);
-    switch (l_sibs) {
-    | [l_nhbr, ...ps] when can_merge_through(l_nhbr) =>
+    switch (ListUtil.split_last_opt(l_sibs)) {
+    | Some((ps, l_nhbr)) when can_merge_through(l_nhbr) =>
       switch (caret, neighbor_monotiles((ps, r_sibs))) {
       | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
           when Token.is_valid(l_2nd_nhbr ++ r_nhbr) =>
@@ -291,7 +253,8 @@ let merge_candidates:
   };
 
 /* merge precondition: ... <Monotile> <DontCare> | <Monotile> ... */
-let merge = ((l, r): (Token.t, Token.t), z: t): option(t) =>
+let merge =
+    ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
   |> set_caret(Inner(String.length(l) - 1))
   |> move_outer(Right)
@@ -299,7 +262,7 @@ let merge = ((l, r): (Token.t, Token.t), z: t): option(t) =>
   |> OptUtil.and_then(select_outer(Left))
   |> OptUtil.and_then(select_outer(Left))
   |> Option.map(destruct_outer)
-  |> Option.map(construct(Right, [l ++ r]));
+  |> Option.map(z => construct(Right, [l ++ r], z, id_gen));
 
 let decrement_caret: caret => caret =
   fun
@@ -312,45 +275,61 @@ let last_inner_pos = t => String.length(t) - 2;
 let destruct =
     (
       d: Direction.t,
-      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+      ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z, id_gen): state,
     )
-    : option(t) => {
+    : option(state) => {
   /* Could add checks on valid tokens (all of these hold assuming substring) */
-  let d_outer = z => z |> select_outer(d) |> Option.map(destruct_outer);
+  let d_outer = z =>
+    z
+    |> select_outer(d)
+    |> Option.map(destruct_outer)
+    |> Option.map(z => (z, id_gen));
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(n), (_, Some(t))) =>
-    z
-    |> update_caret(decrement_caret)
-    |> replace_construct(Right, [StringUtil.remove_nth(n, t)])
+    let z = update_caret(decrement_caret, z);
+    replace_construct(Right, [StringUtil.remove_nth(n, t)], (z, id_gen));
   | (Right, Inner(n), (_, Some(t))) =>
-    z
-    |> replace_construct(Right, [StringUtil.remove_nth(n + 1, t)])
+    replace_construct(
+      Right,
+      [StringUtil.remove_nth(n + 1, t)],
+      (z, id_gen),
+    )
     |> OptUtil.and_then(
          n == last_inner_pos(t)
-           ? z => z |> set_caret(Outer) |> move_outer(Right) : Option.some,
+           ? ((z, id_gen)) =>
+               z
+               |> set_caret(Outer)
+               |> move_outer(Right)
+               |> Option.map(z => (z, id_gen))
+           : Option.some,
        )
   | (_, Inner(_), (_, None)) => failwith("destruct: impossible")
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
-    replace_construct(Left, [StringUtil.remove_last(t)], z)
+    replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
   | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
-    replace_construct(Right, [StringUtil.remove_first(t)], z)
+    replace_construct(Right, [StringUtil.remove_first(t)], (z, id_gen))
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
   | (_, Outer, (None, _)) => d_outer(z)
   };
 };
 
 let destruct_or_merge =
-    (d: Direction.t, {caret, relatives: {siblings, _}, _} as z: t)
-    : option(t) =>
+    (
+      d: Direction.t,
+      ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
+    )
+    : option(state) =>
   switch (merge_candidates(d, caret, siblings)) {
-  | None => destruct(d, z)
+  | None => destruct(d, (z, id_gen))
   | Some(candidates) =>
-    z |> update_siblings(shift_siblings_maybe(d)) |> merge(candidates)
+    let z = update_siblings(shift_siblings_maybe(d), z);
+    merge(candidates, (z, id_gen));
   };
 
 let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     /* Completions which can or must be executed immediately */
+    //TODO(andrew): refactor to depend on Forms.re
     switch (s) {
     | "(" => (["(", ")"], Left)
     | ")" => (["(", ")"], Right)
@@ -364,6 +343,7 @@ let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
 let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     /* Completions which must be defered as they are ambiguous prefixes */
+    //TODO(andrew): refactor to depend on Forms.re
     switch (s) {
     | "fun" => (["fun", "=>"], Left)
     | "in" => (["let", "=", "in"], Right)
@@ -371,15 +351,15 @@ let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
     | t => ([t], direction_preference)
     };
 
-let keyword_expand = (z: t): option(t) =>
+let keyword_expand = ((z, _) as state: state): option(state) =>
   /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
      is down (removing the rest of the set from backpack on edit) as something
      like this is necessary for backspace to act as undo after kw-expansion */
   switch (neighbor_monotiles(z.relatives.siblings)) {
   | (Some(kw), _) =>
     let (new_label, direction) = delayed_completion(kw, Left);
-    z |> replace_construct(direction, new_label);
-  | _ => Some(z)
+    replace_construct(direction, new_label, state);
+  | _ => Some(state)
   };
 
 type appendability =
@@ -396,9 +376,9 @@ let sibling_appendability: (string, Siblings.t) => appendability =
     };
 
 let barf_or_construct =
-    (new_token: string, direction_preference: Direction.t, z: t): t =>
+    (new_token: string, direction_preference: Direction.t, z: t): IdGen.t(t) =>
   if (Backpack.is_first_matching(new_token, z.backpack)) {
-    z |> put_down |> Option.get;
+    z |> put_down |> Option.get |> IdGen.return;
   } else {
     let (lbl, direction) =
       instant_completion(new_token, direction_preference);
@@ -406,43 +386,53 @@ let barf_or_construct =
   };
 
 let insert_outer =
-    (char: string, {relatives: {siblings, _}, _} as z: t): option(t) =>
+    (char: string, ({relatives: {siblings, _}, _} as z, id_gen): state)
+    : option(state) =>
   switch (sibling_appendability(char, siblings)) {
   | CanAddToNeither =>
-    z |> keyword_expand |> Option.map(barf_or_construct(char, Left))
+    (z, id_gen)
+    |> keyword_expand
+    |> Option.map(((z, id_gen)) => barf_or_construct(char, Left, z, id_gen))
   | CanAddToLeft(left_token) =>
     z
     |> remove_left_sib
-    |> barf_or_construct(left_token ++ char, Left)
+    |> (z => barf_or_construct(left_token ++ char, Left, z, id_gen))
     |> Option.some
   | CanAddToRight(right_token) =>
     z
     |> remove_right_sib
-    |> barf_or_construct(char ++ right_token, Right)
+    |> (z => barf_or_construct(char ++ right_token, Right, z, id_gen))
     |> Option.some
   };
 
-let split = (z: t, char: string, idx: int, t: string): option(t) => {
+let split =
+    ((z, id_gen): state, char: string, idx: int, t: string): option(state) => {
   let (l, r) = StringUtil.split_nth(idx, t);
   let (lbl, direction) = instant_completion(char, Left);
   z
   |> set_caret(Outer)
-  |> replace_construct(Right, [r])
-  |> Option.map(construct(Left, [l]))
+  |> (z => replace_construct(Right, [r], (z, id_gen)))
+  |> Option.map(((z, id_gen)) => construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
-  |> Option.map(construct(direction, lbl));
+  |> Option.map(((z, id_gen)) => construct(direction, lbl, z, id_gen));
 };
 
 let insert =
-    (char: string, {caret, relatives: {siblings, _}, _} as z: t): option(t) =>
+    (
+      char: string,
+      ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
+    )
+    : option(state) =>
   switch (caret, neighbor_monotiles(siblings)) {
   | (Inner(n), (_, Some(t))) =>
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
     /* If inserting wouldn't produce a valid token, split */
     Token.is_valid(new_t)
-      ? z |> set_caret(Inner(idx)) |> replace_construct(Right, [new_t])
-      : split(z, char, idx, t);
+      ? z
+        |> set_caret(Inner(idx))
+        |> (z => replace_construct(Right, [new_t], (z, id_gen)))
+      : split((z, id_gen), char, idx, t);
   | (Inner(_), (_, None)) =>
     failwith("insert: caret is inner, but left nhbr has no inner positions")
   | (Outer, (_, Some(_))) =>
@@ -453,8 +443,10 @@ let insert =
       | CanAddToNeither
       | CanAddToLeft(_) => Outer
       };
-    z |> insert_outer(char) |> Option.map(set_caret(caret));
-  | (Outer, (_, None)) => insert_outer(char, z)
+    (z, id_gen)
+    |> insert_outer(char)
+    |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen));
+  | (Outer, (_, None)) => insert_outer(char, (z, id_gen))
   };
 
 let move =
@@ -488,29 +480,53 @@ let select = (d: Direction.t, z: t): option(t) =>
     z |> set_caret(Outer) |> select_outer(d);
   };
 
-let perform = (a: Action.t, z: t): Action.Result.t(t) =>
+let remold_regrout = (z: t): IdGen.t(t) => {
+  assert(Selection.is_empty(z.selection));
+  let ls_relatives =
+    Relatives.remold(z.relatives)
+    |> List.sort((rel, rel') => {
+         Relatives.
+           /* c != 0 ? c : */
+           (Int.compare(shape_rank(rel), shape_rank(rel')))
+           // let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+       });
+  assert(ls_relatives != []);
+  ls_relatives
+  |> List.hd
+  |> Relatives.regrout
+  |> IdGen.map(relatives => {...z, relatives});
+};
+
+let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   switch (a) {
-  | Move(d) => Result.of_option(~error=Action.Failure.Cant_move, move(d, z))
-  | Select(d) =>
-    Result.of_option(~error=Action.Failure.Cant_move, select(d, z))
-  | Destruct(d) =>
-    Result.of_option(
-      ~error=Action.Failure.Cant_move,
-      z |> destruct_or_merge(d) |> Option.map(remold_regrout),
-    )
-  | Insert(char) =>
+  | Move(d) =>
     z
+    |> move(d)
+    |> Option.map(z => (z, id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
+  | Select(d) =>
+    z
+    |> select(d)
+    |> Option.map(z => (z, id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
+  | Destruct(d) =>
+    (z, id_gen)
+    |> destruct_or_merge(d)
+    |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
+  | Insert(char) =>
+    (z, id_gen)
     |> insert(char)
-    |> Option.map(remold_regrout)
+    |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   //| Construct(from, label) => Ok(construct(from, label, z))
-  | Pick_up => Ok(z |> pick_up |> remold_regrout)
+  | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
   | Put_down =>
     /* Alternatively, putting down inside token could eiter merge-in or split */
     z.caret != Outer
       ? Error(Action.Failure.Cant_put_down_inside_token)
-      : Result.of_option(
-          ~error=Action.Failure.Nothing_to_put_down,
-          z |> put_down |> Option.map(remold_regrout),
-        )
+      : z
+        |> put_down
+        |> Option.map(z => remold_regrout(z, id_gen))
+        |> Result.of_option(~error=Action.Failure.Cant_put_down)
   };

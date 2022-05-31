@@ -1,81 +1,131 @@
 open Virtual_dom.Vdom;
 open Node;
 open Core;
-//open Util;
+open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-let rec text_views = (l: Layout.t): list(Node.t) => {
-  switch (l) {
-  | Atom(token, ann) =>
-    let ns = [text(Layout.string_of_token(token))];
-    switch (ann) {
-    | None
-    | Ap
-    | Space(_) => ns
-    | EmptyHole(_) => [span_c("empty-hole", ns)]
-    | Delim => [span_c("delim", ns)]
-    | Shard => [span_c("extra-bold-delim", ns)]
-    };
-  | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
+/*
+ TODO(andrew): reconcile EmptyHole case below with new Text module
+
+ let rec text_views = (l: Layout.t): list(Node.t) => {
+   switch (l) {
+   | Atom(token, ann) =>
+     let ns = [text(Layout.string_of_token(token))];
+     switch (ann) {
+     | None
+     | Ap
+     | Space(_) => ns
+     | EmptyHole(_) => [span_c("empty-hole", ns)]
+     | Delim => [span_c("delim", ns)]
+     | Shard => [span_c("extra-bold-delim", ns)]
+     };
+   | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
+ */
+
+module Text = {
+  let rec of_segment = (seg: Segment.t): list(Node.t) =>
+    seg
+    |> List.map(
+         fun
+         | Piece.Whitespace(w) => [Node.text(w.content)]
+         | Grout(_) => [Node.text(Unicode.nbsp)]
+         | Tile(t) => of_tile(t),
+       )
+    |> List.concat
+  and of_tile = (t: Tile.t): list(Node.t) => {
+    let span =
+      List.length(t.label) == 1
+        ? Node.span([])
+        : span_c(Tile.is_complete(t) ? "delim" : "extra-bold-delim");
+    Aba.mk(t.shards, t.children)
+    |> Aba.join(
+         i => [span([Node.text(List.nth(t.label, i))])],
+         of_segment,
+       )
+    |> List.concat;
   };
 };
 
-let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
-  if (j == List.length(ms) && i < j) {
-    let last = List.nth(ms, List.length(ms) - 1);
-    let origin = List.nth(ms, i).measurement.origin;
-    let length = last.measurement.origin + last.measurement.length - origin;
-    {origin, length};
-  } else if (j == List.length(ms) && i == j) {
-    let last = List.nth(ms, List.length(ms) - 1);
-    let origin = last.measurement.origin + last.measurement.length;
-    let length = 0;
-    {origin, length};
-  } else {
-    assert(0 <= i && i <= j && j < List.length(ms));
-    let origin = List.nth(ms, i).measurement.origin;
-    let length = List.nth(ms, j).measurement.origin - origin;
-    {origin, length};
-  };
+// let rec text_views = (l: Layout.t): list(Node.t) => {
+//   switch (l) {
+//   | Atom(s, ann) =>
+//     switch (ann) {
+//     | None
+//     | Whitespace
+//     | Ap
+//     | Space(_)
+//     | EmptyHole(_) => [text(s)]
+//     | Delim => [span_c("delim", [text(s)])]
+//     | Shard => [span_c("extra-bold-delim", [text(s)])]
+//     }
+//   | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
+//   };
+// };
 
-let sel_piece_profile =
-    (
-      style: SelemStyle.t,
-      mold: Mold.t,
-      measurement: Layout.measurement,
-      ms: list(Layout.measured),
-    )
-    : SelemDec.Profile.t => {
-  let open_children =
-    Layout.get_open_children(mold, ms)
-    |> List.map((c: Layout.measured) => c.measurement)
-    |> Layout.relativize_measurements(measurement.origin);
-  let closed_children =
-    Layout.get_closed_children(mold, ms)
-    |> List.map((c: Layout.measured) => c.measurement)
-    |> Layout.relativize_measurements(measurement.origin);
-  {
-    color: Color.of_sort(mold.sorts.out),
-    shape: Layout.piece_shape_of_mold(mold),
-    measurement,
-    style,
-    open_children,
-    closed_children,
-  };
-};
+// let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
+//   if (j == List.length(ms) && i < j) {
+//     let last = List.nth(ms, List.length(ms) - 1);
+//     let origin = List.nth(ms, i).measurement.origin;
+//     let length = last.measurement.origin + last.measurement.length - origin;
+//     {origin, length};
+//   } else if (j == List.length(ms) && i == j) {
+//     let last = List.nth(ms, List.length(ms) - 1);
+//     let origin = last.measurement.origin + last.measurement.length;
+//     let length = 0;
+//     {origin, length};
+//   } else {
+//     assert(0 <= i && i <= j && j < List.length(ms));
+//     let origin = List.nth(ms, i).measurement.origin;
+//     let length = List.nth(ms, j).measurement.origin - origin;
+//     {origin, length};
+//   };
+
+// let sel_piece_profile =
+//     (
+//       style: SelemStyle.t,
+//       mold: Mold.t,
+//       measurement: Layout.measurement,
+//       ms: list(Layout.measured),
+//     )
+//     : SelemDec.Profile.t => {
+//   let open_children =
+//     Layout.get_open_children(mold, ms)
+//     |> List.map((c: Layout.measured) => c.measurement)
+//     |> Layout.relativize_measurements(measurement.origin);
+//   let closed_children =
+//     Layout.get_closed_children(mold, ms)
+//     |> List.map((c: Layout.measured) => c.measurement)
+//     |> Layout.relativize_measurements(measurement.origin);
+//   {
+//     color: Color.of_sort(mold.out),
+//     shape: Layout.piece_shape_of_mold(mold),
+//     measurement,
+//     style,
+//     open_children,
+//     closed_children,
+//   };
+// };
 
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
-  let l = Layout.of_segment(Sort.root, content);
-  let text_view = text_views(l);
+  let text_view = Text.of_segment(content);
   div([Attr.classes(["code-text", "backpack-selection"])], text_view);
 };
 
-let selection_length = (s: Selection.t): int =>
-  // TODO(andrew): Maybe use sort at caret instead of root
-  Layout.to_measured(Layout.of_segment(Sort.root, s.content)).measurement.
-    length;
+let selection_length = (sel: Selection.t): int => {
+  let seg = sel.content;
+  let (len, _) = Measured.of_segment(seg);
+  len;
+  // switch (ListUtil.hd_opt(seg), ListUtil.last_opt(seg)) {
+  // | (None, _)
+  // | (_, None) => 0
+  // | (Some(first), Some(last)) =>
+  //   let first = Measured.find_p(first, map);
+  //   let last = Measured.find_p(last, map);
+  //   last.origin + last.length - first.origin;
+  // };
+};
 
 let genie_profile =
     (backpack: Backpack.t, origin: int): RestructuringGenieDec.Profile.t => {
@@ -101,109 +151,202 @@ let backpack_view =
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
-let rec ind_hack = (l: Layout.t): list((Mold.t, Layout.token)) => {
-  switch (l) {
-  | Atom(_) => []
-  | Cat(ls, Piece(_, mold, Indicated(token))) =>
-    //TODO(andrew): hack
-    [(mold, token)] @ List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
-  | Cat(ls, _) => List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
-  };
-};
+/*
+ let rec ind_hack = (l: Layout.t): list((Mold.t, Layout.token)) => {
+   switch (l) {
+   | Atom(_) => []
+   | Cat(ls, Piece(_, mold, Indicated(token))) =>
+     //TODO(andrew): hack
+     [(mold, token)] @ List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
+   | Cat(ls, _) => List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
+   };
+ };
 
-let caret_shape =
-    (
-      caret: Zipper.caret,
-      pd: list((Mold.t, Layout.token)),
-      i: int,
-      j: int,
-      ms: list(Layout.measured),
-      ~focus: Util.Direction.t,
-    )
-    : CaretDec.caret_shape =>
-  if (caret != Outer) {
-    Straight;
-  } else if (i == j) {
-    //selection empty
-    switch (pd) {
-    /*| [({shape, _}, _)] =>
-        switch (shape, direction) {
-        | (Pre(_), _) => Left
-        | (Post(_), _) => Right
-        | (Op, Left) => Left
-        | (Op, Right) => Right
-        | (Bin(_), Left) => Right
-        | (Bin(_), Right) => Left
-        }
-      | _ => Straight*/
-    | [(_, {string, _})]
-        when
-          List.mem(
-            string,
-            ["+", "-", "*", "/", ",", "=", "in", "=>", "?", ":", ")", "]"],
-          ) =>
-      Right
-    | [(_, {string, padding})]
-        when padding == Bi && (string == " " || string == Unicode.nbsp) =>
-      //grout case
-      //TODO(andrew): improve logic
-      Right
-    | _ when j == List.length(ms) => Right // at end of program (hacky)
-    | _ => Left
-    };
-  } else {
-    switch (Util.ListUtil.split_sublist_opt(i, j, ms)) {
-    | Some((_, [{layout, _}, ..._], _)) when focus == Left =>
-      switch (Layout.get_shape(layout)) {
-      | Some(Op | Pre(_)) => Left
-      | _ => Right
-      }
-    | Some((_, sel, _)) when focus == Right =>
-      let {layout, _}: Layout.measured = sel |> List.rev |> List.hd;
-      switch (Layout.get_shape(layout)) {
-      | Some(Op | Post(_)) => Right
-      | _ => Left
-      };
-    | _ => Straight
-    };
-  };
+ let caret_shape =
+     (
+       caret: Zipper.caret,
+       pd: list((Mold.t, Layout.token)),
+       i: int,
+       j: int,
+       ms: list(Layout.measured),
+       ~focus: Util.Direction.t,
+     )
+     : CaretDec.caret_shape =>
+   if (caret != Outer) {
+     Straight;
+   } else if (i == j) {
+     //selection empty
+     switch (pd) {
+     /*| [({shape, _}, _)] =>
+         switch (shape, direction) {
+         | (Pre(_), _) => Left
+         | (Post(_), _) => Right
+         | (Op, Left) => Left
+         | (Op, Right) => Right
+         | (Bin(_), Left) => Right
+         | (Bin(_), Right) => Left
+         }
+       | _ => Straight*/
+     | [(_, {string, _})]
+         when
+           List.mem(
+             string,
+             ["+", "-", "*", "/", ",", "=", "in", "=>", "?", ":", ")", "]"],
+           ) =>
+       Right
+     | [(_, {string, padding})]
+         when padding == Bi && (string == " " || string == Unicode.nbsp) =>
+       //grout case
+       //TODO(andrew): improve logic
+       Right
+     | _ when j == List.length(ms) => Right // at end of program (hacky)
+     | _ => Left
+     };
+   } else {
+     switch (Util.ListUtil.split_sublist_opt(i, j, ms)) {
+     | Some((_, [{layout, _}, ..._], _)) when focus == Left =>
+       switch (Layout.get_shape(layout)) {
+       | Some(Op | Pre(_)) => Left
+       | _ => Right
+       }
+     | Some((_, sel, _)) when focus == Right =>
+       let {layout, _}: Layout.measured = sel |> List.rev |> List.hd;
+       switch (Layout.get_shape(layout)) {
+       | Some(Op | Post(_)) => Right
+       | _ => Left
+       };
+     | _ => Straight
+     };
+   };
+  */
 
-let cat_decos =
-    (
-      pd: list((Mold.t, Layout.token)),
-      ~font_metrics,
-      ~zipper as {backpack, selection: {focus, _}, caret, _}: Zipper.t,
-      ann: Layout.ann_cat,
-      measurement: Layout.measurement,
-      ms,
-    ) => {
-  let caret_offset =
-    switch (caret) {
-    | Outer => 0
-    | Inner(n) => n + 1
-    };
-  //NOTE(andrew): below related to generic spacing
-  let sub_offset =
-    switch (caret) {
-    | Outer => (-0.5)
-    | Inner(_) => 0.0
-    };
-  switch (ann) {
-  | Segment(Range(i, j)) =>
-    let profile = range_profile(ms, i, j);
+// let cat_decos =
+//     (
+//       ~font_metrics,
+//       ~zipper as {backpack, selection: {focus, _}, caret, _}: Zipper.t,
+//       ann: Layout.ann_cat,
+//       measurement: Layout.measurement,
+//       ms,
+//     ) => {
+//   let caret_offset =
+//     switch (caret) {
+//     | Outer => 0
+//     | Inner(n) => n + 1
+//     };
+//   //NOTE(andrew): below related to generic spacing
+//   let sub_offset =
+//     switch (caret) {
+//     | Outer => (-0.5)
+//     | Inner(_) => 0.0
+//     };
+//   switch (ann) {
+//   | Segment(Range(i, j)) =>
+//     let profile = range_profile(ms, i, j);
+//     let origin =
+//       switch (focus) {
+//       | Left => profile.origin
+//       | Right => profile.origin + profile.length
+//       };
+//     [
+//       SelectedBoxDec.view(~font_metrics, profile),
+//       //debug caret:
+//       //CaretDec.simple_view(~font_metrics, ~sub_offset, origin, "#00f8"),
+//       CaretDec.simple_view(
+//         ~font_metrics,
+//         ~sub_offset,
+//         origin + caret_offset,
+//         "#f008",
+//       ),
+//       backpack_view(~font_metrics, ~origin, backpack),
+//     ];
+//   | Piece(_p, mold, InsideFocalSegment(Selected)) =>
+//     let profile = sel_piece_profile(Selected, mold, measurement, ms);
+//     [SelemDec.view(~font_metrics, profile)];
+//   | Piece(_p, mold, Indicated) =>
+//     let profile = sel_piece_profile(Root, mold, measurement, ms);
+//     [SelemDec.view(~font_metrics, profile)];
+//   | _ => []
+//   };
+// };
+
+// let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
+//   switch (ann) {
+//   | EmptyHole(mold) => [
+//       EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
+//     ]
+//   | _ => []
+//   };
+
+// let rec deco_views =
+//         (
+//           ~font_metrics: FontMetrics.t,
+//           ~zipper: Zipper.t,
+//           layout: Layout.measured,
+//         )
+//         : list(t) => {
+//   switch (layout.layout) {
+//   | CatM(ms, ann) =>
+//     cat_decos(~font_metrics, ~zipper, ann, layout.measurement, ms)
+//     @ List.concat(List.map(deco_views(~font_metrics, ~zipper), ms))
+//   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
+//   };
+// };
+
+module Deco = (M: {
+                 let font_metrics: FontMetrics.t;
+                 let map: Measured.t;
+               }) => {
+  let font_metrics = M.font_metrics;
+
+  let rec holes = (seg: Segment.t): list(Node.t) =>
+    seg
+    |> List.map(
+         fun
+         | Piece.Whitespace(_) => []
+         | Tile(t) => t.children |> List.map(holes) |> List.concat
+         | Grout(g) => {
+             // TODO(d) fix sort
+             let mold = Mold.of_grout(g, Exp);
+             let measurement = Measured.find_g(g, M.map);
+             [EmptyHoleDec.view(~font_metrics, {measurement, mold})];
+           },
+       )
+    |> List.concat;
+
+  let selection_profile = (z: Zipper.t): Layout.measurement => {
+    let sel = z.selection.content;
+    let length = Measured.length(sel, M.map);
     let origin =
-      switch (focus) {
+      switch (Siblings.neighbors(z.relatives.siblings)) {
+      | (_, Some(p)) =>
+        let m = Measured.find_p(p, M.map);
+        m.origin - length;
+      | (Some(p), _) =>
+        let m = Measured.find_p(p, M.map);
+        m.origin + m.length;
+      | (None, None) =>
+        let p =
+          ListUtil.hd_opt(sel) |> OptUtil.get_or_raise(Segment.Empty_segment);
+        Measured.find_p(p, M.map).origin;
+      };
+    {origin, length};
+  };
+
+  let caret = (z: Zipper.t): list(Node.t) => {
+    let profile = selection_profile(z);
+    let origin =
+      switch (z.selection.focus) {
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
-    // uncomment below for caret to be over by one for internal delims, infix ops
-    /*let origin =
-      switch (pd) {
-      | [(_, {padding: Pre, _})]
-      | [(_, {padding: Bi, _})] => origin + 1
-      | _ => origin
-      };*/
-    let caret_shape = caret_shape(caret, pd, i, j, ms, ~focus);
+    //NOTE(andrew): below related to generic spacing
+    let (caret_offset, sub_offset) =
+      switch (z.caret) {
+      | Outer => (0, 0.0) /* -(0.5) */
+      | Inner(n) => (n + 1, 0.0)
+      };
+    //TODO(andrew): caret_shape
+    //let caret_shape = caret_shape(caret, pd, i, j, ms, ~focus);
     [
       //TODO(andrew): restore
       //SelectedBoxDec.view(~font_metrics, profile),
@@ -212,77 +355,154 @@ let cat_decos =
         ~sub_offset,
         origin + caret_offset,
         "#f008",
-        caret_shape,
+        Straight,
       ),
-      backpack_view(~font_metrics, ~origin, backpack),
+      backpack_view(~font_metrics, ~origin, z.backpack),
     ];
-  | Piece(_p, mold, InsideFocalSegment(Selected)) =>
-    let profile = sel_piece_profile(Selected, mold, measurement, ms);
-    [SelemDec.view(~font_metrics, profile)];
-  | Piece(Grout, mold, Indicated(_s)) =>
-    /*let measurement: Layout.measurement =
-      switch (measurement.length) {
-      | 1 => measurement
-      | _ => {length: 1, origin: measurement.origin + 1}
-      };*/
-    let profile = sel_piece_profile(Root, mold, measurement, ms);
-    [SelemDec.view(~font_metrics, profile)];
-  //uncomment below to unfatten infix grout deco
-  // TODO(andrew): hack
-  | Piece(_, mold, Indicated(_s))
-      when
-        switch (pd) {
-        | [(_, {string, _})] => List.mem(string, Token.ops)
-        | _ => false
-        } =>
-    /*let measurement: Layout.measurement =
-      switch (measurement.length) {
-      | 1 => measurement
-      | _ => {length: 1, origin: measurement.origin + 1}
-      };*/
-    let profile = sel_piece_profile(Root, mold, measurement, ms);
-    [SelemDec.view(~font_metrics, profile)];
-  //uncomment below to unfatten infix op deco
-  // TODO(andrew): hack
-  | Piece(_p, mold, Indicated(_s)) =>
-    let profile = sel_piece_profile(Root, mold, measurement, ms);
-    [SelemDec.view(~font_metrics, profile)];
-  | _ => []
-  };
-};
-
-let text_decos =
-    (~font_metrics, ann: Layout.ann_atom, measurement: Layout.measurement) =>
-  switch (ann) {
-  | EmptyHole(mold) =>
-    let measurement: Layout.measurement =
-      switch (mold.shape) {
-      | Bin(_) => {
-          length: 1,
-          origin:
-            Layout.pad_segments ? measurement.origin : measurement.origin + 1,
-        }
-      | _ => measurement
-      };
-    [EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold})];
-  | _ => []
+    //TODO(andrew):
+    /*  | Piece(_p, mold, InsideFocalSegment(Selected)) =>
+          let profile = sel_piece_profile(Selected, mold, measurement, ms);
+          [SelemDec.view(~font_metrics, profile)];
+        | Piece(Grout, mold, Indicated(_s)) =>
+          /*let measurement: Layout.measurement =
+            switch (measurement.length) {
+            | 1 => measurement
+            | _ => {length: 1, origin: measurement.origin + 1}
+            };*/
+          let profile = sel_piece_profile(Root, mold, measurement, ms);
+          [SelemDec.view(~font_metrics, profile)];
+        //uncomment below to unfatten infix grout deco
+        // TODO(andrew): hack
+        | Piece(_, mold, Indicated(_s))
+            when
+              switch (pd) {
+              | [(_, {string, _})] => List.mem(string, Token.ops)
+              | _ => false
+              } =>
+          /*let measurement: Layout.measurement =
+            switch (measurement.length) {
+            | 1 => measurement
+            | _ => {length: 1, origin: measurement.origin + 1}
+            };*/
+          let profile = sel_piece_profile(Root, mold, measurement, ms);
+          [SelemDec.view(~font_metrics, profile)];
+        //uncomment below to unfatten infix op deco
+        // TODO(andrew): hack
+        | Piece(_p, mold, Indicated(_s)) =>
+          let profile = sel_piece_profile(Root, mold, measurement, ms);
+          [SelemDec.view(~font_metrics, profile)];
+        | _ => []
+        */
   };
 
-let rec deco_views =
-        (
-          ind_token,
-          ~font_metrics: FontMetrics.t,
-          ~zipper: Zipper.t,
-          layout: Layout.measured,
-        )
-        : list(t) => {
-  switch (layout.layout) {
-  | CatM(ms, ann) =>
-    cat_decos(ind_token, ~font_metrics, ~zipper, ann, layout.measurement, ms)
-    @ List.concat(
-        List.map(deco_views(ind_token, ~font_metrics, ~zipper), ms),
-      )
-  | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
+  let children = (p: Piece.t): list(Layout.measurement) =>
+    switch (p) {
+    | Whitespace(_)
+    | Grout(_) => []
+    | Tile(t) =>
+      let m = Measured.find_t(t, M.map);
+      let token = List.nth(t.label);
+      Aba.mk(t.shards, t.children)
+      |> Aba.fold_left(
+           shard => (m.origin + Unicode.length(token(shard)), []),
+           ((origin, children: list(Layout.measurement)), child, shard) => {
+             let length = Measured.length(child, M.map);
+             (
+               origin + length + Unicode.length(token(shard)),
+               children @ [{origin, length}],
+             );
+           },
+         )
+      |> snd;
+    };
+
+  let selected_pieces = (z: Zipper.t): list(Node.t) => {
+    // TODO mold/nibs/selemdec clean up pass
+    let (l, _) = Siblings.shapes(z.relatives.siblings);
+    z.selection.content
+    |> ListUtil.fold_left_map(
+         (l: Nib.Shape.t, p: Piece.t) => {
+           let m = Measured.find_p(p, M.map);
+           // TODO(d) fix sorts
+           let (sort: Sort.t, nibs) =
+             switch (p) {
+             | Whitespace(_) => (
+                 Exp,
+                 Mold.of_whitespace({sort: Exp, shape: l}).nibs,
+               )
+             | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
+             | Tile(t) => (t.mold.out, Tile.nibs(t))
+             };
+           let profile =
+             SelemDec.Profile.{
+               color: Color.of_sort(sort),
+               shape: Layout.piece_shape_of_nibs(nibs),
+               measurement: m,
+               style: Selected,
+               closed_children: [],
+               open_children: children(p),
+             };
+           (snd(nibs).shape, SelemDec.view(~font_metrics, profile));
+         },
+         l,
+       )
+    |> snd;
+  };
+
+  let rec targets = (bp: Backpack.t, seg: Segment.t) => {
+    let root_targets =
+      ListUtil.splits(seg)
+      |> List.map(((l, r)) => {
+           let sibs = Segment.(incomplete_tiles(l), incomplete_tiles(r));
+           switch (Backpack.pop(sibs, bp)) {
+           | None
+           | Some((true, _, _)) => []
+           | Some(_) =>
+             let measurement =
+               switch (Siblings.neighbors((l, r))) {
+               | (None, None) => failwith("impossible")
+               | (_, Some(p)) =>
+                 let m = Measured.find_p(p, M.map);
+                 Layout.{origin: m.origin, length: 1};
+               | (Some(p), _) =>
+                 let m = Measured.find_p(p, M.map);
+                 Layout.{origin: m.origin + m.length, length: 1};
+               };
+             let profile =
+               CaretPosDec.Profile.{
+                 style: `Sibling,
+                 measurement,
+                 color: Color.Exp,
+                 just_failed: None,
+               };
+             [CaretPosDec.view(~font_metrics, profile)];
+           };
+         })
+      |> List.concat;
+    switch (root_targets) {
+    | [_, ..._] => root_targets
+    | [] =>
+      seg
+      |> List.filter_map(
+           fun
+           | Piece.Tile(t) => Some(t)
+           | _ => None,
+         )
+      |> List.map((t: Tile.t) =>
+           List.concat(List.map(targets(bp), t.children))
+         )
+      |> List.concat
+    };
+  };
+
+  let all = (z: Zipper.t) => {
+    let seg = Zipper.zip(z);
+    List.concat([
+      holes(seg),
+      caret(z),
+      targets(z.backpack, seg),
+      selected_pieces(z),
+    ]);
   };
 };
 
@@ -294,15 +514,23 @@ let view =
       ~zipper: Zipper.t,
     )
     : Node.t => {
-  let layout = Layout.mk_zipper(zipper);
-  let measured = Layout.to_measured(layout);
-  let ind_token = ind_hack(layout);
+  // let layout = Layout.mk_zipper(zipper);
+  // let measured = Layout.to_measured(layout);
+  // let ind_token = ind_hack(layout);
+  let seg = Zipper.zip(zipper);
+  module Deco =
+    Deco({
+      let font_metrics = font_metrics;
+      let map = snd(Measured.of_segment(seg));
+    });
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
-    [
-      span_c("code-text", text_views(layout)),
-      ...deco_views(ind_token, ~font_metrics, ~zipper, measured),
-    ],
+    [span_c("code-text", Text.of_segment(seg))]
+    // [
+    //   span_c("code-text", text_views(layout)),
+    //   ...deco_views(~font_metrics, ~zipper, measured),
+    // ]
+    @ Deco.all(zipper),
   );
 };
 

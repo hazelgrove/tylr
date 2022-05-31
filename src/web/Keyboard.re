@@ -41,7 +41,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
     let now = a => [Update.PerformAction(a)];
-    let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
+    // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
       if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
@@ -49,16 +49,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
-        | "F3" =>
-          zipper |> Layout.mk_zipper |> Layout.show |> print_endline;
-          [];
-        | "F4" =>
-          zipper
-          |> Layout.mk_zipper
-          |> Layout.to_measured
-          |> Layout.show_measured
-          |> print_endline;
-          [];
+        // | "F3" =>
+        //   zipper |> Layout.mk_zipper |> Layout.show |> print_endline;
+        //   [];
+        // | "F4" =>
+        //   zipper
+        //   |> Layout.mk_zipper
+        //   |> Layout.to_measured
+        //   |> Layout.show_measured
+        //   |> print_endline;
+        //   [];
         | "ArrowLeft" when held(Shift) => now(Select(Left))
         | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))
