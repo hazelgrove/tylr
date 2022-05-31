@@ -5,30 +5,14 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-/*
- TODO(andrew): reconcile EmptyHole case below with new Text module
-
- let rec text_views = (l: Layout.t): list(Node.t) => {
-   switch (l) {
-   | Atom(token, ann) =>
-     let ns = [text(Layout.string_of_token(token))];
-     switch (ann) {
-     | None
-     | Ap
-     | Space(_) => ns
-     | EmptyHole(_) => [span_c("empty-hole", ns)]
-     | Delim => [span_c("delim", ns)]
-     | Shard => [span_c("extra-bold-delim", ns)]
-     };
-   | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
- */
-
 module Text = {
   let rec of_segment = (seg: Segment.t): list(Node.t) =>
     seg
     |> List.map(
          fun
-         | Piece.Whitespace(w) => [Node.text(w.content)]
+         | Piece.Whitespace(w) => [
+             Node.text(w.content == " " ? Unicode.nbsp : w.content),
+           ]
          | Grout(_) => [Node.text(Unicode.nbsp)]
          | Tile(t) => of_tile(t),
        )
@@ -46,40 +30,6 @@ module Text = {
     |> List.concat;
   };
 };
-
-// let rec text_views = (l: Layout.t): list(Node.t) => {
-//   switch (l) {
-//   | Atom(s, ann) =>
-//     switch (ann) {
-//     | None
-//     | Whitespace
-//     | Ap
-//     | Space(_)
-//     | EmptyHole(_) => [text(s)]
-//     | Delim => [span_c("delim", [text(s)])]
-//     | Shard => [span_c("extra-bold-delim", [text(s)])]
-//     }
-//   | Cat(ls, _) => List.fold_left((ts, l) => ts @ text_views(l), [], ls)
-//   };
-// };
-
-// let range_profile = (ms: list(Layout.measured), i, j): Layout.measurement =>
-//   if (j == List.length(ms) && i < j) {
-//     let last = List.nth(ms, List.length(ms) - 1);
-//     let origin = List.nth(ms, i).measurement.origin;
-//     let length = last.measurement.origin + last.measurement.length - origin;
-//     {origin, length};
-//   } else if (j == List.length(ms) && i == j) {
-//     let last = List.nth(ms, List.length(ms) - 1);
-//     let origin = last.measurement.origin + last.measurement.length;
-//     let length = 0;
-//     {origin, length};
-//   } else {
-//     assert(0 <= i && i <= j && j < List.length(ms));
-//     let origin = List.nth(ms, i).measurement.origin;
-//     let length = List.nth(ms, j).measurement.origin - origin;
-//     {origin, length};
-//   };
 
 // let sel_piece_profile =
 //     (
@@ -152,15 +102,6 @@ let backpack_view =
 };
 
 /*
- let rec ind_hack = (l: Layout.t): list((Mold.t, Layout.token)) => {
-   switch (l) {
-   | Atom(_) => []
-   | Cat(ls, Piece(_, mold, Indicated(token))) =>
-     //TODO(andrew): hack
-     [(mold, token)] @ List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
-   | Cat(ls, _) => List.fold_left((ts, l) => ts @ ind_hack(l), [], ls)
-   };
- };
 
  let caret_shape =
      (
@@ -292,6 +233,45 @@ let backpack_view =
 //   };
 // };
 
+let seg_shape = (d: Direction.t, segment: Segment.t): Nib.Shape.t => {
+  let (_, shape, _) = Segment.shape_affix(d, segment, Nib.Shape.concave());
+  d == Right ? Nib.Shape.flip(shape) : shape;
+};
+
+let seg_shape_no_flip = (d: Direction.t, segment: Segment.t): Nib.Shape.t => {
+  let (_, shape, _) = Segment.shape_affix(d, segment, Nib.Shape.concave());
+  shape;
+};
+
+let get_indicated_p =
+    (
+      {
+        relatives: {siblings: (l_sibs, r_sibs), ancestors},
+        selection: {content, _},
+        _,
+      } as _z: Zipper.t,
+    )
+    : option((Piece.t, Nib.Shape.t)) =>
+  //TODO(andrew): handle Whitespace better?
+  switch (content, r_sibs, ancestors, l_sibs) {
+  | ([_, ..._], _, _, _) => None
+  | ([], [r_nhbr, ..._], _, _) => Some((r_nhbr, seg_shape(Right, r_sibs)))
+  | ([], [], [(parent, _), ..._], _) =>
+    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Convex))
+  | ([], [], [], [_, ..._]) =>
+    Some((ListUtil.last(l_sibs), seg_shape(Left, l_sibs)))
+  | ([], [], [], []) => None
+  };
+
+let sort_n_nibs: (Nib.Shape.t, Piece.t) => (Sort.t, Nibs.t) =
+  // TODO(d) fix sorts
+  (l, p) =>
+    switch (p) {
+    | Whitespace(_) => (Exp, Mold.of_whitespace({sort: Exp, shape: l}).nibs)
+    | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
+    | Tile(t) => (t.mold.out, Tile.nibs(t))
+    };
+
 module Deco = (M: {
                  let font_metrics: FontMetrics.t;
                  let map: Measured.t;
@@ -339,23 +319,47 @@ module Deco = (M: {
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
-    //NOTE(andrew): below related to generic spacing
-    let (caret_offset, sub_offset) =
-      switch (z.caret) {
-      | Outer => (0, 0.0) /* -(0.5) */
-      | Inner(n) => (n + 1, 0.0)
+    let caret_shape: CaretDec.caret_shape =
+      switch (get_indicated_p(z)) {
+      | _ when z.caret != Outer => Straight
+      | _ when z.selection.content != [] =>
+        //TODO(andrew): cleanup
+        switch (z.selection.focus) {
+        | Left =>
+          switch (
+            seg_shape(Right, z.selection.content @ snd(z.relatives.siblings))
+          ) {
+          | Convex => Right
+          | Concave(_) => Left
+          }
+        | Right =>
+          switch (
+            seg_shape(Left, fst(z.relatives.siblings) @ z.selection.content)
+          ) {
+          | Convex => Right
+          | Concave(_) => Left
+          }
+        }
+      | None => Straight
+      | Some((_p, ns)) =>
+        switch (ns) {
+        | Convex => Right
+        | Concave(_) => Left
+        }
       };
-    //TODO(andrew): caret_shape
-    //let caret_shape = caret_shape(caret, pd, i, j, ms, ~focus);
+    let caret_offset =
+      switch (z.caret) {
+      | Outer => 0
+      | Inner(n) => n + 1
+      };
     [
       //TODO(andrew): restore
       //SelectedBoxDec.view(~font_metrics, profile),
       CaretDec.simple_view(
         ~font_metrics,
-        ~sub_offset,
         origin + caret_offset,
         "#f008",
-        Straight,
+        caret_shape,
       ),
       backpack_view(~font_metrics, ~origin, z.backpack),
     ];
@@ -416,19 +420,6 @@ module Deco = (M: {
       |> snd;
     };
 
-  //Tile(Ancestor.zip(l_sibs, ancestor))
-
-  let sort_n_nibs: (Nib.Shape.t, Piece.t) => (Sort.t, Nibs.t) =
-    (l, p) =>
-      switch (p) {
-      | Whitespace(_) => (
-          Exp,
-          Mold.of_whitespace({sort: Exp, shape: l}).nibs,
-        )
-      | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
-      | Tile(t) => (t.mold.out, Tile.nibs(t))
-      };
-
   let selected_pieces = (z: Zipper.t): list(Node.t) => {
     // TODO mold/nibs/selemdec clean up pass
     let (l, _) = Siblings.shapes(z.relatives.siblings);
@@ -436,16 +427,7 @@ module Deco = (M: {
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
            let m = Measured.find_p(p, M.map);
-           // TODO(d) fix sorts
-           let (sort: Sort.t, nibs) =
-             switch (p) {
-             | Whitespace(_) => (
-                 Exp,
-                 Mold.of_whitespace({sort: Exp, shape: l}).nibs,
-               )
-             | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
-             | Tile(t) => (t.mold.out, Tile.nibs(t))
-             };
+           let (sort: Sort.t, nibs) = sort_n_nibs(l, p);
            let profile =
              SelemDec.Profile.{
                color: Color.of_sort(sort),
@@ -462,32 +444,13 @@ module Deco = (M: {
     |> snd;
   };
 
-  let get_indicated_p =
-      (
-        {
-          relatives: {siblings: (l_sibs, r_sibs), ancestors},
-          selection: {content, _},
-          _,
-        } as _z: Zipper.t,
-      )
-      : option(Piece.t) =>
-    //TODO(andrew): handle Whitespace
-    switch (content, r_sibs, ancestors, l_sibs) {
-    | ([_, ..._], _, _, _) => None
-    | ([], [r_nhbr, ..._], _, _) => Some(r_nhbr)
-    | ([], [], [(parent, _), ..._], _) =>
-      Some(Base.Tile(Ancestor.zip(l_sibs, parent)))
-    | ([], [], [], [_, ..._]) =>
-      Some(List.nth(l_sibs, List.length(l_sibs) - 1))
-    | ([], [], [], []) => None
-    };
-
   let indicated_piece = (z: Zipper.t): list(Node.t) => {
     switch (get_indicated_p(z)) {
     | None => []
-    | Some(p) =>
+    | Some((p, nib_shape)) =>
       let m = Measured.find_p(p, M.map);
-      let (sort, nibs) = sort_n_nibs(Convex, p); //TODO(andrew): Convex
+      //let nib_shape = Nib.Shape.Convex; //TODO(andrew): Convex
+      let (sort, nibs) = sort_n_nibs(nib_shape, p);
       let profile =
         SelemDec.Profile.{
           color: Color.of_sort(sort),

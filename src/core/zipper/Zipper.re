@@ -179,15 +179,6 @@ let put_down = (z: t): option(t) => {
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
-// let grout_between: Siblings.t => Piece.t =
-//   fun
-//   | ([], []) => failwith("insert_space_grout: impossible")
-//   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
-//   | ([p, ..._], _) => {
-//       let nib_shape_r = p |> Piece.shapes |> snd;
-//       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
-//     };
-
 let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
   open IdGen.Syntax;
   let+ id = IdGen.fresh;
@@ -199,7 +190,9 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
 
 let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
   switch (label) {
-  | [t] when Token.is_whitespace(t) => insert_space_grout(t, z)
+  | [t] when Token.is_whitespace(t) =>
+    Siblings.has_space_neighbor(z.relatives.siblings)
+      ? IdGen.return(z) : insert_space_grout(t, z)
   | _ =>
     let z = destruct_outer(z);
     let molds = Molds.get(label);

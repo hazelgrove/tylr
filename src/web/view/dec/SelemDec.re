@@ -4,8 +4,8 @@ open Util;
 open Diag;
 open DecUtil;
 
-let c_fudge = 0.6; //fudges child width to prevent overlap
-let d_fudge = 0.4; // fudges outer concave nibs
+let c_fudge = 0.; //0.6; //fudges child width to prevent overlap
+let d_fudge = 0.; //0.4; // fudges outer concave nibs
 
 module Profile = {
   type t = {
@@ -130,7 +130,7 @@ let open_child_paths =
     | Pat => "var(--pat-shadow-color)"
     | Exp => "var(--exp-shadow-color)"
     };
-  let gradient = (id, start, len) =>
+  let _gradient = (id, start, len) =>
     Node.create_svg(
       "linearGradient",
       [
@@ -175,7 +175,8 @@ let open_child_paths =
            origin',
          );
        [
-         gradient(gradient_id, origin', length),
+         //TODO(andrew): restore?
+         //gradient(gradient_id, origin', length),
          view(
            ~attrs=
              Attr.[

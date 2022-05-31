@@ -1,8 +1,6 @@
 // open Util;
 open Core;
 
-let pad_segments = false; // set segments as space-padded
-
 // open Virtual_dom;
 // open Vdom;
 // let span_c = cls => Node.span([Attr.class_(cls)]);
@@ -25,9 +23,7 @@ let pad_segments = false; // set segments as space-padded
 //   |> List.concat;
 // };
 // let text_of_zipper = z => text_of_segment(Zipper.zip(z));
-// let pad_segments = true; // set segments as space-padded
-// // TODO: get rid of these and better organize
-// // types around new mold/nib model
+
 [@deriving show]
 type tip_shape = (Nib.t, int);
 [@deriving show]
@@ -154,7 +150,7 @@ let token_length: token => int = t => t |> string_of_token |> Unicode.length;
 let unpadded = (string): token => {string, padding: None};
 
 let delim_token: Token.t => token =
-  string => {string, padding: pad_segments ? None : padding(string)};
+  string => {string, padding: padding(string)};
 
 // let text: string => t = t => Atom(t, None);
 // let delim: string => t = s => Atom(s, Delim);
