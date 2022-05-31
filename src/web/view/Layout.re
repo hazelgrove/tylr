@@ -264,6 +264,12 @@ let rec length =
   | Atom(t, _) => token_length(t)
   | Cat(ls, _) => List.fold_left((acc, l) => length(l) + acc, 0, ls);
 
+let relativize_measurements: (int, list(measurement)) => list(measurement) =
+  parent_origin =>
+    List.map(({origin, length}) =>
+      {origin: origin - parent_origin, length}
+    );
+
 /*
  let rec to_measured = (~origin=0, layout: t): measured =>
    switch (layout) {
@@ -305,11 +311,7 @@ let rec length =
    |> ListUtil.p_indices((==)(true))
    |> select_piece_idxs(ms);
  };
- let relativize_measurements: (int, list(measurement)) => list(measurement) =
-   parent_origin =>
-     List.map(({origin, length}) =>
-       {origin: origin - parent_origin, length}
-     );
+
 
  let of_grout: (Sort.t, Grout.t) => t =
    (sort, g) => {

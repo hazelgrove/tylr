@@ -47,6 +47,8 @@ let find_w = (w: Whitespace.t, map) => Id.Map.find(w.id, map.whitespace);
 let find_g = (g: Grout.t, map) => Id.Map.find(g.id, map.grout);
 let find_t = (t: Tile.t, map) =>
   List.assoc(t.shards, Id.Map.find(t.id, map.tiles));
+let find_a = ({shards: (l, r), _} as a: Ancestor.t, map) =>
+  List.assoc(l @ r, Id.Map.find(a.id, map.tiles));
 let find_p = (p: Piece.t, map) =>
   p
   |> Piece.get(

@@ -416,6 +416,19 @@ module Deco = (M: {
       |> snd;
     };
 
+  //Tile(Ancestor.zip(l_sibs, ancestor))
+
+  let sort_n_nibs: (Nib.Shape.t, Piece.t) => (Sort.t, Nibs.t) =
+    (l, p) =>
+      switch (p) {
+      | Whitespace(_) => (
+          Exp,
+          Mold.of_whitespace({sort: Exp, shape: l}).nibs,
+        )
+      | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
+      | Tile(t) => (t.mold.out, Tile.nibs(t))
+      };
+
   let selected_pieces = (z: Zipper.t): list(Node.t) => {
     // TODO mold/nibs/selemdec clean up pass
     let (l, _) = Siblings.shapes(z.relatives.siblings);
@@ -447,6 +460,46 @@ module Deco = (M: {
          l,
        )
     |> snd;
+  };
+
+  let get_indicated_p =
+      (
+        {
+          relatives: {siblings: (l_sibs, r_sibs), ancestors},
+          selection: {content, _},
+          _,
+        } as _z: Zipper.t,
+      )
+      : option(Piece.t) =>
+    //TODO(andrew): handle Whitespace
+    switch (content, r_sibs, ancestors, l_sibs) {
+    | ([_, ..._], _, _, _) => None
+    | ([], [r_nhbr, ..._], _, _) => Some(r_nhbr)
+    | ([], [], [(parent, _), ..._], _) =>
+      Some(Base.Tile(Ancestor.zip(l_sibs, parent)))
+    | ([], [], [], [_, ..._]) =>
+      Some(List.nth(l_sibs, List.length(l_sibs) - 1))
+    | ([], [], [], []) => None
+    };
+
+  let indicated_piece = (z: Zipper.t): list(Node.t) => {
+    switch (get_indicated_p(z)) {
+    | None => []
+    | Some(p) =>
+      let m = Measured.find_p(p, M.map);
+      let (sort, nibs) = sort_n_nibs(Convex, p); //TODO(andrew): Convex
+      let profile =
+        SelemDec.Profile.{
+          color: Color.of_sort(sort),
+          shape: Layout.piece_shape_of_nibs(nibs),
+          measurement: m,
+          style: Root,
+          closed_children: [],
+          open_children:
+            children(p) |> Layout.relativize_measurements(m.origin),
+        };
+      [SelemDec.view(~font_metrics, profile)];
+    };
   };
 
   let rec targets = (bp: Backpack.t, seg: Segment.t) => {
@@ -502,6 +555,7 @@ module Deco = (M: {
       caret(z),
       targets(z.backpack, seg),
       selected_pieces(z),
+      indicated_piece(z),
     ]);
   };
 };
