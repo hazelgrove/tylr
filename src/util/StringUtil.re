@@ -15,3 +15,5 @@ let split_nth = (n, t) => {
   assert(n < String.length(t));
   (String.sub(t, 0, n), String.sub(t, n, String.length(t) - n));
 };
+
+let to_list = s => List.init(String.length(s), i => String.make(1, s.[i]));

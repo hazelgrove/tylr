@@ -19,6 +19,29 @@ let mk_id = (): int => {
   uid;
 };
 
+let blank = {
+  let id = mk_id();
+  {
+    id_gen: id_gen^,
+    zipper: {
+      selection: {
+        focus: Left,
+        content: [],
+      },
+      backpack: [],
+      relatives: {
+        siblings: ([Grout({id, shape: Convex})], []),
+        ancestors: [],
+      },
+      caret: Outer,
+    },
+    history: ActionHistory.empty,
+    font_metrics: FontMetrics.init,
+    logo_font_metrics: FontMetrics.init,
+    show_neighbor_tiles: false,
+  };
+};
+
 let mk_tile: (Form.t, list(list(Piece.t))) => Piece.t =
   //TODO: asserts
   (form, children) =>
@@ -84,28 +107,4 @@ let init = () => {
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
   show_neighbor_tiles: false,
-};
-
-let filler = _ => 0;
-let blank = {
-  let id = mk_id();
-  {
-    id_gen: id_gen^,
-    zipper: {
-      selection: {
-        focus: Left,
-        content: [],
-      },
-      backpack: [],
-      relatives: {
-        siblings: ([Grout({id, shape: Convex})], []),
-        ancestors: [],
-      },
-      caret: Outer,
-    },
-    history: ActionHistory.empty,
-    font_metrics: FontMetrics.init,
-    logo_font_metrics: FontMetrics.init,
-    show_neighbor_tiles: false,
-  };
 };
