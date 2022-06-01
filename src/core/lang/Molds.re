@@ -14,8 +14,19 @@ let forms_assoc: list((Label.t, list(Mold.t))) =
     Form.forms,
   );
 
+let convex_mono_molds = (label: list(Token.t)): option(list(Mold.t)) =>
+  // TODO(andrew): cleanup
+  switch (label) {
+  | [t] =>
+    switch (Form.convex_mono_molds(t)) {
+    | [] => None
+    | ms => Some(ms)
+    }
+  | _ => None
+  };
+
 let get = (label: Label.t): list(Mold.t) =>
-  switch (Form.mono_molds(label), List.assoc_opt(label, forms_assoc)) {
+  switch (convex_mono_molds(label), List.assoc_opt(label, forms_assoc)) {
   | (Some(molds), _) => molds
   | (_, Some(molds)) => molds
   | (_, None) => []

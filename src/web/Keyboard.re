@@ -76,7 +76,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           Update.[
             /*PerformAction(Select(Right)),*/ PerformAction(Destruct(Right)),
           ]
-        | _ when Token.is_valid(key) => now(Insert(key))
+        | _ when Form.is_valid_char(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];

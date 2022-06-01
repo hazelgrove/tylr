@@ -1,6 +1,8 @@
 open Mold;
 module P = Precedence;
 
+let regexp = (r, s) => Re.Str.string_match(Re.Str.regexp(r), s, 0);
+
 [@deriving show]
 type label = list(string);
 
@@ -32,35 +34,19 @@ let mk_is = (label, mold) => {label, mold, expansion: (Instant, Static)};
 let mk_ds = (label, mold) => {label, mold, expansion: (Delayed, Static)};
 let mk_di = (label, mold) => {label, mold, expansion: (Delayed, Instant)};
 
-let mono_molds = (label: list(Token.t)): option(list(Mold.t)) =>
-  // TODO(andrew): further abstract this (assoc ls of regexps to molds)
-  switch (label) {
-  | [t] when Token.is_num(t) => Some([mk_op(Exp, [])])
-  | [t] when Token.is_var(t) => Some([mk_op(Pat, []), mk_op(Exp, [])])
-  | _ => None
-  };
-
-let var_exp = (t: string) => {
-  assert(Token.is_var(t));
-  mk([t], Mold.(mk_op(Exp, [])));
-};
-
-let var_pat = (t: string) => {
-  assert(Token.is_var(t));
-  mk([t], Mold.(mk_op(Pat, [])));
-};
-
-let int_exp = (n: int) => {
-  assert(Token.is_num(string_of_int(n)));
-  mk([string_of_int(n)], Mold.(mk_op(Exp, [])));
-};
-
 let mk_infix = (str: string, sort: Sort.t, prec) =>
   mk([str], mk_bin(prec, sort, []));
 
-/* Order in this list determines relative remolding
+/* Operands: */
+let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
+  ("var", (regexp("^[a-z]*$"), [mk_op(Exp, [])])),
+  ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
+];
+
+/* Compound Forms:
+   Order in this list determines relative remolding
    priority for forms which share the same labels */
-let forms = [
+let forms: list((string, t)) = [
   ("times", mk_infix("*", Exp, P.mult)),
   ("divide", mk_infix("/", Exp, P.mult)),
   ("equals", mk_infix("=", Exp, P.eqs)),
@@ -85,3 +71,30 @@ let forms = [
 ];
 
 let get: string => t = name => List.assoc(name, forms);
+
+let delims: list(Token.t) =
+  forms
+  |> List.fold_left((acc, (_, {label, _}: t)) => {label @ acc}, [])
+  |> List.sort_uniq(compare);
+
+let convex_mono_molds: Token.t => list(Mold.t) =
+  s =>
+    List.fold_left(
+      (acc, (_, (test, molds))) => test(s) ? molds @ acc : acc,
+      [],
+      convex_monos,
+    );
+
+let is_convex_mono = t => convex_mono_molds(t) != [];
+let is_whitespace = t => List.mem(t, [" ", "\n"]);
+let is_delim = t => List.mem(t, delims);
+
+let is_valid_token = t =>
+  is_convex_mono(t) || is_whitespace(t) || is_delim(t);
+
+let is_valid_char = is_valid_token; //TODO(andrew): betterify this
+
+let mk_mono_alphanum = (sort: Sort.t, t: string) => {
+  assert(is_convex_mono(t));
+  mk([t], Mold.(mk_op(sort, [])));
+};

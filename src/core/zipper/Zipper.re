@@ -190,7 +190,7 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
 
 let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
   switch (label) {
-  | [t] when Token.is_whitespace(t) =>
+  | [t] when Form.is_whitespace(t) =>
     Siblings.has_space_neighbor(z.relatives.siblings)
       ? IdGen.return(z) : insert_space_grout(t, z)
   | _ =>
@@ -237,7 +237,7 @@ let merge_candidates:
     | Some((ps, l_nhbr)) when can_merge_through(l_nhbr) =>
       switch (caret, neighbor_monotiles((ps, r_sibs))) {
       | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
-          when Token.is_valid(l_2nd_nhbr ++ r_nhbr) =>
+          when Form.is_valid_token(l_2nd_nhbr ++ r_nhbr) =>
         Some((l_2nd_nhbr, r_nhbr))
       | _ => None
       }
@@ -338,8 +338,8 @@ type appendability =
 let sibling_appendability: (string, Siblings.t) => appendability =
   (char, siblings) =>
     switch (neighbor_monotiles(siblings)) {
-    | (Some(t), _) when Token.is_valid(t ++ char) => CanAddToLeft(t)
-    | (_, Some(t)) when Token.is_valid(char ++ t) => CanAddToRight(t)
+    | (Some(t), _) when Form.is_valid_token(t ++ char) => CanAddToLeft(t)
+    | (_, Some(t)) when Form.is_valid_token(char ++ t) => CanAddToRight(t)
     | _ => CanAddToNeither
     };
 
@@ -396,7 +396,7 @@ let insert =
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
     /* If inserting wouldn't produce a valid token, split */
-    Token.is_valid(new_t)
+    Form.is_valid_token(new_t)
       ? z
         |> set_caret(Inner(idx))
         |> (z => replace_construct(Right, [new_t], (z, id_gen)))
