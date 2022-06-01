@@ -37,13 +37,18 @@ let mk_di = (label, mold) => {label, mold, expansion: (Delayed, Instant)};
 let mk_infix = (str: string, sort: Sort.t, prec) =>
   mk([str], mk_bin(prec, sort, []));
 
-/* Operands: */
+/* A. Whitespace: */
+let whitespace = [" ", "\n"];
+
+/* B. Operands:
+   Order in this list determines relative remolding
+   priority for forms with overlapping regexps */
 let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
   ("var", (regexp("^[a-z]*$"), [mk_op(Exp, [])])),
   ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
 ];
 
-/* Compound Forms:
+/* C. Compound Forms:
    Order in this list determines relative remolding
    priority for forms which share the same labels */
 let forms: list((string, t)) = [
@@ -86,7 +91,7 @@ let convex_mono_molds: Token.t => list(Mold.t) =
     );
 
 let is_convex_mono = t => convex_mono_molds(t) != [];
-let is_whitespace = t => List.mem(t, [" ", "\n"]);
+let is_whitespace = t => List.mem(t, whitespace);
 let is_delim = t => List.mem(t, delims);
 
 let is_valid_token = t =>
@@ -94,7 +99,7 @@ let is_valid_token = t =>
 
 let is_valid_char = is_valid_token; //TODO(andrew): betterify this
 
-let mk_mono_alphanum = (sort: Sort.t, t: string) => {
+let mk_convex_mono = (sort: Sort.t, t: string) => {
   assert(is_convex_mono(t));
   mk([t], Mold.(mk_op(sort, [])));
 };
