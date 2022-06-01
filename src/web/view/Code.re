@@ -150,29 +150,6 @@ let backpack_view =
 //   };
 // };
 
-// let text_decos = (~font_metrics, ann: Layout.ann_atom, measurement) =>
-//   switch (ann) {
-//   | EmptyHole(mold) => [
-//       EmptyHoleDec.view(~font_metrics: FontMetrics.t, {measurement, mold}),
-//     ]
-//   | _ => []
-//   };
-
-// let rec deco_views =
-//         (
-//           ~font_metrics: FontMetrics.t,
-//           ~zipper: Zipper.t,
-//           layout: Layout.measured,
-//         )
-//         : list(t) => {
-//   switch (layout.layout) {
-//   | CatM(ms, ann) =>
-//     cat_decos(~font_metrics, ~zipper, ann, layout.measurement, ms)
-//     @ List.concat(List.map(deco_views(~font_metrics, ~zipper), ms))
-//   | AtomM(_s, ann) => text_decos(~font_metrics, ann, layout.measurement)
-//   };
-// };
-
 let seg_shape = (d: Direction.t, segment: Segment.t): Nib.Shape.t => {
   let (_, shape, _) = Segment.shape_affix(d, segment, Nib.Shape.concave());
   d == Right ? Nib.Shape.flip(shape) : shape;
@@ -193,12 +170,15 @@ let get_indicated_p =
       when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
     // skip whitespace
     Some((ListUtil.last(l_sibs), seg_shape(Left, l_sibs)))
-  | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
+  | ([], [Whitespace(_), ...r_sibs], [(parent, _), ..._], []) =>
     // skip whitespace
-    //TODO(andrew): this case seems to result in caret deco fucksy wucksy
-    Some((Base.Tile(Ancestor.zip(r_sibs, parent)), Convex))
+    Some((
+      Base.Tile(Ancestor.zip(r_sibs, parent)),
+      seg_shape(Right, r_sibs),
+    ))
   | ([], [r_nhbr, ..._], _, _) => Some((r_nhbr, seg_shape(Right, r_sibs)))
   | ([], [], [(parent, _), ..._], _) =>
+    //TODO(andrew): does Convex here make sense?
     Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Convex))
   | ([], [], [], [_, ..._]) =>
     Some((ListUtil.last(l_sibs), seg_shape(Left, l_sibs)))

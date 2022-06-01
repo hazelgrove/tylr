@@ -570,7 +570,7 @@ let simple_view =
   let fudge =
     //TODO(andrew)
     switch (caret_shape) {
-    | Left => (-3.0)
+    | Left => (-2.0)
     | Right => (-4.0)
     | Straight => 0.0
     };
