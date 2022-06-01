@@ -35,29 +35,6 @@ module Profile = {
     // empty_holes,
     style,
   };
-
-  let of_layout =
-      (
-        ~measurement: Layout.measurement,
-        ~color: Color.t,
-        ~shape: Layout.piece_shape,
-        ~style: SelemStyle.t,
-        layout: Layout.t,
-      ) => {
-    // let empty_holes = Layout.piece_holes(layout);
-    let (open_children, closed_children) = Layout.piece_children(layout);
-    //let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
-    mk(
-      ~measurement,
-      ~open_children,
-      ~closed_children,
-      // ~empty_holes,
-      ~color,
-      ~style,
-      ~shape,
-      (),
-    );
-  };
 };
 
 let raised_shadow_filter = (~color: Color.t) => {
