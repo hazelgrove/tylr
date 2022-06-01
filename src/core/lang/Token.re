@@ -11,10 +11,17 @@ let regexp = (r, s) => Re.Str.string_match(Re.Str.regexp(r), s, 0);
 
 let is_var = regexp("^[a-z]*$");
 let is_num = regexp("^[0-9]*$");
-let ops = ["+", "-", "*", "/", ",", "=", ">"];
+let ops = ["+", "-", "*", "/", ",", "=", ">", "!", "|"];
 let whitespace = [" ", "\n"];
-let delims_non_kw = [["(", ")"], ["[", "]"], ["?", ":"], ["=>"], ["="]];
-let delims_kw = [["fun"], ["let", "in"]];
+let delims_non_kw = [
+  ["(", ")"],
+  ["[", "]"],
+  ["{", "}"],
+  ["?", ":"],
+  ["=>"],
+  ["="],
+];
+let delims_kw = [["fun"], ["let", "in"], ["case", "of"]];
 
 let is_alphanum = t => is_var(t) || is_num(t);
 let is_op = t => List.mem(t, ops);

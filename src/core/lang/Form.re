@@ -45,9 +45,13 @@ let forms = [
   ("parens_exp", mk(["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(["(", ")"], mk_op(Pat, [Pat]))),
   ("fun_", mk(["fun", "=>"], mk_pre(P.fun_, Pat, [Exp]))),
-  ("ap", mk(["[", "]"], mk_post(P.ap, Exp, [Exp]))),
+  ("ap", mk(["(", ")"], mk_post(P.ap, Exp, [Exp]))),
   ("let_", mk(["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
   ("cond", mk(["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
+  ("block", mk(["{", "}"], mk_op(Exp, [Exp]))),
+  ("case", mk(["case", "of"], mk_pre(9, Exp, [Exp]))),
+  ("rule_first", mk(["|", "=>"], mk_pre(9, Exp, [Pat]))),
+  ("rule_rest", mk(["|", "=>"], mk_bin(9, Exp, [Pat]))),
 ];
 
 let get: string => t = name => List.assoc(name, forms);

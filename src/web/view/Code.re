@@ -89,14 +89,15 @@ let indicated_piece =
       } as _z: Zipper.t,
     )
     : option((Piece.t, Nib.Shape.t)) =>
+  //TODO(andrew): cleanup
   switch (content, r_sibs, ancestors, l_sibs) {
   | ([_, ..._], _, _, _) => None
   | ([], [Whitespace(_), ..._], _, [_, ..._])
       when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
-    // skip whitespace
+    // skip whitespace, indicate the left
     Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs)))
   | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
-    // skip whitespace
+    // skip whitespace, indicate the parent
     Some((
       Base.Tile(Ancestor.zip(r_sibs, parent)),
       segment_shape(Right, r_sibs),
@@ -130,6 +131,7 @@ let caret_shape =
       } as z: Zipper.t,
     )
     : CaretDec.caret_shape =>
+  // to david from andrew: this function is kinda hacky..
   switch (indicated_piece(z)) {
   | _ when caret != Outer => Straight
   | _ when content != [] =>
@@ -144,12 +146,11 @@ let caret_shape =
     };
   | None => Straight
   | Some((p, shape)) =>
-    let (_, (_shape_l, _shape_r)) = sort_n_nibs(shape, p);
-    //TODO(andrew): bug... grout caret shape is wrong
+    // the grout bit here feels extra hacky
     switch (shape) {
-    | Convex => Right
-    | Concave(_) => Left
-    };
+    | Convex => Piece.is_grout(p) ? Left : Right
+    | Concave(_) => Piece.is_grout(p) ? Right : Left
+    }
   };
 
 module Deco = (M: {

@@ -324,10 +324,13 @@ let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
     /* Completions which can or must be executed immediately */
     //TODO(andrew): refactor to depend on Forms.re
     switch (s) {
+    | "|" => (["|", "=>"], Left)
     | "(" => (["(", ")"], Left)
     | ")" => (["(", ")"], Right)
     | "[" => (["[", "]"], Left)
     | "]" => (["[", "]"], Right)
+    | "{" => (["{", "}"], Left)
+    | "}" => (["{", "}"], Right)
     | "?" => (["?", ":"], Left)
     | "=>" => (["fun", "=>"], Right) /* Must as => not monotile */
     | t => ([t], direction_preference)
@@ -338,6 +341,7 @@ let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
     /* Completions which must be defered as they are ambiguous prefixes */
     //TODO(andrew): refactor to depend on Forms.re
     switch (s) {
+    | "case" => (["case", "of"], Left)
     | "fun" => (["fun", "=>"], Left)
     | "in" => (["let", "=", "in"], Right)
     | "let" => (["let", "=", "in"], Left)
