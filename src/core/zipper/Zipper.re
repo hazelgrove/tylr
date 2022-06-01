@@ -319,42 +319,13 @@ let destruct_or_merge =
     merge(candidates, (z, id_gen));
   };
 
-let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
-  (s, direction_preference) =>
-    /* Completions which can or must be executed immediately */
-    //TODO(andrew): refactor to depend on Forms.re
-    switch (s) {
-    | "|" => (["|", "=>"], Left)
-    | "(" => (["(", ")"], Left)
-    | ")" => (["(", ")"], Right)
-    | "[" => (["[", "]"], Left)
-    | "]" => (["[", "]"], Right)
-    | "{" => (["{", "}"], Left)
-    | "}" => (["{", "}"], Right)
-    | "?" => (["?", ":"], Left)
-    | "=>" => (["fun", "=>"], Right) /* Must as => not monotile */
-    | t => ([t], direction_preference)
-    };
-
-let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
-  (s, direction_preference) =>
-    /* Completions which must be defered as they are ambiguous prefixes */
-    //TODO(andrew): refactor to depend on Forms.re
-    switch (s) {
-    | "case" => (["case", "of"], Left)
-    | "fun" => (["fun", "=>"], Left)
-    | "in" => (["let", "=", "in"], Right)
-    | "let" => (["let", "=", "in"], Left)
-    | t => ([t], direction_preference)
-    };
-
 let keyword_expand = ((z, _) as state: state): option(state) =>
   /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
      is down (removing the rest of the set from backpack on edit) as something
      like this is necessary for backspace to act as undo after kw-expansion */
   switch (neighbor_monotiles(z.relatives.siblings)) {
   | (Some(kw), _) =>
-    let (new_label, direction) = delayed_completion(kw, Left);
+    let (new_label, direction) = Molds.delayed_completion(kw, Left);
     replace_construct(direction, new_label, state);
   | _ => Some(state)
   };
@@ -378,7 +349,7 @@ let barf_or_construct =
     z |> put_down |> Option.get |> IdGen.return;
   } else {
     let (lbl, direction) =
-      instant_completion(new_token, direction_preference);
+      Molds.instant_completion(new_token, direction_preference);
     construct(direction, lbl, z);
   };
 
@@ -405,7 +376,7 @@ let insert_outer =
 let split =
     ((z, id_gen): state, char: string, idx: int, t: string): option(state) => {
   let (l, r) = StringUtil.split_nth(idx, t);
-  let (lbl, direction) = instant_completion(char, Left);
+  let (lbl, direction) = Molds.instant_completion(char, Left);
   z
   |> set_caret(Outer)
   |> (z => replace_construct(Right, [r], (z, id_gen)))
