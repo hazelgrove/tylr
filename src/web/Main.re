@@ -62,7 +62,7 @@ let parse: string => Model.t =
   s => s |> Util.StringUtil.to_list |> List.fold_left(insert, Model.blank);
 
 let initial_model: Model.t =
-  parse("let foo = fun taz => (fun bar => (foo + (1+2))) in 2");
+  parse("let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(7!)");
 
 Incr_dom.Start_app.start(
   (module App),

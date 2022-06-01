@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 
 let tip_width = 0.32;
-let child_border_thickness = 0.1;
+let child_border_thickness = 0.05;
 
 let t = child_border_thickness /. 0.5;
 let short_tip_height = (1. -. t) *. 0.5;
