@@ -4,13 +4,13 @@ open Sexplib.Std;
 [@deriving (show, sexp)]
 type t = string;
 
+let regexp = (r, s) => Re.Str.string_match(Re.Str.regexp(r), s, 0);
+
 /* NOTE: right now I am attempting to maintain the invariant
    that every substring of every token is a valid token. */
 
-let is_var = token =>
-  Re.Str.string_match(Re.Str.regexp("^[a-z]*$"), token, 0);
-let is_num = token =>
-  Re.Str.string_match(Re.Str.regexp("^[0-9]*$"), token, 0);
+let is_var = regexp("^[a-z]*$");
+let is_num = regexp("^[0-9]*$");
 let ops = ["+", "-", "*", "/", ",", "=", ">"];
 let whitespace = [" ", "\n"];
 let delims_non_kw = [["(", ")"], ["[", "]"], ["?", ":"], ["=>"], ["="]];

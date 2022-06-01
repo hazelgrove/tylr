@@ -187,9 +187,16 @@ let get_indicated_p =
       } as _z: Zipper.t,
     )
     : option((Piece.t, Nib.Shape.t)) =>
-  //TODO(andrew): skip Whitespace?
   switch (content, r_sibs, ancestors, l_sibs) {
   | ([_, ..._], _, _, _) => None
+  | ([], [Whitespace(_), ..._], _, [_, ..._])
+      when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
+    // skip whitespace
+    Some((ListUtil.last(l_sibs), seg_shape(Left, l_sibs)))
+  | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
+    // skip whitespace
+    //TODO(andrew): this case seems to result in caret deco fucksy wucksy
+    Some((Base.Tile(Ancestor.zip(r_sibs, parent)), Convex))
   | ([], [r_nhbr, ..._], _, _) => Some((r_nhbr, seg_shape(Right, r_sibs)))
   | ([], [], [(parent, _), ..._], _) =>
     Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Convex))
@@ -231,11 +238,13 @@ let caret_shape =
     | Concave(_) => Left
     };
   | None => Straight
-  | Some((_, shape)) =>
+  | Some((p, shape)) =>
+    let (_, (_shape_l, _shape_r)) = sort_n_nibs(shape, p);
+    //TODO(andrew): bug... grout caret shape is wrong
     switch (shape) {
     | Convex => Right
     | Concave(_) => Left
-    }
+    };
   };
 
 module Deco = (M: {
