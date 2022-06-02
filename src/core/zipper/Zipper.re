@@ -384,6 +384,7 @@ let split =
   |> Option.map(((z, id_gen)) => construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
   |> Option.map(((z, id_gen)) => construct(direction, lbl, z, id_gen));
+  //TODO(andrew): address caret positioning on whitespace split
   /*|> Option.map(((z, id_gen)) =>
       (update_siblings(Siblings.trim_whitespace, z), id_gen)
     );*/
