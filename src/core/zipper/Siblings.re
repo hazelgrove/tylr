@@ -113,3 +113,10 @@ let has_space_neighbor: t => bool =
     | (_, Some(p)) when Piece.is_whitespace(p) => true
     | _ => false
     };
+
+let trim_whitespace = ((l_sibs, r_sibs): t) => {
+  (
+    Segment.trim_whitespace(Right, l_sibs),
+    Segment.trim_whitespace(Left, r_sibs),
+  );
+};

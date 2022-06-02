@@ -23,8 +23,6 @@ module Action = {
     | Select(Direction.t)
     | Destruct(Direction.t)
     | Insert(string)
-    // `Construct(d, lbl)` constructs `lbl` starting from `d` side
-    //| Construct(Direction.t, Tile.Label.t)
     | Pick_up
     | Put_down;
 
@@ -312,10 +310,13 @@ let destruct_or_merge =
       ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
     )
     : option(state) =>
-  switch (merge_candidates(d, caret, siblings)) {
+  switch (merge_candidates(d, caret, Siblings.trim_whitespace(siblings))) {
   | None => destruct(d, (z, id_gen))
   | Some(candidates) =>
-    let z = update_siblings(shift_siblings_maybe(d), z);
+    let z =
+      z
+      |> update_siblings(Siblings.trim_whitespace)
+      |> update_siblings(shift_siblings_maybe(d));
     merge(candidates, (z, id_gen));
   };
 
@@ -383,6 +384,9 @@ let split =
   |> Option.map(((z, id_gen)) => construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
   |> Option.map(((z, id_gen)) => construct(direction, lbl, z, id_gen));
+  /*|> Option.map(((z, id_gen)) =>
+      (update_siblings(Siblings.trim_whitespace, z), id_gen)
+    );*/
 };
 
 let insert =
@@ -488,7 +492,6 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     |> insert(char)
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
-  //| Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
   | Put_down =>
     /* Alternatively, putting down inside token could eiter merge-in or split */

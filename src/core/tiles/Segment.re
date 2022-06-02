@@ -307,3 +307,16 @@ let rec reassemble = (seg: t): t =>
       seg_l @ [p, ...reassemble(seg_r)];
     }
   };
+
+let trim_whitespace: (Direction.t, t) => t =
+  (d, ps) => {
+    let trim =
+      List.fold_left(
+        (acc, p) => Piece.is_whitespace(p) ? acc : [p, ...acc],
+        [],
+      );
+    switch (d) {
+    | Left => ps |> trim |> List.rev
+    | Right => ps |> List.rev |> trim
+    };
+  };
