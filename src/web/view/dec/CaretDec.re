@@ -557,23 +557,29 @@ let view =
 let simple_view =
     (
       ~font_metrics: FontMetrics.t,
-      origin: int,
-      color: string,
-      caret_shape: caret_shape,
+      ~side: Direction.t,
+      ~origin: int,
+      ~shape: caret_shape,
     ) => {
   let caret =
-    switch (caret_shape) {
+    switch (shape) {
     | Left => "caret-left"
     | Right => "caret-right"
     | Straight => "caret-straight"
     };
-  let fudge =
-    //TODO(andrew)
-    switch (caret_shape) {
-    | Left => (-2.0)
-    | Right => (-4.0)
+  let shape_fudge =
+    switch (shape) {
+    | Left
+    | Right => (-3.0)
     | Straight => 0.0
     };
+  let side_fudge =
+    switch (side) {
+    | Left => 1.0
+    | Right => 0.0
+    };
+  let top_fudge = 2.0; // ?
+  let height_fudge = 1.0; //extra 1.0 for piece deco shadow
   Node.div(
     [
       Attr.id("caret-temp"),
@@ -581,12 +587,15 @@ let simple_view =
       Attr.create(
         "style",
         Printf.sprintf(
-          "position: absolute; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
-          Float.of_int(origin) *. font_metrics.col_width +. fudge,
-          2.0,
+          "position: absolute; z-index: 100; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
+          Float.of_int(origin)
+          *. font_metrics.col_width
+          +. shape_fudge
+          +. side_fudge,
+          top_fudge,
           0.0,
-          font_metrics.row_height +. 1.0, //extra 1.0 for piece deco shadow
-          color,
+          font_metrics.row_height +. height_fudge,
+          "#f008",
         ),
       ),
     ],

@@ -423,6 +423,7 @@ let move =
       {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
     )
     : option(t) =>
+  //TODO(andrew): bug with moving when non-em selection and inner caret?
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
     z |> set_caret(Inner(last_inner_pos(t))) |> move_outer(d)

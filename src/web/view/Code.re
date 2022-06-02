@@ -88,28 +88,36 @@ let indicated_piece =
         _,
       } as _z: Zipper.t,
     )
-    : option((Piece.t, Nib.Shape.t)) =>
+    : option((Piece.t, Nib.Shape.t, Direction.t)) =>
   //TODO(andrew): cleanup
+  // returned direction indicates side of caret indicated piece is on
   switch (content, r_sibs, ancestors, l_sibs) {
   | ([_, ..._], _, _, _) => None
   | ([], [Whitespace(_), ..._], _, [_, ..._])
       when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
     // skip whitespace, indicate the left
-    Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs)))
+    Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs), Left))
   | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
     // skip whitespace, indicate the parent
     Some((
       Base.Tile(Ancestor.zip(r_sibs, parent)),
       segment_shape(Right, r_sibs),
+      Left,
     ))
   | ([], [r_nhbr, ..._], _, _) =>
-    Some((r_nhbr, segment_shape(Right, r_sibs)))
+    Some((r_nhbr, segment_shape(Right, r_sibs), Right))
   | ([], [], [(parent, _), ..._], _) =>
     //TODO(andrew): does Convex here make sense?
-    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Convex))
+    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Convex, Right))
   | ([], [], [], [_, ..._]) =>
-    Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs)))
+    Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs), Right))
   | ([], [], [], []) => None
+  };
+
+let caret_indicated_side = (z: Zipper.t): Direction.t =>
+  switch (indicated_piece(z)) {
+  | Some((_, _, s)) => s
+  | _ => Right
   };
 
 let sort_n_nibs: (Nib.Shape.t, Piece.t) => (Sort.t, Nibs.t) =
@@ -145,7 +153,7 @@ let caret_shape =
     | Concave(_) => Left
     };
   | None => Straight
-  | Some((p, shape)) =>
+  | Some((p, shape, _)) =>
     // the grout bit here feels extra hacky
     switch (shape) {
     | Convex => Piece.is_grout(p) ? Left : Right
@@ -195,27 +203,24 @@ module Deco = (M: {
 
   let caret = (z: Zipper.t): list(Node.t) => {
     let profile = selection_profile(z);
-    let origin =
+    let origin_base =
       switch (z.selection.focus) {
       | Left => profile.origin
       | Right => profile.origin + profile.length
       };
-    let caret_shape = caret_shape(z);
-    let caret_offset =
+    let origin_offset =
       switch (z.caret) {
       | Outer => 0
       | Inner(n) => n + 1
       };
     [
-      //TODO(andrew): restore?
-      //SelectedBoxDec.view(~font_metrics, profile),
       CaretDec.simple_view(
         ~font_metrics,
-        origin + caret_offset,
-        "#f008",
-        caret_shape,
+        ~side=caret_indicated_side(z),
+        ~origin=origin_base + origin_offset,
+        ~shape=caret_shape(z),
       ),
-      backpack_view(~font_metrics, ~origin, z.backpack),
+      backpack_view(~font_metrics, ~origin=origin_base, z.backpack),
     ];
   };
 
@@ -267,7 +272,7 @@ module Deco = (M: {
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
     switch (indicated_piece(z)) {
     | None => []
-    | Some((p, nib_shape)) =>
+    | Some((p, nib_shape, _)) =>
       let m = Measured.find_p(p, M.map);
       let (sort, nibs) = sort_n_nibs(nib_shape, p);
       let profile =

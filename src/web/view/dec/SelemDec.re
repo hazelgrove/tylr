@@ -4,8 +4,6 @@ open Util;
 open Diag;
 open DecUtil;
 
-let c_fudge = 0.; //0.6; //fudges child width to prevent overlap
-
 module Profile = {
   type t = {
     measurement: Layout.measurement,
@@ -80,15 +78,10 @@ let shadow_filter = (~color: Color.t) => {
 let closed_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
     SvgUtil.Path.[
-      [
-        M({
-          x: -. c_fudge /. 2. +. Float.of_int(origin) +. 0.5,
-          y: child_border_thickness,
-        }),
-      ],
+      [M({x: Float.of_int(origin) +. 0.5, y: child_border_thickness})],
       Diag.tr_bl(~with_child_border=true, ~hemi=`North, ()),
       Diag.tl_br(~with_child_border=true, ~hemi=`South, ()),
-      [H_({dx: c_fudge +. Float.of_int(length - 1)})],
+      [H_({dx: Float.of_int(length - 1)})],
       Diag.bl_tr(~with_child_border=true, ~hemi=`South, ()),
       Diag.br_tl(~with_child_border=true, ~hemi=`North, ()),
       [Z],
@@ -180,10 +173,10 @@ let open_child_paths =
 let open_child_path = ({origin, length}: Layout.measurement) =>
   List.concat(
     SvgUtil.Path.[
-      [H({x: -. c_fudge /. 2. +. Float.of_int(origin) +. tip_width})],
+      [H({x: Float.of_int(origin) +. tip_width})],
       tr_bl(~hemi=`North, ()),
       tl_br(~with_child_border=true, ~hemi=`South, ()),
-      [H_({dx: c_fudge +. Float.of_int(length - 1)})],
+      [H_({dx: Float.of_int(length - 1)})],
       bl_tr(~with_child_border=true, ~hemi=`South, ()),
       br_tl(~hemi=`North, ()),
     ],
@@ -210,16 +203,23 @@ let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
       SelemStyle.stretched(profile.style)
         ? Float.of_int(profile.measurement.length) +. stretch_dx
         : Float.of_int(profile.measurement.length);
-    let fudge_x = 0.2; //narrows piece decos to fit together clean
-    //fst(fst(profile.shape)).shape != Core.Nib.Shape.Convex ? d_fudge : 0.0;
+    let fudge_width =
+      if (profile.style == Selected) {
+        0.2; //narrows piece decos to fit together clean
+      } else if (fst(fst(profile.shape)).shape != Core.Nib.Shape.Convex) {
+        0.22; // widen pieces with concave ends to avoid text overlap
+      } else {
+        0.;
+      };
+
     List.concat([
       [
-        M({x: fudge_x +. start, y: 1.}),
+        M({x: fudge_width +. start, y: 1.}),
         ...Diag.left_tip_path(fst(profile.shape)),
       ],
       ListUtil.flat_map(open_child_path, profile.open_children),
       [
-        H({x: -. fudge_x +. end_}),
+        H({x: -. fudge_width +. end_}),
         ...Diag.right_tip_path(snd(profile.shape)),
       ],
       [Z],
