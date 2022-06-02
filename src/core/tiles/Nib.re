@@ -30,6 +30,16 @@ module Shape = {
     fun
     | Convex => concave()
     | Concave(_) => Convex;
+
+  let absolute = (d: Util.Direction.t, s: t): Util.Direction.t =>
+    /* The direction an s-shaped nib on the d-hand side is facing */
+    switch (s) {
+    | Convex => d
+    | Concave(_) => Util.Direction.toggle(d)
+    };
+
+  let relative = (nib: Util.Direction.t, side: Util.Direction.t): t =>
+    nib == side ? Convex : concave();
 };
 
 [@deriving show]

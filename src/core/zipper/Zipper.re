@@ -41,6 +41,61 @@ module Action = {
   };
 };
 
+let caret_direction =
+    (
+      {
+        caret,
+        selection: {content, focus},
+        relatives: {siblings: (l_sibs, r_sibs), _},
+        _,
+      }: t,
+    )
+    : option(Direction.t) =>
+  /* Direction the caret is facing in */
+  switch (caret) {
+  | Inner(_) => None
+  | Outer =>
+    let sibs =
+      switch (focus) {
+      | Left => (l_sibs, content @ r_sibs)
+      | Right => (l_sibs @ content, r_sibs)
+      };
+    Siblings.direction_between(sibs);
+  };
+
+let indicated_piece =
+    (
+      {
+        relatives: {siblings: (l_sibs, r_sibs), ancestors},
+        selection: {content, _},
+        _,
+      }: t,
+    )
+    : option((Piece.t, Direction.t)) =>
+  /* Returns the piece currently indicated (if any) and which side of
+     that piece the caret is on. We favor indicating the piece to the
+     (R)ight, but may end up indicating the (P)arent or the (L)eft */
+  switch (content, r_sibs, ancestors, l_sibs) {
+  | ([], [], [], []) => None
+  /* No indicated piece if there's no syntax */
+  | ([_, ..._], _, _, _) => None
+  /* No indicated piece if there's a selection */
+  | ([], [Whitespace(_), ..._], _, [_, ..._])
+      when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
+    Some((ListUtil.last(l_sibs), Left))
+  /* If R is a whitespace and L is non-space indicate L */
+  | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
+    Some((Base.Tile(Ancestor.zip(r_sibs, parent)), Left))
+  /* If R is a whitespace and no L and there's a P, indicate P */
+  | ([], [r_nhbr, ..._], _, _) => Some((r_nhbr, Right))
+  /* If R is non-space, indicate R */
+  | ([], [], [(parent, _), ..._], _) =>
+    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Right))
+  /* If there's no R and there's a P, indicate P */
+  | ([], [], [], [_, ..._]) => Some((ListUtil.last(l_sibs), Right))
+  /* If there's no R and no P and some L, indicate L */
+  };
+
 let update_caret = (f: caret => caret, z: t): t => {
   ...z,
   caret: f(z.caret),
@@ -484,6 +539,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     |> Option.map(z => (z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Destruct(d) =>
+    //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))

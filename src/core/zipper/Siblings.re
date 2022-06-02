@@ -114,9 +114,14 @@ let has_space_neighbor: t => bool =
     | _ => false
     };
 
-let trim_whitespace = ((l_sibs, r_sibs): t) => {
-  (
-    Segment.trim_whitespace(Right, l_sibs),
-    Segment.trim_whitespace(Left, r_sibs),
-  );
-};
+let trim_whitespace = ((l_sibs, r_sibs): t) => (
+  Segment.trim_whitespace(Right, l_sibs),
+  Segment.trim_whitespace(Left, r_sibs),
+);
+
+let direction_between = ((l, r): t): option(Direction.t) =>
+  /* Facing direction of the shared nib between l & r */
+  switch (Segment.edge_direction_of(Left, r)) {
+  | None => Segment.edge_direction_of(Right, l)
+  | d => d
+  };

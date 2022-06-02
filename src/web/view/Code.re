@@ -75,92 +75,6 @@ let backpack_view =
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
-let segment_shape = (d: Direction.t, segment: Segment.t): Nib.Shape.t => {
-  let (_, shape, _) = Segment.shape_affix(d, segment, Nib.Shape.concave());
-  d == Right ? Nib.Shape.flip(shape) : shape;
-};
-
-let indicated_piece =
-    (
-      {
-        relatives: {siblings: (l_sibs, r_sibs), ancestors},
-        selection: {content, _},
-        _,
-      } as _z: Zipper.t,
-    )
-    : option((Piece.t, Nib.Shape.t, Direction.t)) =>
-  //TODO(andrew): cleanup
-  // returned direction indicates side of caret indicated piece is on
-  switch (content, r_sibs, ancestors, l_sibs) {
-  | ([_, ..._], _, _, _) => None
-  | ([], [Whitespace(_), ..._], _, [_, ..._])
-      when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
-    // skip whitespace, indicate the left
-    Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs), Left))
-  | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
-    // skip whitespace, indicate the parent
-    Some((
-      Base.Tile(Ancestor.zip(r_sibs, parent)),
-      segment_shape(Right, r_sibs),
-      Left,
-    ))
-  | ([], [r_nhbr, ..._], _, _) =>
-    Some((r_nhbr, segment_shape(Right, r_sibs), Right))
-  | ([], [], [(parent, _), ..._], _) =>
-    //TODO(andrew): does Convex here make sense?
-    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Convex, Right))
-  | ([], [], [], [_, ..._]) =>
-    Some((ListUtil.last(l_sibs), segment_shape(Left, l_sibs), Right))
-  | ([], [], [], []) => None
-  };
-
-let caret_indicated_side = (z: Zipper.t): Direction.t =>
-  switch (indicated_piece(z)) {
-  | Some((_, _, s)) => s
-  | _ => Right
-  };
-
-let sort_n_nibs: (Nib.Shape.t, Piece.t) => (Sort.t, Nibs.t) =
-  // TODO(d) fix sorts
-  (l, p) =>
-    switch (p) {
-    | Whitespace(_) => (Exp, Mold.of_whitespace({sort: Exp, shape: l}).nibs)
-    | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
-    | Tile(t) => (t.mold.out, Tile.nibs(t))
-    };
-
-let caret_shape =
-    (
-      {
-        caret,
-        selection: {content, focus},
-        relatives: {siblings: (l_sibs, r_sibs), _},
-        _,
-      } as z: Zipper.t,
-    )
-    : CaretDec.caret_shape =>
-  // to david from andrew: this function is kinda hacky..
-  switch (indicated_piece(z)) {
-  | _ when caret != Outer => Straight
-  | _ when content != [] =>
-    let shape =
-      switch (focus) {
-      | Left => segment_shape(Right, content @ r_sibs)
-      | Right => segment_shape(Left, l_sibs @ content)
-      };
-    switch (shape) {
-    | Convex => Right
-    | Concave(_) => Left
-    };
-  | None => Straight
-  | Some((p, shape, _)) =>
-    // the grout bit here feels extra hacky
-    switch (shape) {
-    | Convex => Piece.is_grout(p) ? Left : Right
-    | Concave(_) => Piece.is_grout(p) ? Right : Left
-    }
-  };
-
 module Deco = (M: {
                  let font_metrics: FontMetrics.t;
                  let map: Measured.t;
@@ -202,6 +116,7 @@ module Deco = (M: {
   };
 
   let caret = (z: Zipper.t): list(Node.t) => {
+    // TODO(andrew): abstract all this to caret profile
     let profile = selection_profile(z);
     let origin_base =
       switch (z.selection.focus) {
@@ -213,12 +128,17 @@ module Deco = (M: {
       | Outer => 0
       | Inner(n) => n + 1
       };
+    let side =
+      switch (Zipper.indicated_piece(z)) {
+      | Some((_, side)) => side
+      | _ => Right
+      };
     [
       CaretDec.simple_view(
         ~font_metrics,
-        ~side=caret_indicated_side(z),
+        ~side,
         ~origin=origin_base + origin_offset,
-        ~shape=caret_shape(z),
+        ~shape=Zipper.caret_direction(z),
       ),
       backpack_view(~font_metrics, ~origin=origin_base, z.backpack),
     ];
@@ -245,47 +165,56 @@ module Deco = (M: {
       |> snd;
     };
 
-  let selected_pieces = (z: Zipper.t): list(Node.t) => {
+  let piece_profile =
+      (p: Piece.t, nib_shape: Nib.Shape.t, style: SelemStyle.t)
+      : SelemDec.Profile.t => {
+    // TODO(d) fix sorts
+    let (sort: Sort.t, nibs) =
+      switch (p) {
+      | Whitespace(_) => (
+          Exp,
+          Mold.of_whitespace({sort: Exp, shape: nib_shape}).nibs,
+        )
+      | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
+      | Tile(t) => (t.mold.out, Tile.nibs(t))
+      };
+    let m = Measured.find_p(p, M.map);
+    SelemDec.Profile.{
+      color: Color.of_sort(sort),
+      shape: Layout.piece_shape_of_nibs(nibs),
+      measurement: m,
+      style,
+      closed_children: [],
+      open_children:
+        p |> children |> Layout.relativize_measurements(m.origin),
+    };
+  };
+
+  let selected_pieces = (z: Zipper.t): list(Node.t) =>
     // TODO mold/nibs/selemdec clean up pass
-    let (l, _) = Siblings.shapes(z.relatives.siblings);
     z.selection.content
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
-           let m = Measured.find_p(p, M.map);
-           let (sort: Sort.t, nibs) = sort_n_nibs(l, p);
-           let profile =
-             SelemDec.Profile.{
-               color: Color.of_sort(sort),
-               shape: Layout.piece_shape_of_nibs(nibs),
-               measurement: m,
-               style: Selected,
-               closed_children: [],
-               open_children: children(p),
-             };
-           (snd(nibs).shape, SelemDec.view(~font_metrics, profile));
+           let profile = piece_profile(p, l, Selected);
+           (
+             fst(snd(profile.shape)).shape,
+             SelemDec.view(~font_metrics, profile),
+           );
          },
-         l,
+         fst(Siblings.shapes(z.relatives.siblings)),
        )
     |> snd;
-  };
 
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
-    switch (indicated_piece(z)) {
+    switch (Zipper.indicated_piece(z)) {
     | None => []
-    | Some((p, nib_shape, _)) =>
-      let m = Measured.find_p(p, M.map);
-      let (sort, nibs) = sort_n_nibs(nib_shape, p);
-      let profile =
-        SelemDec.Profile.{
-          color: Color.of_sort(sort),
-          shape: Layout.piece_shape_of_nibs(nibs),
-          measurement: m,
-          style: Root,
-          closed_children: [],
-          open_children:
-            p |> children |> Layout.relativize_measurements(m.origin),
+    | Some((p, side)) =>
+      let nib_shape =
+        switch (Zipper.caret_direction(z)) {
+        | None => Nib.Shape.Convex
+        | Some(nib) => Nib.Shape.relative(nib, side)
         };
-      [SelemDec.view(~font_metrics, profile)];
+      [SelemDec.view(~font_metrics, piece_profile(p, nib_shape, Root))];
     };
   };
 
