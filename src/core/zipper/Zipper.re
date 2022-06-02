@@ -180,6 +180,8 @@ let put_down = (z: t): option(t) => {
 let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
   open IdGen.Syntax;
   let+ id = IdGen.fresh;
+  print_endline("inserting space grout with char:");
+  print_endline(char);
   z
   |> update_siblings(((l, r)) =>
        (l @ [Piece.Whitespace({id, content: char})], r)

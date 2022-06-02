@@ -76,6 +76,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           Update.[
             /*PerformAction(Select(Right)),*/ PerformAction(Destruct(Right)),
           ]
+        | "Enter" =>
+          print_endline("pressed enter");
+          now(Insert("\n"));
         | _ when Form.is_valid_char(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;

@@ -10,6 +10,10 @@ module Text = {
     seg
     |> List.map(
          fun
+         | Piece.Whitespace(w) when w.content == "\n" => [
+             Node.br([]),
+             Node.text("^"),
+           ]
          | Piece.Whitespace(w) => [
              Node.text(w.content == " " ? Unicode.nbsp : w.content),
            ]
@@ -39,7 +43,8 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
 
 let selection_length = (sel: Selection.t): int => {
   let seg = sel.content;
-  let (len, _) = Measured.of_segment(seg);
+  let ((_, len, _), _) = Measured.of_segment(seg);
+  //TODO(andrew): fix
   len;
   // switch (ListUtil.hd_opt(seg), ListUtil.last_opt(seg)) {
   // | (None, _)
@@ -177,26 +182,31 @@ module Deco = (M: {
              // TODO(d) fix sort
              let mold = Mold.of_grout(g, Exp);
              let measurement = Measured.find_g(g, M.map);
-             [EmptyHoleDec.view(~font_metrics, {measurement, mold})];
+             [
+               EmptyHoleDec.view(
+                 ~font_metrics,
+                 {measurement: Layout.linearize(measurement), mold},
+               ),
+             ];
            },
        )
     |> List.concat;
 
-  let selection_profile = (z: Zipper.t): Layout.measurement => {
+  let selection_profile = (z: Zipper.t): Layout.measurement' => {
     let sel = z.selection.content;
     let length = Measured.length(sel, M.map);
     let origin =
       switch (Siblings.neighbors(z.relatives.siblings)) {
       | (_, Some(p)) =>
         let m = Measured.find_p(p, M.map);
-        m.origin - length;
+        m.origin.col - length;
       | (Some(p), _) =>
         let m = Measured.find_p(p, M.map);
-        m.origin + m.length;
+        m.last.col;
       | (None, None) =>
         let p =
           ListUtil.hd_opt(sel) |> OptUtil.get_or_raise(Segment.Empty_segment);
-        Measured.find_p(p, M.map).origin;
+        Measured.find_p(p, M.map).origin.col;
       };
     {origin, length};
   };
@@ -224,7 +234,7 @@ module Deco = (M: {
     ];
   };
 
-  let children = (p: Piece.t): list(Layout.measurement) =>
+  let children = (p: Piece.t): list(Layout.measurement') =>
     switch (p) {
     | Whitespace(_)
     | Grout(_) => []
@@ -233,8 +243,8 @@ module Deco = (M: {
       let token = List.nth(t.label);
       Aba.mk(t.shards, t.children)
       |> Aba.fold_left(
-           shard => (m.origin + Unicode.length(token(shard)), []),
-           ((origin, children: list(Layout.measurement)), child, shard) => {
+           shard => (m.origin.col + Unicode.length(token(shard)), []),
+           ((origin, children: list(Layout.measurement')), child, shard) => {
              let length = Measured.length(child, M.map);
              (
                origin + length + Unicode.length(token(shard)),
@@ -257,7 +267,7 @@ module Deco = (M: {
              SelemDec.Profile.{
                color: Color.of_sort(sort),
                shape: Layout.piece_shape_of_nibs(nibs),
-               measurement: m,
+               measurement: Layout.linearize(m),
                style: Selected,
                closed_children: [],
                open_children: children(p),
@@ -279,11 +289,11 @@ module Deco = (M: {
         SelemDec.Profile.{
           color: Color.of_sort(sort),
           shape: Layout.piece_shape_of_nibs(nibs),
-          measurement: m,
+          measurement: Layout.linearize(m),
           style: Root,
           closed_children: [],
           open_children:
-            p |> children |> Layout.relativize_measurements(m.origin),
+            p |> children |> Layout.relativize_measurements(m.origin.col),
         };
       [SelemDec.view(~font_metrics, profile)];
     };
@@ -303,10 +313,10 @@ module Deco = (M: {
                | (None, None) => failwith("impossible")
                | (_, Some(p)) =>
                  let m = Measured.find_p(p, M.map);
-                 Layout.{origin: m.origin, length: 1};
+                 Layout.{origin: m.origin.col, length: 1};
                | (Some(p), _) =>
                  let m = Measured.find_p(p, M.map);
-                 Layout.{origin: m.origin + m.length, length: 1};
+                 Layout.{origin: m.last.col, length: 1};
                };
              let profile =
                CaretPosDec.Profile.{

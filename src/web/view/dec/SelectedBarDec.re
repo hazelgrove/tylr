@@ -3,7 +3,7 @@ open Util;
 
 module Profile = {
   type t = {
-    measurement: Layout.measurement,
+    measurement: Layout.measurement',
     ends: (Color.t, Color.t),
   };
 };

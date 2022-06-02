@@ -4,7 +4,7 @@ open DecUtil;
 
 module Profile = {
   type t = {
-    measurement: Layout.measurement,
+    measurement: Layout.measurement',
     mold: Core.Mold.t,
   };
 };

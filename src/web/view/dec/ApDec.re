@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 open DecUtil;
 
 module Profile = {
-  type t = Layout.measurement;
+  type t = Layout.measurement';
 };
 
 let h = 0.15;

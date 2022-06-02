@@ -4,7 +4,7 @@ open Core;
 
 module Profile = {
   type t = {
-    measurement: Layout.measurement,
+    measurement: Layout.measurement',
     sort: Sort.t,
     side: Direction.t,
   };

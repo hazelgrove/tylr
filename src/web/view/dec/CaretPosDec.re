@@ -4,7 +4,7 @@ module Profile = {
   type style = [ | `Bare | `Sibling | `Anchor | `Caret];
   type t = {
     style,
-    measurement: Layout.measurement,
+    measurement: Layout.measurement',
     color: Color.t,
     just_failed: option(FailedInput.t),
   };

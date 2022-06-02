@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 
 module Profile = {
   type t = {
-    measurement: Layout.measurement,
+    measurement: Layout.measurement',
     color: Color.t,
   };
 };

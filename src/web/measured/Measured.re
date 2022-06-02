@@ -66,48 +66,116 @@ let union2 = (map: t, map': t) => {
 };
 let union = List.fold_left(union2, empty);
 
+/*
+ let rec to_measured2d = (~row=0, ~col=0, ~indent=0, layout: t): measured =>
+   switch (layout) {
+   | Atom(s, ann) =>
+     let measurement =
+       mk_measure2d(
+         ~row,
+         ~col,
+         ~last_row=row,
+         ~last_col=col + Unicode.length(s),
+       );
+     {layout: AtomM(s, ann), measurement};
+   | Cat(ls, ann) =>
+     let (ms, (last_row, last_col)) =
+       List.fold_left(
+         ((ms, (row, col)), l) => {
+           switch (l) {
+           | Cat(_empty, Piece(Whitespace("\n"), _, _)) =>
+             //let indent = indent + 2;
+             let m = to_measured2d(l, ~row, ~col, ~indent); //display at end of current line
+             ([m, ...ms], (row + 1, indent + indent_piece)); //reset col, incr row
+           //TODO(andrew): why + indent_piece necessary??
+           | Cat(_empty, Segment(_)) =>
+             let m =
+               to_measured2d(l, ~row, ~col, ~indent=indent + indent_segment); //incr indent recurse
+             //TODO(andrew): below math dont make sense
+             (
+               [m, ...ms],
+               (m.measurement.d2.last.row, m.measurement.d2.last.col),
+             );
+           | Cat(_empty, Piece(_)) =>
+             let m =
+               to_measured2d(l, ~row, ~col, ~indent=indent + indent_piece); //incr indent recurse
+             //TODO(andrew): below math dont make sense
+             (
+               [m, ...ms],
+               (m.measurement.d2.last.row, m.measurement.d2.last.col),
+             );
+           | Atom(_) =>
+             let m = to_measured2d(l, ~row, ~col, ~indent);
+             //TODO(andrew): below math dont make sense
+             (
+               [m, ...ms],
+               (m.measurement.d2.last.row, m.measurement.d2.last.col),
+             );
+           }
+         },
+         ([], (row, col)),
+         ls,
+       );
+     let measurement = mk_measure2d(~row, ~col, ~last_row, ~last_col);
+     {layout: CatM(List.rev(ms), ann), measurement};
+   };
+
+  */
+
 // TODO fix weird default
-let rec of_segment = (~origin=0, seg: Segment.t): (int, t) =>
+let rec of_segment =
+        (~row=0, ~col=0, ~indent=0, seg: Segment.t): ((int, int, int), t) =>
   seg
-  |> ListUtil.fold_left_map((origin, p) => of_piece(~origin, p), origin)
+  |> ListUtil.fold_left_map(
+       ((row, col, indent), p) => of_piece(~row, ~col, ~indent, p),
+       (row, col, indent),
+     )
   |> PairUtil.map_snd(union)
 //  (m.origin + m.length + 1, (m, p));
-and of_piece = (~origin=0, p: Piece.t): (int, t) =>
+and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int, int), t) => {
+  let singl: Layout.measurement = {
+    let origin: Layout.point = {row, col};
+    let last: Layout.point = {row, col: col + 1};
+    {origin, last};
+  };
   switch (p) {
-  | Whitespace(w) =>
-    // TODO(d) change once w includes newlines
-    let length = 1;
-    (origin + length, singleton_w(w, {origin, length}));
-  | Grout(g) =>
-    let length = 1;
-    (origin + length, singleton_g(g, {origin, length}));
+  | Whitespace({content: "\n", _} as w) =>
+    // set col to indent
+    ((row + 1, indent, indent), singleton_w(w, singl))
+  | Whitespace(w) => ((row, col + 1, indent), singleton_w(w, singl))
+  | Grout(g) => ((row, col + 1, indent), singleton_g(g, singl))
   | Tile(t) =>
+    let indent = indent + 1; //TODO(andrew): incre indent
     let (hd, tl) = ListUtil.split_first(t.shards);
     let token = List.nth(t.label);
-    let (origin', map) =
+    let ((row', col', indent'), map) =
       List.combine(t.children, tl)
       |> ListUtil.fold_left_map(
-           (origin, (child, i)) => {
-             let (origin, map) = of_segment(~origin, child);
-             (origin + Unicode.length(token(i)), map);
+           ((row, col, indent), (child, i)) => {
+             let ((row, col, indent), map) =
+               of_segment(~row, ~col, ~indent, child);
+             ((row, col + Unicode.length(token(i)), indent), map);
            },
-           origin + Unicode.length(token(hd)),
+           (row, col + Unicode.length(token(hd)), indent),
          )
       |> PairUtil.map_snd(union);
-    let length = origin' - origin;
-    (origin', map |> add_t(t, {origin, length}));
+    //let length = origin' - origin;
+    let origin: Layout.point = {row, col};
+    let last: Layout.point = {row: row', col: col'};
+    ((row', col', indent'), map |> add_t(t, {origin, last}));
   };
+};
 
 let length = (seg: Segment.t, map: t): int =>
   switch (seg) {
   | [] => 0
   | [p] =>
     let m = find_p(p, map);
-    m.length;
+    m.last.col - m.origin.col;
   | [hd, ...tl] =>
     let first = find_p(hd, map);
     let last = find_p(ListUtil.last(tl), map);
-    last.origin - first.origin + last.length;
+    last.last.col - first.origin.col;
   };
 
 // let of_zipper = _: zipper => failwith("todo Measured.of_zipper");

@@ -10,11 +10,31 @@ let piece_shape_of_nibs = ((l, r): Nibs.t): piece_shape => (
   (l, 0),
   (r, 0),
 );
+
 [@deriving show]
-type measurement = {
+type point = {
+  row: int,
+  col: int,
+};
+
+[@deriving show]
+type measurement' = {
   origin: int,
   length: int,
 };
+
+[@deriving show]
+type measurement = {
+  origin: point,
+  last: point,
+};
+
+let linearize: measurement => measurement' =
+  ({origin: {col: origin, _}, last: {col: last, _}}) => {
+    origin,
+    length: last - origin,
+  };
+
 [@deriving show]
 type padding =
   | None
@@ -43,7 +63,7 @@ let padding: string => padding =
   | "}"
   | _ => None;
 
-let relativize_measurements: (int, list(measurement)) => list(measurement) =
+let relativize_measurements: (int, list(measurement')) => list(measurement') =
   parent_origin =>
     List.map(({origin, length}) =>
       {origin: origin - parent_origin, length}

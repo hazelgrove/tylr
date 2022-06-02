@@ -6,12 +6,12 @@ open DecUtil;
 
 module Profile = {
   type t = {
-    measurement: Layout.measurement,
+    measurement: Layout.measurement',
     color: Color.t,
     shape: Layout.piece_shape,
     style: SelemStyle.t,
-    open_children: list(Layout.measurement),
-    closed_children: list(Layout.measurement),
+    open_children: list(Layout.measurement'),
+    closed_children: list(Layout.measurement'),
     // empty_holes: list((int, Color.t, Nib.shape)),
   };
   let mk =
@@ -75,7 +75,7 @@ let shadow_filter = (~color: Color.t) => {
   );
 };
 
-let closed_child_path = ({origin, length}: Layout.measurement) =>
+let closed_child_path = ({origin, length}: Layout.measurement') =>
   List.concat(
     SvgUtil.Path.[
       [M({x: Float.of_int(origin) +. 0.5, y: child_border_thickness})],
@@ -89,7 +89,7 @@ let closed_child_path = ({origin, length}: Layout.measurement) =>
   );
 
 let open_child_paths =
-    (~origin, ~color: Color.t, open_children: list(Layout.measurement))
+    (~origin, ~color: Color.t, open_children: list(Layout.measurement'))
     : list(Node.t) => {
   open SvgUtil.Path;
   let color =
@@ -170,7 +170,7 @@ let open_child_paths =
 //   EmptyHoleDec.path(tip, Float.of_int(offset), 0.28);
 // };
 
-let open_child_path = ({origin, length}: Layout.measurement) =>
+let open_child_path = ({origin, length}: Layout.measurement') =>
   List.concat(
     SvgUtil.Path.[
       [H({x: Float.of_int(origin) +. tip_width})],
