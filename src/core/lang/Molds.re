@@ -1,5 +1,8 @@
 open Util;
 
+[@deriving show]
+type completions = list((Token.t, (list(Token.t), Direction.t)));
+
 let forms_assoc: list((Label.t, list(Mold.t))) =
   List.fold_left(
     (acc, (_, {label, mold, _}: Form.t)) => {
@@ -14,28 +17,15 @@ let forms_assoc: list((Label.t, list(Mold.t))) =
     Form.forms,
   );
 
-let convex_mono_molds = (label: list(Token.t)): option(list(Mold.t)) =>
-  // TODO(andrew): cleanup
-  switch (label) {
-  | [t] =>
-    switch (Form.convex_mono_molds(t)) {
-    | [] => None
-    | ms => Some(ms)
-    }
-  | _ => None
-  };
-
 let get = (label: Label.t): list(Mold.t) =>
-  switch (convex_mono_molds(label), List.assoc_opt(label, forms_assoc)) {
-  | (Some(molds), _) => molds
+  switch (label, List.assoc_opt(label, forms_assoc)) {
+  | ([t], _) when Form.convex_mono_molds(t) != [] =>
+    Form.convex_mono_molds(t)
   | (_, Some(molds)) => molds
   | (_, None) => []
   };
 
-[@deriving show]
-type completes = list((string, (list(string), Direction.t)));
-
-let delayed_completes: completes =
+let delayed_completes: completions =
   List.filter_map(
     ((_, {expansion, label, _}: Form.t)) =>
       switch (expansion, label) {
@@ -54,7 +44,7 @@ let delayed_completes: completes =
   |> List.flatten
   |> List.sort_uniq(compare);
 
-let instant_completes: completes =
+let instant_completes: completions =
   List.filter_map(
     ((_, {expansion, label, _}: Form.t)) =>
       switch (expansion, label) {
@@ -73,7 +63,8 @@ let instant_completes: completes =
   |> List.flatten
   |> List.sort_uniq(compare);
 
-let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
+let delayed_completion:
+  (Token.t, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     /* Completions which must be defered as they are ambiguous prefixes */
     switch (List.assoc_opt(s, delayed_completes)) {
@@ -81,7 +72,8 @@ let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
     | None => ([s], direction_preference)
     };
 
-let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
+let instant_completion:
+  (Token.t, Direction.t) => (list(Token.t), Direction.t) =
   (s, direction_preference) =>
     /* Completions which can or must be executed immediately */
     switch (List.assoc_opt(s, instant_completes)) {

@@ -4,13 +4,7 @@ module P = Precedence;
 let regexp = (r, s) => Re.Str.string_match(Re.Str.regexp(r), s, 0);
 
 [@deriving show]
-type label = list(string);
-
-[@deriving show]
-type dir =
-  | Bi
-  | Front
-  | Back;
+type label = list(Token.t);
 
 [@deriving show]
 type expansion_time =
@@ -34,8 +28,8 @@ let mk_is = (label, mold) => {label, mold, expansion: (Instant, Static)};
 let mk_ds = (label, mold) => {label, mold, expansion: (Delayed, Static)};
 let mk_di = (label, mold) => {label, mold, expansion: (Delayed, Instant)};
 
-let mk_infix = (str: string, sort: Sort.t, prec) =>
-  mk([str], mk_bin(prec, sort, []));
+let mk_infix = (t: Token.t, sort: Sort.t, prec) =>
+  mk([t], mk_bin(prec, sort, []));
 
 /* A. Whitespace: */
 let whitespace = [" ", "\n"];
@@ -75,7 +69,7 @@ let forms: list((string, t)) = [
   ("rule_rest", mk_is(["|", "=>"], mk_bin(9, Exp, [Pat]))),
 ];
 
-let get: string => t = name => List.assoc(name, forms);
+let get: Token.t => t = name => List.assoc(name, forms);
 
 let delims: list(Token.t) =
   forms
@@ -99,7 +93,7 @@ let is_valid_token = t =>
 
 let is_valid_char = is_valid_token; //TODO(andrew): betterify this
 
-let mk_convex_mono = (sort: Sort.t, t: string) => {
+let mk_convex_mono = (sort: Sort.t, t: Token.t) => {
   assert(is_convex_mono(t));
   mk([t], Mold.(mk_op(sort, [])));
 };
