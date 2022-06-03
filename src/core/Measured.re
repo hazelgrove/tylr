@@ -157,7 +157,7 @@ and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
   | Grout(g) => ((row, col + 1), singleton_g(g, singl))
   | Tile(t) =>
     let origin: point = {row, col};
-    //let indent' = indent + 1; //TODO(andrew): incr indent
+    //TODO(andrew): maybe split of last as well, handle specially?
     let (hd, tl) = ListUtil.split_first(t.shards);
     let token = List.nth(t.label);
     let ((row', col'), map) =

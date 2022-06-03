@@ -25,6 +25,8 @@ type state = (t, IdGen.state);
 module Action = {
   [@deriving (show, sexp)]
   type t =
+    | MoveUp
+    | MoveDown
     | Move(Direction.t)
     | Select(Direction.t)
     | Destruct(Direction.t)
@@ -37,6 +39,7 @@ module Action = {
     type t =
       | Cant_move
       | Cant_insert
+      | Cant_destruct
       | Cant_put_down_inside_token
       | Cant_put_down;
   };
@@ -178,6 +181,11 @@ let unselect = (z: t): t => {
 
 let zip = (z: t): Segment.t =>
   Relatives.zip(~sel=z.selection.content, z.relatives);
+
+let unselect_and_zip = (z: t): Segment.t => {
+  let z = unselect(z);
+  zip(z);
+};
 
 let convex = (z: t): bool => Segment.convex(zip(z));
 
@@ -574,8 +582,87 @@ let remold_regrout = (z: t): IdGen.t(t) => {
   |> IdGen.map(relatives => {...z, relatives});
 };
 
+let cursor_point = (z: t): option(Measured.point) => {
+  //TODO(andrew): maybe dont do this everytiem?
+  //TODO(andrew): account for polytiles
+  //TODO(andrew): account for innercaret
+  let seg = zip(z);
+  let map = snd(Measured.of_segment(seg));
+  switch (indicated_piece(z)) {
+  | None => None
+  | Some((p, _)) =>
+    let Measured.{origin, _} = Measured.find_p(p, map);
+    let x_offset =
+      switch (z.caret) {
+      | Inner(0, c) => c + 1
+      | _ => 0
+      };
+    /*
+     general strategy:
+     */
+    Some({row: origin.row, col: origin.col + x_offset});
+  };
+};
+
+open OptUtil.Syntax;
+let move_v = (d: Direction.t, z: t): option(t) => {
+  let strict = d == Right ? (<) : (>);
+  let nonstrict = d == Right ? (<=) : (>=);
+  let eps = d == Right ? 1 : (-1);
+  let* {row: init_row, col: init_col} = cursor_point(z);
+  Printf.printf("DOWN: initial: %d %d\n", init_row, init_col);
+  let target_y = init_row + eps;
+  let target_x = init_col;
+  Printf.printf("DOWN: target: %d %d\n", target_y, target_x);
+  let rec go = (zz: t, acc: option(t)): option(t) => {
+    let* {row: current_y, col: current_x} = cursor_point(zz);
+    Printf.printf("DOWN: ITER: current: %d %d\n", current_y, current_x);
+    switch () {
+    | _ when strict(current_y, target_y) =>
+      print_endline("CASE 1");
+      switch (move(d, zz)) {
+      | None => acc
+      | Some(zzz) => go(zzz, acc)
+      };
+    | _ when strict(target_y, current_y) =>
+      print_endline("CASE 2");
+      acc;
+    | _ when current_y == target_y && current_x == target_x =>
+      print_endline("CASE 3");
+      Some(zz);
+    | _ when current_y == target_y && nonstrict(current_x, target_x) =>
+      print_endline("CASE 4");
+      switch (move(d, zz)) {
+      | None => acc
+      | Some(zzz) => go(zzz, Some(zz))
+      };
+    | _ when current_y == target_y && nonstrict(target_x, current_x) =>
+      print_endline("CASE 5");
+      acc;
+    | _ =>
+      print_endline("CASE 6: failwith?");
+      acc;
+    };
+  };
+  go(z, None);
+};
+
+let _move_up = (_z: t): option(t) => {
+  None;
+};
+
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   switch (a) {
+  | MoveUp =>
+    z
+    |> move_v(Left)
+    |> Option.map(z => (z, id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
+  | MoveDown =>
+    z
+    |> move_v(Right)
+    |> Option.map(z => (z, id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
   | Move(d) =>
     z
     |> move(d)
@@ -591,7 +678,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     (z, id_gen)
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move)
+    |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
     |> insert(char)

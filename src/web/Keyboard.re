@@ -42,8 +42,10 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))
         | "ArrowRight" => now(Move(Right))
-        | "ArrowUp" => now(Pick_up)
-        | "ArrowDown"
+        | "ArrowUp" when held(Shift) => now(Pick_up)
+        | "ArrowUp" => now(MoveUp)
+        | "ArrowDown" when held(Shift) => now(Put_down)
+        | "ArrowDown" => now(MoveDown)
         | "Tab" => now(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so

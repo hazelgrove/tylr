@@ -24,6 +24,7 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
+//TODO(andrew): deprecate
 let container =
     (
       ~font_metrics: FontMetrics.t,

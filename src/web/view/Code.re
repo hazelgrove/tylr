@@ -304,6 +304,7 @@ let view =
     )
     : Node.t => {
   let seg = Zipper.zip(zipper);
+
   module Deco =
     Deco({
       let font_metrics = font_metrics;
