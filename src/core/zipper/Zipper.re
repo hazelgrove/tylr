@@ -4,7 +4,8 @@ open Sexplib.Std;
 [@deriving show]
 type caret =
   | Outer
-  | Inner(int);
+  | Inner(int)
+  | InnerPoly(int, int);
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
@@ -53,6 +54,7 @@ let caret_direction =
     : option(Direction.t) =>
   /* Direction the caret is facing in */
   switch (caret) {
+  | InnerPoly(_)
   | Inner(_) => None
   | Outer =>
     let sibs =
@@ -114,12 +116,67 @@ let remove_right_sib: t => t =
 let remove_left_sib: t => t =
   update_siblings(((l, r)) => (l == [] ? [] : ListUtil.leading(l), r));
 
-let neighbor_monotiles = siblings =>
-  switch (Siblings.neighbors(siblings)) {
-  | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
-  | (Some(l), None) => (Piece.monotile(l), None)
-  | (None, Some(r)) => (None, Piece.monotile(r))
-  | (None, None) => (None, None)
+let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
+  siblings =>
+    switch (Siblings.neighbors(siblings)) {
+    | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
+    | (Some(l), None) => (Piece.monotile(l), None)
+    | (None, Some(r)) => (None, Piece.monotile(r))
+    | (None, None) => (None, None)
+    };
+
+let neighbor_move_into:
+  Siblings.t => (option(Piece.inner), option(Piece.inner)) =
+  siblings =>
+    switch (Siblings.neighbors(siblings)) {
+    | (Some(l), Some(r)) => (Piece.inner(l), Piece.inner(r))
+    | (Some(l), None) => (Piece.inner(l), None)
+    | (None, Some(r)) => (None, Piece.inner(r))
+    | (None, None) => (None, None)
+    };
+
+let neighbor_move_into_z: t => (option(Piece.inner), option(Piece.inner)) =
+  ({relatives: {siblings, ancestors}, _}) => {
+    let (supernhbr_l, supernhbr_r) =
+      switch (ancestors) {
+      | [] => (None, None)
+      //TODO(andrew): below assumes whole tiles
+      | [({children: (ls, _rs), label, _}, (_pre, _post)), ..._] =>
+        let _idx = List.length(ls); // index of leftwards delim
+        (Piece.inner'(label), None);
+      };
+    switch (neighbor_move_into(siblings)) {
+    | (Some(l), Some(r)) => (Some(l), Some(r))
+    | (Some(l), None) => (Some(l), supernhbr_r)
+    | (None, Some(r)) => (supernhbr_l, Some(r))
+    | (None, None) => (supernhbr_l, supernhbr_r)
+    };
+  };
+
+let adjacent_delims_index: t => (option((int, int)), option((int, int))) =
+  ({relatives: {siblings, ancestors}, _}) => {
+    let (supernhbr_l, supernhbr_r) =
+      switch (ancestors) {
+      | [] => (None, None)
+      //TODO(andrew): below assumes whole tiles
+      | [({children: (ls, _rs), label, _}, (_pre, _post)), ..._] =>
+        let _left_delim_idx = List.length(ls);
+        let _right_delim_idx = List.length(ls) + 1;
+        failwith("TODO");
+      //(Piece.inner'(label), None);
+      };
+    switch (neighbor_move_into(siblings)) {
+    | (Some((l_max, l_maxes)), Some(_r)) => (
+        Some((l_max, List.nth(l_maxes, l_max))),
+        Some((0, 0)),
+      )
+    | (Some((l_max, l_maxes)), None) => (
+        Some((l_max, List.nth(l_maxes, l_max))),
+        supernhbr_r,
+      )
+    | (None, Some(_r)) => (supernhbr_l, Some((0, 0)))
+    | (None, None) => (supernhbr_l, supernhbr_r)
+    };
   };
 
 let unselect = (z: t): t => {
@@ -310,13 +367,15 @@ let merge =
   |> Option.map(destruct_outer)
   |> Option.map(z => construct(Right, [l ++ r], z, id_gen));
 
-let decrement_caret: caret => caret =
+let decrement_caret': caret => caret =
   fun
   | Outer
   | Inner(0) => Outer
-  | Inner(k) => Inner(k - 1);
+  | Inner(k) => Inner(k - 1)
+  | _ => failwith("decrement_caret'");
+//TODO(andrew)
 
-let last_inner_pos = t => String.length(t) - 2;
+let last_inner_pos' = t => String.length(t) - 2;
 
 let destruct =
     (
@@ -332,7 +391,7 @@ let destruct =
     |> Option.map(z => (z, id_gen));
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(n), (_, Some(t))) =>
-    let z = update_caret(decrement_caret, z);
+    let z = update_caret(decrement_caret', z);
     replace_construct(Right, [StringUtil.remove_nth(n, t)], (z, id_gen));
   | (Right, Inner(n), (_, Some(t))) =>
     replace_construct(
@@ -341,7 +400,7 @@ let destruct =
       (z, id_gen),
     )
     |> OptUtil.and_then(
-         n == last_inner_pos(t)
+         n == last_inner_pos'(t)
            ? ((z, id_gen)) =>
                z
                |> set_caret(Outer)
@@ -356,6 +415,7 @@ let destruct =
     replace_construct(Right, [StringUtil.remove_first(t)], (z, id_gen))
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
   | (_, Outer, (None, _)) => d_outer(z)
+  | _ => failwith("TODO(andrew): destruct poly")
   };
 };
 
@@ -475,7 +535,24 @@ let insert =
     |> insert_outer(char)
     |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen));
   | (Outer, (_, None)) => insert_outer(char, (z, id_gen))
+  | _ => failwith("TODO(andrew): insert poly")
   };
+
+let _last_inner_pos: Piece.inner => int =
+  ((max, maxes)) => List.nth(maxes, max) - 2;
+
+let decrement_caret: caret => caret =
+  fun
+  | Outer
+  | Inner(0) => Outer
+  | Inner(k) => Inner(k - 1)
+  | InnerPoly(_, 0) => Outer
+  | InnerPoly(d, l) => InnerPoly(d, l - 1);
+
+let has_initial_inner_positions: Piece.inner => bool =
+  fun
+  | (_, []) => false
+  | (_, [d, ..._]) => d > (-1);
 
 let move =
     (
@@ -484,17 +561,24 @@ let move =
     )
     : option(t) =>
   //TODO(andrew): bug with moving when non-em selection and inner caret?
-  switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
-  | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
-    z |> set_caret(Inner(last_inner_pos(t))) |> move_outer(d)
+  switch (d, caret, neighbor_move_into((l_sibs, r_sibs))) {
+  | (Left, Outer, (Some((delim_max, char_maxes) as t), _))
+      when has_initial_inner_positions(t) =>
+    z
+    |> set_caret(InnerPoly(delim_max, List.nth(char_maxes, delim_max)))
+    |> move_outer(d)
   | (Left, Outer, _) => move_outer(d, z)
-  | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
-  | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
-    Some(set_caret(Inner(0), z))
+  | (Left, InnerPoly(_), _) => Some(update_caret(decrement_caret, z))
+  | (Right, Outer, (_, Some((delim_max, char_maxes))))
+      when has_initial_inner_positions((delim_max, char_maxes)) =>
+    Some(set_caret(InnerPoly(0, 0), z))
   | (Right, Outer, _) => move_outer(d, z)
-  | (Right, Inner(n), (_, Some(t))) when n == last_inner_pos(t) =>
+  | (Right, InnerPoly(delim, char), (_, Some((_delim_max, char_maxes))))
+      when char == List.nth(char_maxes, delim) =>
     z |> set_caret(Outer) |> move_outer(d)
-  | (Right, Inner(n), _) => Some(set_caret(Inner(n + 1), z))
+  | (Right, InnerPoly(delim, char), _) =>
+    Some(set_caret(InnerPoly(delim, char + 1), z))
+  | _ => failwith("innerpoly move")
   };
 
 let select = (d: Direction.t, z: t): option(t) =>

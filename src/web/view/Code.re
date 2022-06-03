@@ -127,6 +127,8 @@ module Deco = (M: {
       switch (z.caret) {
       | Outer => 0
       | Inner(n) => n + 1
+      //TODO(andrew): dooo ittt
+      | InnerPoly(_delim, char) => char + 1
       };
     let side =
       switch (Zipper.indicated_piece(z)) {
