@@ -1,16 +1,28 @@
 open Util;
 open Core;
 
-// [@deriving show]
-// type measurement = {
-//   origin: int,
-//   length: int,
-// };
+[@deriving show]
+type point = {
+  row: int,
+  col: int,
+};
+
+[@deriving show]
+type measurement_lin = {
+  origin: int,
+  length: int,
+};
+
+[@deriving show]
+type measurement = {
+  origin: point,
+  last: point,
+};
 
 type t = {
-  tiles: Id.Map.t(list((list(int), Layout.measurement))),
-  grout: Id.Map.t(Layout.measurement),
-  whitespace: Id.Map.t(Layout.measurement),
+  tiles: Id.Map.t(list((list(int), measurement))),
+  grout: Id.Map.t(measurement),
+  whitespace: Id.Map.t(measurement),
 };
 
 let empty = {
@@ -133,9 +145,9 @@ let rec of_segment =
   |> PairUtil.map_snd(union)
 //  (m.origin + m.length + 1, (m, p));
 and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
-  let singl: Layout.measurement = {
-    let origin: Layout.point = {row, col};
-    let last: Layout.point = {row, col: col + 1};
+  let singl: measurement = {
+    let origin: point = {row, col};
+    let last: point = {row, col: col + 1};
     {origin, last};
   };
   switch (p) {
@@ -145,7 +157,7 @@ and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
   | Whitespace(w) => ((row, col + 1), singleton_w(w, singl))
   | Grout(g) => ((row, col + 1), singleton_g(g, singl))
   | Tile(t) =>
-    let origin: Layout.point = {row, col};
+    let origin: point = {row, col};
     //let indent' = indent + 1; //TODO(andrew): incr indent
     let (hd, tl) = ListUtil.split_first(t.shards);
     let token = List.nth(t.label);
@@ -160,7 +172,7 @@ and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
            (row, col + Unicode.length(token(hd))),
          )
       |> PairUtil.map_snd(union);
-    let last: Layout.point = {row: row', col: col'};
+    let last: point = {row: row', col: col'};
     ((row', col'), map |> add_t(t, {origin, last}));
   };
 };
@@ -177,7 +189,7 @@ let length = (seg: Segment.t, map: t): int =>
     last.last.col - first.origin.col;
   };
 
-// let of_zipper = _: zipper => failwith("todo Measured.of_zipper");
+// let of_zipper = _: zipper => failwith("todo of_zipper");
 
 // type segment = list((measurement, piece))
 // and piece =
@@ -203,7 +215,7 @@ let length = (seg: Segment.t, map: t): int =>
 //   };
 // };
 
-// type generation = ((Layout.measurement, Anc.t), siblings);
+// type generation = ((measurement, Anc.t), siblings);
 // type ancestors = list(generation);
 
 // type relatives = {
@@ -247,7 +259,7 @@ let length = (seg: Segment.t, map: t): int =>
 //        },
 //        origin,
 //      )
-// and of_piece = (~origin=0, p: Piece.t): (Layout.measurement, piece) =>
+// and of_piece = (~origin=0, p: Piece.t): (measurement, piece) =>
 //   switch (p) {
 //   // TODO(d) change once w includes newlines
 //   | Whitespace(w) => ({origin, length: 1}, Whitespace(w))
@@ -274,4 +286,87 @@ let length = (seg: Segment.t, map: t): int =>
 //     );
 //   };
 
-// let of_zipper = _: zipper => failwith("todo Measured.of_zipper");
+// let of_zipper = _: zipper => failwith("todo of_zipper");
+
+//TODO(andrew): padding?
+[@deriving show]
+type padding =
+  | None
+  | Bi
+  | Pre
+  | Post;
+
+let padding: string => padding =
+  fun
+  | "fun"
+  | "let" => Post
+  | "=>"
+  | "+"
+  | "-"
+  | "*"
+  | "/"
+  | ","
+  | "="
+  | "in"
+  | "?"
+  | ":" => Bi
+  | "("
+  | ")"
+  | "["
+  | "]"
+  | "}"
+  | _ => None;
+
+let relativize_measurements:
+  (int, list(measurement_lin)) => list(measurement_lin) =
+  parent_origin =>
+    List.map(({origin, length}) =>
+      {origin: origin - parent_origin, length}
+    );
+
+let linearize: measurement => measurement_lin =
+  ({origin: {col: origin, _}, last: {col: last, _}}) => {
+    origin,
+    length: last - origin,
+  };
+
+/*
+  let rec to_measured = (~origin=0, layout: t): measured =>
+    switch (layout) {
+    | Atom(t, ann) =>
+      let measurement = {origin, length: token_length(t)};
+      {layout: AtomM(t, ann), measurement};
+    | Cat(ls, ann) =>
+      let (ms, final) =
+        List.fold_left(
+          ((ms, origin), l) => {
+            let m = to_measured(l, ~origin);
+            ([m, ...ms], origin + m.measurement.length);
+          },
+          ([], origin),
+          ls,
+        );
+      let measurement = {origin, length: final - origin};
+      {layout: CatM(List.rev(ms), ann), measurement};
+    };
+
+  let select_piece_idxs = xs =>
+    List.map(idx => {
+      // NOTE: This re-indexing is because of delims, NOT padding
+      let i = 2 * idx + 1;
+      assert(i >= 0 && i < List.length(xs));
+      List.nth(xs, i);
+    });
+
+  let get_closed_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
+    List.map((==)(mold.sorts.out), mold.sorts.in_)
+    |> ListUtil.p_indices((==)(false))
+    |> select_piece_idxs(ms);
+  };
+
+  let get_open_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
+    List.map((==)(mold.sorts.out), mold.sorts.in_)
+    |> ListUtil.p_indices((==)(true))
+    |> select_piece_idxs(ms);
+  };
+ */

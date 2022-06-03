@@ -14,12 +14,12 @@ let piece_shape_of_nibs = ((l, r): Core.Nibs.t): piece_shape => (
 
 module Profile = {
   type t = {
-    measurement: Layout.measurement',
+    measurement: Measured.measurement_lin,
     color: Color.t,
     shape: piece_shape,
     style: SelemStyle.t,
-    open_children: list(Layout.measurement'),
-    closed_children: list(Layout.measurement'),
+    open_children: list(Measured.measurement_lin),
+    closed_children: list(Measured.measurement_lin),
     // empty_holes: list((int, Color.t, Nib.shape)),
   };
   let mk =
@@ -83,7 +83,7 @@ let shadow_filter = (~color: Color.t) => {
   );
 };
 
-let closed_child_path = ({origin, length}: Layout.measurement') =>
+let closed_child_path = ({origin, length}: Measured.measurement_lin) =>
   List.concat(
     SvgUtil.Path.[
       [M({x: Float.of_int(origin) +. 0.5, y: child_border_thickness})],
@@ -97,7 +97,7 @@ let closed_child_path = ({origin, length}: Layout.measurement') =>
   );
 
 let open_child_paths =
-    (~origin, ~color: Color.t, open_children: list(Layout.measurement'))
+    (~origin, ~color: Color.t, open_children: list(Measured.measurement_lin))
     : list(Node.t) => {
   open SvgUtil.Path;
   let color =
@@ -144,7 +144,7 @@ let open_child_paths =
       ],
     );
   open_children
-  |> List.map((Layout.{origin: origin', length}) => {
+  |> List.map((Measured.{origin: origin', length}) => {
        let gradient_id =
          Printf.sprintf(
            "bidelimited-open-child-gradient-%d-%d",
@@ -178,7 +178,7 @@ let open_child_paths =
 //   EmptyHoleDec.path(tip, Float.of_int(offset), 0.28);
 // };
 
-let open_child_path = ({origin, length}: Layout.measurement') =>
+let open_child_path = ({origin, length}: Measured.measurement_lin) =>
   List.concat(
     SvgUtil.Path.[
       [H({x: Float.of_int(origin) +. tip_width})],

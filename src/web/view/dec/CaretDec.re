@@ -435,8 +435,8 @@ let view =
     //     switch (d) {
     //     | Left =>
     //       let len =
-    //         Layout.length(
-    //           Layout.mk_selection(~frame_color=Selected, selection),
+    //         Measured.length(
+    //           Measured.mk_selection(~frame_color=Selected, selection),
     //         );
     //       Printf.sprintf(
     //         "left: calc(%fpx + 12px); ",

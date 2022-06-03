@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 
 module Profile = {
-  type t = Layout.measurement';
+  type t = Measured.measurement_lin;
 };
 
 let view = (~font_metrics: FontMetrics.t, profile: Profile.t) => {
