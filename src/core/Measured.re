@@ -1,5 +1,4 @@
 open Util;
-open Core;
 
 [@deriving show]
 type point = {
@@ -167,9 +166,9 @@ and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
            ((row, col), (child, i)) => {
              let ((row, col), map) =
                of_segment(~row, ~col, ~indent=indent + 1, child);
-             ((row, col + Unicode.length(token(i))), map);
+             ((row, col + String.length(token(i))), map);
            },
-           (row, col + Unicode.length(token(hd))),
+           (row, col + String.length(token(hd))),
          )
       |> PairUtil.map_snd(union);
     let last: point = {row: row', col: col'};

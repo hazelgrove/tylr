@@ -27,7 +27,7 @@ let hole_radii = (~font_metrics: FontMetrics.t) => {
 let container =
     (
       ~font_metrics: FontMetrics.t,
-      ~measurement as {origin, length}: Measured.measurement_lin,
+      ~measurement as {origin, length}: Core.Measured.measurement_lin,
       ~cls: string,
       ~container_clss=[],
       svgs: list(Node.t),

@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 open DecUtil;
 
 module Profile = {
-  type t = Measured.measurement_lin;
+  type t = Core.Measured.measurement_lin;
 };
 
 let h = 0.15;

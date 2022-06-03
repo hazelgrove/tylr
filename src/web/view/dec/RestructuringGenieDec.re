@@ -6,7 +6,7 @@ open Virtual_dom.Vdom;
  * constraints relative to other decorations
  */
 module Profile = {
-  type t = Measured.measurement_lin;
+  type t = Core.Measured.measurement_lin;
 };
 
 let view = (~font_metrics, measurement: Profile.t) =>

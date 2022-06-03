@@ -1,11 +1,11 @@
 open Virtual_dom.Vdom;
 open DecUtil;
-// open Core;
+open Core;
 
 module Profile = {
   type t = {
     measurement: Measured.measurement_lin,
-    mold: Core.Mold.t,
+    mold: Mold.t,
   };
 };
 
