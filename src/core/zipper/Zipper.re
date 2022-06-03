@@ -125,58 +125,73 @@ let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
     | (None, None) => (None, None)
     };
 
-let neighbor_move_into:
-  Siblings.t => (option(Piece.inner), option(Piece.inner)) =
-  siblings =>
-    switch (Siblings.neighbors(siblings)) {
-    | (Some(l), Some(r)) => (Piece.inner(l), Piece.inner(r))
-    | (Some(l), None) => (Piece.inner(l), None)
-    | (None, Some(r)) => (None, Piece.inner(r))
-    | (None, None) => (None, None)
-    };
+/*
+ let neighbor_move_into:
+   Siblings.t => (option(Piece.inner), option(Piece.inner)) =
+   siblings =>
+     switch (Siblings.neighbors(siblings)) {
+     | (Some(l), Some(r)) => (Piece.inner(l), Piece.inner(r))
+     | (Some(l), None) => (Piece.inner(l), None)
+     | (None, Some(r)) => (None, Piece.inner(r))
+     | (None, None) => (None, None)
+     };
 
-let neighbor_move_into_z: t => (option(Piece.inner), option(Piece.inner)) =
+ let neighbor_move_into_z: t => (option(Piece.inner), option(Piece.inner)) =
+   ({relatives: {siblings, ancestors}, _}) => {
+     let (supernhbr_l, supernhbr_r) =
+       switch (ancestors) {
+       | [] => (None, None)
+       //TODO(andrew): below assumes whole tiles
+       | [({children: (ls, _rs), label, _}, (_pre, _post)), ..._] =>
+         let _idx = List.length(ls); // index of leftwards delim
+         (Piece.inner'(label), None);
+       };
+     switch (neighbor_move_into(siblings)) {
+     | (Some(l), Some(r)) => (Some(l), Some(r))
+     | (Some(l), None) => (Some(l), supernhbr_r)
+     | (None, Some(r)) => (supernhbr_l, Some(r))
+     | (None, None) => (supernhbr_l, supernhbr_r)
+     };
+   };
+ */
+[@deriving show]
+type move_status =
+  | CanMoveInto(int, int)
+  | CanMovePast
+  | CantEven;
+
+let move_status = (label, delim_idx): move_status => {
+  assert(delim_idx < List.length(label));
+  let delim_max = String.length(List.nth(label, delim_idx)) - 2;
+  delim_max < 0 ? CanMovePast : CanMoveInto(delim_idx, delim_max);
+};
+
+let nhbr_movability: t => (move_status, move_status) =
   ({relatives: {siblings, ancestors}, _}) => {
     let (supernhbr_l, supernhbr_r) =
       switch (ancestors) {
-      | [] => (None, None)
-      //TODO(andrew): below assumes whole tiles
-      | [({children: (ls, _rs), label, _}, (_pre, _post)), ..._] =>
-        let _idx = List.length(ls); // index of leftwards delim
-        (Piece.inner'(label), None);
+      | [] => (CantEven, CantEven)
+      //TODO(andrew): below assumes whole polytiles
+      | [({children: (ls, _rs), label, _}, _), ..._] => (
+          move_status(label, List.length(ls)),
+          move_status(label, List.length(ls) + 1),
+        )
       };
-    switch (neighbor_move_into(siblings)) {
-    | (Some(l), Some(r)) => (Some(l), Some(r))
-    | (Some(l), None) => (Some(l), supernhbr_r)
-    | (None, Some(r)) => (supernhbr_l, Some(r))
-    | (None, None) => (supernhbr_l, supernhbr_r)
-    };
-  };
-
-let adjacent_delims_index: t => (option((int, int)), option((int, int))) =
-  ({relatives: {siblings, ancestors}, _}) => {
-    let (supernhbr_l, supernhbr_r) =
-      switch (ancestors) {
-      | [] => (None, None)
-      //TODO(andrew): below assumes whole tiles
-      | [({children: (ls, _rs), label, _}, (_pre, _post)), ..._] =>
-        let _left_delim_idx = List.length(ls);
-        let _right_delim_idx = List.length(ls) + 1;
-        failwith("TODO");
-      //(Piece.inner'(label), None);
+    let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
+    let l =
+      switch (l_nhbr) {
+      | Some(Tile({label, _})) =>
+        move_status(label, List.length(label) - 1)
+      | Some(_) => CanMovePast
+      | _ => supernhbr_l
       };
-    switch (neighbor_move_into(siblings)) {
-    | (Some((l_max, l_maxes)), Some(_r)) => (
-        Some((l_max, List.nth(l_maxes, l_max))),
-        Some((0, 0)),
-      )
-    | (Some((l_max, l_maxes)), None) => (
-        Some((l_max, List.nth(l_maxes, l_max))),
-        supernhbr_r,
-      )
-    | (None, Some(_r)) => (supernhbr_l, Some((0, 0)))
-    | (None, None) => (supernhbr_l, supernhbr_r)
-    };
+    let r =
+      switch (r_nhbr) {
+      | Some(Tile({label, _})) => move_status(label, 0)
+      | Some(_) => CanMovePast
+      | _ => supernhbr_r
+      };
+    (l, r);
   };
 
 let unselect = (z: t): t => {
@@ -538,9 +553,6 @@ let insert =
   | _ => failwith("TODO(andrew): insert poly")
   };
 
-let _last_inner_pos: Piece.inner => int =
-  ((max, maxes)) => List.nth(maxes, max) - 2;
-
 let decrement_caret: caret => caret =
   fun
   | Outer
@@ -549,35 +561,37 @@ let decrement_caret: caret => caret =
   | InnerPoly(_, 0) => Outer
   | InnerPoly(d, l) => InnerPoly(d, l - 1);
 
-let has_initial_inner_positions: Piece.inner => bool =
-  fun
-  | (_, []) => false
-  | (_, [d, ..._]) => d > (-1);
-
 let move =
     (
       d: Direction.t,
-      {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
+      {caret, relatives: {siblings: (_l_sibs, _r_sibs), _}, _} as z: t,
     )
     : option(t) =>
   //TODO(andrew): bug with moving when non-em selection and inner caret?
-  switch (d, caret, neighbor_move_into((l_sibs, r_sibs))) {
-  | (Left, Outer, (Some((delim_max, char_maxes) as t), _))
-      when has_initial_inner_positions(t) =>
-    z
-    |> set_caret(InnerPoly(delim_max, List.nth(char_maxes, delim_max)))
-    |> move_outer(d)
-  | (Left, Outer, _) => move_outer(d, z)
-  | (Left, InnerPoly(_), _) => Some(update_caret(decrement_caret, z))
-  | (Right, Outer, (_, Some((delim_max, char_maxes))))
-      when has_initial_inner_positions((delim_max, char_maxes)) =>
-    Some(set_caret(InnerPoly(0, 0), z))
-  | (Right, Outer, _) => move_outer(d, z)
-  | (Right, InnerPoly(delim, char), (_, Some((_delim_max, char_maxes))))
-      when char == List.nth(char_maxes, delim) =>
-    z |> set_caret(Outer) |> move_outer(d)
+  switch (d, caret, nhbr_movability(z)) {
+  | (Left, Outer, (CanMoveInto(init_delim, max_pos), _)) =>
+    Printf.printf("MOVE 1: %d %d\n", init_delim, max_pos);
+    z |> set_caret(InnerPoly(init_delim, max_pos)) |> move_outer(d);
+  | (Left, Outer, _) =>
+    Printf.printf("MOVE 2\n");
+    move_outer(d, z);
+  | (Left, InnerPoly(_), _) =>
+    Printf.printf("MOVE 3\n");
+    // not sure assumptions underlying this case still hold
+    Some(update_caret(decrement_caret, z));
+  | (Right, Outer, (_, CanMoveInto(init_delim, _max_pos))) =>
+    Printf.printf("MOVE 4: %d\n", init_delim);
+    Some(set_caret(InnerPoly(init_delim, 0), z));
+  | (Right, Outer, _) =>
+    Printf.printf("MOVE 5\n");
+    move_outer(d, z);
+  | (Right, InnerPoly(_, char), (_, CanMoveInto(_, max_pos)))
+      when char == max_pos =>
+    Printf.printf("MOVE 6: %d %d\n", char, max_pos);
+    z |> set_caret(Outer) |> move_outer(d);
   | (Right, InnerPoly(delim, char), _) =>
-    Some(set_caret(InnerPoly(delim, char + 1), z))
+    Printf.printf("MOVE 7: %d %d\n", delim, char);
+    Some(set_caret(InnerPoly(delim, char + 1), z));
   | _ => failwith("innerpoly move")
   };
 

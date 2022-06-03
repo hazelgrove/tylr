@@ -67,25 +67,28 @@ let is_tile: t => bool =
   | Whitespace(_) => true
   | _ => false;
 
-let tile_label: t => option(Label.t) =
-  fun
-  | Tile({label, _}) => Some(label)
-  | _ => None;
+/*
+ let tile_label: t => option(Label.t) =
+   fun
+   | Tile({label, _}) => Some(label)
+   | _ => None;
 
-[@deriving show]
-type inner = (int, list(int));
 
-let inner': Label.t => option(inner) =
-  label =>
-    Some((
-      List.length(label) - 1,
-      List.map(t => String.length(t) - 2, label),
-    ));
+  [@deriving show]
+  type inner = (int, list(int));
 
-let inner: t => option(inner) =
-  fun
-  | Tile({label, _}) => inner'(label)
-  | _ => None;
+  let inner': Label.t => option(inner) =
+    label =>
+      Some((
+        List.length(label) - 1,
+        List.map(t => String.length(t) - 2, label),
+      ));
+
+  let inner: t => option(inner) =
+    fun
+    | Tile({label, _}) => inner'(label)
+    | _ => None;
+  */
 
 let monotile: t => option(Token.t) =
   fun
