@@ -130,20 +130,14 @@ type move_status =
   | CantEven;
 
 let movability = (label, delim_idx): move_status => {
-  switch (Settings.s.movement) {
-  | Token => CanMovePast
-  | Mono =>
-    assert(delim_idx < List.length(label));
-    switch (label, delim_idx) {
-    | ([t], 0) =>
-      let delim_max = String.length(t) - 2;
-      delim_max < 0 ? CanMovePast : CanMoveInto(0, delim_max);
-    | _ => CanMovePast
-    };
-  | Char =>
-    assert(delim_idx < List.length(label));
+  assert(delim_idx < List.length(label));
+  switch (Settings.s.movement, label, delim_idx) {
+  | (Char, _, _)
+  | (Mono, [_], 0) =>
     let char_max = String.length(List.nth(label, delim_idx)) - 2;
     char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
+  | (Token, _, _)
+  | (Mono, _, _) => CanMovePast
   };
 };
 
@@ -152,10 +146,9 @@ let neighbor_movability: t => (move_status, move_status) =
     let (supernhbr_l, supernhbr_r) =
       switch (ancestors) {
       | [] => (CantEven, CantEven)
-      //TODO(andrew): below assumes whole polytiles maybe?
-      | [({children: (ls, _rs), label, _}, _), ..._] => (
-          movability(label, List.length(ls)),
-          movability(label, List.length(ls) + 1),
+      | [({children: (l_kids, _), label, _}, _), ..._] => (
+          movability(label, List.length(l_kids)),
+          movability(label, List.length(l_kids) + 1),
         )
       };
     let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
@@ -404,9 +397,8 @@ let destruct =
                |> Option.map(z => (z, id_gen))
            : Option.some,
        )
-  | (_, Inner(_), (_, None)) =>
-    print_endline("No-op: destruct inside delimiter");
-    None;
+  /* Can't destruct inside delimiter */
+  | (_, Inner(_), (_, None)) => None
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
     replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
   | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
@@ -518,9 +510,8 @@ let insert =
         |> set_caret(Inner(d_idx, idx))
         |> (z => replace_construct(Right, [new_t], (z, id_gen)))
       : split((z, id_gen), char, idx, t);
-  | (Inner(_, _), (_, None)) =>
-    print_endline("No-op: Insert inside delimiter");
-    None;
+  /* Can't insert inside delimiter */
+  | (Inner(_, _), (_, None)) => None
   | (Outer, (_, Some(_))) =>
     let caret =
       /* If we're adding to the right, move caret inside right nhbr */
