@@ -59,6 +59,19 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         //   |> Layout.show_measured
         //   |> print_endline;
         //   [];
+        | "F3" =>
+          switch (Settings.s.movement) {
+          | Char =>
+            print_endline("cm");
+            Settings.s.movement = Mono;
+          | Mono =>
+            print_endline("mt");
+            Settings.s.movement = Token;
+          | Token =>
+            print_endline("tc");
+            Settings.s.movement = Char;
+          };
+          [];
         | "ArrowLeft" when held(Shift) => now(Select(Left))
         | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))

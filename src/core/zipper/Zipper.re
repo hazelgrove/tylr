@@ -4,8 +4,7 @@ open Sexplib.Std;
 [@deriving show]
 type caret =
   | Outer
-  | Inner(int)
-  | InnerPoly(int, int);
+  | Inner(int, int);
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
@@ -54,7 +53,6 @@ let caret_direction =
     : option(Direction.t) =>
   /* Direction the caret is facing in */
   switch (caret) {
-  | InnerPoly(_)
   | Inner(_) => None
   | Outer =>
     let sibs =
@@ -125,69 +123,51 @@ let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
     | (None, None) => (None, None)
     };
 
-/*
- let neighbor_move_into:
-   Siblings.t => (option(Piece.inner), option(Piece.inner)) =
-   siblings =>
-     switch (Siblings.neighbors(siblings)) {
-     | (Some(l), Some(r)) => (Piece.inner(l), Piece.inner(r))
-     | (Some(l), None) => (Piece.inner(l), None)
-     | (None, Some(r)) => (None, Piece.inner(r))
-     | (None, None) => (None, None)
-     };
-
- let neighbor_move_into_z: t => (option(Piece.inner), option(Piece.inner)) =
-   ({relatives: {siblings, ancestors}, _}) => {
-     let (supernhbr_l, supernhbr_r) =
-       switch (ancestors) {
-       | [] => (None, None)
-       //TODO(andrew): below assumes whole tiles
-       | [({children: (ls, _rs), label, _}, (_pre, _post)), ..._] =>
-         let _idx = List.length(ls); // index of leftwards delim
-         (Piece.inner'(label), None);
-       };
-     switch (neighbor_move_into(siblings)) {
-     | (Some(l), Some(r)) => (Some(l), Some(r))
-     | (Some(l), None) => (Some(l), supernhbr_r)
-     | (None, Some(r)) => (supernhbr_l, Some(r))
-     | (None, None) => (supernhbr_l, supernhbr_r)
-     };
-   };
- */
 [@deriving show]
 type move_status =
   | CanMoveInto(int, int)
   | CanMovePast
   | CantEven;
 
-let move_status = (label, delim_idx): move_status => {
-  assert(delim_idx < List.length(label));
-  let delim_max = String.length(List.nth(label, delim_idx)) - 2;
-  delim_max < 0 ? CanMovePast : CanMoveInto(delim_idx, delim_max);
+let movability = (label, delim_idx): move_status => {
+  switch (Settings.s.movement) {
+  | Token => CanMovePast
+  | Mono =>
+    assert(delim_idx < List.length(label));
+    switch (label, delim_idx) {
+    | ([t], 0) =>
+      let delim_max = String.length(t) - 2;
+      delim_max < 0 ? CanMovePast : CanMoveInto(0, delim_max);
+    | _ => CanMovePast
+    };
+  | Char =>
+    assert(delim_idx < List.length(label));
+    let char_max = String.length(List.nth(label, delim_idx)) - 2;
+    char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
+  };
 };
 
-let nhbr_movability: t => (move_status, move_status) =
+let neighbor_movability: t => (move_status, move_status) =
   ({relatives: {siblings, ancestors}, _}) => {
     let (supernhbr_l, supernhbr_r) =
       switch (ancestors) {
       | [] => (CantEven, CantEven)
-      //TODO(andrew): below assumes whole polytiles
+      //TODO(andrew): below assumes whole polytiles maybe?
       | [({children: (ls, _rs), label, _}, _), ..._] => (
-          move_status(label, List.length(ls)),
-          move_status(label, List.length(ls) + 1),
+          movability(label, List.length(ls)),
+          movability(label, List.length(ls) + 1),
         )
       };
     let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
     let l =
       switch (l_nhbr) {
-      | Some(Tile({label, _})) =>
-        move_status(label, List.length(label) - 1)
+      | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
       | Some(_) => CanMovePast
       | _ => supernhbr_l
       };
     let r =
       switch (r_nhbr) {
-      | Some(Tile({label, _})) => move_status(label, 0)
+      | Some(Tile({label, _})) => movability(label, 0)
       | Some(_) => CanMovePast
       | _ => supernhbr_r
       };
@@ -370,11 +350,11 @@ let merge_candidates:
     };
   };
 
-/* merge precondition: ... <Monotile> <DontCare> | <Monotile> ... */
+/* Merge precondition: ... <Monotile> <DontCare> | <Monotile> ...  */
 let merge =
     ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
-  |> set_caret(Inner(String.length(l) - 1))
+  |> set_caret(Inner(0, String.length(l) - 1))  // note monotile assumption
   |> move_outer(Right)
   |> OptUtil.and_then(select_outer(Left))
   |> OptUtil.and_then(select_outer(Left))
@@ -382,13 +362,11 @@ let merge =
   |> Option.map(destruct_outer)
   |> Option.map(z => construct(Right, [l ++ r], z, id_gen));
 
-let decrement_caret': caret => caret =
+let decrement_caret: caret => caret =
   fun
   | Outer
-  | Inner(0) => Outer
-  | Inner(k) => Inner(k - 1)
-  | _ => failwith("decrement_caret'");
-//TODO(andrew)
+  | Inner(_, 0) => Outer
+  | Inner(d, c) => Inner(d, c - 1);
 
 let destruct =
     (
@@ -397,28 +375,28 @@ let destruct =
     )
     : option(state) => {
   /* Could add checks on valid tokens (all of these hold assuming substring) */
-  let last_inner_pos' = t => String.length(t) - 2;
+  let last_inner_pos = t => String.length(t) - 2;
   let d_outer = z =>
     z
     |> select_outer(d)
     |> Option.map(destruct_outer)
     |> Option.map(z => (z, id_gen));
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
-  | (Left, InnerPoly(_, c_idx), (_, Some(t))) =>
-    let z = update_caret(decrement_caret', z);
+  | (Left, Inner(_, c_idx), (_, Some(t))) =>
+    let z = update_caret(decrement_caret, z);
     replace_construct(
       Right,
       [StringUtil.remove_nth(c_idx, t)],
       (z, id_gen),
     );
-  | (Right, InnerPoly(_, c_idx), (_, Some(t))) =>
+  | (Right, Inner(_, c_idx), (_, Some(t))) =>
     replace_construct(
       Right,
       [StringUtil.remove_nth(c_idx + 1, t)],
       (z, id_gen),
     )
     |> OptUtil.and_then(
-         c_idx == last_inner_pos'(t)
+         c_idx == last_inner_pos(t)
            ? ((z, id_gen)) =>
                z
                |> set_caret(Outer)
@@ -426,16 +404,15 @@ let destruct =
                |> Option.map(z => (z, id_gen))
            : Option.some,
        )
-  | (_, InnerPoly(_), (_, None)) =>
-    print_endline("No-op: destruct on delimiter");
-    Some((z, id_gen));
+  | (_, Inner(_), (_, None)) =>
+    print_endline("No-op: destruct inside delimiter");
+    None;
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
     replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
   | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
     replace_construct(Right, [StringUtil.remove_first(t)], (z, id_gen))
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
   | (_, Outer, (None, _)) => d_outer(z)
-  | _ => failwith("TODO(andrew): destruct poly")
   };
 };
 
@@ -532,23 +509,23 @@ let insert =
     )
     : option(state) =>
   switch (caret, neighbor_monotiles(siblings)) {
-  | (InnerPoly(d_idx, n), (_, Some(t))) =>
+  | (Inner(d_idx, n), (_, Some(t))) =>
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
     /* If inserting wouldn't produce a valid token, split */
     Form.is_valid_token(new_t)
       ? z
-        |> set_caret(InnerPoly(d_idx, idx))
+        |> set_caret(Inner(d_idx, idx))
         |> (z => replace_construct(Right, [new_t], (z, id_gen)))
       : split((z, id_gen), char, idx, t);
-  | (InnerPoly(_, _), (_, None)) =>
-    print_endline("No-op: polytile insert");
-    Some((z, id_gen));
+  | (Inner(_, _), (_, None)) =>
+    print_endline("No-op: Insert inside delimiter");
+    None;
   | (Outer, (_, Some(_))) =>
     let caret =
       /* If we're adding to the right, move caret inside right nhbr */
       switch (sibling_appendability(char, siblings)) {
-      | CanAddToRight(_) => InnerPoly(0, 0) //Note: assumption of monotile
+      | CanAddToRight(_) => Inner(0, 0) //Note: assumption of monotile
       | CanAddToNeither
       | CanAddToLeft(_) => Outer
       };
@@ -556,37 +533,24 @@ let insert =
     |> insert_outer(char)
     |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen));
   | (Outer, (_, None)) => insert_outer(char, (z, id_gen))
-  | _ => failwith("TODO(andrew): insert poly")
   };
 
-let decrement_caret: caret => caret =
-  fun
-  | Outer
-  | Inner(0) => Outer
-  | Inner(k) => Inner(k - 1)
-  | InnerPoly(_, 0) => Outer
-  | InnerPoly(d, l) => InnerPoly(d, l - 1);
-
-let move =
-    (
-      d: Direction.t,
-      {caret, relatives: {siblings: (_l_sibs, _r_sibs), _}, _} as z: t,
-    )
-    : option(t) =>
-  //TODO(andrew): bug with moving when non-em selection and inner caret?
-  switch (d, caret, nhbr_movability(z)) {
-  | (Left, Outer, (CanMoveInto(d_init, c_max), _)) =>
-    z |> set_caret(InnerPoly(d_init, c_max)) |> move_outer(d)
-  | (Left, Outer, _) => move_outer(d, z)
-  | (Left, InnerPoly(_), _) => Some(update_caret(decrement_caret, z))
-  | (Right, Outer, (_, CanMoveInto(d_init, _))) =>
-    Some(set_caret(InnerPoly(d_init, 0), z))
-  | (Right, Outer, _) => move_outer(d, z)
-  | (Right, InnerPoly(_, c), (_, CanMoveInto(_, c_max))) when c == c_max =>
+let move = (d: Direction.t, z: t): option(t) =>
+  switch (d, z.caret, neighbor_movability(z)) {
+  | _ when z.selection.content != [] =>
+    /* this case maybe shouldn't be necessary but currently covers an edge
+       (select an open parens to left of a multichar token and press left) */
     z |> set_caret(Outer) |> move_outer(d)
-  | (Right, InnerPoly(delim, c), _) =>
-    Some(set_caret(InnerPoly(delim, c + 1), z))
-  | _ => failwith("TODO(andrew) innerpoly move")
+  | (Left, Outer, (CanMoveInto(d_init, c_max), _)) =>
+    z |> set_caret(Inner(d_init, c_max)) |> move_outer(d)
+  | (Left, Outer, _) => move_outer(d, z)
+  | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
+  | (Right, Outer, (_, CanMoveInto(d_init, _))) =>
+    Some(set_caret(Inner(d_init, 0), z))
+  | (Right, Outer, _) => move_outer(d, z)
+  | (Right, Inner(_, c), (_, CanMoveInto(_, c_max))) when c == c_max =>
+    z |> set_caret(Outer) |> move_outer(d)
+  | (Right, Inner(delim, c), _) => Some(set_caret(Inner(delim, c + 1), z))
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
