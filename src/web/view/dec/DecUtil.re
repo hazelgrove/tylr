@@ -83,3 +83,68 @@ let container =
     ],
   );
 };
+
+let container2d =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~measurement: Core.Measured.measurement,
+      ~cls: string,
+      ~container_clss=[],
+      svgs: list(Node.t),
+    )
+    : Node.t => {
+  let origin_x = measurement.origin.col;
+  let origin_y = measurement.origin.row;
+  let length_lin = measurement.last.col - measurement.origin.col;
+
+  let buffered_height = 8;
+  let buffered_width = length_lin + 3;
+
+  let buffered_height_px =
+    Float.of_int(buffered_height) *. font_metrics.row_height;
+  let buffered_width_px =
+    Float.of_int(buffered_width) *. font_metrics.col_width;
+
+  let container_origin_x =
+    (Float.of_int(origin_x) -. 1.5) *. font_metrics.col_width;
+  let container_origin_y =
+    (Float.of_int(origin_y) -. 3.5) *. font_metrics.row_height;
+
+  Node.div(
+    Attr.[
+      classes([
+        "decoration-container",
+        Printf.sprintf("%s-container", cls),
+        ...container_clss,
+      ]),
+      create(
+        "style",
+        Printf.sprintf(
+          "top: calc(%fpx + 2px); left: %fpx;",
+          container_origin_y,
+          container_origin_x,
+        ),
+      ),
+    ],
+    [
+      Node.create_svg(
+        "svg",
+        Attr.[
+          classes([cls]),
+          create(
+            "viewBox",
+            Printf.sprintf(
+              "-1.5 -3.5 %d %d",
+              buffered_width,
+              buffered_height,
+            ),
+          ),
+          create("width", Printf.sprintf("%fpx", buffered_width_px)),
+          create("height", Printf.sprintf("%fpx", buffered_height_px)),
+          create("preserveAspectRatio", "none"),
+        ],
+        svgs,
+      ),
+    ],
+  );
+};

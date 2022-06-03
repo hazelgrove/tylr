@@ -10,8 +10,8 @@ module Text = {
     seg
     |> List.map(
          fun
-         | Piece.Whitespace({content: "⏎", _}) => [
-             span_c("whitespace", [text("⏎")]),
+         | Piece.Whitespace({content: c, _}) when c == Whitespace.linebreak => [
+             span_c("whitespace", [text(Whitespace.linebreak)]),
              Node.br([]),
              Node.text(
                String.concat("", List.init(indent, _ => Unicode.nbsp)),
@@ -201,7 +201,7 @@ module Deco = (M: {
     SelemDec.Profile.{
       color: Color.of_sort(sort),
       shape: SelemDec.piece_shape_of_nibs(nibs),
-      measurement: Measured.linearize(m),
+      measurement: m,
       style,
       closed_children: [],
       open_children:

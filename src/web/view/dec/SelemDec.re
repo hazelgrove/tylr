@@ -14,7 +14,7 @@ let piece_shape_of_nibs = ((l, r): Core.Nibs.t): piece_shape => (
 
 module Profile = {
   type t = {
-    measurement: Measured.measurement_lin,
+    measurement: Measured.measurement,
     color: Color.t,
     shape: piece_shape,
     style: SelemStyle.t,
@@ -202,6 +202,8 @@ let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
   //     : profile.empty_holes;
   // List.map(empty_hole_path(~font_metrics), raised_holes);
   // };
+  let lin_length =
+    profile.measurement.last.col - profile.measurement.origin.col;
   let closed_child_paths =
     List.map(closed_child_path, profile.closed_children);
   let outer_path: SvgUtil.Path.t = {
@@ -209,8 +211,7 @@ let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
       SelemStyle.stretched(profile.style) ? Float.neg(stretch_dx) : 0.;
     let end_ =
       SelemStyle.stretched(profile.style)
-        ? Float.of_int(profile.measurement.length) +. stretch_dx
-        : Float.of_int(profile.measurement.length);
+        ? Float.of_int(lin_length) +. stretch_dx : Float.of_int(lin_length);
     let fudge_width =
       if (profile.style == Selected) {
         0.2; //narrows piece decos to fit together clean
@@ -252,26 +253,30 @@ let contour_path_attrs = (profile: Profile.t) => {
 
 let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Node.t => {
   // TODO maybe remove this flag and just specify via children fields?
+  let is_1d = profile.measurement.last.row == profile.measurement.origin.row;
   let profile =
     SelemStyle.show_children(profile.style)
       ? profile : {...profile, open_children: [], closed_children: []};
   let open_child_paths =
     open_child_paths(
-      ~origin=profile.measurement.origin,
+      ~origin=profile.measurement.origin.col,
       ~color=profile.color,
       profile.open_children,
     );
-  DecUtil.container(
+  DecUtil.container2d(
     ~font_metrics,
+    //TODO(andrew): unlinearize
     ~measurement=profile.measurement,
     ~cls="tile",
     ~container_clss=[SelemStyle.to_string(profile.style)],
-    open_child_paths
-    @ [
-      SvgUtil.Path.view(
-        ~attrs=contour_path_attrs(profile),
-        contour_path(~font_metrics, profile),
-      ),
-    ],
+    !is_1d
+      ? []
+      : open_child_paths
+        @ [
+          SvgUtil.Path.view(
+            ~attrs=contour_path_attrs(profile),
+            contour_path(~font_metrics, profile),
+          ),
+        ],
   );
 };

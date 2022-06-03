@@ -3,5 +3,8 @@ type movement =
   | Mono
   | Token;
 
-type settings = {mutable movement};
-let s = {movement: Char};
+type settings = {
+  mutable movement,
+  mutable whitespace_debug: bool,
+};
+let s = {movement: Char, whitespace_debug: true};

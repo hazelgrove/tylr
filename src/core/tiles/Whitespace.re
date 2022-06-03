@@ -5,3 +5,5 @@ type t = {
   id: Id.t,
   content: string,
 };
+
+let linebreak = "⏎";

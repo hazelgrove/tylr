@@ -289,7 +289,8 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
 let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
   switch (label) {
   | [t] when Form.is_whitespace(t) =>
-    Siblings.has_space_neighbor(z.relatives.siblings) && t != "⏎"
+    Siblings.has_space_neighbor(z.relatives.siblings)
+    && t != Whitespace.linebreak
       ? IdGen.return(z) : insert_space_grout(t, z)
   | _ =>
     let z = destruct_outer(z);

@@ -150,7 +150,7 @@ and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
     {origin, last};
   };
   switch (p) {
-  | Whitespace({content: "⏎", _} as w) =>
+  | Whitespace({content: c, _} as w) when c == Whitespace.linebreak =>
     // set col to indent
     ((row + 1, indent), singleton_w(w, singl))
   | Whitespace(w) => ((row, col + 1), singleton_w(w, singl))

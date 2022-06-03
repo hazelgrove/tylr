@@ -34,7 +34,7 @@ let mk_infix = (t: Token.t, sort: Sort.t, prec) =>
   mk(ss, [t], mk_bin(prec, sort, []));
 
 /* A. Whitespace: */
-let whitespace = [" ", "⏎"];
+let whitespace = [" ", Whitespace.linebreak];
 
 /* B. Operands:
    Order in this list determines relative remolding

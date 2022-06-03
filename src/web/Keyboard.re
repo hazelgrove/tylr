@@ -57,7 +57,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           ]
         | "Enter" =>
           //NOTE(andrew): using funky char to avoid weird regexp issues with using \n
-          now(Insert("⏎"))
+          now(Insert(Whitespace.linebreak))
         | _ when Form.is_valid_char(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
