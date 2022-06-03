@@ -2,11 +2,6 @@ open Virtual_dom.Vdom;
 open Util;
 // open Core;
 
-type caret_shape =
-  | Straight
-  | Left
-  | Right;
-
 module Profile = {
   type t = {
     mode: CaretMode.t,
@@ -558,20 +553,20 @@ let simple_view =
     (
       ~font_metrics: FontMetrics.t,
       ~side: Direction.t,
-      ~origin: int,
-      ~shape: caret_shape,
+      ~origin: (int, int),
+      ~shape: option(Direction.t),
     ) => {
   let caret =
     switch (shape) {
-    | Left => "caret-left"
-    | Right => "caret-right"
-    | Straight => "caret-straight"
+    | Some(Left) => "caret-left"
+    | Some(Right) => "caret-right"
+    | None => "caret-straight"
     };
   let shape_fudge =
     switch (shape) {
-    | Left
-    | Right => (-3.0)
-    | Straight => 0.0
+    | Some(Left)
+    | Some(Right) => (-3.0)
+    | None => 0.0
     };
   let side_fudge =
     switch (side) {
@@ -588,11 +583,11 @@ let simple_view =
         "style",
         Printf.sprintf(
           "position: absolute; z-index: 100; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
-          Float.of_int(origin)
+          Float.of_int(fst(origin))
           *. font_metrics.col_width
           +. shape_fudge
           +. side_fudge,
-          top_fudge,
+          Float.of_int(snd(origin)) *. font_metrics.row_height +. top_fudge,
           0.0,
           font_metrics.row_height +. height_fudge,
           "#f008",

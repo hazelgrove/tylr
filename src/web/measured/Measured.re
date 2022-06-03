@@ -124,45 +124,44 @@ let union = List.fold_left(union2, empty);
 
 // TODO fix weird default
 let rec of_segment =
-        (~row=0, ~col=0, ~indent=0, seg: Segment.t): ((int, int, int), t) =>
+        (~row=0, ~col=0, ~indent=0, seg: Segment.t): ((int, int), t) =>
   seg
   |> ListUtil.fold_left_map(
-       ((row, col, indent), p) => of_piece(~row, ~col, ~indent, p),
-       (row, col, indent),
+       ((row, col), p) => of_piece(~row, ~col, ~indent, p),
+       (row, col),
      )
   |> PairUtil.map_snd(union)
 //  (m.origin + m.length + 1, (m, p));
-and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int, int), t) => {
+and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
   let singl: Layout.measurement = {
     let origin: Layout.point = {row, col};
     let last: Layout.point = {row, col: col + 1};
     {origin, last};
   };
   switch (p) {
-  | Whitespace({content: "\n", _} as w) =>
+  | Whitespace({content: "⏎", _} as w) =>
     // set col to indent
-    ((row + 1, indent, indent), singleton_w(w, singl))
-  | Whitespace(w) => ((row, col + 1, indent), singleton_w(w, singl))
-  | Grout(g) => ((row, col + 1, indent), singleton_g(g, singl))
+    ((row + 1, indent), singleton_w(w, singl))
+  | Whitespace(w) => ((row, col + 1), singleton_w(w, singl))
+  | Grout(g) => ((row, col + 1), singleton_g(g, singl))
   | Tile(t) =>
-    let indent = indent + 1; //TODO(andrew): incre indent
+    let origin: Layout.point = {row, col};
+    //let indent' = indent + 1; //TODO(andrew): incr indent
     let (hd, tl) = ListUtil.split_first(t.shards);
     let token = List.nth(t.label);
-    let ((row', col', indent'), map) =
+    let ((row', col'), map) =
       List.combine(t.children, tl)
       |> ListUtil.fold_left_map(
-           ((row, col, indent), (child, i)) => {
-             let ((row, col, indent), map) =
-               of_segment(~row, ~col, ~indent, child);
-             ((row, col + Unicode.length(token(i)), indent), map);
+           ((row, col), (child, i)) => {
+             let ((row, col), map) =
+               of_segment(~row, ~col, ~indent=indent + 1, child);
+             ((row, col + Unicode.length(token(i))), map);
            },
-           (row, col + Unicode.length(token(hd)), indent),
+           (row, col + Unicode.length(token(hd))),
          )
       |> PairUtil.map_snd(union);
-    //let length = origin' - origin;
-    let origin: Layout.point = {row, col};
     let last: Layout.point = {row: row', col: col'};
-    ((row', col', indent'), map |> add_t(t, {origin, last}));
+    ((row', col'), map |> add_t(t, {origin, last}));
   };
 };
 

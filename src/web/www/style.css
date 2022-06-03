@@ -343,11 +343,11 @@ svg.rail line.unsorted {
 }
 
 .code-text {
+  line-height: 1; /* TODO(andrew)*/
   position: relative;
   z-index: var(--code-text-z);
   vertical-align: middle;
 }
-
 
 .empty-hole {
   color: #0000;
@@ -994,4 +994,9 @@ svg.rail line.unsorted {
 }
 #github:active  svg {
   transform: scale(100%);
+}
+
+.whitespace {
+  color:rgb(126, 80, 0);
+  opacity: 20%;
 }

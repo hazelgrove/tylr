@@ -77,8 +77,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
             /*PerformAction(Select(Right)),*/ PerformAction(Destruct(Right)),
           ]
         | "Enter" =>
-          print_endline("pressed enter");
-          now(Insert("\n"));
+          //NOTE(andrew): using funky char to avoid weird regexp issues with using \n
+          now(Insert("⏎"))
         | _ when Form.is_valid_char(key) => now(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
