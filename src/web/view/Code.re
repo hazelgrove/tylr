@@ -140,13 +140,6 @@ module Deco = (M: {
         ~origin=origin_base + origin_offset,
         ~shape=Zipper.caret_direction(z),
       ),
-      /*
-       CaretDec.simple_view(
-         ~font_metrics,
-         ~side,
-         ~origin=origin_base,
-         ~shape=Zipper.caret_direction(z),
-       ),*/
       backpack_view(~font_metrics, ~origin=origin_base, z.backpack),
     ];
   };

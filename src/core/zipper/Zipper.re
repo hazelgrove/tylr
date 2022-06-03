@@ -6,6 +6,12 @@ type caret =
   | Outer
   | Inner(int, int);
 
+[@deriving show]
+type movability =
+  | CanMoveInto(int, int)
+  | CanMovePast
+  | CantEven;
+
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
 type t = {
@@ -123,13 +129,7 @@ let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
     | (None, None) => (None, None)
     };
 
-[@deriving show]
-type move_status =
-  | CanMoveInto(int, int)
-  | CanMovePast
-  | CantEven;
-
-let movability = (label, delim_idx): move_status => {
+let movability = (label, delim_idx): movability => {
   assert(delim_idx < List.length(label));
   switch (Settings.s.movement, label, delim_idx) {
   | (Char, _, _)
@@ -141,7 +141,7 @@ let movability = (label, delim_idx): move_status => {
   };
 };
 
-let neighbor_movability: t => (move_status, move_status) =
+let neighbor_movability: t => (movability, movability) =
   ({relatives: {siblings, ancestors}, _}) => {
     let (supernhbr_l, supernhbr_r) =
       switch (ancestors) {
