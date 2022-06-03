@@ -141,7 +141,7 @@ module Deco = (M: {
     let origin_offset =
       switch (z.caret) {
       | Outer => 0
-      | Inner(n) => n + 1
+      | Inner(_d, char) => char + 1
       };
     let side =
       switch (Zipper.indicated_piece(z)) {
