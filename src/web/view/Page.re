@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 
 // let logo = (~font_metrics) => {
-//   let piece = (step, color: Color.t, shape: Layout.piece_shape, s): Layout.t =>
+//   let piece = (step, color: Color.t, shape: SelemDec.piece_shape, s): Layout.t =>
 //     Layout.annot(Piece({color, shape, step}), Text(s));
 //   let l =
 //     Layout.(

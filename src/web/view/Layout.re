@@ -1,16 +1,3 @@
-open Core;
-
-[@deriving show]
-type tip_shape = (Nib.t, int);
-
-[@deriving show]
-type piece_shape = (tip_shape, tip_shape);
-
-let piece_shape_of_nibs = ((l, r): Nibs.t): piece_shape => (
-  (l, 0),
-  (r, 0),
-);
-
 [@deriving show]
 type point = {
   row: int,

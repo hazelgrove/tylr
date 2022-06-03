@@ -4,11 +4,19 @@ open Util;
 open Diag;
 open DecUtil;
 
+[@deriving show]
+type piece_shape = (Diag.tip_shape, Diag.tip_shape);
+
+let piece_shape_of_nibs = ((l, r): Core.Nibs.t): piece_shape => (
+  (l, 0),
+  (r, 0),
+);
+
 module Profile = {
   type t = {
     measurement: Layout.measurement',
     color: Color.t,
-    shape: Layout.piece_shape,
+    shape: piece_shape,
     style: SelemStyle.t,
     open_children: list(Layout.measurement'),
     closed_children: list(Layout.measurement'),

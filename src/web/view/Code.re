@@ -196,7 +196,7 @@ module Deco = (M: {
     let m = Measured.find_p(p, M.map);
     SelemDec.Profile.{
       color: Color.of_sort(sort),
-      shape: Layout.piece_shape_of_nibs(nibs),
+      shape: SelemDec.piece_shape_of_nibs(nibs),
       measurement: Layout.linearize(m),
       style,
       closed_children: [],

@@ -1,5 +1,9 @@
 open DecUtil;
 open SvgUtil.Path;
+
+[@deriving show]
+type tip_shape = (Core.Nib.t, int);
+
 // top right to bottom left
 let tr_bl =
     (
@@ -81,8 +85,7 @@ let br_tl =
   );
 
 let left_tip_path =
-    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
-    : SvgUtil.Path.t => {
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: tip_shape): SvgUtil.Path.t => {
   let path =
     switch (tip) {
     | ({shape: Convex, _}, _) =>
@@ -116,8 +119,7 @@ let left_tip_path =
   scale_x(s_x, scale_y(s_y, path));
 };
 let right_tip_path =
-    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: Layout.tip_shape)
-    : SvgUtil.Path.t => {
+    (~scale_x as s_x=1., ~scale_y as s_y=1., tip: tip_shape): SvgUtil.Path.t => {
   let path =
     switch (tip) {
     | ({shape: Convex, _}, _) =>
