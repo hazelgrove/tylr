@@ -307,3 +307,28 @@ let rec reassemble = (seg: t): t =>
       seg_l @ [p, ...reassemble(seg_r)];
     }
   };
+
+let trim_whitespace: (Direction.t, t) => t =
+  (d, ps) => {
+    let trim =
+      List.fold_left(
+        (acc, p) => Piece.is_whitespace(p) ? acc : [p, ...acc],
+        [],
+      );
+    switch (d) {
+    | Left => ps |> trim |> List.rev
+    | Right => ps |> List.rev |> trim
+    };
+  };
+
+let edge_shape_of = (d: Direction.t, ps: t): option(Nib.Shape.t) => {
+  let trimmed = trim_whitespace(d, ps);
+  switch (d, ListUtil.hd_opt(trimmed), ListUtil.last_opt(trimmed)) {
+  | (Right, _, Some(p)) => p |> Piece.shapes |> Option.map(snd)
+  | (Left, Some(p), _) => p |> Piece.shapes |> Option.map(fst)
+  | _ => None
+  };
+};
+
+let edge_direction_of = (d: Direction.t, ps: t): option(Direction.t) =>
+  Option.map(Nib.Shape.absolute(d), edge_shape_of(d, ps));

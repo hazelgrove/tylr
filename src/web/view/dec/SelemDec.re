@@ -33,29 +33,6 @@ module Profile = {
     // empty_holes,
     style,
   };
-
-  let of_layout =
-      (
-        ~measurement: Layout.measurement,
-        ~color: Color.t,
-        ~shape: Layout.piece_shape,
-        ~style: SelemStyle.t,
-        layout: Layout.t,
-      ) => {
-    // let empty_holes = Layout.piece_holes(layout);
-    let (open_children, closed_children) = Layout.piece_children(layout);
-    //let _ = failwith("fix SelemDec.of_layout(~empty_holes)");
-    mk(
-      ~measurement,
-      ~open_children,
-      ~closed_children,
-      // ~empty_holes,
-      ~color,
-      ~style,
-      ~shape,
-      (),
-    );
-  };
 };
 
 let raised_shadow_filter = (~color: Color.t) => {
@@ -122,7 +99,7 @@ let open_child_paths =
     | Pat => "var(--pat-shadow-color)"
     | Exp => "var(--exp-shadow-color)"
     };
-  let gradient = (id, start, len) =>
+  let _gradient = (id, start, len) =>
     Node.create_svg(
       "linearGradient",
       [
@@ -167,7 +144,8 @@ let open_child_paths =
            origin',
          );
        [
-         gradient(gradient_id, origin', length),
+         //TODO(andrew): restore?
+         //gradient(gradient_id, origin', length),
          view(
            ~attrs=
              Attr.[
@@ -225,10 +203,25 @@ let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
       SelemStyle.stretched(profile.style)
         ? Float.of_int(profile.measurement.length) +. stretch_dx
         : Float.of_int(profile.measurement.length);
+    let fudge_width =
+      if (profile.style == Selected) {
+        0.2; //narrows piece decos to fit together clean
+      } else if (fst(fst(profile.shape)).shape != Core.Nib.Shape.Convex) {
+        0.22; // widen pieces with concave ends to avoid text overlap
+      } else {
+        0.;
+      };
+
     List.concat([
-      [M({x: start, y: 1.}), ...Diag.left_tip_path(fst(profile.shape))],
+      [
+        M({x: fudge_width +. start, y: 1.}),
+        ...Diag.left_tip_path(fst(profile.shape)),
+      ],
       ListUtil.flat_map(open_child_path, profile.open_children),
-      [H({x: end_}), ...Diag.right_tip_path(snd(profile.shape))],
+      [
+        H({x: -. fudge_width +. end_}),
+        ...Diag.right_tip_path(snd(profile.shape)),
+      ],
       [Z],
     ]);
   };

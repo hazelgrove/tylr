@@ -32,7 +32,7 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 //   };
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
-  print_endline("Update.apply");
+  //print_endline("Update.apply");
   switch (update) {
   | SetShowNeighborTiles(b) => {
       ...model,
@@ -100,15 +100,3 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     model
   };
 };
-
-let parse: string => 'a =
-  s =>
-    List.fold_left(
-      (m, c) =>
-        apply(m, PerformAction(Insert(c)), (), ~schedule_action=()),
-      Model.blank,
-      List.init(String.length(s), i => String.make(1, s.[i])),
-    );
-
-let init2: Model.t =
-  parse("let foo= fun taz=> (fun bar=> (foo+ (1+2))) in 2");

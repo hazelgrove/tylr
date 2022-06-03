@@ -552,26 +552,57 @@ let view =
 let simple_view =
     (
       ~font_metrics: FontMetrics.t,
-      ~sub_offset: float,
-      origin: int,
-      color: string,
+      ~side: Direction.t,
+      ~origin: int,
+      ~shape: option(Direction.t),
     ) => {
+  let caret =
+    switch (shape) {
+    | Some(Left) => "caret-left"
+    | Some(Right) => "caret-right"
+    | None => "caret-straight"
+    };
+  let shape_fudge =
+    switch (shape) {
+    | Some(Left)
+    | Some(Right) => (-3.0)
+    | None => 0.0
+    };
+  let side_fudge =
+    switch (side) {
+    | Left => 1.0
+    | Right => 0.0
+    };
+  let top_fudge = 2.0; // ?
+  let height_fudge = 1.0; //extra 1.0 for piece deco shadow
   Node.div(
     [
       Attr.id("caret-temp"),
+      Attr.class_(caret),
       Attr.create(
         "style",
         Printf.sprintf(
-          "position: absolute; z-index: 666; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s;",
-          (Float.of_int(origin) +. sub_offset) *. font_metrics.col_width,
-          (-0.25) *. font_metrics.row_height,
-          2.,
-          // not sure why this needs to be 1.6 and not 1.5
-          1.6 *. font_metrics.row_height,
-          color,
+          "position: absolute; z-index: 100; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
+          Float.of_int(origin)
+          *. font_metrics.col_width
+          +. shape_fudge
+          +. side_fudge,
+          top_fudge,
+          0.0,
+          font_metrics.row_height +. height_fudge,
+          "#f008",
         ),
       ),
     ],
-    [],
+    [
+      Node.create(
+        "img",
+        [
+          Attr.create("src", caret ++ ".png"),
+          Attr.create("style", "height: 100%"),
+        ],
+        [],
+      ),
+    ],
   );
 };

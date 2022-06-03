@@ -23,8 +23,6 @@ module Action = {
     | Select(Direction.t)
     | Destruct(Direction.t)
     | Insert(string)
-    // `Construct(d, lbl)` constructs `lbl` starting from `d` side
-    //| Construct(Direction.t, Tile.Label.t)
     | Pick_up
     | Put_down;
 
@@ -42,6 +40,61 @@ module Action = {
     type t('success) = Result.t('success, Failure.t);
   };
 };
+
+let caret_direction =
+    (
+      {
+        caret,
+        selection: {content, focus},
+        relatives: {siblings: (l_sibs, r_sibs), _},
+        _,
+      }: t,
+    )
+    : option(Direction.t) =>
+  /* Direction the caret is facing in */
+  switch (caret) {
+  | Inner(_) => None
+  | Outer =>
+    let sibs =
+      switch (focus) {
+      | Left => (l_sibs, content @ r_sibs)
+      | Right => (l_sibs @ content, r_sibs)
+      };
+    Siblings.direction_between(sibs);
+  };
+
+let indicated_piece =
+    (
+      {
+        relatives: {siblings: (l_sibs, r_sibs), ancestors},
+        selection: {content, _},
+        _,
+      }: t,
+    )
+    : option((Piece.t, Direction.t)) =>
+  /* Returns the piece currently indicated (if any) and which side of
+     that piece the caret is on. We favor indicating the piece to the
+     (R)ight, but may end up indicating the (P)arent or the (L)eft */
+  switch (content, r_sibs, ancestors, l_sibs) {
+  | ([], [], [], []) => None
+  /* No indicated piece if there's no syntax */
+  | ([_, ..._], _, _, _) => None
+  /* No indicated piece if there's a selection */
+  | ([], [Whitespace(_), ..._], _, [_, ..._])
+      when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
+    Some((ListUtil.last(l_sibs), Left))
+  /* If R is a whitespace and L is non-space indicate L */
+  | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
+    Some((Base.Tile(Ancestor.zip(r_sibs, parent)), Left))
+  /* If R is a whitespace and no L and there's a P, indicate P */
+  | ([], [r_nhbr, ..._], _, _) => Some((r_nhbr, Right))
+  /* If R is non-space, indicate R */
+  | ([], [], [(parent, _), ..._], _) =>
+    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Right))
+  /* If there's no R and there's a P, indicate P */
+  | ([], [], [], [_, ..._]) => Some((ListUtil.last(l_sibs), Right))
+  /* If there's no R and no P and some L, indicate L */
+  };
 
 let update_caret = (f: caret => caret, z: t): t => {
   ...z,
@@ -179,15 +232,6 @@ let put_down = (z: t): option(t) => {
   {...z, backpack} |> put_selection(popped) |> unselect;
 };
 
-// let grout_between: Siblings.t => Piece.t =
-//   fun
-//   | ([], []) => failwith("insert_space_grout: impossible")
-//   | ([], [_, ..._]) => Base.Piece.Grout((Convex, Nib.Shape.concave()))
-//   | ([p, ..._], _) => {
-//       let nib_shape_r = p |> Piece.shapes |> snd;
-//       Grout((Nib.Shape.flip(nib_shape_r), nib_shape_r));
-//     };
-
 let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
   open IdGen.Syntax;
   let+ id = IdGen.fresh;
@@ -199,7 +243,9 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
 
 let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
   switch (label) {
-  | [t] when Token.is_whitespace(t) => insert_space_grout(t, z)
+  | [t] when Form.is_whitespace(t) =>
+    Siblings.has_space_neighbor(z.relatives.siblings)
+      ? IdGen.return(z) : insert_space_grout(t, z)
   | _ =>
     let z = destruct_outer(z);
     let molds = Molds.get(label);
@@ -244,7 +290,7 @@ let merge_candidates:
     | Some((ps, l_nhbr)) when can_merge_through(l_nhbr) =>
       switch (caret, neighbor_monotiles((ps, r_sibs))) {
       | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
-          when Token.is_valid(l_2nd_nhbr ++ r_nhbr) =>
+          when Form.is_valid_token(l_2nd_nhbr ++ r_nhbr) =>
         Some((l_2nd_nhbr, r_nhbr))
       | _ => None
       }
@@ -319,37 +365,15 @@ let destruct_or_merge =
       ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
     )
     : option(state) =>
-  switch (merge_candidates(d, caret, siblings)) {
+  switch (merge_candidates(d, caret, Siblings.trim_whitespace(siblings))) {
   | None => destruct(d, (z, id_gen))
   | Some(candidates) =>
-    let z = update_siblings(shift_siblings_maybe(d), z);
+    let z =
+      z
+      |> update_siblings(Siblings.trim_whitespace)
+      |> update_siblings(shift_siblings_maybe(d));
     merge(candidates, (z, id_gen));
   };
-
-let instant_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
-  (s, direction_preference) =>
-    /* Completions which can or must be executed immediately */
-    //TODO(andrew): refactor to depend on Forms.re
-    switch (s) {
-    | "(" => (["(", ")"], Left)
-    | ")" => (["(", ")"], Right)
-    | "[" => (["[", "]"], Left)
-    | "]" => (["[", "]"], Right)
-    | "?" => (["?", ":"], Left)
-    | "=>" => (["fun", "=>"], Right) /* Must as => not monotile */
-    | t => ([t], direction_preference)
-    };
-
-let delayed_completion: (string, Direction.t) => (list(Token.t), Direction.t) =
-  (s, direction_preference) =>
-    /* Completions which must be defered as they are ambiguous prefixes */
-    //TODO(andrew): refactor to depend on Forms.re
-    switch (s) {
-    | "fun" => (["fun", "=>"], Left)
-    | "in" => (["let", "=", "in"], Right)
-    | "let" => (["let", "=", "in"], Left)
-    | t => ([t], direction_preference)
-    };
 
 let keyword_expand = ((z, _) as state: state): option(state) =>
   /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
@@ -357,7 +381,7 @@ let keyword_expand = ((z, _) as state: state): option(state) =>
      like this is necessary for backspace to act as undo after kw-expansion */
   switch (neighbor_monotiles(z.relatives.siblings)) {
   | (Some(kw), _) =>
-    let (new_label, direction) = delayed_completion(kw, Left);
+    let (new_label, direction) = Molds.delayed_completion(kw, Left);
     replace_construct(direction, new_label, state);
   | _ => Some(state)
   };
@@ -370,8 +394,8 @@ type appendability =
 let sibling_appendability: (string, Siblings.t) => appendability =
   (char, siblings) =>
     switch (neighbor_monotiles(siblings)) {
-    | (Some(t), _) when Token.is_valid(t ++ char) => CanAddToLeft(t)
-    | (_, Some(t)) when Token.is_valid(char ++ t) => CanAddToRight(t)
+    | (Some(t), _) when Form.is_valid_token(t ++ char) => CanAddToLeft(t)
+    | (_, Some(t)) when Form.is_valid_token(char ++ t) => CanAddToRight(t)
     | _ => CanAddToNeither
     };
 
@@ -381,7 +405,7 @@ let barf_or_construct =
     z |> put_down |> Option.get |> IdGen.return;
   } else {
     let (lbl, direction) =
-      instant_completion(new_token, direction_preference);
+      Molds.instant_completion(new_token, direction_preference);
     construct(direction, lbl, z);
   };
 
@@ -408,13 +432,17 @@ let insert_outer =
 let split =
     ((z, id_gen): state, char: string, idx: int, t: string): option(state) => {
   let (l, r) = StringUtil.split_nth(idx, t);
-  let (lbl, direction) = instant_completion(char, Left);
+  let (lbl, direction) = Molds.instant_completion(char, Left);
   z
   |> set_caret(Outer)
   |> (z => replace_construct(Right, [r], (z, id_gen)))
   |> Option.map(((z, id_gen)) => construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
   |> Option.map(((z, id_gen)) => construct(direction, lbl, z, id_gen));
+  //TODO(andrew): address caret positioning on whitespace split
+  /*|> Option.map(((z, id_gen)) =>
+      (update_siblings(Siblings.trim_whitespace, z), id_gen)
+    );*/
 };
 
 let insert =
@@ -428,7 +456,7 @@ let insert =
     let idx = n + 1;
     let new_t = StringUtil.insert_nth(idx, char, t);
     /* If inserting wouldn't produce a valid token, split */
-    Token.is_valid(new_t)
+    Form.is_valid_token(new_t)
       ? z
         |> set_caret(Inner(idx))
         |> (z => replace_construct(Right, [new_t], (z, id_gen)))
@@ -455,6 +483,7 @@ let move =
       {caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z: t,
     )
     : option(t) =>
+  //TODO(andrew): bug with moving when non-em selection and inner caret?
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
     z |> set_caret(Inner(last_inner_pos(t))) |> move_outer(d)
@@ -510,6 +539,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     |> Option.map(z => (z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Destruct(d) =>
+    //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
@@ -519,7 +549,6 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     |> insert(char)
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
-  //| Construct(from, label) => Ok(construct(from, label, z))
   | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
   | Put_down =>
     /* Alternatively, putting down inside token could eiter merge-in or split */

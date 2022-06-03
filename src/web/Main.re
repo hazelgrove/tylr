@@ -54,9 +54,19 @@ module App = {
   };
 };
 
+let insert: (Model.t, string) => Model.t =
+  (m, c) =>
+    Update.apply(m, PerformAction(Insert(c)), (), ~schedule_action=());
+
+let parse: string => Model.t =
+  s => s |> Util.StringUtil.to_list |> List.fold_left(insert, Model.blank);
+
+let initial_model: Model.t =
+  parse("let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(7!)");
+
 Incr_dom.Start_app.start(
   (module App),
   ~debug=false,
   ~bind_to_element_with_id="container",
-  ~initial_model=Web.Update.init2 //Model.init(),
+  ~initial_model,
 );
