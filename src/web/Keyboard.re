@@ -4,24 +4,6 @@ open Core;
 
 let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
-let p = a => Update.PerformAction(a);
-
-// let arrow_l_r = (key, evt, zipper: Zipper.t): list(Update.t) => {
-//   let d: Direction.t = key == "ArrowLeft" ? Left : Right;
-//   if (JsUtil.held(Shift, evt)) {
-//     switch (zipper) {
-//     | (Pointing(_), _) => [p(Mark), p(Move(d))]
-//     | (Selecting(_), _) => [p(Move(d))]
-//     | (Restructuring(_), _) => []
-//     };
-//   } else {
-//     switch (zipper) {
-//     | (Selecting(_), _) => [Update.escape(~d, ())]
-//     | _ => [p(Move(d))]
-//     };
-//   };
-// };
-
 let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keypress(_ => Event.Prevent_default),
   Attr.on_keyup(evt => {
@@ -49,16 +31,13 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
-        // | "F3" =>
-        //   zipper |> Layout.mk_zipper |> Layout.show |> print_endline;
-        //   [];
-        // | "F4" =>
-        //   zipper
-        //   |> Layout.mk_zipper
-        //   |> Layout.to_measured
-        //   |> Layout.show_measured
-        //   |> print_endline;
-        //   [];
+        | "F3" =>
+          switch (Settings.s.movement) {
+          | Char => Settings.s.movement = Mono
+          | Mono => Settings.s.movement = Token
+          | Token => Settings.s.movement = Char
+          };
+          [];
         | "ArrowLeft" when held(Shift) => now(Select(Left))
         | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))
@@ -86,11 +65,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         //   | _ => []
         //   }
         // | "Escape" => [Update.escape()]
-        // | _ when is_var(key) =>
-        //   switch (zipper) {
-        //   | (_, Pat(_)) => [p(Construct(Tile(Pat(Var(key)))))]
-        //   | (_, Exp(_)) => [p(Construct(Tile(Exp(Var(key)))))]
-        //   }
         | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };

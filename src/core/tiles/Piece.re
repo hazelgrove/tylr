@@ -15,13 +15,6 @@ let get = (f_w, f_g, f_t, p: t) =>
   | Tile(t) => f_t(t)
   };
 
-// let is_balanced =
-//   fun
-//   | Shard(_) => false
-//   | Whitespace(_)
-//   | Grout(_)
-//   | Tile(_) => true;
-
 let pop_l = (p: t): (t, segment) =>
   switch (p) {
   | Tile(t) => Tile.pop_l(t)
@@ -62,7 +55,12 @@ let is_whitespace: t => bool =
   | Whitespace(_) => true
   | _ => false;
 
-let monotile: t => option(string) =
+let is_tile: t => bool =
+  fun
+  | Whitespace(_) => true
+  | _ => false;
+
+let monotile: t => option(Token.t) =
   fun
   | Tile({label: [t], _}) => Some(t)
   | _ => None;
