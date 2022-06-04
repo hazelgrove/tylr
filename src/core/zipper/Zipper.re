@@ -50,6 +50,11 @@ module Action = {
   };
 };
 
+let caret_offset: caret => int =
+  fun
+  | Outer => 0
+  | Inner(_, c) => c + 1;
+
 let caret_direction =
     (
       {
@@ -582,73 +587,103 @@ let remold_regrout = (z: t): IdGen.t(t) => {
   |> IdGen.map(relatives => {...z, relatives});
 };
 
-let cursor_point = (z: t): option(Measured.point) => {
-  //TODO(andrew): maybe dont do this everytiem?
-  //TODO(andrew): account for polytiles
-  //TODO(andrew): account for innercaret
-  let seg = zip(z);
-  let map = snd(Measured.of_segment(seg));
-  switch (indicated_piece(z)) {
-  | None => None
-  | Some((p, _)) =>
-    let Measured.{origin, _} = Measured.find_p(p, map);
-    let x_offset =
-      switch (z.caret) {
-      | Inner(0, c) => c + 1
-      | _ => 0
-      };
-    /*
-     general strategy:
-     */
-    Some({row: origin.row, col: origin.col + x_offset});
+let rep_piece =
+    (
+      {
+        selection: {content, focus},
+        relatives: {siblings: (l_sibs, r_sibs), _},
+        _,
+      }: t,
+    )
+    : (Piece.t, Direction.t) => {
+  let sibs =
+    switch (focus) {
+    | Left => (l_sibs, content @ r_sibs)
+    | Right => (l_sibs @ content, r_sibs)
+    };
+  switch (Siblings.neighbors(sibs)) {
+  | (Some(l), _) => (l, Left)
+  | (_, Some(r)) => (r, Right)
+  | _ => failwith("rep_piece impossible")
   };
 };
 
+let cursor_point = (map: Measured.t, z: t): option(Measured.point) => {
+  switch (rep_piece(z)) {
+  | (p, d) =>
+    let m = Measured.find_p(p, map);
+    let base_point =
+      switch (d) {
+      | Left => m.last
+      | Right => m.origin
+      };
+    let x_offset = caret_offset(z.caret);
+    Some({row: base_point.row, col: base_point.col + x_offset});
+  };
+};
+
+type res =
+  | Exact
+  | Under
+  | Over;
+
+let comppp = (current, target) =>
+  switch () {
+  | _ when current == target => Exact
+  | _ when current < target => Under
+  | _ => Over
+  };
+
 open OptUtil.Syntax;
 let move_v = (d: Direction.t, z: t): option(t) => {
-  let strict = d == Right ? (<) : (>);
-  let nonstrict = d == Right ? (<=) : (>=);
+  let map = snd(Measured.of_segment(zip(z)));
+  let comp = d == Right ? (<) : (>);
   let eps = d == Right ? 1 : (-1);
-  let* {row: init_row, col: init_col} = cursor_point(z);
+  let* {row: init_row, col: init_col} = cursor_point(map, z);
   Printf.printf("DOWN: initial: %d %d\n", init_row, init_col);
   let target_y = init_row + eps;
   let target_x = init_col;
   Printf.printf("DOWN: target: %d %d\n", target_y, target_x);
   let rec go = (zz: t, acc: option(t)): option(t) => {
-    let* {row: current_y, col: current_x} = cursor_point(zz);
+    let* {row: current_y, col: current_x} = cursor_point(map, zz);
     Printf.printf("DOWN: ITER: current: %d %d\n", current_y, current_x);
+    let x_match = current_x == target_x;
+    let y_match = current_y == target_y;
     switch () {
-    | _ when strict(current_y, target_y) =>
-      print_endline("CASE 1");
-      switch (move(d, zz)) {
-      | None => acc
-      | Some(zzz) => go(zzz, acc)
-      };
-    | _ when strict(target_y, current_y) =>
-      print_endline("CASE 2");
-      acc;
-    | _ when current_y == target_y && current_x == target_x =>
-      print_endline("CASE 3");
-      Some(zz);
-    | _ when current_y == target_y && nonstrict(current_x, target_x) =>
-      print_endline("CASE 4");
+    | _ when comp(current_y, target_y) =>
+      print_endline("CASE 1: def too early");
       switch (move(d, zz)) {
       | None => acc
       | Some(zzz) => go(zzz, Some(zz))
       };
-    | _ when current_y == target_y && nonstrict(target_x, current_x) =>
-      print_endline("CASE 5");
+    | _ when comp(target_y, current_y) =>
+      print_endline("CASE 2: def too far");
       acc;
+    | _ when y_match && x_match =>
+      print_endline("CASE 3: exact match");
+      Some(zz);
+    | _ when y_match && (comp(current_x, target_x) || x_match) =>
+      print_endline("CASE 4: under, possible result");
+      switch (move(d, zz)) {
+      | None => acc
+      | Some(zzz) => go(zzz, Some(zz))
+      };
+    | _ when y_match && (comp(target_x, current_x) || x_match) =>
+      switch (acc) {
+      | Some(zzzz) =>
+        print_endline("CASE 5: x overshoot, but first on right line, use ");
+        let* {row: prev_y, _} = cursor_point(map, zzzz);
+        comp(prev_y, target_y) ? Some(zz) : acc;
+      | _ =>
+        print_endline("CASE 6: x overshoot, use prev");
+        acc;
+      }
     | _ =>
-      print_endline("CASE 6: failwith?");
+      print_endline("CASE 7: failwith?");
       acc;
     };
   };
   go(z, None);
-};
-
-let _move_up = (_z: t): option(t) => {
-  None;
 };
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>

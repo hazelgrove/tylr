@@ -138,11 +138,7 @@ module Deco = (M: {
       | Left => profile.col
       | Right => profile.col //+ profile.length
       };
-    let origin_offset =
-      switch (z.caret) {
-      | Outer => 0
-      | Inner(_d, char) => char + 1
-      };
+    let origin_offset = Zipper.caret_offset(z.caret);
     let side =
       switch (Zipper.indicated_piece(z)) {
       | Some((_, side)) => side
