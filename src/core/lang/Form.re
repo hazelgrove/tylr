@@ -59,7 +59,7 @@ let forms: list((string, t)) = [
   ("fact", mk(ss, ["!"], mk_post(P.fact, Exp, []))),
   ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
-  ("fun_", mk(di, ["fun", "=>"], mk_pre(P.fun_, Pat, [Exp]))),
+  ("fun_", mk(di, ["fun", "=>"], mk_pre(P.fun_, Exp, [Pat]))),
   /* Something must instant on => as not valid monotile on its own */
   ("ap", mk(ii, ["(", ")"], mk_post(P.ap, Exp, [Exp]))),
   ("let_", mk(ds, ["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
