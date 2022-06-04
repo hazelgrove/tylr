@@ -39,13 +39,13 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           };
           [];
         | "ArrowLeft" when held(Shift) => now(Select(Left))
-        | "ArrowLeft" => now(Move(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))
-        | "ArrowRight" => now(Move(Right))
         | "ArrowUp" when held(Shift) => now(Pick_up)
-        | "ArrowUp" => now(MoveUp)
         | "ArrowDown" when held(Shift) => now(Put_down)
-        | "ArrowDown" => now(MoveDown)
+        | "ArrowLeft" => now(Move(L))
+        | "ArrowRight" => now(Move(R))
+        | "ArrowUp" => now(Move(U))
+        | "ArrowDown" => now(Move(D))
         | "Tab" => now(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so

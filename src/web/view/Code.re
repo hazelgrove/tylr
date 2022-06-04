@@ -178,7 +178,7 @@ module Deco = (M: {
   };
 
   let selected_pieces = (z: Zipper.t): list(Node.t) =>
-    // TODO mold/nibs/selemdec clean up pass
+    // TODO(d) mold/nibs/selemdec clean up pass
     z.selection.content
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {

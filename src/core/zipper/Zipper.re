@@ -27,9 +27,7 @@ type state = (t, IdGen.state);
 module Action = {
   [@deriving (show, sexp)]
   type t =
-    | MoveUp
-    | MoveDown
-    | Move(Direction.t)
+    | Move(Direction.plane)
     | Select(Direction.t)
     | Destruct(Direction.t)
     | Insert(string)
@@ -685,7 +683,7 @@ let move_vertical = (d: Direction.t, z: t): option(t) => {
   res.row == cur.row ? None : Some(z_res);
 };
 
-let update_caret_col_target = (z: t): t =>
+let update_target = (z: t): t =>
   //TODO(andrew): $$$ this recomputes all measures
   {
     ...z,
@@ -694,39 +692,35 @@ let update_caret_col_target = (z: t): t =>
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   switch (a) {
-  | MoveUp =>
-    z
-    |> move_vertical(Left)
-    |> Option.map(z => (z, id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move)
-  | MoveDown =>
-    z
-    |> move_vertical(Right)
-    |> Option.map(z => (z, id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move)
   | Move(d) =>
-    z
-    |> move(d)
-    |> Option.map(update_caret_col_target)
+    /* Note: Don't update target on vertical movement */
+    (
+      switch (d) {
+      | Direction.L => move(Left, z) |> Option.map(update_target)
+      | Direction.R => move(Right, z) |> Option.map(update_target)
+      | Direction.U => move_vertical(Left, z)
+      | Direction.D => move_vertical(Right, z)
+      }
+    )
     |> Option.map(z => (z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Select(d) =>
     z
     |> select(d)
     |> Option.map(z => (z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_caret_col_target(z), id_gen))
+    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Destruct(d) =>
     //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
     |> destruct_or_merge(d)
-    |> Option.map(((z, id_gen)) => (update_caret_col_target(z), id_gen))
+    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
     |> insert(char)
-    |> Option.map(((z, id_gen)) => (update_caret_col_target(z), id_gen))
+    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
@@ -737,8 +731,6 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
       : z
         |> put_down
         |> Option.map(z => remold_regrout(z, id_gen))
-        |> Option.map(((z, id_gen)) =>
-             (update_caret_col_target(z), id_gen)
-           )
+        |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
         |> Result.of_option(~error=Action.Failure.Cant_put_down)
   };

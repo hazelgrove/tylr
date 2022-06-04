@@ -18,3 +18,10 @@ let choose = (d, (l, r)) =>
   | Left => l
   | Right => r
   };
+
+[@deriving (show, sexp)]
+type plane =
+  | L
+  | R
+  | U
+  | D;

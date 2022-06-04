@@ -179,15 +179,13 @@
 }
 
 #code-container {
-  width: 100%;
-    display: flex;
-    justify-content: center;
+  padding: 6em;
+  /*width: 100%;
+  display: flex; 
   position: fixed;
-  /* 350px is height of action table */
-  /* 50px is height of logo */
   top: max(min(23%, 100vh - 350px), 80px);
   left: 0%;
-  width: 100vw;
+  width: 100vw;*/
 }
 #code-container:focus {
   outline: none;
@@ -999,4 +997,8 @@ svg.rail line.unsorted {
 .whitespace {
   color:rgb(126, 80, 0);
   opacity: 20%;
+}
+
+#filters {
+  position: fixed;
 }
