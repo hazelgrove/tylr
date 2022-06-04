@@ -69,10 +69,10 @@ let init = () => {
       ancestors,
     },
     caret: Outer,
+    caret_col_target: 0,
   },
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
   show_neighbor_tiles: false,
-  caret_col_target: 0,
 };

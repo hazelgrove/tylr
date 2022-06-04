@@ -20,6 +20,7 @@ type t = {
   backpack: Backpack.t,
   relatives: Relatives.t,
   caret,
+  caret_col_target: int,
 };
 type state = (t, IdGen.state);
 
@@ -115,7 +116,9 @@ let update_caret = (f: caret => caret, z: t): t => {
   ...z,
   caret: f(z.caret),
 };
+
 let set_caret = (caret: caret) => update_caret(_ => caret);
+
 let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
   ...z,
   relatives: f(z.relatives),
@@ -670,13 +673,21 @@ let rec move_towards =
 let move_vertical = (d: Direction.t, z: t): option(t) => {
   /* iterate horizontal movement until we get to the closet
      caret position to a target derived from the initial position */
-  //TODO(andrew): keep a persistant horizontal target in model
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
-  let Measured.{row: init_row, col: init_col} = cursorpos(z);
   let goal =
-    Measured.{col: init_col, row: init_row + (d == Right ? 1 : (-1))};
+    Measured.{
+      col: z.caret_col_target,
+      row: cursorpos(z).row + (d == Right ? 1 : (-1)),
+    };
   Some(move_towards(d, cursorpos, goal, z, z));
 };
+
+let update_caret_col_target = (z: t): t =>
+  //TODO(andrew): $ this recomputes all measures
+  {
+    ...z,
+    caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,
+  };
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   switch (a) {
@@ -693,22 +704,26 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   | Move(d) =>
     z
     |> move(d)
+    |> Option.map(update_caret_col_target)
     |> Option.map(z => (z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Select(d) =>
     z
     |> select(d)
     |> Option.map(z => (z, id_gen))
+    |> Option.map(((z, id_gen)) => (update_caret_col_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Destruct(d) =>
     //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
     |> destruct_or_merge(d)
+    |> Option.map(((z, id_gen)) => (update_caret_col_target(z), id_gen))
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
     |> insert(char)
+    |> Option.map(((z, id_gen)) => (update_caret_col_target(z), id_gen))
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
@@ -719,5 +734,8 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
       : z
         |> put_down
         |> Option.map(z => remold_regrout(z, id_gen))
+        |> Option.map(((z, id_gen)) =>
+             (update_caret_col_target(z), id_gen)
+           )
         |> Result.of_option(~error=Action.Failure.Cant_put_down)
   };

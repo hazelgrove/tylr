@@ -7,7 +7,6 @@ type t = {
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
   show_neighbor_tiles: bool,
-  caret_col_target: int,
 };
 
 let cutoff = (===);
@@ -26,11 +25,11 @@ let blank = {
         ancestors: [],
       },
       caret: Outer,
+      caret_col_target: 0,
     },
     history: ActionHistory.empty,
     font_metrics: FontMetrics.init,
     logo_font_metrics: FontMetrics.init,
     show_neighbor_tiles: false,
-    caret_col_target: 0,
   };
 };
