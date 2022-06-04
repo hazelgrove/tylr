@@ -27,6 +27,8 @@ let view = (~font_metrics, {measurement, sort, side}: Profile.t): Node.t => {
       };
     let color =
       switch (sort) {
+      // TODO(d)
+      | Any => ""
       | Pat => "var(--pat-shadow-color)"
       | Exp => "var(--exp-shadow-color)"
       };

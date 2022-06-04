@@ -13,13 +13,9 @@ let sort =
   | [] => Sort.root
   | [(a, _), ..._] => Ancestor.sort(a);
 
-let zip = (seg: Segment.t, ancs: t) =>
-  ancs
-  |> List.fold_left(
-       (seg, (a, (pre, suf))) =>
-         pre @ [Piece.Tile(Ancestor.zip(seg, a)), ...suf],
-       seg,
-     );
+let zip_gen = (seg: Segment.t, (a, (pre, suf)): generation): Segment.t =>
+  pre @ [Piece.Tile(Ancestor.zip(seg, a)), ...suf];
+let zip = (seg: Segment.t, ancs: t) => ancs |> List.fold_left(zip_gen, seg);
 
 let disassemble = ancs =>
   ancs
@@ -41,21 +37,60 @@ let remold = (ancestors: t): list(t) =>
     [empty],
   );
 
-// let sort_rank = (ancestors: t) =>
-//   List.fold_right(
-//     ((a, sibs), (s, rank)) => {
-//       let rank =
-//         rank
-//         + Siblings.sort_rank(sibs, s)
-//         + Ancestor.sort_rank(a, Siblings.sorts(sibs, s));
-//       let s' = Ancestor.sort(a);
-//       (s', rank);
-//     },
-//     ancestors,
-//     (Sort.root, 0),
-//   )
-//   |> snd;
-let sort_rank = _ => failwith("todo Ancestors.sort_rank");
+let skel = ((a, (pre, suf)): generation): Skel.t => {
+  let n = List.length(pre);
+  let a = (n, Ancestor.shapes(a));
+  let pre =
+    pre
+    |> List.mapi((i, p) => (i, p))
+    |> List.filter_map(((i, p)) =>
+         Piece.shapes(p) |> Option.map(ss => (i, ss))
+       );
+  let suf =
+    suf
+    |> List.mapi((i, p) => (n + 1 + i, p))
+    |> List.filter_map(((i, p)) =>
+         Piece.shapes(p) |> Option.map(ss => (i, ss))
+       );
+  Skel.mk(pre @ [a, ...suf]);
+};
+
+// let sorts = (i, (a, (pre, suf)): generation) => {
+//   let n = List.length(pre);
+//   if (i < List.length(pre)) {
+//     List.nth_opt(pre, i)
+//     |> Option.map(Piece.sort)
+//     |> OptUtil.get_or_raise(Invalid_argument("Ancestors.sort_out"))
+//   } else if (i > n) {
+//     List.nth_opt(suf, i - 1 - n)
+//     |> Option.map(Piece.sort)
+//     |> OptUtil.get_or_raise(Invalid_argument("Ancestors.sort_out"))
+//   } else {
+//     a.mold.out;
+//   };
+// };
+
+// // messed up sorts using in_ instead of nib
+let sort_rank_gen = ((a, sibs) as gen: generation, sort: Sort.t) => {
+  let root_rank = Segment.sort_rank_root(zip_gen(Segment.empty, gen), sort);
+  let cousins_rank = {
+    let (l, r) = Ancestor.sorted_children(a);
+    let (l', r') = Siblings.sorted_children(sibs);
+    List.concat([l', l, r, r'])
+    |> List.map(((s, seg)) => Segment.sort_rank(seg, s))
+    |> List.fold_left((+), 0);
+  };
+  root_rank + cousins_rank;
+};
+
+let sort_rank = (ancestors: t) =>
+  List.fold_right(
+    ((a, _) as gen, (s, rank)) =>
+      (Ancestor.sort(a), sort_rank_gen(gen, s) + rank),
+    ancestors,
+    (Sort.root, 0),
+  )
+  |> snd;
 
 let shape_rank = (ancestors: t): int =>
   List.fold_right(

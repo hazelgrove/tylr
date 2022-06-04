@@ -1,5 +1,7 @@
 open Util;
 
+exception Empty_shard_affix;
+
 [@deriving show]
 type step = int;
 
@@ -12,12 +14,37 @@ type t = {
   children: (list(Segment.t), list(Segment.t)),
 };
 
+// TODO(d) revisit naming w.r.t. outer vs inner shards
+let l_shard = a =>
+  ListUtil.last_opt(fst(a.shards))
+  |> OptUtil.get_or_raise(Empty_shard_affix);
+let r_shard = a =>
+  ListUtil.last_opt(snd(a.shards))
+  |> OptUtil.get_or_raise(Empty_shard_affix);
+
+let nibs = (a: t) => {
+  let (l, _) = Mold.nibs(~index=l_shard(a), a.mold);
+  let (_, r) = Mold.nibs(~index=r_shard(a), a.mold);
+  (l, r);
+};
+let shapes = a => {
+  let (l, r) = nibs(a);
+  (l.shape, r.shape);
+};
+
 let zip = (child: Segment.t, {id, label, mold, shards, children}: t): Tile.t => {
   id,
   label,
   mold,
   shards: fst(shards) @ snd(shards),
   children: fst(children) @ [child, ...snd(children)],
+};
+
+let sorted_children = (a: t) => {
+  let n = List.length(fst(a.children));
+  let t = zip(Segment.empty, a);
+  let (l, _, r) = ListUtil.split_nth(n, Tile.sorted_children(t));
+  (l, r);
 };
 
 // TODO flatten with shard indices
@@ -33,13 +60,14 @@ let remold = (a: t): list(t) =>
 //   assert(step(frame) >= 0 && step(frame) < List.length(frame.mold.in_));
 //   List.nth(frame.mold.in_, step(frame));
 // };
-let sort = _ => failwith("todo Ancestor.sort");
-
-// let sort_rank = (a: t, (s_l, s_r): (Sort.t, Sort.t)) => {
-//   let s = a.mold.out;
-//   Bool.to_int(s != s_l) + Bool.to_int(s != s_r);
-// };
-let sort_rank = _ => failwith("todo Ancestor.sort_rank");
+let sort = (a: t): Sort.t =>
+  switch (a.shards) {
+  | ([i, ..._], [j, ..._]) =>
+    let (_, l) = Mold.nibs(~index=i, a.mold);
+    let (r, _) = Mold.nibs(~index=j, a.mold);
+    l.sort == r.sort ? l.sort : Any;
+  | _ => raise(Empty_shard_affix)
+  };
 
 let disassemble =
     ({id, label, mold, shards, children: (kids_l, kids_r)}: t): Siblings.t => {

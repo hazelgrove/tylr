@@ -15,6 +15,22 @@ let get = (f_w, f_g, f_t, p: t) =>
   | Tile(t) => f_t(t)
   };
 
+let sort =
+  get(
+    _ => (Sort.Any, []),
+    _ => (Sort.Any, []),
+    t => (t.mold.out, t.mold.in_),
+  );
+
+let sorted_children = get(_ => [], _ => [], Tile.sorted_children);
+
+// let is_balanced =
+//   fun
+//   | Shard(_) => false
+//   | Whitespace(_)
+//   | Grout(_)
+//   | Tile(_) => true;
+
 let pop_l = (p: t): (t, segment) =>
   switch (p) {
   | Tile(t) => Tile.pop_l(t)

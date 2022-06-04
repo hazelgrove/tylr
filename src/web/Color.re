@@ -2,6 +2,7 @@ open Core;
 
 [@deriving show]
 type t =
+  | Any
   | Typ
   | Pat
   | Exp
@@ -9,11 +10,13 @@ type t =
 
 let of_sort =
   fun
-  | Sort.Pat => Pat
+  | Sort.Any => Any
+  | Pat => Pat
   | Exp => Exp;
 
 let to_string =
   fun
+  | Any => "Any"
   | Typ => "Typ"
   | Pat => "Pat"
   | Exp => "Exp"

@@ -584,19 +584,20 @@ let select = (d: Direction.t, z: t): option(t) =>
 
 let remold_regrout = (z: t): IdGen.t(t) => {
   assert(Selection.is_empty(z.selection));
+  open IdGen.Syntax;
+  let* state = IdGen.get;
   let ls_relatives =
     Relatives.remold(z.relatives)
-    |> List.sort((rel, rel') => {
-         Relatives.
-           /* c != 0 ? c : */
-           (Int.compare(shape_rank(rel), shape_rank(rel')))
-           // let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+    |> List.map(rs => Relatives.regrout(rs, state))
+    |> List.sort(((rel, _), (rel', _)) => {
+         open Relatives;
+         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
        });
   assert(ls_relatives != []);
-  ls_relatives
-  |> List.hd
-  |> Relatives.regrout
-  |> IdGen.map(relatives => {...z, relatives});
+  let (relatives, state) = List.hd(ls_relatives);
+  let+ () = IdGen.put(state);
+  {...z, relatives};
 };
 
 let representative_piece =

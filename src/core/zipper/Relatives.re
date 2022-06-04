@@ -48,10 +48,11 @@ let remold = ({siblings, ancestors}: t): list(t) => {
 
 let sort_rank = ({siblings, ancestors}: t) => {
   let s = Ancestors.sort(ancestors);
-  let (s_l, s_r) = Siblings.sorts(siblings, s);
+  // let (s_l, s_r) = Siblings.sorts(siblings, s);
   Ancestors.sort_rank(ancestors)
-  + Siblings.sort_rank(siblings, s)
-  + Bool.to_int(!Sort.consistent(s_l, s_r));
+  // + Siblings.sort_rank(siblings, s)
+  + Segment.sort_rank(Siblings.zip(siblings), s);
+  // + Bool.to_int(!Sort.consistent(s_l, s_r));
 };
 
 let shape_rank = ({siblings, ancestors}: t) => {

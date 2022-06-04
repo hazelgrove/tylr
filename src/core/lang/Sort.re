@@ -1,31 +1,28 @@
-open Util;
+// open Util;
 
 [@deriving show]
 type t =
+  | Any
   | Pat
   | Exp;
 
-let all = [Pat, Exp];
-
 let root = Exp;
 
-let consistent = (==);
+let consistent = (s, s') =>
+  switch (s, s') {
+  | (Any, _)
+  | (_, Any) => true
+  | _ => s == s'
+  };
 
 let to_string =
   fun
+  | Any => "Any"
   | Pat => "Pat"
   | Exp => "Exp";
 
 let to_proper_string =
   fun
+  | Any => "any"
   | Pat => "pattern"
   | Exp => "expression";
-
-module Stack = {
-  type sort = t;
-  type t = list(sort);
-
-  let push = List.cons;
-
-  let pop = ListUtil.split_first_opt;
-};

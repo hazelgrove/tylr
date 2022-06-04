@@ -51,15 +51,12 @@ let rec skel_at = (n, skel) =>
     }
   };
 
-// TODO(d): clean up use of Option.get
-type ip = (int, Piece.t);
-let mk = (seg: Segment.t): t => {
-  if (!Segment.convex(seg)) {
-    raise(Invalid_argument("Skel.mk"));
-  };
+exception Nonconvex_segment;
 
-  let push_output = ((i, p): ip, output_stack: list(t)): list(t) =>
-    switch (Option.get(Piece.shapes(p))) {
+type iss = (int, (Nib.Shape.t, Nib.Shape.t));
+let mk = (seg: list(iss)): t => {
+  let push_output = ((i, ss): iss, output_stack: list(t)): list(t) =>
+    switch (ss) {
     | (Convex, Convex) => [Op(i), ...output_stack]
     | (Convex, Concave(_)) =>
       switch (output_stack) {
@@ -86,15 +83,15 @@ let mk = (seg: Segment.t): t => {
   );
 
   let rec process_pre =
-          (~output_stack: list(t), ~shunted_stack: list(ip), ipre: ip) => {
+          (~output_stack: list(t), ~shunted_stack: list(iss), ipre: iss) => {
     switch (shunted_stack) {
     | [] => (output_stack, [ipre, ...shunted_stack])
-    | [(_, p) as ip, ...ips] =>
-      switch (Option.get(Piece.shapes(p))) {
+    | [(_, ss) as iss, ...ips] =>
+      switch (ss) {
       | (_, Concave(_)) => (output_stack, [ipre, ...shunted_stack])
       | (_, Convex) =>
         process_pre(
-          ~output_stack=push_output(ip, output_stack),
+          ~output_stack=push_output(iss, output_stack),
           ~shunted_stack=ips,
           ipre,
         )
@@ -105,17 +102,17 @@ let mk = (seg: Segment.t): t => {
   let rec process_post =
           (
             ~output_stack: list(t),
-            ~shunted_stack: list(ip),
+            ~shunted_stack: list(iss),
             ~prec: Precedence.t,
-            ipost: ip,
+            ipost: iss,
           ) =>
     switch (shunted_stack) {
     | [] => (output_stack, [ipost, ...shunted_stack])
-    | [(_, p) as ip, ...ips] =>
-      switch (Option.get(Piece.shapes(p))) {
+    | [(_, ss) as iss, ...ips] =>
+      switch (ss) {
       | (_, Convex) =>
         process_post(
-          ~output_stack=push_output(ip, output_stack),
+          ~output_stack=push_output(iss, output_stack),
           ~shunted_stack=ips,
           ~prec,
           ipost,
@@ -123,9 +120,9 @@ let mk = (seg: Segment.t): t => {
       | (_, Concave(prec_p)) =>
         prec_p < prec
         || prec_p == prec
-        && Precedence.associativity(prec_p) == Left
+        && Precedence.associativity(prec_p) == Some(Left)
           ? process_post(
-              ~output_stack=push_output(ip, output_stack),
+              ~output_stack=push_output(iss, output_stack),
               ~shunted_stack=ips,
               ~prec,
               ipost,
@@ -137,17 +134,17 @@ let mk = (seg: Segment.t): t => {
   let rec process_bin =
           (
             ~output_stack: list(t),
-            ~shunted_stack: list(ip),
+            ~shunted_stack: list(iss),
             ~prec: Precedence.t,
-            ibin: ip,
+            ibin: iss,
           ) =>
     switch (shunted_stack) {
     | [] => (output_stack, [ibin, ...shunted_stack])
-    | [(_, p) as ip, ...ips] =>
-      switch (Option.get(Piece.shapes(p))) {
+    | [(_, ss) as iss, ...ips] =>
+      switch (ss) {
       | (_, Convex) =>
         process_bin(
-          ~output_stack=push_output(ip, output_stack),
+          ~output_stack=push_output(iss, output_stack),
           ~shunted_stack=ips,
           ~prec,
           ibin,
@@ -155,9 +152,9 @@ let mk = (seg: Segment.t): t => {
       | (_, Concave(prec_p)) =>
         prec_p < prec
         || prec_p == prec
-        && Precedence.associativity(prec_p) == Left
+        && Precedence.associativity(prec_p) == Some(Left)
           ? process_bin(
-              ~output_stack=push_output(ip, output_stack),
+              ~output_stack=push_output(iss, output_stack),
               ~shunted_stack=ips,
               ~prec,
               ibin,
@@ -168,8 +165,8 @@ let mk = (seg: Segment.t): t => {
   let rec go =
           (
             ~output_stack: list(t)=[],
-            ~shunted_stack: list(ip)=[],
-            ips: list(ip),
+            ~shunted_stack: list(iss)=[],
+            ips: list(iss),
           )
           : list(t) => {
     switch (ips) {
@@ -179,27 +176,19 @@ let mk = (seg: Segment.t): t => {
            (output_stack, t) => push_output(t, output_stack),
            output_stack,
          )
-    | [(_, p) as ip, ...ips] =>
+    | [(_, ss) as iss, ...ips] =>
       let process =
-        switch (Option.get(Piece.shapes(p))) {
+        switch (ss) {
         | (Convex, Convex) => process_op
         | (Convex, Concave(_)) => process_pre
         | (Concave(prec), Convex) => process_post(~prec)
         | (Concave(prec), Concave(_)) => process_bin(~prec)
         };
       let (output_stack, shunted_stack) =
-        process(~output_stack, ~shunted_stack, ip);
+        process(~output_stack, ~shunted_stack, iss);
       go(~output_stack, ~shunted_stack, ips);
     };
   };
 
-  seg
-  |> List.mapi((i, p) => (i, p))
-  |> List.filter(
-       fun
-       | (_, Piece.Whitespace(_)) => false
-       | _ => true,
-     )
-  |> go
-  |> List.hd;
+  ListUtil.hd_opt(go(seg)) |> OptUtil.get_or_raise(Nonconvex_segment);
 };
