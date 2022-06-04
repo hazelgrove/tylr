@@ -96,17 +96,15 @@ module Deco = (M: {
          fun
          | Piece.Whitespace(_) => []
          | Tile(t) => t.children |> List.map(holes) |> List.concat
-         | Grout(g) => {
-             // TODO(d) fix sort
-             let mold = Mold.of_grout(g, Exp);
-             let measurement = Measured.find_g(g, M.map);
-             [
-               EmptyHoleDec.view(
-                 ~font_metrics,
-                 {measurement: Measured.linearize(measurement), mold},
-               ),
-             ];
-           },
+         | Grout(g) => [
+             EmptyHoleDec.view(
+               ~font_metrics, // TODO(d) fix sort
+               {
+                 measurement: Measured.find_g(g, M.map),
+                 mold: Mold.of_grout(g, Exp),
+               },
+             ),
+           ],
        )
     |> List.concat;
 

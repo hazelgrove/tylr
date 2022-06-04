@@ -63,7 +63,11 @@ let parse: string => Model.t =
 
 let initial_model: Model.t =
   parse("let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(7!)");
-
+/*let initial_model: Model.t =
+  parse(
+    "lorem ipsum dolor sit amet consectetur adipiscing elit"
+    ++ Core.Whitespace.linebreak,
+  );*/
 Incr_dom.Start_app.start(
   (module App),
   ~debug=false,

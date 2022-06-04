@@ -4,7 +4,7 @@ open Core;
 
 module Profile = {
   type t = {
-    measurement: Measured.measurement_lin,
+    measurement: Measured.measurement,
     mold: Mold.t,
   };
 };
@@ -34,7 +34,7 @@ let view = (~font_metrics, {measurement, mold}: Profile.t): Node.t => {
     {sort, shape: tip_l},
     {sort, shape: tip_r},
   );
-  container(
+  container2d(
     ~font_metrics,
     ~measurement,
     ~cls="empty-hole",
