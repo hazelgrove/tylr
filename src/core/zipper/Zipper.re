@@ -642,36 +642,40 @@ let dcomp = (direction: Direction.t, a, b) =>
   | Left => comp(b, a)
   };
 
-open OptUtil.Syntax;
+let rec move_towards =
+        (
+          d: Direction.t,
+          caret_pos: t => Measured.point,
+          goal: Measured.point,
+          cur: t,
+          prev: t,
+        )
+        : t => {
+  let cur_p = caret_pos(cur);
+  switch (dcomp(d, cur_p.col, goal.col), dcomp(d, cur_p.row, goal.row)) {
+  | (Exact, Exact) => cur
+  | (_, Over) => prev
+  | (_, Under)
+  | (Under, Exact) =>
+    switch (move(d, cur)) {
+    | None => prev
+    | Some(next) => move_towards(d, caret_pos, goal, next, cur)
+    }
+  | (Over, Exact) =>
+    let comp = d == Right ? (<) : (>);
+    comp(caret_pos(prev).row, goal.row) ? cur : prev;
+  };
+};
+
 let move_vertical = (d: Direction.t, z: t): option(t) => {
   /* iterate horizontal movement until we get to the closet
      caret position to a target derived from the initial position */
   //TODO(andrew): keep a persistant horizontal target in model
-  //TODO(andrew): edge cases around top/bottom lines
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
   let Measured.{row: init_row, col: init_col} = cursorpos(z);
-  let (goal_x, goal_y) = (init_col, init_row + (d == Right ? 1 : (-1)));
-  //Printf.printf("V: initial: %d %d\n", init_row, init_col);
-  //Printf.printf("V: target: %d %d\n", target_y, target_x);
-  let rec go = (cur: t, prev: option(t)): option(t) => {
-    let Measured.{row: cur_y, col: cur_x} = cursorpos(cur);
-    //Printf.printf("V: current: %d %d\n", cur_y, cur_x);
-    switch (dcomp(d, cur_x, goal_x), dcomp(d, cur_y, goal_y)) {
-    | (Exact, Exact) => Some(cur)
-    | (_, Over) => prev
-    | (_, Under)
-    | (Under, Exact) =>
-      switch (move(d, cur)) {
-      | None => prev
-      | Some(next) => go(next, Some(cur))
-      }
-    | (Over, Exact) =>
-      let+ prev = prev;
-      let comp = d == Right ? (<) : (>);
-      comp(cursorpos(prev).row, goal_y) ? cur : prev;
-    };
-  };
-  go(z, None);
+  let goal =
+    Measured.{col: init_col, row: init_row + (d == Right ? 1 : (-1))};
+  Some(move_towards(d, cursorpos, goal, z, z));
 };
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>

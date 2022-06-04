@@ -88,6 +88,7 @@ let view = (~inject, model: Model.t) => {
         id_gen: _,
         history,
         show_neighbor_tiles,
+        caret_col_target: _,
       } = model;
   Node.div(
     Attr.[

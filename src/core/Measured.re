@@ -77,63 +77,6 @@ let union2 = (map: t, map': t) => {
 };
 let union = List.fold_left(union2, empty);
 
-/*
- let rec to_measured2d = (~row=0, ~col=0, ~indent=0, layout: t): measured =>
-   switch (layout) {
-   | Atom(s, ann) =>
-     let measurement =
-       mk_measure2d(
-         ~row,
-         ~col,
-         ~last_row=row,
-         ~last_col=col + Unicode.length(s),
-       );
-     {layout: AtomM(s, ann), measurement};
-   | Cat(ls, ann) =>
-     let (ms, (last_row, last_col)) =
-       List.fold_left(
-         ((ms, (row, col)), l) => {
-           switch (l) {
-           | Cat(_empty, Piece(Whitespace("\n"), _, _)) =>
-             //let indent = indent + 2;
-             let m = to_measured2d(l, ~row, ~col, ~indent); //display at end of current line
-             ([m, ...ms], (row + 1, indent + indent_piece)); //reset col, incr row
-           //TODO(andrew): why + indent_piece necessary??
-           | Cat(_empty, Segment(_)) =>
-             let m =
-               to_measured2d(l, ~row, ~col, ~indent=indent + indent_segment); //incr indent recurse
-             //TODO(andrew): below math dont make sense
-             (
-               [m, ...ms],
-               (m.measurement.d2.last.row, m.measurement.d2.last.col),
-             );
-           | Cat(_empty, Piece(_)) =>
-             let m =
-               to_measured2d(l, ~row, ~col, ~indent=indent + indent_piece); //incr indent recurse
-             //TODO(andrew): below math dont make sense
-             (
-               [m, ...ms],
-               (m.measurement.d2.last.row, m.measurement.d2.last.col),
-             );
-           | Atom(_) =>
-             let m = to_measured2d(l, ~row, ~col, ~indent);
-             //TODO(andrew): below math dont make sense
-             (
-               [m, ...ms],
-               (m.measurement.d2.last.row, m.measurement.d2.last.col),
-             );
-           }
-         },
-         ([], (row, col)),
-         ls,
-       );
-     let measurement = mk_measure2d(~row, ~col, ~last_row, ~last_col);
-     {layout: CatM(List.rev(ms), ann), measurement};
-   };
-
-  */
-
-// TODO fix weird default
 let rec of_segment =
         (~row=0, ~col=0, ~indent=0, seg: Segment.t): ((int, int), t) =>
   seg
@@ -142,25 +85,23 @@ let rec of_segment =
        (row, col),
      )
   |> PairUtil.map_snd(union)
-//  (m.origin + m.length + 1, (m, p));
 and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
-  let singl: measurement = {
-    let origin: point = {row, col};
-    let last: point = {row, col: col + 1};
-    {origin, last};
-  };
+  let origin: point = {row, col};
   switch (p) {
   | Whitespace({content: c, _} as w) when c == Whitespace.linebreak =>
     // set col to indent
-    ((row + 1, indent), singleton_w(w, singl))
-  | Whitespace(w) => ((row, col + 1), singleton_w(w, singl))
-  | Grout(g) => ((row, col + 1), singleton_g(g, singl))
+    let last: point = {row: row + 1, col: indent};
+    ((row + 1, indent), singleton_w(w, {origin, last}));
+  | Whitespace(w) =>
+    let last: point = {row, col: col + 1};
+    ((row, col + 1), singleton_w(w, {origin, last}));
+  | Grout(g) =>
+    let last: point = {row, col: col + 1};
+    ((row, col + 1), singleton_g(g, {origin, last}));
   | Tile(t) =>
-    let origin: point = {row, col};
-    //TODO(andrew): maybe split of last as well, handle specially?
     let (hd, tl) = ListUtil.split_first(t.shards);
     let token = List.nth(t.label);
-    let ((row', col'), map) =
+    let ((row, col), map) =
       List.combine(t.children, tl)
       |> ListUtil.fold_left_map(
            ((row, col), (child, i)) => {
@@ -171,8 +112,13 @@ and of_piece = (~row=0, ~col=0, ~indent=0, p: Piece.t): ((int, int), t) => {
            (row, col + String.length(token(hd))),
          )
       |> PairUtil.map_snd(union);
-    let last: point = {row: row', col: col'};
-    ((row', col'), map |> add_t(t, {origin, last}));
+    ((row, col), map |> add_t(t, {
+                                    origin,
+                                    last: {
+                                      row,
+                                      col,
+                                    },
+                                  }));
   };
 };
 
