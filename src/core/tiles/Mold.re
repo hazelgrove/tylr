@@ -51,7 +51,6 @@ module Map = {
 };
 
 let of_grout: (Grout.t, Sort.t) => t =
-  // TODO(andrew): dont do this?
   (g, sort) => {
     nibs:
       // TODO(d): revisit this when reformulating molds

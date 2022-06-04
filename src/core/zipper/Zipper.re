@@ -613,7 +613,6 @@ let representative_piece =
 };
 
 let base_caret_point = (map: Measured.t, z: t): Measured.point => {
-  //TODO(andrew): if adjacent to linebreak, should go to next line?
   let (p, d) = representative_piece(z);
   let m = Measured.find_p(p, map);
   switch (d) {
@@ -674,16 +673,19 @@ let move_vertical = (d: Direction.t, z: t): option(t) => {
   /* iterate horizontal movement until we get to the closet
      caret position to a target derived from the initial position */
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
+  let cur = cursorpos(z);
   let goal =
     Measured.{
       col: z.caret_col_target,
-      row: cursorpos(z).row + (d == Right ? 1 : (-1)),
+      row: cur.row + (d == Right ? 1 : (-1)),
     };
-  Some(move_towards(d, cursorpos, goal, z, z));
+  let z_res = move_towards(d, cursorpos, goal, z, z);
+  let res = cursorpos(z_res);
+  res.row == cur.row ? None : Some(z_res);
 };
 
 let update_caret_col_target = (z: t): t =>
-  //TODO(andrew): $ this recomputes all measures
+  //TODO(andrew): $$$ this recomputes all measures
   {
     ...z,
     caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,

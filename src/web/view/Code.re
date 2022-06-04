@@ -47,9 +47,7 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
 
 let selection_length = (sel: Selection.t): int => {
   let seg = sel.content;
-  let ((_, _), map) = Measured.of_segment(seg);
-  //TODO(andrew): fix
-
+  let map = snd(Measured.of_segment(seg));
   switch (ListUtil.hd_opt(seg), ListUtil.last_opt(seg)) {
   | (None, _)
   | (_, None) => 0

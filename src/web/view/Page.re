@@ -178,8 +178,6 @@ let view = (~inject, model: Model.t) => {
       div(
         [Attr.id("code-container")],
         [
-          //TODO(andrew): temp disable
-          //BarDec.view(~font_metrics),
           Code.view(
             ~font_metrics,
             ~just_failed=history.just_failed,
