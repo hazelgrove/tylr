@@ -38,11 +38,6 @@ let remold = ((pre, suf): t): list(t) => {
   (pre, suf);
 };
 
-// let sorts = ((pre, suf): t, s: Sort.t) => (
-//   Prefix.sort(pre, s),
-//   Suffix.sort(suf, s),
-// );
-let sorts = (_, _) => failwith("todo Siblings.sorts");
 let shapes = ((pre, suf): t) => {
   let s = Nib.Shape.concave();
   let (_, l, _) = Segment.shape_affix(Left, pre, s);
@@ -125,3 +120,5 @@ let direction_between = ((l, r): t): option(Direction.t) =>
   | None => Segment.edge_direction_of(Right, l)
   | d => d
   };
+
+let sorted_children = TupleUtil.map2(Segment.sorted_children);

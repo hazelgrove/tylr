@@ -94,6 +94,8 @@ let open_child_paths =
   open SvgUtil.Path;
   let color =
     switch (color) {
+    // TODO(d)
+    | Any => ""
     | Selected => "var(--unsorted-shadow-color)"
     | Typ => "var(--typ-shadow-color)"
     | Pat => "var(--pat-shadow-color)"
