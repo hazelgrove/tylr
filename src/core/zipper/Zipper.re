@@ -610,6 +610,7 @@ let representative_piece =
 };
 
 let base_caret_point = (map: Measured.t, z: t): Measured.point => {
+  //TODO(andrew): if adjacent to linebreak, should go to next line?
   let (p, d) = representative_piece(z);
   let m = Measured.find_p(p, map);
   switch (d) {
