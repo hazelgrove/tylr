@@ -587,7 +587,7 @@ let remold_regrout = (z: t): IdGen.t(t) => {
   |> IdGen.map(relatives => {...z, relatives});
 };
 
-let rep_piece =
+let representative_piece =
     (
       {
         selection: {content, focus},
@@ -608,79 +608,63 @@ let rep_piece =
   };
 };
 
-let cursor_point = (map: Measured.t, z: t): option(Measured.point) => {
-  switch (rep_piece(z)) {
+let cursor_point = (map: Measured.t, z: t): Measured.point => {
+  switch (representative_piece(z)) {
   | (p, d) =>
     let m = Measured.find_p(p, map);
-    let base_point =
+    let Measured.{row, col} =
       switch (d) {
       | Left => m.last
       | Right => m.origin
       };
-    let x_offset = caret_offset(z.caret);
-    Some({row: base_point.row, col: base_point.col + x_offset});
+    {row, col: col + caret_offset(z.caret)};
   };
 };
 
-type res =
+type comp =
   | Exact
   | Under
   | Over;
 
-let comppp = (current, target) =>
+let comp = (current, target) =>
   switch () {
   | _ when current == target => Exact
   | _ when current < target => Under
   | _ => Over
   };
 
+let dcomp = (direction: Direction.t, a, b) =>
+  switch (direction) {
+  | Right => comp(a, b)
+  | Left => comp(b, a)
+  };
+
 open OptUtil.Syntax;
-let move_v = (d: Direction.t, z: t): option(t) => {
-  let map = snd(Measured.of_segment(zip(z)));
-  let comp = d == Right ? (<) : (>);
-  let eps = d == Right ? 1 : (-1);
-  let* {row: init_row, col: init_col} = cursor_point(map, z);
-  Printf.printf("DOWN: initial: %d %d\n", init_row, init_col);
-  let target_y = init_row + eps;
-  let target_x = init_col;
-  Printf.printf("DOWN: target: %d %d\n", target_y, target_x);
-  let rec go = (zz: t, acc: option(t)): option(t) => {
-    let* {row: current_y, col: current_x} = cursor_point(map, zz);
-    Printf.printf("DOWN: ITER: current: %d %d\n", current_y, current_x);
-    let x_match = current_x == target_x;
-    let y_match = current_y == target_y;
-    switch () {
-    | _ when comp(current_y, target_y) =>
-      print_endline("CASE 1: def too early");
-      switch (move(d, zz)) {
-      | None => acc
-      | Some(zzz) => go(zzz, Some(zz))
-      };
-    | _ when comp(target_y, current_y) =>
-      print_endline("CASE 2: def too far");
-      acc;
-    | _ when y_match && x_match =>
-      print_endline("CASE 3: exact match");
-      Some(zz);
-    | _ when y_match && (comp(current_x, target_x) || x_match) =>
-      print_endline("CASE 4: under, possible result");
-      switch (move(d, zz)) {
-      | None => acc
-      | Some(zzz) => go(zzz, Some(zz))
-      };
-    | _ when y_match && (comp(target_x, current_x) || x_match) =>
-      switch (acc) {
-      | Some(zzzz) =>
-        print_endline("CASE 5: x overshoot, but first on right line, use ");
-        let* {row: prev_y, _} = cursor_point(map, zzzz);
-        comp(prev_y, target_y) ? Some(zz) : acc;
-      | _ =>
-        print_endline("CASE 6: x overshoot, use prev");
-        acc;
+let move_vertical = (d: Direction.t, z: t): option(t) => {
+  /* iterate horizontal movement until we get to the closet
+     caret position to a target derived from the initial position */
+  //TODO(andrew): keep a persistant horizontal target in model
+  let cursorpos = cursor_point(snd(Measured.of_segment(zip(z))));
+  let Measured.{row: init_row, col: init_col} = cursorpos(z);
+  let (goal_x, goal_y) = (init_col, init_row + (d == Right ? 1 : (-1)));
+  //Printf.printf("V: initial: %d %d\n", init_row, init_col);
+  //Printf.printf("V: target: %d %d\n", target_y, target_x);
+  let rec go = (cur: t, prev: option(t)): option(t) => {
+    let Measured.{row: cur_y, col: cur_x} = cursorpos(cur);
+    //Printf.printf("V: current: %d %d\n", cur_y, cur_x);
+    switch (dcomp(d, cur_x, goal_x), dcomp(d, cur_y, goal_y)) {
+    | (Exact, Exact) => Some(cur)
+    | (_, Over) => prev
+    | (_, Under)
+    | (Under, Exact) =>
+      switch (move(d, cur)) {
+      | None => prev
+      | Some(next) => go(next, Some(cur))
       }
-    | _ =>
-      print_endline("CASE 7: failwith?");
-      acc;
+    | (Over, Exact) =>
+      let+ prev = prev;
+      let comp = d == Right ? (<) : (>);
+      comp(cursorpos(prev).row, goal_y) ? cur : prev;
     };
   };
   go(z, None);
@@ -690,12 +674,12 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   switch (a) {
   | MoveUp =>
     z
-    |> move_v(Left)
+    |> move_vertical(Left)
     |> Option.map(z => (z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | MoveDown =>
     z
-    |> move_v(Right)
+    |> move_vertical(Right)
     |> Option.map(z => (z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move)
   | Move(d) =>
