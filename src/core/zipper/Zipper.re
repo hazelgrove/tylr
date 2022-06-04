@@ -670,8 +670,8 @@ let rec move_towards =
 };
 
 let move_vertical = (d: Direction.t, z: t): option(t) => {
-  /* iterate horizontal movement until we get to the closet
-     caret position to a target derived from the initial position */
+  /* Iterate horizontal movement until we get to the closet caret
+     position to a target derived from the initial position */
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
   let cur = cursorpos(z);
   let goal =
@@ -681,6 +681,7 @@ let move_vertical = (d: Direction.t, z: t): option(t) => {
     };
   let z_res = move_towards(d, cursorpos, goal, z, z);
   let res = cursorpos(z_res);
+  /* Don't move if we end up on the same line as we started */
   res.row == cur.row ? None : Some(z_res);
 };
 
