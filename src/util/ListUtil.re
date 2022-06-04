@@ -242,6 +242,13 @@ let rec ordered_pairs = (xs: list('x)): list(('x, 'x)) =>
   | [hd, ...tl] => List.map(x => (hd, x), tl) @ ordered_pairs(tl)
   };
 
+let rec neighbors = (xs: list('x)): list(('x, 'x)) =>
+  switch (xs) {
+  | []
+  | [_] => []
+  | [x1, x2, ...xs] => [(x1, x2), ...neighbors([x2, ...xs])]
+  };
+
 module Syntax = {
   let (let+) = (xs, f) => List.map(f, xs);
   let (and+) = product;

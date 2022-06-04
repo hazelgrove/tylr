@@ -113,28 +113,53 @@ let remold = (seg: t): list(t) =>
     [empty],
   );
 
-// let rec sort_rank = (seg: t, (s_l, s_r): (Sort.t, Sort.t)) => {
-//   let (s_l', rank) =
-//     fold_right(
-//       (p: Piece.t, (s, rank)) =>
-//         switch (p) {
-//         | Whitespace(_)
-//         | Grout(_) => (s, rank)
-//         | Tile(t) =>
-//           let s' = t.mold.out;
-//           let kid_ranks =
-//             Tile.sorted_children(t)
-//             |> List.map(((s, child)) => sort_rank(child, (s, s)))
-//             |> List.fold_left((+), 0);
-//           let rank' = rank + kid_ranks + Bool.to_int(s != s');
-//           (s', rank');
-//         },
-//       seg,
-//       (s_r, 0),
-//     );
-//   rank + Bool.to_int(!Sort.consistent(s_l, s_l'));
-// };
-let sort_rank = (_, _) => failwith("todo sort_rank");
+let skel = seg =>
+  seg
+  |> List.mapi((i, p) => (i, p))
+  |> List.filter_map(((i, p)) =>
+       Piece.shapes(p) |> Option.map(ss => (i, ss))
+     )
+  |> Skel.mk;
+
+let sorted_children = seg =>
+  seg |> List.map(Piece.sorted_children) |> List.concat;
+
+let sort_rank_root = (seg: t, s: Sort.t) => {
+  let mold: Piece.t => Mold.t =
+    fun
+    | Whitespace(_) => failwith("impossible since skel ignores whitespace")
+    | Grout(g) =>
+      // TODO(d) refactor to always return Any
+      Mold.of_grout(g, Any)
+    | Tile(t) => t.mold;
+
+  let rec go = (sort, skel: Skel.t) => {
+    let root_mold = mold(List.nth(seg, Skel.root_index(skel)));
+    let r = !Sort.consistent(sort, root_mold.out) |> Bool.to_int;
+    // let go_s = sorts_skels =>
+    //   sorts_skels
+    //   |> List.map(((sort, skel)) => go(sort, skel))
+    //   |> List.fold_left((+)(0));
+    let unichild_rs =
+      switch (skel) {
+      | Op(_) => 0
+      | Pre(_, r) => go(snd(root_mold.nibs).sort, r)
+      | Post(l, _) => go(fst(root_mold.nibs).sort, l)
+      | Bin(l, _, r) =>
+        go(fst(root_mold.nibs).sort, l) + go(snd(root_mold.nibs).sort, r)
+      };
+    r + unichild_rs;
+  };
+
+  go(s, skel(seg));
+};
+
+let rec sort_rank = (seg: t, s: Sort.t) =>
+  sort_rank_root(seg, s) + sort_rank_desc(seg)
+and sort_rank_desc = (seg: t) =>
+  sorted_children(seg)
+  |> List.map(((s, seg)) => sort_rank(seg, s))
+  |> List.fold_left((+), 0);
 
 let rec shape_rank = (seg, (l, r): (Nib.Shape.t, Nib.Shape.t)) => {
   let (l', rank) = shape_rank_affix(Direction.Right, seg, r);

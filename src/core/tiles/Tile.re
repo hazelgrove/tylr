@@ -27,13 +27,14 @@ let shapes = (t: t) => {
 
 let to_piece = t => Tile(t);
 
-let sorted_children = ({mold, children, _}: t) =>
-  switch (List.combine(mold.in_, children)) {
-  | exception (Invalid_argument(_)) =>
-    ignore(failwith("todo: factor in shards"));
-    raise(Invalid_mold);
-  | r => r
-  };
+let sorted_children = ({mold, shards, children, _}: t) =>
+  Aba.mk(shards, children)
+  |> Aba.aba_triples
+  |> List.map(((l, child, r)) => {
+       let (_, l) = Mold.nibs(~index=l, mold);
+       let (r, _) = Mold.nibs(~index=r, mold);
+       (l.sort == r.sort ? l.sort : Any, child);
+     });
 
 let remold = (t: t): list(t) =>
   Molds.get(t.label) |> List.map(mold => {...t, mold});

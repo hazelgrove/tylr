@@ -22,6 +22,15 @@ let get_bs: t(_, 'b) => list('b) = snd;
 
 let hd = ((as_, _): t('a, 'b)): 'a => List.hd(as_);
 
+let rec aba_triples = (aba: t('a, 'b)): list(('a, 'b, 'a)) =>
+  switch (aba) {
+  | ([a1, a2, ...as_], [b, ...bs]) => [
+      (a1, b, a2),
+      ...aba_triples(([a2, ...as_], bs)),
+    ]
+  | _ => []
+  };
+
 let map_b = (f_b: 'b => 'c, (as_, bs): t('a, 'b)): t('a, 'c) => (
   as_,
   List.map(f_b, bs),

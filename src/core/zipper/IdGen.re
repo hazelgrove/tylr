@@ -3,6 +3,9 @@ type state = Id.t;
 [@deriving show]
 type t('a) = state => ('a, state);
 
+let get: t(state) = state => (state, state);
+let put: state => t(unit) = (new_state, _old_state) => ((), new_state);
+
 let fresh: t(Id.t) = id => (id, id + 1);
 
 let return: 'a => t('a) = (a, s) => (a, s);
