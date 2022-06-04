@@ -1,5 +1,6 @@
 open Util;
 open Sexplib.Std;
+//open OptUtil.Syntax;
 
 [@deriving show]
 type caret =
@@ -608,17 +609,18 @@ let representative_piece =
   };
 };
 
-let cursor_point = (map: Measured.t, z: t): Measured.point => {
-  switch (representative_piece(z)) {
-  | (p, d) =>
-    let m = Measured.find_p(p, map);
-    let Measured.{row, col} =
-      switch (d) {
-      | Left => m.last
-      | Right => m.origin
-      };
-    {row, col: col + caret_offset(z.caret)};
+let base_caret_point = (map: Measured.t, z: t): Measured.point => {
+  let (p, d) = representative_piece(z);
+  let m = Measured.find_p(p, map);
+  switch (d) {
+  | Left => m.last
+  | Right => m.origin
   };
+};
+
+let caret_point = (map: Measured.t, z: t): Measured.point => {
+  let Measured.{row, col} = base_caret_point(map, z);
+  {row, col: col + caret_offset(z.caret)};
 };
 
 type comp =
@@ -644,7 +646,8 @@ let move_vertical = (d: Direction.t, z: t): option(t) => {
   /* iterate horizontal movement until we get to the closet
      caret position to a target derived from the initial position */
   //TODO(andrew): keep a persistant horizontal target in model
-  let cursorpos = cursor_point(snd(Measured.of_segment(zip(z))));
+  //TODO(andrew): edge cases around top/bottom lines
+  let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
   let Measured.{row: init_row, col: init_col} = cursorpos(z);
   let (goal_x, goal_y) = (init_col, init_row + (d == Right ? 1 : (-1)));
   //Printf.printf("V: initial: %d %d\n", init_row, init_col);

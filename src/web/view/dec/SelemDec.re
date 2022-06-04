@@ -265,7 +265,6 @@ let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Node.t => {
     );
   DecUtil.container2d(
     ~font_metrics,
-    //TODO(andrew): unlinearize
     ~measurement=profile.measurement,
     ~cls="tile",
     ~container_clss=[SelemStyle.to_string(profile.style)],

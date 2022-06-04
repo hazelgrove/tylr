@@ -323,7 +323,7 @@ let relativize_measurements:
       {origin: origin - parent_origin, length}
     );
 
-let linearize: measurement => measurement_lin =
+let _linearize: measurement => measurement_lin =
   ({origin: {col: origin, _}, last: {col: last, _}}) => {
     origin,
     length: last - origin,

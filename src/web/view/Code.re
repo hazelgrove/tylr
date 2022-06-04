@@ -47,39 +47,42 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
 
 let selection_length = (sel: Selection.t): int => {
   let seg = sel.content;
-  let ((_, len), _) = Measured.of_segment(seg);
+  let ((_, _), map) = Measured.of_segment(seg);
   //TODO(andrew): fix
-  len;
-  // switch (ListUtil.hd_opt(seg), ListUtil.last_opt(seg)) {
-  // | (None, _)
-  // | (_, None) => 0
-  // | (Some(first), Some(last)) =>
-  //   let first = Measured.find_p(first, map);
-  //   let last = Measured.find_p(last, map);
-  //   last.origin + last.length - first.origin;
-  // };
-};
 
-let genie_profile =
-    (backpack: Backpack.t, origin: int): RestructuringGenieDec.Profile.t => {
-  length: backpack |> List.map(selection_length) |> List.fold_left(max, 2),
-  origin,
+  switch (ListUtil.hd_opt(seg), ListUtil.last_opt(seg)) {
+  | (None, _)
+  | (_, None) => 0
+  | (Some(first), Some(last)) =>
+    let first = Measured.find_p(first, map);
+    let last = Measured.find_p(last, map);
+    last.last.col - first.origin.col;
+  };
 };
 
 let backpack_view =
-    (~font_metrics: FontMetrics.t, ~origin, backpack: Backpack.t): Node.t => {
+    (
+      ~font_metrics: FontMetrics.t,
+      ~origin: Measured.point,
+      backpack: Backpack.t,
+    )
+    : Node.t => {
+  let length =
+    backpack |> List.map(selection_length) |> List.fold_left(max, 0);
+  let height = List.length(backpack);
   let style =
     Printf.sprintf(
-      "position: absolute; left: %fpx; bottom: %fpx;",
-      (Float.of_int(origin) -. 0.0) *. font_metrics.col_width,
-      2. *. font_metrics.row_height,
+      "position: absolute; left: %fpx; top: %fpx;",
+      Float.of_int(origin.col) *. font_metrics.col_width,
+      Float.of_int(origin.row - height) *. font_metrics.row_height,
     );
   let selections_view =
     div(
       [Attr.create("style", style), Attr.classes(["backpack"])],
       List.map(backpack_sel_view, List.rev(backpack)),
     );
-  let genie_profile = genie_profile(backpack, origin);
+
+  let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
   let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
   div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
@@ -108,35 +111,8 @@ module Deco = (M: {
        )
     |> List.concat;
 
-  let selection_profile = (z: Zipper.t): Measured.point => {
-    let sel = z.selection.content;
-    //let length = Measured.length(sel, M.map);
-    //TODO(andrew): selection measurements
-    let origin =
-      switch (Siblings.neighbors(z.relatives.siblings)) {
-      | (_, Some(p)) =>
-        let m = Measured.find_p(p, M.map);
-        m.origin;
-      | (Some(p), _) =>
-        let m = Measured.find_p(p, M.map);
-        m.last;
-      | (None, None) =>
-        let p =
-          ListUtil.hd_opt(sel) |> OptUtil.get_or_raise(Segment.Empty_segment);
-        Measured.find_p(p, M.map).origin;
-      };
-    origin;
-  };
-
   let caret = (z: Zipper.t): list(Node.t) => {
-    // TODO(andrew): abstract all this to caret profile
-    let profile = selection_profile(z);
-    let origin_base_col =
-      switch (z.selection.focus) {
-      | Left => profile.col
-      | Right => profile.col //+ profile.length
-      };
-    let origin_offset = Zipper.caret_offset(z.caret);
+    let origin = Zipper.caret_point(M.map, z);
     let side =
       switch (Zipper.indicated_piece(z)) {
       | Some((_, side)) => side
@@ -146,10 +122,10 @@ module Deco = (M: {
       CaretDec.simple_view(
         ~font_metrics,
         ~side,
-        ~origin=(origin_base_col + origin_offset, profile.row),
+        ~origin,
         ~shape=Zipper.caret_direction(z),
       ),
-      backpack_view(~font_metrics, ~origin=origin_base_col, z.backpack),
+      backpack_view(~font_metrics, ~origin, z.backpack),
     ];
   };
 

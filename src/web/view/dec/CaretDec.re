@@ -553,7 +553,7 @@ let simple_view =
     (
       ~font_metrics: FontMetrics.t,
       ~side: Direction.t,
-      ~origin: (int, int),
+      ~origin: Core.Measured.point,
       ~shape: option(Direction.t),
     ) => {
   let caret =
@@ -583,11 +583,11 @@ let simple_view =
         "style",
         Printf.sprintf(
           "position: absolute; z-index: 100; left: %fpx; top: %fpx; width: %fpx; height: %fpx; background-color: %s !important;",
-          Float.of_int(fst(origin))
+          Float.of_int(origin.col)
           *. font_metrics.col_width
           +. shape_fudge
           +. side_fudge,
-          Float.of_int(snd(origin)) *. font_metrics.row_height +. top_fudge,
+          Float.of_int(origin.row) *. font_metrics.row_height +. top_fudge,
           0.0,
           font_metrics.row_height +. height_fudge,
           "#f008",
