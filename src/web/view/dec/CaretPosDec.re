@@ -4,7 +4,7 @@ module Profile = {
   type style = [ | `Bare | `Sibling | `Anchor | `Caret];
   type t = {
     style,
-    measurement: Core.Measured.measurement_lin,
+    measurement: Core.Measured.measurement,
     color: Color.t,
     just_failed: option(FailedInput.t),
   };
@@ -54,7 +54,7 @@ let view =
     | None => []
     | Some(_) => [JustFailedCls.Pos.mk()]
     };
-  DecUtil.container(
+  DecUtil.container2d(
     ~font_metrics,
     ~measurement,
     ~cls,
@@ -63,9 +63,9 @@ let view =
         "rect",
         Attr.[
           create("x", Printf.sprintf("%fpx", -. r_x)),
-          create("y", Printf.sprintf("%fpx", (-0.3) -. r_y)),
-          create("width", Printf.sprintf("%fpx", 2. *. r_x)),
-          create("height", Printf.sprintf("%fpx", 2. *. r_y)),
+          create("y", Printf.sprintf("%fpx", 0.1 -. r_y)),
+          create("width", Printf.sprintf("%fpx", 1. *. r_x)),
+          create("height", Printf.sprintf("%fpx", 1. *. r_y)),
           Attr.classes([
             "caret-position-path",
             cls,

@@ -218,13 +218,9 @@ module Deco = (M: {
            | Some(_) =>
              let measurement =
                switch (Siblings.neighbors((l, r))) {
-               | (None, None) => failwith("impossible")
-               | (_, Some(p)) =>
-                 let m = Measured.find_p(p, M.map);
-                 Measured.{origin: m.origin.col, length: 1};
-               | (Some(p), _) =>
-                 let m = Measured.find_p(p, M.map);
-                 Measured.{origin: m.last.col, length: 1};
+               | (Some(p), _)
+               | (_, Some(p)) => Measured.find_p(p, M.map)
+               | _ => failwith("targets impossible")
                };
              let profile =
                CaretPosDec.Profile.{
