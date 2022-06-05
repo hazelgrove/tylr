@@ -668,7 +668,7 @@ let rec move_towards =
   | (_, Under)
   | (Under, Exact) =>
     switch (move(d, cur)) {
-    | None => prev
+    | None => cur
     | Some(next) => move_towards(d, caret_pos, goal, next, cur)
     }
   | (Over, Exact) =>
