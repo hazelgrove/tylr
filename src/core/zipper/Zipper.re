@@ -139,44 +139,6 @@ let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
     | (None, None) => (None, None)
     };
 
-let movability = (label, delim_idx): movability => {
-  assert(delim_idx < List.length(label));
-  switch (Settings.s.movement, label, delim_idx) {
-  | (Char, _, _)
-  | (Mono, [_], 0) =>
-    let char_max = String.length(List.nth(label, delim_idx)) - 2;
-    char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
-  | (Token, _, _)
-  | (Mono, _, _) => CanMovePast
-  };
-};
-
-let neighbor_movability: t => (movability, movability) =
-  ({relatives: {siblings, ancestors}, _}) => {
-    let (supernhbr_l, supernhbr_r) =
-      switch (ancestors) {
-      | [] => (CantEven, CantEven)
-      | [({children: (l_kids, _), label, _}, _), ..._] => (
-          movability(label, List.length(l_kids)),
-          movability(label, List.length(l_kids) + 1),
-        )
-      };
-    let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
-    let l =
-      switch (l_nhbr) {
-      | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
-      | Some(_) => CanMovePast
-      | _ => supernhbr_l
-      };
-    let r =
-      switch (r_nhbr) {
-      | Some(Tile({label, _})) => movability(label, 0)
-      | Some(_) => CanMovePast
-      | _ => supernhbr_r
-      };
-    (l, r);
-  };
-
 let unselect = (z: t): t => {
   let relatives =
     z.relatives
@@ -301,11 +263,20 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
      );
 };
 
+let is_adjacent_space = (siblings: Siblings.t): bool =>
+  switch (Siblings.neighbors(siblings)) {
+  | (Some(Whitespace({content, _})), _) when content == Whitespace.space =>
+    true
+  | (_, Some(Whitespace({content, _}))) when content == Whitespace.space =>
+    true
+  | _ => false
+  };
+
 let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
   switch (label) {
-  | [t] when Form.is_whitespace(t) =>
-    Siblings.has_space_neighbor(z.relatives.siblings)
-    && t != Whitespace.linebreak
+  | [t] when t == Whitespace.linebreak => insert_space_grout(t, z)
+  | [t] when t == Whitespace.space =>
+    is_adjacent_space(z.relatives.siblings)
       ? IdGen.return(z) : insert_space_grout(t, z)
   | _ =>
     let z = destruct_outer(z);
@@ -542,6 +513,44 @@ let insert =
   | (Outer, (_, None)) => insert_outer(char, (z, id_gen))
   };
 
+let movability = (label, delim_idx): movability => {
+  assert(delim_idx < List.length(label));
+  switch (Settings.s.movement, label, delim_idx) {
+  | (Char, _, _)
+  | (Mono, [_], 0) =>
+    let char_max = String.length(List.nth(label, delim_idx)) - 2;
+    char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
+  | (Token, _, _)
+  | (Mono, _, _) => CanMovePast
+  };
+};
+
+let neighbor_movability: t => (movability, movability) =
+  ({relatives: {siblings, ancestors}, _}) => {
+    let (supernhbr_l, supernhbr_r) =
+      switch (ancestors) {
+      | [] => (CantEven, CantEven)
+      | [({children: (l_kids, _), label, _}, _), ..._] => (
+          movability(label, List.length(l_kids)),
+          movability(label, List.length(l_kids) + 1),
+        )
+      };
+    let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
+    let l =
+      switch (l_nhbr) {
+      | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
+      | Some(_) => CanMovePast
+      | _ => supernhbr_l
+      };
+    let r =
+      switch (r_nhbr) {
+      | Some(Tile({label, _})) => movability(label, 0)
+      | Some(_) => CanMovePast
+      | _ => supernhbr_r
+      };
+    (l, r);
+  };
+
 let move = (d: Direction.t, z: t): option(t) =>
   switch (d, z.caret, neighbor_movability(z)) {
   | _ when z.selection.content != [] =>
@@ -598,6 +607,7 @@ let representative_piece =
       }: t,
     )
     : (Piece.t, Direction.t) => {
+  /* The piece to the left of the caret, or if none exists, the piece to the right */
   let sibs =
     switch (focus) {
     | Left => (l_sibs, content @ r_sibs)

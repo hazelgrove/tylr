@@ -131,13 +131,6 @@ let delete_action_type =
       span([Attr.classes(d)], [text(" / ")]),
       span([Attr.classes(res_clss)], [text("Restructure")]),
     ],
-    // span(
-    //   [Attr.classes(["delete-action-arrow", ...arr_clss])],
-    //   [
-    //     text(" "),
-    //     text(dir == Left ? Unicode.left_arrow : Unicode.right_arrow),
-    //   ],
-    // ),
   );
 };
 
@@ -389,33 +382,6 @@ let view =
         | Some({reason: Failure(f), prior_attempts}) when prior_attempts >= 0 =>
           switch (f) {
           | _ => []
-          // | Action.Failure.Undefined
-          // | Cant_move => []
-          // | Cant_construct(sort, frame_sort) => [
-          //     text("cannot construct "),
-          //     text("a" ++ (sort == Pat ? " " : "n ")),
-          //     sort_label(sort),
-          //     text(" tile in "),
-          //     sort_label(frame_sort),
-          //     text(" position"),
-          //   ]
-          // | Cant_pick_up_selection => [
-          //     text("cannot pick up selection with caps of different sort"),
-          //   ]
-          // | Cant_put_down_selection(sort, frame_sort) => [
-          //     text("cannot put down "),
-          //     // br([]),
-          //     text("a" ++ (sort == Pat ? " " : "n ")),
-          //     sort_label(sort),
-          //     text("-capped selection"),
-          //     // br([]),
-          //     text(" in "),
-          //     sort_label(frame_sort),
-          //     text(" position"),
-          //   ]
-          // | Cant_construct_in_restructuring => [
-          //     text("cannot construct in restructuring mode"),
-          //   ]
           }
         | _ => []
         }

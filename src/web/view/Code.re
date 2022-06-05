@@ -17,7 +17,7 @@ module Text = {
                String.concat("", List.init(indent, _ => Unicode.nbsp)),
              ),
            ]
-         | Piece.Whitespace({content: " ", _}) => [
+         | Piece.Whitespace({content: c, _}) when c == Whitespace.space => [
              span_c("whitespace", [text("·")]),
            ]
          | Piece.Whitespace(w) => [Node.text(w.content)]

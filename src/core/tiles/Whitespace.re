@@ -7,3 +7,4 @@ type t = {
 };
 
 let linebreak = "⏎";
+let space = " ";

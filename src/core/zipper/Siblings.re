@@ -106,14 +106,6 @@ let neighbors: t => (option(Piece.t), option(Piece.t)) =
     r == [] ? None : Some(List.hd(r)),
   );
 
-let has_space_neighbor: t => bool =
-  siblings =>
-    switch (neighbors(siblings)) {
-    | (Some(p), _) when Piece.is_whitespace(p) => true
-    | (_, Some(p)) when Piece.is_whitespace(p) => true
-    | _ => false
-    };
-
 let trim_whitespace = ((l_sibs, r_sibs): t) => (
   Segment.trim_whitespace(Right, l_sibs),
   Segment.trim_whitespace(Left, r_sibs),
