@@ -134,35 +134,6 @@ let length = (seg: Segment.t, map: t): int =>
     last.last.col - first.origin.col;
   };
 
-//TODO(andrew): autoformatter: padding
-[@deriving show]
-type padding =
-  | None
-  | Bi
-  | Pre
-  | Post;
-
-let padding: string => padding =
-  fun
-  | "fun"
-  | "let" => Post
-  | "=>"
-  | "+"
-  | "-"
-  | "*"
-  | "/"
-  | ","
-  | "="
-  | "in"
-  | "?"
-  | ":" => Bi
-  | "("
-  | ")"
-  | "["
-  | "]"
-  | "}"
-  | _ => None;
-
 let relativize_measurements:
   (int, list(measurement_lin)) => list(measurement_lin) =
   parent_origin =>
@@ -176,10 +147,7 @@ let _linearize: measurement => measurement_lin =
     length: last - origin,
   };
 
-/*
-  let get_closed_children = (mold: Mold.t, ms: list(measured)): list(measured) => {
-    List.map((==)(mold.sorts.out), mold.sorts.in_)
-    |> ListUtil.p_indices((==)(false))
-    |> select_piece_idxs(ms);
-  };
- */
+let code_width = (_map: t) => {
+  60;
+  //TODO(andrew): scan through map, return large origin col
+};
