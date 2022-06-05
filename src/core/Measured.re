@@ -147,7 +147,29 @@ let _linearize: measurement => measurement_lin =
     length: last - origin,
   };
 
-let code_width = (_map: t) => {
-  60;
-  //TODO(andrew): scan through map, return large origin col
+let segment_origin = (seg: Segment.t): option(point) =>
+  Option.map(
+    first => find_p(first, snd(of_segment(seg))).origin,
+    ListUtil.hd_opt(seg),
+  );
+
+let segment_last = (seg: Segment.t): option(point) =>
+  Option.map(
+    last => find_p(last, snd(of_segment(seg))).last,
+    ListUtil.last_opt(seg),
+  );
+
+let segment_height = (seg: Segment.t) =>
+  switch (segment_last(seg), segment_origin(seg)) {
+  | (Some(last), Some(first)) => 1 + last.row - first.row
+  | _ => 0
+  };
+
+let segment_width = (seg: Segment.t): int => {
+  let map = snd(of_segment(seg));
+  List.fold_left(
+    (acc, p: Piece.t) => max(acc, find_p(p, map).last.col),
+    0,
+    seg,
+  );
 };

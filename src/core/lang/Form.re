@@ -40,7 +40,7 @@ let whitespace = [Whitespace.space, Whitespace.linebreak];
    Order in this list determines relative remolding
    priority for forms with overlapping regexps */
 let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
-  ("var", (regexp("^[a-z]*$"), [mk_op(Exp, [])])),
+  ("var", (regexp("^[a-z_]*$"), [mk_op(Exp, [])])),
   ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
 ];
 

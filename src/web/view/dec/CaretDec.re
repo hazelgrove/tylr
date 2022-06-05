@@ -2,6 +2,8 @@ open Virtual_dom.Vdom;
 open Util;
 // open Core;
 
+let top_text_fudge = 2.0;
+
 module Profile = {
   type t = {
     mode: CaretMode.t,
@@ -539,7 +541,6 @@ let simple_view =
     | Left => 1.0
     | Right => 0.0
     };
-  let top_fudge = 2.0; // ?
   let height_fudge = 1.0; //extra 1.0 for piece deco shadow
   Node.div(
     [
@@ -553,7 +554,9 @@ let simple_view =
           *. font_metrics.col_width
           +. shape_fudge
           +. side_fudge,
-          Float.of_int(origin.row) *. font_metrics.row_height +. top_fudge,
+          Float.of_int(origin.row)
+          *. font_metrics.row_height
+          +. top_text_fudge,
           0.0,
           font_metrics.row_height +. height_fudge,
           "#f008",

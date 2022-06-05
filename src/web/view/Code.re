@@ -42,20 +42,10 @@ module Text = {
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let text_view = Text.of_segment(content);
-  div([Attr.classes(["code-text", "backpack-selection"])], text_view);
-};
-
-let selection_length = (sel: Selection.t): int => {
-  let seg = sel.content;
-  let map = snd(Measured.of_segment(seg));
-  switch (ListUtil.hd_opt(seg), ListUtil.last_opt(seg)) {
-  | (None, _)
-  | (_, None) => 0
-  | (Some(first), Some(last)) =>
-    let first = Measured.find_p(first, map);
-    let last = Measured.find_p(last, map);
-    last.last.col - first.origin.col;
-  };
+  div(
+    [Attr.classes(["code-text", "backpack-selection"])],
+    [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
+  );
 };
 
 let backpack_view =
@@ -66,13 +56,24 @@ let backpack_view =
     )
     : Node.t => {
   let length =
-    backpack |> List.map(selection_length) |> List.fold_left(max, 0);
-  let height = List.length(backpack);
+    switch (backpack) {
+    | [] => 0
+    | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+    };
+  let height =
+    List.fold_left(
+      (acc, sel: Selection.t) => acc + Measured.segment_height(sel.content),
+      0,
+      backpack,
+    );
+  //TODO(andrew): truncate backpack when height is too high?
   let style =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
       Float.of_int(origin.col) *. font_metrics.col_width,
-      Float.of_int(origin.row - height) *. font_metrics.row_height,
+      Float.of_int(/* origin.row */ - height - 1)
+      *. font_metrics.row_height
+      +. CaretDec.top_text_fudge,
     );
   let selections_view =
     div(
@@ -116,6 +117,18 @@ module Deco = (M: {
       | Some((_, side)) => side
       | _ => Right
       };
+    let style =
+      Printf.sprintf(
+        "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
+        Float.of_int(origin.col) *. font_metrics.col_width,
+        CaretDec.top_text_fudge -. 3.,
+        Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
+      );
+    let joiner =
+      div(
+        [Attr.create("style", style), Attr.classes(["backpack-joiner"])],
+        [],
+      );
     [
       CaretDec.simple_view(
         ~font_metrics,
@@ -124,7 +137,8 @@ module Deco = (M: {
         ~shape=Zipper.caret_direction(z),
       ),
       backpack_view(~font_metrics, ~origin, z.backpack),
-    ];
+    ]
+    @ (z.backpack != [] ? [joiner] : []);
   };
 
   let children = (p: Piece.t): list(Measured.measurement_lin) =>

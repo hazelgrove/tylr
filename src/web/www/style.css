@@ -65,7 +65,7 @@
   --ap-color: #aeb5b8;
 
   --unselected-tessera-color: #fff1f7;
-  --selection-color: #e7e1cd;
+  --selection-color: #fae294;
   --revealed-tile-color: var(--light-page-color);/*#faf2df;*/
   --selection-shadow-color: rosybrown;
 
@@ -179,7 +179,7 @@
 }
 
 #code-container {
-  padding: 6em;
+  padding: 9em 6em 6em 4em;
   /*width: 100%;
   display: flex; 
   position: fixed;
@@ -332,6 +332,7 @@ svg.rail line.unsorted {
 .code {
   position: relative;
   line-height: var(--line-height);
+  white-space: nowrap
 }
 .code#under-the-rail {
   /*position: fixed;
@@ -1001,4 +1002,17 @@ svg.rail line.unsorted {
 
 #filters {
   position: fixed;
+}
+
+.backpack-selection {
+  line-height: var(--line-height);
+  width: fit-content;
+  background-color: var(--selection-color);
+  outline: 1px solid var(--light-page-color);
+}
+
+.backpack-joiner {
+  border-radius: 2px;
+  width: 2px;
+  background-color: var(--selection-color);
 }

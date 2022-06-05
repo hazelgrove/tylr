@@ -56,18 +56,37 @@ module App = {
 
 let insert: (Model.t, string) => Model.t =
   (m, c) =>
-    Update.apply(m, PerformAction(Insert(c)), (), ~schedule_action=());
+    Update.apply(
+      m,
+      PerformAction(Insert(c == "\n" ? Core.Whitespace.linebreak : c)),
+      (),
+      ~schedule_action=(),
+    );
 
 let parse: string => Model.t =
   s => s |> Util.StringUtil.to_list |> List.fold_left(insert, Model.blank);
 
-let initial_model: Model.t =
-  parse("let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(7!)");
-/*let initial_model: Model.t =
+let _initial_model: Model.t =
   parse(
-    "lorem ipsum dolor sit amet consectetur adipiscing elit"
-    ++ Core.Whitespace.linebreak,
-  );*/
+    "let foo =
+          fun taz => (
+           fun bar => (
+            taz + 2*bar))
+          in
+         foo(7!)",
+  );
+let initial_model: Model.t =
+  parse(
+    "let foo =
+  fun taz => {
+    case taz of {
+      | (2, torb) => bargle + 7*torb
+      | (blee, 5) => krunk ? blee : 66
+    }
+  }
+in foo(7!)",
+  );
+
 Incr_dom.Start_app.start(
   (module App),
   ~debug=false,

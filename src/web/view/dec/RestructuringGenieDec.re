@@ -14,11 +14,13 @@ module Profile = {
 };
 
 let view = (~font_metrics, measurement: Profile.t) =>
-  //TODO(andrew): make taller
   DecUtil.container2d(
     ~font_metrics,
     ~measurement={
-      origin: measurement.origin,
+      origin: {
+        row: 0, //measurement.origin.row,
+        col: measurement.origin.col,
+      },
       last: {
         row: measurement.origin.row + measurement.height,
         col: measurement.origin.col + measurement.length,
@@ -46,11 +48,11 @@ let view = (~font_metrics, measurement: Profile.t) =>
           [
             // slightly boost genie tip for better visibility
             // when restructuring selection gets large
-            M({x: (-0.5), y: (-0.25) +. (-0.1)}),
+            M({x: 0., y: (-0.1)}),
             // TODO unify with caret height numbers (-1.8)
-            V({y: (-2.4)}),
-            H_({dx: Float.of_int(measurement.length + 1)}),
-            V_({dy: 1.5}),
+            V({y: (-2.0)}),
+            H_({dx: Float.of_int(measurement.length)}),
+            V_({dy: 1.0}),
             Z,
           ],
         )
