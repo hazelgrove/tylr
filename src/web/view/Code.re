@@ -41,16 +41,63 @@ module Text = (M: {let map: Measured.t;}) => {
   };
 };
 
+let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
+  // TODO(andrew): Maybe use sort at caret instead of root
+  let map = Measured.of_segment(content);
+  module Text =
+    Text({
+      let map = map;
+    });
+  let text_view = Text.of_segment(content);
+  div(
+    [Attr.classes(["code-text", "backpack-selection"])],
+    [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
+  );
+};
+
+let backpack_view =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~origin: Measured.point,
+      backpack: Backpack.t,
+    )
+    : Node.t => {
+  let length =
+    switch (backpack) {
+    | [] => 0
+    | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+    };
+  let height =
+    List.fold_left(
+      (acc, sel: Selection.t) => acc + Measured.segment_height(sel.content),
+      0,
+      backpack,
+    );
+  //TODO(andrew): truncate backpack when height is too high?
+  let style =
+    Printf.sprintf(
+      "position: absolute; left: %fpx; top: %fpx;",
+      Float.of_int(origin.col) *. font_metrics.col_width,
+      Float.of_int(/* origin.row */ - height - 1)
+      *. font_metrics.row_height
+      +. CaretDec.top_text_fudge,
+    );
+  let selections_view =
+    div(
+      [Attr.create("style", style), Attr.classes(["backpack"])],
+      List.map(backpack_sel_view, List.rev(backpack)),
+    );
+
+  let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
+  let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
+  div([Attr.classes(["backpack"])], [selections_view, genie_view]);
+};
+
 module Deco = (M: {
                  let font_metrics: FontMetrics.t;
                  let map: Measured.t;
                }) => {
   let font_metrics = M.font_metrics;
-
-  module Text =
-    Text({
-      let map = M.map;
-    });
 
   let rec holes = (seg: Segment.t): list(Node.t) =>
     seg
@@ -69,55 +116,6 @@ module Deco = (M: {
            ],
        )
     |> List.concat;
-
-  let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
-    // TODO(andrew): Maybe use sort at caret instead of root
-    let text_view = Text.of_segment(content);
-    div(
-      [Attr.classes(["code-text", "backpack-selection"])],
-      [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
-    );
-  };
-
-  let backpack_view =
-      (
-        ~font_metrics: FontMetrics.t,
-        ~origin: Measured.point,
-        backpack: Backpack.t,
-      )
-      : Node.t => {
-    let length =
-      switch (backpack) {
-      | [] => 0
-      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
-      };
-    let height =
-      List.fold_left(
-        (acc, sel: Selection.t) =>
-          acc + Measured.segment_height(sel.content),
-        0,
-        backpack,
-      );
-    //TODO(andrew): truncate backpack when height is too high?
-    let style =
-      Printf.sprintf(
-        "position: absolute; left: %fpx; top: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
-        Float.of_int(/* origin.row */ - height - 1)
-        *. font_metrics.row_height
-        +. CaretDec.top_text_fudge,
-      );
-    let selections_view =
-      div(
-        [Attr.create("style", style), Attr.classes(["backpack"])],
-        List.map(backpack_sel_view, List.rev(backpack)),
-      );
-
-    let genie_profile =
-      RestructuringGenieDec.Profile.{length, height, origin};
-    let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
-    div([Attr.classes(["backpack"])], [selections_view, genie_view]);
-  };
 
   let caret = (z: Zipper.t): list(Node.t) => {
     let origin = Zipper.caret_point(M.map, z);
