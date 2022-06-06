@@ -310,15 +310,26 @@ let rec reassemble = (seg: t): t =>
 
 let trim_whitespace: (Direction.t, t) => t =
   (d, ps) => {
-    /* this current trims leading/trailing whitespace
-       until the first TILE is reached (ie we keep going
-       when we hit grout. this may not always be what we
-       want... */
+    /* Trims leading/trailing whitespace */
     let rec trim_l = xs =>
       switch (xs) {
       | [] => []
       | [Piece.Whitespace(_), ...xs] => trim_l(xs)
-      | [Piece.Grout(g), ...xs] => [Piece.Grout(g), ...trim_l(xs)]
+      | [_, ..._] => xs
+      };
+    switch (d) {
+    | Left => ps |> trim_l
+    | Right => ps |> List.rev |> trim_l |> List.rev
+    };
+  };
+let trim_whitespace_and_grout: (Direction.t, t) => t =
+  (d, ps) => {
+    /* Trims leading/trailing whitespace, continuing
+       to trim around grout until first Tile is reached */
+    let rec trim_l = xs =>
+      switch (xs) {
+      | [] => []
+      | [Piece.Whitespace(_) | Piece.Grout(_), ...xs] => trim_l(xs)
       | [_, ..._] => xs
       };
     switch (d) {

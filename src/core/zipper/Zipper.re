@@ -1,6 +1,6 @@
 open Util;
 open Sexplib.Std;
-//open OptUtil.Syntax;
+open OptUtil.Syntax;
 
 [@deriving show]
 type caret =
@@ -303,46 +303,6 @@ let replace_construct =
   |> Option.map(destruct_outer)
   |> Option.map(z => construct(d, l, z, id_gen));
 
-let can_merge_through: Piece.t => bool =
-  p => Piece.is_grout(p) || Piece.is_length_one_monotile(p);
-
-let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
-  /* This is a bit of a hack. If we are Deleting (d==Right),
-     we move the first right sibling to the left so the
-     arrangement is the same as that used for Backspacing (d==Left).
-     We do this both for checking mergability and doing the merge */
-  d == Left || r_sibs == []
-    ? (l_sibs, r_sibs) : (l_sibs @ [List.hd(r_sibs)], List.tl(r_sibs));
-
-let merge_candidates:
-  (Direction.t, caret, Siblings.t) => option((Token.t, Token.t)) =
-  //TODO(andrew): maybe trim more whitespace or grout...
-  (d, caret, siblings) => {
-    let (l_sibs, r_sibs) = shift_siblings_maybe(d, siblings);
-    switch (ListUtil.split_last_opt(l_sibs)) {
-    | Some((ps, l_nhbr)) when can_merge_through(l_nhbr) =>
-      switch (caret, neighbor_monotiles((ps, r_sibs))) {
-      | (Outer, (Some(l_2nd_nhbr), Some(r_nhbr)))
-          when Form.is_valid_token(l_2nd_nhbr ++ r_nhbr) =>
-        Some((l_2nd_nhbr, r_nhbr))
-      | _ => None
-      }
-    | _ => None
-    };
-  };
-
-/* Merge precondition: ... <Monotile> <DontCare> | <Monotile> ...  */
-let merge =
-    ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
-  z
-  |> set_caret(Inner(0, String.length(l) - 1))  // note monotile assumption
-  |> move_outer(Right)
-  |> OptUtil.and_then(select_outer(Left))
-  |> OptUtil.and_then(select_outer(Left))
-  |> OptUtil.and_then(select_outer(Left))
-  |> Option.map(destruct_outer)
-  |> Option.map(z => construct(Right, [l ++ r], z, id_gen));
-
 let decrement_caret: caret => caret =
   fun
   | Outer
@@ -396,21 +356,34 @@ let destruct =
   };
 };
 
-let destruct_or_merge =
-    (
-      d: Direction.t,
-      ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
-    )
-    : option(state) =>
-  switch (merge_candidates(d, caret, Siblings.trim_whitespace(siblings))) {
-  | None => destruct(d, (z, id_gen))
-  | Some(candidates) =>
-    let z =
-      z
-      |> update_siblings(Siblings.trim_whitespace)
-      |> update_siblings(shift_siblings_maybe(d));
-    merge(candidates, (z, id_gen));
+let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
+  (caret, siblings) => {
+    switch (caret, neighbor_monotiles(siblings)) {
+    | (Outer, (Some(l_nhbr), Some(r_nhbr)))
+        when Form.is_valid_token(l_nhbr ++ r_nhbr) =>
+      Some((l_nhbr, r_nhbr))
+    | _ => None
+    };
   };
+
+let merge =
+    ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
+  z
+  |> set_caret(Inner(0, String.length(l) - 1))  // note monotile assumption
+  |> move_outer(Right)
+  |> OptUtil.and_then(select_outer(Left))
+  |> OptUtil.and_then(select_outer(Left))
+  |> Option.map(destruct_outer)
+  |> Option.map(z => construct(Right, [l ++ r], z, id_gen));
+
+let destruct_or_merge = (d: Direction.t, (z, id_gen): state): option(state) => {
+  let* (z, id_gen) = destruct(d, (z, id_gen));
+  let z_trimmed = update_siblings(Siblings.trim_whitespace_and_grout, z);
+  switch (merge_candidates(z.caret, z_trimmed.relatives.siblings)) {
+  | None => Some((z, id_gen))
+  | Some(candidates) => merge(candidates, (z_trimmed, id_gen))
+  };
+};
 
 let keyword_expand = ((z, _) as state: state): option(state) =>
   /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
