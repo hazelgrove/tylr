@@ -17,14 +17,20 @@ let view = (~font_metrics, measurement: Profile.t) =>
   DecUtil.container2d(
     ~font_metrics,
     ~measurement={
-      origin: {
-        row: 0, //measurement.origin.row,
-        col: measurement.origin.col,
-      },
-      last: {
-        row: measurement.origin.row + measurement.height,
-        col: measurement.origin.col + measurement.length,
-      },
+      origin:
+        // TODO(d) clean up dummy value
+        {
+          indent: 0,
+          row: 0, //measurement.origin.row,
+          col: measurement.origin.col,
+        },
+      last:
+        // TODO(d) clean up dummy value
+        {
+          indent: 0,
+          row: measurement.origin.row + measurement.height,
+          col: measurement.origin.col + measurement.length,
+        },
     },
     ~cls="restructuring-genie",
     [

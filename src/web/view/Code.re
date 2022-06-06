@@ -5,27 +5,29 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-module Text = {
-  let rec of_segment = (~indent=0, seg: Segment.t): list(Node.t) =>
+module Text = (M: {let map: Measured.t;}) => {
+  let rec of_segment = (seg: Segment.t): list(Node.t) =>
     seg
-    |> List.map(
-         fun
-         | Piece.Whitespace({content: c, _}) when c == Whitespace.linebreak => [
+    |> List.map((p: Piece.t) => {
+         let m = Measured.find_p(p, M.map);
+         switch (p) {
+         | Piece.Whitespace(w) when w.content == Whitespace.linebreak => [
              span_c("whitespace", [text(Whitespace.linebreak)]),
              Node.br([]),
              Node.text(
-               String.concat("", List.init(indent, _ => Unicode.nbsp)),
+               String.concat("", List.init(m.last.indent, _ => Unicode.nbsp)),
              ),
            ]
-         | Piece.Whitespace({content: c, _}) when c == Whitespace.space => [
+         | Whitespace({content: c, _}) when c == Whitespace.space => [
              span_c("whitespace", [text("·")]),
            ]
-         | Piece.Whitespace(w) => [Node.text(w.content)]
+         | Whitespace(w) => [Node.text(w.content)]
          | Grout(_) => [Node.text(Unicode.nbsp)]
-         | Tile(t) => of_tile(t, ~indent),
-       )
+         | Tile(t) => of_tile(t)
+         };
+       })
     |> List.concat
-  and of_tile = (t: Tile.t, ~indent): list(Node.t) => {
+  and of_tile = (t: Tile.t): list(Node.t) => {
     let span =
       List.length(t.label) == 1
         ? Node.span([])
@@ -33,57 +35,10 @@ module Text = {
     Aba.mk(t.shards, t.children)
     |> Aba.join(
          i => [span([Node.text(List.nth(t.label, i))])],
-         of_segment(~indent=indent + 1),
+         of_segment,
        )
     |> List.concat;
   };
-};
-
-let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
-  // TODO(andrew): Maybe use sort at caret instead of root
-  let text_view = Text.of_segment(content);
-  div(
-    [Attr.classes(["code-text", "backpack-selection"])],
-    [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
-  );
-};
-
-let backpack_view =
-    (
-      ~font_metrics: FontMetrics.t,
-      ~origin: Measured.point,
-      backpack: Backpack.t,
-    )
-    : Node.t => {
-  let length =
-    switch (backpack) {
-    | [] => 0
-    | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
-    };
-  let height =
-    List.fold_left(
-      (acc, sel: Selection.t) => acc + Measured.segment_height(sel.content),
-      0,
-      backpack,
-    );
-  //TODO(andrew): truncate backpack when height is too high?
-  let style =
-    Printf.sprintf(
-      "position: absolute; left: %fpx; top: %fpx;",
-      Float.of_int(origin.col) *. font_metrics.col_width,
-      Float.of_int(/* origin.row */ - height - 1)
-      *. font_metrics.row_height
-      +. CaretDec.top_text_fudge,
-    );
-  let selections_view =
-    div(
-      [Attr.create("style", style), Attr.classes(["backpack"])],
-      List.map(backpack_sel_view, List.rev(backpack)),
-    );
-
-  let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
-  let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
-  div([Attr.classes(["backpack"])], [selections_view, genie_view]);
 };
 
 module Deco = (M: {
@@ -91,6 +46,11 @@ module Deco = (M: {
                  let map: Measured.t;
                }) => {
   let font_metrics = M.font_metrics;
+
+  module Text =
+    Text({
+      let map = M.map;
+    });
 
   let rec holes = (seg: Segment.t): list(Node.t) =>
     seg
@@ -109,6 +69,55 @@ module Deco = (M: {
            ],
        )
     |> List.concat;
+
+  let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
+    // TODO(andrew): Maybe use sort at caret instead of root
+    let text_view = Text.of_segment(content);
+    div(
+      [Attr.classes(["code-text", "backpack-selection"])],
+      [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
+    );
+  };
+
+  let backpack_view =
+      (
+        ~font_metrics: FontMetrics.t,
+        ~origin: Measured.point,
+        backpack: Backpack.t,
+      )
+      : Node.t => {
+    let length =
+      switch (backpack) {
+      | [] => 0
+      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+      };
+    let height =
+      List.fold_left(
+        (acc, sel: Selection.t) =>
+          acc + Measured.segment_height(sel.content),
+        0,
+        backpack,
+      );
+    //TODO(andrew): truncate backpack when height is too high?
+    let style =
+      Printf.sprintf(
+        "position: absolute; left: %fpx; top: %fpx;",
+        Float.of_int(origin.col) *. font_metrics.col_width,
+        Float.of_int(/* origin.row */ - height - 1)
+        *. font_metrics.row_height
+        +. CaretDec.top_text_fudge,
+      );
+    let selections_view =
+      div(
+        [Attr.create("style", style), Attr.classes(["backpack"])],
+        List.map(backpack_sel_view, List.rev(backpack)),
+      );
+
+    let genie_profile =
+      RestructuringGenieDec.Profile.{length, height, origin};
+    let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
+    div([Attr.classes(["backpack"])], [selections_view, genie_view]);
+  };
 
   let caret = (z: Zipper.t): list(Node.t) => {
     let origin = Zipper.caret_point(M.map, z);
@@ -281,12 +290,17 @@ let view =
       ~zipper: Zipper.t,
     )
     : Node.t => {
-  let seg = Zipper.zip(zipper);
+  let seg = Segment.serialize(Zipper.zip(zipper));
+  let map = Measured.of_segment(seg);
 
+  module Text =
+    Text({
+      let map = map;
+    });
   module Deco =
     Deco({
       let font_metrics = font_metrics;
-      let map = snd(Measured.of_segment(seg));
+      let map = map;
     });
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],

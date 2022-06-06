@@ -363,3 +363,24 @@ let edge_shape_of = (d: Direction.t, ps: t): option(Nib.Shape.t) => {
 
 let edge_direction_of = (d: Direction.t, ps: t): option(Direction.t) =>
   Option.map(Nib.Shape.absolute(d), edge_shape_of(d, ps));
+
+let rec serialize = (seg: t) =>
+  seg
+  |> List.map(
+       fun
+       | (Piece.Whitespace(_) | Grout(_) | Tile({shards: [_], _})) as p => [
+           p,
+         ]
+       | Tile(t) => {
+           let shards =
+             List.map(
+               Tile.to_piece,
+               Tile.split_shards(t.id, t.label, t.mold, t.shards),
+             );
+           let children = List.map(serialize, t.children);
+           Aba.mk(shards, children)
+           |> Aba.join(s => [s], Fun.id)
+           |> List.concat;
+         },
+     )
+  |> List.concat;
