@@ -356,16 +356,6 @@ let destruct =
   };
 };
 
-let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
-  (caret, siblings) => {
-    switch (caret, neighbor_monotiles(siblings)) {
-    | (Outer, (Some(l_nhbr), Some(r_nhbr)))
-        when Form.is_valid_token(l_nhbr ++ r_nhbr) =>
-      Some((l_nhbr, r_nhbr))
-    | _ => None
-    };
-  };
-
 let merge =
     ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
@@ -379,9 +369,10 @@ let merge =
 let destruct_or_merge = (d: Direction.t, (z, id_gen): state): option(state) => {
   let* (z, id_gen) = destruct(d, (z, id_gen));
   let z_trimmed = update_siblings(Siblings.trim_whitespace_and_grout, z);
-  switch (merge_candidates(z.caret, z_trimmed.relatives.siblings)) {
-  | None => Some((z, id_gen))
-  | Some(candidates) => merge(candidates, (z_trimmed, id_gen))
+  switch (z.caret, neighbor_monotiles(z_trimmed.relatives.siblings)) {
+  | (Outer, (Some(l), Some(r))) when Form.is_valid_token(l ++ r) =>
+    merge((l, r), (z_trimmed, id_gen))
+  | _ => Some((z, id_gen))
   };
 };
 
