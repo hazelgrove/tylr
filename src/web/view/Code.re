@@ -290,8 +290,8 @@ let view =
       ~zipper: Zipper.t,
     )
     : Node.t => {
-  let seg = Segment.serialize(Zipper.zip(zipper));
-  let map = Measured.of_segment(seg);
+  let seg = Zipper.zip(zipper);
+  let map = Measured.of_segment(Segment.serialize(seg));
 
   module Text =
     Text({
