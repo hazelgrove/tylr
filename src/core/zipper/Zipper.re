@@ -316,6 +316,7 @@ let shift_siblings_maybe = (d: Direction.t, (l_sibs, r_sibs)) =>
 
 let merge_candidates:
   (Direction.t, caret, Siblings.t) => option((Token.t, Token.t)) =
+  //TODO(andrew): maybe trim more whitespace or grout...
   (d, caret, siblings) => {
     let (l_sibs, r_sibs) = shift_siblings_maybe(d, siblings);
     switch (ListUtil.split_last_opt(l_sibs)) {

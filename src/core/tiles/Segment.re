@@ -310,14 +310,20 @@ let rec reassemble = (seg: t): t =>
 
 let trim_whitespace: (Direction.t, t) => t =
   (d, ps) => {
-    let trim =
-      List.fold_left(
-        (acc, p) => Piece.is_whitespace(p) ? acc : [p, ...acc],
-        [],
-      );
+    /* this current trims leading/trailing whitespace
+       until the first TILE is reached (ie we keep going
+       when we hit grout. this may not always be what we
+       want... */
+    let rec trim_l = xs =>
+      switch (xs) {
+      | [] => []
+      | [Piece.Whitespace(_), ...xs] => trim_l(xs)
+      | [Piece.Grout(g), ...xs] => [Piece.Grout(g), ...trim_l(xs)]
+      | [_, ..._] => xs
+      };
     switch (d) {
-    | Left => ps |> trim |> List.rev
-    | Right => ps |> List.rev |> trim
+    | Left => ps |> trim_l
+    | Right => ps |> List.rev |> trim_l |> List.rev
     };
   };
 
