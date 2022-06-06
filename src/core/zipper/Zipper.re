@@ -598,10 +598,16 @@ let representative_piece =
 let base_caret_point = (map: Measured.t, z: t): Measured.point => {
   switch (representative_piece(z)) {
   | Some((p, d)) =>
-    let m = Measured.find_p(p, map);
+    let seg = Piece.disassemble(p);
     switch (d) {
-    | Left => m.last
-    | Right => m.origin
+    | Left =>
+      let p = ListUtil.last(seg);
+      let m = Measured.find_p(p, map);
+      m.last;
+    | Right =>
+      let p = List.hd(seg);
+      let m = Measured.find_p(p, map);
+      m.origin;
     };
   | None => {indent: 0, row: 0, col: 0}
   };
