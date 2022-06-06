@@ -580,7 +580,7 @@ let representative_piece =
         _,
       }: t,
     )
-    : (Piece.t, Direction.t) => {
+    : option((Piece.t, Direction.t)) => {
   /* The piece to the left of the caret, or if none exists, the piece to the right */
   let sibs =
     switch (focus) {
@@ -588,18 +588,21 @@ let representative_piece =
     | Right => (l_sibs @ content, r_sibs)
     };
   switch (Siblings.neighbors(sibs)) {
-  | (Some(l), _) => (l, Left)
-  | (_, Some(r)) => (r, Right)
-  | _ => failwith("rep_piece impossible")
+  | (Some(l), _) => Some((l, Left))
+  | (_, Some(r)) => Some((r, Right))
+  | _ => None
   };
 };
 
 let base_caret_point = (map: Measured.t, z: t): Measured.point => {
-  let (p, d) = representative_piece(z);
-  let m = Measured.find_p(p, map);
-  switch (d) {
-  | Left => m.last
-  | Right => m.origin
+  switch (representative_piece(z)) {
+  | Some((p, d)) =>
+    let m = Measured.find_p(p, map);
+    switch (d) {
+    | Left => m.last
+    | Right => m.origin
+    };
+  | None => {row: 0, col: 0}
   };
 };
 
