@@ -603,7 +603,7 @@ let base_caret_point = (map: Measured.t, z: t): Measured.point => {
     | Left => m.last
     | Right => m.origin
     };
-  | None => {row: 0, col: 0}
+  | None => {indent: 0, row: 0, col: 0}
   };
 };
 
