@@ -43,7 +43,7 @@ module Text = (M: {let map: Measured.t;}) => {
 
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
-  let map = Measured.of_segment(content);
+  let map = Measured.of_segment(Segment.serialize(content));
   module Text =
     Text({
       let map = map;

@@ -658,7 +658,8 @@ let rec move_towards =
 let move_vertical = (d: Direction.t, z: t): option(t) => {
   /* Iterate horizontal movement until we get to the closet caret
      position to a target derived from the initial position */
-  let cursorpos = caret_point(Measured.of_segment(zip(z)));
+  let cursorpos =
+    caret_point(Measured.of_segment(Segment.serialize(zip(z))));
   let cur = cursorpos(z);
   let goal =
     Measured.{
@@ -677,7 +678,8 @@ let update_target = (z: t): t =>
   //TODO(andrew): $$$ this recomputes all measures
   {
     ...z,
-    caret_col_target: caret_point(Measured.of_segment(zip(z)), z).col,
+    caret_col_target:
+      caret_point(Measured.of_segment(Segment.serialize(zip(z))), z).col,
   };
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
