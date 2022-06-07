@@ -27,6 +27,15 @@ type token = {
   range: (int, int),
 };
 
+module Rows = {
+  include IntMap;
+  type shape = {
+    indent: int,
+    max_col: int,
+  };
+  type t = IntMap.t(shape);
+};
+
 module Shards = {
   type shard = (int, measurement);
   type t = list(shard);
@@ -54,12 +63,14 @@ type t = {
   tiles: Id.Map.t(Shards.t),
   grout: Id.Map.t(measurement),
   whitespace: Id.Map.t(measurement),
+  rows: Rows.t,
 };
 
 let empty = {
   tiles: Id.Map.empty,
   grout: Id.Map.empty,
   whitespace: Id.Map.empty,
+  rows: Rows.empty,
 };
 
 let add_s = (id: Id.t, i: int, m, map) => {
@@ -102,6 +113,11 @@ let add_p = (p: Piece.t, m, map) =>
        t => add_t(t, m, map),
      );
 
+let add_row = (row: int, shape: Rows.shape, map) => {
+  ...map,
+  rows: Rows.add(row, shape, map.rows),
+};
+
 let singleton_w = (w, m) => empty |> add_w(w, m);
 let singleton_g = (g, m) => empty |> add_g(g, m);
 let singleton_s = (id, shard, m) => empty |> add_s(id, shard, m);
@@ -131,6 +147,7 @@ let union2 = (map: t, map': t) => {
   grout: Id.Map.union((_, m, _) => Some(m), map.grout, map'.grout),
   whitespace:
     Id.Map.union((_, m, _) => Some(m), map.whitespace, map'.whitespace),
+  rows: Rows.union((_, s, _) => Some(s), map.rows, map'.rows),
 };
 let union = List.fold_left(union2, empty);
 
@@ -144,7 +161,7 @@ let rec of_segment =
       switch (hd) {
       | Whitespace(w) when w.content == Whitespace.linebreak =>
         let concluding = Segment.sameline_whitespace(tl);
-        let indent =
+        let indent' =
           if (!seen_linebreak && concluding) {
             indent;
           } else if (!seen_linebreak) {
@@ -154,8 +171,11 @@ let rec of_segment =
           } else {
             indent;
           };
-        let last = {row: origin.row + 1, col: indent};
-        (true, indent, last, singleton_w(w, {origin, last}));
+        let last = {row: origin.row + 1, col: indent'};
+        let map =
+          singleton_w(w, {origin, last})
+          |> add_row(origin.row, {indent, max_col: origin.col});
+        (true, indent', last, map);
       | Whitespace(w) =>
         let last = {...origin, col: origin.col + 1};
         (seen_linebreak, indent, last, singleton_w(w, {origin, last}));

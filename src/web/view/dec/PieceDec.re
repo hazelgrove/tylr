@@ -46,7 +46,9 @@ let shards = (~font_metrics, profile: Profile.t) => {
      });
 };
 
-let bi_lines = (mold: Mold.t, shards: Measured.Shards.t): list(Node.t) => {
+let bi_lines =
+    (~rows as _: Measured.Rows.t, mold: Mold.t, shards: Measured.Shards.t)
+    : list(Node.t) => {
   let rows = Measured.Shards.split_by_row(shards);
   let intra_lines =
     rows
@@ -83,14 +85,16 @@ let bi_lines = (mold: Mold.t, shards: Measured.Shards.t): list(Node.t) => {
      );
 };
 
-let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Node.t => {
+let view =
+    (~font_metrics: FontMetrics.t, ~rows: Measured.Rows.t, profile: Profile.t)
+    : Node.t => {
   let shards = shards(~font_metrics, profile);
   let uni_lines = [];
   // switch (profile.style) {
   // | Selected => []
   // | Root(l, r) => failwith("todo")
   // };
-  let bi_lines = bi_lines(profile.mold, profile.shards);
+  let bi_lines = bi_lines(~rows, profile.mold, profile.shards);
   DecUtil.container2d(
     ~font_metrics,
     ~measurement={

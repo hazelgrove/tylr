@@ -1,1 +1,1 @@
-include Map.Make(Int);
+include Ptmap;

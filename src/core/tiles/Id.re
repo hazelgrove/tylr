@@ -2,7 +2,7 @@
 type t = int;
 let compare = Int.compare;
 
-module Map = Ptmap;
+module Map = Util.IntMap;
 
 module Uf: {
   type store('a);

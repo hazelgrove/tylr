@@ -206,7 +206,7 @@ module Deco = (M: {
            let profile = piece_profile(p, l, Selected);
            (
              snd(Mold.nibs(profile.mold)).shape,
-             PieceDec.view(~font_metrics, profile),
+             PieceDec.view(~font_metrics, ~rows=M.map.rows, profile),
            );
          },
          fst(Siblings.shapes(z.relatives.siblings)),
@@ -226,6 +226,7 @@ module Deco = (M: {
       [
         PieceDec.view(
           ~font_metrics,
+          ~rows=M.map.rows,
           piece_profile(p, nib_shape, Root(Measured.zero, Measured.zero)),
         ),
       ];
