@@ -98,7 +98,7 @@ let container2d =
   let origin_y = measurement.origin.row;
   let length_lin = measurement.last.col - measurement.origin.col;
 
-  let buffered_height = 8;
+  let buffered_height = measurement.last.row - measurement.origin.row + 2;
   let buffered_width = length_lin + 3;
 
   let buffered_height_px =

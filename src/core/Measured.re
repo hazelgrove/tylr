@@ -110,6 +110,7 @@ let find_p = (p: Piece.t, map) =>
 
 // TODO(d) rename
 let find_opt_shards = (t: Tile.t, map) => Id.Map.find_opt(t.id, map.tiles);
+let find_shards = (t: Tile.t, map) => Id.Map.find(t.id, map.tiles);
 
 let union2 = (map: t, map': t) => {
   tiles:

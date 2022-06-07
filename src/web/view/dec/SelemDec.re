@@ -225,12 +225,23 @@ let contour_path = (~font_metrics as _, profile: Profile.t): SvgUtil.Path.t => {
 
     List.concat([
       [
-        M({x: fudge_width +. start, y: 1.}),
+        M({
+          x:
+            fudge_width
+            +. start
+            +. Float.of_int(profile.measurement.origin.col),
+          y: 1. +. Float.of_int(profile.measurement.origin.row),
+        }),
         ...Diag.left_tip_path(fst(profile.shape)),
       ],
       ListUtil.flat_map(open_child_path, profile.open_children),
       [
-        H({x: -. fudge_width +. end_}),
+        H({
+          x:
+            -. fudge_width
+            +. end_
+            +. Float.of_int(profile.measurement.origin.col),
+        }),
         ...Diag.right_tip_path(snd(profile.shape)),
       ],
       [Z],

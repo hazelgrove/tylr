@@ -174,28 +174,23 @@ module Deco = (M: {
     };
 
   let piece_profile =
-      (p: Piece.t, nib_shape: Nib.Shape.t, style: SelemStyle.t)
-      : SelemDec.Profile.t => {
+      (p: Piece.t, nib_shape: Nib.Shape.t, style: PieceDec.Style.t)
+      : PieceDec.Profile.t => {
     // TODO(d) fix sorts
-    let (sort: Sort.t, nibs) =
+    let mold =
       switch (p) {
-      | Whitespace(_) => (
-          Exp,
-          Mold.of_whitespace({sort: Exp, shape: nib_shape}).nibs,
-        )
-      | Grout(g) => (Exp, Mold.of_grout(g, Exp).nibs)
-      | Tile(t) => (t.mold.out, Tile.nibs(t))
+      | Whitespace(_) => Mold.of_whitespace({sort: Exp, shape: nib_shape})
+      | Grout(g) => Mold.of_grout(g, Exp)
+      | Tile(t) => t.mold
       };
-    let m = Measured.find_p(p, M.map);
-    SelemDec.Profile.{
-      color: Color.of_sort(sort),
-      shape: SelemDec.piece_shape_of_nibs(nibs),
-      measurement: m,
-      style,
-      closed_children: [],
-      open_children:
-        p |> children |> Measured.relativize_measurements(m.origin.col),
-    };
+    // TODO(d) awkward
+    let shards =
+      switch (p) {
+      | Whitespace(w) => [(0, Measured.find_w(w, M.map))]
+      | Grout(g) => [(0, Measured.find_g(g, M.map))]
+      | Tile(t) => Measured.find_shards(t, M.map)
+      };
+    PieceDec.Profile.{shards, mold, style};
   };
 
   let selected_pieces = (z: Zipper.t): list(Node.t) =>
@@ -205,8 +200,8 @@ module Deco = (M: {
          (l: Nib.Shape.t, p: Piece.t) => {
            let profile = piece_profile(p, l, Selected);
            (
-             fst(snd(profile.shape)).shape,
-             SelemDec.view(~font_metrics, profile),
+             snd(Mold.nibs(profile.mold)).shape,
+             PieceDec.view(~font_metrics, profile),
            );
          },
          fst(Siblings.shapes(z.relatives.siblings)),
@@ -222,7 +217,12 @@ module Deco = (M: {
         | None => Nib.Shape.Convex
         | Some(nib) => Nib.Shape.relative(nib, side)
         };
-      [SelemDec.view(~font_metrics, piece_profile(p, nib_shape, Root))];
+      [
+        PieceDec.view(
+          ~font_metrics,
+          piece_profile(p, nib_shape, Root(Measured.zero, Measured.zero)),
+        ),
+      ];
     };
   };
 
