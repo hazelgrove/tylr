@@ -489,6 +489,7 @@ svg.rail line.unsorted {
 
 .child-line {
   stroke-width: 1;
+  fill: none;
 }
 .child-line.Exp {
   stroke: var(--exp-shadow-color);

@@ -47,11 +47,11 @@ let shards = (~font_metrics, profile: Profile.t) => {
 };
 
 let bi_lines =
-    (~rows as _: Measured.Rows.t, mold: Mold.t, shards: Measured.Shards.t)
+    (~rows: Measured.Rows.t, mold: Mold.t, shards: Measured.Shards.t)
     : list(Node.t) => {
-  let rows = Measured.Shards.split_by_row(shards);
+  let shard_rows = Measured.Shards.split_by_row(shards);
   let intra_lines =
-    rows
+    shard_rows
     |> List.map(ListUtil.neighbors)
     |> List.map(
          List.map(
@@ -68,7 +68,24 @@ let bi_lines =
            ),
        )
     |> List.concat;
-  let inter_lines = [];
+  let inter_lines =
+    ListUtil.neighbors(shard_rows)
+    |> List.map(
+         ((row_shards: Measured.Shards.t, row_shards': Measured.Shards.t)) => {
+         let origin = snd(List.hd(row_shards)).origin;
+         let origin' = snd(List.hd(row_shards')).origin;
+         let indent = Measured.Rows.find(origin.row, rows).indent;
+         let v_delta = origin'.col == indent ? (-1) : 0;
+         SvgUtil.Path.[
+           M({
+             x: Float.of_int(origin.col),
+             y: Float.of_int(origin.row + 1),
+           }),
+           H_({dx: Float.of_int(indent - origin.col)}),
+           V_({dy: Float.of_int(origin'.row - origin.row + v_delta)}),
+           H_({dx: Float.of_int(origin'.col - indent)}),
+         ];
+       });
   intra_lines
   @ inter_lines
   |> List.map(
