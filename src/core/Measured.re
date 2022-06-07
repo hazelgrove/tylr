@@ -164,7 +164,10 @@ let rec of_segment =
         (~seen_linebreak=false, ~indent=0, ~origin=zero, seg: Segment.t)
         : (point, t) =>
   switch (seg) {
-  | [] => (origin, empty)
+  | [] => (
+      origin,
+      empty |> add_row(origin.row, {indent, max_col: origin.col}),
+    )
   | [hd, ...tl] =>
     let (seen_linebreak, indent, hd_last, hd_map) =
       switch (hd) {
