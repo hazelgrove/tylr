@@ -196,6 +196,11 @@ module Deco = (M: {
   let selected_pieces = (z: Zipper.t): list(Node.t) =>
     // TODO(d) mold/nibs/selemdec clean up pass
     z.selection.content
+    |> List.filter(
+         fun
+         | Piece.Whitespace(w) when w.content == Whitespace.linebreak => false
+         | _ => true,
+       )
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
            let profile = piece_profile(p, l, Selected);
@@ -211,6 +216,7 @@ module Deco = (M: {
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
     switch (Zipper.indicated_piece(z)) {
     | None => []
+    | Some((Whitespace(w), _)) when w.content == Whitespace.linebreak => []
     | Some((p, side)) =>
       let nib_shape =
         switch (Zipper.caret_direction(z)) {
