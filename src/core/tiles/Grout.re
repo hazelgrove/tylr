@@ -11,6 +11,8 @@ type t = {
   shape,
 };
 
+let id = g => g.id;
+
 let shapes = g =>
   switch (g.shape) {
   | Convex => Nib.Shape.(Convex, Convex)

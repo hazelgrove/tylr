@@ -16,6 +16,12 @@ let cons = (a: 'a, b: 'b, (as_, bs): t('a, 'b)): t('a, 'b) => (
   [a, ...as_],
   [b, ...bs],
 );
+let snoc = ((as_, bs): t('a, 'b), b: 'b, a: 'a): t('a, 'b) => (
+  as_ @ [a],
+  bs @ [b],
+);
+
+let singleton = (a: 'a): t('a, _) => ([a], []);
 
 let get_as: t('a, _) => list('a) = fst;
 let get_bs: t(_, 'b) => list('b) = snd;
@@ -70,10 +76,29 @@ let join = (f_a: 'a => 'c, f_b: 'b => 'c, aba: t('a, 'b)): list('c) => {
 };
 
 let fold_left =
-    (f_a: 'a => 'c, f_ba: ('c, 'b, 'a) => 'c, (as_, bs): t('a, 'b)) => {
+    (f_a: 'a => 'acc, f_ba: ('acc, 'b, 'a) => 'acc, (as_, bs): t('a, 'b))
+    : 'acc => {
   let (a, as_) = ListUtil.split_first(as_);
   List.fold_left2(f_ba, f_a(a), bs, as_);
 };
+let fold_left_map =
+    (
+      f_a: 'a => ('acc, 'c),
+      f_ba: ('acc, 'b, 'a) => ('acc, 'd, 'c),
+      aba: t('a, 'b),
+    )
+    : ('acc, t('c, 'd)) =>
+  aba
+  |> fold_left(
+       a => {
+         let (acc, c) = f_a(a);
+         (acc, singleton(c));
+       },
+       ((acc, mapped), b, a) => {
+         let (acc, d, c) = f_ba(acc, b, a);
+         (acc, snoc(mapped, d, c));
+       },
+     );
 
 let fold_right =
     (f_ab: ('a, 'b, 'c) => 'c, f_a: 'a => 'c, (as_, bs): t('a, 'b)) => {

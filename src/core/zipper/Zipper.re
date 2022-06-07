@@ -609,13 +609,13 @@ let base_caret_point = (map: Measured.t, z: t): Measured.point => {
       let m = Measured.find_p(p, map);
       m.origin;
     };
-  | None => {indent: 0, row: 0, col: 0}
+  | None => {row: 0, col: 0}
   };
 };
 
 let caret_point = (map: Measured.t, z: t): Measured.point => {
-  let Measured.{row, col, indent} = base_caret_point(map, z);
-  {indent, row, col: col + caret_offset(z.caret)};
+  let Measured.{row, col} = base_caret_point(map, z);
+  {row, col: col + caret_offset(z.caret)};
 };
 
 type comp =
@@ -664,13 +664,10 @@ let rec move_towards =
 let move_vertical = (d: Direction.t, z: t): option(t) => {
   /* Iterate horizontal movement until we get to the closet caret
      position to a target derived from the initial position */
-  let cursorpos =
-    caret_point(Measured.of_segment(Segment.serialize(zip(z))));
+  let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
   let cur = cursorpos(z);
   let goal =
     Measured.{
-      // TODO(d) clean up dummy value
-      indent: 0,
       col: z.caret_col_target,
       row: cur.row + (d == Right ? 1 : (-1)),
     };
@@ -684,8 +681,7 @@ let update_target = (z: t): t =>
   //TODO(andrew): $$$ this recomputes all measures
   {
     ...z,
-    caret_col_target:
-      caret_point(Measured.of_segment(Segment.serialize(zip(z))), z).col,
+    caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,
   };
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>

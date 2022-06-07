@@ -288,3 +288,15 @@ let splits = (xs: list('x) as 'xs): list(('xs, 'xs)) => {
     };
   go(([], xs));
 };
+
+let elem_splits = (xs: list('x) as 'xs): list(('xs, 'x, 'xs)) => {
+  let rec go = (split: ('xs, 'x, 'xs)): list(('xs, 'x, 'xs)) =>
+    switch (split) {
+    | (_, _, []) => [split]
+    | (l, x, [hd, ...tl]) => [split, ...go(([x, ...l], hd, tl))]
+    };
+  switch (xs) {
+  | [] => []
+  | [x, ...xs] => go(([], x, xs))
+  };
+};

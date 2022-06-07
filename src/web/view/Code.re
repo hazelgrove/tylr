@@ -15,7 +15,7 @@ module Text = (M: {let map: Measured.t;}) => {
              span_c("whitespace", [text(Whitespace.linebreak)]),
              Node.br([]),
              Node.text(
-               String.concat("", List.init(m.last.indent, _ => Unicode.nbsp)),
+               String.concat("", List.init(m.last.col, _ => Unicode.nbsp)),
              ),
            ]
          | Whitespace({content: c, _}) when c == Whitespace.space => [
@@ -43,7 +43,7 @@ module Text = (M: {let map: Measured.t;}) => {
 
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
-  let map = Measured.of_segment(Segment.serialize(content));
+  let (_, map) = Measured.of_segment(content);
   module Text =
     Text({
       let map = map;
@@ -228,6 +228,7 @@ module Deco = (M: {
 
   let rec targets = (bp: Backpack.t, seg: Segment.t) => {
     let root_targets =
+      // TODO(d): review correctness wrt splits reversing prefix
       ListUtil.splits(seg)
       |> List.map(((l, r)) => {
            let sibs = Segment.(incomplete_tiles(l), incomplete_tiles(r));
@@ -289,7 +290,7 @@ let view =
     )
     : Node.t => {
   let seg = Zipper.zip(zipper);
-  let map = Measured.of_segment(Segment.serialize(seg));
+  let map = snd(Measured.of_segment(seg));
 
   module Text =
     Text({

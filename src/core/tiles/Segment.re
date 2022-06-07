@@ -123,6 +123,7 @@ let skel = seg =>
 
 let sorted_children = seg =>
   seg |> List.map(Piece.sorted_children) |> List.concat;
+let children = seg => List.map(snd, sorted_children(seg));
 
 let sort_rank_root = (seg: t, s: Sort.t) => {
   let mold: Piece.t => Mold.t =
@@ -395,3 +396,10 @@ let rec serialize = (seg: t) =>
          },
      )
   |> List.concat;
+
+let sameline_whitespace =
+  List.for_all(
+    fun
+    | Piece.Whitespace(w) => w.content != Whitespace.linebreak
+    | _ => false,
+  );

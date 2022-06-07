@@ -8,6 +8,8 @@ exception Empty_tile;
 [@deriving show]
 type t = tile;
 
+let id = t => t.id;
+
 let is_complete = (t: t) => List.length(t.label) == List.length(t.shards);
 
 let l_shard = t =>

@@ -15,6 +15,8 @@ let get = (f_w, f_g, f_t, p: t) =>
   | Tile(t) => f_t(t)
   };
 
+let id = get(Whitespace.id, Grout.id, Tile.id);
+
 let sort =
   get(
     _ => (Sort.Any, []),
