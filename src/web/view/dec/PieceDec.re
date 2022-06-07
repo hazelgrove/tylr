@@ -113,7 +113,7 @@ let uni_lines =
   let (_, m_last) = ListUtil.last(shards);
   open SvgUtil.Path;
   let l_line =
-    if (l.row == m_first.origin.row) {
+    if (l.col != m_first.origin.col && l.row == m_first.origin.row) {
       [
         [
           M({
@@ -121,13 +121,21 @@ let uni_lines =
             y: Float.of_int(m_first.origin.row + 1),
           }),
           H_({dx: Float.of_int(l.col - m_first.origin.col)}),
+          L_({
+            dx: Float.neg(DecUtil.short_tip_width),
+            dy: Float.neg(DecUtil.short_tip_height),
+          }),
+          L_({
+            dx: DecUtil.short_tip_width,
+            dy: Float.neg(DecUtil.short_tip_height),
+          }),
         ],
       ];
     } else {
       [];
     };
   let r_line =
-    if (r.row == m_last.last.row) {
+    if (r.col != m_last.last.col && r.row == m_last.last.row) {
       [
         [
           M({
@@ -135,6 +143,14 @@ let uni_lines =
             y: Float.of_int(m_last.last.row + 1),
           }),
           H_({dx: Float.of_int(r.col - m_last.last.col)}),
+          L_({
+            dx: DecUtil.short_tip_width,
+            dy: Float.neg(DecUtil.short_tip_height),
+          }),
+          L_({
+            dx: Float.neg(DecUtil.short_tip_width),
+            dy: Float.neg(DecUtil.short_tip_height),
+          }),
         ],
       ];
     } else {
