@@ -218,6 +218,22 @@ module Deco = (M: {
     | None => []
     | Some((Whitespace(w), _)) when w.content == Whitespace.linebreak => []
     | Some((p, side)) =>
+      let m = Measured.find_p(p, M.map);
+      let (l, r) = {
+        let ranges = TermRanges.mk(Zipper.zip(z));
+        let (id_l, id_r) = TermRanges.find(Piece.id(p), ranges);
+        let l =
+          switch (ListUtil.hd_opt(Measured.find_shards'(id_l, M.map))) {
+          | None => m.origin
+          | Some((_, m)) => m.origin
+          };
+        let r =
+          switch (ListUtil.last_opt(Measured.find_shards'(id_r, M.map))) {
+          | None => m.last
+          | Some((_, m)) => m.last
+          };
+        (l, r);
+      };
       let nib_shape =
         switch (Zipper.caret_direction(z)) {
         | None => Nib.Shape.Convex
@@ -227,7 +243,7 @@ module Deco = (M: {
         PieceDec.view(
           ~font_metrics,
           ~rows=M.map.rows,
-          piece_profile(p, nib_shape, Root(Measured.zero, Measured.zero)),
+          piece_profile(p, nib_shape, Root(l, r)),
         ),
       ];
     };

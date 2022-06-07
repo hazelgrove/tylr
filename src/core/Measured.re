@@ -51,12 +51,11 @@ module Shards = {
         snd(List.hd(row)).origin.row == snd(hd).origin.row
           ? [[hd, ...row], ...rows] : [[hd], row, ...rows]
       };
-
-  let last = (shards: t) =>
-    shards
-    |> List.sort(((i, _), (j, _)) => Int.compare(i, j))
-    |> ListUtil.last_opt
-    |> Option.map(snd);
+  // let last = (shards: t) =>
+  //   shards
+  //   |> List.sort(((i, _), (j, _)) => Int.compare(i, j))
+  //   |> ListUtil.last_opt
+  //   |> Option.map(snd);
 };
 
 type t = {
@@ -81,7 +80,11 @@ let add_s = (id: Id.t, i: int, m, map) => {
          id,
          fun
          | None => Some([(i, m)])
-         | Some(ms) => Some([(i, m), ...ms]),
+         | Some(ms) =>
+           Some(
+             [(i, m), ...ms]
+             |> List.sort(((i, _), (j, _)) => Int.compare(i, j)),
+           ),
        ),
 };
 
@@ -140,6 +143,12 @@ let find_p = (p: Piece.t, map) =>
 // TODO(d) rename
 let find_opt_shards = (t: Tile.t, map) => Id.Map.find_opt(t.id, map.tiles);
 let find_shards = (t: Tile.t, map) => Id.Map.find(t.id, map.tiles);
+
+let find_shards' = (id: Id.t, map) =>
+  switch (Id.Map.find_opt(id, map.tiles)) {
+  | None => []
+  | Some(ss) => ss
+  };
 
 let union2 = (map: t, map': t) => {
   tiles:

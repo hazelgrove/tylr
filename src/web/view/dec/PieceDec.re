@@ -102,15 +102,69 @@ let bi_lines =
      );
 };
 
+let uni_lines =
+    (
+      ~rows as _: Measured.Rows.t,
+      (l: Measured.point, r: Measured.point),
+      mold: Mold.t,
+      shards: Measured.Shards.t,
+    ) => {
+  let (_, m_first) = List.hd(shards);
+  let (_, m_last) = ListUtil.last(shards);
+  open SvgUtil.Path;
+  let l_line =
+    if (l.row == m_first.origin.row) {
+      [
+        [
+          M({
+            x: Float.of_int(m_first.origin.col),
+            y: Float.of_int(m_first.origin.row + 1),
+          }),
+          H_({dx: Float.of_int(l.col - m_first.origin.col)}),
+        ],
+      ];
+    } else {
+      [];
+    };
+  let r_line =
+    if (r.row == m_last.last.row) {
+      [
+        [
+          M({
+            x: Float.of_int(m_last.last.col),
+            y: Float.of_int(m_last.last.row + 1),
+          }),
+          H_({dx: Float.of_int(r.col - m_last.last.col)}),
+        ],
+      ];
+    } else {
+      [];
+    };
+  l_line
+  @ r_line
+  |> List.map(
+       SvgUtil.Path.view(
+         ~attrs=
+           Attr.[
+             classes([
+               "child-line",
+               Color.to_string(Color.of_sort(mold.out)),
+             ]),
+             create("vector-effect", "non-scaling-stroke"),
+           ],
+       ),
+     );
+};
+
 let view =
     (~font_metrics: FontMetrics.t, ~rows: Measured.Rows.t, profile: Profile.t)
     : Node.t => {
   let shards = shards(~font_metrics, profile);
-  let uni_lines = [];
-  // switch (profile.style) {
-  // | Selected => []
-  // | Root(l, r) => failwith("todo")
-  // };
+  let uni_lines =
+    switch (profile.style) {
+    | Selected => []
+    | Root(l, r) => uni_lines(~rows, (l, r), profile.mold, profile.shards)
+    };
   let bi_lines = bi_lines(~rows, profile.mold, profile.shards);
   DecUtil.container2d(
     ~font_metrics,
