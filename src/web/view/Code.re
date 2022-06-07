@@ -290,7 +290,8 @@ let view =
     )
     : Node.t => {
   let seg = Zipper.zip(zipper);
-  let map = snd(Measured.of_segment(seg));
+  let unselected = Zipper.unselect_and_zip(zipper);
+  let map = snd(Measured.of_segment(unselected));
 
   module Text =
     Text({
