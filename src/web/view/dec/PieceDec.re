@@ -77,13 +77,10 @@ let bi_lines =
          let indent = Measured.Rows.find(origin.row, rows).indent;
          let v_delta = origin'.col == indent ? (-1) : 0;
          SvgUtil.Path.[
-           M({
-             x: Float.of_int(origin.col),
-             y: Float.of_int(origin.row + 1),
-           }),
-           H_({dx: Float.of_int(indent - origin.col)}),
-           V_({dy: Float.of_int(origin'.row - origin.row + v_delta)}),
-           H_({dx: Float.of_int(origin'.col - indent)}),
+           m(~x=origin.col, ~y=origin.row + 1),
+           h_(~dx=indent - origin.col),
+           v_(~dy=origin'.row - origin.row + v_delta),
+           h_(~dx=origin'.col - indent),
          ];
        });
   intra_lines
@@ -104,7 +101,7 @@ let bi_lines =
 
 let uni_lines =
     (
-      ~rows as _: Measured.Rows.t,
+      ~rows: Measured.Rows.t,
       (l: Measured.point, r: Measured.point),
       mold: Mold.t,
       shards: Measured.Shards.t,
@@ -135,23 +132,29 @@ let uni_lines =
       [];
     };
   let r_line =
-    if (r.col != m_last.last.col && r.row == m_last.last.row) {
+    if (r.col != m_last.last.col) {
+      let indent = Measured.Rows.find(r.row, rows).indent;
+      let hook = [
+        L_({
+          dx: DecUtil.short_tip_width,
+          dy: Float.neg(DecUtil.short_tip_height),
+        }),
+        L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
+      ];
       [
-        [
-          M({
-            x: Float.of_int(m_last.last.col),
-            y: Float.of_int(m_last.last.row + 1),
-          }),
-          H_({dx: Float.of_int(r.col - m_last.last.col)}),
-          L_({
-            dx: DecUtil.short_tip_width,
-            dy: Float.neg(DecUtil.short_tip_height),
-          }),
-          L_({
-            dx: Float.neg(DecUtil.short_tip_width),
-            dy: Float.neg(DecUtil.short_tip_height),
-          }),
-        ],
+        r.row == m_last.last.row
+          ? [
+            m(~x=m_last.last.col, ~y=m_last.last.row + 1),
+            h_(~dx=r.col - m_last.last.col),
+            ...hook,
+          ]
+          : [
+            m(~x=m_last.origin.col, ~y=m_last.last.row + 1),
+            h_(~dx=indent - m_last.origin.col),
+            v_(~dy=r.row - m_last.origin.row),
+            h_(~dx=r.col - indent),
+            ...hook,
+          ],
       ];
     } else {
       [];
