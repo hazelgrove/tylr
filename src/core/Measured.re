@@ -156,7 +156,16 @@ let union2 = (map: t, map': t) => {
   grout: Id.Map.union((_, m, _) => Some(m), map.grout, map'.grout),
   whitespace:
     Id.Map.union((_, m, _) => Some(m), map.whitespace, map'.whitespace),
-  rows: Rows.union((_, s, _) => Some(s), map.rows, map'.rows),
+  rows:
+    Rows.union(
+      (_, s: Rows.shape, s': Rows.shape) =>
+        Some({
+          indent: min(s.indent, s'.indent),
+          max_col: max(s.max_col, s'.max_col),
+        }),
+      map.rows,
+      map'.rows,
+    ),
 };
 let union = List.fold_left(union2, empty);
 
