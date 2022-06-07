@@ -78,13 +78,12 @@ let _initial_model: Model.t =
 let initial_model: Model.t =
   parse(
     "let foo =
-  fun taz => {
-    case taz of {
-      | (2, torb) => bargle + 7*torb
-      | (blee, 5) => krunk ? blee : 66
-    }
-  }
-in foo(7!)",
+fun taz => {
+case taz of {
+| (2, torb) => bargle + 7*torb
+| (blee, 5) => krunk ? blee : 66
+}
+} in foo(7!)",
   );
 
 Incr_dom.Start_app.start(
