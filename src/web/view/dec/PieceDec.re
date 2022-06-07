@@ -1,5 +1,6 @@
+open Util;
 open Core;
-open Virtual_dom;
+open Virtual_dom.Vdom;
 
 module Style = {
   type t =
@@ -45,14 +46,51 @@ let shards = (~font_metrics, profile: Profile.t) => {
      });
 };
 
-let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Vdom.Node.t => {
+let bi_lines = (mold: Mold.t, shards: Measured.Shards.t): list(Node.t) => {
+  let rows = Measured.Shards.split_by_row(shards);
+  let intra_lines =
+    rows
+    |> List.map(ListUtil.neighbors)
+    |> List.map(
+         List.map(
+           (((_, l: Measured.measurement), (_, r: Measured.measurement)))
+           // TODO(d) unify fudge constants
+           =>
+             SvgUtil.Path.[
+               M({
+                 x: Float.of_int(l.last.col) +. 0.22,
+                 y: Float.of_int(l.last.row + 1),
+               }),
+               H_({dx: Float.of_int(r.origin.col - l.last.col) -. 0.22}),
+             ]
+           ),
+       )
+    |> List.concat;
+  let inter_lines = [];
+  intra_lines
+  @ inter_lines
+  |> List.map(
+       SvgUtil.Path.view(
+         ~attrs=
+           Attr.[
+             classes([
+               "child-line",
+               Color.to_string(Color.of_sort(mold.out)),
+             ]),
+             create("vector-effect", "non-scaling-stroke"),
+           ],
+       ),
+     );
+};
+
+let view = (~font_metrics: FontMetrics.t, profile: Profile.t): Node.t => {
   let shards = shards(~font_metrics, profile);
   let uni_lines = [];
   // switch (profile.style) {
   // | Selected => []
   // | Root(l, r) => failwith("todo")
   // };
-  let bi_lines = [];
+  let bi_lines = bi_lines(profile.mold, profile.shards);
   DecUtil.container2d(
     ~font_metrics,
     ~measurement={

@@ -28,7 +28,20 @@ type token = {
 };
 
 module Shards = {
-  type t = list((int, measurement));
+  type shard = (int, measurement);
+  type t = list(shard);
+
+  // elements of returned list are nonempty
+  let rec split_by_row: t => list(t) =
+    fun
+    | [] => []
+    | [hd, ...tl] =>
+      switch (split_by_row(tl)) {
+      | [] => [[hd]]
+      | [row, ...rows] =>
+        snd(List.hd(row)).origin.row == snd(hd).origin.row
+          ? [[hd, ...row], ...rows] : [[hd], row, ...rows]
+      };
 
   let last = (shards: t) =>
     shards

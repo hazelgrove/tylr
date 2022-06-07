@@ -181,7 +181,7 @@
 #code-container {
   padding: 9em 6em 6em 4em;
   /*width: 100%;
-  display: flex; 
+  display: flex;
   position: fixed;
   top: max(min(23%, 100vh - 350px), 80px);
   left: 0%;
@@ -485,6 +485,16 @@ svg.rail line.unsorted {
 }
 .bidelimited-open-child-path {
   stroke-width: 0.4;
+}
+
+.child-line {
+  stroke-width: 1;
+}
+.child-line.Exp {
+  stroke: var(--exp-shadow-color);
+}
+.child-line.Pat {
+  stroke: var(--pat-shadow-color);
 }
 
 .code .delim {
