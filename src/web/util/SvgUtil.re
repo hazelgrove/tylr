@@ -38,7 +38,9 @@ module Path = {
 
   let m = (~x, ~y) => M({x: Float.of_int(x), y: Float.of_int(y)});
   let l_ = (~dx, ~dy) => L_({dx: Float.of_int(dx), dy: Float.of_int(dy)});
+  let h = (~x) => H({x: Float.of_int(x)});
   let h_ = (~dx) => H_({dx: Float.of_int(dx)});
+  let v = (~y) => V({y: Float.of_int(y)});
   let v_ = (~dy) => V_({dy: Float.of_int(dy)});
 
   let scale_cmd = (~scale_x=1., ~scale_y=1.) =>

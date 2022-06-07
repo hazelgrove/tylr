@@ -110,55 +110,83 @@ let uni_lines =
   let (_, m_last) = ListUtil.last(shards);
   open SvgUtil.Path;
   let l_line =
-    if (l.col != m_first.origin.col && l.row == m_first.origin.row) {
+    if (l.col != m_first.origin.col) {
+      let max_col = Measured.Rows.find(l.row, rows).max_col;
+      print_endline(string_of_int(max_col));
+      let indent = Measured.Rows.find(m_first.origin.row, rows).indent;
+      [
+        l.row == m_first.origin.row
+          ? [
+            m(~x=m_first.origin.col, ~y=m_first.origin.row + 1),
+            h(~x=l.col),
+            L_({
+              dx: -. DecUtil.short_tip_width,
+              dy: -. DecUtil.short_tip_height,
+            }),
+            L_({
+              dx: DecUtil.short_tip_width,
+              dy: -. DecUtil.short_tip_height,
+            }),
+          ]
+          : (
+              m_first.origin.col == indent
+                ? [
+                  m(~x=m_first.last.col, ~y=m_first.last.row),
+                  // TODO(d) need to take max of all rows, not just top
+                  h(~x=max_col),
+                  v(~y=l.row),
+                ]
+                : [
+                  m(~x=m_first.origin.col, ~y=m_first.origin.row + 1),
+                  h(~x=indent),
+                  v(~y=l.row + 1),
+                  h(~x=max_col),
+                  v(~y=l.row),
+                ]
+            )
+            @ [
+              h(~x=l.col),
+              L_({
+                dx: -. DecUtil.short_tip_width,
+                dy: DecUtil.short_tip_height,
+              }),
+              L_({dx: DecUtil.short_tip_width, dy: DecUtil.short_tip_height}),
+            ],
+      ];
+    } else {
+      [];
+    };
+  let r_line = {
+    let indent = Measured.Rows.find(r.row, rows).indent;
+    let hook = [
+      L_({
+        dx: DecUtil.short_tip_width,
+        dy: Float.neg(DecUtil.short_tip_height),
+      }),
+      L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
+    ];
+    if (r.row == m_last.last.row && r.col != m_last.last.col) {
       [
         [
-          M({
-            x: Float.of_int(m_first.origin.col),
-            y: Float.of_int(m_first.origin.row + 1),
-          }),
-          H_({dx: Float.of_int(l.col - m_first.origin.col)}),
-          L_({
-            dx: Float.neg(DecUtil.short_tip_width),
-            dy: Float.neg(DecUtil.short_tip_height),
-          }),
-          L_({
-            dx: DecUtil.short_tip_width,
-            dy: Float.neg(DecUtil.short_tip_height),
-          }),
+          m(~x=m_last.last.col, ~y=m_last.last.row + 1),
+          h(~x=r.col),
+          ...hook,
+        ],
+      ];
+    } else if (r.row != m_last.last.row) {
+      [
+        [
+          m(~x=m_last.origin.col, ~y=m_last.last.row + 1),
+          h(~x=indent),
+          v(~y=r.row + 1),
+          h(~x=r.col),
+          ...hook,
         ],
       ];
     } else {
       [];
     };
-  let r_line =
-    if (r.col != m_last.last.col) {
-      let indent = Measured.Rows.find(r.row, rows).indent;
-      let hook = [
-        L_({
-          dx: DecUtil.short_tip_width,
-          dy: Float.neg(DecUtil.short_tip_height),
-        }),
-        L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
-      ];
-      [
-        r.row == m_last.last.row
-          ? [
-            m(~x=m_last.last.col, ~y=m_last.last.row + 1),
-            h_(~dx=r.col - m_last.last.col),
-            ...hook,
-          ]
-          : [
-            m(~x=m_last.origin.col, ~y=m_last.last.row + 1),
-            h_(~dx=indent - m_last.origin.col),
-            v_(~dy=r.row - m_last.origin.row),
-            h_(~dx=r.col - indent),
-            ...hook,
-          ],
-      ];
-    } else {
-      [];
-    };
+  };
   l_line
   @ r_line
   |> List.map(
