@@ -216,12 +216,12 @@ module Deco = (M: {
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
     switch (Zipper.indicated_piece(z)) {
     | None => []
-    | Some((Whitespace(w), _)) when w.content == Whitespace.linebreak => []
     | Some((p, side)) =>
-      let m = Measured.find_p(p, M.map);
-      let (l, r) = {
-        let ranges = TermRanges.mk(Zipper.zip(z));
-        let (id_l, id_r) = TermRanges.find(Piece.id(p), ranges);
+      let ranges = TermRanges.mk(Zipper.zip(z));
+      switch (TermRanges.find_opt(Piece.id(p), ranges)) {
+      | None => []
+      | Some((id_l, id_r)) =>
+        let m = Measured.find_p(p, M.map);
         let l =
           switch (ListUtil.hd_opt(Measured.find_shards'(id_l, M.map))) {
           | None => m.origin
@@ -232,20 +232,19 @@ module Deco = (M: {
           | None => m.last
           | Some((_, m)) => m.last
           };
-        (l, r);
+        let nib_shape =
+          switch (Zipper.caret_direction(z)) {
+          | None => Nib.Shape.Convex
+          | Some(nib) => Nib.Shape.relative(nib, side)
+          };
+        [
+          PieceDec.view(
+            ~font_metrics,
+            ~rows=M.map.rows,
+            piece_profile(p, nib_shape, Root(l, r)),
+          ),
+        ];
       };
-      let nib_shape =
-        switch (Zipper.caret_direction(z)) {
-        | None => Nib.Shape.Convex
-        | Some(nib) => Nib.Shape.relative(nib, side)
-        };
-      [
-        PieceDec.view(
-          ~font_metrics,
-          ~rows=M.map.rows,
-          piece_profile(p, nib_shape, Root(l, r)),
-        ),
-      ];
     };
   };
 
