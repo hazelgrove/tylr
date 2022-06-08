@@ -36,6 +36,13 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
 let zip = (~sel=Segment.empty, {siblings, ancestors}: t) =>
   Ancestors.zip(Siblings.zip(~sel, siblings), ancestors);
 
+let parent =
+    (~sel=Segment.empty, {siblings: (l_sibs, r_sibs), ancestors}: t)
+    : option(Piece.t) =>
+  ancestors
+  |> Ancestors.parent
+  |> Option.map(p => Base.Tile(Ancestor.zip(l_sibs @ sel @ r_sibs, p)));
+
 let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
 
