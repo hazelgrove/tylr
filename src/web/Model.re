@@ -1,7 +1,11 @@
 open Core;
 
+type editor_model =
+  | Simple(Zipper.t)
+  | Study(int, list(Zipper.t));
+
 type t = {
-  zipper: Zipper.t,
+  editor_model,
   id_gen: IdGen.state,
   history: ActionHistory.t,
   font_metrics: FontMetrics.t,
@@ -14,22 +18,45 @@ let cutoff = (===);
 let blank = {
   {
     id_gen: 1,
-    zipper: {
-      selection: {
-        focus: Left,
-        content: [],
-      },
-      backpack: [],
-      relatives: {
-        siblings: ([Grout({id: 0, shape: Convex})], []),
-        ancestors: [],
-      },
-      caret: Outer,
-      caret_col_target: 0,
-    },
+    editor_model:
+      Simple({
+        selection: {
+          focus: Left,
+          content: [],
+        },
+        backpack: [],
+        relatives: {
+          siblings: ([Grout({id: 0, shape: Convex})], []),
+          ancestors: [],
+        },
+        caret: Outer,
+        caret_col_target: 0,
+      }),
     history: ActionHistory.empty,
     font_metrics: FontMetrics.init,
     logo_font_metrics: FontMetrics.init,
     show_neighbor_tiles: false,
   };
+};
+
+let get_zipper = (model: t): Zipper.t =>
+  switch (model.editor_model) {
+  | Simple(zipper) => zipper
+  | Study(n, zs) =>
+    assert(n < List.length(zs));
+    List.nth(zs, n);
+  };
+
+let put_zipper = (model: t, z: Zipper.t): editor_model =>
+  switch (model.editor_model) {
+  | Simple(_) => Simple(z)
+  | Study(n, zs) =>
+    assert(n < List.length(zs));
+    Study(n, Util.ListUtil.put_nth(n, z, zs));
+  };
+
+let update_zipper =
+    (f: ((Zipper.t, IdGen.state)) => (Zipper.t, IdGen.state), model: t): t => {
+  let (z, id_gen) = f((get_zipper(model), model.id_gen));
+  {...model, id_gen, editor_model: put_zipper(model, z)};
 };

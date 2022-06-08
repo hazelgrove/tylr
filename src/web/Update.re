@@ -4,6 +4,7 @@ open Core;
 
 [@deriving sexp]
 type t =
+  | SwitchEditor(int)
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Zipper.Action.t)
@@ -34,6 +35,15 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
+  | SwitchEditor(n) =>
+    switch (model.editor_model) {
+    | Simple(_) =>
+      print_endline("Can't switch");
+      model;
+    | Study(_, zs) =>
+      assert(n < List.length(zs));
+      {...model, editor_model: Study(n, zs)};
+    }
   | SetShowNeighborTiles(b) => {
       ...model,
       history: ActionHistory.clear_just_failed(model.history),
@@ -46,16 +56,16 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
-  | PerformAction(a) =>
-    // let result = Action.perform(a, model.zipper);
-    // update_result(a, result, model);
-    let result = Zipper.perform(a, (model.zipper, model.id_gen));
-    switch (result) {
-    | Error(err) =>
-      print_endline(Zipper.Action.Failure.show(err));
-      model;
-    | Ok((zipper, id_gen)) => {...model, zipper, id_gen}
-    };
+  | PerformAction(action) =>
+    model
+    |> Model.update_zipper(z_id =>
+         switch (Zipper.perform(action, z_id)) {
+         | Error(err) =>
+           print_endline(Zipper.Action.Failure.show(err));
+           z_id;
+         | Ok(r) => r
+         }
+       )
   | FailedInput(reason) => {
       ...model,
       history: ActionHistory.just_failed(reason, model.history),
