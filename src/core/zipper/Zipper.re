@@ -265,6 +265,7 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
 
 let is_adjacent_space = (siblings: Siblings.t): bool =>
   switch (Siblings.neighbors(siblings)) {
+  | _ when true => false //TODO(andrew): disabling this check for now
   | (Some(Whitespace({content, _})), _) when content == Whitespace.space =>
     true
   | (_, Some(Whitespace({content, _}))) when content == Whitespace.space =>
