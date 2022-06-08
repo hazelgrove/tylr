@@ -67,6 +67,7 @@ let backpack_view =
       backpack,
     );
   //TODO(andrew): truncate backpack when height is too high?
+  let can_put_down = true; //TODO(andrew): figure out if caret pos is valid target
   let style =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
@@ -80,10 +81,27 @@ let backpack_view =
       [Attr.create("style", style), Attr.classes(["backpack"])],
       List.map(backpack_sel_view, List.rev(backpack)),
     );
-
   let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
   let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
-  div([Attr.classes(["backpack"])], [selections_view, genie_view]);
+  let joiner_style =
+    Printf.sprintf(
+      "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
+      Float.of_int(origin.col) *. font_metrics.col_width,
+      CaretDec.top_text_fudge -. 3.,
+      Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
+    );
+  let joiner =
+    div(
+      [
+        Attr.create("style", joiner_style),
+        Attr.classes(["backpack-joiner"]),
+      ],
+      [],
+    );
+  div(
+    [Attr.classes(["backpack"] @ (can_put_down ? [] : ["cant-put-down"]))],
+    [selections_view, genie_view] @ (backpack != [] ? [joiner] : []),
+  );
 };
 
 module Deco = (M: {
@@ -117,18 +135,7 @@ module Deco = (M: {
       | Some((_, side)) => side
       | _ => Right
       };
-    let style =
-      Printf.sprintf(
-        "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
-        CaretDec.top_text_fudge -. 3.,
-        Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
-      );
-    let joiner =
-      div(
-        [Attr.create("style", style), Attr.classes(["backpack-joiner"])],
-        [],
-      );
+
     [
       CaretDec.simple_view(
         ~font_metrics,
@@ -137,8 +144,7 @@ module Deco = (M: {
         ~shape=Zipper.caret_direction(z),
       ),
       backpack_view(~font_metrics, ~origin, z.backpack),
-    ]
-    @ (z.backpack != [] ? [joiner] : []);
+    ];
   };
 
   let children = (p: Piece.t): list(Measured.measurement_lin) =>
