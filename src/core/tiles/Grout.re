@@ -53,6 +53,8 @@ let merge = (gs: list(t)): option(t) =>
   switch (gs) {
   | [] => None
   | [hd, ...tl] =>
-    ListUtil.split_last_opt(tl)
-    |> OptUtil.and_then(((_, ft)) => hd == ft ? Some(hd) : None)
+    switch (ListUtil.split_last_opt(tl)) {
+    | None => Some(hd)
+    | Some((_, ft)) => hd.shape == ft.shape ? Some(hd) : None
+    }
   };

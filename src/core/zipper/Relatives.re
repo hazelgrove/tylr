@@ -82,12 +82,12 @@ let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
         )
       | (Some((_, g)), []) =>
         IdGen.return(
-          Grout.fits_shape(g, s_r) ? (ws(trim_l), seg_r) : (seg_l, seg_r),
-        )
+          Grout.fits_shape(g, s_r) ? (seg_l, seg_r) : (ws(trim_l), seg_r),
+        );
       | (None, [g, ..._]) =>
         IdGen.return(
-          Grout.fits_shape(g, s_l) ? (seg_l, ws(trim_r)) : (seg_l, seg_r),
-        )
+          Grout.fits_shape(g, s_l) ? (seg_l, seg_r) : (seg_l, ws(trim_r)),
+        );
       | (None, []) =>
         Nib.Shape.fits(s_l, s_r)
           ? IdGen.return((seg_l, seg_r))
