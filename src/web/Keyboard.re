@@ -4,6 +4,8 @@ open Core;
 
 let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
+let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
+
 let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
   Attr.on_keypress(_ => Event.Prevent_default),
   Attr.on_keyup(evt => {
@@ -23,12 +25,12 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
     let now = a => [Update.PerformAction(a)];
+    //TODO(andrew): think harder about when/where to save
+    let now_save = a => [Update.PerformAction(a), Update.Save];
     // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
-      if ((!held(Ctrl) || key == "1" || key == "2")
-          && !held(Alt)
-          && !held(Meta)) {
+      if ((!held(Ctrl) || is_digit(key)) && !held(Alt) && !held(Meta)) {
         switch (key) {
         | "F4" =>
           print_endline("F4 SAVE");
@@ -36,16 +38,10 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "F6" =>
           print_endline("F6 LOAD");
           [Load];
-        | "0"
-        | "1"
-        | "2"
-        | "3"
-        | "4"
-        | "5"
-        | "6"
-        | "7"
-        | "8"
-        | "9" when held(Ctrl) =>
+        | "F8" =>
+          print_endline("F8 LOAD DEFAULT");
+          [LoadDefault];
+        | _ when is_digit(key) && held(Ctrl) =>
           print_endline("switch");
           print_endline(key);
           [SwitchEditor(int_of_string(key))];
@@ -67,21 +63,17 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowRight" => now(Move(R))
         | "ArrowUp" => now(Move(U))
         | "ArrowDown" => now(Move(D))
-        | "Tab" => now(Put_down)
+        | "Tab" => now_save(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so
-          Update.[
-            /*PerformAction(Select(Left)),*/ PerformAction(Destruct(Left)),
-          ]
+          now_save(Destruct(Left))
         | "Delete" =>
           // TODO(d): fix broken repeated delete
-          Update.[
-            /*PerformAction(Select(Right)),*/ PerformAction(Destruct(Right)),
-          ]
+          now_save(Destruct(Right))
         | "Enter" =>
           //NOTE(andrew): using funky char to avoid weird regexp issues with using \n
-          now(Insert(Whitespace.linebreak))
-        | _ when Form.is_valid_char(key) => now(Insert(key))
+          now_save(Insert(Whitespace.linebreak))
+        | _ when Form.is_valid_char(key) => now_save(Insert(key))
         // | "Tab" =>
         //   let d = held(Shift) ? Direction.Left : Right;
         //   [MoveToNextHole(d)];

@@ -4,7 +4,9 @@ open Core;
 
 [@deriving sexp]
 type t =
+  | LoadAll
   | Load
+  | LoadDefault
   | Save
   | SwitchEditor(int)
   | SetFontMetrics(FontMetrics.t)
@@ -34,19 +36,61 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 //     }
 //   };
 
+let save = (model: Model.t) =>
+  switch (model.editor_model) {
+  | Simple(z) => LocalStorage.save_to_local_text(0, z)
+  | Study(n, zs) =>
+    assert(n < List.length(zs));
+    LocalStorage.save_to_local_text(n, List.nth(zs, n));
+  };
+
+let current_editor_and_zipper = (model: Model.t) =>
+  switch (model.editor_model) {
+  | Simple(z) => (0, z)
+  | Study(n, zs) =>
+    assert(n < List.length(zs));
+    (n, List.nth(zs, n));
+  };
+
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
+  | LoadAll =>
+    let num_editors = List.length(LocalStorage.editor_defaults);
+    let init_editor = 1;
+    let (zs, _) =
+      List.fold_left(
+        ((z_acc, id_gen: IdGen.state), n) =>
+          switch (LocalStorage.load_from_local_text(n, id_gen)) {
+          | Some((z, id_gen)) => (z_acc @ [z], id_gen)
+          | None => (z_acc @ [Model.empty_zipper], id_gen)
+          },
+        ([], model.id_gen),
+        List.init(num_editors, n => n),
+      );
+    {...model, editor_model: Study(init_editor, zs)};
   | Load =>
-    switch (LocalStorage.load_from_local_text(model.id_gen)) {
-    | Some((z, id_gen)) => {...model, editor_model: Simple(z), id_gen}
+    let (n, _) = current_editor_and_zipper(model);
+    switch (LocalStorage.load_from_local_text(n, model.id_gen)) {
+    | Some((z, id_gen)) => {
+        ...model,
+        editor_model: Model.put_zipper(model, z),
+        id_gen,
+      }
     | None => model
-    }
-  | Save =>
-    switch (model.editor_model) {
-    | Simple(z) => LocalStorage.save_to_local_text(z)
-    | _ => ()
     };
+  | LoadDefault =>
+    let (n, _) = current_editor_and_zipper(model);
+    switch (LocalStorage.load_default(n, model.id_gen)) {
+    | Some((z, id_gen)) => {
+        ...model,
+        editor_model: Model.put_zipper(model, z),
+        id_gen,
+      }
+    | None => model
+    };
+  | Save =>
+    save(model);
     model;
   | SwitchEditor(n) =>
     switch (model.editor_model) {

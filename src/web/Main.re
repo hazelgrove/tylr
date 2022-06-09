@@ -86,8 +86,9 @@ case taz of {
 }
 in foo(7!)",
   );
+
 let initial_model: Model.t =
-  Update.apply(Model.blank, Load, (), ~schedule_action=());
+  Update.apply(Model.blank, LoadAll, (), ~schedule_action=());
 
 Incr_dom.Start_app.start(
   (module App),
