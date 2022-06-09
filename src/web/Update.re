@@ -58,7 +58,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   | LoadAll =>
     let num_editors = List.length(LocalStorage.editor_defaults);
     let init_editor = 1;
-    let (zs, _) =
+    let (zs, id_gen) =
       List.fold_left(
         ((z_acc, id_gen: IdGen.state), n) =>
           switch (LocalStorage.load_from_local_text(n, id_gen)) {
@@ -68,7 +68,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
         ([], model.id_gen),
         List.init(num_editors, n => n),
       );
-    {...model, editor_model: Study(init_editor, zs)};
+    {...model, id_gen, editor_model: Study(init_editor, zs)};
   | Load =>
     let n = current_editor(model);
     switch (LocalStorage.load_from_local_text(n, model.id_gen)) {
