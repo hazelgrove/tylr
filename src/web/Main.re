@@ -75,7 +75,7 @@ let _initial_model: Model.t =
           in
          foo(7!)",
   );
-let initial_model: Model.t =
+let _initial_model: Model.t =
   parse(
     "let foo =
 fun taz => {
@@ -83,8 +83,12 @@ case taz of {
 | (2, torb) => bargle + 7*torb
 | (blee, 5) => krunk ? blee : 66
 }
-} in foo(7!)",
+}
+in foo(7!)",
   );
+
+let initial_model: Model.t =
+  Update.apply(Model.blank, LoadAll, (), ~schedule_action=());
 
 Incr_dom.Start_app.start(
   (module App),

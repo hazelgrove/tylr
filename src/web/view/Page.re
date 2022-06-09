@@ -84,11 +84,12 @@ let view = (~inject, model: Model.t) => {
   let Model.{
         font_metrics,
         logo_font_metrics: _,
-        zipper,
+        editor_model: _,
         id_gen: _,
         history,
-        show_neighbor_tiles,
+        show_neighbor_tiles: _,
       } = model;
+  let zipper = Model.get_zipper(model);
   Node.div(
     Attr.[
       id("page"),
@@ -178,12 +179,7 @@ let view = (~inject, model: Model.t) => {
       div(
         [Attr.id("code-container")],
         [
-          Code.view(
-            ~font_metrics,
-            ~just_failed=history.just_failed,
-            ~show_neighbor_tiles,
-            ~zipper,
-          ),
+          Code.view(~font_metrics, ~just_failed=history.just_failed, ~zipper),
         ],
       ),
     ],

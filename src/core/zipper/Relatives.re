@@ -36,6 +36,13 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
 let zip = (~sel=Segment.empty, {siblings, ancestors}: t) =>
   Ancestors.zip(Siblings.zip(~sel, siblings), ancestors);
 
+let parent =
+    (~sel=Segment.empty, {siblings: (l_sibs, r_sibs), ancestors}: t)
+    : option(Piece.t) =>
+  ancestors
+  |> Ancestors.parent
+  |> Option.map(p => Base.Tile(Ancestor.zip(l_sibs @ sel @ r_sibs, p)));
+
 let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
 
@@ -83,11 +90,11 @@ let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
       | (Some((_, g)), []) =>
         IdGen.return(
           Grout.fits_shape(g, s_r) ? (seg_l, seg_r) : (ws(trim_l), seg_r),
-        );
+        )
       | (None, [g, ..._]) =>
         IdGen.return(
           Grout.fits_shape(g, s_l) ? (seg_l, seg_r) : (seg_l, ws(trim_r)),
-        );
+        )
       | (None, []) =>
         Nib.Shape.fits(s_l, s_r)
           ? IdGen.return((seg_l, seg_r))

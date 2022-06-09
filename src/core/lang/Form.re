@@ -24,6 +24,7 @@ type t = {
 
 let ss: expansion = (Static, Static);
 let ii: expansion = (Instant, Instant);
+let id: expansion = (Instant, Delayed);
 let is: expansion = (Instant, Static);
 let ds: expansion = (Delayed, Static);
 let di: expansion = (Delayed, Instant);
@@ -51,24 +52,41 @@ let forms: list((string, t)) = [
   ("times", mk_infix("*", Exp, P.mult)),
   ("divide", mk_infix("/", Exp, P.mult)),
   ("equals", mk_infix("=", Exp, P.eqs)),
-  ("gt", mk_infix(">", Exp, P.gt)),
   ("plus", mk_infix("+", Exp, P.plus)),
+  // experimental operators (all follow substring property)
+  ("not_equals", mk_infix("!=", Exp, 5)),
+  ("gt", mk_infix(">", Exp, P.gt)),
+  ("lt", mk_infix("<", Exp, 5)),
+  ("gte", mk_infix("<=", Exp, 5)),
+  ("lte", mk_infix(">=", Exp, 5)),
+  ("bitwise_or", mk_infix("|", Exp, 5)),
+  ("logical_or", mk_infix("||", Exp, 5)),
+  ("bitwise_and", mk_infix("&", Exp, 5)),
+  ("logical_and", mk_infix("&&", Exp, 5)),
+  ("concat", mk_infix("++", Exp, 5)),
+  ("cons", mk_infix("::", Exp, 5)),
+  ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
+  ("dot-access", mk_infix(".", Exp, 5)), // bad sorts
+  ("assign_incr", mk_infix("+=", Exp, 10)), // bad sorts
+  ("unary_minus", mk(ss, ["-"], mk_pre(P.fact, Exp, []))),
+  // end experimental operators
   ("minus", mk_infix("-", Exp, P.plus)),
   ("comma_exp", mk_infix(",", Exp, P.prod)),
   ("comma_pat", mk_infix(",", Pat, P.prod)),
   ("fact", mk(ss, ["!"], mk_post(P.fact, Exp, []))),
+  ("array_access", mk(ii, ["[", "]"], mk_post(P.ap, Exp, [Exp]))),
   ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
   ("fun_", mk(di, ["fun", "=>"], mk_pre(P.fun_, Exp, [Pat]))),
   /* Something must instant on => as not valid monotile on its own */
   ("ap", mk(ii, ["(", ")"], mk_post(P.ap, Exp, [Exp]))),
   ("let_", mk(ds, ["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
-  ("cond", mk(ii, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
+  ("cond", mk(id, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
   ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
   ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
-  ("rule_first", mk(is, ["|", "=>"], mk_pre(9, Exp, [Pat]))),
+  ("rule_first", mk(ds, ["|", "=>"], mk_pre(9, Exp, [Pat]))),
   /* Something must instant on | as not valid monotile on its own */
-  ("rule_rest", mk(is, ["|", "=>"], mk_bin(9, Exp, [Pat]))),
+  ("rule_rest", mk(ds, ["|", "=>"], mk_bin(9, Exp, [Pat]))),
 ];
 
 let get: Token.t => t = name => List.assoc(name, forms);

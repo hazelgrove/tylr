@@ -8,6 +8,11 @@ type t = list(generation);
 
 let empty = [];
 
+let parent: t => option(Ancestor.t) =
+  fun
+  | [] => None
+  | [(parent, _), ..._] => Some(parent);
+
 let sort =
   fun
   | [] => Sort.root

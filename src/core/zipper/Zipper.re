@@ -50,6 +50,9 @@ module Action = {
   };
 };
 
+let parent = (z: t): option(Piece.t) =>
+  Relatives.parent(~sel=z.selection.content, z.relatives);
+
 let caret_offset: caret => int =
   fun
   | Outer => 0
@@ -69,46 +72,49 @@ let caret_direction =
   switch (caret) {
   | Inner(_) => None
   | Outer =>
-    let sibs =
-      switch (focus) {
-      | Left => (l_sibs, content @ r_sibs)
-      | Right => (l_sibs @ content, r_sibs)
-      };
-    Siblings.direction_between(sibs);
+    switch (Siblings.neighbors((l_sibs, r_sibs))) {
+    | (Some(l), Some(r))
+        when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
+      None
+    | _ =>
+      let sibs =
+        switch (focus) {
+        | Left => (l_sibs, content @ r_sibs)
+        | Right => (l_sibs @ content, r_sibs)
+        };
+      Siblings.direction_between(sibs);
+    }
   };
 
-let indicated_piece =
-    (
-      {
-        relatives: {siblings: (l_sibs, r_sibs), ancestors},
-        selection: {content, _},
-        _,
-      }: t,
-    )
-    : option((Piece.t, Direction.t)) =>
+let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
+  let ws = Piece.is_whitespace;
   /* Returns the piece currently indicated (if any) and which side of
      that piece the caret is on. We favor indicating the piece to the
-     (R)ight, but may end up indicating the (P)arent or the (L)eft */
-  switch (content, r_sibs, ancestors, l_sibs) {
-  | ([], [], [], []) => None
-  /* No indicated piece if there's no syntax */
-  | ([_, ..._], _, _, _) => None
-  /* No indicated piece if there's a selection */
-  | ([], [Whitespace(_), ..._], _, [_, ..._])
-      when !Piece.is_whitespace(ListUtil.last(l_sibs)) =>
-    Some((ListUtil.last(l_sibs), Left))
-  /* If R is a whitespace and L is non-space indicate L */
-  | ([], [Whitespace(_), ..._], [(parent, _), ..._], []) =>
-    Some((Base.Tile(Ancestor.zip(r_sibs, parent)), Left))
-  /* If R is a whitespace and no L and there's a P, indicate P */
-  | ([], [r_nhbr, ..._], _, _) => Some((r_nhbr, Right))
-  /* If R is non-space, indicate R */
-  | ([], [], [(parent, _), ..._], _) =>
-    Some((Base.Tile(Ancestor.zip(l_sibs, parent)), Right))
-  /* If there's no R and there's a P, indicate P */
-  | ([], [], [], [_, ..._]) => Some((ListUtil.last(l_sibs), Right))
-  /* If there's no R and no P and some L, indicate L */
+     (R)ight, but may end up indicating the (P)arent or the (L)eft.
+     We don't indicate whitespace tiles. */
+  switch (Siblings.neighbors(z.relatives.siblings), parent(z)) {
+  /* Non-empty selection => no indication */
+  | _ when z.selection.content != [] => None
+  /* Empty syntax => no indication */
+  | ((None, None), None) => None
+  /* L not whitespace, R is whitespace => indicate L */
+  | ((Some(l), Some(r)), _) when !ws(l) && ws(r) => Some((l, Left))
+  /* L and R are whitespaces => no indication */
+  | ((Some(l), Some(r)), _) when ws(l) && ws(r) => None
+  /* At right end of syntax and L is whitespace => no indication */
+  | ((Some(l), None), None) when ws(l) => None
+  /* At left end of syntax and R is whitespace => no indication */
+  | ((None, Some(r)), None) when ws(r) => None
+  /* No L and R is a whitespace and there is a P => indicate P */
+  | ((None, Some(r)), Some(parent)) when ws(r) => Some((parent, Left))
+  /* R is not whitespace => indicate R */
+  | ((_, Some(r_nhbr)), _) => Some((r_nhbr, Right))
+  /* No R and there is a P => indicate P */
+  | ((_, None), Some(parent)) => Some((parent, Right))
+  /* There is an L but no R and no P => indicate L */
+  | ((Some(l_nhbr), None), None) => Some((l_nhbr, Right))
   };
+};
 
 let update_caret = (f: caret => caret, z: t): t => {
   ...z,
@@ -265,6 +271,7 @@ let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
 
 let is_adjacent_space = (siblings: Siblings.t): bool =>
   switch (Siblings.neighbors(siblings)) {
+  | _ when true => false //TODO(andrew): disabling this check for now
   | (Some(Whitespace({content, _})), _) when content == Whitespace.space =>
     true
   | (_, Some(Whitespace({content, _}))) when content == Whitespace.space =>
@@ -356,16 +363,6 @@ let destruct =
   };
 };
 
-let merge_candidates: (caret, Siblings.t) => option((Token.t, Token.t)) =
-  (caret, siblings) => {
-    switch (caret, neighbor_monotiles(siblings)) {
-    | (Outer, (Some(l_nhbr), Some(r_nhbr)))
-        when Form.is_valid_token(l_nhbr ++ r_nhbr) =>
-      Some((l_nhbr, r_nhbr))
-    | _ => None
-    };
-  };
-
 let merge =
     ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
@@ -379,9 +376,10 @@ let merge =
 let destruct_or_merge = (d: Direction.t, (z, id_gen): state): option(state) => {
   let* (z, id_gen) = destruct(d, (z, id_gen));
   let z_trimmed = update_siblings(Siblings.trim_whitespace_and_grout, z);
-  switch (merge_candidates(z.caret, z_trimmed.relatives.siblings)) {
-  | None => Some((z, id_gen))
-  | Some(candidates) => merge(candidates, (z_trimmed, id_gen))
+  switch (z.caret, neighbor_monotiles(z_trimmed.relatives.siblings)) {
+  | (Outer, (Some(l), Some(r))) when Form.is_valid_token(l ++ r) =>
+    merge((l, r), (z_trimmed, id_gen))
+  | _ => Some((z, id_gen))
   };
 };
 
@@ -448,11 +446,12 @@ let split =
   |> (z => replace_construct(Right, [r], (z, id_gen)))
   |> Option.map(((z, id_gen)) => construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
-  |> Option.map(((z, id_gen)) => construct(direction, lbl, z, id_gen));
-  //TODO(andrew): address caret positioning on whitespace split
-  /*|> Option.map(((z, id_gen)) =>
-      (update_siblings(Siblings.trim_whitespace, z), id_gen)
-    );*/
+  |> Option.map(((z, id_gen)) =>
+       lbl == [Whitespace.space]
+         //TODO(andrew): note temp hack to suppress whitespace next to infix grout
+         //TODO(andrew): still need to address caret positioning
+         ? (z, id_gen) : construct(direction, lbl, z, id_gen)
+     );
 };
 
 let insert =

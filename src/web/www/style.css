@@ -1015,6 +1015,15 @@ svg.rail line.unsorted {
   position: fixed;
 }
 
+
+.backpack.cant-put-down {
+  opacity: 40%;
+}
+
+.backback-joiner {
+  opacity: 40%;
+}
+
 .backpack-selection {
   line-height: var(--line-height);
   width: fit-content;
@@ -1026,4 +1035,10 @@ svg.rail line.unsorted {
   border-radius: 2px;
   width: 2px;
   background-color: var(--selection-color);
+}
+
+.Exp.caret-position-path.sibling{
+  /*TODO(andrew): unhack*/
+  stroke: #ce9600;
+    fill: #ce9600;
 }

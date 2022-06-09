@@ -41,6 +41,22 @@ module Text = (M: {let map: Measured.t;}) => {
   };
 };
 
+//TODO(andrew): abstract this and Text?
+module CodeString = {
+  let rec of_segment = (~indent=0, seg: Segment.t): string =>
+    seg |> List.map(of_piece(~indent)) |> String.concat("")
+  and of_piece = (~indent=0, p: Piece.t): string =>
+    switch (p) {
+    | Whitespace(w) => w.content == Whitespace.linebreak ? "\n" : w.content
+    | Grout(_) => " "
+    | Tile(t) => of_tile(t, ~indent)
+    }
+  and of_tile = (t: Tile.t, ~indent): string =>
+    Aba.mk(t.shards, t.children)
+    |> Aba.join(i => List.nth(t.label, i), of_segment(~indent=indent + 1))
+    |> String.concat("");
+};
+
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let (_, map) = Measured.of_segment(content);
@@ -74,6 +90,7 @@ let backpack_view =
       backpack,
     );
   //TODO(andrew): truncate backpack when height is too high?
+  let can_put_down = true; //TODO(andrew): figure out if caret pos is valid target
   let style =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
@@ -87,10 +104,27 @@ let backpack_view =
       [Attr.create("style", style), Attr.classes(["backpack"])],
       List.map(backpack_sel_view, List.rev(backpack)),
     );
-
   let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
   let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
-  div([Attr.classes(["backpack"])], [selections_view, genie_view]);
+  let joiner_style =
+    Printf.sprintf(
+      "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
+      Float.of_int(origin.col) *. font_metrics.col_width,
+      CaretDec.top_text_fudge -. 3.,
+      Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
+    );
+  let joiner =
+    div(
+      [
+        Attr.create("style", joiner_style),
+        Attr.classes(["backpack-joiner"]),
+      ],
+      [],
+    );
+  div(
+    [Attr.classes(["backpack"] @ (can_put_down ? [] : ["cant-put-down"]))],
+    [selections_view, genie_view] @ (backpack != [] ? [joiner] : []),
+  );
 };
 
 module Deco = (M: {
@@ -124,18 +158,7 @@ module Deco = (M: {
       | Some((_, side)) => side
       | _ => Right
       };
-    let style =
-      Printf.sprintf(
-        "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
-        CaretDec.top_text_fudge -. 3.,
-        Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
-      );
-    let joiner =
-      div(
-        [Attr.create("style", style), Attr.classes(["backpack-joiner"])],
-        [],
-      );
+
     [
       CaretDec.simple_view(
         ~font_metrics,
@@ -144,8 +167,7 @@ module Deco = (M: {
         ~shape=Zipper.caret_direction(z),
       ),
       backpack_view(~font_metrics, ~origin, z.backpack),
-    ]
-    @ (z.backpack != [] ? [joiner] : []);
+    ];
   };
 
   let children = (p: Piece.t): list(Measured.measurement_lin) =>
@@ -307,7 +329,6 @@ let view =
     (
       ~font_metrics,
       ~just_failed as _: option(FailedInput.t)=None,
-      ~show_neighbor_tiles as _: bool=false,
       ~zipper: Zipper.t,
     )
     : Node.t => {
