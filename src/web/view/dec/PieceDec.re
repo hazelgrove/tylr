@@ -5,17 +5,17 @@ open Virtual_dom.Vdom;
 module Style = {
   type t =
     | Root(Measured.point, Measured.point)
-    | Selected;
+    | Selected(int, int);
 
   let to_string =
     fun
     | Root(_) => "Root"
-    | Selected => "Selected";
+    | Selected(_) => "Selected";
 
   let to_selem_style =
     fun
     | Root(_) => SelemStyle.Root
-    | Selected => Selected;
+    | Selected(_) => Selected;
 };
 
 module Profile = {
@@ -44,6 +44,61 @@ let shards = (~font_metrics, profile: Profile.t) => {
          SelemDec.contour_path(~font_metrics, profile),
        );
      });
+};
+
+let chunky = (~rows: Measured.Rows.t, (i, j), profile: Profile.t) => {
+  let m_first = List.assoc(i, profile.shards);
+  let m_last = List.assoc(j, profile.shards);
+  let (first, last) = (m_first.origin, m_last.last);
+  let indent = Measured.Rows.find(first.row, rows).indent;
+  let max_col =
+    ListUtil.range(~lo=first.row, last.row + 1)
+    |> List.map(r => Measured.Rows.find(r, rows).max_col)
+    |> List.fold_left(max, 0);
+  open SvgUtil.Path;
+  let l_hook = {
+    let dx =
+      switch (fst(Mold.nibs(~index=i, profile.mold)).shape) {
+      | Convex => -. DecUtil.short_tip_width
+      | Concave(_) => DecUtil.short_tip_width
+      };
+    let dy = (-0.5);
+    [L_({dx, dy}), L_({dx: -. dx, dy})];
+  };
+  let r_hook = {
+    let dx =
+      switch (snd(Mold.nibs(~index=j, profile.mold)).shape) {
+      | Convex => DecUtil.short_tip_width
+      | Concave(_) => -. DecUtil.short_tip_width
+      };
+    let dy = 0.5;
+    [L_({dx, dy}), L_({dx: -. dx, dy})];
+  };
+  [
+    view(
+      ~attrs=
+        Attr.[
+          classes([
+            "tile-path",
+            "selected",
+            "raised",
+            Color.to_string(Color.of_sort(profile.mold.out)),
+          ]),
+          create("vector-effect", "non-scaling-stroke"),
+        ],
+      List.concat([
+        [
+          m(~x=first.col, ~y=first.row),
+          h(~x=max_col),
+          v(~y=last.row),
+          h(~x=last.col),
+        ],
+        r_hook,
+        [h(~x=indent), v(~y=first.row + 1), h(~x=first.col)],
+        l_hook,
+      ]),
+    ),
+  ];
 };
 
 let bi_lines =
@@ -205,13 +260,22 @@ let uni_lines =
 let view =
     (~font_metrics: FontMetrics.t, ~rows: Measured.Rows.t, profile: Profile.t)
     : Node.t => {
-  let shards = shards(~font_metrics, profile);
-  let uni_lines =
+  let (shards, lines) =
     switch (profile.style) {
-    | Selected => []
-    | Root(l, r) => uni_lines(~rows, (l, r), profile.mold, profile.shards)
+    | Selected(i, j) => (chunky(~rows, (i, j), profile), [])
+    | Root(l, r) => (
+        shards(~font_metrics, profile),
+        uni_lines(~rows, (l, r), profile.mold, profile.shards)
+        @ bi_lines(~rows, profile.mold, profile.shards),
+      )
     };
-  let bi_lines = bi_lines(~rows, profile.mold, profile.shards);
+  // let uni_lines =
+  //   switch (profile.style) {
+  //   | Selected => []
+  //   | Root(l, r) => uni_lines(~rows, (l, r), profile.mold, profile.shards)
+  //   };
+  // let bi_lines =
+  //   bi_lines(~rows, profile.mold, profile.shards);
   DecUtil.container2d(
     ~font_metrics,
     ~measurement={
@@ -223,6 +287,6 @@ let view =
     },
     ~cls="tile",
     ~container_clss=[Style.to_string(profile.style)],
-    shards @ uni_lines @ bi_lines,
+    shards @ lines,
   );
 };
