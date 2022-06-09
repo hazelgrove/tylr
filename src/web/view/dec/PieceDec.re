@@ -112,7 +112,6 @@ let uni_lines =
   let l_line =
     if (l.col != m_first.origin.col) {
       let max_col = Measured.Rows.find(l.row, rows).max_col;
-      print_endline(string_of_int(max_col));
       let indent = Measured.Rows.find(m_first.origin.row, rows).indent;
       [
         l.row == m_first.origin.row
