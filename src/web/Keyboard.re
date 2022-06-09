@@ -30,7 +30,11 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
     // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
-      if ((!held(Ctrl) || is_digit(key)) && !held(Alt) && !held(Meta)) {
+      if ((!held(Ctrl) || is_digit(key))
+          && !held(Alt)
+          && !held(Meta)
+          || (held(Ctrl) || held(Meta))
+          && (key == "x" || key == "v")) {
         switch (key) {
         | _ when is_digit(key) && held(Ctrl) =>
           print_endline("switch");
@@ -55,14 +59,16 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "F8" =>
           print_endline("F8 LOAD DEFAULT");
           [LoadDefault];
-        | "ArrowLeft" when held(Shift) => now(Select(Left))
-        | "ArrowRight" when held(Shift) => now(Select(Right))
-        | "ArrowUp" when held(Shift) => now(Pick_up)
-        | "ArrowDown" when held(Shift) => now(Put_down)
+        | "ArrowLeft" when held(Shift) => now(Select(L))
+        | "ArrowRight" when held(Shift) => now(Select(R))
+        | "ArrowUp" when held(Shift) => now(Select(U))
+        | "ArrowDown" when held(Shift) => now(Select(D))
         | "ArrowLeft" => now(Move(L))
         | "ArrowRight" => now(Move(R))
         | "ArrowUp" => now(Move(U))
         | "ArrowDown" => now(Move(D))
+        | "x" when held(Ctrl) || held(Meta) => now(Pick_up)
+        | "v" when held(Ctrl) || held(Meta) => now(Put_down)
         | "Tab" => now_save(Put_down)
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so

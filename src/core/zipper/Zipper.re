@@ -13,6 +13,12 @@ type movability =
   | CanMovePast
   | CantEven;
 
+[@deriving show]
+type appendability =
+  | CanAddToLeft(string)
+  | CanAddToRight(string)
+  | CanAddToNeither;
+
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
 type t = {
@@ -28,7 +34,7 @@ module Action = {
   [@deriving (show, sexp)]
   type t =
     | Move(Direction.plane)
-    | Select(Direction.t)
+    | Select(Direction.plane)
     | Destruct(Direction.t)
     | Insert(string)
     | Pick_up
@@ -40,6 +46,7 @@ module Action = {
       | Cant_move
       | Cant_insert
       | Cant_destruct
+      | Cant_select
       | Cant_put_down_inside_token
       | Cant_put_down;
   };
@@ -394,11 +401,6 @@ let keyword_expand = ((z, _) as state: state): option(state) =>
   | _ => Some(state)
   };
 
-type appendability =
-  | CanAddToLeft(string)
-  | CanAddToRight(string)
-  | CanAddToNeither;
-
 let sibling_appendability: (string, Siblings.t) => appendability =
   (char, siblings) =>
     switch (neighbor_monotiles(siblings)) {
@@ -617,12 +619,12 @@ let caret_point = (map: Measured.t, z: t): Measured.point => {
   {row, col: col + caret_offset(z.caret)};
 };
 
-type comp =
+type comparison =
   | Exact
   | Under
   | Over;
 
-let comp = (current, target) =>
+let comp = (current, target): comparison =>
   switch () {
   | _ when current == target => Exact
   | _ when current < target => Under
@@ -635,46 +637,57 @@ let dcomp = (direction: Direction.t, a, b) =>
   | Left => comp(b, a)
   };
 
-let rec move_towards =
+let rec do_towards =
         (
+          f: t => option(t),
           d: Direction.t,
-          caret_pos: t => Measured.point,
+          cursorpos: t => Measured.point,
           goal: Measured.point,
           cur: t,
           prev: t,
         )
         : t => {
-  let cur_p = caret_pos(cur);
+  let cur_p = cursorpos(cur);
+  //Printf.printf("go_towards: current: %s\n", Measured.show_point(cur_p));
   switch (dcomp(d, cur_p.col, goal.col), dcomp(d, cur_p.row, goal.row)) {
   | (Exact, Exact) => cur
   | (_, Over) => prev
   | (_, Under)
   | (Under, Exact) =>
-    switch (move(d, cur)) {
+    switch (f(cur)) {
     | None => cur
-    | Some(next) => move_towards(d, caret_pos, goal, next, cur)
+    | Some(next) => do_towards(f, d, cursorpos, goal, next, cur)
     }
   | (Over, Exact) =>
     let comp = d == Right ? (<) : (>);
-    comp(caret_pos(prev).row, goal.row) ? cur : prev;
+    comp(cursorpos(prev).row, goal.row) ? cur : prev;
   };
 };
 
-let move_vertical = (d: Direction.t, z: t): option(t) => {
-  /* Iterate horizontal movement until we get to the closet caret
-     position to a target derived from the initial position */
+let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
+  /* Here f should be a function which results in strict d-wards
+     movement of the caret. Iterate f until we get to the closet
+     caret position to a target derived from the initial position */
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
-  let cur = cursorpos(z);
+  let cur_p = cursorpos(z);
   let goal =
     Measured.{
       col: z.caret_col_target,
-      row: cur.row + (d == Right ? 1 : (-1)),
+      row: cur_p.row + (d == Right ? 1 : (-1)),
     };
-  let z_res = move_towards(d, cursorpos, goal, z, z);
-  let res = cursorpos(z_res);
+  //Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur));
+  //Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
+  let res = do_towards(f, d, cursorpos, goal, z, z);
+  let res_p = cursorpos(res);
   /* Don't move if we end up on the same line as we started */
-  res.row == cur.row ? None : Some(z_res);
+  res_p.row == cur_p.row ? None : Some(res);
 };
+
+let select_vertical = (d: Direction.t, z: t): option(t) =>
+  do_vertical(select(d), d, z);
+
+let move_vertical = (d: Direction.t, z: t): option(t) =>
+  do_vertical(move(d), d, z);
 
 let update_target = (z: t): t =>
   //TODO(andrew): $$$ this recomputes all measures
@@ -683,9 +696,16 @@ let update_target = (z: t): t =>
     caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,
   };
 
+let directional_unselect = (d: Direction.t, z: t) => {
+  let selection = {...z.selection, focus: Direction.toggle(d)};
+  unselect({...z, selection});
+};
+
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   switch (a) {
   | Move(d) =>
+    //NOTE(andrew): not sure if this is best approach to unselection
+    let z = directional_unselect(Direction.from_plane(d), z);
     /* Note: Don't update target on vertical movement */
     (
       switch (d) {
@@ -696,13 +716,20 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
       }
     )
     |> Option.map(z => (z, id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move)
+    |> Result.of_option(~error=Action.Failure.Cant_move);
   | Select(d) =>
-    z
-    |> select(d)
+    /* Note: Don't update target on vertical selection */
+    (
+      switch (d) {
+      | Direction.L => select(Left, z) |> Option.map(update_target)
+      | Direction.R => select(Right, z) |> Option.map(update_target)
+      | Direction.U => select_vertical(Left, z)
+      | Direction.D => select_vertical(Right, z)
+      }
+    )
     |> Option.map(z => (z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move)
+    |> Result.of_option(~error=Action.Failure.Cant_select)
   | Destruct(d) =>
     //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
