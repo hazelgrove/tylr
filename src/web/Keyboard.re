@@ -32,15 +32,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
     let updates: list(Update.t) =
       if ((!held(Ctrl) || is_digit(key)) && !held(Alt) && !held(Meta)) {
         switch (key) {
-        | "F4" =>
-          print_endline("F4 SAVE");
-          [Save];
-        | "F6" =>
-          print_endline("F6 LOAD");
-          [Load];
-        | "F8" =>
-          print_endline("F8 LOAD DEFAULT");
-          [LoadDefault];
         | _ when is_digit(key) && held(Ctrl) =>
           print_endline("switch");
           print_endline(key);
@@ -55,6 +46,15 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           | Token => Settings.s.movement = Char
           };
           [];
+        | "F4" =>
+          print_endline("F4 SAVE");
+          [Save];
+        | "F6" =>
+          print_endline("F6 LOAD");
+          [Load];
+        | "F8" =>
+          print_endline("F8 LOAD DEFAULT");
+          [LoadDefault];
         | "ArrowLeft" when held(Shift) => now(Select(Left))
         | "ArrowRight" when held(Shift) => now(Select(Right))
         | "ArrowUp" when held(Shift) => now(Pick_up)

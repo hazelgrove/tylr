@@ -44,12 +44,12 @@ let save = (model: Model.t) =>
     LocalStorage.save_to_local_text(n, List.nth(zs, n));
   };
 
-let current_editor_and_zipper = (model: Model.t) =>
+let current_editor = (model: Model.t): int =>
   switch (model.editor_model) {
-  | Simple(z) => (0, z)
+  | Simple(_) => 0
   | Study(n, zs) =>
     assert(n < List.length(zs));
-    (n, List.nth(zs, n));
+    n;
   };
 
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
@@ -70,7 +70,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       );
     {...model, editor_model: Study(init_editor, zs)};
   | Load =>
-    let (n, _) = current_editor_and_zipper(model);
+    let n = current_editor(model);
     switch (LocalStorage.load_from_local_text(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
@@ -80,7 +80,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     | None => model
     };
   | LoadDefault =>
-    let (n, _) = current_editor_and_zipper(model);
+    let n = current_editor(model);
     switch (LocalStorage.load_default(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
