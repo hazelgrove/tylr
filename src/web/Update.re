@@ -4,6 +4,8 @@ open Core;
 
 [@deriving sexp]
 type t =
+  | Load
+  | Save
   | SwitchEditor(int)
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
@@ -35,6 +37,17 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
+  | Load =>
+    switch (LocalStorage.load_from_local_text(model.id_gen)) {
+    | Some((z, id_gen)) => {...model, editor_model: Simple(z), id_gen}
+    | None => model
+    }
+  | Save =>
+    switch (model.editor_model) {
+    | Simple(z) => LocalStorage.save_to_local_text(z)
+    | _ => ()
+    };
+    model;
   | SwitchEditor(n) =>
     switch (model.editor_model) {
     | Simple(_) =>

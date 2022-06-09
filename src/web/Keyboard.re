@@ -26,8 +26,29 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
     // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
-      if (!held(Ctrl) && !held(Alt) && !held(Meta)) {
+      if ((!held(Ctrl) || key == "1" || key == "2")
+          && !held(Alt)
+          && !held(Meta)) {
         switch (key) {
+        | "F4" =>
+          print_endline("F4 SAVE");
+          [Save];
+        | "F6" =>
+          print_endline("F6 LOAD");
+          [Load];
+        | "0"
+        | "1"
+        | "2"
+        | "3"
+        | "4"
+        | "5"
+        | "6"
+        | "7"
+        | "8"
+        | "9" when held(Ctrl) =>
+          print_endline("switch");
+          print_endline(key);
+          [SwitchEditor(int_of_string(key))];
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];

@@ -75,7 +75,7 @@ let _initial_model: Model.t =
           in
          foo(7!)",
   );
-let initial_model: Model.t =
+let _initial_model: Model.t =
   parse(
     "let foo =
 fun taz => {
@@ -86,6 +86,8 @@ case taz of {
 }
 in foo(7!)",
   );
+let initial_model: Model.t =
+  Update.apply(Model.blank, Load, (), ~schedule_action=());
 
 Incr_dom.Start_app.start(
   (module App),

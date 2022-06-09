@@ -39,16 +39,16 @@ module Text = {
   };
 };
 
-//TODO(andrew): abstract this and Text
+//TODO(andrew): abstract this and Text?
 module CodeString = {
-  let rec of_piece = (~indent=0, p: Piece.t): string =>
+  let rec of_segment = (~indent=0, seg: Segment.t): string =>
+    seg |> List.map(of_piece(~indent)) |> String.concat("")
+  and of_piece = (~indent=0, p: Piece.t): string =>
     switch (p) {
     | Whitespace(w) => w.content == Whitespace.linebreak ? "\n" : w.content
     | Grout(_) => " "
     | Tile(t) => of_tile(t, ~indent)
     }
-  and of_segment = (~indent=0, seg: Segment.t): string =>
-    seg |> List.map(of_piece(~indent)) |> String.concat("")
   and of_tile = (t: Tile.t, ~indent): string =>
     Aba.mk(t.shards, t.children)
     |> Aba.join(i => List.nth(t.label, i), of_segment(~indent=indent + 1))
@@ -299,12 +299,10 @@ let view =
     (
       ~font_metrics,
       ~just_failed as _: option(FailedInput.t)=None,
-      ~show_neighbor_tiles as _: bool=false,
       ~zipper: Zipper.t,
     )
     : Node.t => {
   let seg = Zipper.zip(zipper);
-
   module Deco =
     Deco({
       let font_metrics = font_metrics;

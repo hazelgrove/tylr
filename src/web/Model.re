@@ -15,23 +15,24 @@ type t = {
 
 let cutoff = (===);
 
+let empty_zipper: Zipper.t = {
+  selection: {
+    focus: Left,
+    content: [],
+  },
+  backpack: [],
+  relatives: {
+    siblings: ([Grout({id: 0, shape: Convex})], []),
+    ancestors: [],
+  },
+  caret: Outer,
+  caret_col_target: 0,
+};
+
 let blank = {
   {
     id_gen: 1,
-    editor_model:
-      Simple({
-        selection: {
-          focus: Left,
-          content: [],
-        },
-        backpack: [],
-        relatives: {
-          siblings: ([Grout({id: 0, shape: Convex})], []),
-          ancestors: [],
-        },
-        caret: Outer,
-        caret_col_target: 0,
-      }),
+    editor_model: Simple(empty_zipper),
     history: ActionHistory.empty,
     font_metrics: FontMetrics.init,
     logo_font_metrics: FontMetrics.init,
