@@ -25,3 +25,10 @@ type plane =
   | R
   | U
   | D;
+
+let from_plane: plane => t =
+  fun
+  | L => Left
+  | R => Right
+  | U => Left
+  | D => Right;

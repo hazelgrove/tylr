@@ -76,16 +76,15 @@ let _initial_model: Model.t =
          foo(7!)",
   );
 let _initial_model: Model.t =
-  parse(
-    "let foo =
-fun taz => {
-case taz of {
-| (2, torb) => bargle + 7*torb
-| (blee, 5) => krunk ? blee : 66
-}
-}
-in foo(7!)",
-  );
+  "let foo =
+  fun taz => {
+    case taz of {
+      | (2, torb) => bargle + 7*torb
+      | (blee, 5) => krunk ? blee : 66
+    }
+  }
+in foo(7!)"
+  |> parse;
 
 let initial_model: Model.t =
   Update.apply(Model.blank, LoadAll, (), ~schedule_action=());
