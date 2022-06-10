@@ -170,7 +170,9 @@ let union2 = (map: t, map': t) => {
 let union = List.fold_left(union2, empty);
 
 let rec of_segment =
-        (~seen_linebreak=false, ~indent=0, ~origin=zero, seg: Segment.t)
+        // start of program is considered a "linebreak"
+        // so as to avoid spurious indentation at root level
+        (~seen_linebreak=true, ~indent=0, ~origin=zero, seg: Segment.t)
         : (point, t) =>
   switch (seg) {
   | [] => (
@@ -188,7 +190,7 @@ let rec of_segment =
           } else if (!seen_linebreak) {
             indent + 2;
           } else if (concluding) {
-            indent - 2;
+            max(indent - 2, 0);
           } else {
             indent;
           };
@@ -218,7 +220,7 @@ let rec of_segment =
                of_shard(origin),
                (origin, child, shard) => {
                  let (child_last, child_map) =
-                   of_segment(~indent, ~origin, child);
+                   of_segment(~seen_linebreak=false, ~indent, ~origin, child);
                  let (shard_last, shard_map) = of_shard(child_last, shard);
                  (shard_last, child_map, shard_map);
                },
