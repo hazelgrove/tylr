@@ -5,28 +5,26 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
+let repeat_string = (n, s) => String.concat("", List.init(n, _ => s));
+
 module Text = (M: {let map: Measured.t;}) => {
+  let m = p => Measured.find_p(p, M.map);
   let rec of_segment = (seg: Segment.t): list(Node.t) =>
-    seg
-    |> List.map((p: Piece.t) => {
-         let m = Measured.find_p(p, M.map);
-         switch (p) {
-         | Piece.Whitespace(w) when w.content == Whitespace.linebreak => [
-             span_c("whitespace", [text(Whitespace.linebreak)]),
-             Node.br([]),
-             Node.text(
-               String.concat("", List.init(m.last.col, _ => Unicode.nbsp)),
-             ),
-           ]
-         | Whitespace({content: c, _}) when c == Whitespace.space => [
-             span_c("whitespace", [text("·")]),
-           ]
-         | Whitespace(w) => [Node.text(w.content)]
-         | Grout(_) => [Node.text(Unicode.nbsp)]
-         | Tile(t) => of_tile(t)
-         };
-       })
-    |> List.concat
+    seg |> List.map(of_piece) |> List.concat
+  and of_piece = (p: Piece.t): list(Node.t) =>
+    switch (p) {
+    | Whitespace(w) when w.content == Whitespace.linebreak => [
+        span_c("whitespace", [text(Whitespace.linebreak)]),
+        Node.br([]),
+        Node.text(repeat_string(m(p).last.col, Unicode.nbsp)),
+      ]
+    | Whitespace(w) when w.content == Whitespace.space => [
+        span_c("whitespace", [text("·")]),
+      ]
+    | Whitespace(w) => [Node.text(w.content)]
+    | Grout(_) => [Node.text(Unicode.nbsp)]
+    | Tile(t) => of_tile(t)
+    }
   and of_tile = (t: Tile.t): list(Node.t) => {
     let span =
       List.length(t.label) == 1
@@ -43,17 +41,17 @@ module Text = (M: {let map: Measured.t;}) => {
 
 //TODO(andrew): abstract this and Text?
 module CodeString = {
-  let rec of_segment = (~indent=0, seg: Segment.t): string =>
-    seg |> List.map(of_piece(~indent)) |> String.concat("")
-  and of_piece = (~indent=0, p: Piece.t): string =>
+  let rec of_segment = (seg: Segment.t): string =>
+    seg |> List.map(of_piece) |> String.concat("")
+  and of_piece = (p: Piece.t): string =>
     switch (p) {
     | Whitespace(w) => w.content == Whitespace.linebreak ? "\n" : w.content
     | Grout(_) => " "
-    | Tile(t) => of_tile(t, ~indent)
+    | Tile(t) => of_tile(t)
     }
-  and of_tile = (t: Tile.t, ~indent): string =>
+  and of_tile = (t: Tile.t): string =>
     Aba.mk(t.shards, t.children)
-    |> Aba.join(i => List.nth(t.label, i), of_segment(~indent=indent + 1))
+    |> Aba.join(i => List.nth(t.label, i), of_segment)
     |> String.concat("");
 };
 
