@@ -195,9 +195,31 @@ module Deco = (M: {
       |> snd;
     };
 
-  let piece_profile =
-      (p: Piece.t, nib_shape: Nib.Shape.t, style: PieceDec.Style.t)
-      : PieceDec.Profile.t => {
+  let selected_piece_profile =
+      (p: Piece.t, nib_shape: Nib.Shape.t): PieceDec.Profile.t => {
+    // TODO(d) fix sorts
+    let mold =
+      switch (p) {
+      | Whitespace(_) => Mold.of_whitespace({sort: Exp, shape: nib_shape})
+      | Grout(g) => Mold.of_grout(g, Exp)
+      | Tile(t) => t.mold
+      };
+    // TODO(d) awkward
+    let shards =
+      switch (p) {
+      | Whitespace(w) => [(0, Measured.find_w(w, M.map))]
+      | Grout(g) => [(0, Measured.find_g(g, M.map))]
+      | Tile(t) =>
+        Measured.find_shards(t, M.map)
+        |> List.filter(((i, _)) => List.mem(i, t.shards))
+      };
+    let l = fst(List.hd(shards));
+    let r = fst(ListUtil.last(shards));
+    PieceDec.Profile.{shards, mold, style: Selected(l, r)};
+  };
+
+  let root_piece_profile =
+      (p: Piece.t, nib_shape: Nib.Shape.t, (l, r)): PieceDec.Profile.t => {
     // TODO(d) fix sorts
     let mold =
       switch (p) {
@@ -212,7 +234,7 @@ module Deco = (M: {
       | Grout(g) => [(0, Measured.find_g(g, M.map))]
       | Tile(t) => Measured.find_shards(t, M.map)
       };
-    PieceDec.Profile.{shards, mold, style};
+    PieceDec.Profile.{shards, mold, style: Root(l, r)};
   };
 
   let selected_pieces = (z: Zipper.t): list(Node.t) =>
@@ -225,7 +247,7 @@ module Deco = (M: {
        )
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
-           let profile = piece_profile(p, l, Selected);
+           let profile = selected_piece_profile(p, l);
            (
              snd(Mold.nibs(profile.mold)).shape,
              PieceDec.view(~font_metrics, ~rows=M.map.rows, profile),
@@ -263,7 +285,7 @@ module Deco = (M: {
           PieceDec.view(
             ~font_metrics,
             ~rows=M.map.rows,
-            piece_profile(p, nib_shape, Root(l, r)),
+            root_piece_profile(p, nib_shape, (l, r)),
           ),
         ];
       };
