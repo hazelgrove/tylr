@@ -7,52 +7,54 @@ let span_c = cls => span([Attr.class_(cls)]);
 
 let repeat_string = (n, s) => String.concat("", List.init(n, _ => s));
 
+module CodeString = {
+  let rec of_segment = (seg: Segment.t): string =>
+    seg |> List.map(of_piece) |> String.concat("")
+  and of_piece: Piece.t => string =
+    fun
+    | Tile(t) => of_tile(t)
+    | Grout(_) => " "
+    | Whitespace(w) => w.content == Whitespace.linebreak ? "\n" : w.content
+  and of_tile = (t: Tile.t): string =>
+    Aba.mk(t.shards, t.children)
+    |> Aba.join(of_delim(t), of_segment)
+    |> String.concat("")
+  and of_delim = (t: Piece.tile, i: int): string => List.nth(t.label, i);
+};
+
 module Text = (M: {let map: Measured.t;}) => {
   let m = p => Measured.find_p(p, M.map);
   let rec of_segment = (seg: Segment.t): list(Node.t) =>
     seg |> List.map(of_piece) |> List.concat
   and of_piece = (p: Piece.t): list(Node.t) =>
     switch (p) {
-    | Whitespace(w) when w.content == Whitespace.linebreak => [
-        span_c("whitespace", [text(Whitespace.linebreak)]),
-        Node.br([]),
-        Node.text(repeat_string(m(p).last.col, Unicode.nbsp)),
-      ]
-    | Whitespace(w) when w.content == Whitespace.space => [
-        span_c("whitespace", [text("·")]),
-      ]
-    | Whitespace(w) => [Node.text(w.content)]
-    | Grout(_) => [Node.text(Unicode.nbsp)]
     | Tile(t) => of_tile(t)
+    | Grout(_) => [Node.text(Unicode.nbsp)]
+    | Whitespace({content, _}) =>
+      if (content == Whitespace.linebreak) {
+        [
+          span_c("whitespace", [text(Whitespace.linebreak)]),
+          Node.br([]),
+          Node.text(repeat_string(m(p).last.col, Unicode.nbsp)),
+        ];
+      } else if (content == Whitespace.space) {
+        [span_c("whitespace", [text("·")])];
+      } else {
+        [Node.text(content)];
+      }
     }
   and of_tile = (t: Tile.t): list(Node.t) => {
+    Aba.mk(t.shards, t.children)
+    |> Aba.join(of_delim(t), of_segment)
+    |> List.concat;
+  }
+  and of_delim = (t: Piece.tile, i: int): list(Node.t) => {
     let span =
       List.length(t.label) == 1
         ? Node.span([])
         : span_c(Tile.is_complete(t) ? "delim" : "extra-bold-delim");
-    Aba.mk(t.shards, t.children)
-    |> Aba.join(
-         i => [span([Node.text(List.nth(t.label, i))])],
-         of_segment,
-       )
-    |> List.concat;
+    [span([Node.text(List.nth(t.label, i))])];
   };
-};
-
-//TODO(andrew): abstract this and Text?
-module CodeString = {
-  let rec of_segment = (seg: Segment.t): string =>
-    seg |> List.map(of_piece) |> String.concat("")
-  and of_piece = (p: Piece.t): string =>
-    switch (p) {
-    | Whitespace(w) => w.content == Whitespace.linebreak ? "\n" : w.content
-    | Grout(_) => " "
-    | Tile(t) => of_tile(t)
-    }
-  and of_tile = (t: Tile.t): string =>
-    Aba.mk(t.shards, t.children)
-    |> Aba.join(i => List.nth(t.label, i), of_segment)
-    |> String.concat("");
 };
 
 let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
