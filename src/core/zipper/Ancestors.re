@@ -99,7 +99,14 @@ let sort_rank = (ancestors: t) =>
 
 let shape_rank = (ancestors: t): int =>
   List.fold_right(
-    ((_, sibs), rank) => Siblings.shape_rank(sibs) + rank,
+    ((a, sibs), rank) => {
+      let (l, r) = Siblings.shapes(sibs);
+      let (l', r') = Ancestor.shapes(a);
+      Bool.to_int(!Nib.Shape.fits(l, l'))
+      + Bool.to_int(!Nib.Shape.fits(r', r))
+      + Siblings.shape_rank(sibs)
+      + rank;
+    },
     ancestors,
     0,
   );
