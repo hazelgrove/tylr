@@ -101,17 +101,43 @@ let split_by_grout: t => Aba.t(t, Grout.t) =
     | p => L(p),
   );
 
-let remold = (seg: t): list(t) =>
+let rec remold = (seg: t): list(t) =>
   fold_right(
     (p: Piece.t, remolded) => {
       open ListUtil.Syntax;
       let+ seg = remolded
-      and+ p = Piece.remold(p);
+      and+ p = remold_piece(p);
       [p, ...seg];
     },
     seg,
     [empty],
-  );
+  )
+and remold_piece = (p: Piece.t) =>
+  switch (p) {
+  | Grout(_)
+  | Whitespace(_) => [p]
+  | Tile(t) =>
+    open ListUtil.Syntax;
+    let* mold = Molds.get(t.label);
+    let+ children =
+      List.fold_right(
+        ((l, child, r), remolded) => {
+          let+ child =
+            if (l
+                + 1 == r
+                && List.nth(mold.in_, l) != List.nth(t.mold.in_, l)) {
+              remold(child);
+            } else {
+              [child];
+            }
+          and+ children = remolded;
+          [child, ...children];
+        },
+        Aba.aba_triples(Aba.mk(t.shards, t.children)),
+        [[]],
+      );
+    Piece.Tile({...t, mold, children});
+  };
 
 let skel = seg =>
   seg
