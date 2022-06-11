@@ -48,8 +48,8 @@ let disassemble = ({siblings, ancestors}: t): Siblings.t =>
 
 let remold = ({siblings, ancestors}: t): list(t) => {
   open ListUtil.Syntax;
-  let+ ancestors = Ancestors.remold(ancestors)
-  and+ siblings = Siblings.remold(siblings);
+  // let+ ancestors = Ancestors.remold(ancestors)
+  let+ siblings = Siblings.remold(siblings);
   {ancestors, siblings};
 };
 
