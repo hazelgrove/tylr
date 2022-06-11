@@ -681,10 +681,9 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
     };
   //Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur));
   //Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
-  let res = do_towards(f, d, cursorpos, goal, z, z);
-  let res_p = cursorpos(res);
+  Some(do_towards(f, d, cursorpos, goal, z, z));
   /* Don't move if we end up on the same line as we started */
-  res_p.row == cur_p.row ? None : Some(res);
+  //cursorpos(res).row == cur_p.row ? None : Some(res);
 };
 
 let select_vertical = (d: Direction.t, z: t): option(t) =>
@@ -694,7 +693,7 @@ let move_vertical = (d: Direction.t, z: t): option(t) =>
   do_vertical(move(d), d, z);
 
 let update_target = (z: t): t =>
-  //TODO(andrew): $$$ this recomputes all measures
+  //NOTE(andrew): $$$ this recomputes all measures
   {
     ...z,
     caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,
@@ -735,7 +734,6 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_select)
   | Destruct(d) =>
-    //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
