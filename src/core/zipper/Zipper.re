@@ -679,8 +679,8 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
       col: z.caret_col_target,
       row: cur_p.row + (d == Right ? 1 : (-1)),
     };
-  //Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur));
-  //Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
+  Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur_p));
+  Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
   Some(do_towards(f, d, cursorpos, goal, z, z));
   /* Don't move if we end up on the same line as we started */
   //cursorpos(res).row == cur_p.row ? None : Some(res);
@@ -712,10 +712,10 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     /* Note: Don't update target on vertical movement */
     (
       switch (d) {
-      | Direction.L => move(Left, z) |> Option.map(update_target)
-      | Direction.R => move(Right, z) |> Option.map(update_target)
-      | Direction.U => move_vertical(Left, z)
-      | Direction.D => move_vertical(Right, z)
+      | L => move(Left, z) |> Option.map(update_target)
+      | R => move(Right, z) |> Option.map(update_target)
+      | U => move_vertical(Left, z)
+      | D => move_vertical(Right, z)
       }
     )
     |> Option.map(z => (z, id_gen))
@@ -724,14 +724,13 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
     /* Note: Don't update target on vertical selection */
     (
       switch (d) {
-      | Direction.L => select(Left, z) |> Option.map(update_target)
-      | Direction.R => select(Right, z) |> Option.map(update_target)
-      | Direction.U => select_vertical(Left, z)
-      | Direction.D => select_vertical(Right, z)
+      | L => select(Left, z) |> Option.map(update_target)
+      | R => select(Right, z) |> Option.map(update_target)
+      | U => select_vertical(Left, z)
+      | D => select_vertical(Right, z)
       }
     )
     |> Option.map(z => (z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_select)
   | Destruct(d) =>
     (z, id_gen)
