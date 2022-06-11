@@ -663,8 +663,13 @@ let rec do_towards =
     | Some(next) => do_towards(f, d, cursorpos, goal, next, cur)
     }
   | (Over, Exact) =>
-    let comp = d == Right ? (<) : (>);
-    comp(cursorpos(prev).row, goal.row) ? cur : prev;
+    let d_cur = abs(cur_p.col - goal.col);
+    let d_prev = abs(cursorpos(prev).col - goal.col);
+    switch () {
+    | _ when d_cur < d_prev => cur
+    | _ when d_prev < d_cur => prev
+    | _ => cur /* default to going over */
+    };
   };
 };
 
