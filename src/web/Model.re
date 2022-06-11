@@ -11,6 +11,7 @@ type t = {
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
   show_neighbor_tiles: bool,
+  key_release_history: list(string),
 };
 
 let cutoff = (===);
@@ -29,16 +30,17 @@ let empty_zipper: Zipper.t = {
   caret_col_target: 0,
 };
 
-let blank = {
-  {
-    id_gen: 1,
-    editor_model: Simple(empty_zipper),
-    history: ActionHistory.empty,
-    font_metrics: FontMetrics.init,
-    logo_font_metrics: FontMetrics.init,
-    show_neighbor_tiles: false,
-  };
+let mk = editor_model => {
+  id_gen: 1,
+  editor_model,
+  history: ActionHistory.empty,
+  font_metrics: FontMetrics.init,
+  logo_font_metrics: FontMetrics.init,
+  show_neighbor_tiles: false,
+  key_release_history: [],
 };
+
+let blank = mk(Simple(empty_zipper));
 
 let get_zipper = (model: t): Zipper.t =>
   switch (model.editor_model) {

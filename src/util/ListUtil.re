@@ -300,3 +300,9 @@ let elem_splits = (xs: list('x) as 'xs): list(('xs, 'x, 'xs)) => {
   | [x, ...xs] => go(([], x, xs))
   };
 };
+
+let rotate = (xs: list('x)): list('x) =>
+  switch (xs) {
+  | [] => []
+  | [hd, ...tl] => tl @ [hd]
+  };

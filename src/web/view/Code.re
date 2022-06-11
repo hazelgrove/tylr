@@ -75,7 +75,7 @@ let backpack_view =
     (
       ~font_metrics: FontMetrics.t,
       ~origin: Measured.point,
-      backpack: Backpack.t,
+      {backpack, _} as z: Zipper.t,
     )
     : Node.t => {
   let length =
@@ -90,7 +90,11 @@ let backpack_view =
       backpack,
     );
   //TODO(andrew): truncate backpack when height is too high?
-  let can_put_down = true; //TODO(andrew): figure out if caret pos is valid target
+  let can_put_down =
+    switch (Zipper.put_down(z)) {
+    | Some(_) => true
+    | None => false
+    };
   let style =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
@@ -166,7 +170,7 @@ module Deco = (M: {
         ~origin,
         ~shape=Zipper.caret_direction(z),
       ),
-      backpack_view(~font_metrics, ~origin, z.backpack),
+      backpack_view(~font_metrics, ~origin, z),
     ];
   };
 

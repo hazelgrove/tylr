@@ -6,20 +6,34 @@ let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
 let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
 
-let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
+let handlers =
+    (
+      ~inject: Update.t => Event.t,
+      ~zipper: Zipper.t,
+      ~key_release_history as _,
+    ) => [
   Attr.on_keypress(_ => Event.Prevent_default),
   Attr.on_keyup(evt => {
-    //let _ = failwith("todo fix on_keyup");
-    Event.Many(
-      switch (JsUtil.get_key(evt), zipper) {
-      // | ("Shift", (Selecting(_, [], _), _)) => [
-      //     inject(Update.escape()),
-      //     Event.Prevent_default,
-      //   ]
-      | ("Alt", _) => [inject(SetShowNeighborTiles(false))]
-      | _ => []
-      },
-    )
+    let key = JsUtil.get_key(evt);
+    let updates =
+      switch (key) {
+      | "Shift" =>
+        print_endline("shift released");
+        [Update.UpdateKeyHistory(key)];
+      //| ("Alt", _) => [inject(SetShowNeighborTiles(false))]
+      | _ => [Update.UpdateKeyHistory(key)]
+      };
+    switch (updates) {
+    | [] => Event.Many([])
+    | [_, ..._] =>
+      Event.(
+        Many([
+          Prevent_default,
+          Stop_propagation,
+          ...List.map(inject, updates),
+        ])
+      )
+    };
   }),
   Attr.on_keydown(evt => {
     let key = JsUtil.get_key(evt);
@@ -34,7 +48,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
           && !held(Alt)
           && !held(Meta)
           || (held(Ctrl) || held(Meta))
-          && (key == "x" || key == "v")) {
+          && (key == "x" || key == "v" || key == "q")) {
         switch (key) {
         | _ when is_digit(key) && held(Ctrl) =>
           print_endline("switch");
@@ -67,6 +81,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t) => [
         | "ArrowRight" => now(Move(R))
         | "ArrowUp" => now(Move(U))
         | "ArrowDown" => now(Move(D))
+        | "q" when held(Ctrl) || held(Meta) => now(RotateBackpack)
         | "x" when held(Ctrl) || held(Meta) => now(Pick_up)
         | "v" when held(Ctrl) || held(Meta) => now(Put_down)
         | "Tab" => now_save(Put_down)

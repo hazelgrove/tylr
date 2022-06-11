@@ -79,16 +79,12 @@ let redo = (~inject, ~disabled) => {
 
 let help_size = 20.;
 
-let view = (~inject, model: Model.t) => {
+let view =
+    (
+      ~inject,
+      {font_metrics, history, key_release_history, _} as model: Model.t,
+    ) => {
   //print_endline("Page.view");
-  let Model.{
-        font_metrics,
-        logo_font_metrics: _,
-        editor_model: _,
-        id_gen: _,
-        history,
-        show_neighbor_tiles: _,
-      } = model;
   let zipper = Model.get_zipper(model);
   Node.div(
     Attr.[
@@ -99,7 +95,7 @@ let view = (~inject, model: Model.t) => {
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
-      ...Keyboard.handlers(~inject, ~zipper),
+      ...Keyboard.handlers(~inject, ~zipper, ~key_release_history),
     ],
     Node.[
       FontSpecimen.view("font-specimen"),

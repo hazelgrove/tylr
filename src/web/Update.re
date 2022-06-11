@@ -4,6 +4,7 @@ open Core;
 
 [@deriving sexp]
 type t =
+  | UpdateKeyHistory(string)
   | LoadAll
   | Load
   | LoadDefault
@@ -55,6 +56,10 @@ let current_editor = (model: Model.t): int =>
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
+  | UpdateKeyHistory(key) => {
+      ...model,
+      key_release_history: List.cons(key, model.key_release_history),
+    }
   | LoadAll =>
     let num_editors = List.length(LocalStorage.editor_defaults);
     let init_editor = 1;

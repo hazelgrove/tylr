@@ -56,24 +56,18 @@ let ancestors: Ancestors.t = [
 
 let backpack: Backpack.t = [{focus: Left, content: [exp("foo")]}];
 
-let init = () => {
-  id_gen: id_gen^,
-  editor_model:
-    Simple({
-      selection: {
-        focus: Left,
-        content,
-      },
-      backpack,
-      relatives: {
-        siblings: (l_sibling, r_sibling),
-        ancestors,
-      },
-      caret: Outer,
-      caret_col_target: 0,
-    }),
-  history: ActionHistory.empty,
-  font_metrics: FontMetrics.init,
-  logo_font_metrics: FontMetrics.init,
-  show_neighbor_tiles: false,
+let zipper: Zipper.t = {
+  selection: {
+    focus: Left,
+    content,
+  },
+  backpack,
+  relatives: {
+    siblings: (l_sibling, r_sibling),
+    ancestors,
+  },
+  caret: Outer,
+  caret_col_target: 0,
 };
+
+let init = Model.mk(Simple(zipper));
