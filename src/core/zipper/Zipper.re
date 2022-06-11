@@ -88,8 +88,7 @@ let caret_direction =
     | (Some(l), Some(r))
         when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
       None
-    | _ =>
-      Siblings.direction_between(sibs_with_sel);
+    | _ => Siblings.direction_between(sibs_with_sel)
     };
   };
 
