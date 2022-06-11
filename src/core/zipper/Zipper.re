@@ -79,18 +79,18 @@ let caret_direction =
   switch (caret) {
   | Inner(_) => None
   | Outer =>
-    switch (Siblings.neighbors((l_sibs, r_sibs))) {
+    let sibs_with_sel =
+      switch (focus) {
+      | Left => (l_sibs, content @ r_sibs)
+      | Right => (l_sibs @ content, r_sibs)
+      };
+    switch (Siblings.neighbors(sibs_with_sel)) {
     | (Some(l), Some(r))
         when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
       None
     | _ =>
-      let sibs =
-        switch (focus) {
-        | Left => (l_sibs, content @ r_sibs)
-        | Right => (l_sibs @ content, r_sibs)
-        };
-      Siblings.direction_between(sibs);
-    }
+      Siblings.direction_between(sibs_with_sel);
+    };
   };
 
 let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
