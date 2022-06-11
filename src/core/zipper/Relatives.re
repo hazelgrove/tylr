@@ -49,7 +49,8 @@ let disassemble = ({siblings, ancestors}: t): Siblings.t =>
 let remold = ({siblings, ancestors}: t): list(t) => {
   open ListUtil.Syntax;
   // let+ ancestors = Ancestors.remold(ancestors)
-  let+ siblings = Siblings.remold(siblings);
+  let s = Ancestors.sort(ancestors);
+  let+ siblings = Siblings.remold(siblings, s);
   {ancestors, siblings};
 };
 

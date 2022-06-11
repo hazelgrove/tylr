@@ -101,24 +101,30 @@ let split_by_grout: t => Aba.t(t, Grout.t) =
     | p => L(p),
   );
 
-let rec remold = (seg: t): list(t) =>
+let rec remold = (seg: t, s: Sort.t): list(t) =>
   fold_right(
     (p: Piece.t, remolded) => {
       open ListUtil.Syntax;
       let+ seg = remolded
-      and+ p = remold_piece(p);
+      and+ p = remold_piece(p, s);
       [p, ...seg];
     },
     seg,
     [empty],
   )
-and remold_piece = (p: Piece.t) =>
+and remold_piece = (p: Piece.t, s: Sort.t) =>
   switch (p) {
   | Grout(_)
   | Whitespace(_) => [p]
   | Tile(t) =>
     open ListUtil.Syntax;
-    let* mold = Molds.get(t.label);
+    let* mold = {
+      let molds = Molds.get(t.label);
+      switch (List.filter((m: Mold.t) => Sort.consistent(m.out, s), molds)) {
+      | [] => molds
+      | ms => ms
+      };
+    };
     let+ children =
       List.fold_right(
         ((l, child, r), remolded) => {
@@ -126,7 +132,7 @@ and remold_piece = (p: Piece.t) =>
             if (l
                 + 1 == r
                 && List.nth(mold.in_, l) != List.nth(t.mold.in_, l)) {
-              remold(child);
+              remold(child, List.nth(mold.in_, l));
             } else {
               [child];
             }
