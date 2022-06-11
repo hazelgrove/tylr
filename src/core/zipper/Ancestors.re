@@ -29,18 +29,18 @@ let disassemble = ancs =>
      )
   |> Siblings.concat;
 
-let remold = (ancestors: t): list(t) =>
-  List.fold_right(
-    ((a, sibs), remolded) => {
-      open ListUtil.Syntax;
-      let+ ancestors = remolded
-      and+ sibs = Siblings.remold(sibs)
-      and+ a = Ancestor.remold(a);
-      [(a, sibs), ...ancestors];
-    },
-    ancestors,
-    [empty],
-  );
+// let remold = (ancestors: t): list(t) =>
+//   List.fold_right(
+//     ((a, sibs), remolded) => {
+//       open ListUtil.Syntax;
+//       let+ ancestors = remolded
+//       and+ sibs = Siblings.remold(sibs)
+//       and+ a = Ancestor.remold(a);
+//       [(a, sibs), ...ancestors];
+//     },
+//     ancestors,
+//     [empty],
+//   );
 
 let skel = ((a, (pre, suf)): generation): Skel.t => {
   let n = List.length(pre);

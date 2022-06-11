@@ -53,12 +53,12 @@ let disassemble = (p: t): segment =>
   | Tile(t) => Tile.disassemble(t)
   };
 
-let remold = (p: t) =>
-  switch (p) {
-  | Grout(_)
-  | Whitespace(_) => [p]
-  | Tile(t) => List.map(tile, Tile.remold(t))
-  };
+// let remold = (p: t) =>
+//   switch (p) {
+//   | Grout(_)
+//   | Whitespace(_) => [p]
+//   | Tile(t) => List.map(tile, Tile.remold(t))
+//   };
 
 let shapes =
   get(_ => None, g => Some(Grout.shapes(g)), t => Some(Tile.shapes(t)));

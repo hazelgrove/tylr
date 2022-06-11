@@ -31,10 +31,10 @@ let concat = (sibss: list(t)): t =>
 //   |> List.for_all(((_, shards)) => Shard.consistent_molds(shards) != []);
 // };
 
-let remold = ((pre, suf): t): list(t) => {
+let remold = ((pre, suf): t, s): list(t) => {
   open ListUtil.Syntax;
-  let+ pre = Segment.remold(pre)
-  and+ suf = Segment.remold(suf);
+  let+ pre = Segment.remold(pre, s)
+  and+ suf = Segment.remold(suf, s);
   (pre, suf);
 };
 

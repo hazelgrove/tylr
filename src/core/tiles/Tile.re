@@ -38,8 +38,8 @@ let sorted_children = ({mold, shards, children, _}: t) =>
        (l.sort == r.sort ? l.sort : Any, child);
      });
 
-let remold = (t: t): list(t) =>
-  Molds.get(t.label) |> List.map(mold => {...t, mold});
+// let remold = (t: t): list(t) =>
+//   Molds.get(t.label) |> List.map(mold => {...t, mold});
 
 let split_shards = (id, label, mold, shards) =>
   shards |> List.map(i => {id, label, mold, shards: [i], children: []});
