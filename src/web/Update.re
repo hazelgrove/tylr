@@ -5,7 +5,7 @@ open Core;
 [@deriving sexp]
 type t =
   | UpdateDoubleTap(option(float))
-  | LoadAll
+  | LoadInit
   | Load
   | LoadDefault
   | Save
@@ -37,12 +37,12 @@ let escape = (~d=Direction.Left, ()) => Escape(d);
 //     }
 //   };
 
-let save = (model: Model.t) =>
+let save = (model: Model.t): unit =>
   switch (model.editor_model) {
-  | Simple(z) => LocalStorage.save_to_local_text(0, z)
+  | Simple(z) => LocalStorage.save_syntax(0, z)
   | Study(n, zs) =>
     assert(n < List.length(zs));
-    LocalStorage.save_to_local_text(n, List.nth(zs, n));
+    LocalStorage.save_syntax(n, List.nth(zs, n));
   };
 
 let current_editor = (model: Model.t): int =>
@@ -57,13 +57,13 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
   | UpdateDoubleTap(double_tap) => {...model, double_tap}
-  | LoadAll =>
-    let num_editors = List.length(LocalStorage.editor_defaults);
-    let init_editor = 1;
+  | LoadInit =>
+    let num_editors = LocalStorage.num_editors;
+    let init_editor = LocalStorage.load_editor_idx();
     let (zs, id_gen) =
       List.fold_left(
         ((z_acc, id_gen: IdGen.state), n) =>
-          switch (LocalStorage.load_from_local_text(n, id_gen)) {
+          switch (LocalStorage.load_syntax(n, id_gen)) {
           | Some((z, id_gen)) => (z_acc @ [z], id_gen)
           | None => (z_acc @ [Model.empty_zipper], id_gen)
           },
@@ -73,7 +73,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     {...model, id_gen, editor_model: Study(init_editor, zs)};
   | Load =>
     let n = current_editor(model);
-    switch (LocalStorage.load_from_local_text(n, model.id_gen)) {
+    switch (LocalStorage.load_syntax(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
         editor_model: Model.put_zipper(model, z),
@@ -83,7 +83,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     };
   | LoadDefault =>
     let n = current_editor(model);
-    switch (LocalStorage.load_default(n, model.id_gen)) {
+    switch (LocalStorage.load_default_syntax(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
         editor_model: Model.put_zipper(model, z),
@@ -101,6 +101,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       model;
     | Study(_, zs) =>
       assert(n < List.length(zs));
+      LocalStorage.save_editor_idx(n);
       {...model, editor_model: Study(n, zs)};
     }
   | SetShowNeighborTiles(b) => {

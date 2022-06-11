@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Node;
 
 // let logo = (~font_metrics) => {
 //   let piece = (step, color: Color.t, shape: SelemDec.piece_shape, s): Measured.t =>
@@ -41,49 +42,107 @@ let filters =
     ],
   );
 
-let size = 20.;
+let icon_size = 20.;
+
 let undo = (~inject, ~disabled) => {
   let clss = disabled ? ["disabled"] : [];
   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
-  Node.span(
+  span(
     Attr.[
       id("undo"),
       title("undo"),
-      create(
-        "style",
-        Printf.sprintf("width: %fpx; height: %fpx;", size, size),
-      ),
       classes(["history-button", ...clss]),
       on_mousedown(mousedown),
     ],
-    [Icons.undo(size, size)],
+    [Icons.undo(icon_size, icon_size)],
   );
 };
+
 let redo = (~inject, ~disabled) => {
   let clss = disabled ? ["disabled"] : [];
   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Redo);
-  Node.span(
+  span(
     Attr.[
       id("redo"),
       title("redo"),
       create(
         "style",
-        Printf.sprintf("width: %fpx; height: %fpx;", size, size),
+        Printf.sprintf("width: %fpx; height: %fpx;", icon_size, icon_size),
       ),
       classes(["history-button", ...clss]),
       on_mousedown(mousedown),
     ],
-    [Icons.redo(size, size)],
+    [Icons.redo(icon_size, icon_size)],
   );
 };
 
-let help_size = 20.;
+let history_panel_view = (~inject, history) =>
+  div(
+    [Attr.id("history-button-container")],
+    [
+      undo(~inject, ~disabled=!ActionHistory.can_undo(history)),
+      redo(~inject, ~disabled=!ActionHistory.can_redo(history)),
+    ],
+  );
 
-let view =
-    (~inject, {font_metrics, history, double_tap, _} as model: Model.t) => {
+let editor_panel_view = (~inject, cur_idx) => {
+  let rotate_ed = _ =>
+    inject(Update.SwitchEditor((cur_idx + 1) mod LocalStorage.num_editors));
+  let s =
+    Printf.sprintf("editor %d of %d", cur_idx, LocalStorage.num_editors);
+  div([Attr.id("editor-id"), Attr.on_mousedown(rotate_ed)], [text(s)]);
+};
+
+let link_icon = (str, url, icon) =>
+  div(
+    Attr.[id(str), title(str)],
+    [
+      a(
+        Attr.[href(url), create("target", "_blank")],
+        [icon(icon_size, icon_size)],
+      ),
+    ],
+  );
+let about_panel_view =
+  div(
+    [Attr.id("about-button-container")],
+    [
+      link_icon("github", "https://github.com/hazelgrove/tylr", Icons.github),
+      link_icon(
+        "help",
+        "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
+        Icons.circle_question,
+      ),
+    ],
+  );
+
+let top_bar_view = (~inject, model: Model.t) =>
+  div(
+    [Attr.id("top-bar")],
+    [
+      history_panel_view(~inject, model.history),
+      editor_panel_view(~inject, Update.current_editor(model)),
+      //logo(~font_metrics=logo_font_metrics),
+      about_panel_view,
+    ],
+  );
+
+let editor_view = ({font_metrics, history, _} as model: Model.t) =>
+  div(
+    [Attr.id("code-container")],
+    [
+      Code.view(
+        ~font_metrics,
+        ~just_failed=history.just_failed,
+        ~zipper=Model.get_zipper(model),
+      ),
+    ],
+  );
+
+let view = (~inject, model: Model.t) => {
   //print_endline("Page.view");
   let zipper = Model.get_zipper(model);
-  Node.div(
+  div(
     Attr.[
       id("page"),
       // necessary to make cell focusable
@@ -92,89 +151,14 @@ let view =
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
-      ...Keyboard.handlers(~inject, ~zipper, ~double_tap),
+      ...Keyboard.handlers(~inject, ~zipper, ~double_tap=model.double_tap),
     ],
-    Node.[
+    [
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
       filters,
-      div(
-        [Attr.id("top-bar")],
-        [
-          div(
-            [Attr.id("history-button-container")],
-            [
-              undo(~inject, ~disabled=!ActionHistory.can_undo(model.history)),
-              redo(
-                ~inject,
-                ~disabled=!ActionHistory.can_redo(model.history),
-              ),
-            ],
-          ),
-          // logo(~font_metrics=logo_font_metrics),
-          div(
-            [Attr.id("about-button-container")],
-            [
-              div(
-                Attr.[
-                  id("github"),
-                  title("GitHub"),
-                  create(
-                    "style",
-                    Printf.sprintf(
-                      "width: %fpx; height: %fpx;",
-                      help_size,
-                      help_size,
-                    ),
-                  ),
-                ],
-                [
-                  a(
-                    Attr.[
-                      href("https://github.com/hazelgrove/tylr"),
-                      create("target", "_blank"),
-                    ],
-                    [Icons.github(help_size, help_size)],
-                    // [Node.text("?")],
-                  ),
-                ],
-              ),
-              div(
-                Attr.[
-                  id("help"),
-                  title("help"),
-                  create(
-                    "style",
-                    Printf.sprintf(
-                      "width: %fpx; height: %fpx;",
-                      help_size,
-                      help_size,
-                    ),
-                  ),
-                ],
-                [
-                  a(
-                    Attr.[
-                      href(
-                        "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
-                      ),
-                      create("target", "_blank"),
-                    ],
-                    [Icons.circle_question(help_size, help_size)],
-                    // [Node.text("?")],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-      div(
-        [Attr.id("code-container")],
-        [
-          Code.view(~font_metrics, ~just_failed=history.just_failed, ~zipper),
-        ],
-      ),
+      top_bar_view(~inject, model),
+      editor_view(model),
     ],
   );
 };

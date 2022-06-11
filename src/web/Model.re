@@ -60,8 +60,7 @@ let put_zipper = (model: t, z: Zipper.t): editor_model =>
     Study(n, Util.ListUtil.put_nth(n, z, zs));
   };
 
-let update_zipper =
-    (f: ((Zipper.t, IdGen.state)) => (Zipper.t, IdGen.state), model: t): t => {
+let update_zipper = (f: Zipper.state => Zipper.state, model: t): t => {
   let (z, id_gen) = f((get_zipper(model), model.id_gen));
   {...model, id_gen, editor_model: put_zipper(model, z)};
 };

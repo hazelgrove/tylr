@@ -79,18 +79,18 @@ let caret_direction =
   switch (caret) {
   | Inner(_) => None
   | Outer =>
-    switch (Siblings.neighbors((l_sibs, r_sibs))) {
+    let sibs_with_sel =
+      switch (focus) {
+      | Left => (l_sibs, content @ r_sibs)
+      | Right => (l_sibs @ content, r_sibs)
+      };
+    switch (Siblings.neighbors(sibs_with_sel)) {
     | (Some(l), Some(r))
         when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
       None
     | _ =>
-      let sibs =
-        switch (focus) {
-        | Left => (l_sibs, content @ r_sibs)
-        | Right => (l_sibs @ content, r_sibs)
-        };
-      Siblings.direction_between(sibs);
-    }
+      Siblings.direction_between(sibs_with_sel);
+    };
   };
 
 let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
@@ -664,8 +664,13 @@ let rec do_towards =
     | Some(next) => do_towards(f, d, cursorpos, goal, next, cur)
     }
   | (Over, Exact) =>
-    let comp = d == Right ? (<) : (>);
-    comp(cursorpos(prev).row, goal.row) ? cur : prev;
+    let d_cur = abs(cur_p.col - goal.col);
+    let d_prev = abs(cursorpos(prev).col - goal.col);
+    switch () {
+    | _ when d_cur < d_prev => cur
+    | _ when d_prev < d_cur => prev
+    | _ => cur /* default to going over */
+    };
   };
 };
 
@@ -680,12 +685,11 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
       col: z.caret_col_target,
       row: cur_p.row + (d == Right ? 1 : (-1)),
     };
-  //Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur));
-  //Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
-  let res = do_towards(f, d, cursorpos, goal, z, z);
-  let res_p = cursorpos(res);
+  Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur_p));
+  Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
+  Some(do_towards(f, d, cursorpos, goal, z, z));
   /* Don't move if we end up on the same line as we started */
-  res_p.row == cur_p.row ? None : Some(res);
+  //cursorpos(res).row == cur_p.row ? None : Some(res);
 };
 
 let select_vertical = (d: Direction.t, z: t): option(t) =>
@@ -695,7 +699,7 @@ let move_vertical = (d: Direction.t, z: t): option(t) =>
   do_vertical(move(d), d, z);
 
 let update_target = (z: t): t =>
-  //TODO(andrew): $$$ this recomputes all measures
+  //NOTE(andrew): $$$ this recomputes all measures
   {
     ...z,
     caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,
@@ -715,10 +719,10 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     /* Note: Don't update target on vertical movement */
     (
       switch (d) {
-      | Direction.L => move(Left, z) |> Option.map(update_target)
-      | Direction.R => move(Right, z) |> Option.map(update_target)
-      | Direction.U => move_vertical(Left, z)
-      | Direction.D => move_vertical(Right, z)
+      | L => move(Left, z) |> Option.map(update_target)
+      | R => move(Right, z) |> Option.map(update_target)
+      | U => move_vertical(Left, z)
+      | D => move_vertical(Right, z)
       }
     )
     |> Option.map(z => (z, id_gen))
@@ -727,17 +731,15 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     /* Note: Don't update target on vertical selection */
     (
       switch (d) {
-      | Direction.L => select(Left, z) |> Option.map(update_target)
-      | Direction.R => select(Right, z) |> Option.map(update_target)
-      | Direction.U => select_vertical(Left, z)
-      | Direction.D => select_vertical(Right, z)
+      | L => select(Left, z) |> Option.map(update_target)
+      | R => select(Right, z) |> Option.map(update_target)
+      | U => select_vertical(Left, z)
+      | D => select_vertical(Right, z)
       }
     )
     |> Option.map(z => (z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_select)
   | Destruct(d) =>
-    //TODO(andrew): there is currently a bug when backspacing with nonempty selection
     (z, id_gen)
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
