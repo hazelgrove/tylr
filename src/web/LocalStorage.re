@@ -14,7 +14,11 @@ case taz of {
 }
 in foo(0!)",
   "let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(1!)",
-  "3",
+  "fun (center, p) =>
+let (x, y) = center in
+let (a, b) = p in
+let r = sqrt((x - a)*2 + (y - b)*2) in
+circle(center, r)",
   "4",
   "5",
   "6",
