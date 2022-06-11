@@ -23,6 +23,8 @@ in foo(0!)",
   "9",
 ];
 
+let num_editors = List.length(editor_defaults);
+
 let get_localstore = (k: string): option(string) =>
   try({
     let local_store =

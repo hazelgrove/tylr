@@ -138,11 +138,17 @@
 
 #top-bar {
   position: fixed;
-  left: 0;
-  top: min(max(8px, 4%), 24px);
+  box-sizing: border-box;
   width: 100vw;
-  height: 40px;
-  visibility: hidden;
+  padding: 0.8em;
+  display: flex;
+  justify-content: space-between;
+}
+
+#editor-id {
+  cursor: pointer;
+  user-select: none;
+  font-family: "Helvetica Neue";
 }
 
 #logo {
@@ -225,14 +231,8 @@
 }
 
 #history-button-container {
-  position: absolute;
-  top: 50%;
-  left: max(16px, min(2%, 32px));
-  transform: translate(0%, -50%);
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto;
-  column-gap: 16px;
+    display: flex;
+    gap: 1em;
 }
 
 .history-button {
@@ -964,14 +964,8 @@ svg.rail line.unsorted {
 }
 
 #about-button-container {
-  position: absolute;
-  top: 50%;
-  right: max(16px, min(2%, 32px));
-  transform: translate(0%, -50%);
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto;
-  column-gap: 16px;
+  display: flex;
+  gap: 1em;
 }
 
 /* #help {

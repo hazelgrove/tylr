@@ -58,7 +58,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   switch (update) {
   | UpdateDoubleTap(double_tap) => {...model, double_tap}
   | LoadInit =>
-    let num_editors = List.length(LocalStorage.editor_defaults);
+    let num_editors = LocalStorage.num_editors;
     let init_editor = LocalStorage.load_editor_idx();
     let (zs, id_gen) =
       List.fold_left(
