@@ -131,7 +131,10 @@ and remold_piece = (p: Piece.t, s: Sort.t) =>
           let+ child =
             if (l
                 + 1 == r
-                && List.nth(mold.in_, l) != List.nth(t.mold.in_, l)) {
+                && (
+                  List.nth(mold.in_, l) != List.nth(t.mold.in_, l)
+                  || IncompleteBidelim.contains(t.id, l)
+                )) {
               remold(child, List.nth(mold.in_, l));
             } else {
               [child];

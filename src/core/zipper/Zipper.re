@@ -268,6 +268,7 @@ let put_down = (z: t): option(t) =>
         Siblings.incomplete_tiles(z.relatives.siblings),
         z.backpack,
       );
+    IncompleteBidelim.set(popped.content);
     {...z, backpack} |> put_selection(popped) |> unselect;
   };
 
@@ -705,7 +706,8 @@ let directional_unselect = (d: Direction.t, z: t) => {
   unselect({...z, selection});
 };
 
-let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
+let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
+  IncompleteBidelim.clear();
   switch (a) {
   | Move(d) =>
     //NOTE(andrew): not sure if this is best approach to unselection
@@ -757,3 +759,4 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) =>
   | RotateBackpack =>
     Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))
   };
+};
