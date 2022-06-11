@@ -6,22 +6,14 @@ let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 
 let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
 
-let handlers =
-    (
-      ~inject: Update.t => Event.t,
-      ~zipper: Zipper.t,
-      ~key_release_history as _,
-    ) => [
+let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) => [
   Attr.on_keypress(_ => Event.Prevent_default),
   Attr.on_keyup(evt => {
     let key = JsUtil.get_key(evt);
-    let updates =
+    let updates: list(Update.t) =
       switch (key) {
-      | "Shift" =>
-        print_endline("shift released");
-        [Update.UpdateKeyHistory(key)];
-      //| ("Alt", _) => [inject(SetShowNeighborTiles(false))]
-      | _ => [Update.UpdateKeyHistory(key)]
+      | "Shift" => [] // NOTE: don't change doubletap
+      | _ => [UpdateDoubleTap(None)]
       };
     switch (updates) {
     | [] => Event.Many([])
@@ -38,9 +30,13 @@ let handlers =
   Attr.on_keydown(evt => {
     let key = JsUtil.get_key(evt);
     let held = m => JsUtil.held(m, evt);
-    let now = a => [Update.PerformAction(a)];
+    let now = a => [Update.PerformAction(a), Update.UpdateDoubleTap(None)];
     //TODO(andrew): think harder about when/where to save
-    let now_save = a => [Update.PerformAction(a), Update.Save];
+    let now_save = a => [
+      Update.PerformAction(a),
+      Update.Save,
+      Update.UpdateDoubleTap(None),
+    ];
     // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
@@ -50,6 +46,17 @@ let handlers =
           || (held(Ctrl) || held(Meta))
           && (key == "x" || key == "v" || key == "q")) {
         switch (key) {
+        | "Shift" =>
+          let cur_ts = JsUtil.date_now()##valueOf;
+          switch (double_tap) {
+          | None => [UpdateDoubleTap(Some(cur_ts))]
+          | Some(past_ts) =>
+            if (cur_ts -. past_ts < 400.) {
+              [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
+            } else {
+              [UpdateDoubleTap(Some(cur_ts))];
+            }
+          };
         | _ when is_digit(key) && held(Ctrl) =>
           print_endline("switch");
           print_endline(key);

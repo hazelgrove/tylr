@@ -80,10 +80,7 @@ let redo = (~inject, ~disabled) => {
 let help_size = 20.;
 
 let view =
-    (
-      ~inject,
-      {font_metrics, history, key_release_history, _} as model: Model.t,
-    ) => {
+    (~inject, {font_metrics, history, double_tap, _} as model: Model.t) => {
   //print_endline("Page.view");
   let zipper = Model.get_zipper(model);
   Node.div(
@@ -95,7 +92,7 @@ let view =
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
-      ...Keyboard.handlers(~inject, ~zipper, ~key_release_history),
+      ...Keyboard.handlers(~inject, ~zipper, ~double_tap),
     ],
     Node.[
       FontSpecimen.view("font-specimen"),

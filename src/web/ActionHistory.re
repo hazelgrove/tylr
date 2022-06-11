@@ -1,14 +1,12 @@
 open Core;
 
-type timestamp = float;
-
 type t = {
   succeeded: (list((Zipper.Action.t, Zipper.t)) as 'affix, 'affix),
   just_failed: option(FailedInput.t),
   // TODO(d): forgetting why we need this...
   // not seeing it get read anywhere. possibly
   // to trigger view redraw? review blame
-  last_attempt: option(timestamp),
+  last_attempt: option(float),
 };
 
 let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};

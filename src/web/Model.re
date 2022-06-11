@@ -4,6 +4,8 @@ type editor_model =
   | Simple(Zipper.t)
   | Study(int, list(Zipper.t));
 
+type timestamp = float;
+
 type t = {
   editor_model,
   id_gen: IdGen.state,
@@ -11,7 +13,7 @@ type t = {
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
   show_neighbor_tiles: bool,
-  key_release_history: list(string),
+  double_tap: option(timestamp),
 };
 
 let cutoff = (===);
@@ -37,7 +39,7 @@ let mk = editor_model => {
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
   show_neighbor_tiles: false,
-  key_release_history: [],
+  double_tap: None,
 };
 
 let blank = mk(Simple(empty_zipper));
