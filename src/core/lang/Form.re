@@ -68,7 +68,7 @@ let forms: list((string, t)) = [
   ("logical_and", mk_infix("&&", Exp, 5)),
   ("concat", mk_infix("++", Exp, 5)),
   ("cons", mk_infix("::", Exp, 5)),
-  ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
+  // ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
   ("dot-access", mk_infix(".", Exp, 5)), // bad sorts
   ("assign_incr", mk_infix("+=", Exp, 10)), // bad sorts
   ("unary_minus", mk(ss, ["-"], mk_pre(P.fact, Exp, []))),
