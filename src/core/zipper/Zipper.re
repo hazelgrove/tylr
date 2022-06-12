@@ -680,8 +680,8 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
       col: z.caret_col_target,
       row: cur_p.row + (d == Right ? 1 : (-1)),
     };
-  Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur_p));
-  Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
+  // Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur_p));
+  // Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
   Some(do_towards(f, d, cursorpos, goal, z, z));
   /* Don't move if we end up on the same line as we started */
   //cursorpos(res).row == cur_p.row ? None : Some(res);
