@@ -57,40 +57,182 @@ module Action = {
   };
 };
 
+let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
+  ...z,
+  relatives: f(z.relatives),
+};
+
+let update_siblings: (Siblings.t => Siblings.t, t) => t =
+  f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
+
+module Outer = {
+  let unselect = (z: t): t => {
+    let relatives =
+      z.relatives
+      |> Relatives.prepend(z.selection.focus, z.selection.content)
+      |> Relatives.reassemble;
+    let selection = Selection.clear(z.selection);
+    {...z, selection, relatives};
+  };
+
+  let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
+    let old = z.selection;
+    // used to be necessary to unselect when selection update
+    // included remold/regrout, now no longer necessary if needs
+    // to be changed but keeping for now to minimize change
+    let z = unselect({...z, selection});
+    (old, z);
+  };
+
+  let put_selection = (sel: Selection.t, z: t): t =>
+    snd(update_selection(sel, z));
+
+  let grow_selection = (z: t): option(t) => {
+    open OptUtil.Syntax;
+    let+ (p, relatives) = Relatives.pop(z.selection.focus, z.relatives);
+    let selection = Selection.push(p, z.selection);
+    {...z, selection, relatives};
+  };
+
+  // toggles focus and grows if selection is empty
+  let shrink_selection = (z: t): option(t) => {
+    switch (Selection.pop(z.selection)) {
+    | None =>
+      let selection = Selection.toggle_focus(z.selection);
+      grow_selection({...z, selection});
+    | Some((p, selection)) =>
+      let relatives =
+        z.relatives
+        |> Relatives.push(selection.focus, p)
+        |> Relatives.reassemble;
+      Some({...z, selection, relatives});
+    };
+  };
+
+  let move = (d: Direction.t, z: t): option(t) =>
+    if (Selection.is_empty(z.selection)) {
+      open OptUtil.Syntax;
+      // let balanced = !Backpack.is_balanced(z.backpack);
+      let+ (p, relatives) = Relatives.pop(d, z.relatives);
+      let relatives =
+        relatives
+        |> Relatives.push(Direction.toggle(d), p)
+        |> Relatives.reassemble;
+      {...z, relatives};
+    } else {
+      let selection = {...z.selection, focus: Direction.toggle(d)};
+      Some(unselect({...z, selection}));
+    };
+
+  let select = (d: Direction.t, z: t): option(t) =>
+    d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
+
+  let pick_up = (z: t): t => {
+    let (selected, z) = update_selection(Selection.empty, z);
+    let selections =
+      selected.content
+      |> Segment.split_by_grout
+      |> Aba.get_as
+      |> List.filter((!=)(Segment.empty))
+      |> List.map(Selection.mk(selected.focus));
+    let backpack =
+      Backpack.push_s(
+        (z.selection.focus == Left ? Fun.id : List.rev)(selections),
+        z.backpack,
+      );
+    {...z, backpack};
+  };
+
+  let destruct = (z: t): t => {
+    let (selected, z) = update_selection(Selection.empty, z);
+    let (to_pick_up, to_remove) =
+      Segment.incomplete_tiles(selected.content)
+      |> List.partition(t =>
+           Siblings.contains_matching(t, z.relatives.siblings)
+         );
+    let backpack =
+      z.backpack
+      |> Backpack.remove_matching(to_remove)
+      |> Backpack.push_s(
+           to_pick_up
+           |> List.map(Segment.of_tile)
+           |> List.map(Selection.mk(z.selection.focus)),
+         );
+    {...z, backpack};
+  };
+
+  let put_down = (z: t): option(t) => {
+    open OptUtil.Syntax;
+    let z = destruct(z);
+    let+ (_, popped, backpack) =
+      Backpack.pop(
+        Siblings.incomplete_tiles(z.relatives.siblings),
+        z.backpack,
+      );
+    IncompleteBidelim.set(popped.content);
+    {...z, backpack} |> put_selection(popped) |> unselect;
+  };
+
+  let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
+    IdGen.Syntax.(
+      switch (label) {
+      | [content] when Form.is_whitespace(content) =>
+        let+ id = IdGen.fresh;
+        z
+        |> update_siblings(((l, r)) =>
+             (l @ [Piece.Whitespace({id, content})], r)
+           );
+      | _ =>
+        let z = destruct(z);
+        let molds = Molds.get(label);
+        assert(molds != []);
+        // initial mold to typecheck, will be remolded
+        let mold = List.hd(molds);
+
+        let+ id = IdGen.fresh;
+        let selections =
+          Tile.split_shards(id, label, mold, List.mapi((i, _) => i, label))
+          |> List.map(Segment.of_tile)
+          |> List.map(Selection.mk(from))
+          |> ListUtil.rev_if(from == Right);
+        let backpack = Backpack.push_s(selections, z.backpack);
+        Option.get(put_down({...z, backpack}));
+      }
+    );
+  };
+
+  let replace_construct =
+      (d: Direction.t, l: Label.t, (z, id_gen): state): option(state) =>
+    z
+    |> select(d)
+    |> Option.map(destruct)
+    |> Option.map(z => construct(d, l, z, id_gen));
+};
+
 let parent = (z: t): option(Piece.t) =>
   Relatives.parent(~sel=z.selection.content, z.relatives);
 
-let caret_offset: caret => int =
-  fun
-  | Outer => 0
-  | Inner(_, c) => c + 1;
+let zip = (z: t): Segment.t =>
+  Relatives.zip(~sel=z.selection.content, z.relatives);
 
-let caret_direction =
-    (
-      {
-        caret,
-        selection: {content, focus},
-        relatives: {siblings: (l_sibs, r_sibs), _},
-        _,
-      }: t,
-    )
-    : option(Direction.t) =>
-  /* Direction the caret is facing in */
-  switch (caret) {
-  | Inner(_) => None
-  | Outer =>
-    let sibs_with_sel =
-      switch (focus) {
-      | Left => (l_sibs, content @ r_sibs)
-      | Right => (l_sibs @ content, r_sibs)
-      };
-    switch (Siblings.neighbors(sibs_with_sel)) {
-    | (Some(l), Some(r))
-        when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
-      None
-    | _ => Siblings.direction_between(sibs_with_sel)
+let unselect_and_zip = (z: t): Segment.t => z |> Outer.unselect |> zip;
+
+let convex = (z: t): bool => Segment.convex(zip(z));
+
+let remove_right_sib: t => t =
+  update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
+
+let remove_left_sib: t => t =
+  update_siblings(((l, r)) => (l == [] ? [] : ListUtil.leading(l), r));
+
+let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
+  siblings =>
+    switch (Siblings.neighbors(siblings)) {
+    | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
+    | (Some(l), None) => (Piece.monotile(l), None)
+    | (None, Some(r)) => (None, Piece.monotile(r))
+    | (None, None) => (None, None)
     };
-  };
 
 let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   let ws = Piece.is_whitespace;
@@ -129,199 +271,43 @@ let update_caret = (f: caret => caret, z: t): t => {
 
 let set_caret = (caret: caret) => update_caret(_ => caret);
 
-let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
-  ...z,
-  relatives: f(z.relatives),
-};
-let update_siblings: (Siblings.t => Siblings.t, t) => t =
-  f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
-
-let remove_right_sib: t => t =
-  update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
-
-let remove_left_sib: t => t =
-  update_siblings(((l, r)) => (l == [] ? [] : ListUtil.leading(l), r));
-
-let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
-  siblings =>
-    switch (Siblings.neighbors(siblings)) {
-    | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
-    | (Some(l), None) => (Piece.monotile(l), None)
-    | (None, Some(r)) => (None, Piece.monotile(r))
-    | (None, None) => (None, None)
-    };
-
-let unselect = (z: t): t => {
-  let relatives =
-    z.relatives
-    |> Relatives.prepend(z.selection.focus, z.selection.content)
-    |> Relatives.reassemble;
-  let selection = Selection.clear(z.selection);
-  {...z, selection, relatives};
-};
-
-let zip = (z: t): Segment.t =>
-  Relatives.zip(~sel=z.selection.content, z.relatives);
-
-let unselect_and_zip = (z: t): Segment.t => {
-  let z = unselect(z);
-  zip(z);
-};
-
-let convex = (z: t): bool => Segment.convex(zip(z));
-
-let update_selection = (selection: Selection.t, z: t): (Selection.t, t) => {
-  let old = z.selection;
-  // used to be necessary to unselect when selection update
-  // included remold/regrout, now no longer necessary if needs
-  // to be changed but keeping for now to minimize change
-  let z = unselect({...z, selection});
-  (old, z);
-};
-
-let put_selection = (sel, z) => snd(update_selection(sel, z));
-
-let grow_selection = (z: t): option(t) => {
-  open OptUtil.Syntax;
-  let+ (p, relatives) = Relatives.pop(z.selection.focus, z.relatives);
-  let selection = Selection.push(p, z.selection);
-  {...z, selection, relatives};
-};
-
-// toggles focus and grows if selection is empty
-let shrink_selection = (z: t): option(t) => {
-  switch (Selection.pop(z.selection)) {
-  | None =>
-    let selection = Selection.toggle_focus(z.selection);
-    grow_selection({...z, selection});
-  | Some((p, selection)) =>
-    let relatives =
-      z.relatives
-      |> Relatives.push(selection.focus, p)
-      |> Relatives.reassemble;
-    Some({...z, selection, relatives});
-  };
-};
-
-let move_outer = (d: Direction.t, z: t): option(t) =>
-  if (Selection.is_empty(z.selection)) {
-    open OptUtil.Syntax;
-    // let balanced = !Backpack.is_balanced(z.backpack);
-    let+ (p, relatives) = Relatives.pop(d, z.relatives);
-    let relatives =
-      relatives
-      |> Relatives.push(Direction.toggle(d), p)
-      |> Relatives.reassemble;
-    {...z, relatives};
-  } else {
-    let selection = {...z.selection, focus: Direction.toggle(d)};
-    Some(unselect({...z, selection}));
-  };
-
-let select_outer = (d: Direction.t, z: t): option(t) =>
-  d == z.selection.focus ? grow_selection(z) : shrink_selection(z);
-
-let pick_up = (z: t): t => {
-  let (selected, z) = update_selection(Selection.empty, z);
-  let selections =
-    selected.content
-    |> Segment.split_by_grout
-    |> Aba.get_as
-    |> List.filter((!=)(Segment.empty))
-    |> List.map(Selection.mk(selected.focus));
-  let backpack =
-    Backpack.push_s(
-      (z.selection.focus == Left ? Fun.id : List.rev)(selections),
-      z.backpack,
-    );
-  {...z, backpack};
-};
-
-let destruct_outer = (z: t): t => {
-  let (selected, z) = update_selection(Selection.empty, z);
-  let (to_pick_up, to_remove) =
-    Segment.incomplete_tiles(selected.content)
-    |> List.partition(t =>
-         Siblings.contains_matching(t, z.relatives.siblings)
-       );
-  let backpack =
-    z.backpack
-    |> Backpack.remove_matching(to_remove)
-    |> Backpack.push_s(
-         to_pick_up
-         |> List.map(Segment.of_tile)
-         |> List.map(Selection.mk(z.selection.focus)),
-       );
-  {...z, backpack};
-};
-
-let put_down = (z: t): option(t) => {
-  open OptUtil.Syntax;
-  let z = destruct_outer(z);
-  let+ (_, popped, backpack) =
-    Backpack.pop(
-      Siblings.incomplete_tiles(z.relatives.siblings),
-      z.backpack,
-    );
-  IncompleteBidelim.set(popped.content);
-  {...z, backpack} |> put_selection(popped) |> unselect;
-};
-
-let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
-  open IdGen.Syntax;
-  let+ id = IdGen.fresh;
-  z
-  |> update_siblings(((l, r)) =>
-       (l @ [Piece.Whitespace({id, content: char})], r)
-     );
-};
-
-let is_adjacent_space = (siblings: Siblings.t): bool =>
-  switch (Siblings.neighbors(siblings)) {
-  | _ when true => false //TODO(andrew): disabling this check for now
-  | (Some(Whitespace({content, _})), _) when content == Whitespace.space =>
-    true
-  | (_, Some(Whitespace({content, _}))) when content == Whitespace.space =>
-    true
-  | _ => false
-  };
-
-let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
-  switch (label) {
-  | [t] when t == Whitespace.linebreak => insert_space_grout(t, z)
-  | [t] when t == Whitespace.space =>
-    is_adjacent_space(z.relatives.siblings)
-      ? IdGen.return(z) : insert_space_grout(t, z)
-  | _ =>
-    let z = destruct_outer(z);
-    let molds = Molds.get(label);
-    assert(molds != []);
-    // initial mold to typecheck, will be remolded
-    let mold = List.hd(molds);
-    open IdGen.Syntax;
-    let+ id = IdGen.fresh;
-    let selections =
-      Tile.split_shards(id, label, mold, List.mapi((i, _) => i, label))
-      |> List.map(Segment.of_tile)
-      |> List.map(Selection.mk(from))
-      |> ListUtil.rev_if(from == Right);
-    let backpack = Backpack.push_s(selections, z.backpack);
-    Option.get(put_down({...z, backpack}));
-  };
-};
-
-let replace_construct =
-    (d: Direction.t, l: Label.t, (z, id_gen): state): option(state) =>
-  z
-  |> select_outer(d)
-  |> Option.map(destruct_outer)
-  |> Option.map(z => construct(d, l, z, id_gen));
-
 let decrement_caret: caret => caret =
   fun
   | Outer
   | Inner(_, 0) => Outer
   | Inner(d, c) => Inner(d, c - 1);
+
+let caret_offset: caret => int =
+  fun
+  | Outer => 0
+  | Inner(_, c) => c + 1;
+
+let caret_direction =
+    (
+      {
+        caret,
+        selection: {content, focus},
+        relatives: {siblings: (l_sibs, r_sibs), _},
+        _,
+      }: t,
+    )
+    : option(Direction.t) =>
+  /* Direction the caret is facing in */
+  switch (caret) {
+  | Inner(_) => None
+  | Outer =>
+    let sibs_with_sel =
+      switch (focus) {
+      | Left => (l_sibs, content @ r_sibs)
+      | Right => (l_sibs @ content, r_sibs)
+      };
+    switch (Siblings.neighbors(sibs_with_sel)) {
+    | (Some(l), Some(r))
+        when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
+      None
+    | _ => Siblings.direction_between(sibs_with_sel)
+    };
+  };
 
 let destruct =
     (
@@ -333,19 +319,19 @@ let destruct =
   let last_inner_pos = t => String.length(t) - 2;
   let d_outer = z =>
     z
-    |> select_outer(d)
-    |> Option.map(destruct_outer)
+    |> Outer.select(d)
+    |> Option.map(Outer.destruct)
     |> Option.map(z => (z, id_gen));
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(_, c_idx), (_, Some(t))) =>
     let z = update_caret(decrement_caret, z);
-    replace_construct(
+    Outer.replace_construct(
       Right,
       [StringUtil.remove_nth(c_idx, t)],
       (z, id_gen),
     );
   | (Right, Inner(_, c_idx), (_, Some(t))) =>
-    replace_construct(
+    Outer.replace_construct(
       Right,
       [StringUtil.remove_nth(c_idx + 1, t)],
       (z, id_gen),
@@ -355,16 +341,20 @@ let destruct =
            ? ((z, id_gen)) =>
                z
                |> set_caret(Outer)
-               |> move_outer(Right)
+               |> Outer.move(Right)
                |> Option.map(z => (z, id_gen))
            : Option.some,
        )
   /* Can't destruct inside delimiter */
   | (_, Inner(_), (_, None)) => None
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
-    replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
+    Outer.replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
   | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
-    replace_construct(Right, [StringUtil.remove_first(t)], (z, id_gen))
+    Outer.replace_construct(
+      Right,
+      [StringUtil.remove_first(t)],
+      (z, id_gen),
+    )
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
   | (_, Outer, (None, _)) => d_outer(z)
   };
@@ -374,11 +364,11 @@ let merge =
     ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
   |> set_caret(Inner(0, String.length(l) - 1))  // note monotile assumption
-  |> move_outer(Right)
-  |> OptUtil.and_then(select_outer(Left))
-  |> OptUtil.and_then(select_outer(Left))
-  |> Option.map(destruct_outer)
-  |> Option.map(z => construct(Right, [l ++ r], z, id_gen));
+  |> Outer.move(Right)
+  |> OptUtil.and_then(Outer.select(Left))
+  |> OptUtil.and_then(Outer.select(Left))
+  |> Option.map(Outer.destruct)
+  |> Option.map(z => Outer.construct(Right, [l ++ r], z, id_gen));
 
 let destruct_or_merge = (d: Direction.t, (z, id_gen): state): option(state) => {
   let* (z, id_gen) = destruct(d, (z, id_gen));
@@ -397,7 +387,7 @@ let keyword_expand = ((z, _) as state: state): option(state) =>
   switch (neighbor_monotiles(z.relatives.siblings)) {
   | (Some(kw), _) =>
     let (new_label, direction) = Molds.delayed_completion(kw, Left);
-    replace_construct(direction, new_label, state);
+    Outer.replace_construct(direction, new_label, state);
   | _ => Some(state)
   };
 
@@ -412,11 +402,11 @@ let sibling_appendability: (string, Siblings.t) => appendability =
 let barf_or_construct =
     (new_token: string, direction_preference: Direction.t, z: t): IdGen.t(t) =>
   if (Backpack.is_first_matching(new_token, z.backpack)) {
-    z |> put_down |> Option.get |> IdGen.return;
+    z |> Outer.put_down |> Option.get |> IdGen.return;
   } else {
     let (lbl, direction) =
       Molds.instant_completion(new_token, direction_preference);
-    construct(direction, lbl, z);
+    Outer.construct(direction, lbl, z);
   };
 
 let insert_outer =
@@ -445,14 +435,14 @@ let split =
   let (lbl, direction) = Molds.instant_completion(char, Left);
   z
   |> set_caret(Outer)
-  |> (z => replace_construct(Right, [r], (z, id_gen)))
-  |> Option.map(((z, id_gen)) => construct(Left, [l], z, id_gen))
+  |> (z => Outer.replace_construct(Right, [r], (z, id_gen)))
+  |> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
   |> Option.map(((z, id_gen)) =>
        lbl == [Whitespace.space]
          //TODO(andrew): note temp hack to suppress whitespace next to infix grout
          //TODO(andrew): still need to address caret positioning
-         ? (z, id_gen) : construct(direction, lbl, z, id_gen)
+         ? (z, id_gen) : Outer.construct(direction, lbl, z, id_gen)
      );
 };
 
@@ -470,7 +460,7 @@ let insert =
     Form.is_valid_token(new_t)
       ? z
         |> set_caret(Inner(d_idx, idx))
-        |> (z => replace_construct(Right, [new_t], (z, id_gen)))
+        |> (z => Outer.replace_construct(Right, [new_t], (z, id_gen)))
       : split((z, id_gen), char, idx, t);
   /* Can't insert inside delimiter */
   | (Inner(_, _), (_, None)) => None
@@ -531,48 +521,30 @@ let move = (d: Direction.t, z: t): option(t) =>
   | _ when z.selection.content != [] =>
     /* this case maybe shouldn't be necessary but currently covers an edge
        (select an open parens to left of a multichar token and press left) */
-    z |> set_caret(Outer) |> move_outer(d)
+    z |> set_caret(Outer) |> Outer.move(d)
   | (Left, Outer, (CanMoveInto(d_init, c_max), _)) =>
-    z |> set_caret(Inner(d_init, c_max)) |> move_outer(d)
-  | (Left, Outer, _) => move_outer(d, z)
+    z |> set_caret(Inner(d_init, c_max)) |> Outer.move(d)
+  | (Left, Outer, _) => Outer.move(d, z)
   | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
   | (Right, Outer, (_, CanMoveInto(d_init, _))) =>
     Some(set_caret(Inner(d_init, 0), z))
-  | (Right, Outer, _) => move_outer(d, z)
+  | (Right, Outer, _) => Outer.move(d, z)
   | (Right, Inner(_, c), (_, CanMoveInto(_, c_max))) when c == c_max =>
-    z |> set_caret(Outer) |> move_outer(d)
+    z |> set_caret(Outer) |> Outer.move(d)
   | (Right, Inner(delim, c), _) => Some(set_caret(Inner(delim, c + 1), z))
   };
 
 let select = (d: Direction.t, z: t): option(t) =>
   if (z.caret == Outer) {
-    select_outer(d, z);
+    Outer.select(d, z);
   } else if (d == Left) {
     z
     |> set_caret(Outer)
-    |> move_outer(Right)
-    |> OptUtil.and_then(select_outer(d));
+    |> Outer.move(Right)
+    |> OptUtil.and_then(Outer.select(d));
   } else {
-    z |> set_caret(Outer) |> select_outer(d);
+    z |> set_caret(Outer) |> Outer.select(d);
   };
-
-let remold_regrout = (z: t): IdGen.t(t) => {
-  assert(Selection.is_empty(z.selection));
-  open IdGen.Syntax;
-  let* state = IdGen.get;
-  let ls_relatives =
-    Relatives.remold(z.relatives)
-    |> List.map(rs => Relatives.regrout(rs, state))
-    |> List.sort(((rel, _), (rel', _)) => {
-         open Relatives;
-         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
-         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
-       });
-  assert(ls_relatives != []);
-  let (relatives, state) = List.hd(ls_relatives);
-  let+ () = IdGen.put(state);
-  {...z, relatives};
-};
 
 let representative_piece =
     (
@@ -682,9 +654,9 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
     };
   // Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur_p));
   // Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
-  Some(do_towards(f, d, cursorpos, goal, z, z));
-  /* Don't move if we end up on the same line as we started */
-  //cursorpos(res).row == cur_p.row ? None : Some(res);
+  let res = do_towards(f, d, cursorpos, goal, z, z);
+  let res_p = cursorpos(res);
+  res_p.row == cur_p.row && res_p.col == cur_p.col ? None : Some(res);
 };
 
 let select_vertical = (d: Direction.t, z: t): option(t) =>
@@ -702,26 +674,52 @@ let update_target = (z: t): t =>
 
 let directional_unselect = (d: Direction.t, z: t) => {
   let selection = {...z.selection, focus: Direction.toggle(d)};
-  unselect({...z, selection});
+  Outer.unselect({...z, selection});
+};
+
+let put_down = (z: t): option(t) =>
+  /* Alternatively, putting down inside token could eiter merge-in or split */
+  switch (z.caret) {
+  | Inner(_) => None
+  | Outer => Outer.put_down(z)
+  };
+
+let remold_regrout = (z: t): IdGen.t(t) => {
+  assert(Selection.is_empty(z.selection));
+  open IdGen.Syntax;
+  let* state = IdGen.get;
+  let ls_relatives =
+    Relatives.remold(z.relatives)
+    |> List.map(rs => Relatives.regrout(rs, state))
+    |> List.sort(((rel, _), (rel', _)) => {
+         open Relatives;
+         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
+       });
+  assert(ls_relatives != []);
+  let (relatives, state) = List.hd(ls_relatives);
+  let+ () = IdGen.put(state);
+  {...z, relatives};
 };
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
   | Move(d) =>
-    //NOTE(andrew): not sure if this is best approach to unselection
-    let z = directional_unselect(Direction.from_plane(d), z);
     /* Note: Don't update target on vertical movement */
-    (
-      switch (d) {
-      | L => move(Left, z) |> Option.map(update_target)
-      | R => move(Right, z) |> Option.map(update_target)
-      | U => move_vertical(Left, z)
-      | D => move_vertical(Right, z)
-      }
+    z
+    |> directional_unselect(Direction.from_plane(d))
+    |> (
+      z =>
+        switch (d) {
+        | L => move(Left, z) |> Option.map(update_target)
+        | R => move(Right, z) |> Option.map(update_target)
+        | U => move_vertical(Left, z)
+        | D => move_vertical(Right, z)
+        }
     )
     |> Option.map(z => (z, id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move);
+    |> Result.of_option(~error=Action.Failure.Cant_move)
   | Select(d) =>
     /* Note: Don't update target on vertical selection */
     (
@@ -746,16 +744,13 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
-  | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
+  | Pick_up => Ok(remold_regrout(Outer.pick_up(z), id_gen))
   | Put_down =>
-    /* Alternatively, putting down inside token could eiter merge-in or split */
-    z.caret != Outer
-      ? Error(Action.Failure.Cant_put_down)
-      : z
-        |> put_down
-        |> Option.map(z => remold_regrout(z, id_gen))
-        |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-        |> Result.of_option(~error=Action.Failure.Cant_put_down)
+    z
+    |> put_down
+    |> Option.map(z => remold_regrout(z, id_gen))
+    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_put_down)
   | RotateBackpack =>
     Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))
   };
