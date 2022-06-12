@@ -255,21 +255,17 @@ let destruct_outer = (z: t): t => {
   {...z, backpack};
 };
 
-let put_down = (z: t): option(t) =>
-  if (z.caret != Outer) {
-    None;
-        /* Alternatively, putting down inside token could eiter merge-in or split */
-  } else {
-    open OptUtil.Syntax;
-    let z = destruct_outer(z);
-    let+ (_, popped, backpack) =
-      Backpack.pop(
-        Siblings.incomplete_tiles(z.relatives.siblings),
-        z.backpack,
-      );
-    IncompleteBidelim.set(popped.content);
-    {...z, backpack} |> put_selection(popped) |> unselect;
-  };
+let put_down = (z: t): option(t) => {
+  open OptUtil.Syntax;
+  let z = destruct_outer(z);
+  let+ (_, popped, backpack) =
+    Backpack.pop(
+      Siblings.incomplete_tiles(z.relatives.siblings),
+      z.backpack,
+    );
+  IncompleteBidelim.set(popped.content);
+  {...z, backpack} |> put_selection(popped) |> unselect;
+};
 
 let insert_space_grout = (char: string, z: t): IdGen.t(t) => {
   open IdGen.Syntax;
@@ -752,11 +748,14 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   | Pick_up => Ok(remold_regrout(pick_up(z), id_gen))
   | Put_down =>
-    z
-    |> put_down
-    |> Option.map(z => remold_regrout(z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_put_down)
+    /* Alternatively, putting down inside token could eiter merge-in or split */
+    z.caret != Outer
+      ? Error(Action.Failure.Cant_put_down)
+      : z
+        |> put_down
+        |> Option.map(z => remold_regrout(z, id_gen))
+        |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
+        |> Result.of_option(~error=Action.Failure.Cant_put_down)
   | RotateBackpack =>
     Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))
   };
