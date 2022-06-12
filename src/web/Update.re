@@ -4,6 +4,7 @@ open Core;
 
 [@deriving sexp]
 type t =
+  | ToggleCaptions
   | UpdateDoubleTap(option(float))
   | LoadInit
   | Load
@@ -31,21 +32,18 @@ let save = (model: Model.t): unit =>
     LocalStorage.save_syntax(n, List.nth(zs, n));
   };
 
-let current_editor = (model: Model.t): int =>
-  switch (model.editor_model) {
-  | Simple(_) => 0
-  | Study(n, zs) =>
-    assert(n < List.length(zs));
-    n;
-  };
-
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
+  | ToggleCaptions =>
+    let show_captions = !model.show_captions;
+    LocalStorage.save_show_captions(show_captions);
+    {...model, show_captions};
   | UpdateDoubleTap(double_tap) => {...model, double_tap}
   | LoadInit =>
     let num_editors = LocalStorage.num_editors;
     let init_editor = LocalStorage.load_editor_idx();
+    let show_captions = LocalStorage.load_show_captions();
     let (zs, id_gen) =
       List.fold_left(
         ((z_acc, id_gen: IdGen.state), n) =>
@@ -60,10 +58,11 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       ...model,
       history: ActionHistory.empty,
       id_gen,
+      show_captions,
       editor_model: Study(init_editor, zs),
     };
   | Load =>
-    let n = current_editor(model);
+    let n = Model.current_editor(model);
     switch (LocalStorage.load_syntax(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
@@ -74,7 +73,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     | None => model
     };
   | LoadDefault =>
-    let n = current_editor(model);
+    let n = Model.current_editor(model);
     switch (LocalStorage.load_default_syntax(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,

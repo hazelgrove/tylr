@@ -61,6 +61,8 @@
 :root {
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
+  --top_bar_icon_fill: #c7b480;
+  --top-bar-text: #a79f89;
   --delim-color: #586e75; /*#aeb5b8;*/ /*#657b83;*/
   --ap-color: #aeb5b8;
 
@@ -146,6 +148,9 @@
 }
 
 #editor-id {
+  color: var(--top-bar-text);
+  display: flex;
+  gap: 0.5em;
   cursor: pointer;
   user-select: none;
   font-family: "Helvetica Neue";
@@ -185,7 +190,7 @@
 }
 
 #code-container {
-  padding: 9em 6em 6em 4em;
+  padding: 1em 6em 6em 6em;
   /*width: 100%;
   display: flex;
   position: fixed;
@@ -240,10 +245,10 @@
   font-weight: bold;
 }
 .history-button.disabled {
-  opacity: 0.5;
+  opacity: 0.35;
 }
 .history-button path {
-  fill: var(--light-text-color);
+  fill: var(--top_bar_icon_fill);
   stroke-width: 2px;
 }
 .history-button:hover {
@@ -975,30 +980,34 @@ svg.rail line.unsorted {
   transform: translate(0%, -50%);
 } */
 #help svg {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 0.5;
-  stroke: var(--light-text-color);
-  fill: var(--light-text-color);
+  fill: var(--top_bar_icon_fill);
 }
 #help:hover svg {
-  transform: scale(110%);
+  transform: scale(120%);
 }
 #help:active svg {
   transform: scale(100%);
 }
 
 #github svg {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 0;
-  stroke: var(--light-text-color);
-  fill: var(--light-text-color);
+  fill: var(--top_bar_icon_fill);
 }
 #github:hover svg {
-  transform: scale(110%);
+  transform: scale(120%);
 }
 #github:active  svg {
   transform: scale(100%);
 }
+
+.back, .forward svg {
+  fill: var(--top_bar_icon_fill);
+}
+
+.back:hover, .forward:hover svg {
+  transform: scale(120%);
+  /*fill: #dca100;*/
+}
+
 
 .whitespace {
   color:rgb(126, 80, 0);
@@ -1035,4 +1044,10 @@ svg.rail line.unsorted {
   /*TODO(andrew): unhack*/
   stroke: #ce9600;
     fill: #ce9600;
+}
+
+.editor-caption {
+  padding: 5em 6em 1em 6.5em;
+  font-family: 'Helvetica Neue';
+  color: var(--top-bar-text);
 }

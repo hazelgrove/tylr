@@ -86,11 +86,26 @@ let history_panel_view = (~inject, history) =>
   );
 
 let editor_panel_view = (~inject, cur_idx) => {
-  let rotate_ed = _ =>
-    inject(Update.SwitchEditor((cur_idx + 1) mod LocalStorage.num_editors));
-  let s =
-    Printf.sprintf("editor %d of %d", cur_idx, LocalStorage.num_editors);
-  div([Attr.id("editor-id"), Attr.on_mousedown(rotate_ed)], [text(s)]);
+  let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
+  let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
+  let incr_ed = _ => inject(Update.SwitchEditor(next_ed));
+  let decr_ed = _ => inject(Update.SwitchEditor(prev_ed));
+  let toggle_captions = _ => inject(Update.ToggleCaptions);
+  let s = Printf.sprintf("%d / %d", cur_idx, LocalStorage.num_editors);
+  div(
+    [Attr.id("editor-id")],
+    [
+      div(
+        [Attr.class_("back"), Attr.on_mousedown(decr_ed)],
+        [Icons.back(icon_size, icon_size)],
+      ),
+      div([Attr.on_mousedown(toggle_captions)], [text(s)]),
+      div(
+        [Attr.class_("forward"), Attr.on_mousedown(incr_ed)],
+        [Icons.forward(icon_size, icon_size)],
+      ),
+    ],
+  );
 };
 
 let link_icon = (str, url, icon) =>
@@ -121,7 +136,7 @@ let top_bar_view = (~inject, model: Model.t) =>
     [Attr.id("top-bar")],
     [
       history_panel_view(~inject, model.history),
-      editor_panel_view(~inject, Update.current_editor(model)),
+      editor_panel_view(~inject, Model.current_editor(model)),
       //logo(~font_metrics=logo_font_metrics),
       about_panel_view,
     ],
@@ -137,6 +152,21 @@ let editor_view = ({font_metrics, history, _} as model: Model.t) =>
         ~zipper=Model.get_zipper(model),
       ),
     ],
+  );
+
+let editor_caption_view = (model: Model.t) =>
+  div(
+    [Attr.class_("editor-caption")],
+    model.show_captions
+      ? [
+        text(
+          List.nth(
+            LocalStorage.editor_captions,
+            Model.current_editor(model),
+          ),
+        ),
+      ]
+      : [],
   );
 
 let view = (~inject, model: Model.t) => {
@@ -158,6 +188,7 @@ let view = (~inject, model: Model.t) => {
       FontSpecimen.view("logo-font-specimen"),
       filters,
       top_bar_view(~inject, model),
+      editor_caption_view(model),
       editor_view(model),
     ],
   );

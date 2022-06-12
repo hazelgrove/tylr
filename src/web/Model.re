@@ -14,6 +14,7 @@ type t = {
   logo_font_metrics: FontMetrics.t,
   show_neighbor_tiles: bool,
   double_tap: option(timestamp),
+  show_captions: bool,
 };
 
 let cutoff = (===);
@@ -40,6 +41,7 @@ let mk = editor_model => {
   logo_font_metrics: FontMetrics.init,
   show_neighbor_tiles: false,
   double_tap: None,
+  show_captions: false,
 };
 
 let blank = mk(Simple(empty_zipper));
@@ -64,3 +66,11 @@ let update_zipper = (f: Zipper.state => Zipper.state, model: t): t => {
   let (z, id_gen) = f((get_zipper(model), model.id_gen));
   {...model, id_gen, editor_model: put_zipper(model, z)};
 };
+
+let current_editor = (model: t): int =>
+  switch (model.editor_model) {
+  | Simple(_) => 0
+  | Study(n, zs) =>
+    assert(n < List.length(zs));
+    n;
+  };
