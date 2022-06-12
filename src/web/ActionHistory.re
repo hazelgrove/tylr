@@ -1,7 +1,7 @@
 open Core;
 
 type t = {
-  succeeded: (list((Zipper.Action.t, Zipper.t)) as 'affix, 'affix),
+  succeeded: (list((Zipper.Action.t, Zipper.state)) as 'affix, 'affix),
   just_failed: option(FailedInput.t),
   // TODO(d): forgetting why we need this...
   // not seeing it get read anywhere. possibly
@@ -31,7 +31,7 @@ let just_failed = (reason: FailedInput.reason, history: t) => {
 let unrecognized_input = just_failed(Unrecognized);
 let failure = f => just_failed(Failure(f));
 
-let succeeded = (a: Zipper.Action.t, zipper: Zipper.t, history: t) => {
+let succeeded = (a: Zipper.Action.t, zipper: Zipper.state, history: t) => {
   let (before, _) = history.succeeded;
   {
     succeeded: ([(a, zipper), ...before], []),
@@ -46,55 +46,18 @@ let escaped = (history: t) => {
   last_attempt: Some(JsUtil.date_now()##valueOf),
 };
 
-// let undo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
-//   switch (history.succeeded) {
-//   | ([], _) => None
-//   | (
-//       [
-//         (a, (Selecting(_), _) as prev),
-//         (a', (Pointing(_) | Selecting(_, [], _), _) as prev'),
-//         ...before,
-//       ],
-//       after,
-//     ) =>
-//     let succeeded = (before, [(a', prev), (a, zipper), ...after]);
-//     Some((prev', {...history, just_failed: None, succeeded}));
-//   | ([(a, prev), ...before], after) =>
-//     let succeeded = (before, [(a, zipper), ...after]);
-//     Some((prev, {...history, just_failed: None, succeeded}));
-//   };
-// };
+let undo = (z_id: Zipper.state, history: t): option((Zipper.state, t)) =>
+  switch (history.succeeded) {
+  | ([], _) => None
+  | ([(a, prev), ...before], after) =>
+    let succeeded = (before, [(a, z_id), ...after]);
+    Some((prev, {...history, just_failed: None, succeeded}));
+  };
 
-// let redo = (zipper: Zipper.t, history: t): option((Zipper.t, t)) => {
-//   switch (history.succeeded) {
-//   | (_, []) => None
-//   | (
-//       before,
-//       [
-//         (a, (Selecting(_), _) as next),
-//         (a', (Pointing(_) | Selecting(_, [], _), _) as next'),
-//         ...after,
-//       ],
-//     ) =>
-//     let succeeded = ([(a', next), (a, zipper), ...before], after);
-//     Some((next', {...history, just_failed: None, succeeded}));
-//   | (before, [(a, prev), ...after]) =>
-//     let succeeded = ([(a, zipper), ...before], after);
-//     Some((prev, {...history, just_failed: None, succeeded}));
-//   };
-// };
-
-// let zipper_before_restructuring =
-//     ({succeeded: (prefix, _), _}: t): option(Zipper.t) => {
-//   let (_restructuring, before) =
-//     prefix
-//     |> ListUtil.take_while(
-//          fun
-//          | (_, (Subject.Restructuring(_), _)) => true
-//          | _ => false,
-//        );
-//   switch (before) {
-//   | [] => None
-//   | [(_, zipper), ..._] => Some(zipper)
-//   };
-// };
+let redo = (z_id: Zipper.state, history: t): option((Zipper.state, t)) =>
+  switch (history.succeeded) {
+  | (_, []) => None
+  | (before, [(a, next), ...after]) =>
+    let succeeded = ([(a, z_id), ...before], after);
+    Some((next, {...history, just_failed: None, succeeded}));
+  };

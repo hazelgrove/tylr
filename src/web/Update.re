@@ -23,20 +23,6 @@ type t =
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
 
-// let update_result =
-//     (a, result: Result.t(Zipper.t, Failure.t), model: Model.t) =>
-//   switch (result) {
-//   | Error(failure) => {
-//       ...model,
-//       history: ActionHistory.failure(failure, model.history),
-//     }
-//   | Ok(zipper) => {
-//       ...model,
-//       zipper,
-//       history: ActionHistory.succeeded(a, model.zipper, model.history),
-//     }
-//   };
-
 let save = (model: Model.t): unit =>
   switch (model.editor_model) {
   | Simple(z) => LocalStorage.save_syntax(0, z)
@@ -70,12 +56,18 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
         ([], model.id_gen),
         List.init(num_editors, n => n),
       );
-    {...model, id_gen, editor_model: Study(init_editor, zs)};
+    {
+      ...model,
+      history: ActionHistory.empty,
+      id_gen,
+      editor_model: Study(init_editor, zs),
+    };
   | Load =>
     let n = current_editor(model);
     switch (LocalStorage.load_syntax(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
+        history: ActionHistory.empty,
         editor_model: Model.put_zipper(model, z),
         id_gen,
       }
@@ -86,6 +78,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     switch (LocalStorage.load_default_syntax(n, model.id_gen)) {
     | Some((z, id_gen)) => {
         ...model,
+        history: ActionHistory.empty,
         editor_model: Model.put_zipper(model, z),
         id_gen,
       }
@@ -99,10 +92,11 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     | Simple(_) =>
       print_endline("Can't switch");
       model;
+    | Study(m, _) when m == n => model
     | Study(_, zs) =>
       assert(n < List.length(zs));
       LocalStorage.save_editor_idx(n);
-      {...model, editor_model: Study(n, zs)};
+      {...model, history: ActionHistory.empty, editor_model: Study(n, zs)};
     }
   | SetShowNeighborTiles(b) => {
       ...model,
@@ -116,16 +110,19 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
-  | PerformAction(action) =>
-    model
-    |> Model.update_zipper(z_id =>
-         switch (Zipper.perform(action, z_id)) {
-         | Error(err) =>
-           print_endline(Zipper.Action.Failure.show(err));
-           z_id;
-         | Ok(r) => r
-         }
-       )
+  | PerformAction(a) =>
+    let z_id = (Model.get_zipper(model), model.id_gen);
+    switch (Zipper.perform(a, z_id)) {
+    | Error(err) =>
+      print_endline(Zipper.Action.Failure.show(err));
+      {...model, history: ActionHistory.failure(err, model.history)};
+    | Ok((z, id_gen)) => {
+        ...model,
+        editor_model: Model.put_zipper(model, z),
+        id_gen,
+        history: ActionHistory.succeeded(a, z_id, model.history),
+      }
+    };
   | FailedInput(reason) => {
       ...model,
       history: ActionHistory.just_failed(reason, model.history),
@@ -152,17 +149,27 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     // }
     model
   | Undo =>
-    // switch (ActionHistory.undo(model.zipper, model.history)) {
-    // | None => model
-    // | Some((zipper, history)) => {...model, zipper, history}
-    // }
-    model
+    let z_id = (Model.get_zipper(model), model.id_gen);
+    switch (ActionHistory.undo(z_id, model.history)) {
+    | None => model
+    | Some(((z, id_gen), history)) => {
+        ...model,
+        editor_model: Model.put_zipper(model, z),
+        id_gen,
+        history,
+      }
+    };
   | Redo =>
-    // switch (ActionHistory.redo(model.zipper, model.history)) {
-    // | None => model
-    // | Some((zipper, history)) => {...model, zipper, history}
-    // }
-    model
+    let z_id = (Model.get_zipper(model), model.id_gen);
+    switch (ActionHistory.redo(z_id, model.history)) {
+    | None => model
+    | Some(((z, id_gen), history)) => {
+        ...model,
+        editor_model: Model.put_zipper(model, z),
+        id_gen,
+        history,
+      }
+    };
   | MoveToNextHole(_d) =>
     // let moved = Action.move_to_next_hole(d, model.zipper);
     // // Move(d) is hack arg, doesn't affect undo behavior
