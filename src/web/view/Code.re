@@ -22,13 +22,50 @@ module CodeString = {
   and of_delim = (t: Piece.tile, i: int): string => List.nth(t.label, i);
 };
 
+let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
+  let t = List.nth(seg);
+  let rec go = (sort, sksk: Skel.t) => {
+    // note: disabling this chk would make whole terms highlit
+    let chk = (n, x_sort) =>
+      Sort.consistent(Piece.sort(t(n)) |> fst, sort) ? x_sort : sort;
+    switch (sksk) {
+    | Op(n) => [(n, sort)]
+    | Pre(n, sk_r) =>
+      let (_, r_sort) = Piece.nib_sorts(t(n));
+      let r_sort = chk(n, r_sort);
+      [(n, sort)] @ go(r_sort, sk_r);
+    | Post(sk_l, n) =>
+      let (l_sort, _) = Piece.nib_sorts(t(n));
+      let l_sort = chk(n, l_sort);
+      go(l_sort, sk_l) @ [(n, sort)];
+    | Bin(sk_l, n, sk_r) =>
+      let (l_sort, r_sort) = Piece.nib_sorts(t(n));
+      let (l_sort, r_sort) = (chk(n, l_sort), chk(n, r_sort));
+      go(l_sort, sk_l) @ [(n, sort)] @ go(r_sort, sk_r);
+    };
+  };
+  seg |> Segment.skel |> go(sort);
+};
+
 module Text = (M: {let map: Measured.t;}) => {
   let m = p => Measured.find_p(p, M.map);
-  let rec of_segment = (seg: Segment.t): list(Node.t) =>
-    seg |> List.map(of_piece) |> List.concat
-  and of_piece = (p: Piece.t): list(Node.t) =>
+  let rec of_segment =
+          (~no_sorts=false, ~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
+    //note: no_sorts flag is used for backback
+    let expected_sorts =
+      no_sorts
+        ? List.init(List.length(seg), i => (i, Sort.Any))
+        : expected_sorts(sort, seg);
+    let sort_of_p_idx = idx =>
+      switch (List.assoc_opt(idx, expected_sorts)) {
+      | None => Sort.Any
+      | Some(sort) => sort
+      };
+    seg |> List.mapi((i, p) => of_piece(sort_of_p_idx(i), p)) |> List.concat;
+  }
+  and of_piece = (expected_sort: Sort.t, p: Piece.t): list(Node.t) => {
     switch (p) {
-    | Tile(t) => of_tile(t)
+    | Tile(t) => of_tile(expected_sort, t)
     | Grout(_) => [Node.text(Unicode.nbsp)]
     | Whitespace({content, _}) =>
       if (content == Whitespace.linebreak) {
@@ -42,18 +79,31 @@ module Text = (M: {let map: Measured.t;}) => {
       } else {
         [Node.text(content)];
       }
-    }
-  and of_tile = (t: Tile.t): list(Node.t) => {
-    Aba.mk(t.shards, t.children)
-    |> Aba.join(of_delim(t), of_segment)
+    };
+  }
+  and of_tile = (expected_sort: Sort.t, t: Tile.t): list(Node.t) => {
+    let children_and_sorts =
+      List.mapi(
+        (i, (l, child, r)) =>
+          //TODO(andrew): more subtle logic about sort acceptability
+          (child, l + 1 == r ? List.nth(t.mold.in_, i) : Sort.Any),
+        Aba.aba_triples(Aba.mk(t.shards, t.children)),
+      );
+    let is_consistent = Sort.consistent(t.mold.out, expected_sort);
+    Aba.mk(t.shards, children_and_sorts)
+    |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
+         of_segment(~sort, seg)
+       )
     |> List.concat;
   }
-  and of_delim = (t: Piece.tile, i: int): list(Node.t) => {
-    let span =
+  and of_delim = (is_consistent, t: Piece.tile, i: int): list(Node.t) => {
+    let cls =
       List.length(t.label) == 1
-        ? Node.span([])
-        : span_c(Tile.is_complete(t) ? "delim" : "extra-bold-delim");
-    [span([Node.text(List.nth(t.label, i))])];
+        ? is_consistent ? "single" : "mono-sort-inconsistent"
+        : is_consistent
+            ? Tile.is_complete(t) ? "delim" : "delim-incomplete"
+            : "delim-sort-inconsistent";
+    [span_c(cls, [Node.text(List.nth(t.label, i))])];
   };
 };
 
@@ -64,7 +114,7 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
     Text({
       let map = map;
     });
-  let text_view = Text.of_segment(content);
+  let text_view = Text.of_segment(~no_sorts=true, content);
   div(
     [Attr.classes(["code-text", "backpack-selection"])],
     [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],

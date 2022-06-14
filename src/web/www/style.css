@@ -507,9 +507,15 @@ svg.rail line.unsorted {
   color: var(--delim-color);
   font-weight: bold;
 }
-.code .extra-bold-delim {
-  /*color: var(--delim-color);*/
+.code .delim-incomplete {
   color: #ce9600;
+  font-weight: bold;
+}
+.code .mono-sort-inconsistent {
+  color: red;
+}
+.code .delim-sort-inconsistent {
+  color: red;
   font-weight: bold;
 }
 .code .ap {
