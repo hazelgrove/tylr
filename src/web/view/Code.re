@@ -25,16 +25,21 @@ module CodeString = {
 let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
   let t = List.nth(seg);
   let rec go = (sort, sksk: Skel.t) => {
+    let chk = (n, x_sort) =>
+      Sort.consistent(Piece.sort(t(n)) |> fst, sort) ? x_sort : sort;
     switch (sksk) {
     | Op(n) => [(n, sort)]
     | Pre(n, sk_r) =>
       let (_, r_sort) = Piece.nib_sorts(t(n));
+      let r_sort = chk(n, r_sort);
       [(n, sort)] @ go(r_sort, sk_r);
     | Post(sk_l, n) =>
       let (l_sort, _) = Piece.nib_sorts(t(n));
+      let l_sort = chk(n, l_sort);
       go(l_sort, sk_l) @ [(n, sort)];
     | Bin(sk_l, n, sk_r) =>
       let (l_sort, r_sort) = Piece.nib_sorts(t(n));
+      let (l_sort, r_sort) = (chk(n, l_sort), chk(n, r_sort));
       go(l_sort, sk_l) @ [(n, sort)] @ go(r_sort, sk_r);
     };
   };
@@ -78,16 +83,13 @@ module Text = (M: {let map: Measured.t;}) => {
     let actual_sort = t.mold.out;
     let is_consistent = Sort.consistent(actual_sort, expected_sort);
     let sorts = t.mold.in_;
-    //TODO(andrew): this might not be robust in incomplete tile case
-    assert(List.length(sorts) >= List.length(t.children));
-    let rec go = (kids, sorts) =>
-      switch (kids, sorts) {
-      | ([], []) => []
-      | ([k, ...ks], [s, ...ss]) => [(k, s)] @ go(ks, ss)
-      | ([], _) => []
-      | (_, []) => failwith("Text.of_tile sorts too short")
-      };
-    let combined = go(t.children, sorts);
+    //TODO(andrew): more subtle logic about sort acceptability
+    let combined =
+      List.mapi(
+        (i, (l, child, r)) =>
+          (child, l + 1 == r ? List.nth(sorts, i) : Sort.Any),
+        Aba.aba_triples(Aba.mk(t.shards, t.children)),
+      );
     Aba.mk(t.shards, combined)
     |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
          of_segment(~sort, seg)
