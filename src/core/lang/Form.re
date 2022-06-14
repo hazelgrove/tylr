@@ -46,6 +46,7 @@ let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
     (regexp("^[a-z][a-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
   ),
   ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
+  ("wild", (regexp("^_$"), [mk_op(Pat, [])])),
 ];
 
 /* C. Compound Forms:
