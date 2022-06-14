@@ -429,6 +429,24 @@ let insert_outer =
     |> Option.some
   };
 
+let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
+  assert(Selection.is_empty(z.selection));
+  open IdGen.Syntax;
+  let* state = IdGen.get;
+  let ls_relatives =
+    Relatives.remold(z.relatives)
+    |> List.map(rs => Relatives.regrout(d, rs, state))
+    |> List.sort(((rel, _), (rel', _)) => {
+         open Relatives;
+         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
+       });
+  assert(ls_relatives != []);
+  let (relatives, state) = List.hd(ls_relatives);
+  let+ () = IdGen.put(state);
+  {...z, relatives};
+};
+
 let split =
     ((z, id_gen): state, char: string, idx: int, t: string): option(state) => {
   let (l, r) = StringUtil.split_nth(idx, t);
@@ -461,7 +479,9 @@ let insert =
       ? z
         |> set_caret(Inner(d_idx, idx))
         |> (z => Outer.replace_construct(Right, [new_t], (z, id_gen)))
-      : split((z, id_gen), char, idx, t);
+        |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
+      : split((z, id_gen), char, idx, t)
+        |> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen));
   /* Can't insert inside delimiter */
   | (Inner(_, _), (_, None)) => None
   | (Outer, (_, Some(_))) =>
@@ -474,8 +494,11 @@ let insert =
       };
     (z, id_gen)
     |> insert_outer(char)
-    |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen));
-  | (Outer, (_, None)) => insert_outer(char, (z, id_gen))
+    |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen))
+    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen));
+  | (Outer, (_, None)) =>
+    insert_outer(char, (z, id_gen))
+    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
   };
 
 let movability = (label, delim_idx): movability => {
@@ -684,24 +707,6 @@ let put_down = (z: t): option(t) =>
   | Outer => Outer.put_down(z)
   };
 
-let remold_regrout = (z: t): IdGen.t(t) => {
-  assert(Selection.is_empty(z.selection));
-  open IdGen.Syntax;
-  let* state = IdGen.get;
-  let ls_relatives =
-    Relatives.remold(z.relatives)
-    |> List.map(rs => Relatives.regrout(rs, state))
-    |> List.sort(((rel, _), (rel', _)) => {
-         open Relatives;
-         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
-         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
-       });
-  assert(ls_relatives != []);
-  let (relatives, state) = List.hd(ls_relatives);
-  let+ () = IdGen.put(state);
-  {...z, relatives};
-};
-
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
@@ -736,19 +741,19 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     (z, id_gen)
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
+    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
     |> insert(char)
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Option.map(((z, id_gen)) => remold_regrout(z, id_gen))
+    //|> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
-  | Pick_up => Ok(remold_regrout(Outer.pick_up(z), id_gen))
+  | Pick_up => Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
   | Put_down =>
     z
     |> put_down
-    |> Option.map(z => remold_regrout(z, id_gen))
+    |> Option.map(z => remold_regrout(Left, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_put_down)
   | RotateBackpack =>

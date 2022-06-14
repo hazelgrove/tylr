@@ -70,7 +70,8 @@ let shape_rank = ({siblings, ancestors}: t) => {
   + Bool.to_int(!Nib.Shape.fits(l, r));
 };
 
-let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
+let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
+  /* Direction is side of caret on which to favor for grout insertion */
   open IdGen.Syntax;
   let* ancestors = Ancestors.regrout(ancestors);
   let+ siblings = {
@@ -84,9 +85,15 @@ let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
       | (Some((_, g_l)), [g_r, ..._]) =>
         IdGen.return(
           Grout.fits(g_l, g_r)
-            ? (ws(trim_l), ws(trim_r))
+            ? (ws(trim_l), ws(trim_r))  //(ws(trim_l), seg_r)
             // note: can modulate as needed using a directional arg
-            : (ws(trim_l), seg_r),
+            //TODO(andrew):???
+            : (
+              switch (d) {
+              | Left => (ws(trim_l), seg_r)
+              | Right => (seg_l, ws(trim_r))
+              }
+            ),
         )
       | (Some((_, g)), []) =>
         IdGen.return(
@@ -100,10 +107,18 @@ let regrout = ({siblings, ancestors}: t): IdGen.t(t) => {
         Nib.Shape.fits(s_l, s_r)
           ? IdGen.return((seg_l, seg_r))
           // can modulate with directional arg
-          : {
-            let+ g = Grout.mk_fits_shape(s_r);
-            (seg_l, to_seg(cons_g(g, trim_r)));
-          }
+          : (
+            //TODO(andrew):???
+            switch (d) {
+            | Left =>
+              let+ g = Grout.mk_fits_shape(s_r);
+              (seg_l, to_seg(cons_g(g, trim_r)));
+            | Right =>
+              //TODO
+              let+ g = Grout.mk_fits_shape(s_l);
+              (to_seg(cons_g(g, trim_l)), seg_r);
+            }
+          )
       };
     };
     (pre @ trim_l, trim_r @ suf);
