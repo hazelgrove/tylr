@@ -507,12 +507,16 @@ svg.rail line.unsorted {
   color: var(--delim-color);
   font-weight: bold;
 }
-.code .extra-bold-delim {
+.code .delim-incomplete {
   color: #ce9600;
   font-weight: bold;
 }
-.code .angry-delim {
+.code .mono-sort-inconsistent {
   color: red;
+}
+.code .delim-sort-inconsistent {
+  color: red;
+  font-weight: bold;
 }
 .code .ap {
   color: var(--ap-color);

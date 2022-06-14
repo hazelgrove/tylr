@@ -25,6 +25,7 @@ module CodeString = {
 let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
   let t = List.nth(seg);
   let rec go = (sort, sksk: Skel.t) => {
+    // note: disabling this chk would make whole terms highlit
     let chk = (n, x_sort) =>
       Sort.consistent(Piece.sort(t(n)) |> fst, sort) ? x_sort : sort;
     switch (sksk) {
@@ -50,6 +51,7 @@ module Text = (M: {let map: Measured.t;}) => {
   let m = p => Measured.find_p(p, M.map);
   let rec of_segment =
           (~no_sorts=false, ~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
+    //note: no_sorts flag is used for backback
     let expected_sorts =
       no_sorts
         ? List.init(List.length(seg), i => (i, Sort.Any))
@@ -79,32 +81,29 @@ module Text = (M: {let map: Measured.t;}) => {
       }
     };
   }
-  and of_tile = (expected_sort, t: Tile.t): list(Node.t) => {
-    let actual_sort = t.mold.out;
-    let is_consistent = Sort.consistent(actual_sort, expected_sort);
-    let sorts = t.mold.in_;
-    //TODO(andrew): more subtle logic about sort acceptability
-    let combined =
+  and of_tile = (expected_sort: Sort.t, t: Tile.t): list(Node.t) => {
+    let children_and_sorts =
       List.mapi(
         (i, (l, child, r)) =>
-          (child, l + 1 == r ? List.nth(sorts, i) : Sort.Any),
+          //TODO(andrew): more subtle logic about sort acceptability
+          (child, l + 1 == r ? List.nth(t.mold.in_, i) : Sort.Any),
         Aba.aba_triples(Aba.mk(t.shards, t.children)),
       );
-    Aba.mk(t.shards, combined)
+    let is_consistent = Sort.consistent(t.mold.out, expected_sort);
+    Aba.mk(t.shards, children_and_sorts)
     |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
          of_segment(~sort, seg)
        )
     |> List.concat;
   }
   and of_delim = (is_consistent, t: Piece.tile, i: int): list(Node.t) => {
-    let span =
+    let cls =
       List.length(t.label) == 1
-        ? span_c(is_consistent ? "whatever" : "angry-delim")
-        : span_c(
-            Tile.is_complete(t)
-              ? is_consistent ? "delim" : "angry-delim" : "extra-bold-delim",
-          );
-    [span([Node.text(List.nth(t.label, i))])];
+        ? is_consistent ? "single" : "mono-sort-inconsistent"
+        : is_consistent
+            ? Tile.is_complete(t) ? "delim" : "delim-incomplete"
+            : "delim-sort-inconsistent";
+    [span_c(cls, [Node.text(List.nth(t.label, i))])];
   };
 };
 
