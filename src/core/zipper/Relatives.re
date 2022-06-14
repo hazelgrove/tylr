@@ -71,8 +71,8 @@ let shape_rank = ({siblings, ancestors}: t) => {
 };
 
 let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
-  /* Direction is side of caret on which to favor for grout insertion */
-  open IdGen.Syntax;
+  open /* Direction is side of caret on which to favor for grout insertion */
+       IdGen.Syntax;
   let* ancestors = Ancestors.regrout(ancestors);
   let+ siblings = {
     let* ((pre, s_l, trim_l), (trim_r, s_r, suf)) =

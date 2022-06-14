@@ -1051,3 +1051,7 @@ svg.rail line.unsorted {
   font-family: 'Helvetica Neue';
   color: var(--top-bar-text);
 }
+
+svg {
+  overflow: visible;
+}
