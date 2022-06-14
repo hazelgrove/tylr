@@ -22,7 +22,7 @@ module CodeString = {
   and of_delim = (t: Piece.tile, i: int): string => List.nth(t.label, i);
 };
 
-let expected_sorts = (sort, seg) => {
+let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
   let t = List.nth(seg);
   let rec go = (sort, sksk: Skel.t) => {
     switch (sksk) {
@@ -43,8 +43,12 @@ let expected_sorts = (sort, seg) => {
 
 module Text = (M: {let map: Measured.t;}) => {
   let m = p => Measured.find_p(p, M.map);
-  let rec of_segment = (~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
-    let expected_sorts = expected_sorts(sort, seg);
+  let rec of_segment =
+          (~no_sorts=false, ~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
+    let expected_sorts =
+      no_sorts
+        ? List.init(List.length(seg), i => (i, Sort.Any))
+        : expected_sorts(sort, seg);
     let sort_of_p_idx = idx =>
       switch (List.assoc_opt(idx, expected_sorts)) {
       | None => Sort.Any
@@ -74,8 +78,17 @@ module Text = (M: {let map: Measured.t;}) => {
     let actual_sort = t.mold.out;
     let is_consistent = Sort.consistent(actual_sort, expected_sort);
     let sorts = t.mold.in_;
-    assert(List.length(sorts) == List.length(t.children));
-    Aba.mk(t.shards, List.combine(t.children, sorts))
+    //TODO(andrew): this might not be robust in incomplete tile case
+    assert(List.length(sorts) >= List.length(t.children));
+    let rec go = (kids, sorts) =>
+      switch (kids, sorts) {
+      | ([], []) => []
+      | ([k, ...ks], [s, ...ss]) => [(k, s)] @ go(ks, ss)
+      | ([], _) => []
+      | (_, []) => failwith("Text.of_tile sorts too short")
+      };
+    let combined = go(t.children, sorts);
+    Aba.mk(t.shards, combined)
     |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
          of_segment(~sort, seg)
        )
@@ -85,7 +98,10 @@ module Text = (M: {let map: Measured.t;}) => {
     let span =
       List.length(t.label) == 1
         ? span_c(is_consistent ? "whatever" : "angry-delim")
-        : span_c(Tile.is_complete(t) ? "delim" : "extra-bold-delim");
+        : span_c(
+            Tile.is_complete(t)
+              ? is_consistent ? "delim" : "angry-delim" : "extra-bold-delim",
+          );
     [span([Node.text(List.nth(t.label, i))])];
   };
 };
@@ -97,7 +113,7 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
     Text({
       let map = map;
     });
-  let text_view = Text.of_segment(content);
+  let text_view = Text.of_segment(~no_sorts=true, content);
   div(
     [Attr.classes(["code-text", "backpack-selection"])],
     [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
