@@ -22,13 +22,39 @@ module CodeString = {
   and of_delim = (t: Piece.tile, i: int): string => List.nth(t.label, i);
 };
 
+let expected_sorts = (sort, seg) => {
+  let t = List.nth(seg);
+  let rec go = (sort, sksk: Skel.t) => {
+    switch (sksk) {
+    | Op(n) => [(n, sort)]
+    | Pre(n, sk_r) =>
+      let (_, r_sort) = Piece.nib_sorts(t(n));
+      [(n, sort)] @ go(r_sort, sk_r);
+    | Post(sk_l, n) =>
+      let (l_sort, _) = Piece.nib_sorts(t(n));
+      go(l_sort, sk_l) @ [(n, sort)];
+    | Bin(sk_l, n, sk_r) =>
+      let (l_sort, r_sort) = Piece.nib_sorts(t(n));
+      go(l_sort, sk_l) @ [(n, sort)] @ go(r_sort, sk_r);
+    };
+  };
+  seg |> Segment.skel |> go(sort);
+};
+
 module Text = (M: {let map: Measured.t;}) => {
   let m = p => Measured.find_p(p, M.map);
-  let rec of_segment = (seg: Segment.t): list(Node.t) =>
-    seg |> List.map(of_piece) |> List.concat
-  and of_piece = (p: Piece.t): list(Node.t) =>
+  let rec of_segment = (~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
+    let expected_sorts = expected_sorts(sort, seg);
+    let sort_of_p_idx = idx =>
+      switch (List.assoc_opt(idx, expected_sorts)) {
+      | None => Sort.Any
+      | Some(sort) => sort
+      };
+    seg |> List.mapi((i, p) => of_piece(sort_of_p_idx(i), p)) |> List.concat;
+  }
+  and of_piece = (expected_sort: Sort.t, p: Piece.t): list(Node.t) => {
     switch (p) {
-    | Tile(t) => of_tile(t)
+    | Tile(t) => of_tile(expected_sort, t)
     | Grout(_) => [Node.text(Unicode.nbsp)]
     | Whitespace({content, _}) =>
       if (content == Whitespace.linebreak) {
@@ -42,16 +68,23 @@ module Text = (M: {let map: Measured.t;}) => {
       } else {
         [Node.text(content)];
       }
-    }
-  and of_tile = (t: Tile.t): list(Node.t) => {
-    Aba.mk(t.shards, t.children)
-    |> Aba.join(of_delim(t), of_segment)
+    };
+  }
+  and of_tile = (expected_sort, t: Tile.t): list(Node.t) => {
+    let actual_sort = t.mold.out;
+    let is_consistent = Sort.consistent(actual_sort, expected_sort);
+    let sorts = t.mold.in_;
+    assert(List.length(sorts) == List.length(t.children));
+    Aba.mk(t.shards, List.combine(t.children, sorts))
+    |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
+         of_segment(~sort, seg)
+       )
     |> List.concat;
   }
-  and of_delim = (t: Piece.tile, i: int): list(Node.t) => {
+  and of_delim = (is_consistent, t: Piece.tile, i: int): list(Node.t) => {
     let span =
       List.length(t.label) == 1
-        ? Node.span([])
+        ? span_c(is_consistent ? "whatever" : "angry-delim")
         : span_c(Tile.is_complete(t) ? "delim" : "extra-bold-delim");
     [span([Node.text(List.nth(t.label, i))])];
   };

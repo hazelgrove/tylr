@@ -24,6 +24,13 @@ let sort =
     t => (t.mold.out, t.mold.in_),
   );
 
+let nib_sorts =
+  get(
+    _ => (Sort.Any, Sort.Any),
+    _ => (Sort.Any, Sort.Any),
+    t => ((t.mold.nibs |> fst).sort, (t.mold.nibs |> snd).sort),
+  );
+
 let sorted_children = get(_ => [], _ => [], Tile.sorted_children);
 
 // let is_balanced =
