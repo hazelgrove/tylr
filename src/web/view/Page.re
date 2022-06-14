@@ -91,7 +91,7 @@ let editor_panel_view = (~inject, cur_idx) => {
   let incr_ed = _ => inject(Update.SwitchEditor(next_ed));
   let decr_ed = _ => inject(Update.SwitchEditor(prev_ed));
   let toggle_captions = _ => inject(Update.ToggleCaptions);
-  let s = Printf.sprintf("%d / %d", cur_idx, LocalStorage.num_editors);
+  let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
   div(
     [Attr.id("editor-id")],
     [
