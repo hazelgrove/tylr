@@ -321,7 +321,7 @@ let destruct =
     : option(state) => {
   /* Could add checks on valid tokens (all of these hold assuming substring) */
   let last_inner_pos = t => String.length(t) - 2;
-  let d_outer = z =>
+  let d_outer = (d, z) =>
     z
     |> Outer.select(d)
     |> Option.map(Outer.destruct)
@@ -349,8 +349,12 @@ let destruct =
                |> Option.map(z => (z, id_gen))
            : Option.some,
        )
-  /* Can't destruct inside delimiter */
-  | (_, Inner(_), (_, None)) => None
+  /* Can't subdestruct in delimiter, so just destruct on whole delimiter */
+  | (Left, Inner(_), (_, None))
+  | (Right, Inner(_), (_, None)) =>
+    /* Note: Counterintuitve, but yes, these cases are identically handled */
+    z |> set_caret(Outer) |> d_outer(Right)
+  //| (_, Inner(_), (_, None)) => None
   | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
     Outer.replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
   | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
@@ -360,7 +364,7 @@ let destruct =
       (z, id_gen),
     )
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
-  | (_, Outer, (None, _)) => d_outer(z)
+  | (_, Outer, (None, _)) => d_outer(d, z)
   };
 };
 
