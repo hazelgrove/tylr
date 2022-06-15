@@ -269,7 +269,7 @@ let update_caret = (f: caret => caret, z: t): t => {
   caret: f(z.caret),
 };
 
-let set_caret = (caret: caret) => update_caret(_ => caret);
+let set_caret = (caret: caret): (t => t) => update_caret(_ => caret);
 
 let decrement_caret: caret => caret =
   fun
@@ -456,12 +456,18 @@ let split =
   |> (z => Outer.replace_construct(Right, [r], (z, id_gen)))
   |> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
-  |> Option.map(((z, id_gen)) =>
-       lbl == [Whitespace.space]
-         //TODO(andrew): note temp hack to suppress whitespace next to infix grout
-         //TODO(andrew): still need to address caret positioning
-         ? (z, id_gen) : Outer.construct(direction, lbl, z, id_gen)
-     );
+  |> Option.map(((z, id_gen))
+       /* NOTE(andrew): Temp hack to suppress whitespace next
+          to infix grout. We verify both that whitespace is being
+          inserted, and that there will be a shape mismatch. The
+          latter check is necessary for cases like let|x, where
+          there won't actually be an infix grout inserted, so we
+          want there to be a space. */
+       =>
+         lbl == [Whitespace.space]
+         && Siblings.is_mismatch(z.relatives.siblings)
+           ? (z, id_gen) : Outer.construct(direction, lbl, z, id_gen)
+       );
 };
 
 let insert =

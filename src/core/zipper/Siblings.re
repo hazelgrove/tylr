@@ -45,6 +45,11 @@ let shapes = ((pre, suf): t) => {
   (l, r);
 };
 
+let is_mismatch = (sibs: t): bool => {
+  let (l, r) = shapes(sibs);
+  l == r;
+};
+
 let contains_matching = (t: Tile.t, (pre, suf): t) =>
   Segment.(contains_matching(t, pre) || contains_matching(t, suf));
 
