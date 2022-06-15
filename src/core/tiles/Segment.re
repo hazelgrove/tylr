@@ -369,6 +369,14 @@ let rec reassemble = (seg: t): t =>
     }
   };
 
+let trim_f: (list(Base.piece) => list(Base.piece), Direction.t, t) => t =
+  (trim_l, d, ps) => {
+    switch (d) {
+    | Left => ps |> trim_l
+    | Right => ps |> List.rev |> trim_l |> List.rev
+    };
+  };
+
 let trim_whitespace: (Direction.t, t) => t =
   (d, ps) => {
     /* Trims leading/trailing whitespace */
@@ -378,25 +386,36 @@ let trim_whitespace: (Direction.t, t) => t =
       | [Piece.Whitespace(_), ...xs] => trim_l(xs)
       | [_, ..._] => xs
       };
-    switch (d) {
-    | Left => ps |> trim_l
-    | Right => ps |> List.rev |> trim_l |> List.rev
-    };
+    trim_f(trim_l, d, ps);
   };
+
 let trim_whitespace_and_grout: (Direction.t, t) => t =
   (d, ps) => {
     /* Trims leading/trailing whitespace, continuing
        to trim around grout until first Tile is reached */
-    let rec trim_l = xs =>
-      switch (xs) {
-      | [] => []
-      | [Piece.Whitespace(_) | Piece.Grout(_), ...xs] => trim_l(xs)
-      | [_, ..._] => xs
-      };
-    switch (d) {
-    | Left => ps |> trim_l
-    | Right => ps |> List.rev |> trim_l |> List.rev
-    };
+    let rec trim_l: list(Base.piece) => list(Base.piece) =
+      xs =>
+        switch (xs) {
+        | [] => []
+        | [Whitespace(_) | Grout(_), ...xs] => trim_l(xs)
+        | [_, ..._] => xs
+        };
+    trim_f(trim_l, d, ps);
+  };
+
+let trim_grout_around_whitespace: (Direction.t, t) => t =
+  (d, ps) => {
+    /* Trims leading/trailing grout, skipping over whitespace,
+       but not skipping over other pieces. */
+    let rec trim_l: list(Base.piece) => list(Base.piece) =
+      xs =>
+        switch (xs) {
+        | [] => []
+        | [Whitespace(w), ...xs] => [Whitespace(w), ...trim_l(xs)]
+        | [Grout(_), ...xs] => trim_l(xs)
+        | [_, ..._] => xs
+        };
+    trim_f(trim_l, d, ps);
   };
 
 let edge_shape_of = (d: Direction.t, ps: t): option(Nib.Shape.t) => {

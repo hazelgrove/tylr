@@ -147,17 +147,12 @@ module Outer = {
 
   let pick_up = (z: t): t => {
     let (selected, z) = update_selection(Selection.empty, z);
-    let selections =
+    let selection =
       selected.content
-      |> Segment.split_by_grout
-      |> Aba.get_as
-      |> List.filter((!=)(Segment.empty))
-      |> List.map(Selection.mk(selected.focus));
-    let backpack =
-      Backpack.push_s(
-        (z.selection.focus == Left ? Fun.id : List.rev)(selections),
-        z.backpack,
-      );
+      |> Segment.trim_grout_around_whitespace(Left)
+      |> Segment.trim_grout_around_whitespace(Right)
+      |> Selection.mk(selected.focus);
+    let backpack = Backpack.push(selection, z.backpack);
     {...z, backpack};
   };
 
