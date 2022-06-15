@@ -127,6 +127,11 @@ module Outer = {
     };
   };
 
+  let directional_unselect = (d: Direction.t, z: t): option(t) => {
+    let selection = {...z.selection, focus: Direction.toggle(d)};
+    Some(unselect({...z, selection}));
+  };
+
   let move = (d: Direction.t, z: t): option(t) =>
     if (Selection.is_empty(z.selection)) {
       open OptUtil.Syntax;
@@ -138,8 +143,7 @@ module Outer = {
         |> Relatives.reassemble;
       {...z, relatives};
     } else {
-      let selection = {...z.selection, focus: Direction.toggle(d)};
-      Some(unselect({...z, selection}));
+      directional_unselect(d, z);
     };
 
   let select = (d: Direction.t, z: t): option(t) =>
@@ -173,6 +177,9 @@ module Outer = {
          );
     {...z, backpack};
   };
+
+  let directional_remove = (d: Direction.t, z: t): option(t) =>
+    z |> select(d) |> Option.map(destruct);
 
   let put_down = (z: t): option(t) => {
     open OptUtil.Syntax;
@@ -230,23 +237,6 @@ let zip = (z: t): Segment.t =>
   Relatives.zip(~sel=z.selection.content, z.relatives);
 
 let unselect_and_zip = (z: t): Segment.t => z |> Outer.unselect |> zip;
-
-let convex = (z: t): bool => Segment.convex(zip(z));
-
-let remove_right_sib: t => t =
-  update_siblings(((l, r)) => (l, r == [] ? [] : List.tl(r)));
-
-let remove_left_sib: t => t =
-  update_siblings(((l, r)) => (l == [] ? [] : ListUtil.leading(l), r));
-
-let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
-  siblings =>
-    switch (Siblings.neighbors(siblings)) {
-    | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
-    | (Some(l), None) => (Piece.monotile(l), None)
-    | (None, Some(r)) => (None, Piece.monotile(r))
-    | (None, None) => (None, None)
-    };
 
 let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   let ws = Piece.is_whitespace;
@@ -327,6 +317,15 @@ let caret_direction =
     };
   };
 
+let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
+  siblings =>
+    switch (Siblings.neighbors(siblings)) {
+    | (Some(l), Some(r)) => (Piece.monotile(l), Piece.monotile(r))
+    | (Some(l), None) => (Piece.monotile(l), None)
+    | (None, Some(r)) => (None, Piece.monotile(r))
+    | (None, None) => (None, None)
+    };
+
 let destruct =
     (
       d: Direction.t,
@@ -359,8 +358,7 @@ let destruct =
     /* Note: Counterintuitve, but yes, these cases are identically handled */
     z
     |> set_caret(Outer)
-    |> Outer.select(Right)
-    |> Option.map(Outer.destruct)
+    |> Outer.directional_remove(Right)
     |> Option.map(IdGen.id(id_gen))
   //| (_, Inner(_), (_, None)) => None
   | (Left, Outer, (Some(t), _)) when Token.length(t) > 1 =>
@@ -370,10 +368,7 @@ let destruct =
     Outer.replace(Right, [Token.rm_first(t)], (z, id_gen))
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
   | (_, Outer, (None, _)) =>
-    z
-    |> Outer.select(d)
-    |> Option.map(Outer.destruct)
-    |> Option.map(IdGen.id(id_gen))
+    z |> Outer.directional_remove(d) |> Option.map(IdGen.id(id_gen))
   };
 };
 
@@ -381,10 +376,8 @@ let merge =
     ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
   |> set_caret(Inner(0, Token.length(l) - 1))  // note monotile assumption
-  |> Outer.move(Right)
-  |> OptUtil.and_then(Outer.select(Left))
-  |> OptUtil.and_then(Outer.select(Left))
-  |> Option.map(Outer.destruct)
+  |> Outer.directional_remove(Left)
+  |> OptUtil.and_then(Outer.directional_remove(Right))
   |> Option.map(z => Outer.construct(Right, [l ++ r], z, id_gen));
 
 let destruct_or_merge = (d: Direction.t, (z, id_gen): state): option(state) => {
@@ -436,14 +429,14 @@ let insert_outer =
     |> Option.map(((z, id_gen)) => barf_or_construct(char, Left, z, id_gen))
   | CanAddToLeft(left_token) =>
     z
-    |> remove_left_sib
-    |> (z => barf_or_construct(left_token ++ char, Left, z, id_gen))
-    |> Option.some
+    |> Outer.directional_remove(Left)
+    |> Option.map(z => barf_or_construct(left_token ++ char, Left, z, id_gen))
   | CanAddToRight(right_token) =>
     z
-    |> remove_right_sib
-    |> (z => barf_or_construct(char ++ right_token, Right, z, id_gen))
-    |> Option.some
+    |> Outer.directional_remove(Right)
+    |> Option.map(z =>
+         barf_or_construct(char ++ right_token, Right, z, id_gen)
+       )
   };
 
 let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
@@ -732,7 +725,8 @@ let select_vertical = (d: Direction.t, z: t): option(t) =>
   do_vertical(select(d), d, z);
 
 let move_vertical = (d: Direction.t, z: t): option(t) =>
-  do_vertical(move(ByChar, d), d, z);
+  z.selection.content == []
+    ? do_vertical(move(ByChar, d), d, z) : Outer.directional_unselect(d, z);
 
 let update_target = (z: t): t =>
   //NOTE(andrew): $$$ this recomputes all measures
@@ -740,11 +734,6 @@ let update_target = (z: t): t =>
     ...z,
     caret_col_target: caret_point(snd(Measured.of_segment(zip(z))), z).col,
   };
-
-let directional_unselect = (d: Direction.t, z: t) => {
-  let selection = {...z.selection, focus: Direction.toggle(d)};
-  Outer.unselect({...z, selection});
-};
 
 let put_down = (z: t): option(t) =>
   /* Alternatively, putting down inside token could eiter merge-in or split */
@@ -765,7 +754,6 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     | Local(d) =>
       /* Note: Don't update target on vertical movement */
       z
-      |> directional_unselect(from_plane(d))
       |> (
         z =>
           switch (d) {
