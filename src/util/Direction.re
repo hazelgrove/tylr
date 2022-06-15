@@ -18,17 +18,3 @@ let choose = (d, (l, r)) =>
   | Left => l
   | Right => r
   };
-
-[@deriving (show, sexp)]
-type plane =
-  | L
-  | R
-  | U
-  | D;
-
-let from_plane: plane => t =
-  fun
-  | L => Left
-  | R => Right
-  | U => Left
-  | D => Right;

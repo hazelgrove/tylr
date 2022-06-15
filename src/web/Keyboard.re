@@ -43,19 +43,25 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
       if ((!held(Ctrl) || is_digit(key))
           && !held(Alt)
           && !held(Meta)
+          || held(Alt)
+          && (key == "ArrowRight" || key == "ArrowLeft")
           || (held(Ctrl) || held(Meta))
           && (key == "x" || key == "v" || key == "q")) {
         switch (key) {
         | "Home" => now(Move(Extreme(Left)))
         | "End" => now(Move(Extreme(Right)))
-        | "ArrowLeft" when held(Shift) => now(Select(L))
-        | "ArrowRight" when held(Shift) => now(Select(R))
-        | "ArrowUp" when held(Shift) => now(Select(U))
-        | "ArrowDown" when held(Shift) => now(Select(D))
-        | "ArrowLeft" => now(Move(Local(L)))
-        | "ArrowRight" => now(Move(Local(R)))
-        | "ArrowUp" => now(Move(Local(U)))
-        | "ArrowDown" => now(Move(Local(D)))
+        | "ArrowLeft" when held(Shift) => now(Select(Left(ByToken)))
+        | "ArrowRight" when held(Shift) => now(Select(Right(ByToken)))
+        | "ArrowUp" when held(Shift) => now(Select(Up))
+        | "ArrowDown" when held(Shift) => now(Select(Down))
+        | "ArrowLeft" when held(Alt) =>
+          print_endline("alt left");
+          now(Move(Local(Left(ByToken))));
+        | "ArrowRight" when held(Alt) => now(Move(Local(Right(ByToken))))
+        | "ArrowLeft" => now(Move(Local(Left(ByChar))))
+        | "ArrowRight" => now(Move(Local(Right(ByChar))))
+        | "ArrowUp" => now(Move(Local(Up)))
+        | "ArrowDown" => now(Move(Local(Down)))
         | "q" when held(Ctrl) || held(Meta) => now(RotateBackpack)
         | "x" when held(Ctrl) || held(Meta) => now(Pick_up)
         | "v" when held(Ctrl) || held(Meta) => now(Put_down)
@@ -72,13 +78,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
-        | "F3" =>
-          switch (Settings.s.movement) {
-          | Char => Settings.s.movement = Mono
-          | Mono => Settings.s.movement = Token
-          | Token => Settings.s.movement = Char
-          };
-          [];
         | "F4" =>
           print_endline("F4 SAVE");
           [Save];
@@ -88,10 +87,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "F8" =>
           print_endline("F8 LOAD DEFAULT");
           [LoadDefault];
-        | _ when is_digit(key) && held(Ctrl) =>
-          print_endline("switch");
-          print_endline(key);
-          [SwitchEditor(int_of_string(key))];
+        | _ when is_digit(key) && held(Ctrl) => [
+            SwitchEditor(int_of_string(key)),
+          ]
         | "Shift" =>
           let cur_ts = JsUtil.date_now()##valueOf;
           switch (double_tap) {

@@ -31,15 +31,28 @@ type t = {
 type state = (t, IdGen.state);
 
 [@deriving (show, sexp)]
+type chunkiness =
+  | ByChar
+  | MonoByChar
+  | ByToken;
+
+[@deriving (show, sexp)]
+type local_move =
+  | Up
+  | Down
+  | Left(chunkiness)
+  | Right(chunkiness);
+
+[@deriving (show, sexp)]
 type move =
   | Extreme(Direction.t)
-  | Local(Direction.plane);
+  | Local(local_move);
 
 module Action = {
   [@deriving (show, sexp)]
   type t =
     | Move(move)
-    | Select(Direction.plane)
+    | Select(local_move)
     | Destruct(Direction.t)
     | Insert(string)
     | RotateBackpack
@@ -512,46 +525,48 @@ let insert =
     |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
   };
 
-let movability = (label, delim_idx): movability => {
+let movability = (chunkiness: chunkiness, label, delim_idx): movability => {
   assert(delim_idx < List.length(label));
-  switch (Settings.s.movement, label, delim_idx) {
-  | (Char, _, _)
-  | (Mono, [_], 0) =>
+  switch (chunkiness, label, delim_idx) {
+  | (ByChar, _, _)
+  | (MonoByChar, [_], 0) =>
     let char_max = Token.length(List.nth(label, delim_idx)) - 2;
     char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
-  | (Token, _, _)
-  | (Mono, _, _) => CanMovePast
+  | (ByToken, _, _)
+  | (MonoByChar, _, _) => CanMovePast
   };
 };
 
-let neighbor_movability: t => (movability, movability) =
-  ({relatives: {siblings, ancestors}, _}) => {
-    let (supernhbr_l, supernhbr_r) =
-      switch (ancestors) {
-      | [] => (CantEven, CantEven)
-      | [({children: (l_kids, _), label, _}, _), ..._] => (
-          movability(label, List.length(l_kids)),
-          movability(label, List.length(l_kids) + 1),
-        )
-      };
-    let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
-    let l =
-      switch (l_nhbr) {
-      | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
-      | Some(_) => CanMovePast
-      | _ => supernhbr_l
-      };
-    let r =
-      switch (r_nhbr) {
-      | Some(Tile({label, _})) => movability(label, 0)
-      | Some(_) => CanMovePast
-      | _ => supernhbr_r
-      };
-    (l, r);
-  };
+let neighbor_movability =
+    (chunkiness: chunkiness, {relatives: {siblings, ancestors}, _}: t)
+    : (movability, movability) => {
+  let movability = movability(chunkiness);
+  let (supernhbr_l, supernhbr_r) =
+    switch (ancestors) {
+    | [] => (CantEven, CantEven)
+    | [({children: (l_kids, _), label, _}, _), ..._] => (
+        movability(label, List.length(l_kids)),
+        movability(label, List.length(l_kids) + 1),
+      )
+    };
+  let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
+  let l =
+    switch (l_nhbr) {
+    | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
+    | Some(_) => CanMovePast
+    | _ => supernhbr_l
+    };
+  let r =
+    switch (r_nhbr) {
+    | Some(Tile({label, _})) => movability(label, 0)
+    | Some(_) => CanMovePast
+    | _ => supernhbr_r
+    };
+  (l, r);
+};
 
-let move = (d: Direction.t, z: t): option(t) =>
-  switch (d, z.caret, neighbor_movability(z)) {
+let move = (chunkiness: chunkiness, d: Direction.t, z: t): option(t) =>
+  switch (d, z.caret, neighbor_movability(chunkiness, z)) {
   | _ when z.selection.content != [] =>
     /* this case maybe shouldn't be necessary but currently covers an edge
        (select an open parens to left of a multichar token and press left) */
@@ -704,7 +719,7 @@ let select_vertical = (d: Direction.t, z: t): option(t) =>
   do_vertical(select(d), d, z);
 
 let move_vertical = (d: Direction.t, z: t): option(t) =>
-  do_vertical(move(d), d, z);
+  do_vertical(move(ByChar, d), d, z);
 
 let update_target = (z: t): t =>
   //NOTE(andrew): $$$ this recomputes all measures
@@ -725,26 +740,34 @@ let put_down = (z: t): option(t) =>
   | Outer => Outer.put_down(z)
   };
 
+let from_plane: local_move => Direction.t =
+  fun
+  | Left(_) => Left
+  | Right(_) => Right
+  | Up => Left
+  | Down => Right;
+
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
   | Move(d) =>
     switch (d) {
     | Extreme(d) =>
-      do_extreme(move(d), d, z)
+      do_extreme(move(ByToken, d), d, z)
       |> Option.map(IdGen.id(id_gen))
       |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
       /* Note: Don't update target on vertical movement */
       z
-      |> directional_unselect(Direction.from_plane(d))
+      |> directional_unselect(from_plane(d))
       |> (
         z =>
           switch (d) {
-          | L => move(Left, z) |> Option.map(update_target)
-          | R => move(Right, z) |> Option.map(update_target)
-          | U => move_vertical(Left, z)
-          | D => move_vertical(Right, z)
+          | Left(chunk) => move(chunk, Left, z) |> Option.map(update_target)
+          | Right(chunk) =>
+            move(chunk, Right, z) |> Option.map(update_target)
+          | Up => move_vertical(Left, z)
+          | Down => move_vertical(Right, z)
           }
       )
       |> Option.map(IdGen.id(id_gen))
@@ -754,10 +777,10 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     /* Note: Don't update target on vertical selection */
     (
       switch (d) {
-      | L => select(Left, z) |> Option.map(update_target)
-      | R => select(Right, z) |> Option.map(update_target)
-      | U => select_vertical(Left, z)
-      | D => select_vertical(Right, z)
+      | Left(_) => select(Left, z) |> Option.map(update_target)
+      | Right(_) => select(Right, z) |> Option.map(update_target)
+      | Up => select_vertical(Left, z)
+      | Down => select_vertical(Right, z)
       }
     )
     |> Option.map(IdGen.id(id_gen))
