@@ -140,9 +140,8 @@ let find_g = (g: Grout.t, map) => Id.Map.find(g.id, map.grout);
 // returns the measurement spanning the whole tile
 let find_t = (t: Tile.t, map) => {
   let shards = Id.Map.find(t.id, map.tiles);
-  assert(shards != []);
-  let (_, first) = List.hd(shards);
-  let (_, last) = ListUtil.last(shards);
+  let first = List.assoc(Tile.l_shard(t), shards);
+  let last = List.assoc(Tile.r_shard(t), shards);
   {origin: first.origin, last: last.last};
 };
 // let find_a = ({shards: (l, r), _} as a: Ancestor.t, map) =>
