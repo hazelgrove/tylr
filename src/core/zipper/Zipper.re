@@ -1,6 +1,6 @@
 open Util;
 open Sexplib.Std;
-open OptUtil.Syntax;
+open OptUtil.Syntax; 
 
 [@deriving show]
 type caret =
@@ -15,8 +15,8 @@ type movability =
 
 [@deriving show]
 type appendability =
-  | CanAddToLeft(string)
-  | CanAddToRight(string)
+  | CanAddToLeft(Token.t)
+  | CanAddToRight(Token.t)
   | CanAddToNeither;
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
@@ -320,7 +320,7 @@ let destruct =
     )
     : option(state) => {
   /* Could add checks on valid tokens (all of these hold assuming substring) */
-  let last_inner_pos = t => String.length(t) - 2;
+  let last_inner_pos = t => Token.length(t) - 2;
   let d_outer = (d, z) =>
     z
     |> Outer.select(d)
@@ -329,15 +329,11 @@ let destruct =
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(_, c_idx), (_, Some(t))) =>
     let z = update_caret(decrement_caret, z);
-    Outer.replace_construct(
-      Right,
-      [StringUtil.remove_nth(c_idx, t)],
-      (z, id_gen),
-    );
+    Outer.replace_construct(Right, [Token.rm_nth(c_idx, t)], (z, id_gen));
   | (Right, Inner(_, c_idx), (_, Some(t))) =>
     Outer.replace_construct(
       Right,
-      [StringUtil.remove_nth(c_idx + 1, t)],
+      [Token.rm_nth(c_idx + 1, t)],
       (z, id_gen),
     )
     |> OptUtil.and_then(
@@ -355,14 +351,10 @@ let destruct =
     /* Note: Counterintuitve, but yes, these cases are identically handled */
     z |> set_caret(Outer) |> d_outer(Right)
   //| (_, Inner(_), (_, None)) => None
-  | (Left, Outer, (Some(t), _)) when String.length(t) > 1 =>
-    Outer.replace_construct(Left, [StringUtil.remove_last(t)], (z, id_gen))
-  | (Right, Outer, (_, Some(t))) when String.length(t) > 1 =>
-    Outer.replace_construct(
-      Right,
-      [StringUtil.remove_first(t)],
-      (z, id_gen),
-    )
+  | (Left, Outer, (Some(t), _)) when Token.length(t) > 1 =>
+    Outer.replace_construct(Left, [Token.rm_last(t)], (z, id_gen))
+  | (Right, Outer, (_, Some(t))) when Token.length(t) > 1 =>
+    Outer.replace_construct(Right, [Token.rm_first(t)], (z, id_gen))
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
   | (_, Outer, (None, _)) => d_outer(d, z)
   };
@@ -371,7 +363,7 @@ let destruct =
 let merge =
     ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
   z
-  |> set_caret(Inner(0, String.length(l) - 1))  // note monotile assumption
+  |> set_caret(Inner(0, Token.length(l) - 1))  // note monotile assumption
   |> Outer.move(Right)
   |> OptUtil.and_then(Outer.select(Left))
   |> OptUtil.and_then(Outer.select(Left))
@@ -408,7 +400,7 @@ let sibling_appendability: (string, Siblings.t) => appendability =
     };
 
 let barf_or_construct =
-    (new_token: string, direction_preference: Direction.t, z: t): IdGen.t(t) =>
+    (new_token: Token.t, direction_preference: Direction.t, z: t): IdGen.t(t) =>
   if (Backpack.is_first_matching(new_token, z.backpack)) {
     z |> Outer.put_down |> Option.get |> IdGen.return;
   } else {
@@ -456,8 +448,8 @@ let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
 };
 
 let split =
-    ((z, id_gen): state, char: string, idx: int, t: string): option(state) => {
-  let (l, r) = StringUtil.split_nth(idx, t);
+    ((z, id_gen): state, char: string, idx: int, t: Token.t): option(state) => {
+  let (l, r) = Token.split_nth(idx, t);
   let (lbl, direction) = Molds.instant_completion(char, Left);
   z
   |> set_caret(Outer)
@@ -487,7 +479,7 @@ let insert =
   switch (caret, neighbor_monotiles(siblings)) {
   | (Inner(d_idx, n), (_, Some(t))) =>
     let idx = n + 1;
-    let new_t = StringUtil.insert_nth(idx, char, t);
+    let new_t = Token.insert_nth(idx, char, t);
     /* If inserting wouldn't produce a valid token, split */
     Form.is_valid_token(new_t)
       ? z
@@ -520,7 +512,7 @@ let movability = (label, delim_idx): movability => {
   switch (Settings.s.movement, label, delim_idx) {
   | (Char, _, _)
   | (Mono, [_], 0) =>
-    let char_max = String.length(List.nth(label, delim_idx)) - 2;
+    let char_max = Token.length(List.nth(label, delim_idx)) - 2;
     char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
   | (Token, _, _)
   | (Mono, _, _) => CanMovePast
