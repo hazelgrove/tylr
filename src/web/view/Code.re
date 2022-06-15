@@ -324,18 +324,9 @@ module Deco = (M: {
       let ranges = TermRanges.mk(Zipper.zip(z));
       switch (TermRanges.find_opt(Piece.id(p), ranges)) {
       | None => []
-      | Some((id_l, id_r)) =>
-        let m = Measured.find_p(p, M.map);
-        let l =
-          switch (ListUtil.hd_opt(Measured.find_shards'(id_l, M.map))) {
-          | None => m.origin
-          | Some((_, m)) => m.origin
-          };
-        let r =
-          switch (ListUtil.last_opt(Measured.find_shards'(id_r, M.map))) {
-          | None => m.last
-          | Some((_, m)) => m.last
-          };
+      | Some((p_l, p_r)) =>
+        let l = Measured.find_p(p_l, M.map).origin;
+        let r = Measured.find_p(p_r, M.map).last;
         let nib_shape =
           switch (Zipper.caret_direction(z)) {
           | None => Nib.Shape.Convex

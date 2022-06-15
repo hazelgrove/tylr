@@ -125,21 +125,6 @@ let singleton_w = (w, m) => empty |> add_w(w, m);
 let singleton_g = (g, m) => empty |> add_g(g, m);
 let singleton_s = (id, shard, m) => empty |> add_s(id, shard, m);
 
-let find_w = (w: Whitespace.t, map) => Id.Map.find(w.id, map.whitespace);
-let find_g = (g: Grout.t, map) => Id.Map.find(g.id, map.grout);
-let find_t = (t: Tile.t, map) =>
-  // assumes t is single shard
-  List.assoc(Tile.l_shard(t), Id.Map.find(t.id, map.tiles));
-// let find_a = ({shards: (l, r), _} as a: Ancestor.t, map) =>
-//   List.assoc(l @ r, Id.Map.find(a.id, map.tiles));
-let find_p = (p: Piece.t, map) =>
-  p
-  |> Piece.get(
-       w => find_w(w, map),
-       g => find_g(g, map),
-       t => find_t(t, map),
-     );
-
 // TODO(d) rename
 let find_opt_shards = (t: Tile.t, map) => Id.Map.find_opt(t.id, map.tiles);
 let find_shards = (t: Tile.t, map) => Id.Map.find(t.id, map.tiles);
@@ -149,6 +134,26 @@ let find_shards' = (id: Id.t, map) =>
   | None => []
   | Some(ss) => ss
   };
+
+let find_w = (w: Whitespace.t, map) => Id.Map.find(w.id, map.whitespace);
+let find_g = (g: Grout.t, map) => Id.Map.find(g.id, map.grout);
+// returns the measurement spanning the whole tile
+let find_t = (t: Tile.t, map) => {
+  let shards = Id.Map.find(t.id, map.tiles);
+  assert(shards != []);
+  let (_, first) = List.hd(shards);
+  let (_, last) = ListUtil.last(shards);
+  {origin: first.origin, last: last.last};
+};
+// let find_a = ({shards: (l, r), _} as a: Ancestor.t, map) =>
+//   List.assoc(l @ r, Id.Map.find(a.id, map.tiles));
+let find_p = (p: Piece.t, map) =>
+  p
+  |> Piece.get(
+       w => find_w(w, map),
+       g => find_g(g, map),
+       t => find_t(t, map),
+     );
 
 let union2 = (map: t, map': t) => {
   tiles:
