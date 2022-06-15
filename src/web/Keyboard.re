@@ -46,21 +46,29 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
           || (held(Ctrl) || held(Meta))
           && (key == "x" || key == "v" || key == "q")) {
         switch (key) {
-        | "Shift" =>
-          let cur_ts = JsUtil.date_now()##valueOf;
-          switch (double_tap) {
-          | None => [UpdateDoubleTap(Some(cur_ts))]
-          | Some(past_ts) =>
-            if (cur_ts -. past_ts < 400.) {
-              [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
-            } else {
-              [UpdateDoubleTap(Some(cur_ts))];
-            }
-          };
-        | _ when is_digit(key) && held(Ctrl) =>
-          print_endline("switch");
-          print_endline(key);
-          [SwitchEditor(int_of_string(key))];
+        | "Home" => now(Move(Extreme(Left)))
+        | "End" => now(Move(Extreme(Right)))
+        | "ArrowLeft" when held(Shift) => now(Select(L))
+        | "ArrowRight" when held(Shift) => now(Select(R))
+        | "ArrowUp" when held(Shift) => now(Select(U))
+        | "ArrowDown" when held(Shift) => now(Select(D))
+        | "ArrowLeft" => now(Move(Local(L)))
+        | "ArrowRight" => now(Move(Local(R)))
+        | "ArrowUp" => now(Move(Local(U)))
+        | "ArrowDown" => now(Move(Local(D)))
+        | "q" when held(Ctrl) || held(Meta) => now(RotateBackpack)
+        | "x" when held(Ctrl) || held(Meta) => now(Pick_up)
+        | "v" when held(Ctrl) || held(Meta) => now(Put_down)
+        | "Tab" => now_save(Put_down) //TODO: if empty, move to next hole
+        | "Backspace" =>
+          // TODO(d): check whether selection is empty, only select if so
+          now_save(Destruct(Left))
+        | "Delete" =>
+          // TODO(d): fix broken repeated delete
+          now_save(Destruct(Right))
+        | "Enter" =>
+          //NOTE(andrew): using funky char to avoid weird regexp issues with using \n
+          now_save(Insert(Whitespace.linebreak))
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
@@ -80,37 +88,24 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "F8" =>
           print_endline("F8 LOAD DEFAULT");
           [LoadDefault];
-        | "ArrowLeft" when held(Shift) => now(Select(L))
-        | "ArrowRight" when held(Shift) => now(Select(R))
-        | "ArrowUp" when held(Shift) => now(Select(U))
-        | "ArrowDown" when held(Shift) => now(Select(D))
-        | "ArrowLeft" => now(Move(L))
-        | "ArrowRight" => now(Move(R))
-        | "ArrowUp" => now(Move(U))
-        | "ArrowDown" => now(Move(D))
-        | "q" when held(Ctrl) || held(Meta) => now(RotateBackpack)
-        | "x" when held(Ctrl) || held(Meta) => now(Pick_up)
-        | "v" when held(Ctrl) || held(Meta) => now(Put_down)
-        | "Tab" => now_save(Put_down)
-        | "Backspace" =>
-          // TODO(d): check whether selection is empty, only select if so
-          now_save(Destruct(Left))
-        | "Delete" =>
-          // TODO(d): fix broken repeated delete
-          now_save(Destruct(Right))
-        | "Enter" =>
-          //NOTE(andrew): using funky char to avoid weird regexp issues with using \n
-          now_save(Insert(Whitespace.linebreak))
+        | _ when is_digit(key) && held(Ctrl) =>
+          print_endline("switch");
+          print_endline(key);
+          [SwitchEditor(int_of_string(key))];
+        | "Shift" =>
+          let cur_ts = JsUtil.date_now()##valueOf;
+          switch (double_tap) {
+          | None => [UpdateDoubleTap(Some(cur_ts))]
+          | Some(past_ts) =>
+            if (cur_ts -. past_ts < 400.) {
+              [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
+            } else {
+              [UpdateDoubleTap(Some(cur_ts))];
+            }
+          };
+
         | _ when Form.is_valid_char(key) => now_save(Insert(key))
-        // | "Tab" =>
-        //   let d = held(Shift) ? Direction.Left : Right;
-        //   [MoveToNextHole(d)];
-        // | "Enter" =>
-        //   switch (zipper) {
-        //   | (Restructuring(_), _) => [p(Mark)]
-        //   | _ => []
-        //   }
-        // | "Escape" => [Update.escape()]
+        // | "Escape" => [] // TODO: deselect?
         | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };
@@ -124,32 +119,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         switch (key) {
         | "z"
         | "Z" => held(Shift) ? [Redo] : [Undo]
-        // | "x" =>
-        //   switch (zipper) {
-        //   | (Pointing(_) | Selecting(_, [], _), _) => [
-        //       FailedInput(Failure(Cant_move)),
-        //     ]
-        //   | (Selecting(_, [_, ..._], _), _) => [p(Mark)]
-        //   | (Restructuring((_, rframe)), _) =>
-        //     switch (rframe) {
-        //     | ([Selection(selection), ..._], _)
-        //         when Option.is_some(Selection.is_restructurable(selection)) => [
-        //         p(Move(Left)),
-        //       ]
-        //     | (_, [Selection(selection), ..._])
-        //         when Option.is_some(Selection.is_restructurable(selection)) => [
-        //         p(Move(Right)),
-        //       ]
-        //     | _ => [FailedInput(Failure(Cant_move))]
-        //     }
-        //   }
-        // | "v" =>
-        //   switch (zipper) {
-        //   | (Pointing(_) | Selecting(_), _) => [
-        //       FailedInput(Failure(Cant_move)),
-        //     ]
-        //   | (Restructuring(_), _) => [p(Mark)]
-        //   }
         | _ => []
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {

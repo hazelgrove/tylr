@@ -10,6 +10,8 @@ let fresh: t(Id.t) = id => (id, id + 1);
 
 let return: 'a => t('a) = (a, s) => (a, s);
 
+let id: (state, 'a) => ('a, state) = (s, a) => (a, s);
+
 let map: ('a => 'b, t('a)) => t('b) =
   (f, id_gen, id) => {
     let (a, id) = id_gen(id);

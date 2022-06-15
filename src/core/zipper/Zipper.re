@@ -1,6 +1,6 @@
 open Util;
 open Sexplib.Std;
-open OptUtil.Syntax; 
+open OptUtil.Syntax;
 
 [@deriving show]
 type caret =
@@ -30,10 +30,15 @@ type t = {
 };
 type state = (t, IdGen.state);
 
+[@deriving (show, sexp)]
+type move =
+  | Extreme(Direction.t)
+  | Local(Direction.plane);
+
 module Action = {
   [@deriving (show, sexp)]
   type t =
-    | Move(Direction.plane)
+    | Move(move)
     | Select(Direction.plane)
     | Destruct(Direction.t)
     | Insert(string)
@@ -325,7 +330,7 @@ let destruct =
     z
     |> Outer.select(d)
     |> Option.map(Outer.destruct)
-    |> Option.map(z => (z, id_gen));
+    |> Option.map(IdGen.id(id_gen));
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
   | (Left, Inner(_, c_idx), (_, Some(t))) =>
     let z = update_caret(decrement_caret, z);
@@ -342,7 +347,7 @@ let destruct =
                z
                |> set_caret(Outer)
                |> Outer.move(Right)
-               |> Option.map(z => (z, id_gen))
+               |> Option.map(IdGen.id(id_gen))
            : Option.some,
        )
   /* Can't subdestruct in delimiter, so just destruct on whole delimiter */
@@ -681,11 +686,17 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
       col: z.caret_col_target,
       row: cur_p.row + (d == Right ? 1 : (-1)),
     };
-  // Printf.printf("select_vertical: cur: %s\n", Measured.show_point(cur_p));
-  // Printf.printf("select_vertical: goal: %s\n", Measured.show_point(goal));
+  // Printf.printf("do_vertical: cur: %s\n", Measured.show_point(cur_p));
+  // Printf.printf("do_vertical: goal: %s\n", Measured.show_point(goal));
   let res = do_towards(f, d, cursorpos, goal, z, z);
   let res_p = cursorpos(res);
   res_p.row == cur_p.row && res_p.col == cur_p.col ? None : Some(res);
+};
+
+let do_extreme = (f: t => option(t), d: Direction.t, z: t): t => {
+  let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
+  let extreme = d == Right ? Int.max_int : 0;
+  do_towards(f, d, cursorpos, {col: extreme, row: extreme}, z, z);
 };
 
 let select_vertical = (d: Direction.t, z: t): option(t) =>
@@ -717,20 +728,25 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
   | Move(d) =>
-    /* Note: Don't update target on vertical movement */
-    z
-    |> directional_unselect(Direction.from_plane(d))
-    |> (
-      z =>
-        switch (d) {
-        | L => move(Left, z) |> Option.map(update_target)
-        | R => move(Right, z) |> Option.map(update_target)
-        | U => move_vertical(Left, z)
-        | D => move_vertical(Right, z)
-        }
-    )
-    |> Option.map(z => (z, id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move)
+    switch (d) {
+    | Extreme(d) =>
+      do_extreme(move(d), d, z) |> IdGen.id(id_gen) |> Result.return
+    | Local(d) =>
+      /* Note: Don't update target on vertical movement */
+      z
+      |> directional_unselect(Direction.from_plane(d))
+      |> (
+        z =>
+          switch (d) {
+          | L => move(Left, z) |> Option.map(update_target)
+          | R => move(Right, z) |> Option.map(update_target)
+          | U => move_vertical(Left, z)
+          | D => move_vertical(Right, z)
+          }
+      )
+      |> Option.map(IdGen.id(id_gen))
+      |> Result.of_option(~error=Action.Failure.Cant_move)
+    }
   | Select(d) =>
     /* Note: Don't update target on vertical selection */
     (
@@ -741,7 +757,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
       | D => select_vertical(Right, z)
       }
     )
-    |> Option.map(z => (z, id_gen))
+    |> Option.map(IdGen.id(id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_select)
   | Destruct(d) =>
     (z, id_gen)
