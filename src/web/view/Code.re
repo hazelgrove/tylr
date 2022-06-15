@@ -26,8 +26,12 @@ let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
   let t = List.nth(seg);
   let rec go = (sort, sksk: Skel.t) => {
     // note: disabling this chk would make whole terms highlit
+    // NOTE(andrew): the Sort.Any part is a hack to prevent
+    // holes from letting their kids be anything e.g. 1!><2 would
+    // highlight the 1 but not the !.
     let chk = (n, x_sort) =>
-      Sort.consistent(Piece.sort(t(n)) |> fst, sort) ? x_sort : sort;
+      x_sort != Sort.Any && Sort.consistent(Piece.sort(t(n)) |> fst, sort)
+        ? x_sort : sort;
     switch (sksk) {
     | Op(n) => [(n, sort)]
     | Pre(n, sk_r) =>
