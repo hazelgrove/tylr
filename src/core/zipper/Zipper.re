@@ -690,13 +690,14 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
   // Printf.printf("do_vertical: goal: %s\n", Measured.show_point(goal));
   let res = do_towards(f, d, cursorpos, goal, z, z);
   let res_p = cursorpos(res);
-  res_p.row == cur_p.row && res_p.col == cur_p.col ? None : Some(res);
+  Measured.point_equals(res_p, cur_p) ? None : Some(res);
 };
 
-let do_extreme = (f: t => option(t), d: Direction.t, z: t): t => {
+let do_extreme = (f: t => option(t), d: Direction.t, z: t): option(t) => {
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
   let extreme = d == Right ? Int.max_int : 0;
-  do_towards(f, d, cursorpos, {col: extreme, row: extreme}, z, z);
+  let res = do_towards(f, d, cursorpos, {col: extreme, row: extreme}, z, z);
+  Measured.point_equals(cursorpos(res), cursorpos(z)) ? None : Some(res);
 };
 
 let select_vertical = (d: Direction.t, z: t): option(t) =>
@@ -730,7 +731,9 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | Move(d) =>
     switch (d) {
     | Extreme(d) =>
-      do_extreme(move(d), d, z) |> IdGen.id(id_gen) |> Result.return
+      do_extreme(move(d), d, z)
+      |> Option.map(IdGen.id(id_gen))
+      |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
       /* Note: Don't update target on vertical movement */
       z

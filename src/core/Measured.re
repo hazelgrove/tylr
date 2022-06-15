@@ -72,6 +72,9 @@ let empty = {
   rows: Rows.empty,
 };
 
+let point_equals: (point, point) => bool =
+  (p, q) => p.row == q.row && p.col == q.col;
+
 let add_s = (id: Id.t, i: int, m, map) => {
   ...map,
   tiles:
