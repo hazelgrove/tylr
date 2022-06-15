@@ -255,12 +255,16 @@ let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   | ((None, Some(r)), None) when ws(r) => None
   /* No L and R is a whitespace and there is a P => indicate P */
   | ((None, Some(r)), Some(parent)) when ws(r) => Some((parent, Left))
-  /* R is not whitespace => indicate R */
-  | ((_, Some(r_nhbr)), _) => Some((r_nhbr, Right))
+  /* L is not whitespace and caret is outer => indicate L */
+  | ((Some(l), _), _) when !ws(l) && z.caret == Outer => Some((l, Left))
+  /* No L, some P, and caret is outer => indicate R */
+  | ((None, _), Some(parent)) when z.caret == Outer => Some((parent, Left))
+  /* R is not whitespace, either no L or L is whitespace or caret is inner => indicate R */
+  | ((_, Some(r)), _) => Some((r, Right))
   /* No R and there is a P => indicate P */
   | ((_, None), Some(parent)) => Some((parent, Right))
   /* There is an L but no R and no P => indicate L */
-  | ((Some(l_nhbr), None), None) => Some((l_nhbr, Right))
+  | ((Some(l), None), None) => Some((l, Right))
   };
 };
 
