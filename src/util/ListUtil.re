@@ -284,7 +284,7 @@ let splits = (xs: list('x) as 'xs): list(('xs, 'xs)) => {
   let rec go = (split: ('xs, 'xs)): list(('xs, 'xs)) =>
     switch (split) {
     | (_, []) => [split]
-    | (l, [hd, ...tl]) => [split, ...go(([hd, ...l], tl))]
+    | (l, [hd, ...tl]) => [split, ...go((l @ [hd], tl))]
     };
   go(([], xs));
 };
