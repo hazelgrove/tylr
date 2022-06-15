@@ -46,10 +46,20 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
           || held(Alt)
           && (key == "ArrowRight" || key == "ArrowLeft")
           || (held(Ctrl) || held(Meta))
-          && (key == "x" || key == "v" || key == "q")) {
+          && (
+            key == "x"
+            || key == "v"
+            || key == "q"
+            || key == "ArrowDown"
+            || key == "ArrowUp"
+          )) {
         switch (key) {
-        | "Home" => now(Move(Extreme(Left)))
-        | "End" => now(Move(Extreme(Right)))
+        | "Home" => now(Move(Extreme(Left(ByToken))))
+        | "End" => now(Move(Extreme(Right(ByToken))))
+        | "ArrowUp" when held(Ctrl) || held(Meta) =>
+          now(Move(Extreme(Up)))
+        | "ArrowDown" when held(Ctrl) || held(Meta) =>
+          now(Move(Extreme(Down)))
         | "ArrowLeft" when held(Shift) => now(Select(Left(ByToken)))
         | "ArrowRight" when held(Shift) => now(Select(Right(ByToken)))
         | "ArrowUp" when held(Shift) => now(Select(Up))

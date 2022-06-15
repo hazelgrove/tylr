@@ -37,7 +37,7 @@ type chunkiness =
   | ByToken;
 
 [@deriving (show, sexp)]
-type local_move =
+type plane_move =
   | Up
   | Down
   | Left(chunkiness)
@@ -45,14 +45,14 @@ type local_move =
 
 [@deriving (show, sexp)]
 type move =
-  | Extreme(Direction.t)
-  | Local(local_move);
+  | Extreme(plane_move)
+  | Local(plane_move);
 
 module Action = {
   [@deriving (show, sexp)]
   type t =
     | Move(move)
-    | Select(local_move)
+    | Select(plane_move)
     | Destruct(Direction.t)
     | Insert(string)
     | RotateBackpack
@@ -708,10 +708,24 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
   Measured.point_equals(res_p, cur_p) ? None : Some(res);
 };
 
-let do_extreme = (f: t => option(t), d: Direction.t, z: t): option(t) => {
+let from_plane: plane_move => Direction.t =
+  fun
+  | Left(_) => Left
+  | Right(_) => Right
+  | Up => Left
+  | Down => Right;
+
+let do_extreme = (f: t => option(t), d: plane_move, z: t): option(t) => {
   let cursorpos = caret_point(snd(Measured.of_segment(zip(z))));
-  let extreme = d == Right ? Int.max_int : 0;
-  let res = do_towards(f, d, cursorpos, {col: extreme, row: extreme}, z, z);
+  let cur_p = cursorpos(z);
+  let goal: Measured.point =
+    switch (d) {
+    | Right(_) => {col: Int.max_int, row: cur_p.row}
+    | Left(_) => {col: 0, row: cur_p.row}
+    | Up => {col: 0, row: 0}
+    | Down => {col: Int.max_int, row: Int.max_int}
+    };
+  let res = do_towards(f, from_plane(d), cursorpos, goal, z, z);
   Measured.point_equals(cursorpos(res), cursorpos(z)) ? None : Some(res);
 };
 
@@ -740,20 +754,13 @@ let put_down = (z: t): option(t) =>
   | Outer => Outer.put_down(z)
   };
 
-let from_plane: local_move => Direction.t =
-  fun
-  | Left(_) => Left
-  | Right(_) => Right
-  | Up => Left
-  | Down => Right;
-
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
   | Move(d) =>
     switch (d) {
     | Extreme(d) =>
-      do_extreme(move(ByToken, d), d, z)
+      do_extreme(move(ByToken, from_plane(d)), d, z)
       |> Option.map(IdGen.id(id_gen))
       |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
