@@ -214,8 +214,9 @@ module Outer = {
     );
   };
 
-  let replace_construct =
+  let replace =
       (d: Direction.t, l: Label.t, (z, id_gen): state): option(state) =>
+    /* i.e. destruct and construct */
     z
     |> select(d)
     |> Option.map(destruct)
@@ -334,42 +335,45 @@ let destruct =
     : option(state) => {
   /* Could add checks on valid tokens (all of these hold assuming substring) */
   let last_inner_pos = t => Token.length(t) - 2;
-  let d_outer = (d, z) =>
-    z
-    |> Outer.select(d)
-    |> Option.map(Outer.destruct)
-    |> Option.map(IdGen.id(id_gen));
   switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
+  /* When there's a selection, defer to Outer */
+  | _ when z.selection.content != [] =>
+    z |> Outer.destruct |> IdGen.id(id_gen) |> Option.some
   | (Left, Inner(_, c_idx), (_, Some(t))) =>
     let z = update_caret(decrement_caret, z);
-    Outer.replace_construct(Right, [Token.rm_nth(c_idx, t)], (z, id_gen));
-  | (Right, Inner(_, c_idx), (_, Some(t))) =>
-    Outer.replace_construct(
-      Right,
-      [Token.rm_nth(c_idx + 1, t)],
-      (z, id_gen),
-    )
-    |> OptUtil.and_then(
-         c_idx == last_inner_pos(t)
-           ? ((z, id_gen)) =>
-               z
-               |> set_caret(Outer)
-               |> Outer.move(Right)
-               |> Option.map(IdGen.id(id_gen))
-           : Option.some,
+    Outer.replace(Right, [Token.rm_nth(c_idx, t)], (z, id_gen));
+  | (Right, Inner(_, c_idx), (_, Some(t))) when c_idx == last_inner_pos(t) =>
+    Outer.replace(Right, [Token.rm_nth(c_idx + 1, t)], (z, id_gen))
+    |> OptUtil.and_then(((z, id_gen)) =>
+         z
+         |> set_caret(Outer)
+         |> Outer.move(Right)
+         |> Option.map(IdGen.id(id_gen))
        )
+  /* If not on last inner position */
+  | (Right, Inner(_, c_idx), (_, Some(t))) =>
+    Outer.replace(Right, [Token.rm_nth(c_idx + 1, t)], (z, id_gen))
   /* Can't subdestruct in delimiter, so just destruct on whole delimiter */
   | (Left, Inner(_), (_, None))
   | (Right, Inner(_), (_, None)) =>
     /* Note: Counterintuitve, but yes, these cases are identically handled */
-    z |> set_caret(Outer) |> d_outer(Right)
+    z
+    |> set_caret(Outer)
+    |> Outer.select(Right)
+    |> Option.map(Outer.destruct)
+    |> Option.map(IdGen.id(id_gen))
   //| (_, Inner(_), (_, None)) => None
   | (Left, Outer, (Some(t), _)) when Token.length(t) > 1 =>
-    Outer.replace_construct(Left, [Token.rm_last(t)], (z, id_gen))
+    //Option.map(IdGen.id(id_gen)
+    Outer.replace(Left, [Token.rm_last(t)], (z, id_gen))
   | (Right, Outer, (_, Some(t))) when Token.length(t) > 1 =>
-    Outer.replace_construct(Right, [Token.rm_first(t)], (z, id_gen))
+    Outer.replace(Right, [Token.rm_first(t)], (z, id_gen))
   | (_, Outer, (Some(_), _)) /* t.length == 1 */
-  | (_, Outer, (None, _)) => d_outer(d, z)
+  | (_, Outer, (None, _)) =>
+    z
+    |> Outer.select(d)
+    |> Option.map(Outer.destruct)
+    |> Option.map(IdGen.id(id_gen))
   };
 };
 
@@ -400,7 +404,7 @@ let keyword_expand = ((z, _) as state: state): option(state) =>
   switch (neighbor_monotiles(z.relatives.siblings)) {
   | (Some(kw), _) =>
     let (new_label, direction) = Molds.delayed_completion(kw, Left);
-    Outer.replace_construct(direction, new_label, state);
+    Outer.replace(direction, new_label, state);
   | _ => Some(state)
   };
 
@@ -466,7 +470,7 @@ let split =
   let (lbl, direction) = Molds.instant_completion(char, Left);
   z
   |> set_caret(Outer)
-  |> (z => Outer.replace_construct(Right, [r], (z, id_gen)))
+  |> (z => Outer.replace(Right, [r], (z, id_gen)))
   |> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(keyword_expand)
   |> Option.map(((z, id_gen))
@@ -497,7 +501,7 @@ let insert =
     Form.is_valid_token(new_t)
       ? z
         |> set_caret(Inner(d_idx, idx))
-        |> (z => Outer.replace_construct(Right, [new_t], (z, id_gen)))
+        |> (z => Outer.replace(Right, [new_t], (z, id_gen)))
         |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
       : split((z, id_gen), char, idx, t)
         |> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen));
