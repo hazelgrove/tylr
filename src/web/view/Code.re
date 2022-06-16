@@ -117,7 +117,12 @@ module Text = (M: {
 };
 
 let backpack_sel_view =
-    (idx: int, _lines: int, opacity: int, {focus: _, content}: Selection.t) => {
+    (
+      idx: int,
+      lines: float,
+      opacity: float,
+      {focus: _, content}: Selection.t,
+    ) => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let (_, map) = Measured.of_segment(content);
   module Text =
@@ -126,22 +131,28 @@ let backpack_sel_view =
       let settings = Model.settings_init;
     });
   let text_view = Text.of_segment(~no_sorts=true, content);
-  div(
-    [
-      Attr.classes(["code-text", "backpack-selection"]),
-      Attr.create(
-        "style",
-        Printf.sprintf(
-          "transform-origin: bottom left; transform: translate(%dpx, %dpx) scale(%d%%); opacity: %d%%;",
-          8 * idx,
-          8 * idx,
-          100 - 12 * idx,
-          opacity,
+  let height = Measured.segment_height(content);
+  let scale_percent = float_of_int(100 - 12 * idx);
+  let dy =
+    lines +. (-24.) *. float_of_int(height) *. scale_percent /. 100. +. 4.;
+  let guy =
+    div(
+      [
+        Attr.classes(["code-text", "backpack-selection"]),
+        Attr.create(
+          "style",
+          Printf.sprintf(
+            "position: absolute; transform-origin: bottom left; transform: translate(%dpx, %fpx) scale(%f%%); opacity: %f%%;",
+            12 * idx,
+            dy, //(-24.) *. float_of_int(lines),
+            scale_percent,
+            opacity,
+          ),
         ),
-      ),
-    ],
-    [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
-  );
+      ],
+      [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
+    );
+  (guy, dy);
 };
 
 let backpack_view =
@@ -162,6 +173,11 @@ let backpack_view =
       0,
       backpack,
     );
+  let cur_height =
+    switch (backpack) {
+    | [] => 0
+    | [hd, ..._] => Measured.segment_height(hd.content)
+    };
   //TODO(andrew): truncate backpack when height is too high?
   let can_put_down =
     switch (Zipper.put_down(z)) {
@@ -172,25 +188,26 @@ let backpack_view =
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx;",
       Float.of_int(origin.col) *. font_metrics.col_width,
-      Float.of_int(/* origin.row */ - height - 1)
+      Float.of_int(- cur_height - 1)
       *. font_metrics.row_height
+      //Float.of_int(/* origin.row */ - height - 1)
+      //*. font_metrics.row_height
       +. CaretDec.top_text_fudge,
     );
-  let init_opacity = 90;
-  let opacity_reduction = (-15); //per line
+  let init_opacity = 90.;
+  let opacity_reduction = 15.; //per line
   let (_, _, _, sels) =
     List.fold_left(
-      ((idx, lines, opacity, vs), s) => {
-        let v = backpack_sel_view(idx, lines, opacity, s);
-        let height = Measured.segment_height(s.content);
+      ((idx, dy, opacity, vs), s: Selection.t) => {
+        let (v, dy) = backpack_sel_view(idx, dy, opacity, s);
         (
           idx + 1,
-          lines + height,
-          opacity + opacity_reduction * height,
+          dy,
+          opacity -. opacity_reduction *. float_of_int(idx), //(dy /. 24.),
           List.cons(v, vs),
         );
       },
-      (0, 0, init_opacity, []),
+      (0, 24. *. float_of_int(cur_height) -. 4., init_opacity, []),
       backpack,
     );
   let selections_view =
