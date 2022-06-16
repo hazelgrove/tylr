@@ -21,7 +21,7 @@ type t = {
   history: ActionHistory.t,
   font_metrics: FontMetrics.t,
   logo_font_metrics: FontMetrics.t,
-  show_neighbor_tiles: bool,
+  show_backpack_targets: bool,
   double_tap: option(timestamp),
   settings,
 };
@@ -48,7 +48,7 @@ let mk = editor_model => {
   history: ActionHistory.empty,
   font_metrics: FontMetrics.init,
   logo_font_metrics: FontMetrics.init,
-  show_neighbor_tiles: false,
+  show_backpack_targets: false,
   double_tap: None,
   settings: settings_init,
 };

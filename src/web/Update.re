@@ -23,6 +23,7 @@ type t =
   | Undo
   | Redo
   | Escape(Direction.t)
+  | SetShowBackpackTargets(bool)
   | MoveToNextHole(Direction.t);
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
@@ -110,6 +111,11 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       assert(n < List.length(zs));
       LocalStorage.save_editor_idx(n);
       {...model, history: ActionHistory.empty, editor_model: Study(n, zs)};
+    }
+  | SetShowBackpackTargets(b) => {
+      ...model,
+      history: ActionHistory.clear_just_failed(model.history),
+      show_backpack_targets: b,
     }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
