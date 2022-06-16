@@ -160,7 +160,7 @@ module Deco =
             ),
           ),
         ],
-        [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
+        text_view,
       );
     (guy, dy);
   };
@@ -170,7 +170,7 @@ module Deco =
     let length =
       switch (backpack) {
       | [] => 0
-      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+      | [hd, ..._] => Measured.segment_width(hd.content)
       };
     let height =
       List.fold_left(
