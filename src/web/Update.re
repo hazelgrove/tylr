@@ -3,8 +3,13 @@ open Util;
 open Core;
 
 [@deriving sexp]
+type settings_action =
+  | Captions
+  | WhitespaceIcons;
+
+[@deriving sexp]
 type t =
-  | ToggleCaptions
+  | Set(settings_action)
   | UpdateDoubleTap(option(float))
   | LoadInit
   | Load
@@ -18,8 +23,6 @@ type t =
   | Undo
   | Redo
   | Escape(Direction.t)
-  | SetShowNeighborTiles(bool)
-  | ToggleShowNeighborTiles
   | MoveToNextHole(Direction.t);
 
 let escape = (~d=Direction.Left, ()) => Escape(d);
@@ -32,18 +35,29 @@ let save = (model: Model.t): unit =>
     LocalStorage.save_syntax(n, List.nth(zs, n));
   };
 
+let update_settings =
+    (a: settings_action, settings: Model.settings): Model.settings => {
+  let settings =
+    switch (a) {
+    | Captions => {...settings, captions: !settings.captions}
+    | WhitespaceIcons => {
+        ...settings,
+        whitespace_icons: !settings.whitespace_icons,
+      }
+    };
+  LocalStorage.save_settings(settings);
+  settings;
+};
+
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
-  | ToggleCaptions =>
-    let show_captions = !model.show_captions;
-    LocalStorage.save_show_captions(show_captions);
-    {...model, show_captions};
+  | Set(s_action) => {
+      ...model,
+      settings: update_settings(s_action, model.settings),
+    }
   | UpdateDoubleTap(double_tap) => {...model, double_tap}
   | LoadInit =>
-    let num_editors = LocalStorage.num_editors;
-    let init_editor = LocalStorage.load_editor_idx();
-    let show_captions = LocalStorage.load_show_captions();
     let (zs, id_gen) =
       List.fold_left(
         ((z_acc, id_gen: IdGen.state), n) =>
@@ -52,14 +66,14 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
           | None => (z_acc @ [Model.empty_zipper], id_gen)
           },
         ([], model.id_gen),
-        List.init(num_editors, n => n),
+        List.init(LocalStorage.num_editors, n => n),
       );
     {
       ...model,
       history: ActionHistory.empty,
       id_gen,
-      show_captions,
-      editor_model: Study(init_editor, zs),
+      settings: LocalStorage.load_settings(),
+      editor_model: Study(LocalStorage.load_editor_idx(), zs),
     };
   | Load =>
     let n = Model.current_editor(model);
@@ -97,16 +111,6 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       LocalStorage.save_editor_idx(n);
       {...model, history: ActionHistory.empty, editor_model: Study(n, zs)};
     }
-  | SetShowNeighborTiles(b) => {
-      ...model,
-      history: ActionHistory.clear_just_failed(model.history),
-      show_neighbor_tiles: b,
-    }
-  | ToggleShowNeighborTiles => {
-      ...model,
-      history: ActionHistory.clear_just_failed(model.history),
-      show_neighbor_tiles: !model.show_neighbor_tiles,
-    }
   | SetFontMetrics(font_metrics) => {...model, font_metrics}
   | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
   | PerformAction(a) =>
@@ -126,27 +130,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       ...model,
       history: ActionHistory.just_failed(reason, model.history),
     }
-  | Escape(_d) =>
-    // TODO restore escape functionality on restructuring
-    // switch (model.zipper) {
-    // | (Selecting(_, selection, (prefix, suffix)), frame) =>
-    //   let sframe =
-    //     switch (d) {
-    //     | Left => (prefix, Parser.parse_selection(Right, selection @ suffix))
-    //     | Right => (
-    //         Parser.parse_selection(Left, List.rev(selection) @ prefix),
-    //         suffix,
-    //       )
-    //     };
-    //   let (sframe, frame) = Parser.parse_zipper(sframe, frame);
-    //   {
-    //     ...model,
-    //     history: ActionHistory.escaped(model.history),
-    //     zipper: (Pointing(sframe), frame),
-    //   };
-    // | _ => model
-    // }
-    model
+  | Escape(_d) => model
   | Undo =>
     let z_id = (Model.get_zipper(model), model.id_gen);
     switch (ActionHistory.undo(z_id, model.history)) {
@@ -170,9 +154,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
       }
     };
   | MoveToNextHole(_d) =>
-    // let moved = Action.move_to_next_hole(d, model.zipper);
-    // // Move(d) is hack arg, doesn't affect undo behavior
-    // update_result(Move(d), moved, model);
+    // TODO restore
     model
   };
 };

@@ -1,10 +1,19 @@
 open Core;
+open Sexplib.Std;
 
 type editor_model =
   | Simple(Zipper.t)
   | Study(int, list(Zipper.t));
 
 type timestamp = float;
+
+[@deriving sexp]
+type settings = {
+  captions: bool,
+  whitespace_icons: bool,
+};
+
+let settings_init = {captions: true, whitespace_icons: true};
 
 type t = {
   editor_model,
@@ -14,7 +23,7 @@ type t = {
   logo_font_metrics: FontMetrics.t,
   show_neighbor_tiles: bool,
   double_tap: option(timestamp),
-  show_captions: bool,
+  settings,
 };
 
 let cutoff = (===);
@@ -41,7 +50,7 @@ let mk = editor_model => {
   logo_font_metrics: FontMetrics.init,
   show_neighbor_tiles: false,
   double_tap: None,
-  show_captions: false,
+  settings: settings_init,
 };
 
 let blank = mk(Simple(empty_zipper));

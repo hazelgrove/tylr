@@ -42,8 +42,6 @@ let filters =
     ],
   );
 
-let icon_size = 20.;
-
 let undo = (~inject, ~disabled) => {
   let clss = disabled ? ["disabled"] : [];
   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
@@ -54,7 +52,7 @@ let undo = (~inject, ~disabled) => {
       classes(["history-button", ...clss]),
       on_mousedown(mousedown),
     ],
-    [Icons.undo(icon_size, icon_size)],
+    [Icons.undo],
   );
 };
 
@@ -65,14 +63,10 @@ let redo = (~inject, ~disabled) => {
     Attr.[
       id("redo"),
       title("redo"),
-      create(
-        "style",
-        Printf.sprintf("width: %fpx; height: %fpx;", icon_size, icon_size),
-      ),
       classes(["history-button", ...clss]),
       on_mousedown(mousedown),
     ],
-    [Icons.redo(icon_size, icon_size)],
+    [Icons.redo],
   );
 };
 
@@ -90,19 +84,24 @@ let editor_panel_view = (~inject, cur_idx) => {
   let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
   let incr_ed = _ => inject(Update.SwitchEditor(next_ed));
   let decr_ed = _ => inject(Update.SwitchEditor(prev_ed));
-  let toggle_captions = _ => inject(Update.ToggleCaptions);
+  let toggle_captions = _ => inject(Update.Set(Captions));
+  let toggle_ws_icons = _ => inject(Update.Set(WhitespaceIcons));
   let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
   div(
     [Attr.id("editor-id")],
     [
       div(
-        [Attr.class_("back"), Attr.on_mousedown(decr_ed)],
-        [Icons.back(icon_size, icon_size)],
+        [Attr.class_("topbar-icon"), Attr.on_mousedown(decr_ed)],
+        [Icons.back],
       ),
       div([Attr.on_mousedown(toggle_captions)], [text(s)]),
       div(
-        [Attr.class_("forward"), Attr.on_mousedown(incr_ed)],
-        [Icons.forward(icon_size, icon_size)],
+        [Attr.class_("topbar-icon"), Attr.on_mousedown(incr_ed)],
+        [Icons.forward],
+      ),
+      div(
+        [Attr.class_("topbar-icon"), Attr.on_mousedown(toggle_ws_icons)],
+        [Icons.eye],
       ),
     ],
   );
@@ -111,12 +110,7 @@ let editor_panel_view = (~inject, cur_idx) => {
 let link_icon = (str, url, icon) =>
   div(
     Attr.[id(str), title(str)],
-    [
-      a(
-        Attr.[href(url), create("target", "_blank")],
-        [icon(icon_size, icon_size)],
-      ),
-    ],
+    [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
 let about_panel_view =
   div(
@@ -150,6 +144,7 @@ let editor_view = ({font_metrics, history, _} as model: Model.t) =>
         ~font_metrics,
         ~just_failed=history.just_failed,
         ~zipper=Model.get_zipper(model),
+        ~settings=model.settings,
       ),
     ],
   );
@@ -157,7 +152,7 @@ let editor_view = ({font_metrics, history, _} as model: Model.t) =>
 let editor_caption_view = (model: Model.t) =>
   div(
     [Attr.class_("editor-caption")],
-    model.show_captions
+    model.settings.captions
       ? [
         text(
           List.nth(

@@ -1005,15 +1005,20 @@ svg.rail line.unsorted {
   transform: scale(100%);
 }
 
-.back, .forward svg {
-  fill: var(--top_bar_icon_fill);
+.topbar-icon {
+  color: var(--top_bar_icon_fill);
 }
-
-.back:hover, .forward:hover svg {
+.topbar-icon:hover {
   transform: scale(120%);
   /*fill: #dca100;*/
 }
-
+.topbar-icon svg {
+  fill: var(--top_bar_icon_fill);
+}
+.topbar-icon:hover svg {
+  transform: scale(120%);
+  /*fill: #dca100;*/
+}
 
 .whitespace {
   color:rgb(126, 80, 0);

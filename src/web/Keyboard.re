@@ -131,14 +131,14 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {
         switch (key) {
-        | "Alt" => [SetShowNeighborTiles(true)]
+        | "Alt" => []
         // | "ArrowLeft"
         // | "ArrowRight" => arrow_l_r(key, evt, zipper)
         | _ => []
         };
       } else if (held(Ctrl) && !held(Alt) && !held(Meta)) {
         switch (key) {
-        | "t" => [ToggleShowNeighborTiles]
+        | "t" => []
         | _ => []
         };
       } else {

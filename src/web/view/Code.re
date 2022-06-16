@@ -53,7 +53,10 @@ let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
   seg |> Segment.skel |> go(sort);
 };
 
-module Text = (M: {let map: Measured.t;}) => {
+module Text = (M: {
+                 let map: Measured.t;
+                 let settings: Model.settings;
+               }) => {
   let m = p => Measured.find_p(p, M.map);
   let rec of_segment =
           (~no_sorts=false, ~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
@@ -75,13 +78,15 @@ module Text = (M: {let map: Measured.t;}) => {
     | Grout(_) => [Node.text(Unicode.nbsp)]
     | Whitespace({content, _}) =>
       if (content == Whitespace.linebreak) {
+        let str = M.settings.whitespace_icons ? Whitespace.linebreak : "";
         [
-          span_c("whitespace", [text(Whitespace.linebreak)]),
+          span_c("whitespace", [text(str)]),
           Node.br([]),
           Node.text(repeat_string(m(p).last.col, Unicode.nbsp)),
         ];
       } else if (content == Whitespace.space) {
-        [span_c("whitespace", [text("·")])];
+        let str = M.settings.whitespace_icons ? "·" : Unicode.nbsp;
+        [span_c("whitespace", [text(str)])];
       } else {
         [Node.text(content)];
       }
@@ -119,6 +124,7 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
   module Text =
     Text({
       let map = map;
+      let settings = Model.settings_init;
     });
   let text_view = Text.of_segment(~no_sorts=true, content);
   div(
@@ -403,6 +409,7 @@ let view =
       ~font_metrics,
       ~just_failed as _: option(FailedInput.t)=None,
       ~zipper: Zipper.t,
+      ~settings: Model.settings,
     )
     : Node.t => {
   let unsel_seg = Zipper.unselect_and_zip(zipper);
@@ -410,6 +417,7 @@ let view =
   module Text =
     Text({
       let map = map;
+      let settings = settings;
     });
   module Deco =
     Deco({

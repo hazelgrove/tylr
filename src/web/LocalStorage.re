@@ -65,7 +65,7 @@ let set_localstore = (k: string, v: string): unit => {
 let save_syntax_key: int => string =
   save_idx => "SAVE" ++ string_of_int(save_idx);
 let save_ed_idx_key: string = "CURRENT_EDITOR";
-let save_show_captions_key: string = "SHOW_CAPTIONS";
+let save_settings_key: string = "SETTINGS";
 
 let insert_to_zid: (Zipper.state, string) => Zipper.state =
   (z_id, c) => {
@@ -124,15 +124,17 @@ let load_editor_idx = (): int =>
     }
   };
 
-let save_show_captions = (flag: bool): unit =>
-  set_localstore(save_show_captions_key, string_of_bool(flag));
+let save_settings = (settings: Model.settings): unit =>
+  set_localstore(
+    save_settings_key,
+    settings |> Model.sexp_of_settings |> Sexplib.Sexp.to_string,
+  );
 
-let load_show_captions = (): bool =>
-  switch (get_localstore(save_show_captions_key)) {
-  | None => true
+let load_settings = (): Model.settings =>
+  switch (get_localstore(save_settings_key)) {
+  | None => Model.settings_init
   | Some(flag) =>
-    switch (bool_of_string_opt(flag)) {
-    | None => true
-    | Some(flag) => flag
+    try(flag |> Sexplib.Sexp.of_string |> Model.settings_of_sexp) {
+    | _ => Model.settings_init
     }
   };
