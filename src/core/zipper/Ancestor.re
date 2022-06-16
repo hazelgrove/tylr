@@ -16,8 +16,7 @@ type t = {
 
 // TODO(d) revisit naming w.r.t. outer vs inner shards
 let l_shard = a =>
-  ListUtil.last_opt(fst(a.shards))
-  |> OptUtil.get_or_raise(Empty_shard_affix);
+  ListUtil.hd_opt(fst(a.shards)) |> OptUtil.get_or_raise(Empty_shard_affix);
 let r_shard = a =>
   ListUtil.last_opt(snd(a.shards))
   |> OptUtil.get_or_raise(Empty_shard_affix);

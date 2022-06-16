@@ -166,6 +166,7 @@ module Outer = {
       Segment.incomplete_tiles(selected.content)
       |> List.partition(t =>
            Siblings.contains_matching(t, z.relatives.siblings)
+           || Ancestors.parent_matches(t, z.relatives.ancestors)
          );
     let backpack =
       z.backpack
