@@ -230,7 +230,13 @@ let uni_lines =
         ],
       ];
     } else if (r.row != m_last.last.row) {
-      let r_indent = Measured.Rows.find(r.row, rows).indent;
+      let indent =
+        shards
+        |> List.map(((_, m): Measured.Shards.shard) =>
+             Measured.Rows.find(m.origin.row, rows).indent
+           )
+        |> List.fold_left(min, Measured.Rows.find(r.row, rows).indent);
+      // let r_indent = Measured.Rows.find(r.row, rows).indent;
       let (_, m_flast) = {
         let shard_rows = Measured.Shards.split_by_row(shards);
         assert(shard_rows != []);
@@ -238,10 +244,11 @@ let uni_lines =
         assert(row != []);
         List.hd(row);
       };
+      // let flast_indent = Measured.Rows.find(m_flast.origin.row, rows).indent;
       [
         [
           m(~x=m_flast.origin.col, ~y=m_flast.last.row + 1),
-          h(~x=min(m_flast.origin.col, r_indent)),
+          h(~x=indent),
           v(~y=r.row + 1),
           h(~x=r.col),
           ...hook,
