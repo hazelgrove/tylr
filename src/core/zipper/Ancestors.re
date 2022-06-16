@@ -127,3 +127,9 @@ let regrout = (ancs: t) =>
     ancs,
     IdGen.return(empty),
   );
+
+let parent_matches = (t: Tile.t, ancs: t) =>
+  switch (ancs) {
+  | [] => false
+  | [(a, _), ..._] => a.id == t.id
+  };
