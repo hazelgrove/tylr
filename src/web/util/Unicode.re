@@ -4,6 +4,7 @@ let down_arrow = "↓";
 let left_arrow = "←";
 let right_arrow = "→";
 let nbsp = "\xC2\xA0";
+let zwsp = "​";
 
 // copied from hazel
 // NOTE: 30% faster than Camomile
