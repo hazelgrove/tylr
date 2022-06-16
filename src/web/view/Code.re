@@ -130,7 +130,7 @@ module Deco =
 
   let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
     // TODO(andrew): Maybe use sort at caret instead of root
-    let (_, map) = Measured.of_segment(content);
+    let map = Measured.of_segment(content);
     module Text =
       Text({
         let map = map;
@@ -425,7 +425,7 @@ let view =
     )
     : Node.t => {
   let unsel_seg = Zipper.unselect_and_zip(zipper);
-  let map = snd(Measured.of_segment(unsel_seg));
+  let map = Measured.of_segment(unsel_seg);
   module Text =
     Text({
       let map = map;

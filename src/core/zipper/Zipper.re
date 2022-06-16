@@ -686,8 +686,7 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
   /* Here f should be a function which results in strict d-wards
      movement of the caret. Iterate f until we get to the closet
      caret position to a target derived from the initial position */
-  let cursorpos =
-    caret_point(snd(Measured.of_segment(unselect_and_zip(z))));
+  let cursorpos = caret_point(Measured.of_segment(unselect_and_zip(z)));
   let cur_p = cursorpos(z);
   let goal =
     Measured.{
@@ -709,8 +708,7 @@ let from_plane: plane_move => Direction.t =
   | Down => Right;
 
 let do_extreme = (f: t => option(t), d: plane_move, z: t): option(t) => {
-  let cursorpos =
-    caret_point(snd(Measured.of_segment(unselect_and_zip(z))));
+  let cursorpos = caret_point(Measured.of_segment(unselect_and_zip(z)));
   let cur_p = cursorpos(z);
   let goal: Measured.point =
     switch (d) {
@@ -735,7 +733,7 @@ let update_target = (z: t): t =>
   {
     ...z,
     caret_col_target:
-      caret_point(snd(Measured.of_segment(unselect_and_zip(z))), z).col,
+      caret_point(Measured.of_segment(unselect_and_zip(z)), z).col,
   };
 
 let put_down = (z: t): option(t) =>
