@@ -33,11 +33,8 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
     let held = m => JsUtil.held(m, evt);
     let now = a => [Update.PerformAction(a), Update.UpdateDoubleTap(None)];
     //TODO(andrew): think harder about when/where to save
-    let now_save = a => [
-      Update.PerformAction(a),
-      Update.Save,
-      Update.UpdateDoubleTap(None),
-    ];
+    let now_save_u = u => Update.[u, Save, UpdateDoubleTap(None)];
+    let now_save = a => now_save_u(PerformAction(a));
     // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
@@ -121,18 +118,18 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
       } else if (! Os.is_mac^ && held(Ctrl) && !held(Alt) && !held(Meta)) {
         switch (key) {
         | "z"
-        | "Z" => held(Shift) ? [Redo] : [Undo]
+        | "Z" => now_save_u(held(Shift) ? Redo : Undo)
         | _ => []
         };
       } else if (Os.is_mac^ && held(Meta) && !held(Alt) && !held(Ctrl)) {
         switch (key) {
         | "z"
-        | "Z" => held(Shift) ? [Redo] : [Undo]
+        | "Z" => now_save_u(held(Shift) ? Redo : Undo)
         | _ => []
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {
         switch (key) {
-        | "Alt" => [SetShowBackpackTargets(true)]
+        | "Alt" => [SetShowBackpackTargets(true), UpdateDoubleTap(None)]
         // | "ArrowLeft"
         // | "ArrowRight" => arrow_l_r(key, evt, zipper)
         | _ => []
