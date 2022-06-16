@@ -116,132 +116,6 @@ module Text = (M: {
   };
 };
 
-let backpack_sel_view =
-    (
-      idx: int,
-      lines: float,
-      opacity: float,
-      {focus: _, content}: Selection.t,
-    ) => {
-  // TODO(andrew): Maybe use sort at caret instead of root
-  let (_, map) = Measured.of_segment(content);
-  module Text =
-    Text({
-      let map = map;
-      let settings = Model.settings_init;
-    });
-  let text_view = Text.of_segment(~no_sorts=true, content);
-  let height = Measured.segment_height(content);
-  let scale_percent = float_of_int(100 - 12 * idx);
-  let dy =
-    lines +. (-24.) *. float_of_int(height) *. scale_percent /. 100. +. 4.;
-  let guy =
-    div(
-      [
-        Attr.classes(["code-text", "backpack-selection"]),
-        Attr.create(
-          "style",
-          Printf.sprintf(
-            "position: absolute; transform-origin: bottom left; transform: translate(%dpx, %fpx) scale(%f%%); opacity: %f%%;",
-            12 * idx,
-            dy, //(-24.) *. float_of_int(lines),
-            scale_percent,
-            opacity,
-          ),
-        ),
-      ],
-      [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
-    );
-  (guy, dy);
-};
-
-let backpack_view =
-    (
-      ~font_metrics: FontMetrics.t,
-      ~origin: Measured.point,
-      {backpack, _} as z: Zipper.t,
-    )
-    : Node.t => {
-  let length =
-    switch (backpack) {
-    | [] => 0
-    | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
-    };
-  let height =
-    List.fold_left(
-      (acc, sel: Selection.t) => acc + Measured.segment_height(sel.content),
-      0,
-      backpack,
-    );
-  let cur_height =
-    switch (backpack) {
-    | [] => 0
-    | [hd, ..._] => Measured.segment_height(hd.content)
-    };
-  //TODO(andrew): truncate backpack when height is too high?
-  let can_put_down =
-    switch (Zipper.put_down(z)) {
-    | Some(_) => true
-    | None => false
-    };
-  let style =
-    Printf.sprintf(
-      "position: absolute; left: %fpx; top: %fpx;",
-      Float.of_int(origin.col) *. font_metrics.col_width,
-      Float.of_int(- cur_height - 1)
-      *. font_metrics.row_height
-      //Float.of_int(/* origin.row */ - height - 1)
-      //*. font_metrics.row_height
-      +. CaretDec.top_text_fudge,
-    );
-  let init_opacity = 90.;
-  let opacity_reduction = 15.; //per line
-  let (_, _, _, sels) =
-    List.fold_left(
-      ((idx, dy, opacity, vs), s: Selection.t) => {
-        let (v, dy) = backpack_sel_view(idx, dy, opacity, s);
-        (
-          idx + 1,
-          dy,
-          opacity -. opacity_reduction *. float_of_int(idx), //(dy /. 24.),
-          List.cons(v, vs),
-        );
-      },
-      (0, 24. *. float_of_int(cur_height) -. 4., init_opacity, []),
-      backpack,
-    );
-  let selections_view =
-    div(
-      [Attr.create("style", style), Attr.classes(["backpack"])],
-      sels,
-      /*List.mapi(
-          (i, s) => backpack_sel_view(List.length(backpack) - i - 1, s),
-          List.rev(backpack),
-        ),*/
-    );
-  let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
-  let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
-  let joiner_style =
-    Printf.sprintf(
-      "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
-      Float.of_int(origin.col) *. font_metrics.col_width,
-      CaretDec.top_text_fudge -. 3.,
-      Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
-    );
-  let joiner =
-    div(
-      [
-        Attr.create("style", joiner_style),
-        Attr.classes(["backpack-joiner"]),
-      ],
-      [],
-    );
-  div(
-    [Attr.classes(["backpack"] @ (can_put_down ? [] : ["cant-put-down"]))],
-    [selections_view, genie_view] @ (backpack != [] ? [joiner] : []),
-  );
-};
-
 module Deco =
        (
          M: {
@@ -251,6 +125,131 @@ module Deco =
          },
        ) => {
   let font_metrics = M.font_metrics;
+
+  let backpack_sel_view =
+      (
+        idx: int,
+        lines: float,
+        opacity: float,
+        {focus: _, content}: Selection.t,
+      ) => {
+    // TODO(andrew): Maybe use sort at caret instead of root
+    let (_, map) = Measured.of_segment(content);
+    module Text =
+      Text({
+        let map = map;
+        let settings = Model.settings_init;
+      });
+    let text_view = Text.of_segment(~no_sorts=true, content);
+    let height = Measured.segment_height(content);
+    let scale_percent = float_of_int(100 - 12 * idx);
+    let dy =
+      lines +. (-24.) *. float_of_int(height) *. scale_percent /. 100. +. 4.;
+    let guy =
+      div(
+        [
+          Attr.classes(["code-text", "backpack-selection"]),
+          Attr.create(
+            "style",
+            Printf.sprintf(
+              "position: absolute; transform-origin: bottom left; transform: translate(%dpx, %fpx) scale(%f%%); opacity: %f%%;",
+              12 * idx,
+              dy, //(-24.) *. float_of_int(lines),
+              scale_percent,
+              opacity,
+            ),
+          ),
+        ],
+        [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
+      );
+    (guy, dy);
+  };
+
+  let backpack_view =
+      (~origin: Measured.point, {backpack, _} as z: Zipper.t): Node.t => {
+    let length =
+      switch (backpack) {
+      | [] => 0
+      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+      };
+    let height =
+      List.fold_left(
+        (acc, sel: Selection.t) =>
+          acc + Measured.segment_height(sel.content),
+        0,
+        backpack,
+      );
+    let cur_height =
+      switch (backpack) {
+      | [] => 0
+      | [hd, ..._] => Measured.segment_height(hd.content)
+      };
+    //TODO(andrew): truncate backpack when height is too high?
+    let can_put_down =
+      switch (Zipper.put_down(z)) {
+      | Some(_) => true
+      | None => false
+      };
+    let style =
+      Printf.sprintf(
+        "position: absolute; left: %fpx; top: %fpx;",
+        Float.of_int(origin.col) *. font_metrics.col_width,
+        Float.of_int(- cur_height - 1)
+        *. font_metrics.row_height
+        //Float.of_int(/* origin.row */ - height - 1)
+        //*. font_metrics.row_height
+        +. CaretDec.top_text_fudge,
+      );
+    let init_opacity = 90.;
+    let opacity_reduction = 15.; //per line
+    let (_, _, _, sels) =
+      List.fold_left(
+        ((idx, dy, opacity, vs), s: Selection.t) => {
+          let (v, dy) = backpack_sel_view(idx, dy, opacity, s);
+          (
+            idx + 1,
+            dy,
+            opacity -. opacity_reduction *. float_of_int(idx), //(dy /. 24.),
+            List.cons(v, vs),
+          );
+        },
+        (0, 24. *. float_of_int(cur_height) -. 4., init_opacity, []),
+        backpack,
+      );
+    let selections_view =
+      div(
+        [Attr.create("style", style), Attr.classes(["backpack"])],
+        sels,
+        /*List.mapi(
+            (i, s) => backpack_sel_view(List.length(backpack) - i - 1, s),
+            List.rev(backpack),
+          ),*/
+      );
+    let genie_profile =
+      RestructuringGenieDec.Profile.{length, height, origin};
+    let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
+    let joiner_style =
+      Printf.sprintf(
+        "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
+        Float.of_int(origin.col) *. font_metrics.col_width,
+        CaretDec.top_text_fudge -. 3.,
+        Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
+      );
+    let joiner =
+      div(
+        [
+          Attr.create("style", joiner_style),
+          Attr.classes(["backpack-joiner"]),
+        ],
+        [],
+      );
+    div(
+      [
+        Attr.classes(["backpack"] @ (can_put_down ? [] : ["cant-put-down"])),
+      ],
+      [selections_view, genie_view] @ (backpack != [] ? [joiner] : []),
+    );
+  };
 
   let rec holes = (seg: Segment.t): list(Node.t) =>
     seg
@@ -285,7 +284,7 @@ module Deco =
         ~origin,
         ~shape=Zipper.caret_direction(z),
       ),
-      backpack_view(~font_metrics, ~origin, z),
+      backpack_view(~origin, z),
     ];
   };
 
