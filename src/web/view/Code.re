@@ -405,10 +405,8 @@ let view =
       ~zipper: Zipper.t,
     )
     : Node.t => {
-  let seg = Zipper.zip(zipper);
-  let unselected = Zipper.unselect_and_zip(zipper);
-  let map = snd(Measured.of_segment(unselected));
-
+  let unsel_seg = Zipper.unselect_and_zip(zipper);
+  let map = snd(Measured.of_segment(unsel_seg));
   module Text =
     Text({
       let map = map;
@@ -420,6 +418,6 @@ let view =
     });
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
-    [span_c("code-text", Text.of_segment(seg))] @ Deco.all(zipper),
+    [span_c("code-text", Text.of_segment(unsel_seg))] @ Deco.all(zipper),
   );
 };
