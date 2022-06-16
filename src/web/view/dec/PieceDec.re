@@ -127,6 +127,8 @@ let bi_lines =
     ListUtil.neighbors(shard_rows)
     |> List.map(
          ((row_shards: Measured.Shards.t, row_shards': Measured.Shards.t)) => {
+         assert(row_shards != []);
+         assert(row_shards' != []);
          let origin = snd(List.hd(row_shards)).origin;
          let origin' = snd(List.hd(row_shards')).origin;
          let indent = Measured.Rows.find(origin.row, rows).indent;
@@ -161,10 +163,9 @@ let uni_lines =
       mold: Mold.t,
       shards: Measured.Shards.t,
     ) => {
-  let (_, m_first) = List.hd(shards);
-  let (_, m_last) = ListUtil.last(shards);
   open SvgUtil.Path;
-  let l_line =
+  let l_line = {
+    let (_, m_first) = List.hd(shards);
     if (l.col != m_first.origin.col) {
       let max_col = Measured.Rows.find(l.row, rows).max_col;
       let indent = Measured.Rows.find(m_first.origin.row, rows).indent;
@@ -210,8 +211,9 @@ let uni_lines =
     } else {
       [];
     };
+  };
   let r_line = {
-    let indent = Measured.Rows.find(r.row, rows).indent;
+    let (_, m_last) = ListUtil.last(shards);
     let hook = [
       L_({
         dx: DecUtil.short_tip_width,
@@ -228,10 +230,18 @@ let uni_lines =
         ],
       ];
     } else if (r.row != m_last.last.row) {
+      let r_indent = Measured.Rows.find(r.row, rows).indent;
+      let (_, m_flast) = {
+        let shard_rows = Measured.Shards.split_by_row(shards);
+        assert(shard_rows != []);
+        let row = ListUtil.last(shard_rows);
+        assert(row != []);
+        List.hd(row);
+      };
       [
         [
-          m(~x=m_last.origin.col, ~y=m_last.last.row + 1),
-          h(~x=indent),
+          m(~x=m_flast.origin.col, ~y=m_flast.last.row + 1),
+          h(~x=min(m_flast.origin.col, r_indent)),
           v(~y=r.row + 1),
           h(~x=r.col),
           ...hook,
