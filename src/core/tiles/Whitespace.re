@@ -6,5 +6,5 @@ type t = {
 
 let id = w => w.id;
 
-let linebreak = "⏎";
+let linebreak = "⏎"; //"¶"; //
 let space = " ";

@@ -68,7 +68,7 @@ let forms: list((string, t)) = [
   ("bitwise_and", mk_infix("&", Exp, 5)),
   ("logical_and", mk_infix("&&", Exp, 5)),
   ("concat", mk_infix("++", Exp, 5)),
-  ("cons", mk_infix("::", Exp, 5)),
+  //("cons", mk_infix("::", Exp, 5)),
   // ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
   ("dot-access", mk_infix(".", Exp, 5)), // bad sorts
   ("assign_incr", mk_infix("+=", Exp, 10)), // bad sorts
@@ -85,7 +85,7 @@ let forms: list((string, t)) = [
   /* Something must instant on => as not valid monotile on its own */
   ("ap", mk(ii, ["(", ")"], mk_post(P.ap, Exp, [Exp]))),
   ("let_", mk(ds, ["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
-  ("cond", mk(id, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
+  ("cond", mk(ii, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
   ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
   ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
   ("rule_first", mk(ds, ["|", "=>"], mk_pre(9, Exp, [Pat]))),
