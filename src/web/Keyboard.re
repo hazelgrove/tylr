@@ -13,6 +13,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
     let updates: list(Update.t) =
       switch (key) {
       | "Shift" => [] // NOTE: don't change doubletap
+      | "Alt" => [SetShowBackpackTargets(false)]
       | _ => [UpdateDoubleTap(None)]
       };
     switch (updates) {
@@ -131,14 +132,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {
         switch (key) {
-        | "Alt" => []
+        | "Alt" => [SetShowBackpackTargets(true)]
         // | "ArrowLeft"
         // | "ArrowRight" => arrow_l_r(key, evt, zipper)
-        | _ => []
-        };
-      } else if (held(Ctrl) && !held(Alt) && !held(Meta)) {
-        switch (key) {
-        | "t" => []
         | _ => []
         };
       } else {

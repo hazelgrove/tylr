@@ -193,10 +193,14 @@ let backpack_view =
   );
 };
 
-module Deco = (M: {
-                 let font_metrics: FontMetrics.t;
-                 let map: Measured.t;
-               }) => {
+module Deco =
+       (
+         M: {
+           let font_metrics: FontMetrics.t;
+           let map: Measured.t;
+           let show_backpack_targets: bool;
+         },
+       ) => {
   let font_metrics = M.font_metrics;
 
   let rec holes = (seg: Segment.t): list(Node.t) =>
@@ -397,7 +401,7 @@ module Deco = (M: {
     List.concat([
       holes(seg),
       caret(z),
-      targets(z.backpack, seg),
+      M.show_backpack_targets ? targets(z.backpack, seg) : [],
       selected_pieces(z),
       indicated_piece_deco(z),
     ]);
@@ -407,6 +411,7 @@ module Deco = (M: {
 let view =
     (
       ~font_metrics,
+      ~show_backpack_targets,
       ~just_failed as _: option(FailedInput.t)=None,
       ~zipper: Zipper.t,
       ~settings: Model.settings,
@@ -423,6 +428,7 @@ let view =
     Deco({
       let font_metrics = font_metrics;
       let map = map;
+      let show_backpack_targets = show_backpack_targets;
     });
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
