@@ -176,78 +176,42 @@ let union2 = (map: t, map': t) => {
 };
 let union = List.fold_left(union2, empty);
 
-let post_tile_indent = (t: Tile.t) => {
-  // hack for indent following fun tile.
-  // proper fix involves updating mold datatype
-  // to specify whether a right-facing concave
-  // tip imposes indentation on a following newline.
-  let complete_fun =
-    Tile.is_complete(t) && t.label == Form.get("fun_").label;
-  let missing_right_extreme = Tile.r_shard(t) < List.length(t.label) - 1;
-  complete_fun || missing_right_extreme;
-};
-
-// currently supports indentation imposed by a tile on following
-// remainder of segment (eg indentation after fun tile) but
-// currently does not support inter-tile dedentation, which
-// would be desirable for tiles in segment remainder that have
-// looser precedence than the indent-imposing tile
-// TODO: integrate term structure into indentation scheme
 let rec of_segment =
         // start of program is considered a "linebreak"
         // so as to avoid spurious indentation at root level
-        (
-          ~seen_linebreak=true,
-          ~container_indent=0,
-          /* indentation imposed by preceding tiles in same segment */
-          ~contained_indent=container_indent,
-          /* indentation at the start of the row */
-          ~row_indent=container_indent,
-          ~origin=zero,
-          seg: Segment.t,
-        )
+        (~seen_linebreak=true, ~indent=0, ~origin=zero, seg: Segment.t)
         : (point, t) =>
   switch (seg) {
   | [] => (
       origin,
-      empty |> add_row(origin.row, {indent: row_indent, max_col: origin.col}),
+      empty |> add_row(origin.row, {indent, max_col: origin.col}),
     )
   | [hd, ...tl] =>
-    let (seen_linebreak, contained_indent, row_indent, hd_last, hd_map) =
+    let (seen_linebreak, indent, hd_last, hd_map) =
       switch (hd) {
       | Whitespace(w) when w.content == Whitespace.linebreak =>
         let concluding = Segment.sameline_whitespace(tl);
         let indent' =
-          if (concluding) {
-            container_indent;
+          if (!seen_linebreak && concluding) {
+            indent;
           } else if (!seen_linebreak) {
-            contained_indent + 2;
+            indent + 2;
+          } else if (concluding) {
+            max(indent - 2, 0);
           } else {
-            contained_indent;
+            indent;
           };
         let last = {row: origin.row + 1, col: indent'};
         let map =
           singleton_w(w, {origin, last})
-          |> add_row(origin.row, {indent: row_indent, max_col: origin.col});
-        (true, indent', indent', last, map);
+          |> add_row(origin.row, {indent, max_col: origin.col});
+        (true, indent', last, map);
       | Whitespace(w) =>
         let last = {...origin, col: origin.col + 1};
-        (
-          seen_linebreak,
-          contained_indent,
-          row_indent,
-          last,
-          singleton_w(w, {origin, last}),
-        );
+        (seen_linebreak, indent, last, singleton_w(w, {origin, last}));
       | Grout(g) =>
         let last = {...origin, col: origin.col + 1};
-        (
-          seen_linebreak,
-          contained_indent,
-          row_indent,
-          last,
-          singleton_g(g, {origin, last}),
-        );
+        (seen_linebreak, indent, last, singleton_g(g, {origin, last}));
       | Tile(t) =>
         let token = List.nth(t.label);
         let of_shard = (origin, shard) => {
@@ -263,35 +227,17 @@ let rec of_segment =
                of_shard(origin),
                (origin, child, shard) => {
                  let (child_last, child_map) =
-                   of_segment(
-                     ~seen_linebreak=false,
-                     ~container_indent=contained_indent,
-                     ~origin,
-                     child,
-                   );
+                   of_segment(~seen_linebreak=false, ~indent, ~origin, child);
                  let (shard_last, shard_map) = of_shard(child_last, shard);
                  (shard_last, child_map, shard_map);
                },
              )
           |> PairUtil.map_snd(Aba.join(Fun.id, Fun.id))
           |> PairUtil.map_snd(union);
-        (
-          seen_linebreak,
-          (post_tile_indent(t) ? (+)(2) : Fun.id)(contained_indent),
-          row_indent,
-          last,
-          map,
-        );
+        (seen_linebreak, indent, last, map);
       };
     let (tl_last, tl_map) =
-      of_segment(
-        ~seen_linebreak,
-        ~container_indent,
-        ~contained_indent,
-        ~row_indent,
-        ~origin=hd_last,
-        tl,
-      );
+      of_segment(~seen_linebreak, ~indent, ~origin=hd_last, tl);
     (tl_last, union2(hd_map, tl_map));
   };
 
