@@ -48,7 +48,6 @@ let undo = (~inject, ~disabled) => {
   span(
     Attr.[
       id("undo"),
-      title("undo"),
       classes(["history-button", ...clss]),
       on_mousedown(mousedown),
     ],
@@ -62,7 +61,6 @@ let redo = (~inject, ~disabled) => {
   span(
     Attr.[
       id("redo"),
-      title("redo"),
       classes(["history-button", ...clss]),
       on_mousedown(mousedown),
     ],
@@ -70,22 +68,28 @@ let redo = (~inject, ~disabled) => {
   );
 };
 
-let history_panel_view = (~inject, history) =>
+let left_panel_view = (~inject, history) =>
   div(
     [Attr.id("history-button-container")],
     [
       undo(~inject, ~disabled=!ActionHistory.can_undo(history)),
       redo(~inject, ~disabled=!ActionHistory.can_redo(history)),
+      div(
+        [
+          Attr.class_("topbar-icon"),
+          Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
+        ],
+        [Icons.eye],
+      ),
     ],
   );
 
-let editor_panel_view = (~inject, cur_idx) => {
+let center_panel_view = (~inject, cur_idx) => {
   let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
   let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
   let incr_ed = _ => inject(Update.SwitchEditor(next_ed));
   let decr_ed = _ => inject(Update.SwitchEditor(prev_ed));
   let toggle_captions = _ => inject(Update.Set(Captions));
-  let toggle_ws_icons = _ => inject(Update.Set(WhitespaceIcons));
   let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
   div(
     [Attr.id("editor-id")],
@@ -99,20 +103,16 @@ let editor_panel_view = (~inject, cur_idx) => {
         [Attr.class_("topbar-icon"), Attr.on_mousedown(incr_ed)],
         [Icons.forward],
       ),
-      div(
-        [Attr.class_("topbar-icon"), Attr.on_mousedown(toggle_ws_icons)],
-        [Icons.eye],
-      ),
     ],
   );
 };
 
 let link_icon = (str, url, icon) =>
   div(
-    Attr.[id(str), title(str)],
+    [Attr.id(str)],
     [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
-let about_panel_view =
+let right_panel_view =
   div(
     [Attr.id("about-button-container")],
     [
@@ -129,10 +129,10 @@ let top_bar_view = (~inject, model: Model.t) =>
   div(
     [Attr.id("top-bar")],
     [
-      history_panel_view(~inject, model.history),
-      editor_panel_view(~inject, Model.current_editor(model)),
+      left_panel_view(~inject, model.history),
+      center_panel_view(~inject, Model.current_editor(model)),
       //logo(~font_metrics=logo_font_metrics),
-      about_panel_view,
+      right_panel_view,
     ],
   );
 

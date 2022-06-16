@@ -5,8 +5,6 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-let repeat_string = (n, s) => String.concat("", List.init(n, _ => s));
-
 module CodeString = {
   let rec of_segment = (seg: Segment.t): string =>
     seg |> List.map(of_piece) |> String.concat("")
@@ -80,9 +78,9 @@ module Text = (M: {
       if (content == Whitespace.linebreak) {
         let str = M.settings.whitespace_icons ? Whitespace.linebreak : "";
         [
-          span_c("whitespace", [text(str)]),
+          span_c("linebreak", [text(str)]),
           Node.br([]),
-          Node.text(repeat_string(m(p).last.col, Unicode.nbsp)),
+          Node.text(StringUtil.repeat(m(p).last.col, Unicode.nbsp)),
         ];
       } else if (content == Whitespace.space) {
         let str = M.settings.whitespace_icons ? "·" : Unicode.nbsp;
@@ -118,7 +116,8 @@ module Text = (M: {
   };
 };
 
-let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
+let backpack_sel_view =
+    (idx: int, _lines: int, opacity: int, {focus: _, content}: Selection.t) => {
   // TODO(andrew): Maybe use sort at caret instead of root
   let (_, map) = Measured.of_segment(content);
   module Text =
@@ -128,7 +127,19 @@ let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
     });
   let text_view = Text.of_segment(~no_sorts=true, content);
   div(
-    [Attr.classes(["code-text", "backpack-selection"])],
+    [
+      Attr.classes(["code-text", "backpack-selection"]),
+      Attr.create(
+        "style",
+        Printf.sprintf(
+          "transform-origin: bottom left; transform: translate(%dpx, %dpx) scale(%d%%); opacity: %d%%;",
+          8 * idx,
+          8 * idx,
+          100 - 12 * idx,
+          opacity,
+        ),
+      ),
+    ],
     [text(Unicode.nbsp)] @ text_view @ [text(Unicode.nbsp)],
   );
 };
@@ -165,10 +176,31 @@ let backpack_view =
       *. font_metrics.row_height
       +. CaretDec.top_text_fudge,
     );
+  let init_opacity = 90;
+  let opacity_reduction = (-15); //per line
+  let (_, _, _, sels) =
+    List.fold_left(
+      ((idx, lines, opacity, vs), s) => {
+        let v = backpack_sel_view(idx, lines, opacity, s);
+        let height = Measured.segment_height(s.content);
+        (
+          idx + 1,
+          lines + height,
+          opacity + opacity_reduction * height,
+          List.cons(v, vs),
+        );
+      },
+      (0, 0, init_opacity, []),
+      backpack,
+    );
   let selections_view =
     div(
       [Attr.create("style", style), Attr.classes(["backpack"])],
-      List.map(backpack_sel_view, List.rev(backpack)),
+      sels,
+      /*List.mapi(
+          (i, s) => backpack_sel_view(List.length(backpack) - i - 1, s),
+          List.rev(backpack),
+        ),*/
     );
   let genie_profile = RestructuringGenieDec.Profile.{length, height, origin};
   let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
