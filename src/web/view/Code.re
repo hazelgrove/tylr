@@ -429,6 +429,7 @@ let view =
       ~settings: Model.settings,
     )
     : Node.t => {
+  let sel_seg = Zipper.zip(zipper);
   let unsel_seg = Zipper.unselect_and_zip(zipper);
   let map = Measured.of_segment(unsel_seg);
   module Text =
@@ -444,6 +445,10 @@ let view =
     });
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
-    [span_c("code-text", Text.of_segment(unsel_seg))] @ Deco.all(zipper),
+    [
+      span_c("code-text", Text.of_segment(unsel_seg)),
+      span_c("code-text-shards", Text.of_segment(sel_seg)),
+    ]
+    @ Deco.all(zipper),
   );
 };
