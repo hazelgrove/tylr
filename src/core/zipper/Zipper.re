@@ -878,7 +878,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | RotateBackpack =>
     Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))
   | MoveToBackpackTarget(d) =>
-    let (_, map) = Measured.of_segment(unselect_and_zip(z));
+    let map = Measured.of_segment(unselect_and_zip(z));
     move_to_backpack_target(d, map, z)
     |> Option.map(IdGen.id(id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_move);
