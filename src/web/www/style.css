@@ -353,6 +353,11 @@ svg.rail line.unsorted {
   vertical-align: middle;
 }
 
+/* TODO(andrew): refactor to make this unnecessary */
+.backpack .code-text {
+  position: relative;
+}
+
 /* NOTE(andrew): below 3 styles are part of
    a hack to display incomplete delims in 
    selections */
