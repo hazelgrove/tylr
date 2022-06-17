@@ -320,19 +320,6 @@ let length = (seg: Segment.t, map: t): int =>
     last.last.col - first.origin.col;
   };
 
-let relativize_measurements:
-  (int, list(measurement_lin)) => list(measurement_lin) =
-  parent_origin =>
-    List.map(({origin, length}) =>
-      {origin: origin - parent_origin, length}
-    );
-
-let _linearize: measurement => measurement_lin =
-  ({origin: {col: origin, _}, last: {col: last, _}}) => {
-    origin,
-    length: last - origin,
-  };
-
 let segment_origin = (seg: Segment.t): option(point) =>
   Option.map(
     first => find_p(first, of_segment(seg)).origin,
@@ -351,11 +338,9 @@ let segment_height = (seg: Segment.t) =>
   | _ => 0
   };
 
-let segment_width = (seg: Segment.t): int => {
-  let map = of_segment(seg);
-  List.fold_left(
-    (acc, p: Piece.t) => max(acc, find_p(p, map).last.col),
+let segment_width = (seg: Segment.t): int =>
+  IntMap.fold(
+    (_, {max_col, _}: Rows.shape, acc) => max(max_col, acc),
+    of_segment(seg).rows,
     0,
-    seg,
   );
-};
