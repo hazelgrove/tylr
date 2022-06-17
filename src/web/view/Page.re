@@ -36,6 +36,8 @@ let filters =
       SelemDec.shadow_filter(~color=Pat),
       SelemDec.raised_shadow_filter(~color=Typ),
       SelemDec.shadow_filter(~color=Typ),
+      SelemDec.raised_shadow_filter(~color=Any),
+      SelemDec.shadow_filter(~color=Any),
       SelemDec.raised_shadow_filter(~color=Selected),
       SelemDec.shadow_filter(~color=Selected),
       CaretPosDec.blur_filter,

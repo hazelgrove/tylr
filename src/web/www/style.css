@@ -85,6 +85,9 @@
   --typ-bg-color: #caccf4;
   --typ-shadow-color: #6168d4;
 
+  --any-bg-color: #ffffff;
+  --any-shadow-color: #84713b;
+
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c2a964;
   --unsorted-rail-color: #e7bdd0;
@@ -611,6 +614,17 @@ svg.rail line.unsorted {
 }
 .Filtered .tile-path{
   filter: url(#drop-shadow-unsorted) !important;
+}
+
+.tile-path.Any.highlighted {
+  fill: #f0dead;
+}
+.tile-path.Any.raised {
+  filter: url(#raised-drop-shadow-Any);
+}
+#drop-shadow-Any .tile-drop-shadow,
+#raised-drop-shadow-Any .tile-drop-shadow {
+  flood-color: var(--any-shadow-color);
 }
 
 .tile-path.Exp.highlighted {
