@@ -412,7 +412,8 @@ module Deco =
     List.concat([
       holes(seg),
       caret(z),
-      M.show_backpack_targets ? targets(z.backpack, seg) : [],
+      M.show_backpack_targets && Backpack.restricted(z.backpack)
+        ? targets(z.backpack, seg) : [],
       selected_pieces(z),
       indicated_piece_deco(z),
     ]);

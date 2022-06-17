@@ -38,41 +38,18 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
     // let _frame_sort = Ancestors.sort(zipper.relatives.ancestors);
     //let _ = failwith("todo: update on_keydown handler");
     let updates: list(Update.t) =
-      if ((!held(Ctrl) || is_digit(key))
-          && !held(Alt)
-          && !held(Meta)
-          || held(Alt)
-          && (key == "ArrowRight" || key == "ArrowLeft")
-          || (held(Ctrl) || held(Meta))
-          && (
-            key == "x"
-            || key == "v"
-            || key == "q"
-            || key == "ArrowDown"
-            || key == "ArrowUp"
-          )) {
+      if ((!held(Ctrl) || is_digit(key)) && !held(Alt) && !held(Meta)) {
         switch (key) {
         | "Home" => now(Move(Extreme(Left(ByToken))))
         | "End" => now(Move(Extreme(Right(ByToken))))
-        | "ArrowUp" when held(Ctrl) || held(Meta) =>
-          now(Move(Extreme(Up)))
-        | "ArrowDown" when held(Ctrl) || held(Meta) =>
-          now(Move(Extreme(Down)))
         | "ArrowLeft" when held(Shift) => now(Select(Left(ByToken)))
         | "ArrowRight" when held(Shift) => now(Select(Right(ByToken)))
         | "ArrowUp" when held(Shift) => now(Select(Up))
         | "ArrowDown" when held(Shift) => now(Select(Down))
-        | "ArrowLeft" when held(Alt) =>
-          print_endline("alt left");
-          now(Move(Local(Left(ByToken))));
-        | "ArrowRight" when held(Alt) => now(Move(Local(Right(ByToken))))
         | "ArrowLeft" => now(Move(Local(Left(ByChar))))
         | "ArrowRight" => now(Move(Local(Right(ByChar))))
         | "ArrowUp" => now(Move(Local(Up)))
         | "ArrowDown" => now(Move(Local(Down)))
-        | "q" when held(Ctrl) || held(Meta) => now(RotateBackpack)
-        | "x" when held(Ctrl) || held(Meta) => now(Pick_up)
-        | "v" when held(Ctrl) || held(Meta) => now(Put_down)
         | "Tab" => now_save(Put_down) //TODO: if empty, move to next hole
         | "Backspace" =>
           // TODO(d): check whether selection is empty, only select if so
@@ -95,9 +72,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "F8" =>
           print_endline("F8 LOAD DEFAULT");
           [LoadDefault];
-        | _ when is_digit(key) && held(Ctrl) => [
-            SwitchEditor(int_of_string(key)),
-          ]
         | "Shift" =>
           let cur_ts = JsUtil.date_now()##valueOf;
           switch (double_tap) {
@@ -115,23 +89,39 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };
-      } else if (! Os.is_mac^ && held(Ctrl) && !held(Alt) && !held(Meta)) {
+      } else if (! Os.is_mac^
+                 && held(Ctrl)
+                 && !held(Alt)
+                 && !held(Meta)
+                 || Os.is_mac^
+                 && held(Meta)
+                 && !held(Alt)
+                 && !held(Ctrl)) {
         switch (key) {
         | "z"
         | "Z" => now_save_u(held(Shift) ? Redo : Undo)
-        | _ => []
-        };
-      } else if (Os.is_mac^ && held(Meta) && !held(Alt) && !held(Ctrl)) {
-        switch (key) {
-        | "z"
-        | "Z" => now_save_u(held(Shift) ? Redo : Undo)
+        | "q" => now(RotateBackpack)
+        | "x" => now(Pick_up)
+        | "v" => now(Put_down)
+        | "ArrowUp" => now(Move(Extreme(Up)))
+        | "ArrowDown" => now(Move(Extreme(Down)))
+        | _ when is_digit(key) => [SwitchEditor(int_of_string(key))]
         | _ => []
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {
+        let restricted = Backpack.restricted(zipper.backpack);
         switch (key) {
         | "Alt" => [SetShowBackpackTargets(true), UpdateDoubleTap(None)]
-        // | "ArrowLeft"
-        // | "ArrowRight" => arrow_l_r(key, evt, zipper)
+        | "ArrowLeft" =>
+          restricted
+            ? now(MoveToBackpackTarget(Left(ByToken)))
+            : now(Move(Local(Left(ByToken))))
+        | "ArrowRight" =>
+          restricted
+            ? now(MoveToBackpackTarget(Right(ByToken)))
+            : now(Move(Local(Right(ByToken))))
+        | "ArrowUp" => now(MoveToBackpackTarget(Up))
+        | "ArrowDown" => now(MoveToBackpackTarget(Down))
         | _ => []
         };
       } else {

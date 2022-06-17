@@ -224,6 +224,19 @@ let pop =
   };
 };
 
+let restricted = (bp: t): bool =>
+  switch (bp) {
+  | [] => false
+  | [hd, ..._] =>
+    switch (Segment.incomplete_tiles(hd.content)) {
+    | [] => false
+    | [t, ..._] =>
+      open ShardInfo;
+      let info = shard_info(bp);
+      !Count.is_complete(Counts.get(t.id, info.counts));
+    }
+  };
+
 let remove_matching = (ts: list(Tile.t), bp: t) =>
   List.fold_left(
     (bp, t: Tile.t) =>
