@@ -97,6 +97,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
                  && held(Meta)
                  && !held(Alt)
                  && !held(Ctrl)) {
+        // OS-agnostic
         switch (key) {
         | "z"
         | "Z" => now_save_u(held(Shift) ? Redo : Undo)
@@ -106,6 +107,20 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "ArrowUp" => now(Move(Extreme(Up)))
         | "ArrowDown" => now(Move(Extreme(Down)))
         | _ when is_digit(key) => [SwitchEditor(int_of_string(key))]
+        | _ => []
+        };
+      } else if (Os.is_mac^ && held(Meta)) {
+        // mac-specific
+        switch (key) {
+        | "ArrowLeft" => now(Move(Extreme(Left(ByToken))))
+        | "ArrowRight" => now(Move(Extreme(Right(ByToken))))
+        | _ => []
+        };
+      } else if (Os.is_mac^ && held(Ctrl) && !held(Meta) && !held(Alt)) {
+        // mac-specific
+        switch (key) {
+        | "a" => now(Move(Extreme(Left(ByToken))))
+        | "e" => now(Move(Extreme(Right(ByToken))))
         | _ => []
         };
       } else if (held(Alt) && !held(Ctrl) && !held(Meta)) {
