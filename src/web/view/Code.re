@@ -154,7 +154,8 @@ module Deco =
           ),
         ),
       ],
-      Text.of_segment(~no_sorts=true, content),
+      // zwsp necessary for containing box to stretch to contain trailing newline
+      Text.of_segment(~no_sorts=true, content) @ [text(Unicode.zwsp)],
     );
   };
 
