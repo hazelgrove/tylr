@@ -52,7 +52,7 @@ module Action = {
   [@deriving (show, sexp)]
   type t =
     | Move(move)
-    | Select(plane_move)
+    | Select(move)
     | Destruct(Direction.t)
     | Insert(string)
     | RotateBackpack
@@ -845,17 +845,21 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
       |> Result.of_option(~error=Action.Failure.Cant_move)
     }
   | Select(d) =>
-    /* Note: Don't update target on vertical selection */
-    (
+    let selected =
       switch (d) {
-      | Left(_) => select(Left, z) |> Option.map(update_target)
-      | Right(_) => select(Right, z) |> Option.map(update_target)
-      | Up => select_vertical(Left, z)
-      | Down => select_vertical(Right, z)
-      }
-    )
+      | Extreme(d) => do_extreme(select(from_plane(d)), d, z)
+      | Local(d) =>
+        /* Note: Don't update target on vertical selection */
+        switch (d) {
+        | Left(_) => select(Left, z) |> Option.map(update_target)
+        | Right(_) => select(Right, z) |> Option.map(update_target)
+        | Up => select_vertical(Left, z)
+        | Down => select_vertical(Right, z)
+        }
+      };
+    selected
     |> Option.map(IdGen.id(id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_select)
+    |> Result.of_option(~error=Action.Failure.Cant_select);
   | Destruct(d) =>
     (z, id_gen)
     |> destruct_or_merge(d)

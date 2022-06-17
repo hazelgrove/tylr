@@ -57,7 +57,7 @@ module Text = (M: {
                }) => {
   let m = p => Measured.find_p(p, M.map);
   let rec of_segment =
-          (~no_sorts=false, ~sort=Sort.Exp, seg: Segment.t): list(Node.t) => {
+          (~no_sorts=false, ~sort=Sort.root, seg: Segment.t): list(Node.t) => {
     //note: no_sorts flag is used for backback
     let expected_sorts =
       no_sorts
@@ -262,7 +262,7 @@ module Deco =
                ~font_metrics, // TODO(d) fix sort
                {
                  measurement: Measured.find_g(g, M.map),
-                 mold: Mold.of_grout(g, Exp),
+                 mold: Mold.of_grout(g, Any),
                },
              ),
            ],
@@ -318,8 +318,8 @@ module Deco =
     // TODO(d) fix sorts
     let mold =
       switch (p) {
-      | Whitespace(_) => Mold.of_whitespace({sort: Exp, shape: nib_shape})
-      | Grout(g) => Mold.of_grout(g, Exp)
+      | Whitespace(_) => Mold.of_whitespace({sort: Any, shape: nib_shape})
+      | Grout(g) => Mold.of_grout(g, Any)
       | Tile(t) => t.mold
       };
     // TODO(d) awkward
@@ -341,8 +341,8 @@ module Deco =
     // TODO(d) fix sorts
     let mold =
       switch (p) {
-      | Whitespace(_) => Mold.of_whitespace({sort: Exp, shape: nib_shape})
-      | Grout(g) => Mold.of_grout(g, Exp)
+      | Whitespace(_) => Mold.of_whitespace({sort: Any, shape: nib_shape})
+      | Grout(g) => Mold.of_grout(g, Any)
       | Tile(t) => t.mold
       };
     // TODO(d) awkward

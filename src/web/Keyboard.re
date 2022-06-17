@@ -42,10 +42,12 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         switch (key) {
         | "Home" => now(Move(Extreme(Left(ByToken))))
         | "End" => now(Move(Extreme(Right(ByToken))))
-        | "ArrowLeft" when held(Shift) => now(Select(Left(ByToken)))
-        | "ArrowRight" when held(Shift) => now(Select(Right(ByToken)))
-        | "ArrowUp" when held(Shift) => now(Select(Up))
-        | "ArrowDown" when held(Shift) => now(Select(Down))
+        | "ArrowLeft" when held(Shift) =>
+          now(Select(Local(Left(ByToken))))
+        | "ArrowRight" when held(Shift) =>
+          now(Select(Local(Right(ByToken))))
+        | "ArrowUp" when held(Shift) => now(Select(Local(Up)))
+        | "ArrowDown" when held(Shift) => now(Select(Local(Down)))
         | "ArrowLeft" => now(Move(Local(Left(ByChar))))
         | "ArrowRight" => now(Move(Local(Right(ByChar))))
         | "ArrowUp" => now(Move(Local(Up)))
@@ -104,6 +106,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "q" => now(RotateBackpack)
         | "x" => now(Pick_up)
         | "v" => now(Put_down)
+        | "a" => now(Move(Extreme(Up))) @ now(Select(Extreme(Down)))
         | "ArrowUp" => now(Move(Extreme(Up)))
         | "ArrowDown" => now(Move(Extreme(Down)))
         | _ when is_digit(key) => [SwitchEditor(int_of_string(key))]
