@@ -378,10 +378,12 @@ svg.rail line.unsorted {
   color: #0000;
 }
 .empty-hole-path {
-  fill: none;
-  stroke-width: 1px;
+  fill: #f1e8cd;
+  stroke: #dbcca7;
+  stroke-width: 0.75px;
   vector-effect: non-scaling-stroke;
 }
+/*
 .empty-hole-path.unsorted {
   stroke: var(--unsorted-shadow-color);
 }
@@ -394,6 +396,7 @@ svg.rail line.unsorted {
 .empty-hole-path.Typ {
   stroke: var(--typ-shadow-color);
 }
+*/
 
 .selection-container {
   position: relative;
