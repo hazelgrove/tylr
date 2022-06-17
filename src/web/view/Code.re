@@ -146,7 +146,7 @@ module Deco =
         Attr.create(
           "style",
           Printf.sprintf(
-            "position: absolute; transform-origin: bottom left; transform: translate(%fpx, %fpx) scale(%f%%); opacity: %f%%;",
+            "position: absolute; transform-origin: bottom left; transform: translate(%fpx, %fpx) scale(%f); opacity: %f%%;",
             x_off,
             y_off,
             scale,
@@ -172,12 +172,11 @@ module Deco =
         0,
         backpack,
       );
-    let cur_height =
+    let height_head =
       switch (backpack) {
       | [] => 0
       | [hd, ..._] => Measured.segment_height(hd.content)
       };
-    //TODO(andrew): truncate backpack when height is too high?
     let can_put_down =
       switch (Zipper.put_down(z)) {
       | Some(_) => true
@@ -187,34 +186,36 @@ module Deco =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx;",
         Float.of_int(origin.col) *. font_metrics.col_width,
-        Float.of_int(- cur_height - 1)
+        Float.of_int(- height_head - 1)
         *. font_metrics.row_height
-        //Float.of_int(/* origin.row */ - height - 1)
-        //*. font_metrics.row_height
         +. CaretDec.top_text_fudge,
       );
-    // row height is 25.125
-    let scale_fn = idx => float_of_int(100 - 12 * idx);
+    let scale_fn = idx => float_of_int(100 - 12 * idx) /. 100.;
     let x_fn = idx => float_of_int(12 * idx);
     let init_opacity = 100.;
     let opacity_reduction = 20.; // reduction per line
     let init_idx = 0;
-    let dy_fn = (idx, height) =>
-      24. *. float_of_int(height) *. scale_fn(idx) /. 100. -. 4.;
-    let init_dy = dy_fn(init_idx, cur_height);
+    let dy_fn = (idx, base_height) =>
+      font_metrics.row_height
+      *. float_of_int(base_height)
+      *. scale_fn(idx)
+      -. 4.;
+    let init_y_offset = dy_fn(init_idx, height_head);
     let (_, _, _, selections) =
       List.fold_left(
-        ((idx, y, opacity, vs), s: Selection.t) => {
-          let height = Measured.segment_height(s.content);
-          let scale_percent = scale_fn(idx);
-          let x = x_fn(idx);
-          let new_y = y -. dy_fn(idx, height);
-          let v = backpack_sel_view(x, new_y, scale_percent, opacity, s);
+        ((idx, y_offset, opacity, vs), s: Selection.t) => {
+          let base_height = Measured.segment_height(s.content);
+          let scale = scale_fn(idx);
+          let x_offset = x_fn(idx);
+          let new_y_offset = y_offset -. dy_fn(idx, base_height);
+          let v =
+            backpack_sel_view(x_offset, new_y_offset, scale, opacity, s);
           let new_idx = idx + 1;
           let new_opacity = opacity -. opacity_reduction;
-          (new_idx, new_y, new_opacity, List.cons(v, vs));
+          //TODO(andrew): am i making this difficult by going backwards?
+          (new_idx, new_y_offset, new_opacity, List.cons(v, vs));
         },
-        (init_idx, init_dy, init_opacity, []),
+        (init_idx, init_y_offset, init_opacity, []),
         backpack,
       );
     let selections_view =
