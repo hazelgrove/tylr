@@ -128,41 +128,34 @@ module Deco =
 
   let backpack_sel_view =
       (
-        idx: int,
-        lines: float,
+        x_off: float,
+        y_off: float,
+        scale: float,
         opacity: float,
         {focus: _, content}: Selection.t,
       ) => {
-    // TODO(andrew): Maybe use sort at caret instead of root
-    let map = Measured.of_segment(content);
     module Text =
       Text({
-        let map = map;
+        let map = Measured.of_segment(content);
         let settings = Model.settings_init;
       });
-    let text_view = Text.of_segment(~no_sorts=true, content);
-    let height = Measured.segment_height(content);
-    let scale_percent = float_of_int(100 - 12 * idx);
-    let dy =
-      lines +. (-24.) *. float_of_int(height) *. scale_percent /. 100. +. 4.;
-    let guy =
-      div(
-        [
-          Attr.classes(["code-text", "backpack-selection"]),
-          Attr.create(
-            "style",
-            Printf.sprintf(
-              "position: absolute; transform-origin: bottom left; transform: translate(%dpx, %fpx) scale(%f%%); opacity: %f%%;",
-              12 * idx,
-              dy, //(-24.) *. float_of_int(lines),
-              scale_percent,
-              opacity,
-            ),
+    // TODO(andrew): Maybe use init sort at caret to prime this
+    div(
+      [
+        Attr.classes(["code-text", "backpack-selection"]),
+        Attr.create(
+          "style",
+          Printf.sprintf(
+            "position: absolute; transform-origin: bottom left; transform: translate(%fpx, %fpx) scale(%f%%); opacity: %f%%;",
+            x_off,
+            y_off,
+            scale,
+            opacity,
           ),
-        ],
-        text_view,
-      );
-    (guy, dy);
+        ),
+      ],
+      Text.of_segment(~no_sorts=true, content),
+    );
   };
 
   let backpack_view =
@@ -200,30 +193,34 @@ module Deco =
         //*. font_metrics.row_height
         +. CaretDec.top_text_fudge,
       );
-    let init_opacity = 90.;
-    let opacity_reduction = 15.; //per line
-    let (_, _, _, sels) =
+    // row height is 25.125
+    let scale_fn = idx => float_of_int(100 - 12 * idx);
+    let x_fn = idx => float_of_int(12 * idx);
+    let init_opacity = 100.;
+    let opacity_reduction = 20.; // reduction per line
+    let init_idx = 0;
+    let dy_fn = (idx, height) =>
+      24. *. float_of_int(height) *. scale_fn(idx) /. 100. -. 4.;
+    let init_dy = dy_fn(init_idx, cur_height);
+    let (_, _, _, selections) =
       List.fold_left(
-        ((idx, dy, opacity, vs), s: Selection.t) => {
-          let (v, dy) = backpack_sel_view(idx, dy, opacity, s);
-          (
-            idx + 1,
-            dy,
-            opacity -. opacity_reduction *. float_of_int(idx), //(dy /. 24.),
-            List.cons(v, vs),
-          );
+        ((idx, y, opacity, vs), s: Selection.t) => {
+          let height = Measured.segment_height(s.content);
+          let scale_percent = scale_fn(idx);
+          let x = x_fn(idx);
+          let new_y = y -. dy_fn(idx, height);
+          let v = backpack_sel_view(x, new_y, scale_percent, opacity, s);
+          let new_idx = idx + 1;
+          let new_opacity = opacity -. opacity_reduction;
+          (new_idx, new_y, new_opacity, List.cons(v, vs));
         },
-        (0, 24. *. float_of_int(cur_height) -. 4., init_opacity, []),
+        (init_idx, init_dy, init_opacity, []),
         backpack,
       );
     let selections_view =
       div(
         [Attr.create("style", style), Attr.classes(["backpack"])],
-        sels,
-        /*List.mapi(
-            (i, s) => backpack_sel_view(List.length(backpack) - i - 1, s),
-            List.rev(backpack),
-          ),*/
+        selections,
       );
     let genie_profile =
       RestructuringGenieDec.Profile.{length, height, origin};
