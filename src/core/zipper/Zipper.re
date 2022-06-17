@@ -56,6 +56,7 @@ module Action = {
     | Destruct(Direction.t)
     | Insert(string)
     | RotateBackpack
+    | MoveToBackpackTarget(plane_move)
     | Pick_up
     | Put_down;
 
@@ -687,8 +688,7 @@ let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
   /* Here f should be a function which results in strict d-wards
      movement of the caret. Iterate f until we get to the closet
      caret position to a target derived from the initial position */
-  let cursorpos =
-    caret_point(snd(Measured.of_segment(unselect_and_zip(z))));
+  let cursorpos = caret_point(Measured.of_segment(unselect_and_zip(z)));
   let cur_p = cursorpos(z);
   let goal =
     Measured.{
@@ -710,8 +710,7 @@ let from_plane: plane_move => Direction.t =
   | Down => Right;
 
 let do_extreme = (f: t => option(t), d: plane_move, z: t): option(t) => {
-  let cursorpos =
-    caret_point(snd(Measured.of_segment(unselect_and_zip(z))));
+  let cursorpos = caret_point(Measured.of_segment(unselect_and_zip(z)));
   let cur_p = cursorpos(z);
   let goal: Measured.point =
     switch (d) {
@@ -736,7 +735,7 @@ let update_target = (z: t): t =>
   {
     ...z,
     caret_col_target:
-      caret_point(snd(Measured.of_segment(unselect_and_zip(z))), z).col,
+      caret_point(Measured.of_segment(unselect_and_zip(z)), z).col,
   };
 
 let put_down = (z: t): option(t) =>
@@ -745,6 +744,80 @@ let put_down = (z: t): option(t) =>
   | Inner(_) => None
   | Outer => Outer.put_down(z)
   };
+
+let targets_within_row = (map: Measured.t, z: t): list(t) => {
+  let caret = caret_point(map);
+  let init = caret(z);
+  let rec go = (d: Direction.t, z: t) => {
+    switch (move(ByChar, d, z)) {
+    | None => []
+    | Some(z) =>
+      if (caret(z).row != init.row) {
+        [];
+      } else {
+        switch (put_down(z)) {
+        | None => go(d, z)
+        | Some(_) => [z, ...go(d, z)]
+        };
+      }
+    };
+  };
+  let curr =
+    switch (put_down(z)) {
+    | None => []
+    | Some(_) => [z]
+    };
+  List.rev(go(Left, z)) @ curr @ go(Right, z);
+};
+
+// TODO(d): unify this logic with rest of movement logic
+let rec move_to_backpack_target = (d: plane_move, map, z: t): option(t) => {
+  open OptUtil.Syntax;
+  let caret_point = caret_point(map);
+  let done_or_try_again = (d, z) =>
+    switch (put_down(z)) {
+    | None => move_to_backpack_target(d, map, z)
+    | Some(_) => Some(z)
+    };
+  switch (d) {
+  | Left(chunk) =>
+    let* z = Option.map(update_target, move(chunk, Left, z));
+    done_or_try_again(d, z);
+  | Right(chunk) =>
+    let* z = Option.map(update_target, move(chunk, Right, z));
+    done_or_try_again(d, z);
+  | Up =>
+    let* z = move_vertical(Left, z);
+    let zs =
+      targets_within_row(map, z)
+      |> List.sort((z1, z2) => {
+           let dist1 = caret_point(z1).col - z.caret_col_target;
+           let dist2 = caret_point(z2).col - z.caret_col_target;
+           let c = Int.compare(abs(dist1), abs(dist2));
+           // favor left
+           c != 0 ? c : Int.compare(dist1, dist2);
+         });
+    switch (zs) {
+    | [] => move_to_backpack_target(d, map, z)
+    | [z, ..._] => Some(z)
+    };
+  | Down =>
+    let* z = move_vertical(Right, z);
+    let zs =
+      targets_within_row(map, z)
+      |> List.sort((z1, z2) => {
+           let dist1 = caret_point(z1).col - z.caret_col_target;
+           let dist2 = caret_point(z2).col - z.caret_col_target;
+           let c = Int.compare(abs(dist1), abs(dist2));
+           // favor right
+           c != 0 ? c : - Int.compare(dist1, dist2);
+         });
+    switch (zs) {
+    | [] => move_to_backpack_target(d, map, z)
+    | [z, ..._] => Some(z)
+    };
+  };
+};
 
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
@@ -804,5 +877,10 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     |> Result.of_option(~error=Action.Failure.Cant_put_down)
   | RotateBackpack =>
     Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))
+  | MoveToBackpackTarget(d) =>
+    let map = Measured.of_segment(unselect_and_zip(z));
+    move_to_backpack_target(d, map, z)
+    |> Option.map(IdGen.id(id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move);
   };
 };

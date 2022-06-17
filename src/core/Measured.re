@@ -176,70 +176,137 @@ let union2 = (map: t, map': t) => {
 };
 let union = List.fold_left(union2, empty);
 
-let rec of_segment =
+let post_tile_indent = (t: Tile.t) => {
+  // hack for indent following fun tile.
+  // proper fix involves updating mold datatype
+  // to specify whether a right-facing concave
+  // tip imposes indentation on a following newline.
+  let complete_fun =
+    Tile.is_complete(t) && t.label == Form.get("fun_").label;
+  let missing_right_extreme = Tile.r_shard(t) < List.length(t.label) - 1;
+  complete_fun || missing_right_extreme;
+};
+
+let missing_left_extreme = (t: Tile.t) => Tile.l_shard(t) > 0;
+
+// currently supports indentation imposed by a tile on following
+// remainder of segment (eg indentation after fun tile).
+// also supports dedenting following encounter with an incomplete tile
+// missing its left extreme (eg in when let and = are in backpack),
+// but does not current support complete tile dedent, which
+// would be desirable for complete tiles in segment remainder that have
+// looser precedence than the indent-imposing tile
+// TODO: integrate term structure into indentation scheme
+let rec of_segment' =
         // start of program is considered a "linebreak"
         // so as to avoid spurious indentation at root level
-        (~seen_linebreak=true, ~indent=0, ~origin=zero, seg: Segment.t)
-        : (point, t) =>
+        (
+          ~seen_linebreak=true,
+          ~container_indent=0,
+          /* indentation imposed by preceding tiles in same segment */
+          ~contained_indent=container_indent,
+          /* indentation at the start of the row */
+          ~row_indent=container_indent,
+          ~origin=zero,
+          seg: Segment.t,
+        )
+        : (int, point, t) =>
   switch (seg) {
   | [] => (
+      row_indent,
       origin,
-      empty |> add_row(origin.row, {indent, max_col: origin.col}),
+      empty |> add_row(origin.row, {indent: row_indent, max_col: origin.col}),
     )
   | [hd, ...tl] =>
-    let (seen_linebreak, indent, hd_last, hd_map) =
+    let (seen_linebreak, contained_indent, row_indent, hd_last, hd_map) =
       switch (hd) {
       | Whitespace(w) when w.content == Whitespace.linebreak =>
         let concluding = Segment.sameline_whitespace(tl);
         let indent' =
-          if (!seen_linebreak && concluding) {
-            indent;
+          if (concluding) {
+            container_indent;
           } else if (!seen_linebreak) {
-            indent + 2;
-          } else if (concluding) {
-            max(indent - 2, 0);
+            container_indent + 2;
           } else {
-            indent;
+            contained_indent;
           };
         let last = {row: origin.row + 1, col: indent'};
         let map =
           singleton_w(w, {origin, last})
-          |> add_row(origin.row, {indent, max_col: origin.col});
-        (true, indent', last, map);
+          |> add_row(origin.row, {indent: row_indent, max_col: origin.col});
+        (true, indent', indent', last, map);
       | Whitespace(w) =>
         let last = {...origin, col: origin.col + 1};
-        (seen_linebreak, indent, last, singleton_w(w, {origin, last}));
+        (
+          seen_linebreak,
+          contained_indent,
+          row_indent,
+          last,
+          singleton_w(w, {origin, last}),
+        );
       | Grout(g) =>
         let last = {...origin, col: origin.col + 1};
-        (seen_linebreak, indent, last, singleton_g(g, {origin, last}));
+        (
+          seen_linebreak,
+          contained_indent,
+          row_indent,
+          last,
+          singleton_g(g, {origin, last}),
+        );
       | Tile(t) =>
         let token = List.nth(t.label);
-        let of_shard = (origin, shard) => {
+        let of_shard = (row_indent, origin, shard) => {
           let last = {
             ...origin,
             col: origin.col + String.length(token(shard)),
           };
-          (last, singleton_s(t.id, shard, {origin, last}));
+          ((row_indent, last), singleton_s(t.id, shard, {origin, last}));
         };
-        let (last, map) =
+        let ((row_indent, last), map) =
           Aba.mk(t.shards, t.children)
           |> Aba.fold_left_map(
-               of_shard(origin),
-               (origin, child, shard) => {
-                 let (child_last, child_map) =
-                   of_segment(~seen_linebreak=false, ~indent, ~origin, child);
-                 let (shard_last, shard_map) = of_shard(child_last, shard);
-                 (shard_last, child_map, shard_map);
+               of_shard(row_indent, origin),
+               ((row_indent, origin), child, shard) => {
+                 let (row_indent, child_last, child_map) =
+                   of_segment'(
+                     ~seen_linebreak=false,
+                     ~container_indent=contained_indent,
+                     ~row_indent,
+                     ~origin,
+                     child,
+                   );
+                 let ((row_indent, shard_last), shard_map) =
+                   of_shard(row_indent, child_last, shard);
+                 ((row_indent, shard_last), child_map, shard_map);
                },
              )
           |> PairUtil.map_snd(Aba.join(Fun.id, Fun.id))
           |> PairUtil.map_snd(union);
-        (seen_linebreak, indent, last, map);
+        let contained_indent =
+          if (post_tile_indent(t)) {
+            min(contained_indent + 2, row_indent + 2);
+          } else if (missing_left_extreme(t)) {
+            container_indent;
+          } else {
+            contained_indent;
+          };
+        (seen_linebreak, contained_indent, row_indent, last, map);
       };
-    let (tl_last, tl_map) =
-      of_segment(~seen_linebreak, ~indent, ~origin=hd_last, tl);
-    (tl_last, union2(hd_map, tl_map));
+    let (row_indent, tl_last, tl_map) =
+      of_segment'(
+        ~seen_linebreak,
+        ~container_indent,
+        ~contained_indent,
+        ~row_indent,
+        ~origin=hd_last,
+        tl,
+      );
+    (row_indent, tl_last, union2(hd_map, tl_map));
   };
+let of_segment = seg => {
+  let (_, _, map) = of_segment'(seg);
+  map;
+};
 
 let length = (seg: Segment.t, map: t): int =>
   switch (seg) {
@@ -268,13 +335,13 @@ let _linearize: measurement => measurement_lin =
 
 let segment_origin = (seg: Segment.t): option(point) =>
   Option.map(
-    first => find_p(first, snd(of_segment(seg))).origin,
+    first => find_p(first, of_segment(seg)).origin,
     ListUtil.hd_opt(seg),
   );
 
 let segment_last = (seg: Segment.t): option(point) =>
   Option.map(
-    last => find_p(last, snd(of_segment(seg))).last,
+    last => find_p(last, of_segment(seg)).last,
     ListUtil.last_opt(seg),
   );
 
@@ -285,7 +352,7 @@ let segment_height = (seg: Segment.t) =>
   };
 
 let segment_width = (seg: Segment.t): int => {
-  let (_, map) = of_segment(seg);
+  let map = of_segment(seg);
   List.fold_left(
     (acc, p: Piece.t) => max(acc, find_p(p, map).last.col),
     0,

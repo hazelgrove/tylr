@@ -134,7 +134,7 @@ module Deco =
         {focus: _, content}: Selection.t,
       ) => {
     // TODO(andrew): Maybe use sort at caret instead of root
-    let (_, map) = Measured.of_segment(content);
+    let map = Measured.of_segment(content);
     module Text =
       Text({
         let map = map;
@@ -416,7 +416,7 @@ module Deco =
                | (None, None) => failwith("impossible")
                | (_, Some(p)) =>
                  let m = Measured.find_p(p, M.map);
-                 Measured.{origin: m.origin, last: m.last};
+                 Measured.{origin: m.origin, last: m.origin};
                | (Some(p), _) =>
                  let m = Measured.find_p(p, M.map);
                  Measured.{origin: m.last, last: m.last};
@@ -453,7 +453,8 @@ module Deco =
     List.concat([
       holes(seg),
       caret(z),
-      M.show_backpack_targets ? targets(z.backpack, seg) : [],
+      M.show_backpack_targets && Backpack.restricted(z.backpack)
+        ? targets(z.backpack, seg) : [],
       selected_pieces(z),
       indicated_piece_deco(z),
     ]);
@@ -469,8 +470,9 @@ let view =
       ~settings: Model.settings,
     )
     : Node.t => {
+  let sel_seg = Zipper.zip(zipper);
   let unsel_seg = Zipper.unselect_and_zip(zipper);
-  let map = snd(Measured.of_segment(unsel_seg));
+  let map = Measured.of_segment(unsel_seg);
   module Text =
     Text({
       let map = map;
@@ -484,6 +486,10 @@ let view =
     });
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
-    [span_c("code-text", Text.of_segment(unsel_seg))] @ Deco.all(zipper),
+    [
+      span_c("code-text", Text.of_segment(unsel_seg)),
+      span_c("code-text-shards", Text.of_segment(sel_seg)),
+    ]
+    @ Deco.all(zipper),
   );
 };
