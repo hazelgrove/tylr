@@ -375,7 +375,7 @@ module Deco =
                | (None, None) => failwith("impossible")
                | (_, Some(p)) =>
                  let m = Measured.find_p(p, M.map);
-                 Measured.{origin: m.origin, last: m.last};
+                 Measured.{origin: m.origin, last: m.origin};
                | (Some(p), _) =>
                  let m = Measured.find_p(p, M.map);
                  Measured.{origin: m.last, last: m.last};
