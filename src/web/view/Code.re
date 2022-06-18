@@ -230,19 +230,14 @@ module Deco =
 
   let caret = (z: Zipper.t): list(Node.t) => {
     let origin = Zipper.caret_point(M.map, z);
+    let shape = Zipper.caret_direction(z);
     let side =
       switch (Zipper.indicated_piece(z)) {
       | Some((_, side)) => side
       | _ => Right
       };
-
     [
-      CaretDec.simple_view(
-        ~font_metrics,
-        ~side,
-        ~origin,
-        ~shape=Zipper.caret_direction(z),
-      ),
+      CaretDec.view(~font_metrics, ~profile={side, origin, shape}),
       backpack_view(~origin, z),
     ];
   };

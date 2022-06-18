@@ -114,6 +114,7 @@ let bi_lines =
            // TODO(d) unify fudge constants
            =>
              SvgUtil.Path.[
+               //1d
                M({
                  x: Float.of_int(l.last.col) +. 0.22,
                  y: Float.of_int(l.last.row + 1),
@@ -172,6 +173,7 @@ let uni_lines =
       [
         l.row == m_first.origin.row
           ? [
+            //1d
             m(~x=m_first.origin.col, ~y=m_first.origin.row + 1),
             h(~x=l.col),
             L_({
