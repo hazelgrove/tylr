@@ -3,7 +3,6 @@ open Util;
 open Node;
 open SvgUtil;
 
-let top_text_fudge = 2.0;
 let height_fudge = 1.0; //extra 1.0 for piece deco shadow
 
 let caret_width_bent = 0.125;
@@ -60,7 +59,7 @@ let caret_position =
     Printf.sprintf(
       "position: absolute; z-index: 6; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
       Float.of_int(origin.col) *. font_metrics.col_width +. left_fudge,
-      Float.of_int(origin.row) *. font_metrics.row_height +. top_text_fudge,
+      Float.of_int(origin.row) *. font_metrics.row_height,
       font_metrics.col_width,
       font_metrics.row_height +. height_fudge,
     ),

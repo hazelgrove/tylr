@@ -175,9 +175,7 @@ module Deco =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx;",
         Float.of_int(origin.col) *. font_metrics.col_width,
-        Float.of_int(/* origin.row */ - height - 1)
-        *. font_metrics.row_height
-        +. CaretDec.top_text_fudge,
+        Float.of_int(/* origin.row */ - height - 1) *. font_metrics.row_height,
       );
     let selections_view =
       div(
@@ -191,7 +189,7 @@ module Deco =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
         Float.of_int(origin.col) *. font_metrics.col_width,
-        CaretDec.top_text_fudge -. 3.,
+        -3.,
         Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
       );
     let joiner =

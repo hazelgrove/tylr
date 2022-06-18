@@ -56,7 +56,7 @@ let container =
       create(
         "style",
         Printf.sprintf(
-          "top: calc(%fpx + 2px); left: %fpx;",
+          "top: calc(%fpx); left: %fpx;",
           container_origin_y,
           container_origin_x,
         ),
@@ -121,7 +121,7 @@ let container2d =
       create(
         "style",
         Printf.sprintf(
-          "top: calc(%fpx + 2px); left: %fpx;",
+          "top: calc(%fpx); left: %fpx;",
           container_origin_y,
           container_origin_x,
         ),
