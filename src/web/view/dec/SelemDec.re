@@ -154,7 +154,6 @@ let open_child_paths =
            origin',
          );
        [
-         //TODO(andrew): restore?
          //gradient(gradient_id, origin', length),
          view(
            ~attrs=

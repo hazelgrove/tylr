@@ -138,16 +138,16 @@ let top_bar_view = (~inject, model: Model.t) =>
     ],
   );
 
-let editor_view = ({font_metrics, history, _} as model: Model.t) =>
+let editor_view =
+    ({font_metrics, show_backpack_targets, settings, _} as model: Model.t) =>
   div(
     [Attr.id("code-container")],
     [
       Code.view(
         ~font_metrics,
-        ~show_backpack_targets=model.show_backpack_targets,
-        ~just_failed=history.just_failed,
+        ~show_backpack_targets,
         ~zipper=Model.get_zipper(model),
-        ~settings=model.settings,
+        ~settings,
       ),
     ],
   );

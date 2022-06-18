@@ -380,7 +380,6 @@ module Deco =
                  style: `Sibling,
                  measurement,
                  color: Color.Exp,
-                 just_failed: None,
                };
              [CaretPosDec.view(~font_metrics, profile)];
            };
@@ -419,7 +418,6 @@ let view =
     (
       ~font_metrics,
       ~show_backpack_targets,
-      ~just_failed as _: option(FailedInput.t)=None,
       ~zipper: Zipper.t,
       ~settings: Model.settings,
     )

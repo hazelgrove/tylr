@@ -6,7 +6,6 @@ module Profile = {
     style,
     measurement: Core.Measured.measurement,
     color: Color.t,
-    just_failed: option(FailedInput.t),
   };
 };
 
@@ -38,8 +37,7 @@ let caret_position_radii =
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let view =
-    (~font_metrics, {style, color, measurement, just_failed}: Profile.t) => {
+let view = (~font_metrics, {style, color, measurement}: Profile.t) => {
   let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
   let c_cls = Color.to_string(color);
   let cls =
@@ -48,11 +46,6 @@ let view =
     | `Caret => "current-caret-pos"
     | `Anchor => "anchor"
     | `Sibling => "sibling"
-    };
-  let just_failed_clss =
-    switch (just_failed) {
-    | None => []
-    | Some(_) => [JustFailedCls.Pos.mk()]
     };
   DecUtil.container2d(
     ~font_metrics,
@@ -66,12 +59,7 @@ let view =
           create("y", Printf.sprintf("%fpx", 0.1 -. r_y)),
           create("width", Printf.sprintf("%fpx", 1. *. r_x)),
           create("height", Printf.sprintf("%fpx", 1. *. r_y)),
-          Attr.classes([
-            "caret-position-path",
-            cls,
-            c_cls,
-            ...just_failed_clss,
-          ]),
+          Attr.classes(["caret-position-path", cls, c_cls]),
         ],
         [],
       ),
