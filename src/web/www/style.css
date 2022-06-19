@@ -73,12 +73,12 @@
   --hole-stroke-color: #dc322f;
   --empty-hole-fill-color: #ffef00;
 
-  --exp-bg-color: #dbf6de;
-  --exp-shadow-color: #329f43;
+  --exp-bg-color: #ebdfc5; /*#dbf6de;*/
+  --exp-shadow-color: #c4b599;/*#329f43;*/
   --exp-rail-color: #a7d3ad;
 
   --pat-bg-color: #c4e6ff;
-  --pat-shadow-color: #268bd2;
+  --pat-shadow-color: #90bdde; /*#268bd2;*/
   --pat-rail-color: #a1c4dd;
 
   --typ-bg-color: #caccf4;
@@ -546,7 +546,12 @@ svg.rail line.unsorted {
 }
 
 .tile-path.Exp.indicated {
-  fill:#b9e3be;
+  fill: var(--exp-bg-color);
+  /*fill:#b9e3be;*/
+}
+.tile-path.Exp.indicated-caret {
+  fill: #f6cba8;
+  /*fill:#b9e3be;*/
 }
 .tile-path.Exp.raised {
   filter: url(#raised-drop-shadow-Exp);
@@ -563,6 +568,10 @@ svg.rail line.unsorted {
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
 }
+.tile-path.Pat.indicated-caret {
+  fill: #c4d0ff;
+}
+
 .tile-path.Pat.raised {
   filter: url(#raised-drop-shadow-Pat);
 }

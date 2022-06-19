@@ -13,6 +13,7 @@ module Profile = {
     shards: Measured.Shards.t,
     mold: Mold.t,
     style,
+    index: int,
   };
 };
 
@@ -79,12 +80,15 @@ let simple_shard =
     (
       ~font_metrics: FontMetrics.t,
       ~mold: Mold.t,
-      (index, {origin, last}: Measured.measurement),
+      ~index: int,
+      (this_index, {origin, last}: Measured.measurement),
     )
     : t => {
-  let nib_shapes = Mold.nib_shapes(index, mold);
+  let nib_shapes = Mold.nib_shapes(this_index, mold);
   let path = simple_shard_path(nib_shapes, last.col - origin.col);
-  let clss = ["tile-path", "raised", "indicated", Sort.to_string(mold.out)];
+  let clss =
+    ["tile-path", "raised", Sort.to_string(mold.out)]
+    @ (index == this_index ? ["indicated-caret"] : ["indicated"]);
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };
 
@@ -301,7 +305,7 @@ let view =
     (
       ~font_metrics: FontMetrics.t,
       ~rows: Measured.Rows.t,
-      {mold, shards, _} as profile: Profile.t,
+      {mold, shards, index, _} as profile: Profile.t,
     )
     : list(Node.t) =>
   switch (profile.style) {
@@ -309,7 +313,7 @@ let view =
       chunky_shard(~font_metrics, ~rows, (i, j), mold, shards),
     ]
   | Root(l, r) =>
-    List.map(simple_shard(~font_metrics, ~mold), shards)
+    List.map(simple_shard(~font_metrics, ~mold, ~index), shards)
     @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
     @ bi_lines(~font_metrics, ~rows, mold, shards)
   };
