@@ -107,7 +107,6 @@ module Outer = {
     snd(update_selection(sel, z));
 
   let grow_selection = (z: t): option(t) => {
-    open OptUtil.Syntax;
     let+ (p, relatives) = Relatives.pop(z.selection.focus, z.relatives);
     let selection = Selection.push(p, z.selection);
     {...z, selection, relatives};
@@ -135,7 +134,6 @@ module Outer = {
 
   let move = (d: Direction.t, z: t): option(t) =>
     if (Selection.is_empty(z.selection)) {
-      open OptUtil.Syntax;
       // let balanced = !Backpack.is_balanced(z.backpack);
       let+ (p, relatives) = Relatives.pop(d, z.relatives);
       let relatives =
@@ -184,7 +182,6 @@ module Outer = {
     z |> select(d) |> Option.map(destruct);
 
   let put_down = (z: t): option(t) => {
-    open OptUtil.Syntax;
     let z = destruct(z);
     let+ (_, popped, backpack) =
       Backpack.pop(
@@ -470,6 +467,9 @@ let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
   {...z, relatives};
 };
 
+let opt_regrold = d =>
+  Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen));
+
 let split =
     ((z, id_gen): state, char: string, idx: int, t: Token.t): option(state) => {
   let (l, r) = Token.split_nth(idx, t);
@@ -498,7 +498,9 @@ let insert =
       char: string,
       ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
     )
-    : option(state) =>
+    : option(state) => {
+  /* If there's a selection, delete it before proceeding */
+  let z = z.selection.content != [] ? Outer.destruct(z) : z;
   switch (caret, neighbor_monotiles(siblings)) {
   | (Inner(d_idx, n), (_, Some(t))) =>
     let idx = n + 1;
@@ -508,9 +510,8 @@ let insert =
       ? z
         |> set_caret(Inner(d_idx, idx))
         |> (z => Outer.replace(Right, [new_t], (z, id_gen)))
-        |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
-      : split((z, id_gen), char, idx, t)
-        |> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen));
+        |> opt_regrold(Left)
+      : split((z, id_gen), char, idx, t) |> opt_regrold(Right);
   /* Can't insert inside delimiter */
   | (Inner(_, _), (_, None)) => None
   | (Outer, (_, Some(_))) =>
@@ -524,11 +525,11 @@ let insert =
     (z, id_gen)
     |> insert_outer(char)
     |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen))
-    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen));
+    |> opt_regrold(Left);
   | (Outer, (_, None)) =>
-    insert_outer(char, (z, id_gen))
-    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
+    insert_outer(char, (z, id_gen)) |> opt_regrold(Left)
   };
+};
 
 let movability = (chunkiness: chunkiness, label, delim_idx): movability => {
   assert(delim_idx < List.length(label));
@@ -761,7 +762,6 @@ let targets_within_row = (map: Measured.t, z: t): list(t) => {
 
 // TODO(d): unify this logic with rest of movement logic
 let rec move_to_backpack_target = (d: plane_move, map, z: t): option(t) => {
-  open OptUtil.Syntax;
   let caret_point = caret_point(map);
   let done_or_try_again = (d, z) =>
     switch (put_down(z)) {
