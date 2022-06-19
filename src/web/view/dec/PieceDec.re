@@ -84,12 +84,30 @@ let simple_shard =
       (this_index, {origin, last}: Measured.measurement),
     )
     : t => {
-  let nib_shapes = Mold.nib_shapes(this_index, mold);
+  let nib_shapes = Mold.nib_shapes(~index=this_index, mold);
   let path = simple_shard_path(nib_shapes, last.col - origin.col);
   let clss =
     ["tile-path", "raised", Sort.to_string(mold.out)]
     @ (index == this_index ? ["indicated-caret"] : ["indicated"]);
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
+};
+
+let simple_shard_child =
+    (
+      ~font_metrics: FontMetrics.t,
+      (mold: Mold.t, {origin, last}: Measured.measurement),
+    )
+    : t => {
+  let nib_shapes = Mold.nib_shapes(mold);
+  let path = simple_shard_path(nib_shapes, last.col - origin.col);
+  let clss = ["indicated-child", Sort.to_string(mold.out)];
+  DecUtil.code_svg(
+    ~font_metrics,
+    ~origin,
+    ~path_cls=clss,
+    ~base_cls=["child-backing"],
+    path,
+  );
 };
 
 let chunky_shard =
@@ -102,8 +120,8 @@ let chunky_shard =
     ) => {
   let origin = List.assoc(i, shards).origin;
   let last = List.assoc(j, shards).last;
-  let (nib_l, _) = Mold.nib_shapes(i, mold);
-  let (_, nib_r) = Mold.nib_shapes(j, mold);
+  let (nib_l, _) = Mold.nib_shapes(~index=i, mold);
+  let (_, nib_r) = Mold.nib_shapes(~index=j, mold);
   let min_col = Measured.Rows.find(origin.row, rows).indent;
   let max_col =
     ListUtil.range(~lo=origin.row, last.row + 1)
@@ -305,6 +323,7 @@ let view =
     (
       ~font_metrics: FontMetrics.t,
       ~rows: Measured.Rows.t,
+      ~segs: list((Mold.t, Measured.measurement))=[],
       {mold, shards, index, _} as profile: Profile.t,
     )
     : list(Node.t) =>
@@ -314,6 +333,7 @@ let view =
     ]
   | Root(l, r) =>
     List.map(simple_shard(~font_metrics, ~mold, ~index), shards)
+    @ List.map(simple_shard_child(~font_metrics), segs)
     @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
     @ bi_lines(~font_metrics, ~rows, mold, shards)
   };

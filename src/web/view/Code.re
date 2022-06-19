@@ -420,9 +420,24 @@ module Deco =
           | None => (-1)
           | Some(i) => i
           };
+        let segs =
+          switch (p) {
+          | Tile({children, mold, _}) =>
+            children
+            |> List.flatten
+            |> List.filter(
+                 fun
+                 | Piece.Whitespace(w) when w.content == Whitespace.linebreak =>
+                   false
+                 | _ => true,
+               )
+            |> List.map(p => (mold, Measured.find_p(p, M.map)))
+          | _ => []
+          };
         PieceDec.view(
           ~font_metrics,
           ~rows=M.map.rows,
+          ~segs,
           root_piece_profile(index, p, nib_shape, (l, r)),
         );
       };

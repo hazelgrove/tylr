@@ -553,6 +553,13 @@ svg.rail line.unsorted {
   fill: #f6cba8;
   /*fill:#b9e3be;*/
 }
+.Exp.indicated-child {
+  fill: #f3ead8;
+}
+.child-backing {
+  z-index: -1;
+}
+
 .tile-path.Exp.raised {
   filter: url(#raised-drop-shadow-Exp);
 }
@@ -570,6 +577,9 @@ svg.rail line.unsorted {
 }
 .tile-path.Pat.indicated-caret {
   fill: #c4d0ff;
+}
+.Pat.indicated-child {
+  fill: #e4f1fa;
 }
 
 .tile-path.Pat.raised {

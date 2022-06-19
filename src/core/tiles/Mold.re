@@ -44,8 +44,8 @@ let nibs = (~index=?, mold: t): Nibs.t =>
     (l, r);
   };
 
-let nib_shapes = (index: int, mold: t): Nibs.shapes => {
-  let (nib_l, nib_r) = nibs(~index, mold);
+let nib_shapes = (~index=?, mold: t): Nibs.shapes => {
+  let (nib_l, nib_r) = nibs(~index?, mold);
   (nib_l.shape, nib_r.shape);
 };
 
