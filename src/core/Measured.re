@@ -177,12 +177,15 @@ let union2 = (map: t, map': t) => {
 let union = List.fold_left(union2, empty);
 
 let post_tile_indent = (t: Tile.t) => {
-  // hack for indent following fun tile.
+  // hack for indent following fun/if tiles.
   // proper fix involves updating mold datatype
   // to specify whether a right-facing concave
   // tip imposes indentation on a following newline.
   let complete_fun =
-    Tile.is_complete(t) && t.label == Form.get("fun_").label;
+    Tile.is_complete(t)
+    && (
+      t.label == Form.get("fun_").label || t.label == Form.get("if_").label
+    );
   let missing_right_extreme = Tile.r_shard(t) < List.length(t.label) - 1;
   complete_fun || missing_right_extreme;
 };

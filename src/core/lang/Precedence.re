@@ -14,7 +14,6 @@ let mult = 3;
 let plus = 4;
 let prod = 5;
 let eqs = 6;
-let gt = 6;
 let cond = 7;
 let let_ = 8;
 let fun_ = 9;
@@ -30,8 +29,7 @@ let associativity_map: IntMap.t(Direction.t) =
     (plus, Left),
     (prod, Right),
     (cond, Left),
-    (eqs, Right),
-    (gt, Right),
+    (eqs, Left),
     (prod, Right),
   ]
   |> List.to_seq

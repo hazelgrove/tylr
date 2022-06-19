@@ -189,7 +189,11 @@ module Outer = {
         z.backpack,
       );
     IncompleteBidelim.set(popped.content);
-    {...z, backpack} |> put_selection(popped) |> unselect;
+    // temp hack to always make caret end up on right side
+    // of put down selection, eventually refactor backpack
+    // to take segments instead of selections and encode
+    // this directionality more cleanly
+    {...z, backpack} |> put_selection({...popped, focus: Left}) |> unselect;
   };
 
   let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
