@@ -54,6 +54,7 @@ let view =
     ~base_cls=["caret"],
     ~path_cls=["caret-path"],
     ~height_fudge=1.0, //extra 1.0 for piece deco shadow,
+    ~top_fudge=0.0,
     ~left_fudge,
     caret_path(shape),
   );

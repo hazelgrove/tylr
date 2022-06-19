@@ -6,7 +6,7 @@ type point = {
   row: int,
   col: int,
 };
-let zero = {/*indent: 0,*/ row: 0, col: 0};
+let zero = {row: 0, col: 0};
 
 [@deriving show]
 type measurement_lin = {
