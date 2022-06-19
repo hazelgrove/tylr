@@ -14,13 +14,22 @@ case taz of {
 }
 in foo(0!)",
   "let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(1!)",
-  "fun (center, p) =>
-let (x, y) = center in
-let (a, b) = p in
-let r = sqrt((x - a)*2 + (y - b)*2) in
-circle(center, r)",
-  "4",
-  "5",
+  "",
+  "fun square, p1, p2 =>
+if square then
+let mark =
+fun center =>
+let x, y = center in
+rect(x - 2, y - 2, 4, 4)
+in
+[mark(p1), line(p1, p2), mark(p2)]
+else
+let mark = fun center => circle(center, 4) in
+[mark(p1), line(p1, p2), mark(p2)]",
+  "shapes
+|> map(rotate(pi / 4))
+|> map(translate(6, 7))
+|> filter(fun shape => area(shape) < 50)",
   "6",
   "7",
   "8",
