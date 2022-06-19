@@ -240,15 +240,40 @@ let zip = (z: t): Segment.t =>
 
 let unselect_and_zip = (z: t): Segment.t => z |> Outer.unselect |> zip;
 
+let sibs_with_sel =
+    (
+      {
+        selection: {content, focus},
+        relatives: {siblings: (l_sibs, r_sibs), _},
+        _,
+      }: t,
+    )
+    : Siblings.t =>
+  switch (focus) {
+  | Left => (l_sibs, content @ r_sibs)
+  | Right => (l_sibs @ content, r_sibs)
+  };
+
+let representative_piece = (z: t): option((Piece.t, Direction.t)) => {
+  /* The piece to the left of the caret, or if none exists, the piece to the right */
+  switch (Siblings.neighbors(sibs_with_sel(z))) {
+  | (Some(l), _) => Some((l, Left))
+  | (_, Some(r)) => Some((r, Right))
+  | _ => None
+  };
+};
+
 let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   let ws = Piece.is_whitespace;
   /* Returns the piece currently indicated (if any) and which side of
      that piece the caret is on. We favor indicating the piece to the
      (R)ight, but may end up indicating the (P)arent or the (L)eft.
-     We don't indicate whitespace tiles. */
-  switch (Siblings.neighbors(z.relatives.siblings), parent(z)) {
+     We don't indicate whitespace tiles. This function ignores whether
+     or not there is a selection so this can be used to get the caret
+     direction, but the caller shouldn't indicate if there's a selection */
+  switch (Siblings.neighbors(sibs_with_sel(z)), parent(z)) {
   /* Non-empty selection => no indication */
-  | _ when z.selection.content != [] => None
+  //| _ when z.selection.content != [] => None
   /* Empty syntax => no indication */
   | ((None, None), None) => None
   /* L not whitespace, R is whitespace => indicate L */
@@ -292,31 +317,17 @@ let caret_offset: caret => int =
   | Outer => 0
   | Inner(_, c) => c + 1;
 
-let caret_direction =
-    (
-      {
-        caret,
-        selection: {content, focus},
-        relatives: {siblings: (l_sibs, r_sibs), _},
-        _,
-      }: t,
-    )
-    : option(Direction.t) =>
+let caret_direction = (z: t): option(Direction.t) =>
   /* Direction the caret is facing in */
-  switch (caret) {
+  switch (z.caret) {
   | Inner(_) => None
   | Outer =>
-    let sibs_with_sel =
-      switch (focus) {
-      | Left => (l_sibs, content @ r_sibs)
-      | Right => (l_sibs @ content, r_sibs)
-      };
-    switch (Siblings.neighbors(sibs_with_sel)) {
+    switch (Siblings.neighbors(sibs_with_sel(z))) {
     | (Some(l), Some(r))
         when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
       None
-    | _ => Siblings.direction_between(sibs_with_sel)
-    };
+    | _ => Siblings.direction_between(sibs_with_sel(z))
+    }
   };
 
 let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
@@ -588,28 +599,6 @@ let select = (d: Direction.t, z: t): option(t) =>
   } else {
     z |> set_caret(Outer) |> Outer.select(d);
   };
-
-let representative_piece =
-    (
-      {
-        selection: {content, focus},
-        relatives: {siblings: (l_sibs, r_sibs), _},
-        _,
-      }: t,
-    )
-    : option((Piece.t, Direction.t)) => {
-  /* The piece to the left of the caret, or if none exists, the piece to the right */
-  let sibs =
-    switch (focus) {
-    | Left => (l_sibs, content @ r_sibs)
-    | Right => (l_sibs @ content, r_sibs)
-    };
-  switch (Siblings.neighbors(sibs)) {
-  | (Some(l), _) => Some((l, Left))
-  | (_, Some(r)) => Some((r, Right))
-  | _ => None
-  };
-};
 
 let base_caret_point = (map: Measured.t, z: t): Measured.point => {
   switch (representative_piece(z)) {

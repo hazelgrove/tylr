@@ -1,126 +1,139 @@
 open Util;
 open Core;
 open Virtual_dom.Vdom;
+open Node;
+open SvgUtil;
 
-module Style = {
-  type t =
+module Profile = {
+  type style =
     | Root(Measured.point, Measured.point)
     | Selected(int, int);
 
-  let to_string =
-    fun
-    | Root(_) => "Root"
-    | Selected(_) => "Selected";
-
-  let to_selem_style =
-    fun
-    | Root(_) => SelemStyle.Root
-    | Selected(_) => Selected;
-};
-
-module Profile = {
   type t = {
     shards: Measured.Shards.t,
     mold: Mold.t,
-    style: Style.t,
+    style,
   };
 };
 
-let shards = (~font_metrics, profile: Profile.t) => {
-  let selem_profile = (index, measurement) =>
-    SelemDec.Profile.{
-      measurement,
-      color: Color.of_sort(profile.mold.out),
-      shape: SelemDec.piece_shape_of_nibs(Mold.nibs(~index, profile.mold)),
-      style: Style.to_selem_style(profile.style),
-      open_children: [],
-      closed_children: [],
-    };
-  profile.shards
-  |> List.map(((i, m)) => {
-       let profile = selem_profile(i, m);
-       SvgUtil.Path.view(
-         ~attrs=SelemDec.contour_path_attrs(profile),
-         SelemDec.contour_path(~font_metrics, profile),
-       );
-     });
+let run: Nib.Shape.t => float =
+  fun
+  | Convex => +. DecUtil.short_tip_width
+  | Concave(_) => -. DecUtil.short_tip_width;
+
+let adj: Nib.Shape.t => float =
+  fun
+  | Convex => DecUtil.convex_adj
+  | Concave(_) => DecUtil.concave_adj;
+
+let l_hook = (l: Nib.Shape.t): list(Path.cmd) => [
+  L_({dx: -. run(l), dy: (-0.5)}),
+  L_({dx: +. run(l), dy: (-0.5)}),
+];
+
+let r_hook = (r: Nib.Shape.t): list(Path.cmd) => [
+  L_({dx: +. run(r), dy: 0.5}),
+  L_({dx: -. run(r), dy: 0.5}),
+];
+
+let simple_shard_path = ((l, r): Nibs.shapes, length: int): list(Path.cmd) => {
+  let length = float_of_int(length) +. adj(l) +. adj(r);
+  Path.[
+    [M({x: -. adj(l), y: 0.}), H_({dx: length})],
+    r_hook(r),
+    [H_({dx: -. length})],
+    l_hook(l),
+  ]
+  |> List.flatten;
 };
 
-let chunky = (~rows: Measured.Rows.t, (i, j), profile: Profile.t) => {
-  let m_first = List.assoc(i, profile.shards);
-  let m_last = List.assoc(j, profile.shards);
-  let (first, last) = (m_first.origin, m_last.last);
-  let indent = Measured.Rows.find(first.row, rows).indent;
+let chunky_shard_path =
+    (
+      {origin, last}: Measured.measurement,
+      (l, r): Nibs.shapes,
+      min_col: int,
+      max_col: int,
+    )
+    : list(Path.cmd) => {
+  //TODO(andrew): fix shape adjustments
+  let top = float_of_int(max_col - origin.col + 1) /* +. adj(l) +. adj(r)*/;
+  let right = float_of_int(last.row - origin.row);
+  let bottom1 = float_of_int(last.col - origin.col);
+  let bottom2 = float_of_int(min_col - origin.col) /* -. adj(l) -. adj(r)*/;
+  let left = 1.;
+  Path.[
+    [
+      M({x: 0. /*-. adj(l)*/, y: 0.}),
+      H({x: top}),
+      V({y: right}),
+      H({x: bottom1}),
+    ],
+    r_hook(r),
+    [H({x: bottom2}), V({y: left}), H({x: 0. /*-. adj(l)*/})],
+    l_hook(l),
+  ]
+  |> List.flatten;
+};
+
+let simple_shard =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~mold: Mold.t,
+      (index, {origin, last}: Measured.measurement),
+    )
+    : t => {
+  let nib_shapes = Mold.nib_shapes(index, mold);
+  let path = simple_shard_path(nib_shapes, last.col - origin.col);
+  let clss = ["tile-path", "raised", "indicated", Sort.to_string(mold.out)];
+  DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
+};
+
+let chunky_shard =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~rows: Measured.Rows.t,
+      (i, j): (int, int),
+      mold: Mold.t,
+      shards: Measured.Shards.t,
+    ) => {
+  let origin = List.assoc(i, shards).origin;
+  let last = List.assoc(j, shards).last;
+  let (nib_l, _) = Mold.nib_shapes(i, mold);
+  let (_, nib_r) = Mold.nib_shapes(j, mold);
+  let min_col = Measured.Rows.find(origin.row, rows).indent;
   let max_col =
-    ListUtil.range(~lo=first.row, last.row + 1)
+    ListUtil.range(~lo=origin.row, last.row + 1)
     |> List.map(r => Measured.Rows.find(r, rows).max_col)
     |> List.fold_left(max, 0);
-  open SvgUtil.Path;
-  let l_hook = {
-    let dx =
-      switch (fst(Mold.nibs(~index=i, profile.mold)).shape) {
-      | Convex => -. DecUtil.short_tip_width
-      | Concave(_) => DecUtil.short_tip_width
-      };
-    let dy = (-0.5);
-    [L_({dx, dy}), L_({dx: -. dx, dy})];
-  };
-  let r_hook = {
-    let dx =
-      switch (snd(Mold.nibs(~index=j, profile.mold)).shape) {
-      | Convex => DecUtil.short_tip_width
-      | Concave(_) => -. DecUtil.short_tip_width
-      };
-    let dy = 0.5;
-    [L_({dx, dy}), L_({dx: -. dx, dy})];
-  };
-  [
-    view(
-      ~attrs=
-        Attr.[
-          classes([
-            "tile-path",
-            "selected",
-            "raised",
-            Color.to_string(Color.of_sort(profile.mold.out)),
-          ]),
-          create("vector-effect", "non-scaling-stroke"),
-        ],
-      List.concat([
-        [
-          m(~x=first.col, ~y=first.row),
-          h(~x=max_col),
-          v(~y=last.row),
-          h(~x=last.col),
-        ],
-        r_hook,
-        [h(~x=indent), v(~y=first.row + 1), h(~x=first.col)],
-        l_hook,
-      ]),
-    ),
-  ];
+  let path =
+    chunky_shard_path({origin, last}, (nib_l, nib_r), min_col, max_col);
+  let clss = ["tile-path", "selected", "raised", Sort.to_string(mold.out)];
+  DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };
 
 let bi_lines =
-    (~rows: Measured.Rows.t, mold: Mold.t, shards: Measured.Shards.t)
-    : list(Node.t) => {
+    (
+      ~font_metrics: FontMetrics.t,
+      ~rows: Measured.Rows.t,
+      mold: Mold.t,
+      shards: Measured.Shards.t,
+    )
+    : list(t) => {
   let shard_rows = Measured.Shards.split_by_row(shards);
   let intra_lines =
     shard_rows
     |> List.map(ListUtil.neighbors)
     |> List.map(
          List.map(
-           (((_, l: Measured.measurement), (_, r: Measured.measurement)))
-           // TODO(d) unify fudge constants
-           =>
+           (((_, l: Measured.measurement), (_, r: Measured.measurement))) =>
+           (
+             l.origin,
              SvgUtil.Path.[
-               M({
-                 x: Float.of_int(l.last.col) +. 0.22,
-                 y: Float.of_int(l.last.row + 1),
-               }),
-               H_({dx: Float.of_int(r.origin.col - l.last.col) -. 0.22}),
-             ]
-           ),
+               M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+               H({x: Float.of_int(r.last.col - l.origin.col)}),
+             ],
+           )
+         ),
        )
     |> List.concat;
   let inter_lines =
@@ -133,31 +146,27 @@ let bi_lines =
          let origin' = snd(List.hd(row_shards')).origin;
          let indent = Measured.Rows.find(origin.row, rows).indent;
          let v_delta = origin'.col == indent ? (-1) : 0;
-         SvgUtil.Path.[
-           m(~x=origin.col, ~y=origin.row + 1),
-           h_(~dx=indent - origin.col),
-           v_(~dy=origin'.row - origin.row + v_delta),
-           h_(~dx=origin'.col - indent),
-         ];
+         (
+           origin,
+           SvgUtil.Path.[
+             m(~x=0, ~y=0 + 1),
+             h_(~dx=indent - origin.col),
+             v_(~dy=origin'.row - origin.row + v_delta),
+             h_(~dx=origin'.col - indent),
+           ],
+         );
        });
+  let clss = ["child-line", Sort.to_string(mold.out)];
   intra_lines
   @ inter_lines
-  |> List.map(
-       SvgUtil.Path.view(
-         ~attrs=
-           Attr.[
-             classes([
-               "child-line",
-               Color.to_string(Color.of_sort(mold.out)),
-             ]),
-             create("vector-effect", "non-scaling-stroke"),
-           ],
-       ),
+  |> List.map(((origin, path)) =>
+       DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path)
      );
 };
 
 let uni_lines =
     (
+      ~font_metrics: FontMetrics.t,
       ~rows: Measured.Rows.t,
       (l: Measured.point, r: Measured.point),
       mold: Mold.t,
@@ -171,42 +180,48 @@ let uni_lines =
       let indent = Measured.Rows.find(m_first.origin.row, rows).indent;
       [
         l.row == m_first.origin.row
-          ? [
-            m(~x=m_first.origin.col, ~y=m_first.origin.row + 1),
-            h(~x=l.col),
-            L_({
-              dx: -. DecUtil.short_tip_width,
-              dy: -. DecUtil.short_tip_height,
-            }),
-            L_({
-              dx: DecUtil.short_tip_width,
-              dy: -. DecUtil.short_tip_height,
-            }),
-          ]
+          ? (
+            m_first.origin,
+            [
+              M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+              h(~x=l.col - m_first.origin.col),
+              L_({
+                dx: -. DecUtil.short_tip_width,
+                dy: -. DecUtil.short_tip_height,
+              }),
+              L_({
+                dx: DecUtil.short_tip_width,
+                dy: -. DecUtil.short_tip_height,
+              }),
+            ],
+          )
           : (
+            m_first.origin,
+            (
               m_first.origin.col == indent
                 ? [
-                  m(~x=m_first.last.col, ~y=m_first.last.row),
+                  m(~x=0, ~y=0),
                   // TODO(d) need to take max of all rows, not just top
-                  h(~x=max_col),
-                  v(~y=l.row),
+                  h(~x=max_col - m_first.origin.col),
+                  v(~y=l.row - m_first.origin.row),
                 ]
                 : [
-                  m(~x=m_first.origin.col, ~y=m_first.origin.row + 1),
-                  h(~x=indent),
-                  v(~y=l.row + 1),
-                  h(~x=max_col),
-                  v(~y=l.row),
+                  M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+                  h(~x=indent - m_first.origin.col),
+                  v(~y=l.row + 1 - m_first.origin.row),
+                  h(~x=max_col - m_first.origin.col),
+                  v(~y=l.row - m_first.origin.row),
                 ]
             )
             @ [
-              h(~x=l.col),
+              h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
                 dy: DecUtil.short_tip_height,
               }),
               L_({dx: DecUtil.short_tip_width, dy: DecUtil.short_tip_height}),
             ],
+          ),
       ];
     } else {
       [];
@@ -223,11 +238,19 @@ let uni_lines =
     ];
     if (r.row == m_last.last.row && r.col != m_last.last.col) {
       [
-        [
-          m(~x=m_last.last.col, ~y=m_last.last.row + 1),
-          h(~x=r.col),
-          ...hook,
-        ],
+        (
+          m_last.origin,
+          [
+            M({
+              x: float_of_int(m_last.last.col - m_last.origin.col),
+              y:
+                float_of_int(m_last.last.row - m_last.origin.row + 1)
+                +. DecUtil.shadow_adj,
+            }),
+            h(~x=r.col - m_last.origin.col),
+            ...hook,
+          ],
+        ),
       ];
     } else if (r.row != m_last.last.row) {
       let indent =
@@ -246,64 +269,47 @@ let uni_lines =
       };
       // let flast_indent = Measured.Rows.find(m_flast.origin.row, rows).indent;
       [
-        [
-          m(~x=m_flast.origin.col, ~y=m_flast.last.row + 1),
-          h(~x=indent),
-          v(~y=r.row + 1),
-          h(~x=r.col),
-          ...hook,
-        ],
+        (
+          m_flast.origin,
+          [
+            M({
+              x: 0.,
+              y:
+                float_of_int(m_flast.last.row - m_flast.origin.row + 1)
+                +. DecUtil.shadow_adj,
+            }),
+            h(~x=indent - m_flast.origin.col),
+            v(~y=r.row - m_flast.origin.row + 1),
+            h(~x=r.col - m_flast.origin.col),
+            ...hook,
+          ],
+        ),
       ];
     } else {
       [];
     };
   };
+  let clss = ["child-line", Sort.to_string(mold.out)];
   l_line
   @ r_line
-  |> List.map(
-       SvgUtil.Path.view(
-         ~attrs=
-           Attr.[
-             classes([
-               "child-line",
-               Color.to_string(Color.of_sort(mold.out)),
-             ]),
-             create("vector-effect", "non-scaling-stroke"),
-           ],
-       ),
+  |> List.map(((origin, path)) =>
+       DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path)
      );
 };
 
 let view =
-    (~font_metrics: FontMetrics.t, ~rows: Measured.Rows.t, profile: Profile.t)
-    : Node.t => {
-  let (shards, lines) =
-    switch (profile.style) {
-    | Selected(i, j) => (chunky(~rows, (i, j), profile), [])
-    | Root(l, r) => (
-        shards(~font_metrics, profile),
-        uni_lines(~rows, (l, r), profile.mold, profile.shards)
-        @ bi_lines(~rows, profile.mold, profile.shards),
-      )
-    };
-  // let uni_lines =
-  //   switch (profile.style) {
-  //   | Selected => []
-  //   | Root(l, r) => uni_lines(~rows, (l, r), profile.mold, profile.shards)
-  //   };
-  // let bi_lines =
-  //   bi_lines(~rows, profile.mold, profile.shards);
-  DecUtil.container2d(
-    ~font_metrics,
-    ~measurement={
-      origin: Measured.zero,
-      last: {
-        row: 100,
-        col: 100,
-      },
-    },
-    ~cls="tile",
-    ~container_clss=[Style.to_string(profile.style)],
-    shards @ lines,
-  );
-};
+    (
+      ~font_metrics: FontMetrics.t,
+      ~rows: Measured.Rows.t,
+      {mold, shards, _} as profile: Profile.t,
+    )
+    : list(Node.t) =>
+  switch (profile.style) {
+  | Selected(i, j) => [
+      chunky_shard(~font_metrics, ~rows, (i, j), mold, shards),
+    ]
+  | Root(l, r) =>
+    List.map(simple_shard(~font_metrics, ~mold), shards)
+    @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
+    @ bi_lines(~font_metrics, ~rows, mold, shards)
+  };

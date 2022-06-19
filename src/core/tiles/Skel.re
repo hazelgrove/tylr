@@ -53,7 +53,7 @@ let rec skel_at = (n, skel) =>
 
 exception Nonconvex_segment;
 
-type iss = (int, (Nib.Shape.t, Nib.Shape.t));
+type iss = (int, Nibs.shapes);
 let mk = (seg: list(iss)): t => {
   let push_output = ((i, ss): iss, output_stack: list(t)): list(t) =>
     switch (ss) {

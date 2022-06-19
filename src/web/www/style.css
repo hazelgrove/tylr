@@ -66,7 +66,6 @@
   --delim-color: #586e75; /*#aeb5b8;*/ /*#657b83;*/
   --ap-color: #aeb5b8;
 
-  --unselected-tessera-color: #fff1f7;
   --selection-color: #fae294;
   --revealed-tile-color: var(--light-page-color);/*#faf2df;*/
   --selection-shadow-color: rosybrown;
@@ -314,29 +313,6 @@ svg.rail line.unsorted {
   stop-color: var(--unsorted-rail-color);
 }
 
-.selected-bar-container {
-  z-index: var(--selection-bar-z);
-}
-
-.selected-bar-container line.same-sort {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 2px;
-}
-.selected-bar-container path.different-sort {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 2px;
-  fill: none;
-}
-
-.selected-bar-container line.same-sort.Exp,
-.selected-bar-container path.different-sort.Exp {
-  stroke: var(--exp-shadow-color);
-}
-.selected-bar-container line.same-sort.Pat,
-.selected-bar-container path.different-sort.Pat {
-  stroke: var(--pat-shadow-color);
-}
-
 .code {
   position: relative;
   line-height: var(--line-height);
@@ -377,8 +353,15 @@ svg.rail line.unsorted {
   color: #ce9600 !important;
 }
 
+.caret {
+  z-index: var(--caret-z);
+}
+.caret-path {
+  fill: #f62116;
+  stroke: none;
+}
 .empty-hole {
-  color: #0000;
+  z-index: var(--empty-hole-z);
 }
 .empty-hole-path {
   fill: #f1e8cd;
@@ -401,9 +384,7 @@ svg.rail line.unsorted {
 }
 */
 
-.selection-container {
-  position: relative;
-}
+
 .selection {
   position: relative;
 }
@@ -444,36 +425,13 @@ svg.rail line.unsorted {
   border-radius: 4px;
 }
 
-.ap-container {
-  z-index: var(--ap-z);
-}
-.ap-path {
-  stroke: var(--ap-color);
-  stroke-width: 2px;
-  fill: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.decoration-container {
+.tile-container {
   position: absolute;
-}
-.decoration-container.transparent {
-  opacity: 50%;
-}
-.empty-hole-container {
-  z-index: var(--empty-hole-z);
-}
-.err-hole-container {
-  z-index: var(--err-hole-z);
-}
-.tile-container, .tessera-container {
   z-index: var(--tile-z);
 }
+
 .uni-child-container {
   z-index: var(--uni-child-z);
-}
-.inset-empty-hole-container {
-  z-index: var(--inset-empty-hole-z);
 }
 .anchor-container {
   z-index: var(--anchor-z);
@@ -500,28 +458,18 @@ svg.rail line.unsorted {
 .restructuring-genie-path {
   stroke-width: 0;
   fill: var(--selection-color);
-  /*filter: url(#restructuring-genie-filter);*/
   vector-effect: non-scaling-stroke;
-}
-
-.err-hole-path {
-  fill: none;
-  stroke-dasharray: 2 1;
-  stroke: var(--hole-stroke-color);
-  stroke-width: 0.75;
 }
 
 .uni-child-path {
   stroke-width: 0.5;
   fill: none;
 }
-.bidelimited-open-child-path {
-  stroke-width: 0.4;
-}
 
 .child-line {
   stroke-width: 1;
   fill: none;
+  vector-effect: non-scaling-stroke;
 }
 .child-line.Exp {
   stroke: var(--exp-shadow-color);
@@ -549,32 +497,16 @@ svg.rail line.unsorted {
   color: var(--ap-color);
 }
 
-.tile-container.Revealed {
-  z-index: var(--revealed-tile-z);
-}
-.tile-container.Revealed .tile-path {
-  fill: var(--revealed-tile-color);
-}
-
-
-.tile-path, .tessera-path {
+.tile-path {
   stroke-width: 0.4;
   fill-rule: evenodd;
 }
 
-.tessera-path {
-  filter: url(#drop-shadow-tessera);
-  fill: var(--unselected-tessera-color);
-  stroke: var(--unsorted-shadow-color);
-}
-.tessera-path.highlighted {
-  fill: var(--unsorted-bg-color);
-}
 
 .tile-path {
   fill: var(--light-page-color);
 }
-.tile-path.raised, .tessera-path.raised {
+.tile-path.raised {
   stroke-width: 0.4;
 }
 .tile-path.selected {
@@ -585,14 +517,11 @@ svg.rail line.unsorted {
   stroke: var(--unsorted-shadow-color);
   filter: url(#drop-shadow-unsorted);
 }
-.tile-path.unsorted.highlighted {
+.tile-path.unsorted.indicated {
   fill: var(--unsorted-bg-color);
 }
 .tile-path.unsorted.raised {
   filter: url(#raised-drop-shadow-unsorted);
-}
-.tessera-path.raised {
-  filter: url(#raised-drop-shadow-tessera);
 }
 #drop-shadow-unsorted .tile-drop-shadow,
 #raised-drop-shadow-unsorted .tile-drop-shadow {
@@ -604,19 +533,8 @@ svg.rail line.unsorted {
   /*stroke: var(--exp-shadow-color);*/
   filter: url(#drop-shadow-Exp);
 }
-.tile-path.Exp {
-  /*stroke: #48be5a;*/
-}
 
-.Filtered {
-  stroke: #a18c52;
-  flood-color: black;
-}
-.Filtered .tile-path{
-  filter: url(#drop-shadow-unsorted) !important;
-}
-
-.tile-path.Any.highlighted {
+.tile-path.Any.indicated {
   fill: #f0dead;
 }
 .tile-path.Any.raised {
@@ -627,7 +545,7 @@ svg.rail line.unsorted {
   flood-color: var(--any-shadow-color);
 }
 
-.tile-path.Exp.highlighted {
+.tile-path.Exp.indicated {
   fill:#b9e3be;
 }
 .tile-path.Exp.raised {
@@ -642,7 +560,7 @@ svg.rail line.unsorted {
   /*stroke: var(--pat-shadow-color);*/
   filter: url(#drop-shadow-Pat);
 }
-.tile-path.Pat.highlighted {
+.tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
 }
 .tile-path.Pat.raised {
@@ -657,7 +575,7 @@ svg.rail line.unsorted {
   /*stroke: var(--typ-shadow-color);*/
   filter: url(#drop-shadow-Typ);
 }
-.tile-path.Typ.highlighted {
+.tile-path.Typ.indicated {
   fill: var(--typ-bg-color);
 }
 .tile-path.Typ.raised {
@@ -777,11 +695,6 @@ svg.rail line.unsorted {
   }
 }
 
-#caret {
-  position: absolute;
-  height: 100vh;
-  z-index: var(--caret-z);
-}
 @property --color {
   syntax: '<color>'; /* <- defined as type number for the transition to work */
   initial-value: #000000;
@@ -1083,6 +996,8 @@ svg.rail line.unsorted {
 }
 
 .backpack-selection {
+  border-radius: 0.2em 0.2em 0.2em 0em;
+  padding: 0 0.2em 0 0.2em;
   line-height: var(--line-height);
   width: fit-content;
   background-color: var(--selection-color);

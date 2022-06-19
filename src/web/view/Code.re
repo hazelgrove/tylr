@@ -160,18 +160,7 @@ module Deco =
 
   let backpack_view =
       (~origin: Measured.point, {backpack, _} as z: Zipper.t): Node.t => {
-    let length =
-      switch (backpack) {
-      | [] => 0
-      | [hd, ..._] => Measured.segment_width(hd.content)
-      };
-    let height =
-      List.fold_left(
-        (acc, sel: Selection.t) =>
-          acc + Measured.segment_height(sel.content),
-        0,
-        backpack,
-      );
+    //TODO(andrew): clean up this dumpster fire of a function
     let height_head =
       switch (backpack) {
       | [] => 0
@@ -182,13 +171,24 @@ module Deco =
       | Some(_) => true
       | None => false
       };
+    let caret_adj = {
+      let shape = Zipper.caret_direction(z);
+      let side =
+        switch (Zipper.indicated_piece(z)) {
+        | Some((_, side)) => side
+        | _ => Right
+        };
+      DecUtil.caret_adjust(side, shape);
+    };
+    let caret_adj_px =
+      //TODO(andrew): figure out why we need this mystery pixel below
+      (-1.) +. caret_adj *. font_metrics.col_width;
     let style =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
-        Float.of_int(- height_head - 1)
-        *. font_metrics.row_height
-        +. CaretDec.top_text_fudge,
+        Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+        Float.of_int(/* origin.row */ - height_head - 1)
+        *. font_metrics.row_height,
       );
     let scale_fn = idx => float_of_int(100 - 12 * idx) /. 100.;
     let x_fn = idx => float_of_int(12 * idx);
@@ -223,14 +223,16 @@ module Deco =
         [Attr.create("style", style), Attr.classes(["backpack"])],
         selections,
       );
-    let genie_profile =
-      RestructuringGenieDec.Profile.{length, height, origin};
-    let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
+    let length =
+      switch (backpack) {
+      | [] => 0
+      | [hd, ..._] => Measured.segment_width(hd.content)
+      };
     let joiner_style =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
-        CaretDec.top_text_fudge -. 3.,
+        Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+        -3.,
         Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
       );
     let joiner =
@@ -241,11 +243,35 @@ module Deco =
         ],
         [],
       );
+    //TODO(andrew): break out backpack decoration into its own module
+    let genie_view =
+      DecUtil.code_svg(
+        ~font_metrics,
+        ~origin={row: 0, col: 0},
+        ~base_cls=["restructuring-genie"],
+        ~path_cls=["restructuring-genie-path"],
+        SvgUtil.Path.[
+          M({x: 0., y: 0.}),
+          V({y: (-1.0)}),
+          H_({dx: Float.of_int(length)}),
+          V_({dy: 0.0}),
+          Z,
+        ],
+      );
+    let genie_style =
+      Printf.sprintf(
+        "position: absolute; left: %fpx;",
+        Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+      );
     div(
       [
         Attr.classes(["backpack"] @ (can_put_down ? [] : ["cant-put-down"])),
       ],
-      [selections_view, genie_view] @ (backpack != [] ? [joiner] : []),
+      [
+        selections_view,
+        div([Attr.create("style", genie_style)], [genie_view]),
+      ]
+      @ (backpack != [] ? [joiner] : []),
     );
   };
 
@@ -269,19 +295,14 @@ module Deco =
 
   let caret = (z: Zipper.t): list(Node.t) => {
     let origin = Zipper.caret_point(M.map, z);
+    let shape = Zipper.caret_direction(z);
     let side =
       switch (Zipper.indicated_piece(z)) {
       | Some((_, side)) => side
       | _ => Right
       };
-
     [
-      CaretDec.simple_view(
-        ~font_metrics,
-        ~side,
-        ~origin,
-        ~shape=Zipper.caret_direction(z),
-      ),
+      CaretDec.view(~font_metrics, ~profile={side, origin, shape}),
       backpack_view(~origin, z),
     ];
   };
@@ -364,6 +385,8 @@ module Deco =
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
            let profile = selected_piece_profile(p, l);
+           // TODO(andrew): do something different for the caret
+           // adjacent piece so it lines up nice
            (
              snd(Mold.nibs(profile.mold)).shape,
              PieceDec.view(~font_metrics, ~rows=M.map.rows, profile),
@@ -371,10 +394,12 @@ module Deco =
          },
          fst(Siblings.shapes(z.relatives.siblings)),
        )
-    |> snd;
+    |> snd
+    |> List.flatten;
 
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
     switch (Zipper.indicated_piece(z)) {
+    | _ when z.selection.content != [] => []
     | None => []
     | Some((p, side)) =>
       let ranges = TermRanges.mk(Zipper.zip(z));
@@ -388,13 +413,11 @@ module Deco =
           | None => Nib.Shape.Convex
           | Some(nib) => Nib.Shape.relative(nib, side)
           };
-        [
-          PieceDec.view(
-            ~font_metrics,
-            ~rows=M.map.rows,
-            root_piece_profile(p, nib_shape, (l, r)),
-          ),
-        ];
+        PieceDec.view(
+          ~font_metrics,
+          ~rows=M.map.rows,
+          root_piece_profile(p, nib_shape, (l, r)),
+        );
       };
     };
   };
@@ -420,12 +443,7 @@ module Deco =
                  Measured.{origin: m.last, last: m.last};
                };
              let profile =
-               CaretPosDec.Profile.{
-                 style: `Sibling,
-                 measurement,
-                 color: Color.Exp,
-                 just_failed: None,
-               };
+               CaretPosDec.Profile.{style: `Sibling, measurement, sort: Exp};
              [CaretPosDec.view(~font_metrics, profile)];
            };
          })
@@ -463,7 +481,6 @@ let view =
     (
       ~font_metrics,
       ~show_backpack_targets,
-      ~just_failed as _: option(FailedInput.t)=None,
       ~zipper: Zipper.t,
       ~settings: Model.settings,
     )

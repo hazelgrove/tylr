@@ -1,6 +1,21 @@
 open Virtual_dom.Vdom;
+open Node;
+open Util;
 
 let tip_width = 0.32;
+let concave_adj = 0.25;
+let convex_adj = (-0.13);
+let shadow_adj = 0.01;
+
+let caret_adjust = (side: Direction.t, shape: option(Direction.t)) =>
+  switch (side, shape) {
+  | (_, None) => 0.
+  | (Left, Some(Left)) => concave_adj
+  | (Right, Some(Right)) => -. concave_adj
+  | (Left, Some(Right)) => convex_adj
+  | (Right, Some(Left)) => -. convex_adj
+  };
+
 let child_border_thickness = 0.05;
 
 let t = child_border_thickness /. 0.5;
@@ -19,133 +34,102 @@ let jagged_edge_w = child_border_thickness /. 1.;
 
 let short_tip_width = (1. -. t) *. tip_width;
 
-let hole_radii = (~font_metrics: FontMetrics.t) => {
-  let r = 3.5;
-  (r /. font_metrics.col_width, r /. font_metrics.row_height);
+let abs_position =
+    (
+      ~left_fudge=0.0,
+      ~top_fudge=0.0,
+      ~width_fudge=0.0,
+      ~height_fudge=0.0,
+      ~font_metrics: FontMetrics.t,
+      origin: Core.Measured.point,
+    ) => {
+  Attr.create(
+    "style",
+    Printf.sprintf(
+      "position: absolute; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+      Float.of_int(origin.col) *. font_metrics.col_width +. left_fudge,
+      Float.of_int(origin.row) *. font_metrics.row_height +. top_fudge,
+      font_metrics.col_width +. width_fudge,
+      font_metrics.row_height +. height_fudge,
+    ),
+  );
 };
 
-//TODO(andrew): deprecate
-let container =
+let code_svg =
     (
       ~font_metrics: FontMetrics.t,
-      ~measurement as {origin, length}: Core.Measured.measurement_lin,
-      ~cls: string,
-      ~container_clss=[],
-      svgs: list(Node.t),
-    )
-    : Node.t => {
-  let buffered_height = 8;
-  let buffered_width = length + 3;
-
-  let buffered_height_px =
-    Float.of_int(buffered_height) *. font_metrics.row_height;
-  let buffered_width_px =
-    Float.of_int(buffered_width) *. font_metrics.col_width;
-
-  let container_origin_x =
-    (Float.of_int(origin) -. 1.5) *. font_metrics.col_width;
-  let container_origin_y = (-3.5) *. font_metrics.row_height;
-
-  Node.div(
-    Attr.[
-      classes([
-        "decoration-container",
-        Printf.sprintf("%s-container", cls),
-        ...container_clss,
-      ]),
-      create(
-        "style",
-        Printf.sprintf(
-          "top: calc(%fpx + 2px); left: %fpx;",
-          container_origin_y,
-          container_origin_x,
-        ),
-      ),
-    ],
+      ~origin: Core.Measured.point,
+      ~base_cls=[],
+      ~path_cls=[],
+      ~left_fudge=0.0,
+      ~top_fudge=0.0,
+      ~width_fudge=0.0,
+      ~height_fudge=0.0,
+      ~attrs=[],
+      paths: list(SvgUtil.Path.cmd),
+    ) =>
+  create_svg(
+    "svg",
     [
-      Node.create_svg(
-        "svg",
-        Attr.[
-          classes([cls]),
-          create(
-            "viewBox",
-            Printf.sprintf(
-              "-1.5 -3.5 %d %d",
-              buffered_width,
-              buffered_height,
-            ),
-          ),
-          create("width", Printf.sprintf("%fpx", buffered_width_px)),
-          create("height", Printf.sprintf("%fpx", buffered_height_px)),
-          create("preserveAspectRatio", "none"),
+      Attr.classes(base_cls),
+      abs_position(
+        ~font_metrics,
+        ~left_fudge,
+        ~top_fudge,
+        ~width_fudge,
+        ~height_fudge,
+        origin,
+      ),
+      Attr.create("viewBox", Printf.sprintf("0 0 1 1")),
+      Attr.create("preserveAspectRatio", "none"),
+    ]
+    @ attrs,
+    [SvgUtil.Path.view(~attrs=[Attr.classes(path_cls)], paths)],
+  );
+
+let raised_shadow_filter = (sort: Core.Sort.t) => {
+  let s = Core.Sort.to_string(sort);
+  create_svg(
+    "filter",
+    [Attr.id("raised-drop-shadow-" ++ s)],
+    [
+      create_svg(
+        "feDropShadow",
+        [
+          Attr.classes(["tile-drop-shadow"]),
+          Attr.create("dx", raised_shadow_dx),
+          Attr.create("dy", raised_shadow_dy),
+          Attr.create("stdDeviation", "0"),
         ],
-        svgs,
+        [],
       ),
     ],
   );
 };
 
-let container2d =
-    (
-      ~font_metrics: FontMetrics.t,
-      ~measurement: Core.Measured.measurement,
-      ~cls: string,
-      ~container_clss=[],
-      svgs: list(Node.t),
-    )
-    : Node.t => {
-  let origin_x = measurement.origin.col;
-  let origin_y = measurement.origin.row;
-  let length_lin = measurement.last.col - measurement.origin.col;
-
-  let buffered_height = measurement.last.row - measurement.origin.row + 2;
-  let buffered_width = length_lin + 3;
-
-  let buffered_height_px =
-    Float.of_int(buffered_height) *. font_metrics.row_height;
-  let buffered_width_px =
-    Float.of_int(buffered_width) *. font_metrics.col_width;
-
-  let container_origin_x =
-    (Float.of_int(origin_x) -. 1.5) *. font_metrics.col_width;
-  let container_origin_y =
-    (Float.of_int(origin_y) -. 3.5) *. font_metrics.row_height;
-
-  Node.div(
-    Attr.[
-      classes([
-        "decoration-container",
-        Printf.sprintf("%s-container", cls),
-        ...container_clss,
-      ]),
-      create(
-        "style",
-        Printf.sprintf(
-          "top: calc(%fpx + 2px); left: %fpx;",
-          container_origin_y,
-          container_origin_x,
-        ),
-      ),
-    ],
+let shadow_filter = (sort: Core.Sort.t) => {
+  let s = Core.Sort.to_string(sort);
+  create_svg(
+    "filter",
+    [Attr.id("drop-shadow-" ++ s)],
     [
-      Node.create_svg(
-        "svg",
-        Attr.[
-          classes([cls]),
-          create(
-            "viewBox",
-            Printf.sprintf(
-              "-1.5 -3.5 %d %d",
-              buffered_width,
-              buffered_height,
-            ),
-          ),
-          create("width", Printf.sprintf("%fpx", buffered_width_px)),
-          create("height", Printf.sprintf("%fpx", buffered_height_px)),
-          create("preserveAspectRatio", "none"),
+      create_svg(
+        "feDropShadow",
+        [
+          Attr.classes(["tile-drop-shadow"]),
+          Attr.create("dx", shadow_dx),
+          Attr.create("dy", shadow_dy),
+          Attr.create("stdDeviation", "0"),
         ],
-        svgs,
+        [],
       ),
     ],
   );
 };
+
+let filters =
+  NodeUtil.svg(
+    Attr.[id("filters")],
+    List.map(raised_shadow_filter, Core.Sort.all)
+    @ List.map(shadow_filter, Core.Sort.all),
+  );

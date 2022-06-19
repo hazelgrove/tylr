@@ -1,5 +1,3 @@
-// open Util;
-
 [@deriving show]
 type t =
   | Any
@@ -7,6 +5,8 @@ type t =
   | Exp;
 
 let root = Exp;
+
+let all = [Any, Pat, Exp];
 
 let consistent = (s, s') =>
   switch (s, s') {
@@ -20,9 +20,3 @@ let to_string =
   | Any => "Any"
   | Pat => "Pat"
   | Exp => "Exp";
-
-let to_proper_string =
-  fun
-  | Any => "any"
-  | Pat => "pattern"
-  | Exp => "expression";

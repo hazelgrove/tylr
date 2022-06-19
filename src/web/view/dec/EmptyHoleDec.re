@@ -1,5 +1,4 @@
 open Virtual_dom.Vdom;
-open DecUtil;
 open Core;
 
 module Profile = {
@@ -25,24 +24,21 @@ let path = (tip_l, tip_r, offset, s: float) => {
   );
 };
 
-let view = (~font_metrics, {measurement, mold}: Profile.t): Node.t => {
+let view =
+    (~font_metrics, {measurement: {origin, _}, mold}: Profile.t): Node.t => {
   let sort = mold.out;
-  let c_cls = Color.to_string(Color.of_sort(sort));
+  let c_cls = Sort.to_string(sort);
   let (tip_l, tip_r): (Core.Nib.Shape.t, Core.Nib.Shape.t) =
     Util.TupleUtil.map2(Core.Nib.shape, mold.nibs);
   let (tip_l, tip_r): (Core.Nib.t, Core.Nib.t) = (
     {sort, shape: tip_l},
     {sort, shape: tip_r},
   );
-  container2d(
+  DecUtil.code_svg(
     ~font_metrics,
-    ~measurement,
-    ~cls="empty-hole",
-    SvgUtil.Path.[
-      view(
-        ~attrs=[Attr.classes(["empty-hole-path", c_cls])],
-        path(tip_l, tip_r, 0., 0.28),
-      ),
-    ],
+    ~origin,
+    ~base_cls=["empty-hole"],
+    ~path_cls=["empty-hole-path", c_cls],
+    path(tip_l, tip_r, 0., 0.28),
   );
 };

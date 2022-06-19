@@ -44,6 +44,11 @@ let nibs = (~index=?, mold: t): Nibs.t =>
     (l, r);
   };
 
+let nib_shapes = (index: int, mold: t): Nibs.shapes => {
+  let (nib_l, nib_r) = nibs(~index, mold);
+  (nib_l.shape, nib_r.shape);
+};
+
 module Map = {
   type mold = t;
   include Id.Map;

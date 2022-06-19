@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 open Node;
 
 // let logo = (~font_metrics) => {
-//   let piece = (step, color: Color.t, shape: SelemDec.piece_shape, s): Measured.t =>
+//   let piece = (step, color: Sort.t, shape: PieceDec.piece_shape, s): Measured.t =>
 //     Measured.annot(Piece({color, shape, step}), Text(s));
 //   let l =
 //     Measured.(
@@ -25,24 +25,6 @@ open Node;
 //     l,
 //   );
 // };
-
-let filters =
-  NodeUtil.svg(
-    Attr.[id("filters")],
-    [
-      SelemDec.raised_shadow_filter(~color=Exp),
-      SelemDec.shadow_filter(~color=Exp),
-      SelemDec.raised_shadow_filter(~color=Pat),
-      SelemDec.shadow_filter(~color=Pat),
-      SelemDec.raised_shadow_filter(~color=Typ),
-      SelemDec.shadow_filter(~color=Typ),
-      SelemDec.raised_shadow_filter(~color=Any),
-      SelemDec.shadow_filter(~color=Any),
-      SelemDec.raised_shadow_filter(~color=Selected),
-      SelemDec.shadow_filter(~color=Selected),
-      CaretPosDec.blur_filter,
-    ],
-  );
 
 let undo = (~inject, ~disabled) => {
   let clss = disabled ? ["disabled"] : [];
@@ -138,16 +120,16 @@ let top_bar_view = (~inject, model: Model.t) =>
     ],
   );
 
-let editor_view = ({font_metrics, history, _} as model: Model.t) =>
+let editor_view =
+    ({font_metrics, show_backpack_targets, settings, _} as model: Model.t) =>
   div(
     [Attr.id("code-container")],
     [
       Code.view(
         ~font_metrics,
-        ~show_backpack_targets=model.show_backpack_targets,
-        ~just_failed=history.just_failed,
+        ~show_backpack_targets,
         ~zipper=Model.get_zipper(model),
-        ~settings=model.settings,
+        ~settings,
       ),
     ],
   );
@@ -184,7 +166,7 @@ let view = (~inject, model: Model.t) => {
     [
       FontSpecimen.view("font-specimen"),
       FontSpecimen.view("logo-font-specimen"),
-      filters,
+      DecUtil.filters,
       top_bar_view(~inject, model),
       editor_caption_view(model),
       editor_view(model),
