@@ -254,6 +254,15 @@ let sibs_with_sel =
   | Right => (l_sibs @ content, r_sibs)
   };
 
+let representative_piece = (z: t): option((Piece.t, Direction.t)) => {
+  /* The piece to the left of the caret, or if none exists, the piece to the right */
+  switch (Siblings.neighbors(sibs_with_sel(z))) {
+  | (Some(l), _) => Some((l, Left))
+  | (_, Some(r)) => Some((r, Right))
+  | _ => None
+  };
+};
+
 let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   let ws = Piece.is_whitespace;
   /* Returns the piece currently indicated (if any) and which side of
@@ -590,28 +599,6 @@ let select = (d: Direction.t, z: t): option(t) =>
   } else {
     z |> set_caret(Outer) |> Outer.select(d);
   };
-
-let representative_piece =
-    (
-      {
-        selection: {content, focus},
-        relatives: {siblings: (l_sibs, r_sibs), _},
-        _,
-      }: t,
-    )
-    : option((Piece.t, Direction.t)) => {
-  /* The piece to the left of the caret, or if none exists, the piece to the right */
-  let sibs =
-    switch (focus) {
-    | Left => (l_sibs, content @ r_sibs)
-    | Right => (l_sibs @ content, r_sibs)
-    };
-  switch (Siblings.neighbors(sibs)) {
-  | (Some(l), _) => Some((l, Left))
-  | (_, Some(r)) => Some((r, Right))
-  | _ => None
-  };
-};
 
 let base_caret_point = (map: Measured.t, z: t): Measured.point => {
   switch (representative_piece(z)) {

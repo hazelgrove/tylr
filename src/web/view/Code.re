@@ -330,6 +330,8 @@ module Deco =
     |> ListUtil.fold_left_map(
          (l: Nib.Shape.t, p: Piece.t) => {
            let profile = selected_piece_profile(p, l);
+           // TODO(andrew): do something different for the caret
+           // adjacent piece so it lines up nice
            (
              snd(Mold.nibs(profile.mold)).shape,
              PieceDec.view(~font_metrics, ~rows=M.map.rows, profile),

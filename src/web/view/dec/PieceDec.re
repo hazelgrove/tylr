@@ -77,8 +77,8 @@ let chunky_shard_path =
 
 let simple_shard =
     (
-      ~profile as {mold, _}: Profile.t,
       ~font_metrics: FontMetrics.t,
+      ~mold: Mold.t,
       (index, {origin, last}: Measured.measurement),
     )
     : t => {
@@ -92,8 +92,9 @@ let chunky_shard =
     (
       ~font_metrics: FontMetrics.t,
       ~rows: Measured.Rows.t,
-      (i, j),
-      {shards, mold, _}: Profile.t,
+      (i, j): (int, int),
+      mold: Mold.t,
+      shards: Measured.Shards.t,
     ) => {
   let origin = List.assoc(i, shards).origin;
   let last = List.assoc(j, shards).last;
@@ -304,9 +305,11 @@ let view =
     )
     : list(Node.t) =>
   switch (profile.style) {
-  | Selected(i, j) => [chunky_shard(~font_metrics, ~rows, (i, j), profile)]
+  | Selected(i, j) => [
+      chunky_shard(~font_metrics, ~rows, (i, j), mold, shards),
+    ]
   | Root(l, r) =>
-    List.map(simple_shard(~profile, ~font_metrics), profile.shards)
+    List.map(simple_shard(~font_metrics, ~mold), shards)
     @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
     @ bi_lines(~font_metrics, ~rows, mold, shards)
   };
