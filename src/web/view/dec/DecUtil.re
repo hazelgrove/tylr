@@ -1,4 +1,5 @@
 open Virtual_dom.Vdom;
+open Node;
 
 let tip_width = 0.32;
 let child_border_thickness = 0.05;
@@ -31,7 +32,7 @@ let container =
       ~measurement as {origin, length}: Core.Measured.measurement_lin,
       ~cls: string,
       ~container_clss=[],
-      svgs: list(Node.t),
+      svgs: list(t),
     )
     : Node.t => {
   let buffered_height = 8;
@@ -46,7 +47,7 @@ let container =
     (Float.of_int(origin) -. 1.5) *. font_metrics.col_width;
   let container_origin_y = (-3.5) *. font_metrics.row_height;
 
-  Node.div(
+  div(
     Attr.[
       classes([
         "decoration-container",
@@ -63,7 +64,7 @@ let container =
       ),
     ],
     [
-      Node.create_svg(
+      create_svg(
         "svg",
         Attr.[
           classes([cls]),
@@ -91,7 +92,7 @@ let container2d =
       ~measurement: Core.Measured.measurement,
       ~cls: string,
       ~container_clss=[],
-      svgs: list(Node.t),
+      svgs: list(t),
     )
     : Node.t => {
   let origin_x = measurement.origin.col;
@@ -111,7 +112,7 @@ let container2d =
   let container_origin_y =
     (Float.of_int(origin_y) -. 3.5) *. font_metrics.row_height;
 
-  Node.div(
+  div(
     Attr.[
       classes([
         "decoration-container",
@@ -128,7 +129,7 @@ let container2d =
       ),
     ],
     [
-      Node.create_svg(
+      create_svg(
         "svg",
         Attr.[
           classes([cls]),
@@ -149,3 +150,56 @@ let container2d =
     ],
   );
 };
+
+let abs_position =
+    (
+      ~left_fudge=0.0,
+      ~top_fudge=0.0,
+      ~width_fudge=0.0,
+      ~height_fudge=0.0,
+      ~font_metrics: FontMetrics.t,
+      origin: Core.Measured.point,
+    ) => {
+  Attr.create(
+    "style",
+    Printf.sprintf(
+      "position: absolute; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
+      Float.of_int(origin.col) *. font_metrics.col_width +. left_fudge,
+      Float.of_int(origin.row) *. font_metrics.row_height +. top_fudge,
+      font_metrics.col_width +. width_fudge,
+      font_metrics.row_height +. height_fudge,
+    ),
+  );
+};
+
+let code_svg =
+    (
+      ~font_metrics: FontMetrics.t,
+      ~origin: Core.Measured.point,
+      ~base_cls=[],
+      ~path_cls=[],
+      ~left_fudge=0.0,
+      ~top_fudge=0.0,
+      ~width_fudge=0.0,
+      ~height_fudge=0.0,
+      ~attrs=[],
+      paths: list(SvgUtil.Path.cmd),
+    ) =>
+  create_svg(
+    "svg",
+    [
+      Attr.classes(base_cls),
+      abs_position(
+        ~font_metrics,
+        ~left_fudge,
+        ~top_fudge,
+        ~width_fudge,
+        ~height_fudge,
+        origin,
+      ),
+      Attr.create("viewBox", Printf.sprintf("0 0 1 1")),
+      Attr.create("preserveAspectRatio", "none"),
+    ]
+    @ attrs,
+    [SvgUtil.Path.view(~attrs=[Attr.classes(path_cls)], paths)],
+  );

@@ -377,8 +377,15 @@ svg.rail line.unsorted {
   color: #ce9600 !important;
 }
 
+.caret {
+  z-index: var(--caret-z);
+}
+.caret-path {
+  fill: #f62116;
+  stroke: none;
+}
 .empty-hole {
-  color: #0000;
+  z-index: var(--empty-hole-z);
 }
 .empty-hole-path {
   fill: #f1e8cd;
@@ -500,7 +507,6 @@ svg.rail line.unsorted {
 .restructuring-genie-path {
   stroke-width: 0;
   fill: var(--selection-color);
-  /*filter: url(#restructuring-genie-filter);*/
   vector-effect: non-scaling-stroke;
 }
 
@@ -777,11 +783,6 @@ svg.rail line.unsorted {
   }
 }
 
-#caret {
-  position: absolute;
-  height: 100vh;
-  z-index: var(--caret-z);
-}
 @property --color {
   syntax: '<color>'; /* <- defined as type number for the transition to work */
   initial-value: #000000;

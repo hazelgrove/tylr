@@ -1,6 +1,80 @@
 open Util;
 open Core;
 open Virtual_dom.Vdom;
+open DecUtil;
+
+[@deriving show]
+type piece_shape = (Diag.tip_shape, Diag.tip_shape);
+
+let piece_shape_of_nibs = ((l, r): Core.Nibs.t): piece_shape => (
+  (l, 0),
+  (r, 0),
+);
+module SelemDecProfile = {
+  type t = {
+    measurement: Measured.measurement,
+    color: Color.t,
+    shape: piece_shape,
+    style: SelemStyle.t,
+  };
+};
+
+let raised_shadow_filter = (~color: Color.t) => {
+  let s = Color.to_string(color);
+  Node.create_svg(
+    "filter",
+    [Attr.id("raised-drop-shadow-" ++ s)],
+    [
+      Node.create_svg(
+        "feDropShadow",
+        [
+          Attr.classes(["tile-drop-shadow"]),
+          Attr.create("dx", raised_shadow_dx),
+          Attr.create("dy", raised_shadow_dy),
+          Attr.create("stdDeviation", "0"),
+        ],
+        [],
+      ),
+    ],
+  );
+};
+
+let shadow_filter = (~color: Color.t) => {
+  let s = Color.to_string(color);
+  Node.create_svg(
+    "filter",
+    [Attr.id("drop-shadow-" ++ s)],
+    [
+      Node.create_svg(
+        "feDropShadow",
+        [
+          Attr.classes(["tile-drop-shadow"]),
+          Attr.create("dx", shadow_dx),
+          Attr.create("dy", shadow_dy),
+          Attr.create("stdDeviation", "0"),
+        ],
+        [],
+      ),
+    ],
+  );
+};
+
+let filters =
+  NodeUtil.svg(
+    Attr.[id("filters")],
+    [
+      raised_shadow_filter(~color=Exp),
+      shadow_filter(~color=Exp),
+      raised_shadow_filter(~color=Pat),
+      shadow_filter(~color=Pat),
+      raised_shadow_filter(~color=Typ),
+      shadow_filter(~color=Typ),
+      raised_shadow_filter(~color=Any),
+      shadow_filter(~color=Any),
+      raised_shadow_filter(~color=Selected),
+      shadow_filter(~color=Selected),
+    ],
+  );
 
 module Style = {
   type t =
@@ -26,22 +100,98 @@ module Profile = {
   };
 };
 
-let shards = (~font_metrics, profile: Profile.t) => {
+let contour_path_clss = (profile: SelemDecProfile.t) => {
+  let clss = {
+    let c_cls = Color.to_string(profile.color);
+    let highlighted =
+      SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
+    let selected = SelemStyle.selected(profile.style) ? ["selected"] : [];
+    List.concat([["tile-path", c_cls], highlighted, ["raised"], selected]);
+  };
+  clss;
+};
+
+let closed_child_path = ({origin, length}: Measured.measurement_lin) =>
+  List.concat(
+    SvgUtil.Path.[
+      [M({x: Float.of_int(origin) +. 0.5, y: child_border_thickness})],
+      Diag.tr_bl(~with_child_border=true, ~hemi=`North, ()),
+      Diag.tl_br(~with_child_border=true, ~hemi=`South, ()),
+      [H_({dx: Float.of_int(length - 1)})],
+      Diag.bl_tr(~with_child_border=true, ~hemi=`South, ()),
+      Diag.br_tl(~with_child_border=true, ~hemi=`North, ()),
+      [Z],
+    ],
+  );
+
+let open_child_path = ({origin, length}: Measured.measurement_lin) =>
+  List.concat(
+    SvgUtil.Path.[
+      [H({x: Float.of_int(origin) +. tip_width})],
+      Diag.tr_bl(~hemi=`North, ()),
+      Diag.tl_br(~with_child_border=true, ~hemi=`South, ()),
+      [H_({dx: Float.of_int(length - 1)})],
+      Diag.bl_tr(~with_child_border=true, ~hemi=`South, ()),
+      Diag.br_tl(~hemi=`North, ()),
+    ],
+  );
+
+let contour_path = (profile: SelemDecProfile.t): SvgUtil.Path.t => {
+  let lin_length =
+    profile.measurement.last.col - profile.measurement.origin.col;
+  let start =
+    SelemStyle.stretched(profile.style) ? Float.neg(stretch_dx) : 0.;
+  let end_ =
+    SelemStyle.stretched(profile.style)
+      ? Float.of_int(lin_length) +. stretch_dx : Float.of_int(lin_length);
+  let fudge_width =
+    if (profile.style == Selected) {
+      0.2; //narrows piece decos to fit together clean
+    } else if (fst(fst(profile.shape)).shape != Core.Nib.Shape.Convex) {
+      0.22; // widen pieces with concave ends to avoid text overlap
+    } else {
+      0.;
+    };
+  List.concat(
+    SvgUtil.Path.[
+      [
+        M({
+          x:
+            fudge_width
+            +. start
+            +. Float.of_int(profile.measurement.origin.col),
+          y: 1. +. Float.of_int(profile.measurement.origin.row),
+        }),
+        ...Diag.left_tip_path(fst(profile.shape)),
+      ],
+      [
+        H({
+          x:
+            -. fudge_width
+            +. end_
+            +. Float.of_int(profile.measurement.origin.col),
+        }),
+        ...Diag.right_tip_path(snd(profile.shape)),
+      ],
+      [Z],
+    ],
+  );
+};
+
+let shards = (profile: Profile.t) => {
   let selem_profile = (index, measurement) =>
-    SelemDec.Profile.{
+    SelemDecProfile.{
       measurement,
       color: Color.of_sort(profile.mold.out),
-      shape: SelemDec.piece_shape_of_nibs(Mold.nibs(~index, profile.mold)),
+      shape: piece_shape_of_nibs(Mold.nibs(~index, profile.mold)),
       style: Style.to_selem_style(profile.style),
-      open_children: [],
-      closed_children: [],
     };
   profile.shards
   |> List.map(((i, m)) => {
        let profile = selem_profile(i, m);
        SvgUtil.Path.view(
-         ~attrs=SelemDec.contour_path_attrs(profile),
-         SelemDec.contour_path(~font_metrics, profile),
+         ~attrs=Attr.[classes(contour_path_clss(profile))],
+         contour_path(profile),
        );
      });
 };
@@ -283,7 +433,7 @@ let view =
     switch (profile.style) {
     | Selected(i, j) => (chunky(~rows, (i, j), profile), [])
     | Root(l, r) => (
-        shards(~font_metrics, profile),
+        shards(profile),
         uni_lines(~rows, (l, r), profile.mold, profile.shards)
         @ bi_lines(~rows, profile.mold, profile.shards),
       )

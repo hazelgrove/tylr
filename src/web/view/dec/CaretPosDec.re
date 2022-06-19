@@ -9,22 +9,6 @@ module Profile = {
   };
 };
 
-let blur_filter =
-  Node.create_svg(
-    "filter",
-    [Attr.id("caret-position-neighbor-blur")],
-    [
-      Node.create_svg(
-        "feGaussianBlur",
-        [
-          Attr.create("in", "SourceGraphic"),
-          Attr.create("stdDeviation", "0"),
-        ],
-        [],
-      ),
-    ],
-  );
-
 let caret_position_radii =
     (~font_metrics: FontMetrics.t, ~style: Profile.style) => {
   let r =
@@ -47,10 +31,14 @@ let view = (~font_metrics, {style, color, measurement}: Profile.t) => {
     | `Anchor => "anchor"
     | `Sibling => "sibling"
     };
-  DecUtil.container2d(
-    ~font_metrics,
-    ~measurement,
-    ~cls,
+  Node.create_svg(
+    "svg",
+    [
+      Attr.class_(cls),
+      DecUtil.abs_position(~font_metrics, measurement.origin),
+      Attr.create("viewBox", Printf.sprintf("0 0 1 1")),
+      Attr.create("preserveAspectRatio", "none"),
+    ],
     [
       Node.create_svg(
         "rect",

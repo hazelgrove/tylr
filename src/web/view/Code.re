@@ -153,11 +153,6 @@ module Deco =
 
   let backpack_view =
       (~origin: Measured.point, {backpack, _} as z: Zipper.t): Node.t => {
-    let length =
-      switch (backpack) {
-      | [] => 0
-      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
-      };
     let height =
       List.fold_left(
         (acc, sel: Selection.t) =>
@@ -182,9 +177,26 @@ module Deco =
         [Attr.create("style", style), Attr.classes(["backpack"])],
         List.map(backpack_sel_view, List.rev(backpack)),
       );
-    let genie_profile =
-      RestructuringGenieDec.Profile.{length, height, origin};
-    let genie_view = RestructuringGenieDec.view(~font_metrics, genie_profile);
+    let length =
+      switch (backpack) {
+      | [] => 0
+      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+      };
+    //TODO(andrew): break out backpack decoration into its own module
+    let genie_view =
+      DecUtil.code_svg(
+        ~font_metrics,
+        ~origin={row: 0, col: origin.col},
+        ~base_cls=["restructuring-genie"],
+        ~path_cls=["restructuring-genie-path"],
+        SvgUtil.Path.[
+          M({x: 0., y: (-0.1)}),
+          V({y: (-2.0)}),
+          H_({dx: Float.of_int(length)}),
+          V_({dy: 1.0}),
+          Z,
+        ],
+      );
     let joiner_style =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
