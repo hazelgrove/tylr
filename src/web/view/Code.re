@@ -337,10 +337,12 @@ module Deco =
          },
          fst(Siblings.shapes(z.relatives.siblings)),
        )
-    |> snd;
+    |> snd
+    |> List.flatten;
 
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
     switch (Zipper.indicated_piece(z)) {
+    | _ when z.selection.content != [] => []
     | None => []
     | Some((p, side)) =>
       let ranges = TermRanges.mk(Zipper.zip(z));
@@ -354,13 +356,11 @@ module Deco =
           | None => Nib.Shape.Convex
           | Some(nib) => Nib.Shape.relative(nib, side)
           };
-        [
-          PieceDec.view(
-            ~font_metrics,
-            ~rows=M.map.rows,
-            root_piece_profile(p, nib_shape, (l, r)),
-          ),
-        ];
+        PieceDec.view(
+          ~font_metrics,
+          ~rows=M.map.rows,
+          root_piece_profile(p, nib_shape, (l, r)),
+        );
       };
     };
   };

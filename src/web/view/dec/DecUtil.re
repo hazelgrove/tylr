@@ -76,3 +76,50 @@ let code_svg =
     @ attrs,
     [SvgUtil.Path.view(~attrs=[Attr.classes(path_cls)], paths)],
   );
+
+let raised_shadow_filter = (sort: Core.Sort.t) => {
+  let s = Core.Sort.to_string(sort);
+  create_svg(
+    "filter",
+    [Attr.id("raised-drop-shadow-" ++ s)],
+    [
+      create_svg(
+        "feDropShadow",
+        [
+          Attr.classes(["tile-drop-shadow"]),
+          Attr.create("dx", raised_shadow_dx),
+          Attr.create("dy", raised_shadow_dy),
+          Attr.create("stdDeviation", "0"),
+        ],
+        [],
+      ),
+    ],
+  );
+};
+
+let shadow_filter = (sort: Core.Sort.t) => {
+  let s = Core.Sort.to_string(sort);
+  create_svg(
+    "filter",
+    [Attr.id("drop-shadow-" ++ s)],
+    [
+      create_svg(
+        "feDropShadow",
+        [
+          Attr.classes(["tile-drop-shadow"]),
+          Attr.create("dx", shadow_dx),
+          Attr.create("dy", shadow_dy),
+          Attr.create("stdDeviation", "0"),
+        ],
+        [],
+      ),
+    ],
+  );
+};
+
+let filters =
+  NodeUtil.svg(
+    Attr.[id("filters")],
+    List.map(raised_shadow_filter, Core.Sort.all)
+    @ List.map(shadow_filter, Core.Sort.all),
+  );
