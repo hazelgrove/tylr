@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 open Node;
 
 // let logo = (~font_metrics) => {
-//   let piece = (step, color: Color.t, shape: PieceDec.piece_shape, s): Measured.t =>
+//   let piece = (step, color: Sort.t, shape: PieceDec.piece_shape, s): Measured.t =>
 //     Measured.annot(Piece({color, shape, step}), Text(s));
 //   let l =
 //     Measured.(

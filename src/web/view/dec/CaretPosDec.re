@@ -5,7 +5,7 @@ module Profile = {
   type t = {
     style,
     measurement: Core.Measured.measurement,
-    color: Color.t,
+    sort: Core.Sort.t,
   };
 };
 
@@ -21,9 +21,9 @@ let caret_position_radii =
   (r /. font_metrics.col_width, r /. font_metrics.row_height);
 };
 
-let view = (~font_metrics, {style, color, measurement}: Profile.t) => {
+let view = (~font_metrics, {style, sort, measurement}: Profile.t) => {
   let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
-  let c_cls = Color.to_string(color);
+  let c_cls = Core.Sort.to_string(sort);
   let cls =
     switch (style) {
     | `Bare => "outer-cousin"

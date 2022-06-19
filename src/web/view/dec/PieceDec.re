@@ -13,14 +13,14 @@ let piece_shape_of_nibs = ((l, r): Core.Nibs.t): piece_shape => (
 module SelemDecProfile = {
   type t = {
     measurement: Measured.measurement,
-    color: Color.t,
+    sort: Sort.t,
     shape: piece_shape,
     style: SelemStyle.t,
   };
 };
 
-let raised_shadow_filter = (~color: Color.t) => {
-  let s = Color.to_string(color);
+let raised_shadow_filter = (~sort: Sort.t) => {
+  let s = Sort.to_string(sort);
   Node.create_svg(
     "filter",
     [Attr.id("raised-drop-shadow-" ++ s)],
@@ -39,8 +39,8 @@ let raised_shadow_filter = (~color: Color.t) => {
   );
 };
 
-let shadow_filter = (~color: Color.t) => {
-  let s = Color.to_string(color);
+let shadow_filter = (~sort: Sort.t) => {
+  let s = Sort.to_string(sort);
   Node.create_svg(
     "filter",
     [Attr.id("drop-shadow-" ++ s)],
@@ -63,16 +63,13 @@ let filters =
   NodeUtil.svg(
     Attr.[id("filters")],
     [
-      raised_shadow_filter(~color=Exp),
-      shadow_filter(~color=Exp),
-      raised_shadow_filter(~color=Pat),
-      shadow_filter(~color=Pat),
-      raised_shadow_filter(~color=Typ),
-      shadow_filter(~color=Typ),
-      raised_shadow_filter(~color=Any),
-      shadow_filter(~color=Any),
-      raised_shadow_filter(~color=Selected),
-      shadow_filter(~color=Selected),
+      //TODO(andrew): abstract
+      raised_shadow_filter(~sort=Exp),
+      shadow_filter(~sort=Exp),
+      raised_shadow_filter(~sort=Pat),
+      shadow_filter(~sort=Pat),
+      raised_shadow_filter(~sort=Any),
+      shadow_filter(~sort=Any),
     ],
   );
 
@@ -102,7 +99,7 @@ module Profile = {
 
 let contour_path_clss = (profile: SelemDecProfile.t) => {
   let clss = {
-    let c_cls = Color.to_string(profile.color);
+    let c_cls = Sort.to_string(profile.sort);
     let highlighted =
       SelemStyle.highlighted(profile.style) ? ["highlighted"] : [];
     let selected = SelemStyle.selected(profile.style) ? ["selected"] : [];
@@ -182,7 +179,7 @@ let shards = (profile: Profile.t) => {
   let selem_profile = (index, measurement) =>
     SelemDecProfile.{
       measurement,
-      color: Color.of_sort(profile.mold.out),
+      sort: profile.mold.out,
       shape: piece_shape_of_nibs(Mold.nibs(~index, profile.mold)),
       style: Style.to_selem_style(profile.style),
     };
@@ -232,7 +229,7 @@ let chunky = (~rows: Measured.Rows.t, (i, j), profile: Profile.t) => {
             "tile-path",
             "selected",
             "raised",
-            Color.to_string(Color.of_sort(profile.mold.out)),
+            Sort.to_string(profile.mold.out),
           ]),
           create("vector-effect", "non-scaling-stroke"),
         ],
@@ -297,10 +294,7 @@ let bi_lines =
        SvgUtil.Path.view(
          ~attrs=
            Attr.[
-             classes([
-               "child-line",
-               Color.to_string(Color.of_sort(mold.out)),
-             ]),
+             classes(["child-line", Sort.to_string(mold.out)]),
              create("vector-effect", "non-scaling-stroke"),
            ],
        ),
@@ -416,10 +410,7 @@ let uni_lines =
        SvgUtil.Path.view(
          ~attrs=
            Attr.[
-             classes([
-               "child-line",
-               Color.to_string(Color.of_sort(mold.out)),
-             ]),
+             classes(["child-line", Sort.to_string(mold.out)]),
              create("vector-effect", "non-scaling-stroke"),
            ],
        ),

@@ -27,7 +27,7 @@ let path = (tip_l, tip_r, offset, s: float) => {
 let view =
     (~font_metrics, {measurement: {origin, _}, mold}: Profile.t): Node.t => {
   let sort = mold.out;
-  let c_cls = Color.to_string(Color.of_sort(sort));
+  let c_cls = Sort.to_string(sort);
   let (tip_l, tip_r): (Core.Nib.Shape.t, Core.Nib.Shape.t) =
     Util.TupleUtil.map2(Core.Nib.shape, mold.nibs);
   let (tip_l, tip_r): (Core.Nib.t, Core.Nib.t) = (
