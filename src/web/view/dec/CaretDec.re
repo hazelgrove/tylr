@@ -42,14 +42,7 @@ let view =
       ~font_metrics: FontMetrics.t,
       ~profile as {shape, side, origin}: Profile.t,
     ) => {
-  let l_adj =
-    switch (side, shape) {
-    | (_, None) => 0.
-    | (Left, Some(Left)) => DecUtil.concave_adj
-    | (Right, Some(Right)) => -. DecUtil.concave_adj
-    | (Left, Some(Right)) => DecUtil.convex_adj
-    | (Right, Some(Left)) => -. DecUtil.convex_adj
-    };
+  let l_adj = DecUtil.caret_adjust(side, shape);
   DecUtil.code_svg(
     ~font_metrics,
     ~origin,

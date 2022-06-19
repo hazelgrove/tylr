@@ -1,10 +1,20 @@
 open Virtual_dom.Vdom;
 open Node;
+open Util;
 
 let tip_width = 0.32;
 let concave_adj = 0.25;
-let convex_adj = (-0.15);
+let convex_adj = (-0.13);
 let shadow_adj = 0.01;
+
+let caret_adjust = (side: Direction.t, shape: option(Direction.t)) =>
+  switch (side, shape) {
+  | (_, None) => 0.
+  | (Left, Some(Left)) => concave_adj
+  | (Right, Some(Right)) => -. concave_adj
+  | (Left, Some(Right)) => convex_adj
+  | (Right, Some(Left)) => -. convex_adj
+  };
 
 let child_border_thickness = 0.05;
 

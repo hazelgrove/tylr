@@ -5,8 +5,6 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-let repeat_string = (n, s) => String.concat("", List.init(n, _ => s));
-
 module CodeString = {
   let rec of_segment = (seg: Segment.t): string =>
     seg |> List.map(of_piece) |> String.concat("")
@@ -80,9 +78,9 @@ module Text = (M: {
       if (content == Whitespace.linebreak) {
         let str = M.settings.whitespace_icons ? Whitespace.linebreak : "";
         [
-          span_c("whitespace", [text(str)]),
+          span_c("linebreak", [text(str)]),
           Node.br([]),
-          Node.text(repeat_string(m(p).last.col, Unicode.nbsp)),
+          Node.text(StringUtil.repeat(m(p).last.col, Unicode.nbsp)),
         ];
       } else if (content == Whitespace.space) {
         let str = M.settings.whitespace_icons ? "·" : Unicode.nbsp;
@@ -128,79 +126,113 @@ module Deco =
        ) => {
   let font_metrics = M.font_metrics;
 
-  let backpack_sel_view = ({focus: _, content}: Selection.t): t => {
-    // TODO(andrew): Maybe use sort at caret instead of root
-    let map = Measured.of_segment(content);
+  let backpack_sel_view =
+      (
+        x_off: float,
+        y_off: float,
+        scale: float,
+        opacity: float,
+        {focus: _, content}: Selection.t,
+      ) => {
     module Text =
       Text({
-        let map = map;
+        let map = Measured.of_segment(content);
         let settings = Model.settings_init;
       });
-    let text_view = Text.of_segment(~no_sorts=true, content);
+    // TODO(andrew): Maybe use init sort at caret to prime this
     div(
-      Attr.[
-        create(
+      [
+        Attr.classes(["code-text", "backpack-selection"]),
+        Attr.create(
           "style",
-          Printf.sprintf("padding: 0 %fpx;", font_metrics.col_width),
+          Printf.sprintf(
+            "position: absolute; transform-origin: bottom left; transform: translate(%fpx, %fpx) scale(%f); opacity: %f%%;",
+            x_off,
+            y_off,
+            scale,
+            opacity,
+          ),
         ),
-        classes(["code-text", "backpack-selection"]),
       ],
-      // zwsp necessary so that div includes final newline
-      // when it is the last character
-      text_view @ [text(Unicode.zwsp)],
+      // zwsp necessary for containing box to stretch to contain trailing newline
+      Text.of_segment(~no_sorts=true, content) @ [text(Unicode.zwsp)],
     );
   };
 
   let backpack_view =
       (~origin: Measured.point, {backpack, _} as z: Zipper.t): Node.t => {
-    let height =
-      List.fold_left(
-        (acc, sel: Selection.t) =>
-          acc + Measured.segment_height(sel.content),
-        0,
-        backpack,
-      );
-    //TODO(andrew): truncate backpack when height is too high?
+    //TODO(andrew): clean up this dumpster fire of a function
+    let height_head =
+      switch (backpack) {
+      | [] => 0
+      | [hd, ..._] => Measured.segment_height(hd.content)
+      };
     let can_put_down =
       switch (Zipper.put_down(z)) {
       | Some(_) => true
       | None => false
       };
+    let caret_adj = {
+      let shape = Zipper.caret_direction(z);
+      let side =
+        switch (Zipper.indicated_piece(z)) {
+        | Some((_, side)) => side
+        | _ => Right
+        };
+      DecUtil.caret_adjust(side, shape);
+    };
+    let caret_adj_px =
+      //TODO(andrew): figure out why we need this mystery pixel below
+      (-1.) +. caret_adj *. font_metrics.col_width;
     let style =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
-        Float.of_int(/* origin.row */ - height - 1) *. font_metrics.row_height,
+        Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+        Float.of_int(/* origin.row */ - height_head - 1)
+        *. font_metrics.row_height,
+      );
+    let scale_fn = idx => float_of_int(100 - 12 * idx) /. 100.;
+    let x_fn = idx => float_of_int(12 * idx);
+    let init_opacity = 100.;
+    let opacity_reduction = 20.; // reduction per line
+    let init_idx = 0;
+    let dy_fn = (idx, base_height) =>
+      font_metrics.row_height
+      *. float_of_int(base_height)
+      *. scale_fn(idx)
+      -. 4.;
+    let init_y_offset = dy_fn(init_idx, height_head);
+    let (_, _, _, selections) =
+      List.fold_left(
+        ((idx, y_offset, opacity, vs), s: Selection.t) => {
+          let base_height = Measured.segment_height(s.content);
+          let scale = scale_fn(idx);
+          let x_offset = x_fn(idx);
+          let new_y_offset = y_offset -. dy_fn(idx, base_height);
+          let v =
+            backpack_sel_view(x_offset, new_y_offset, scale, opacity, s);
+          let new_idx = idx + 1;
+          let new_opacity = opacity -. opacity_reduction;
+          //TODO(andrew): am i making this difficult by going backwards?
+          (new_idx, new_y_offset, new_opacity, List.cons(v, vs));
+        },
+        (init_idx, init_y_offset, init_opacity, []),
+        backpack,
       );
     let selections_view =
       div(
         [Attr.create("style", style), Attr.classes(["backpack"])],
-        List.map(backpack_sel_view, List.rev(backpack)),
+        selections,
       );
     let length =
       switch (backpack) {
       | [] => 0
-      | [hd, ..._] => Measured.segment_width(hd.content) + 2 //space-padding
+      | [hd, ..._] => Measured.segment_width(hd.content)
       };
-    //TODO(andrew): break out backpack decoration into its own module
-    let genie_view =
-      DecUtil.code_svg(
-        ~font_metrics,
-        ~origin={row: 0, col: origin.col},
-        ~base_cls=["restructuring-genie"],
-        ~path_cls=["restructuring-genie-path"],
-        SvgUtil.Path.[
-          M({x: 0., y: (-0.1)}),
-          V({y: (-2.0)}),
-          H_({dx: Float.of_int(length)}),
-          V_({dy: 1.0}),
-          Z,
-        ],
-      );
     let joiner_style =
       Printf.sprintf(
         "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
-        Float.of_int(origin.col) *. font_metrics.col_width,
+        Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
         -3.,
         Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
       );
@@ -212,11 +244,35 @@ module Deco =
         ],
         [],
       );
+    //TODO(andrew): break out backpack decoration into its own module
+    let genie_view =
+      DecUtil.code_svg(
+        ~font_metrics,
+        ~origin={row: 0, col: 0},
+        ~base_cls=["restructuring-genie"],
+        ~path_cls=["restructuring-genie-path"],
+        SvgUtil.Path.[
+          M({x: 0., y: 0.}),
+          V({y: (-1.0)}),
+          H_({dx: Float.of_int(length)}),
+          V_({dy: 0.0}),
+          Z,
+        ],
+      );
+    let genie_style =
+      Printf.sprintf(
+        "position: absolute; left: %fpx;",
+        Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+      );
     div(
       [
         Attr.classes(["backpack"] @ (can_put_down ? [] : ["cant-put-down"])),
       ],
-      [selections_view, genie_view] @ (backpack != [] ? [joiner] : []),
+      [
+        selections_view,
+        div([Attr.create("style", genie_style)], [genie_view]),
+      ]
+      @ (backpack != [] ? [joiner] : []),
     );
   };
 

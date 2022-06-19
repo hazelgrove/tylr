@@ -975,11 +975,17 @@ svg.rail line.unsorted {
   color:rgb(126, 80, 0);
   opacity: 20%;
 }
+.linebreak {
+  color:rgb(126, 80, 0);
+  opacity: 20%;
+  font-family: system-ui;
+  vertical-align: middle;
+  font-size: 0.59em;
+}
 
 #filters {
   position: fixed;
 }
-
 
 .backpack.cant-put-down {
   opacity: 40%;
@@ -990,6 +996,8 @@ svg.rail line.unsorted {
 }
 
 .backpack-selection {
+  border-radius: 0.2em 0.2em 0.2em 0em;
+  padding: 0 0.2em 0 0.2em;
   line-height: var(--line-height);
   width: fit-content;
   background-color: var(--selection-color);
@@ -1009,7 +1017,7 @@ svg.rail line.unsorted {
 }
 
 .editor-caption {
-  padding: 5em 6em 1em 6.5em;
+  padding: 8em 6em 1em 6.5em;
   font-family: 'Helvetica Neue';
   color: var(--top-bar-text);
 }
