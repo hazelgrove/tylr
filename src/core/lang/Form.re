@@ -83,7 +83,7 @@ let forms: list((string, t)) = [
   ("list_lit", mk(ii, ["[", "]"], mk_op(Exp, [Exp]))),
   ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
-  ("fun_", mk(di, ["fun", "=>"], mk_pre(P.fun_, Exp, [Pat]))),
+  ("fun_", mk(di, ["fun", "->"], mk_pre(P.fun_, Exp, [Pat]))),
   (
     "if_",
     mk(di, ["if", "then", "else"], mk_pre(P.let_, Exp, [Exp, Exp])),

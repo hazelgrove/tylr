@@ -6,30 +6,30 @@ let default_editor_idx = 1;
 let editor_defaults = [
   "0",
   "let foo =
-fun taz => {
+fun taz -> {
 case taz of {
-| (2, torb) => bargle + 7*torb
-| (blee, 5) => krunk ? blee : 66
+| (2, torb) -> bargle + 7*torb
+| (blee, 5) -> krunk ? blee : 66
 }
 }
 in foo(0!)",
-  "let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(1!)",
+  "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
   "",
-  "fun square, p1, p2 =>
+  "fun square, p1, p2 ->
 if square then
 let mark =
-fun center =>
+fun center ->
 let x, y = center in
 rect(x - 2, y - 2, 4, 4)
 in
 [mark(p1), line(p1, p2), mark(p2)]
 else
-let mark = fun center => circle(center, 4) in
+let mark = fun center -> circle(center, 4) in
 [mark(p1), line(p1, p2), mark(p2)]",
   "shapes
 |> map(rotate(pi / 4))
 |> map(translate(6, 7))
-|> filter(fun shape => area(shape) < 50)",
+|> filter(fun shape -> area(shape) < 50)",
   "6",
   "7",
   "8",
