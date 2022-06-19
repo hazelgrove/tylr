@@ -2,7 +2,7 @@ open Util;
 open SvgUtil;
 
 let caret_width_straight = 0.1;
-let caret_width_bent = 0.125;
+let caret_width_bent = 0.1;
 let caret_bend = DecUtil.tip_width;
 
 module Profile = {
@@ -44,8 +44,8 @@ let view =
     ) => {
   let left_fudge =
     switch (side, shape) {
-    | (Left, Some(Left)) => 3.0
-    | (Left, Some(Right)) => (-1.0)
+    | (Left, Some(Left)) => 3.5
+    | (Right, Some(Right)) => (-3.5)
     | _ => 0.0
     };
   DecUtil.code_svg(
@@ -54,7 +54,6 @@ let view =
     ~base_cls=["caret"],
     ~path_cls=["caret-path"],
     ~height_fudge=1.0, //extra 1.0 for piece deco shadow,
-    ~top_fudge=0.0,
     ~left_fudge,
     caret_path(shape),
   );

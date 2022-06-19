@@ -5,8 +5,7 @@ open Node;
 open DecUtil;
 open SvgUtil;
 
-let fudge_a = 0.2;
-let fudge_b = 0.22;
+let shadow_fudge = 0.01;
 
 [@deriving show]
 type piece_shape = (Diag.tip_shape, Diag.tip_shape);
@@ -63,6 +62,31 @@ let filters =
     @ List.map(shadow_filter, Sort.all),
   );
 
+module SelemStyle = {
+  [@deriving show]
+  type t =
+    | Logo
+    | Root
+    | Selected;
+
+  let stretched =
+    fun
+    | Root
+    | Selected => false
+    | Logo => true;
+
+  let highlighted =
+    fun
+    | Selected => false
+    | Logo
+    | Root => true;
+
+  let selected =
+    fun
+    | Selected => true
+    | _ => false;
+};
+
 module Style = {
   type t =
     | Root(Measured.point, Measured.point)
@@ -74,15 +98,6 @@ module Style = {
     | Selected(_) => SelemStyle.Selected;
 };
 
-module ShardProfile = {
-  type t = {
-    measurement: Measured.measurement,
-    sort: Sort.t,
-    shape: piece_shape,
-    style: SelemStyle.t,
-  };
-};
-
 module Profile = {
   type t = {
     shards: Measured.Shards.t,
@@ -90,24 +105,6 @@ module Profile = {
     style: Style.t,
   };
 };
-
-let wrap_svg = (~font_metrics: FontMetrics.t, svg) =>
-  create_svg(
-    "svg",
-    Attr.[
-      create("viewBox", Printf.sprintf("0 0 1 1")),
-      create("preserveAspectRatio", "none"),
-      create(
-        "style",
-        Printf.sprintf(
-          "position: absolute; width: %fpx; height: %fpx;",
-          font_metrics.col_width,
-          font_metrics.row_height,
-        ),
-      ),
-    ],
-    [svg],
-  );
 
 let indicated_shard_path = (shape, x_start, x_end) =>
   List.concat(
@@ -129,21 +126,10 @@ let indicated_shard =
   let shape = piece_shape_of_nibs(Mold.nibs(~index, mold));
   let style = Style.to_selem_style(style);
   let length = last.col - origin.col;
-  let start = SelemStyle.stretched(style) ? Float.neg(stretch_dx) : 0.;
-  let end_ =
+  let x_start = SelemStyle.stretched(style) ? Float.neg(stretch_dx) : 0.;
+  let x_end =
     SelemStyle.stretched(style)
       ? Float.of_int(length) +. stretch_dx : Float.of_int(length);
-  let fudge_width =
-    // TODO(andrew): fudge
-    /*if (style == Selected) {
-        fudge_a; //narrows piece decos to fit together clean
-      } else*/ if (fst(fst(shape)).shape != Core.Nib.Shape.Convex) {
-                 fudge_b; // widen pieces with concave ends to avoid text overlap
-               } else {
-                 0.;
-               };
-  let x_start = fudge_width +. start;
-  let x_end = end_ -. fudge_width;
   let path = indicated_shard_path(shape, x_start, x_end);
   let clss =
     ["tile-path", "raised", Sort.to_string(sort)]
@@ -232,24 +218,15 @@ let bi_lines =
     |> List.map(ListUtil.neighbors)
     |> List.map(
          List.map(
-           (((_, l: Measured.measurement), (_, r: Measured.measurement)))
-           // TODO(d) unify fudge constants
-           // TODO(andrew) samsies
-           =>
-             (
-               l.origin,
-               SvgUtil.Path.[
-                 //1d
-                 M({
-                   x: Float.of_int(l.last.col - l.origin.col) +. fudge_b,
-                   y: Float.of_int(l.last.row - l.origin.row + 1),
-                 }),
-                 H_({
-                   dx: Float.of_int(r.origin.col - l.last.col) -. fudge_b,
-                 }),
-               ],
-             )
-           ),
+           (((_, l: Measured.measurement), (_, r: Measured.measurement))) =>
+           (
+             l.origin,
+             SvgUtil.Path.[
+               M({x: 0., y: 1. +. shadow_fudge}),
+               H({x: Float.of_int(r.last.col - l.origin.col)}),
+             ],
+           )
+         ),
        )
     |> List.concat;
   let inter_lines =
@@ -299,8 +276,7 @@ let uni_lines =
           ? (
             m_first.origin,
             [
-              //1d
-              m(~x=0, ~y=0 + 1),
+              M({x: 0., y: 1. +. shadow_fudge}),
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
@@ -323,7 +299,7 @@ let uni_lines =
                   v(~y=l.row - m_first.origin.row),
                 ]
                 : [
-                  m(~x=0, ~y=1),
+                  M({x: 0., y: 1. +. shadow_fudge}),
                   h(~x=indent - m_first.origin.col),
                   v(~y=l.row + 1 - m_first.origin.row),
                   h(~x=max_col - m_first.origin.col),
@@ -359,10 +335,12 @@ let uni_lines =
           m_last.origin,
           // 1d?
           [
-            m(
-              ~x=m_last.last.col - m_last.origin.col,
-              ~y=m_last.last.row - m_last.origin.row + 1,
-            ),
+            M({
+              x: float_of_int(m_last.last.col - m_last.origin.col),
+              y:
+                float_of_int(m_last.last.row - m_last.origin.row + 1)
+                +. shadow_fudge,
+            }),
             h(~x=r.col - m_last.origin.col),
             ...hook,
           ],
@@ -388,7 +366,12 @@ let uni_lines =
         (
           m_flast.origin,
           [
-            m(~x=0, ~y=m_flast.last.row - m_flast.origin.row + 1),
+            M({
+              x: 0.,
+              y:
+                float_of_int(m_flast.last.row - m_flast.origin.row + 1)
+                +. shadow_fudge,
+            }),
             h(~x=indent - m_flast.origin.col),
             v(~y=r.row - m_flast.origin.row + 1),
             h(~x=r.col - m_flast.origin.col),
