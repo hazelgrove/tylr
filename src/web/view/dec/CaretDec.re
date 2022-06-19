@@ -42,19 +42,21 @@ let view =
       ~font_metrics: FontMetrics.t,
       ~profile as {shape, side, origin}: Profile.t,
     ) => {
-  let left_fudge =
+  let l_adj =
     switch (side, shape) {
-    | (Left, Some(Left)) => 3.5
-    | (Right, Some(Right)) => (-3.5)
-    | _ => 0.0
+    | (_, None) => 0.
+    | (Left, Some(Left)) => DecUtil.concave_adj
+    | (Right, Some(Right)) => -. DecUtil.concave_adj
+    | (Left, Some(Right)) => DecUtil.convex_adj
+    | (Right, Some(Left)) => -. DecUtil.convex_adj
     };
   DecUtil.code_svg(
     ~font_metrics,
     ~origin,
     ~base_cls=["caret"],
     ~path_cls=["caret-path"],
-    ~height_fudge=1.0, //extra 1.0 for piece deco shadow,
-    ~left_fudge,
+    ~height_fudge=DecUtil.shadow_adj *. font_metrics.row_height,
+    ~left_fudge=l_adj *. font_metrics.col_width,
     caret_path(shape),
   );
 };

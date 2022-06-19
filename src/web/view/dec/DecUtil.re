@@ -2,6 +2,10 @@ open Virtual_dom.Vdom;
 open Node;
 
 let tip_width = 0.32;
+let concave_adj = 0.25;
+let convex_adj = (-0.15);
+let shadow_adj = 0.01;
+
 let child_border_thickness = 0.05;
 
 let t = child_border_thickness /. 0.5;

@@ -1,6 +1,8 @@
 [@deriving show]
 type t = (Nib.t, Nib.t);
 
+type shapes = (Nib.Shape.t, Nib.Shape.t);
+
 let flip = ((l, r): t) => (r, l);
 
 let of_hole = sort => Nib.({sort, shape: Convex}, {sort, shape: Convex});

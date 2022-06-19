@@ -5,15 +5,8 @@ open Node;
 open DecUtil;
 open SvgUtil;
 
-let shadow_fudge = 0.01;
-
 [@deriving show]
 type piece_shape = (Diag.tip_shape, Diag.tip_shape);
-
-let piece_shape_of_nibs = ((l, r): Core.Nibs.t): piece_shape => (
-  (l, 0),
-  (r, 0),
-);
 
 let raised_shadow_filter = (sort: Sort.t) => {
   let s = Sort.to_string(sort);
@@ -62,40 +55,10 @@ let filters =
     @ List.map(shadow_filter, Sort.all),
   );
 
-module SelemStyle = {
-  [@deriving show]
-  type t =
-    | Logo
-    | Root
-    | Selected;
-
-  let stretched =
-    fun
-    | Root
-    | Selected => false
-    | Logo => true;
-
-  let highlighted =
-    fun
-    | Selected => false
-    | Logo
-    | Root => true;
-
-  let selected =
-    fun
-    | Selected => true
-    | _ => false;
-};
-
 module Style = {
   type t =
     | Root(Measured.point, Measured.point)
     | Selected(int, int);
-
-  let to_selem_style =
-    fun
-    | Root(_) => SelemStyle.Root
-    | Selected(_) => SelemStyle.Selected;
 };
 
 module Profile = {
@@ -106,34 +69,39 @@ module Profile = {
   };
 };
 
-let indicated_shard_path = (shape, x_start, x_end) =>
-  List.concat(
-    Path.[
-      [M({x: x_start, y: 1.0}), ...Diag.left_tip_path(fst(shape))],
-      [H({x: x_end}), ...Diag.right_tip_path(snd(shape))],
-      [Z],
-    ],
-  );
+let simple_shard_path = ((l, r): Nibs.shapes, length: int) => {
+  let (l_run, l_adj) =
+    switch (l) {
+    | Convex => (DecUtil.tip_width, DecUtil.convex_adj)
+    | Concave(_) => (-. DecUtil.tip_width, DecUtil.concave_adj)
+    };
+  let (r_run, r_adj) =
+    switch (r) {
+    | Convex => (-. DecUtil.tip_width, DecUtil.convex_adj)
+    | Concave(_) => (DecUtil.tip_width, DecUtil.concave_adj)
+    };
+  let length = float_of_int(length) +. l_adj +. r_adj;
+  Path.[
+    M({x: -. l_adj, y: 0.}),
+    H_({dx: length}),
+    L_({dx: -. r_run, dy: 0.5}),
+    L_({dx: +. r_run, dy: 0.5}),
+    H_({dx: -. length}),
+    L_({dx: -. l_run, dy: (-0.5)}),
+    L_({dx: +. l_run, dy: (-0.5)}),
+  ];
+};
 
-let indicated_shard =
+let simple_shard =
     (
-      ~profile as {mold, style, _}: Profile.t,
+      ~profile as {mold, _}: Profile.t,
       ~font_metrics: FontMetrics.t,
       (index, {origin, last}: Measured.measurement),
     )
     : t => {
-  let sort = mold.out;
-  let shape = piece_shape_of_nibs(Mold.nibs(~index, mold));
-  let style = Style.to_selem_style(style);
-  let length = last.col - origin.col;
-  let x_start = SelemStyle.stretched(style) ? Float.neg(stretch_dx) : 0.;
-  let x_end =
-    SelemStyle.stretched(style)
-      ? Float.of_int(length) +. stretch_dx : Float.of_int(length);
-  let path = indicated_shard_path(shape, x_start, x_end);
-  let clss =
-    ["tile-path", "raised", Sort.to_string(sort)]
-    @ (SelemStyle.highlighted(style) ? ["highlighted"] : []);
+  let nib_shapes = Mold.nib_shapes(index, mold);
+  let path = simple_shard_path(nib_shapes, last.col - origin.col);
+  let clss = ["tile-path", "raised", "indicated", Sort.to_string(mold.out)];
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };
 
@@ -141,15 +109,15 @@ let chunky_shard_path =
     (
       origin: Measured.point,
       last: Measured.point,
-      nib_origin: Nib.Shape.t,
-      nib_last: Nib.Shape.t,
+      (l, r): Nibs.shapes,
       indent: int,
       max_col: int,
     )
     : list(Path.cmd) => {
+  //TODO(andrew): update with shape adjustments
   let l_hook = {
     let dx =
-      switch (nib_origin) {
+      switch (l) {
       | Convex => -. DecUtil.short_tip_width
       | Concave(_) => DecUtil.short_tip_width
       };
@@ -158,7 +126,7 @@ let chunky_shard_path =
   };
   let r_hook = {
     let dx =
-      switch (nib_last) {
+      switch (r) {
       | Convex => DecUtil.short_tip_width
       | Concave(_) => -. DecUtil.short_tip_width
       };
@@ -180,7 +148,7 @@ let chunky_shard_path =
   );
 };
 
-let chunky_shard_deco =
+let chunky_shard =
     (
       ~font_metrics: FontMetrics.t,
       ~rows: Measured.Rows.t,
@@ -191,15 +159,15 @@ let chunky_shard_deco =
     List.assoc(i, shards).origin,
     List.assoc(j, shards).last,
   );
-  let nib_origin = fst(Mold.nibs(~index=i, mold)).shape;
-  let nib_last = snd(Mold.nibs(~index=j, mold)).shape;
+  let (nib_l, _) = Mold.nib_shapes(i, mold);
+  let (_, nib_r) = Mold.nib_shapes(j, mold);
   let indent = Measured.Rows.find(origin.row, rows).indent;
   let max_col =
     ListUtil.range(~lo=origin.row, last.row + 1)
     |> List.map(r => Measured.Rows.find(r, rows).max_col)
     |> List.fold_left(max, 0);
   let path =
-    chunky_shard_path(origin, last, nib_origin, nib_last, indent, max_col);
+    chunky_shard_path(origin, last, (nib_l, nib_r), indent, max_col);
   let clss = ["tile-path", "selected", "raised", Sort.to_string(mold.out)];
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };
@@ -222,7 +190,7 @@ let bi_lines =
            (
              l.origin,
              SvgUtil.Path.[
-               M({x: 0., y: 1. +. shadow_fudge}),
+               M({x: 0., y: 1. +. DecUtil.shadow_adj}),
                H({x: Float.of_int(r.last.col - l.origin.col)}),
              ],
            )
@@ -276,7 +244,7 @@ let uni_lines =
           ? (
             m_first.origin,
             [
-              M({x: 0., y: 1. +. shadow_fudge}),
+              M({x: 0., y: 1. +. DecUtil.shadow_adj}),
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
@@ -299,7 +267,7 @@ let uni_lines =
                   v(~y=l.row - m_first.origin.row),
                 ]
                 : [
-                  M({x: 0., y: 1. +. shadow_fudge}),
+                  M({x: 0., y: 1. +. DecUtil.shadow_adj}),
                   h(~x=indent - m_first.origin.col),
                   v(~y=l.row + 1 - m_first.origin.row),
                   h(~x=max_col - m_first.origin.col),
@@ -339,7 +307,7 @@ let uni_lines =
               x: float_of_int(m_last.last.col - m_last.origin.col),
               y:
                 float_of_int(m_last.last.row - m_last.origin.row + 1)
-                +. shadow_fudge,
+                +. DecUtil.shadow_adj,
             }),
             h(~x=r.col - m_last.origin.col),
             ...hook,
@@ -370,7 +338,7 @@ let uni_lines =
               x: 0.,
               y:
                 float_of_int(m_flast.last.row - m_flast.origin.row + 1)
-                +. shadow_fudge,
+                +. DecUtil.shadow_adj,
             }),
             h(~x=indent - m_flast.origin.col),
             v(~y=r.row - m_flast.origin.row + 1),
@@ -401,10 +369,10 @@ let view =
   let svgs =
     switch (profile.style) {
     | Selected(i, j) => [
-        chunky_shard_deco(~font_metrics, ~rows, (i, j), profile),
+        chunky_shard(~font_metrics, ~rows, (i, j), profile),
       ]
     | Root(l, r) =>
-      List.map(indicated_shard(~profile, ~font_metrics), profile.shards)
+      List.map(simple_shard(~profile, ~font_metrics), profile.shards)
       @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
       @ bi_lines(~font_metrics, ~rows, mold, shards)
     };

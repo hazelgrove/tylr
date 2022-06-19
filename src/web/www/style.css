@@ -517,7 +517,7 @@ svg.rail line.unsorted {
   stroke: var(--unsorted-shadow-color);
   filter: url(#drop-shadow-unsorted);
 }
-.tile-path.unsorted.highlighted {
+.tile-path.unsorted.indicated {
   fill: var(--unsorted-bg-color);
 }
 .tile-path.unsorted.raised {
@@ -534,15 +534,7 @@ svg.rail line.unsorted {
   filter: url(#drop-shadow-Exp);
 }
 
-.Filtered {
-  stroke: #a18c52;
-  flood-color: black;
-}
-.Filtered .tile-path{
-  filter: url(#drop-shadow-unsorted) !important;
-}
-
-.tile-path.Any.highlighted {
+.tile-path.Any.indicated {
   fill: #f0dead;
 }
 .tile-path.Any.raised {
@@ -553,7 +545,7 @@ svg.rail line.unsorted {
   flood-color: var(--any-shadow-color);
 }
 
-.tile-path.Exp.highlighted {
+.tile-path.Exp.indicated {
   fill:#b9e3be;
 }
 .tile-path.Exp.raised {
@@ -568,7 +560,7 @@ svg.rail line.unsorted {
   /*stroke: var(--pat-shadow-color);*/
   filter: url(#drop-shadow-Pat);
 }
-.tile-path.Pat.highlighted {
+.tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
 }
 .tile-path.Pat.raised {
@@ -583,7 +575,7 @@ svg.rail line.unsorted {
   /*stroke: var(--typ-shadow-color);*/
   filter: url(#drop-shadow-Typ);
 }
-.tile-path.Typ.highlighted {
+.tile-path.Typ.indicated {
   fill: var(--typ-bg-color);
 }
 .tile-path.Typ.raised {

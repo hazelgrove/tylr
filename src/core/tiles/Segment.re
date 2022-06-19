@@ -197,7 +197,7 @@ and sort_rank_desc = (seg: t) =>
   |> List.map(((s, seg)) => sort_rank(seg, s))
   |> List.fold_left((+), 0);
 
-let rec shape_rank = (seg, (l, r): (Nib.Shape.t, Nib.Shape.t)) => {
+let rec shape_rank = (seg, (l, r): Nibs.shapes) => {
   let (l', rank) = shape_rank_affix(Direction.Right, seg, r);
   rank + Bool.to_int(!Nib.Shape.fits(l, l'));
 }
@@ -277,7 +277,7 @@ module Trim = {
   // };
 
   // assumes grout in trim fit r but may not fit l
-  let regrout = ((l, r): (Nib.Shape.t, Nib.Shape.t), trim: t): IdGen.t(t) =>
+  let regrout = ((l, r): Nibs.shapes, trim: t): IdGen.t(t) =>
     if (Nib.Shape.fits(l, r)) {
       let (wss, _) = trim;
       IdGen.return(Aba.mk([List.concat(wss)], []));
