@@ -584,11 +584,15 @@ let move = (chunkiness: chunkiness, d: Direction.t, z: t): option(t) =>
   | (Left, Outer, (CanMoveInto(d_init, c_max), _)) =>
     z |> set_caret(Inner(d_init, c_max)) |> Outer.move(d)
   | (Left, Outer, _) => Outer.move(d, z)
+  | (Left, Inner(_), _) when chunkiness == ByToken =>
+    Some(z |> set_caret(Outer))
   | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
   | (Right, Outer, (_, CanMoveInto(d_init, _))) =>
     Some(set_caret(Inner(d_init, 0), z))
   | (Right, Outer, _) => Outer.move(d, z)
   | (Right, Inner(_, c), (_, CanMoveInto(_, c_max))) when c == c_max =>
+    z |> set_caret(Outer) |> Outer.move(d)
+  | (Right, Inner(_), _) when chunkiness == ByToken =>
     z |> set_caret(Outer) |> Outer.move(d)
   | (Right, Inner(delim, c), _) => Some(set_caret(Inner(delim, c + 1), z))
   };
