@@ -85,17 +85,32 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
               [UpdateDoubleTap(Some(cur_ts))];
             }
           };
-
         | _ when Form.is_valid_char(key) => now_save(Insert(key))
         // | "Escape" => [] // TODO: deselect?
         | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };
-      } else if (Os.is_mac^ && held(Meta)) {
+      } else if (Os.is_mac^
+                 && held(Meta)
+                 && held(Shift)
+                 || ! Os.is_mac^
+                 && held(Ctrl)
+                 && held(Shift)) {
+        // mac-specific
+        switch (key) {
+        | "ArrowLeft" => now(Select(Extreme(Left(ByToken))))
+        | "ArrowRight" => now(Select(Extreme(Right(ByToken))))
+        | "ArrowUp" => now(Select(Extreme(Up)))
+        | "ArrowDown" => now(Select(Extreme(Down)))
+        | _ => []
+        };
+      } else if (Os.is_mac^ && held(Meta) && !held(Shift)) {
         // mac-specific
         switch (key) {
         | "ArrowLeft" => now(Move(Extreme(Left(ByToken))))
         | "ArrowRight" => now(Move(Extreme(Right(ByToken))))
+        | "ArrowUp" => now(Move(Extreme(Up)))
+        | "ArrowDown" => now(Move(Extreme(Down)))
         | _ => []
         };
       } else if (! Os.is_mac^
