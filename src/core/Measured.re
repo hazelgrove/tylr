@@ -34,6 +34,9 @@ module Rows = {
     max_col: int,
   };
   type t = IntMap.t(shape);
+
+  let max_col = (rs: list(int), map: t) =>
+    rs |> List.map(r => find(r, map).max_col) |> List.fold_left(max, 0);
 };
 
 module Shards = {
