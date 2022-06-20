@@ -38,6 +38,15 @@ let sorted_children = ({mold, shards, children, _}: t) =>
        (l.sort == r.sort ? l.sort : Any, child);
      });
 
+let contained_children = (t: t): list((t, Base.segment, t)) =>
+  Aba.mk(t.shards, t.children)
+  |> Aba.aba_triples
+  |> List.map(((l, child, r)) => {
+       let l = {...t, shards: [l], children: []};
+       let r = {...t, shards: [r], children: []};
+       (l, child, r);
+     });
+
 // let remold = (t: t): list(t) =>
 //   Molds.get(t.label) |> List.map(mold => {...t, mold});
 

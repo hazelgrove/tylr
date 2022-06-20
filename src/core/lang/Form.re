@@ -97,9 +97,9 @@ let forms: list((string, t)) = [
   ("cond", mk(ii, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
   ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
   ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
-  ("rule_first", mk(ds, ["|", "=>"], mk_pre(9, Exp, [Pat]))),
+  ("rule_first", mk(ds, ["|", "->"], mk_pre(9, Exp, [Pat]))),
   /* Something must instant on | as not valid monotile on its own */
-  ("rule_rest", mk(ds, ["|", "=>"], mk_bin(9, Exp, [Pat]))),
+  ("rule_rest", mk(ds, ["|", "->"], mk_bin(9, Exp, [Pat]))),
 ];
 
 let get: Token.t => t = name => List.assoc(name, forms);

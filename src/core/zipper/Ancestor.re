@@ -79,6 +79,18 @@ let disassemble =
   (flatten(shards_l, kids_l), flatten(shards_r, kids_r));
 };
 
+let container_shards = (a: t): (Piece.t, Piece.t) => {
+  let (shards_l, shards_r) =
+    a.shards
+    |> TupleUtil.map2(Tile.split_shards(a.id, a.label, a.mold))
+    |> TupleUtil.map2(List.map(Tile.to_piece));
+  let l =
+    ListUtil.last_opt(shards_l) |> OptUtil.get_or_raise(Empty_shard_affix);
+  let r =
+    ListUtil.hd_opt(shards_r) |> OptUtil.get_or_raise(Empty_shard_affix);
+  (l, r);
+};
+
 let reassemble = (match_l: Aba.t(Tile.t, Segment.t) as 'm, match_r: 'm): t => {
   // TODO(d) bit hacky, need to do a flip/orientation pass
   // let match_l = Aba.map_b(Segment.rev, match_l);
