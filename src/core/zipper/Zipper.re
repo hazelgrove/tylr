@@ -53,6 +53,7 @@ module Action = {
   type t =
     | Move(move)
     | Select(move)
+    | Unselect
     | Destruct(Direction.t)
     | Insert(string)
     | RotateBackpack
@@ -130,9 +131,9 @@ module Outer = {
     };
   };
 
-  let directional_unselect = (d: Direction.t, z: t): option(t) => {
+  let directional_unselect = (d: Direction.t, z: t): t => {
     let selection = {...z.selection, focus: Direction.toggle(d)};
-    Some(unselect({...z, selection}));
+    unselect({...z, selection});
   };
 
   let move = (d: Direction.t, z: t): option(t) =>
@@ -145,7 +146,7 @@ module Outer = {
         |> Relatives.reassemble;
       {...z, relatives};
     } else {
-      directional_unselect(d, z);
+      Some(directional_unselect(d, z));
     };
 
   let select = (d: Direction.t, z: t): option(t) =>
@@ -725,7 +726,8 @@ let select_vertical = (d: Direction.t, z: t): option(t) =>
 
 let move_vertical = (d: Direction.t, z: t): option(t) =>
   z.selection.content == []
-    ? do_vertical(move(ByChar, d), d, z) : Outer.directional_unselect(d, z);
+    ? do_vertical(move(ByChar, d), d, z)
+    : Some(Outer.directional_unselect(d, z));
 
 let update_target = (z: t): t =>
   //NOTE(andrew): $$$ this recomputes all measures
@@ -840,6 +842,8 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
       |> Option.map(IdGen.id(id_gen))
       |> Result.of_option(~error=Action.Failure.Cant_move)
     }
+  | Unselect =>
+    Ok((Outer.directional_unselect(z.selection.focus, z), id_gen))
   | Select(d) =>
     let selected =
       switch (d) {
@@ -866,6 +870,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     (z, id_gen)
     |> insert(char)
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
+    /* note: remolding here is done case-by-case */
     //|> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   | Pick_up => Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
