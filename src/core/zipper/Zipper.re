@@ -424,14 +424,18 @@ let sibling_appendability: (string, Siblings.t) => appendability =
     };
 
 let barf_or_construct =
-    (new_token: Token.t, direction_preference: Direction.t, z: t): IdGen.t(t) =>
-  if (Backpack.is_first_matching(new_token, z.backpack)) {
-    z |> Outer.put_down |> Option.get |> IdGen.return;
-  } else {
+    (new_token: Token.t, direction_preference: Direction.t, z: t): IdGen.t(t) => {
+  let barfed =
+    Backpack.is_first_matching(new_token, z.backpack)
+      ? Outer.put_down(z) : None;
+  switch (barfed) {
+  | Some(z) => IdGen.return(z)
+  | None =>
     let (lbl, direction) =
       Molds.instant_completion(new_token, direction_preference);
     Outer.construct(direction, lbl, z);
   };
+};
 
 let insert_outer =
     (char: string, ({relatives: {siblings, _}, _} as z, id_gen): state)
