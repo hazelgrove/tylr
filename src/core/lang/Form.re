@@ -43,8 +43,11 @@ let whitespace = [Whitespace.space, Whitespace.linebreak];
 let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
   (
     "var",
-    (regexp("^[a-z][a-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
+    (regexp("^[a-z][A-Za-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
   ),
+  ("type", (regexp("^[A-Z][A-Za-z0-9_]*$"), [mk_op(Typ, [])])),
+  ("whatever", (regexp("#*$"), [mk_op(Nul, [])])),
+  ("whatever", (regexp("@*$"), [mk_op(Rul, [])])),
   ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
   ("wild", (regexp("^_$"), [mk_op(Pat, [])])),
 ];
