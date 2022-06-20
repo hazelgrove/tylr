@@ -53,8 +53,10 @@
 
 - **Ctrl + ArrowLeft** : Move(Local(Left(ByToken)))
 - **Ctrl + ArrowRight** : Move(Local(Right(ByToken)))
-- **Ctrl + Home** : Select(Extreme(Up))
-- **Ctrl + End** : Select(Extreme(Down))
+- **Ctrl + Home** : Move(Extreme(Up))
+- **Ctrl + End** : Move(Extreme(Down))
+- **Ctrl + Shift + Home** : Select(Extreme(Up))
+- **Ctrl + Shift + End** : Select(Extreme(Down))
 - **Ctrl + Shift + ArrowLeft** : Select(Local(Left(ByToken)))
 - **Ctrl + Shift + ArrowRight** : Select(Local(Right(ByToken)))
 - **Ctrl + Shift + ArrowUp** : Select(Local(Up))

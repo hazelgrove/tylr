@@ -129,8 +129,12 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "ArrowRight" when ! Os.is_mac^ && !held(Shift) =>
           now(Move(Local(Right(ByToken))))
         | "Home" when ! Os.is_mac^ && !held(Shift) =>
-          now(Select(Extreme(Up)))
+          now(Move(Extreme(Up)))
         | "End" when ! Os.is_mac^ && !held(Shift) =>
+          now(Move(Extreme(Down)))
+        | "Home" when ! Os.is_mac^ && held(Shift) =>
+          now(Select(Extreme(Up)))
+        | "End" when ! Os.is_mac^ && held(Shift) =>
           now(Select(Extreme(Down)))
         | "ArrowLeft" when ! Os.is_mac^ && held(Shift) =>
           now(Select(Local(Left(ByToken))))
