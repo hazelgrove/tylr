@@ -91,6 +91,13 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };
+      } else if (Os.is_mac^ && held(Meta)) {
+        // mac-specific
+        switch (key) {
+        | "ArrowLeft" => now(Move(Extreme(Left(ByToken))))
+        | "ArrowRight" => now(Move(Extreme(Right(ByToken))))
+        | _ => []
+        };
       } else if (! Os.is_mac^
                  && held(Ctrl)
                  && !held(Alt)
@@ -110,13 +117,6 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "ArrowUp" => now(Move(Extreme(Up)))
         | "ArrowDown" => now(Move(Extreme(Down)))
         | _ when is_digit(key) => [SwitchEditor(int_of_string(key))]
-        | _ => []
-        };
-      } else if (Os.is_mac^ && held(Meta)) {
-        // mac-specific
-        switch (key) {
-        | "ArrowLeft" => now(Move(Extreme(Left(ByToken))))
-        | "ArrowRight" => now(Move(Extreme(Right(ByToken))))
         | _ => []
         };
       } else if (Os.is_mac^ && held(Ctrl) && !held(Meta) && !held(Alt)) {
