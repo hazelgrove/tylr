@@ -29,7 +29,8 @@ let mark = fun center -> circle(center, 4) in
   "shapes
 |> map(rotate(pi / 4))
 |> map(translate(6, 7))
-|> filter(fun shape -> area(shape) < 50)",
+|> filter(fun shape -> area(shape) < 50)
+|> map(dilate(5))",
   "6",
   "7",
   "8",
