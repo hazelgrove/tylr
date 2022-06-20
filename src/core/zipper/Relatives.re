@@ -36,6 +36,17 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
 let zip = (~sel=Segment.empty, {siblings, ancestors}: t) =>
   Ancestors.zip(Siblings.zip(~sel, siblings), ancestors);
 
+let local_incomplete_tiles = ({siblings: (pre, suf), ancestors}: t) => {
+  let sibs =
+    switch (ancestors) {
+    | [] => (pre, suf)
+    | [(a, _), ..._] =>
+      let (l, r) = Ancestor.container_shards(a);
+      ([l, ...pre], suf @ [r]);
+    };
+  Siblings.incomplete_tiles(sibs);
+};
+
 let parent =
     (~sel=Segment.empty, {siblings: (l_sibs, r_sibs), ancestors}: t)
     : option(Piece.t) =>

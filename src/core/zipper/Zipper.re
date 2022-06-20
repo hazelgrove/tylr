@@ -85,7 +85,7 @@ let update_siblings: (Siblings.t => Siblings.t, t) => t =
   f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
 
 let pop_backpack = (z: t) =>
-  Backpack.pop(Siblings.incomplete_tiles(z.relatives.siblings), z.backpack);
+  Backpack.pop(Relatives.local_incomplete_tiles(z.relatives), z.backpack);
 
 module Outer = {
   let unselect = (z: t): t => {
