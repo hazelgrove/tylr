@@ -84,6 +84,9 @@ let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
 let update_siblings: (Siblings.t => Siblings.t, t) => t =
   f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
 
+let pop_backpack = (z: t) =>
+  Backpack.pop(Siblings.incomplete_tiles(z.relatives.siblings), z.backpack);
+
 module Outer = {
   let unselect = (z: t): t => {
     let relatives =
@@ -183,11 +186,7 @@ module Outer = {
 
   let put_down = (z: t): option(t) => {
     let z = destruct(z);
-    let+ (_, popped, backpack) =
-      Backpack.pop(
-        Siblings.incomplete_tiles(z.relatives.siblings),
-        z.backpack,
-      );
+    let+ (_, popped, backpack) = pop_backpack(z);
     IncompleteBidelim.set(popped.content);
     {...z, backpack} |> put_selection(popped) |> unselect;
   };
@@ -753,7 +752,7 @@ let targets_within_row = (map: Measured.t, z: t): list(t) => {
       if (caret(z).row != init.row) {
         [];
       } else {
-        switch (put_down(z)) {
+        switch (pop_backpack(z)) {
         | None => go(d, z)
         | Some(_) => [z, ...go(d, z)]
         };
@@ -761,7 +760,7 @@ let targets_within_row = (map: Measured.t, z: t): list(t) => {
     };
   };
   let curr =
-    switch (put_down(z)) {
+    switch (pop_backpack(z)) {
     | None => []
     | Some(_) => [z]
     };
@@ -772,7 +771,7 @@ let targets_within_row = (map: Measured.t, z: t): list(t) => {
 let rec move_to_backpack_target = (d: plane_move, map, z: t): option(t) => {
   let caret_point = caret_point(map);
   let done_or_try_again = (d, z) =>
-    switch (put_down(z)) {
+    switch (pop_backpack(z)) {
     | None => move_to_backpack_target(d, map, z)
     | Some(_) => Some(z)
     };

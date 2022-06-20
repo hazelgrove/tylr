@@ -168,7 +168,7 @@ module Deco =
       | [hd, ..._] => Measured.segment_height(hd.content)
       };
     let can_put_down =
-      switch (Zipper.put_down(z)) {
+      switch (Zipper.pop_backpack(z)) {
       | Some(_) => true
       | None => false
       };
