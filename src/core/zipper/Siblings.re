@@ -45,9 +45,13 @@ let shapes = ((pre, suf): t) => {
   (l, r);
 };
 
-let is_mismatch = (sibs: t): bool => {
-  let (l, r) = shapes(sibs);
-  l == r;
+let is_mismatch = ((l, r): t): bool => {
+  /* predicts if grout is neccessary between siblings */
+  switch (Segment.edge_shape_of(Left, r), Segment.edge_shape_of(Right, l)) {
+  | (None, _)
+  | (_, None) => false
+  | (s1, s2) => s1 == s2
+  };
 };
 
 let contains_matching = (t: Tile.t, (pre, suf): t) =>

@@ -86,7 +86,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "Enter" =>
           //NOTE(andrew): using funky char to avoid weird regexp issues with using \n
           now_save(Insert(Whitespace.linebreak))
-        | _ when Form.is_valid_char(key) => now_save(Insert(key))
+        | _ when Form.is_valid_char(key) && String.length(key) == 1 =>
+          //TODO(andrew): length==1 is hack to prevent things like F5 which are now valid tokens
+          now_save(Insert(key))
         | _ when is_printable(key) => [FailedInput(Unrecognized)]
         | _ => []
         };
