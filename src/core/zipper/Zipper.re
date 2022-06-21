@@ -829,12 +829,12 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
       |> Option.map(IdGen.id(id_gen))
       //|> Option.map(format)
       |> Result.of_option(~error=Action.Failure.Cant_move)
-    | Local(d) =>
+    | Local(dd) =>
       /* Note: Don't update target on vertical movement */
       z
       |> (
         z =>
-          switch (d) {
+          switch (dd) {
           | Left(chunk) => move(chunk, Left, z) |> Option.map(update_target)
           | Right(chunk) =>
             move(chunk, Right, z) |> Option.map(update_target)
@@ -843,7 +843,12 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
           }
       )
       |> Option.map(IdGen.id(id_gen))
-      //|> Option.map(format)
+      |> (
+        switch (d) {
+        | Local(Right(_)) => Option.map(format)
+        | _ => (x => x)
+        }
+      )
       |> Result.of_option(~error=Action.Failure.Cant_move)
     }
   | Unselect =>
@@ -869,7 +874,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Option.map(format)
+    //|> Option.map(format)
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
