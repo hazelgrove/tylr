@@ -31,6 +31,9 @@ type t = {
 type state = (t, IdGen.state);
 
 [@deriving (show, sexp)]
+type zfn = t => t;
+
+[@deriving (show, sexp)]
 type chunkiness =
   | ByChar
   | MonoByChar
@@ -51,6 +54,7 @@ type move =
 module Action = {
   [@deriving (show, sexp)]
   type t =
+    | Apply(zfn)
     | Move(move)
     | Select(move)
     | Unselect
@@ -809,6 +813,7 @@ let rec move_to_backpack_target = (d: plane_move, map, z: t): option(t) => {
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
+  | Apply(f) => Ok((f(z), id_gen))
   | Move(d) =>
     switch (d) {
     | Extreme(d) =>

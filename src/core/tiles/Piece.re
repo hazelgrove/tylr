@@ -8,6 +8,9 @@ let whitespace = w => Whitespace(w);
 let grout = g => Grout(g);
 let tile = t => Tile(t);
 
+//TODO(andrew): id_gen
+let space = Whitespace({content: " ", id: 666});
+
 let get = (f_w, f_g, f_t, p: t) =>
   switch (p) {
   | Whitespace(w) => f_w(w)
