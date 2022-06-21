@@ -212,14 +212,10 @@ module Outer = {
 
   let directional_put_down = (d: Direction.t, z: t): option(t) => {
     //TODO(andrew): duplication with above fn
-    //TODO(andrew): doesn't seem to be working
-    let z = destruct(z);
+    let* z = directional_destruct(d, z);
     let+ (_, popped, backpack) = pop_backpack(z);
     IncompleteBidelim.set(popped.content);
-    let z' = {...z, backpack};
-    let selection =
-      d == Right ? Selection.toggle_focus(z'.selection) : z'.selection;
-    {...z', selection} |> put_selection(popped) |> unselect;
+    {...z, backpack} |> put_selection(popped) |> unselect;
   };
 
   let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
@@ -505,7 +501,8 @@ let split =
   //|> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Left, char))
   //|> Option.map(((z, id_gen)) => Outer.construct(Right, [r], z, id_gen));
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Right, r));
+  // TODO(andrew): change below to Right and make it actually work...
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Left, r));
 };
 
 let insert =
