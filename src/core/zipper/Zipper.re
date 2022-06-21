@@ -270,6 +270,7 @@ module Outer = {
     | (Some(kw), _) =>
       let (new_label, direction) = Molds.delayed_completion(kw, Left);
       replace(direction, new_label, state);
+    //TODO(andrew): explore making this take a directional parameter; could expand the left as well
     //| (_, Some(kw)) =>
     //  let (new_label, direction) = Molds.delayed_completion(kw, Right);
     //  replace(direction, new_label, state);
@@ -491,7 +492,8 @@ let split =
   //|> Option.map(z => Outer.construct(Right, [r], z, id_gen))  //overwrite right
   //|> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
   |> OptUtil.and_then(Outer.expand_and_barf_or_construct(char))
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(r));
+  |> Option.map(((z, id_gen)) => Outer.construct(Right, [r], z, id_gen));
+  //|> OptUtil.and_then(Outer.expand_and_barf_or_construct(r));
 };
 
 let insert =
