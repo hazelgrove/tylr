@@ -15,9 +15,9 @@ type movability =
 
 [@deriving show]
 type appendability =
-  | CanAddToLeft(Token.t)
-  | CanAddToRight(Token.t)
-  | CanAddToNeither;
+  | AppendLeft(Token.t)
+  | AppendRight(Token.t)
+  | AppendNeither;
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
@@ -101,10 +101,10 @@ let sibling_appendability: (string, Siblings.t) => appendability =
   (char, siblings) =>
     switch (neighbor_monotiles(siblings)) {
     | (Some(t), _) when Form.is_valid_token(t ++ char) =>
-      CanAddToLeft(t ++ char)
+      AppendLeft(t ++ char)
     | (_, Some(t)) when Form.is_valid_token(char ++ t) =>
-      CanAddToRight(char ++ t)
-    | _ => CanAddToNeither
+      AppendRight(char ++ t)
+    | _ => AppendNeither
     };
 module Outer = {
   let unselect = (z: t): t => {
@@ -280,12 +280,12 @@ module Outer = {
 
   let insert = (char: string, (z, id_gen): state): option(state) =>
     switch (sibling_appendability(char, z.relatives.siblings)) {
-    | CanAddToNeither => expand_and_barf_or_construct(char, (z, id_gen))
-    | CanAddToLeft(new_t) =>
+    | AppendNeither => expand_and_barf_or_construct(char, (z, id_gen))
+    | AppendLeft(new_t) =>
       z
       |> directional_destruct(Left)
       |> Option.map(z => barf_or_construct(new_t, Left, z, id_gen))
-    | CanAddToRight(new_t) =>
+    | AppendRight(new_t) =>
       z
       |> directional_destruct(Right)
       |> Option.map(z => barf_or_construct(new_t, Right, z, id_gen))
@@ -511,9 +511,9 @@ let insert =
     let caret =
       /* If we're adding to the right, move caret inside right nhbr */
       switch (sibling_appendability(char, siblings)) {
-      | CanAddToRight(_) => Inner(0, 0) //Note: assumption of monotile
-      | CanAddToNeither
-      | CanAddToLeft(_) => Outer
+      | AppendRight(_) => Inner(0, 0) //Note: assumption of monotile
+      | AppendNeither
+      | AppendLeft(_) => Outer
       };
     (z, id_gen)
     |> Outer.insert(char)
@@ -852,15 +852,15 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | Destruct(d) =>
     (z, id_gen)
     |> destruct_or_merge(d)
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
+    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
     |> insert(char)
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     /* note: remolding here is done case-by-case */
     //|> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen))
+    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   | Pick_up => Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
   | Put_down =>
