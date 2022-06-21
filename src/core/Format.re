@@ -1,5 +1,16 @@
 //TODO(andrew): autoformatter
 
+let id_local: ref(int) = ref(0);
+
+let mk_id = (): int => {
+  let uid = id_local^;
+  id_local := id_local^ + 1;
+  uid;
+};
+let set_id_gen = (id: int) => {
+  id_local := id;
+};
+
 [@deriving show]
 type padding =
   | None
@@ -12,17 +23,16 @@ let pad_prefs: Tile.t => (padding, padding) =
   t =>
     switch (t.label) {
     | [
-        "*" | "/" | "=" | "+" | "!=" | ">" | "<" | "<=" | ">=" | "|" | "||" |
-        "&" |
+        "/" | "=" | "+" | "!=" | ">" | "<" | "<=" | ">=" | "|" | "||" | "&" |
         "&&" |
         "++" |
         "|>" |
-        "+=" |
-        ",",
+        "+=",
       ] => (
         Bi,
         None,
       )
+    | ["*" | ","] => (None, None)
     | ["."] => (None, None)
     | ["-"] => (None, None) //TODO mold specific logic
     | ["!"] => (None, None)
@@ -34,21 +44,21 @@ let pad_prefs: Tile.t => (padding, padding) =
     | ["if", "then", "else"]
     | ["let", "=", "in"]
     | ["case", "of"]
-    | ["|", "->"] => (Bi, Bi)
+    | ["|", "->"] => (Post, Bi)
     | _ => (None, None)
     };
 
-let should_pad_outside: Tile.t => bool =
+let should_pad_front: Tile.t => bool =
   t =>
     switch (pad_prefs(t)) {
-    | (Bi, _) => true
+    | (Bi | Pre, _) => true
     | _ => false
     };
 
-let should_pad_inside: Tile.t => bool =
+let should_pad_back: Tile.t => bool =
   t =>
     switch (pad_prefs(t)) {
-    | (_, Bi) => true
+    | (Bi | Post, _) => true
     | _ => false
     };
 
@@ -63,31 +73,7 @@ let remove_spaces: Segment.t => Segment.t =
     [],
   );
 
-let rec pad_according_to_prefs: Segment.t => Segment.t =
-  /*  Fold through pieces, adding spaces before and after each tile
-      according to their preferences. (this may result in doubles
-      and spaces adjacent to linebreaks) */
-  ps =>
-    List.fold_left(
-      (acc, p) => {
-        switch ((p: Piece.t)) {
-        | Tile(t) =>
-          let t = pad_inside(t);
-          acc
-          @ (should_pad_outside(t) ? [Piece.space] : [])
-          @ [Piece.Tile(t)]
-          @ (should_pad_outside(t) ? [Piece.space] : []);
-        | _ => acc @ [p]
-        }
-      },
-      [],
-      ps,
-    )
-and pad_inside: Tile.t => Tile.t =
-  ({children, _} as tile) => {
-    ...tile,
-    children: List.map(pad_according_to_prefs, children),
-  };
+let new_space = _ => Piece.Whitespace({content: " ", id: mk_id()});
 
 type last_seen =
   | Space
@@ -106,9 +92,12 @@ let collapse_space_runs: Segment.t => Segment.t =
               Space,
               last_seen != Other ? acc : acc @ [p],
             )
-          | Whitespace({content, _}) when content == Whitespace.linebreak => (
+          | Whitespace({content, _}) when content == Whitespace.linebreak =>
+            /* if the last thing we saw was a space, lose it */
+            (
               Linebreak,
-              acc @ [p],
+              last_seen == Space && acc != []
+                ? fst(Util.ListUtil.split_last(acc)) @ [p] : acc @ [p],
             )
           | _ => (Other, acc @ [p])
           }
@@ -119,79 +108,177 @@ let collapse_space_runs: Segment.t => Segment.t =
     ps;
   };
 
-let format_segment: Segment.t => Segment.t =
-  x => x |> remove_spaces |> pad_according_to_prefs |> collapse_space_runs;
+let rec get_leading_spaces: Segment.t => Segment.t =
+  fun
+  | [] => []
+  | [p, ...ps] =>
+    switch ((p: Piece.t)) {
+    | Whitespace({content, _}) when content == Whitespace.space => [
+        p,
+        ...get_leading_spaces(ps),
+      ]
+    | _ => []
+    };
 
-let get_trailing_spaces: Segment.t => Segment.t =
-  ps =>
-    ps
-    |> List.rev
-    |> List.fold_left(
-         (acc, p) => {
-           switch ((p: Piece.t)) {
-           | Whitespace({content, _}) when content == Whitespace.space =>
-             acc @ [p]
-           | _ => acc
-           }
-         },
-         [],
-       )
-    |> List.rev;
-
-let should_back_pad: Relatives.t => bool =
+let should_back_pad_whole_seg: Relatives.t => bool =
   r =>
     switch (Relatives.parent(r)) {
     | None => false
     | Some(p) =>
       switch (p) {
-      | Tile(t) => should_pad_inside(t)
+      | Tile(t) =>
+        switch (pad_prefs(t)) {
+        | (_, Bi) => true
+        | _ => false
+        }
       | _ => false
       }
     };
 
-let should_front_pad: Relatives.t => bool =
-  r =>
-    switch (Relatives.parent(r)) {
-    | None => false
-    | Some(p) =>
-      switch (p) {
-      | Tile(t) => should_pad_inside(t)
-      | _ => false
-      }
-    };
-
-let format: Zipper.t => Zipper.t =
-  ({relatives: {siblings: (l_sibs, r_sibs), _}, _} as z) => {
-    let trailing_spaces = get_trailing_spaces(l_sibs);
-    let l_sibs = format_segment(l_sibs);
-    let l_sibs =
-      should_front_pad(z.relatives) ? [Piece.space, ...l_sibs] : l_sibs;
-    let l_sibs = l_sibs @ trailing_spaces;
-    let r_sibs = format_segment(r_sibs);
-    let r_sibs =
-      should_back_pad(z.relatives) ? r_sibs @ [Piece.space] : r_sibs;
-    {
-      ...z,
-      relatives: {
-        ...z.relatives,
-        siblings: (l_sibs, r_sibs),
-      },
-    };
+let should_front_pad_whole_seg' = t =>
+  switch (pad_prefs(t)) {
+  | (_, Bi) => true
+  | _ => false
   };
 
-/*
- always: dont space-pad infix grout
+let should_front_pad_whole_seg: Relatives.t => bool =
+  r =>
+    switch (Relatives.parent(r)) {
+    | None => false
+    | Some(p) =>
+      switch (p) {
+      | Tile(t) => should_front_pad_whole_seg'(t)
+      | _ => false
+      }
+    };
 
- always: dont delete space immediately before caret; need it to type normally
+let front_pad_seg = (should_front_pad, seg) => {
+  should_front_pad
+    ? switch (seg) {
+      | [] => []
+      | [p, ..._] when Piece.is_whitespace(p) => seg
+      | _ => [new_space(), ...seg]
+      }
+    : seg;
+};
 
- on format:
- regularize spaces around ops. default to the space/lack to the left
- (optional: space-pad or no-pad all ops)
+let back_pad_seg = (should_back_pad, seg) => {
+  should_back_pad
+    ? switch (List.rev(seg)) {
+      | [] => []
+      | [p, ..._] when Piece.is_whitespace(p) => seg
+      | _ => seg @ [new_space()]
+      }
+    : seg;
+};
 
- insert spaces around+between: fun, let, cond, case, rule
+let rec pad_according_to_prefs: Segment.t => Segment.t =
+  /*  Fold through pieces, adding spaces before and after each tile
+      according to their preferences. (this may result in doubles
+      and spaces adjacent to linebreaks) */
+  ps =>
+    List.fold_left(
+      (acc, p) => {
+        switch ((p: Piece.t)) {
+        | Tile(t) =>
+          let t = pad_inside(t);
+          acc
+          @ (should_pad_front(t) ? [new_space()] : [])
+          @ [Piece.Tile(t)]
+          @ (should_pad_back(t) ? [new_space()] : []);
+        | _ => acc @ [p]
+        }
+      },
+      [],
+      ps,
+    )
+and pad_inside: Tile.t => Tile.t =
+  ({children, _} as tile) => {
+    let should_front_pad = should_front_pad_whole_seg'(tile);
+    {
+      ...tile,
+      children: List.map(format_segment(should_front_pad), children),
+    };
+  }
+and format_segment: (bool, Segment.t) => Segment.t =
+  (should_front_pad, x) =>
+    x
+    |> remove_spaces
+    |> pad_according_to_prefs
+    |> front_pad_seg(should_front_pad)
+    |> back_pad_seg(should_front_pad)
+    |> collapse_space_runs;
 
- then: get rid of double spaces, spaces at beginning/end of lines
- (again xcept near caret)
-
-
-  */
+let format: Zipper.state => Zipper.state =
+  (({relatives: {siblings: (l_sibs, r_sibs), _}, _} as z, id_gen)) =>
+    /*  note that this currently doesn't go into ancestors */
+    if (z.caret == Outer) {
+      // when making a decision about what to add, use is_whitespace
+      // when makeing a decision about what to remove, use is SPACE
+      set_id_gen(id_gen);
+      let trailing_spaces =
+        l_sibs |> List.rev |> get_leading_spaces |> List.rev;
+      let should_inside_pad =
+        switch (Relatives.parent(z.relatives)) {
+        | None => false
+        | Some(p) =>
+          switch (p) {
+          | Tile(t) => should_front_pad_whole_seg'(t)
+          | _ => false
+          }
+        };
+      let l_sibs = format_segment(should_inside_pad, l_sibs);
+      //supress trailing spaces; want to leave user in control of ws before caret
+      let l_sibs =
+        switch (List.rev(l_sibs)) {
+        | [Whitespace({content, _}), ...rest]
+            when content == Whitespace.space =>
+          List.rev(rest)
+        | _ => l_sibs
+        };
+      let l_sibs = l_sibs @ trailing_spaces;
+      let l_sibs =
+        should_front_pad_whole_seg(z.relatives)
+          ? switch (l_sibs) {
+            | _ when l_sibs == [] => [] //respect user's empty head
+            // don't add if there's already a space (shouldn't be?)
+            | [p, ..._] when Piece.is_whitespace(p) => l_sibs
+            | _ => [new_space(), ...l_sibs]
+            }
+          : l_sibs;
+      let l_sibs_ends_in_ws =
+        switch (List.rev(l_sibs)) {
+        | [p, ..._] when Piece.is_whitespace(p) => true
+        | _ => false
+        };
+      //TODO: if l_sibs ends up empty, possibly left-pad the r-sibs based on parent pref
+      let r_sibs = format_segment(should_inside_pad, r_sibs);
+      // if the l_sibs ends in a ws or lb and the rsibs ends in a ws, remove the ws
+      let r_sibs =
+        switch (l_sibs_ends_in_ws, r_sibs) {
+        | (true, [Whitespace({content, _}), ...rest])
+            when content == Whitespace.space => rest
+        | (true, []) => []
+        | _ =>
+          should_back_pad_whole_seg(z.relatives)
+            ? switch (List.rev(r_sibs)) {
+              // don't add if there's already a space
+              | [p, ..._] when Piece.is_whitespace(p) => r_sibs
+              | _ => r_sibs @ [new_space()]
+              }
+            : r_sibs
+        };
+      (
+        {
+          ...z,
+          relatives: {
+            ...z.relatives,
+            siblings: (l_sibs, r_sibs),
+          },
+        },
+        id_local^,
+      );
+    } else {
+      print_endline("format: caret not at outer, not running");
+      (z, id_gen);
+    };
