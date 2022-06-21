@@ -281,3 +281,22 @@ let format =
     };
   ((l_sibs, r_sibs), id_local^);
 };
+
+
+/* new plan:
+
+seperate systems:
+1. whole-code autoformatter
+2. insertion-specific whitespace adder (NO removal, NOT on deletion, NOT on movement)
+
+1 could be triggered manually, or on e.g. linebreaks/line-changes
+
+2 would ideally produce the exact same result as 1 if you just do 'normal' forward entry
+
+2 does need to take into account the context, but ideally only the direct neighbors,
+to see if they are whitespaces.
+
+2 could ideally be done at the construct level; not sure tho
+
+
+*/
