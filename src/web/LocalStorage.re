@@ -4,16 +4,7 @@ open Core;
 let default_editor_idx = 1;
 
 let editor_defaults = [
-  "0",
-  "let foo =
-fun taz -> {
-case taz of {
-| (2, torb) -> bargle + 7*torb
-| (blee, 5) -> krunk ? blee : 66
-}
-}
-in foo(0!)",
-  "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
+  "",
   "",
   "fun square, p1, p2 ->
 if square then
@@ -31,10 +22,21 @@ let mark = fun center -> circle(center, 4) in
 |> map(translate(6, 7))
 |> filter(fun shape -> area(shape) < 50)
 |> map(dilate(5))",
-  "6",
+  "let wx = observe(msg, transform_w(transform_x(shapes))) in
+let yz = transform_y(transform_z(shapes)) in
+[wx; yz]",
   "7",
   "8",
   "9",
+  "let foo =
+fun taz -> {
+case taz of {
+| (2, torb) -> bargle + 7*torb
+| (blee, 5) -> krunk ? blee : 66
+}
+}
+in foo(0!)",
+  "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
 ];
 
 let editor_captions = [
