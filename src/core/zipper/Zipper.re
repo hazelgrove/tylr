@@ -270,6 +270,9 @@ module Outer = {
     | (Some(kw), _) =>
       let (new_label, direction) = Molds.delayed_completion(kw, Left);
       replace(direction, new_label, state);
+    //| (_, Some(kw)) =>
+    //  let (new_label, direction) = Molds.delayed_completion(kw, Right);
+    //  replace(direction, new_label, state);
     | _ => Some(state)
     };
 
@@ -480,10 +483,15 @@ let split =
   let (l, r) = Token.split_nth(idx, t);
   z
   |> set_caret(Outer)
-  |> Outer.select(Right)
-  |> Option.map(z => Outer.construct(Right, [r], z, id_gen))  //overwrite right
-  |> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(char));
+  |> Outer.move(Right)
+  //Outer.select(Left))
+  |> OptUtil.and_then(z => Outer.select(Left, z))  //gonna overwrite
+  |> Option.map(z => (z, id_gen))
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(l))
+  //|> Option.map(z => Outer.construct(Right, [r], z, id_gen))  //overwrite right
+  //|> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(char))
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(r));
 };
 
 let insert =
