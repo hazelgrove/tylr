@@ -807,6 +807,17 @@ let rec move_to_backpack_target = (d: plane_move, map, z: t): option(t) => {
   };
 };
 
+let format: state => state =
+  ((z, id_gen)) =>
+    if (z.caret == Outer) {
+      print_endline("format: running");
+      let (siblings, id_gen) = Format.format(z.relatives, id_gen);
+      (update_siblings(_ => siblings, z), id_gen);
+    } else {
+      print_endline("format: caret not at outer, not running");
+      (z, id_gen);
+    };
+
 let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
@@ -816,6 +827,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     | Extreme(d) =>
       do_extreme(move(ByToken, from_plane(d)), d, z)
       |> Option.map(IdGen.id(id_gen))
+      //|> Option.map(format)
       |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
       /* Note: Don't update target on vertical movement */
@@ -831,6 +843,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
           }
       )
       |> Option.map(IdGen.id(id_gen))
+      //|> Option.map(format)
       |> Result.of_option(~error=Action.Failure.Cant_move)
     }
   | Unselect =>
@@ -856,6 +869,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     |> destruct_or_merge(d)
     |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
+    |> Option.map(format)
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
     (z, id_gen)
@@ -863,6 +877,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     /* note: remolding here is done case-by-case */
     //|> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
+    |> Option.map(format)
     |> Result.of_option(~error=Action.Failure.Cant_insert)
   | Pick_up => Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
   | Put_down =>
@@ -870,6 +885,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     |> put_down
     |> Option.map(z => remold_regrout(Left, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
+    |> Option.map(format)
     |> Result.of_option(~error=Action.Failure.Cant_put_down)
   | RotateBackpack =>
     Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))

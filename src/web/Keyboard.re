@@ -63,7 +63,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
-        | "F3" => now(Apply(Format.format))
+        | "F3" => now(Apply(Zipper.format))
         | "F4" =>
           print_endline("F4 SAVE");
           [Save];
