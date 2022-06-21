@@ -7,7 +7,6 @@ open Node;
 //   let l =
 //     Measured.(
 //       spaces(
-//         // HACK
 //         Selected,
 //         [
 //           piece(0, Exp, ((Convex, 0), (Convex, 0)), "t"),
