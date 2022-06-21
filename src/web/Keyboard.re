@@ -71,7 +71,7 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
           [Load];
         | "F8" =>
           print_endline("F8 LOAD DEFAULT");
-          [LoadDefault];
+          [LoadDefault, Save];
         | "Shift" =>
           let cur_ts = JsUtil.date_now()##valueOf;
           switch (double_tap) {
