@@ -212,10 +212,11 @@ module Outer = {
 
   let directional_put_down = (d: Direction.t, z: t): option(t) => {
     //TODO(andrew): duplication with above fn
-    let* z = directional_destruct(d, z);
+    //let* z = directional_destruct(d, z);
+    let z = destruct(z);
     let+ (_, popped, backpack) = pop_backpack(z);
     IncompleteBidelim.set(popped.content);
-    {...z, backpack} |> put_selection(popped) |> unselect;
+    {...z, backpack} |> put_selection(popped) |> directional_unselect(d);
   };
 
   let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
@@ -502,7 +503,7 @@ let split =
   |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Left, char))
   //|> Option.map(((z, id_gen)) => Outer.construct(Right, [r], z, id_gen));
   // TODO(andrew): change below to Right and make it actually work...
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Left, r));
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Right, r));
 };
 
 let insert =
