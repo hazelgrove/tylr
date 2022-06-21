@@ -210,6 +210,18 @@ module Outer = {
     {...z, backpack} |> put_selection(popped) |> unselect;
   };
 
+  let directional_put_down = (d: Direction.t, z: t): option(t) => {
+    //TODO(andrew): duplication with above fn
+    //TODO(andrew): doesn't seem to be working
+    let z = destruct(z);
+    let+ (_, popped, backpack) = pop_backpack(z);
+    IncompleteBidelim.set(popped.content);
+    let z' = {...z, backpack};
+    let selection =
+      d == Right ? Selection.toggle_focus(z'.selection) : z'.selection;
+    {...z', selection} |> put_selection(popped) |> unselect;
+  };
+
   let construct = (from: Direction.t, label: Label.t, z: t): IdGen.t(t) => {
     IdGen.Syntax.(
       switch (label) {
@@ -246,7 +258,8 @@ module Outer = {
   let barf_or_construct =
       (t: Token.t, direction_pref: Direction.t, z: t): IdGen.t(t) => {
     let barfed =
-      Backpack.is_first_matching(t, z.backpack) ? put_down(z) : None;
+      Backpack.is_first_matching(t, z.backpack)
+        ? directional_put_down(direction_pref, z) : None;
     switch (barfed) {
     | Some(z) => IdGen.return(z)
     | None =>
@@ -262,29 +275,28 @@ module Outer = {
     };
   };
 
-  let expand_keyword = ((z, _) as state: state): option(state) =>
+  let expand_keyword =
+      (d: Direction.t, (z, _) as state: state): option(state) =>
     /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
        is down (removing the rest of the set from backpack on edit) as something
        like this is necessary for backspace to act as undo after kw-expansion */
+    //TODO(andrew): explore making this take a directional parameter; could expand the left as well?
     switch (neighbor_monotiles(z.relatives.siblings)) {
     | (Some(kw), _) =>
-      let (new_label, direction) = Molds.delayed_completion(kw, Left);
+      let (new_label, direction) = Molds.delayed_completion(kw, d);
       replace(direction, new_label, state);
-    //TODO(andrew): explore making this take a directional parameter; could expand the left as well
-    //| (_, Some(kw)) =>
-    //  let (new_label, direction) = Molds.delayed_completion(kw, Right);
-    //  replace(direction, new_label, state);
     | _ => Some(state)
     };
 
-  let expand_and_barf_or_construct = (char: string, state: state) =>
+  let expand_and_barf_or_construct =
+      (d: Direction.t, char: string, state: state) =>
     state
-    |> expand_keyword
-    |> Option.map(((z, id_gen)) => barf_or_construct(char, Left, z, id_gen));
+    |> expand_keyword(d)
+    |> Option.map(((z, id_gen)) => barf_or_construct(char, d, z, id_gen));
 
   let insert = (char: string, (z, id_gen): state): option(state) =>
     switch (sibling_appendability(char, z.relatives.siblings)) {
-    | AppendNeither => expand_and_barf_or_construct(char, (z, id_gen))
+    | AppendNeither => expand_and_barf_or_construct(Left, char, (z, id_gen))
     | AppendLeft(new_t) =>
       z
       |> directional_destruct(Left)
@@ -485,15 +497,15 @@ let split =
   z
   |> set_caret(Outer)
   |> Outer.move(Right)
-  //Outer.select(Left))
+  //|> Outer.select(Right)
   |> OptUtil.and_then(z => Outer.select(Left, z))  //gonna overwrite
   |> Option.map(z => (z, id_gen))
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(l))
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Left, l))
   //|> Option.map(z => Outer.construct(Right, [r], z, id_gen))  //overwrite right
   //|> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(char))
-  |> Option.map(((z, id_gen)) => Outer.construct(Right, [r], z, id_gen));
-  //|> OptUtil.and_then(Outer.expand_and_barf_or_construct(r));
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Left, char))
+  //|> Option.map(((z, id_gen)) => Outer.construct(Right, [r], z, id_gen));
+  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(Right, r));
 };
 
 let insert =
