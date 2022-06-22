@@ -805,6 +805,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     switch (d) {
     | Extreme(d) =>
       do_extreme(move(ByToken, from_plane(d)), d, z)
+      |> Option.map(update_target)
       |> Option.map(IdGen.id(id_gen))
       |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
