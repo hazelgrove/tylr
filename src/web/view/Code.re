@@ -169,7 +169,9 @@ module Deco =
       };
     let can_put_down =
       switch (Zipper.pop_backpack(z)) {
-      | Some(_) => true
+      // caret thing is hack; i don't know why pop_backpack
+      // gives us what we want here
+      | Some(_) => z.caret == Outer
       | None => false
       };
     let caret_adj = {

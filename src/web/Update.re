@@ -50,6 +50,14 @@ let update_settings =
   settings;
 };
 
+let move_to_start = z =>
+  switch (
+    Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
+  ) {
+  | Some(z) => z
+  | None => z
+  };
+
 let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   //print_endline("Update.apply");
   switch (update) {
@@ -69,6 +77,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
         ([], model.id_gen),
         List.init(LocalStorage.num_editors, n => n),
       );
+    let zs = List.map(move_to_start, zs);
     {
       ...model,
       history: ActionHistory.empty,
@@ -82,7 +91,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     | Some((z, id_gen)) => {
         ...model,
         history: ActionHistory.empty,
-        editor_model: Model.put_zipper(model, z),
+        editor_model: Model.put_zipper(model, move_to_start(z)),
         id_gen,
       }
     | None => model
@@ -93,7 +102,7 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
     | Some((z, id_gen)) => {
         ...model,
         history: ActionHistory.empty,
-        editor_model: Model.put_zipper(model, z),
+        editor_model: Model.put_zipper(model, move_to_start(z)),
         id_gen,
       }
     | None => model

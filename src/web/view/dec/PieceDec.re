@@ -84,8 +84,14 @@ let simple_shard =
     : t => {
   let nib_shapes = Mold.nib_shapes(index, mold);
   let path = simple_shard_path(nib_shapes, last.col - origin.col);
-  let clss = ["tile-path", "raised", "indicated", Sort.to_string(mold.out)];
-  DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
+  let path_cls = [
+    "tile-path",
+    "raised",
+    "indicated",
+    Sort.to_string(mold.out),
+  ];
+  let base_cls = ["tile-indicated"];
+  DecUtil.code_svg(~font_metrics, ~origin, ~base_cls, ~path_cls, path);
 };
 
 let chunky_shard =
