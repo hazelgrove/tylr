@@ -299,7 +299,11 @@ module Trim = {
       let (wss, gs) = trim;
       // convert unneeded grout to whitespace
       let new_ws =
-        List.map(({id, _}: Grout.t) => Whitespace.mk_space(id), gs);
+        switch (List.find_opt(Whitespace.is_linebreak, List.flatten(wss))) {
+        | None => []
+        | Some(_) =>
+          List.map(({id, _}: Grout.t) => Whitespace.mk_space(id), gs)
+        };
       IdGen.return(Aba.mk([List.concat(wss) @ new_ws], []));
     } else {
       let (_, gs) as merged = merge(trim);
