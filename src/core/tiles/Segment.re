@@ -269,19 +269,6 @@ module Trim = {
     | None => Aba.mk([List.concat(wss)], [])
     | Some(g) =>
       let (ws, wss) = ListUtil.split_first(wss);
-      /*
-       print_endline("ws");
-       print_endline(show_bleh(ws));
-       print_endline("wss");
-       print_endline(show_bleh2(wss));*/
-      /*let (ws, wss) =
-        switch (ListUtil.split_last_opt(ws)) {
-        | Some((ws', w')) when Whitespace.is_linebreak(w') => (
-            ws',
-            [[w']] @ wss,
-          )
-        | _ => (ws, wss)
-        };*/
       Aba.mk([ws, List.concat(wss)], [g]);
     };
   };
