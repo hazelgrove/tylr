@@ -85,7 +85,7 @@
   --rul-shadow-color: #d461d0;
 
   --nul-bg-color: #b6b6b6;
-  --nul-shadow-color: #666666;
+  --nul-shadow-color: #a97804;
 
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c2a964;
@@ -410,15 +410,12 @@
   font-weight: bold;
 }
 
-.tile-path {
+/*.tile-path {
   stroke-width: 0.4;
   fill-rule: evenodd;
   fill: var(--nul-bg-color);
-}
+}*/
 
-.tile-path.raised {
-  stroke-width: 0.4;
-}
 .tile-path.selected {
   fill: var(--selection-color);
 }
@@ -439,12 +436,20 @@
 }
 
 
+/* TODO(andrew): hack important */
+.tile-path.raised.selected {
+  filter: url(#raised-drop-shadow-Nul) !important;
+}
+
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
   filter: url(#drop-shadow-Exp);
 }
 
 .tile-path.Any.indicated {
+  fill: #f0dead;
+}
+.tile-path.Any.indicated-caret {
   fill: #f0dead;
 }
 .tile-path.Any.raised {
@@ -460,7 +465,7 @@
   /*fill:#b9e3be;*/
 }
 .tile-path.Exp.indicated-caret {
-  fill: #f6cba8;
+  fill: #feddb3;
   /*fill:#b9e3be;*/
 }
 .Exp.indicated-child {
@@ -470,9 +475,7 @@
   z-index: -1;
 }
 
-.tile-path.Exp.raised {
-  filter: url(#raised-drop-shadow-Exp);
-}
+
 #drop-shadow-Exp .tile-drop-shadow,
 #raised-drop-shadow-Exp .tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
@@ -491,7 +494,6 @@
 .Pat.indicated-child {
   fill: #e4f1fa;
 }
-
 .tile-path.Pat.raised {
   filter: url(#raised-drop-shadow-Pat);
 }
