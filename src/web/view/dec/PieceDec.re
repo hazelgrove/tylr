@@ -222,12 +222,12 @@ let uni_lines =
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
-                dy: -. DecUtil.short_tip_height,
+                dy: -. DecUtil.short_tip_height /. 2. //hack
               }),
-              L_({
-                dx: DecUtil.short_tip_width,
-                dy: -. DecUtil.short_tip_height,
-              }),
+              //L_({
+              //  dx: DecUtil.short_tip_width,
+              //  dy: -. DecUtil.short_tip_height,
+              //}),
             ],
           )
           : (
@@ -252,9 +252,9 @@ let uni_lines =
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
-                dy: DecUtil.short_tip_height,
+                dy: DecUtil.short_tip_height /. 2. //hack
               }),
-              L_({dx: DecUtil.short_tip_width, dy: DecUtil.short_tip_height}),
+              //L_({dx: DecUtil.short_tip_width, dy: DecUtil.short_tip_height}),
             ],
           ),
       ];
@@ -267,9 +267,9 @@ let uni_lines =
     let hook = [
       L_({
         dx: DecUtil.short_tip_width,
-        dy: Float.neg(DecUtil.short_tip_height),
+        dy: Float.neg(DecUtil.short_tip_height) /. 2. //hack
       }),
-      L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
+      //L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
     ];
     if (r.row == m_last.last.row && r.col != m_last.last.col) {
       [

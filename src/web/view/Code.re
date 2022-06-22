@@ -100,19 +100,25 @@ module Text = (M: {
       );
     let is_consistent = Sort.consistent(t.mold.out, expected_sort);
     Aba.mk(t.shards, children_and_sorts)
-    |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
+    |> Aba.join(of_delim(t.mold.out, is_consistent, t), ((seg, sort)) =>
          of_segment(~sort, seg)
        )
     |> List.concat;
   }
-  and of_delim = (is_consistent, t: Piece.tile, i: int): list(Node.t) => {
+  and of_delim =
+      (sort: Sort.t, is_consistent, t: Piece.tile, i: int): list(Node.t) => {
     let cls =
       List.length(t.label) == 1
         ? is_consistent ? "single" : "mono-sort-inconsistent"
         : is_consistent
             ? Tile.is_complete(t) ? "delim" : "delim-incomplete"
             : "delim-sort-inconsistent";
-    [span_c(cls, [Node.text(List.nth(t.label, i))])];
+    [
+      span(
+        [Attr.classes([cls, "text-" ++ Sort.to_string(sort)])],
+        [Node.text(List.nth(t.label, i))],
+      ),
+    ];
   };
 };
 
