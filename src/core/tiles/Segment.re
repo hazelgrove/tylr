@@ -257,12 +257,31 @@ module Trim = {
 
   let ws = ((wss, _): t): seg => List.(map(Piece.whitespace, concat(wss)));
 
+  [@deriving show]
+  type bleh = list(Whitespace.t);
+  [@deriving show]
+  type bleh2 = list(list(Whitespace.t));
+  [@deriving show]
+  type bleh3 = list(Grout.t);
   // postcond: result is either <ws> or <ws,g,ws'>
   let merge = ((wss, gs): t): t => {
     switch (Grout.merge(gs)) {
     | None => Aba.mk([List.concat(wss)], [])
     | Some(g) =>
       let (ws, wss) = ListUtil.split_first(wss);
+      /*
+       print_endline("ws");
+       print_endline(show_bleh(ws));
+       print_endline("wss");
+       print_endline(show_bleh2(wss));*/
+      /*let (ws, wss) =
+        switch (ListUtil.split_last_opt(ws)) {
+        | Some((ws', w')) when Whitespace.is_linebreak(w') => (
+            ws',
+            [[w']] @ wss,
+          )
+        | _ => (ws, wss)
+        };*/
       Aba.mk([ws, List.concat(wss)], [g]);
     };
   };
@@ -284,27 +303,47 @@ module Trim = {
     | [ws, ...wss] => List.cons(ws, rm_up_to_one_space(wss))
     };
 
+  let scooch_over_linebreak = wss' =>
+    switch (wss') {
+    | [ws, [w, ...ws'], ...wss] when Whitespace.is_linebreak(w) => [
+        ws @ [w],
+        ws',
+        ...wss,
+      ]
+    | _ => wss'
+    };
+
   let add_grout = (shape: Nib.Shape.t, trim: t): IdGen.t(t) => {
     open IdGen.Syntax;
     let+ g = Grout.mk_fits_shape(shape);
     let (wss, gs) = trim;
-    // if we're adding a grout, remove a whitespace
+    /* If we're adding a grout, remove a whitespace. Note that
+       changes made to the logic here should also take into
+       account the other direction in 'regrout' below. */
     let trim = (rm_up_to_one_space(wss), gs);
-    cons_g(g, trim);
+    let (wss', gs') = cons_g(g, trim);
+    /* Hack to supress the addition of leading whitespace on a line */
+    let wss' = scooch_over_linebreak(wss');
+    (wss', gs');
   };
 
   // assumes grout in trim fit r but may not fit l
   let regrout = ((l, r): Nibs.shapes, trim: t): IdGen.t(t) =>
     if (Nib.Shape.fits(l, r)) {
       let (wss, gs) = trim;
-      // convert unneeded grout to whitespace
-      let new_ws =
-        switch (List.find_opt(Whitespace.is_linebreak, List.flatten(wss))) {
-        | None => []
-        | Some(_) =>
-          List.map(({id, _}: Grout.t) => Whitespace.mk_space(id), gs)
-        };
-      IdGen.return(Aba.mk([List.concat(wss) @ new_ws], []));
+      /* Convert unneeded grout to spaces. Note that changes made
+         to the logic here should also take into account the
+         conversion of spaces to grout in 'add_grout' above. */
+      let new_spaces =
+        List.map(({id, _}: Grout.t) => Whitespace.mk_space(id), gs);
+      /* Note below that it is important that we add the new spaces
+         before the existing wss, as doing otherwise may result
+         in the new spaces ending up leading a line. This approach is
+         somewhat hacky; we may just want to remove all the spaces
+         whenever there is a linebreak; not making this chance now
+         as I'm worried about it introducing subtle jank */
+      let wss = [new_spaces @ List.concat(wss)];
+      IdGen.return(Aba.mk(wss, []));
     } else {
       let (_, gs) as merged = merge(trim);
       switch (gs) {
