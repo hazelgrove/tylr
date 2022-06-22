@@ -30,8 +30,8 @@ let mk_fits_shape = (s: Nib.Shape.t): IdGen.t(t) => {
     };
   {id, shape};
 };
-let mk_fits = ((l, r): Nibs.shapes): option(IdGen.t(t)) =>
-  Nib.Shape.fits(l, r) ? None : Some(mk_fits_shape(l));
+//let mk_fits = ((l, r): Nibs.shapes): option(IdGen.t(t)) =>
+//  Nib.Shape.fits(l, r) ? None : Some(mk_fits_shape(l));
 
 let fits_shape = (g: t, s: Nib.Shape.t) =>
   switch (g.shape, s) {

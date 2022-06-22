@@ -120,11 +120,11 @@ let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
           : (
             switch (d) {
             | Left =>
-              let+ g = Grout.mk_fits_shape(s_r);
-              (seg_l, to_seg(cons_g(g, trim_r)));
+              let+ trim = add_grout(s_r, trim_r);
+              (seg_l, to_seg(trim));
             | Right =>
-              let+ g = Grout.mk_fits_shape(s_l);
-              (to_seg(cons_g(g, trim_l)), seg_r);
+              let+ trim = add_grout(s_l, trim_l);
+              (to_seg(trim), seg_r);
             }
           )
       };

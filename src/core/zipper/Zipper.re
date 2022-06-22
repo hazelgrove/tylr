@@ -217,7 +217,7 @@ module Outer = {
         let+ id = IdGen.fresh;
         z
         |> update_siblings(((l, r)) =>
-             (l @ [Piece.Whitespace({id, content})], r)
+             (l @ [Whitespace({id, content})], r)
            );
       | _ =>
         let z = destruct(z);
@@ -225,7 +225,6 @@ module Outer = {
         assert(molds != []);
         // initial mold to typecheck, will be remolded
         let mold = List.hd(molds);
-
         let+ id = IdGen.fresh;
         let selections =
           Tile.split_shards(id, label, mold, List.mapi((i, _) => i, label))
@@ -251,14 +250,7 @@ module Outer = {
     | Some(z) => IdGen.return(z)
     | None =>
       let (lbl, direction) = Molds.instant_completion(t, direction_pref);
-      /* NOTE(andrew): Temp hack to suppress whitespace next
-         to infix grout. We verify both that whitespace is being
-         inserted, and that there will be a shape mismatch. The
-         latter check is necessary for cases like let|x, where
-         there won't actually be an infix grout inserted, so we
-         want there to be a space. */
-      lbl == [Whitespace.space] && Siblings.is_mismatch(z.relatives.siblings)
-        ? IdGen.return(z) : construct(direction, lbl, z);
+      construct(direction, lbl, z);
     };
   };
 
