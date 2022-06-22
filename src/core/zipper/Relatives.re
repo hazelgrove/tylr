@@ -82,7 +82,7 @@ let shape_rank = ({siblings, ancestors}: t) => {
 };
 
 let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
-  open IdGen.Syntax; /* Direction is side of caret on which to favor for grout insertion */
+  open IdGen.Syntax; /* Direction is side of grout caret will end up on */
 
   let* ancestors = Ancestors.regrout(ancestors);
   let+ siblings = {
@@ -96,6 +96,7 @@ let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
       | (Some((_, g_l)), [g_r, ..._]) =>
         IdGen.return(
           Grout.fits(g_l, g_r)
+            // note: assumes single grout invariant in un-caret-interrupted trim
             ? (ws(trim_l), ws(trim_r))  //(ws(trim_l), seg_r)
             // note: can modulate as needed using a directional arg
             //TODO(andrew):???
