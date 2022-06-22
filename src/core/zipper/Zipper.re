@@ -852,7 +852,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | Destruct(d) =>
     (z, id_gen)
     |> destruct_or_merge(d)
-    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
+    |> Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>
