@@ -152,6 +152,56 @@ let concat = (rss: list(t)): t =>
     empty,
   );
 
+let reassemble_parent = (rs: t): t =>
+  switch (rs.ancestors) {
+  | [] => rs
+  | [(a, sibs), ...ancs] =>
+    let (l, r) =
+      rs.siblings
+      |> Siblings.split_by_matching(a.id)
+      |> TupleUtil.map2(Aba.trim);
+    let flatten_match =
+      Aba.fold_right(
+        (t: Tile.t, kid, (shards, kids)) =>
+          Aba.mk(t.shards @ shards, t.children @ [kid, ...kids]),
+        (t: Tile.t) => Aba.mk(t.shards, t.children),
+      );
+    let (a, l) =
+      switch (l) {
+      | None => (a, fst(rs.siblings))
+      | Some((outer_l, match_l, inner_l)) =>
+        let (shards_l, kids_l) = flatten_match(match_l);
+        let a = {
+          ...a,
+          shards: a.shards |> PairUtil.map_fst(ss => ss @ shards_l),
+          children:
+            a.children
+            |> PairUtil.map_fst(kids => kids @ [outer_l, ...kids_l]),
+        };
+        (a, inner_l);
+      };
+    let (a, r) =
+      switch (r) {
+      | None => (a, snd(rs.siblings))
+      | Some((inner_r, match_r, outer_r)) =>
+        let (shards_r, kids_r) = flatten_match(match_r);
+        let a = {
+          ...a,
+          shards: a.shards |> PairUtil.map_snd(ss => shards_r @ ss),
+          children:
+            a.children
+            |> PairUtil.map_snd(kids => [outer_r, ...kids_r] @ kids),
+        };
+        (a, inner_r);
+      };
+    {siblings: (l, r), ancestors: [(a, sibs), ...ancs]};
+  };
+
+let reassemble_siblings = (rs: t) => {
+  ...rs,
+  siblings: Siblings.reassemble(rs.siblings),
+};
+
 let reassemble = (rs: t): t => {
   let rec go = (rs: t): t =>
     switch (Segment.incomplete_tiles(snd(rs.siblings))) {
@@ -182,7 +232,7 @@ let reassemble = (rs: t): t => {
         {ancestors, siblings};
       }
     };
-  go({...rs, siblings: Siblings.reassemble(rs.siblings)});
+  rs |> reassemble_siblings |> reassemble_parent |> go;
 };
 
 // let rec reassemble = (rs: t): t => {

@@ -109,7 +109,7 @@
   --empty-hole-z: 5;
   --tile-z: 4;
   --code-text-z: 6;
-  --target-bounds-z: 7;
+  --code-text-shards-z: 7;
   --bar-z: 0;
   --inner-cousin-z: 9;
   --outer-cousin-caret-position-z: 9;
@@ -254,20 +254,6 @@
   fill: var(--light-text-color);
 }
 
-#target-bounds {
-  position: absolute;
-  z-index: var(--target-bounds-z);
-}
-#target-bounds stop.Exp {
-  stop-color: var(--exp-rail-color);
-}
-#target-bounds stop.Pat {
-  stop-color: var(--pat-rail-color);
-}
-#target-bounds stop.unsorted {
-  stop-color: var(--unsorted-rail-color);
-}
-
 .code {
   position: relative;
   line-height: var(--line-height);
@@ -285,10 +271,11 @@
 }
 
 /* NOTE(andrew): below 3 styles are part of
-   a hack to display incomplete delims in 
+   a hack to display incomplete delims in
    selections */
 .code-text-shards {
   position: absolute;
+  z-index: var(--code-text-shards-z);
 }
 .code-text-shards span {
   color: #0000 !important;
