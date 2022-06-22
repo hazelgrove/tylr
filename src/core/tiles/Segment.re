@@ -275,19 +275,36 @@ module Trim = {
   //   | [g, ..._] => (ws, Some((g, List.concat(wss))))
   //   };
   // };
+  let rec rm_up_to_one_space =
+          (wss: list(list(Whitespace.t))): list(list(Whitespace.t)) =>
+    switch (wss) {
+    | [] => []
+    | [[w, ...ws], ...wss] when Whitespace.is_space(w) =>
+      List.cons(ws, wss)
+    | [ws, ...wss] => List.cons(ws, rm_up_to_one_space(wss))
+    };
+
+  let add_grout = (shape: Nib.Shape.t, trim: t): IdGen.t(t) => {
+    open IdGen.Syntax;
+    let+ g = Grout.mk_fits_shape(shape);
+    let (wss, gs) = trim;
+    // if we're adding a grout, remove a whitespace
+    let trim = (rm_up_to_one_space(wss), gs);
+    cons_g(g, trim);
+  };
 
   // assumes grout in trim fit r but may not fit l
   let regrout = ((l, r): Nibs.shapes, trim: t): IdGen.t(t) =>
     if (Nib.Shape.fits(l, r)) {
-      let (wss, _) = trim;
-      IdGen.return(Aba.mk([List.concat(wss)], []));
+      let (wss, gs) = trim;
+      // convert unneeded grout to whitespace
+      let new_ws =
+        List.map(({id, _}: Grout.t) => Whitespace.mk_space(id), gs);
+      IdGen.return(Aba.mk([List.concat(wss) @ new_ws], []));
     } else {
       let (_, gs) as merged = merge(trim);
       switch (gs) {
-      | [] =>
-        open IdGen.Syntax;
-        let+ g = Grout.mk_fits_shape(l);
-        cons_g(g, merged);
+      | [] => add_grout(l, merged)
       | [_, ..._] => IdGen.return(merged)
       };
     };

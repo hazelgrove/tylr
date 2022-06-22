@@ -98,8 +98,6 @@ let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
           Grout.fits(g_l, g_r)
             // note: assumes single grout invariant in un-caret-interrupted trim
             ? (ws(trim_l), ws(trim_r))  //(ws(trim_l), seg_r)
-            // note: can modulate as needed using a directional arg
-            //TODO(andrew):???
             : (
               switch (d) {
               | Left => (ws(trim_l), seg_r)
@@ -120,15 +118,13 @@ let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
           ? IdGen.return((seg_l, seg_r))
           // can modulate with directional arg
           : (
-            //TODO(andrew):???
             switch (d) {
             | Left =>
-              let+ g = Grout.mk_fits_shape(s_r);
-              (seg_l, to_seg(cons_g(g, trim_r)));
+              let+ trim = add_grout(s_r, trim_r);
+              (seg_l, to_seg(trim));
             | Right =>
-              //TODO
-              let+ g = Grout.mk_fits_shape(s_l);
-              (to_seg(cons_g(g, trim_l)), seg_r);
+              let+ trim = add_grout(s_l, trim_l);
+              (to_seg(trim), seg_r);
             }
           )
       };
