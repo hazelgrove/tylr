@@ -4,7 +4,9 @@ type t = {
   content: string,
 };
 
-let id = w => w.id;
-
-let linebreak = "⏎"; //"¶"; //
 let space = " ";
+let linebreak = "⏎"; //"¶";//
+
+let mk_space = id => {content: space, id};
+
+let id = w => w.id;
