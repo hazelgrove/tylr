@@ -405,22 +405,34 @@ module Deco =
     | _ when z.selection.content != [] => []
     | None => []
     | Some((p, side)) =>
-      let ranges = TermRanges.mk(Zipper.zip(z));
-      switch (TermRanges.find_opt(Piece.id(p), ranges)) {
-      | None => []
-      | Some((p_l, p_r)) =>
-        let l = Measured.find_p(p_l, M.map).origin;
-        let r = Measured.find_p(p_r, M.map).last;
-        let nib_shape =
-          switch (Zipper.caret_direction(z)) {
-          | None => Nib.Shape.Convex
-          | Some(nib) => Nib.Shape.relative(nib, side)
+      let nib_shape =
+        switch (Zipper.caret_direction(z)) {
+        | None => Nib.Shape.Convex
+        | Some(nib) => Nib.Shape.relative(nib, side)
+        };
+      let range: option((Measured.point, Measured.point)) =
+        if (Piece.has_ends(p)) {
+          let ranges = TermRanges.mk(Zipper.zip(z));
+          switch (TermRanges.find_opt(Piece.id(p), ranges)) {
+          | None => None
+          | Some((p_l, p_r)) =>
+            let l = Measured.find_p(p_l, M.map).origin;
+            let r = Measured.find_p(p_r, M.map).last;
+            Some((l, r));
           };
+        } else {
+          // using range of piece itself hides unidelimited child borders
+          let m = Measured.find_p(p, M.map);
+          Some((m.origin, m.last));
+        };
+      switch (range) {
+      | None => []
+      | Some(range) =>
         PieceDec.view(
           ~font_metrics,
           ~rows=M.map.rows,
-          root_piece_profile(p, nib_shape, (l, r)),
-        );
+          root_piece_profile(p, nib_shape, range),
+        )
       };
     };
   };
