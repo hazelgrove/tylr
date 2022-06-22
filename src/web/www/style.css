@@ -284,13 +284,6 @@
   color: #ce9600 !important;
 }
 
-.caret {
-  z-index: var(--caret-z);
-}
-.caret-path {
-  fill: #f62116;
-  stroke: none;
-}
 .empty-hole {
   z-index: var(--empty-hole-z);
 }
@@ -935,4 +928,23 @@
 
 svg {
   overflow: visible;
+}
+
+#caret {
+  z-index: var(--caret-z);
+}
+#caret.blink {
+  animation: 1s blink step-end infinite;
+}
+.caret-path {
+  fill: #f62116;
+  stroke: none;
+}
+@keyframes blink {
+  from, to {
+    opacity: 100%;
+  }
+  50% {
+    opacity: 0%;
+  }
 }
