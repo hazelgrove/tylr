@@ -345,7 +345,7 @@
 .current-caret-pos-container {
   z-index: var(--current-caret-pos-z);
 }
-.sibling-container {
+.sibling{
   z-index: var(--caret-position-z);
 }
 .inner-cousin-container {
