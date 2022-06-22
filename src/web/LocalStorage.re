@@ -4,27 +4,43 @@ open Core;
 let default_editor_idx = 1;
 
 let editor_defaults = [
-  "0",
-  "let foo =
-fun taz => {
-case taz of {
-| (2, torb) => bargle + 7*torb
-| (blee, 5) => krunk ? blee : 66
-}
-}
-in foo(0!)",
-  "let foo = fun taz => (fun bar => (taz + 2*bar)) in foo(1!)",
-  "fun (center, p) =>
-let (x, y) = center in
-let (a, b) = p in
-let r = sqrt((x - a)*2 + (y - b)*2) in
-circle(center, r)",
-  "4",
-  "5",
-  "6",
+  "",
+  "",
+  "fun square, p1, p2 ->
+if square then
+let mark =
+fun center ->
+let x, y = center in
+rect(x - 2, y - 2, 4, 4)
+in
+[mark(p1), line(p1, p2), mark(p2)]
+else
+let mark =
+fun center ->
+let r = 4 in
+circle(center, 4)
+in
+[mark(p1), line(p1, p2), mark(p2)]",
+  "shapes
+|> map(rotate(pi / 4))
+|> map(translate(6, 7))
+|> filter(fun shape -> area(shape) < 50)
+|> map(dilate(5))",
+  "let wx = observe(msg, transform_w(transform_x(shapes))) in
+let yz = transform_y(transform_z(shapes)) in
+[wx; yz]",
   "7",
   "8",
   "9",
+  "let foo =
+fun taz -> {
+case taz of {
+| (2, torb) -> bargle + 7*torb
+| (blee, 5) -> krunk ? blee : 66
+}
+}
+in foo(0!)",
+  "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
 ];
 
 let editor_captions = [

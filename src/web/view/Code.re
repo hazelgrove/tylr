@@ -168,8 +168,10 @@ module Deco =
       | [hd, ..._] => Measured.segment_height(hd.content)
       };
     let can_put_down =
-      switch (Zipper.put_down(z)) {
-      | Some(_) => true
+      switch (Zipper.pop_backpack(z)) {
+      // caret thing is hack; i don't know why pop_backpack
+      // gives us what we want here
+      | Some(_) => z.caret == Outer
       | None => false
       };
     let caret_adj = {
@@ -444,12 +446,18 @@ module Deco =
     };
   };
 
-  let rec targets = (bp: Backpack.t, seg: Segment.t) => {
+  let rec targets = (~container_shards=?, bp: Backpack.t, seg: Segment.t) => {
+    let with_container_shards = ((pre, suf) as sibs) =>
+      switch (container_shards) {
+      | None => sibs
+      | Some((l, r)) => ([l, ...pre], suf @ [r])
+      };
     let root_targets =
-      // TODO(d): review correctness wrt splits reversing prefix
       ListUtil.splits(seg)
       |> List.map(((l, r)) => {
-           let sibs = Segment.(incomplete_tiles(l), incomplete_tiles(r));
+           let sibs =
+             Segment.(incomplete_tiles(l), incomplete_tiles(r))
+             |> with_container_shards;
            switch (Backpack.pop(sibs, bp)) {
            | None
            | Some((true, _, _)) => []
@@ -479,9 +487,14 @@ module Deco =
            | Piece.Tile(t) => Some(t)
            | _ => None,
          )
-      |> List.map((t: Tile.t) =>
-           List.concat(List.map(targets(bp), t.children))
-         )
+      |> List.map((t: Tile.t) => {
+           // TODO(d): unify with Relatives.local_incomplete_tiles
+           Tile.contained_children(t)
+           |> List.map(((l, seg, r)) =>
+                targets(~container_shards=(l, r), bp, seg)
+              )
+           |> List.concat
+         })
       |> List.concat
     };
   };
@@ -491,10 +504,10 @@ module Deco =
     List.concat([
       holes(seg),
       caret(z),
-      M.show_backpack_targets && Backpack.restricted(z.backpack)
-        ? targets(z.backpack, seg) : [],
       selected_pieces(z),
       indicated_piece_deco(z),
+      M.show_backpack_targets && Backpack.restricted(z.backpack)
+        ? targets(z.backpack, seg) : [],
     ]);
   };
 };

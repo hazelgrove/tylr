@@ -43,8 +43,11 @@ let whitespace = [Whitespace.space, Whitespace.linebreak];
 let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
   (
     "var",
-    (regexp("^[a-z][a-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
+    (regexp("^[a-z][A-Za-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
   ),
+  ("type", (regexp("^[A-Z][A-Za-z0-9_]*$"), [mk_op(Typ, [])])),
+  ("whatever", (regexp("#*$"), [mk_op(Nul, [])])),
+  ("whatever", (regexp("@*$"), [mk_op(Rul, [])])),
   ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
   ("wild", (regexp("^_$"), [mk_op(Pat, [])])),
 ];
@@ -59,15 +62,16 @@ let forms: list((string, t)) = [
   ("plus", mk_infix("+", Exp, P.plus)),
   // experimental operators (all follow substring property)
   ("not_equals", mk_infix("!=", Exp, 5)),
-  ("gt", mk_infix(">", Exp, P.gt)),
-  ("lt", mk_infix("<", Exp, 5)),
-  ("gte", mk_infix("<=", Exp, 5)),
-  ("lte", mk_infix(">=", Exp, 5)),
+  ("gt", mk_infix(">", Exp, P.eqs)),
+  ("lt", mk_infix("<", Exp, P.eqs)),
+  ("gte", mk_infix("<=", Exp, P.eqs)),
+  ("lte", mk_infix(">=", Exp, P.eqs)),
   ("bitwise_or", mk_infix("|", Exp, 5)),
   ("logical_or", mk_infix("||", Exp, 5)),
   ("bitwise_and", mk_infix("&", Exp, 5)),
   ("logical_and", mk_infix("&&", Exp, 5)),
   ("concat", mk_infix("++", Exp, 5)),
+  ("rev_ap", mk_infix("|>", Exp, P.eqs)),
   //("cons", mk_infix("::", Exp, 5)),
   // ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
   ("dot-access", mk_infix(".", Exp, 5)), // bad sorts
@@ -77,20 +81,23 @@ let forms: list((string, t)) = [
   ("minus", mk_infix("-", Exp, P.plus)),
   ("comma_exp", mk_infix(",", Exp, P.prod)),
   ("comma_pat", mk_infix(",", Pat, P.prod)),
+  ("semi", mk_infix(";", Exp, P.semi)),
   ("fact", mk(ss, ["!"], mk_post(P.fact, Exp, []))),
-  ("array_access", mk(ii, ["[", "]"], mk_post(P.ap, Exp, [Exp]))),
+  // ("array_access", mk(ii, ["[", "]"], mk_post(P.ap, Exp, [Exp]))),
+  ("list_lit", mk(ii, ["[", "]"], mk_op(Exp, [Exp]))),
   ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
-  ("fun_", mk(di, ["fun", "=>"], mk_pre(P.fun_, Exp, [Pat]))),
+  ("fun_", mk(di, ["fun", "->"], mk_pre(P.let_, Exp, [Pat]))),
+  ("if_", mk(di, ["if", "then", "else"], mk_pre(P.if_, Exp, [Exp, Exp]))),
   /* Something must instant on => as not valid monotile on its own */
   ("ap", mk(ii, ["(", ")"], mk_post(P.ap, Exp, [Exp]))),
   ("let_", mk(ds, ["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
   ("cond", mk(ii, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
   ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
   ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
-  ("rule_first", mk(ds, ["|", "=>"], mk_pre(9, Exp, [Pat]))),
+  ("rule_first", mk(ds, ["|", "->"], mk_pre(9, Exp, [Pat]))),
   /* Something must instant on | as not valid monotile on its own */
-  ("rule_rest", mk(ds, ["|", "=>"], mk_bin(9, Exp, [Pat]))),
+  ("rule_rest", mk(ds, ["|", "->"], mk_bin(9, Exp, [Pat]))),
 ];
 
 let get: Token.t => t = name => List.assoc(name, forms);

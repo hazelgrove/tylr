@@ -86,10 +86,11 @@ let simple_shard =
     : t => {
   let nib_shapes = Mold.nib_shapes(~index=this_index, mold);
   let path = simple_shard_path(nib_shapes, last.col - origin.col);
-  let clss =
+  let path_cls =
     ["tile-path", "raised", Sort.to_string(mold.out)]
     @ (index == this_index ? ["indicated-caret"] : ["indicated"]);
-  DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
+  let base_cls = ["tile-indicated"];
+  DecUtil.code_svg(~font_metrics, ~origin, ~base_cls, ~path_cls, path);
 };
 
 let simple_shard_child =
@@ -197,8 +198,20 @@ let uni_lines =
   open SvgUtil.Path;
   let l_line = {
     let (_, m_first) = List.hd(shards);
-    if (l.col != m_first.origin.col) {
-      let max_col = Measured.Rows.find(l.row, rows).max_col;
+    let (_, m_last_of_first) = {
+      let shard_rows = Measured.Shards.split_by_row(shards);
+      assert(shard_rows != []);
+      let row = List.hd(shard_rows);
+      assert(row != []);
+      ListUtil.last(row);
+    };
+    if (l != m_first.origin) {
+      let max_col =
+        Measured.Rows.max_col(
+          ListUtil.range(~lo=l.row, m_first.origin.row),
+          rows,
+        )
+        |> max(m_first.origin.col);
       let indent = Measured.Rows.find(m_first.origin.row, rows).indent;
       [
         l.row == m_first.origin.row
@@ -222,15 +235,15 @@ let uni_lines =
             (
               m_first.origin.col == indent
                 ? [
-                  m(~x=0, ~y=0),
+                  m(~x=m_last_of_first.last.col - m_first.origin.col, ~y=0),
                   // TODO(d) need to take max of all rows, not just top
                   h(~x=max_col - m_first.origin.col),
-                  v(~y=l.row - m_first.origin.row),
+                  v(~y=l.row - m_last_of_first.origin.row),
                 ]
                 : [
                   M({x: 0., y: 1. +. DecUtil.shadow_adj}),
                   h(~x=indent - m_first.origin.col),
-                  v(~y=l.row + 1 - m_first.origin.row),
+                  v(~y=m_first.origin.row - m_first.origin.row),
                   h(~x=max_col - m_first.origin.col),
                   v(~y=l.row - m_first.origin.row),
                 ]

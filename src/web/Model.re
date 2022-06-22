@@ -13,7 +13,7 @@ type settings = {
   whitespace_icons: bool,
 };
 
-let settings_init = {captions: true, whitespace_icons: true};
+let settings_init = {captions: false, whitespace_icons: false};
 
 type t = {
   editor_model,
@@ -35,7 +35,7 @@ let empty_zipper: Zipper.t = {
   },
   backpack: [],
   relatives: {
-    siblings: ([Grout({id: 0, shape: Convex})], []),
+    siblings: ([], [Grout({id: 0, shape: Convex})]),
     ancestors: [],
   },
   caret: Outer,

@@ -30,6 +30,23 @@ let mk_bin = (p, out, in_) => {
   {out, in_, nibs: (n, n)};
 };
 
+// forms where tips can be different than out sort
+let mk_pre' = (p, out, sort_l, in_, sort_r) => {
+  let l = Nib.{shape: Convex, sort: sort_l};
+  let r = Nib.{shape: Concave(p), sort: sort_r};
+  {out, in_, nibs: (l, r)};
+};
+let mk_post' = (p, out, sort_l, in_, sort_r) => {
+  let l = Nib.{shape: Concave(p), sort: sort_l};
+  let r = Nib.{shape: Convex, sort: sort_r};
+  {out, in_, nibs: (l, r)};
+};
+let mk_bin' = (p, out, sort_l, in_, sort_r) => {
+  let l = Nib.{shape: Concave(p), sort: sort_l};
+  let r = Nib.{shape: Concave(p), sort: sort_r};
+  {out, in_, nibs: (l, r)};
+};
+
 let nibs = (~index=?, mold: t): Nibs.t =>
   switch (index) {
   | None => mold.nibs

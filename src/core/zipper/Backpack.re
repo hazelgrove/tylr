@@ -21,10 +21,21 @@ module ShardInfo = {
     let gt = (l, r, ord) => lt(r, l, ord);
     let un = (l, r, ord) => !lt(l, r, ord) && !gt(l, r, ord);
 
+    let disordered = (t: Tile.t, t': Tile.t): bool =>
+      t.id == t'.id
+      && {
+        let (l, r) = Tile.(l_shard(t), r_shard(t));
+        let (l', r') = Tile.(l_shard(t'), r_shard(t'));
+        l < l' && l' < r || l' < l && l < r';
+      };
+
     let lt_or_un = (ls, rs, ord) =>
       ls
       |> List.for_all(l =>
-           rs |> List.for_all(r => lt(l, r, ord) || un(l, r, ord))
+           rs
+           |> List.for_all(r =>
+                !disordered(l, r) && (lt(l, r, ord) || un(l, r, ord))
+              )
          );
 
     let get = (i, j, m) => {

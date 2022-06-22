@@ -36,6 +36,17 @@ let pop = (d: Direction.t, rs: t): option((Piece.t, t)) =>
 let zip = (~sel=Segment.empty, {siblings, ancestors}: t) =>
   Ancestors.zip(Siblings.zip(~sel, siblings), ancestors);
 
+let local_incomplete_tiles = ({siblings: (pre, suf), ancestors}: t) => {
+  let sibs =
+    switch (ancestors) {
+    | [] => (pre, suf)
+    | [(a, _), ..._] =>
+      let (l, r) = Ancestor.container_shards(a);
+      ([l, ...pre], suf @ [r]);
+    };
+  Siblings.incomplete_tiles(sibs);
+};
+
 let parent =
     (~sel=Segment.empty, {siblings: (l_sibs, r_sibs), ancestors}: t)
     : option(Piece.t) =>
@@ -71,7 +82,7 @@ let shape_rank = ({siblings, ancestors}: t) => {
 };
 
 let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
-  open IdGen.Syntax; /* Direction is side of caret on which to favor for grout insertion */
+  open IdGen.Syntax; /* Direction is side of grout caret will end up on */
 
   let* ancestors = Ancestors.regrout(ancestors);
   let+ siblings = {
@@ -85,9 +96,8 @@ let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
       | (Some((_, g_l)), [g_r, ..._]) =>
         IdGen.return(
           Grout.fits(g_l, g_r)
+            // note: assumes single grout invariant in un-caret-interrupted trim
             ? (ws(trim_l), ws(trim_r))  //(ws(trim_l), seg_r)
-            // note: can modulate as needed using a directional arg
-            //TODO(andrew):???
             : (
               switch (d) {
               | Left => (ws(trim_l), seg_r)
@@ -108,15 +118,13 @@ let regrout = (d: Direction.t, {siblings, ancestors}: t): IdGen.t(t) => {
           ? IdGen.return((seg_l, seg_r))
           // can modulate with directional arg
           : (
-            //TODO(andrew):???
             switch (d) {
             | Left =>
-              let+ g = Grout.mk_fits_shape(s_r);
-              (seg_l, to_seg(cons_g(g, trim_r)));
+              let+ trim = add_grout(s_r, trim_r);
+              (seg_l, to_seg(trim));
             | Right =>
-              //TODO
-              let+ g = Grout.mk_fits_shape(s_l);
-              (to_seg(cons_g(g, trim_l)), seg_r);
+              let+ trim = add_grout(s_l, trim_l);
+              (to_seg(trim), seg_r);
             }
           )
       };
