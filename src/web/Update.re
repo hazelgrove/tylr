@@ -113,7 +113,6 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   | SwitchEditor(n) =>
     switch (model.editor_model) {
     | Simple(_) =>
-      print_endline("Can't switch");
       model;
     | Study(m, _) when m == n => model
     | Study(_, zs) =>

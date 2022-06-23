@@ -58,9 +58,16 @@ module App = {
     let%map model = model;
     Component.create(
       ~apply_action=
-        (action, state) => {
+        (action, state, ~schedule_action) => {
           restart_caret_animation();
-          Web.Update.apply(model, action, state);
+          try(Web.Update.apply(model, action, state, ~schedule_action)) {
+          | exc =>
+            Printf.printf(
+              "ERROR: exception in update: %s\n",
+              Printexc.to_string(exc),
+            );
+            model;
+          };
         },
       // ~on_display=
       //   (_, ~schedule_action as _) => {print_endline("on_display")},
