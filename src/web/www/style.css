@@ -125,6 +125,8 @@
 }
 
 #page {
+  overflow-x: auto;
+  overflow-y: auto;
   height: 100vh;
   width: 100vw;
   position: fixed;
