@@ -2,27 +2,67 @@ open Js_of_ocaml;
 open Incr_dom;
 open Web;
 
+let observe_font_specimen = (id, update) =>
+  ResizeObserver.observe(
+    ~node=JsUtil.get_elem_by_id(id),
+    ~f=
+      (entries, _) => {
+        let specimen = Js.to_array(entries)[0];
+        let rect = specimen##.contentRect;
+        update(
+          Web.FontMetrics.{
+            row_height: rect##.bottom -. rect##.top,
+            col_width: rect##.right -. rect##.left,
+          },
+        );
+      },
+    (),
+  );
+
+let restart_caret_animation = () =>
+  // necessary to trigger reflow
+  // <https://css-tricks.com/restart-css-animation/>
+  try({
+    let caret_elem = JsUtil.get_elem_by_id("caret");
+    caret_elem##.classList##remove(Js.string("blink"));
+    let _ = caret_elem##getBoundingClientRect;
+    caret_elem##.classList##add(Js.string("blink"));
+  }) {
+  | _ => ()
+  };
+
+let apply = (model, action, state, ~schedule_action): Model.t => {
+  restart_caret_animation();
+  switch (
+    try({
+      let res = Update.apply(model, action, state, ~schedule_action);
+      if (Log.is_logged(action)) {
+        print_endline(Log.to_string(Log.mk_entry(action, res)));
+      };
+      res;
+    }) {
+    | exc => Error(Exception(Printexc.to_string(exc)))
+    }
+  ) {
+  | Ok(model) => model
+  | Error(FailedToPerform(err)) =>
+    // TODO(andrew): refactor history
+    print_endline(Update.Failure.show(FailedToPerform(err)));
+    {...model, history: ActionHistory.failure(err, model.history)};
+  | Error(UnrecognizedInput(reason)) =>
+    // TODO(andrew): refactor history
+    print_endline(Update.Failure.show(UnrecognizedInput(reason)));
+    {...model, history: ActionHistory.just_failed(reason, model.history)};
+  | Error(err) =>
+    print_endline(Update.Failure.show(err));
+    model;
+  };
+};
+
 module App = {
   module Model = Model;
   module Action = Update;
   module State = State;
-
-  let observe_font_specimen = (id, update) =>
-    ResizeObserver.observe(
-      ~node=JsUtil.get_elem_by_id(id),
-      ~f=
-        (entries, _) => {
-          let specimen = Js.to_array(entries)[0];
-          let rect = specimen##.contentRect;
-          update(
-            Web.FontMetrics.{
-              row_height: rect##.bottom -. rect##.top,
-              col_width: rect##.right -. rect##.left,
-            },
-          );
-        },
-      (),
-    );
 
   let on_startup = (~schedule_action, _) => {
     let _ =
@@ -41,36 +81,12 @@ module App = {
     Async_kernel.Deferred.return();
   };
 
-  let restart_caret_animation = () =>
-    // necessary to trigger reflow
-    // <https://css-tricks.com/restart-css-animation/>
-    try({
-      let caret_elem = JsUtil.get_elem_by_id("caret");
-      caret_elem##.classList##remove(Js.string("blink"));
-      let _ = caret_elem##getBoundingClientRect;
-      caret_elem##.classList##add(Js.string("blink"));
-    }) {
-    | _ => ()
-    };
-
   let create = (model: Incr.t(Web.Model.t), ~old_model as _, ~inject) => {
     open Incr.Let_syntax;
     let%map model = model;
     Component.create(
-      ~apply_action=
-        (action, state, ~schedule_action) => {
-          restart_caret_animation();
-          try(Web.Update.apply(model, action, state, ~schedule_action)) {
-          | exc =>
-            Printf.printf(
-              "ERROR: exception in update: %s\n",
-              Printexc.to_string(exc),
-            );
-            model;
-          };
-        },
-      // ~on_display=
-      //   (_, ~schedule_action as _) => {print_endline("on_display")},
+      ~apply_action=apply(model),
+      // ~on_display= (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
       Web.Page.view(~inject, model),
     );
@@ -78,7 +94,7 @@ module App = {
 };
 
 let initial_model: Model.t =
-  Update.apply(Model.blank, LoadInit, (), ~schedule_action=());
+  apply(Model.blank, LoadInit, (), ~schedule_action=());
 
 Incr_dom.Start_app.start(
   (module App),

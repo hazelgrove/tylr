@@ -11,6 +11,14 @@ let get_elem_by_id = id => {
   );
 };
 
+let date_now = () => {
+  %js
+  new Js.date_now;
+};
+
+let timestamp = () => date_now()##valueOf;
+
+[@deriving show({with_path: false})]
 type mod_key =
   | Shift
   | Alt
@@ -25,10 +33,35 @@ let held = (m: mod_key, evt) =>
   | Meta => Js.to_bool(evt##.metaKey)
   };
 
+[@deriving show({with_path: false})]
+type key = string;
+
+[@deriving show({with_path: false})]
+type modifiers = list(mod_key);
+
+[@deriving show({with_path: false})]
+type key_dir =
+  | KeyUp
+  | KeyDown;
+
+[@deriving show({with_path: false})]
+type key_event = {
+  dir: key_dir,
+  key,
+  modifiers,
+  is_mac: bool,
+};
+
 let get_key = evt =>
   Js.to_string(Js.Optdef.get(evt##.key, () => failwith("JsUtil.get_key")));
 
-let date_now = () => {
-  %js
-  new Js.date_now;
+let mk_key_event = (dir, evt): key_event => {
+  let key = get_key(evt);
+  let is_mac = Os.is_mac^;
+  let modifiers =
+    (held(Ctrl, evt) ? [Ctrl] : [])
+    @ (held(Shift, evt) ? [Shift] : [])
+    @ (held(Alt, evt) ? [Alt] : [])
+    @ (held(Meta, evt) ? [Meta] : []);
+  {dir, key, modifiers, is_mac};
 };

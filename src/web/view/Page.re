@@ -95,6 +95,7 @@ let link_icon = (str, url, icon) =>
     [Attr.id(str)],
     [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
+
 let right_panel_view =
   div(
     [Attr.id("about-button-container")],
@@ -149,8 +150,6 @@ let editor_caption_view = (model: Model.t) =>
   );
 
 let view = (~inject, model: Model.t) => {
-  //print_endline("Page.view");
-  let zipper = Model.get_zipper(model);
   div(
     Attr.[
       id("page"),
@@ -160,7 +159,7 @@ let view = (~inject, model: Model.t) => {
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
-      ...Keyboard.handlers(~inject, ~zipper, ~double_tap=model.double_tap),
+      ...Keyboard.handlers(~inject, ~model),
     ],
     [
       FontSpecimen.view("font-specimen"),

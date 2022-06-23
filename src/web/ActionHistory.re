@@ -17,7 +17,7 @@ let can_redo = ({succeeded: (_, suffix), _}: t) => suffix != [];
 let clear_just_failed = history => {...history, just_failed: None};
 
 let just_failed = (reason: FailedInput.reason, history: t) => {
-  let last_attempt = Some(JsUtil.date_now()##valueOf);
+  let last_attempt = Some(JsUtil.timestamp());
   let just_failed =
     Some(
       switch (history.just_failed) {
@@ -36,14 +36,14 @@ let succeeded = (a: Zipper.Action.t, zipper: Zipper.state, history: t) => {
   {
     succeeded: ([(a, zipper), ...before], []),
     just_failed: None,
-    last_attempt: Some(JsUtil.date_now()##valueOf),
+    last_attempt: Some(JsUtil.timestamp()),
   };
 };
 
 let escaped = (history: t) => {
   ...history,
   just_failed: None,
-  last_attempt: Some(JsUtil.date_now()##valueOf),
+  last_attempt: Some(JsUtil.timestamp()),
 };
 
 let undo = (z_id: Zipper.state, history: t): option((Zipper.state, t)) =>
