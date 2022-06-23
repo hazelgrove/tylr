@@ -54,7 +54,7 @@ let move_to_start = z =>
   switch (
     Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
   ) {
-  | Some(z) => z
+  | Some(z) => Zipper.update_target(z)
   | None => z
   };
 
