@@ -28,25 +28,28 @@ let adj: Nib.Shape.t => float =
   | Concave(_) => DecUtil.concave_adj;
 
 let l_hook = (l: Nib.Shape.t): list(Path.cmd) => [
+  H({x: -. adj(l)}),
   L_({dx: -. run(l), dy: (-0.5)}),
   L_({dx: +. run(l), dy: (-0.5)}),
+  H({x: +. adj(l)}),
 ];
 
 let r_hook = (r: Nib.Shape.t): list(Path.cmd) => [
+  H_({dx: +. adj(r)}),
   L_({dx: +. run(r), dy: 0.5}),
   L_({dx: -. run(r), dy: 0.5}),
+  H_({dx: -. adj(r)}),
 ];
 
-let simple_shard_path = ((l, r): Nibs.shapes, length: int): list(Path.cmd) => {
-  let length = float_of_int(length) +. adj(l) +. adj(r);
-  Path.[
-    [M({x: -. adj(l), y: 0.}), H_({dx: length})],
-    r_hook(r),
-    [H_({dx: -. length})],
-    l_hook(l),
-  ]
-  |> List.flatten;
-};
+let simple_shard_path = ((l, r): Nibs.shapes, length: int): list(Path.cmd) =>
+  List.flatten(
+    Path.[
+      [m(~x=0, ~y=0), h(~x=length)],
+      r_hook(r),
+      [h(~x=- length)],
+      l_hook(l),
+    ],
+  );
 
 let chunky_shard_path =
     (
@@ -55,26 +58,20 @@ let chunky_shard_path =
       min_col: int,
       max_col: int,
     )
-    : list(Path.cmd) => {
-  //TODO(andrew): fix shape adjustments
-  let top = float_of_int(max_col - origin.col + 1) /* +. adj(l) +. adj(r)*/;
-  let right = float_of_int(last.row - origin.row);
-  let bottom1 = float_of_int(last.col - origin.col);
-  let bottom2 = float_of_int(min_col - origin.col) /* -. adj(l) -. adj(r)*/;
-  let left = 1.;
-  Path.[
-    [
-      M({x: 0. /*-. adj(l)*/, y: 0.}),
-      H({x: top}),
-      V({y: right}),
-      H({x: bottom1}),
+    : list(Path.cmd) =>
+  List.flatten(
+    Path.[
+      [
+        m(~x=0, ~y=0),
+        h(~x=max_col - origin.col + 1),
+        v(~y=last.row - origin.row),
+        h(~x=last.col - origin.col),
+      ],
+      r_hook(r),
+      [h(~x=min_col - origin.col), v(~y=1)],
+      l_hook(l),
     ],
-    r_hook(r),
-    [H({x: bottom2}), V({y: left}), H({x: 0. /*-. adj(l)*/})],
-    l_hook(l),
-  ]
-  |> List.flatten;
-};
+  );
 
 let simple_shard =
     (
@@ -134,6 +131,8 @@ let chunky_shard =
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };
 
+let shadowfudge = Path.cmdfudge(~y=DecUtil.shadow_adj);
+
 let bi_lines =
     (
       ~font_metrics: FontMetrics.t,
@@ -152,8 +151,8 @@ let bi_lines =
            (
              l.origin,
              SvgUtil.Path.[
-               M({x: 0., y: 1. +. DecUtil.shadow_adj}),
-               H({x: Float.of_int(r.last.col - l.origin.col)}),
+               shadowfudge(m(~x=0, ~y=1)),
+               h(~x=r.last.col - l.origin.col),
              ],
            )
          ),
@@ -172,9 +171,9 @@ let bi_lines =
          (
            origin,
            SvgUtil.Path.[
-             m(~x=0, ~y=0 + 1),
+             shadowfudge(m(~x=0, ~y=1)),
              h_(~dx=indent - origin.col),
-             v_(~dy=origin'.row - origin.row + v_delta),
+             shadowfudge(v_(~dy=origin'.row - origin.row + v_delta)),
              h_(~dx=origin'.col - indent),
            ],
          );
@@ -218,7 +217,7 @@ let uni_lines =
           ? (
             m_first.origin,
             [
-              M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+              shadowfudge(m(~x=0, ~y=1)),
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
@@ -238,14 +237,14 @@ let uni_lines =
                   m(~x=m_last_of_first.last.col - m_first.origin.col, ~y=0),
                   // TODO(d) need to take max of all rows, not just top
                   h(~x=max_col - m_first.origin.col),
-                  v(~y=l.row - m_last_of_first.origin.row),
+                  shadowfudge(v(~y=l.row - m_last_of_first.origin.row)),
                 ]
                 : [
-                  M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+                  shadowfudge(m(~x=0, ~y=1)),
                   h(~x=indent - m_first.origin.col),
-                  v(~y=m_first.origin.row - m_first.origin.row),
+                  shadowfudge(v(~y=l.row + 1 - m_first.origin.row)),
                   h(~x=max_col - m_first.origin.col),
-                  v(~y=l.row - m_first.origin.row),
+                  shadowfudge(v(~y=l.row - m_first.origin.row)),
                 ]
             )
             @ [
@@ -267,7 +266,7 @@ let uni_lines =
     let hook = [
       L_({
         dx: DecUtil.short_tip_width,
-        dy: Float.neg(DecUtil.short_tip_height) /. 2. //hack
+        dy: -. DecUtil.short_tip_height /. 2. //hack
       }),
       //L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
     ];
@@ -276,12 +275,12 @@ let uni_lines =
         (
           m_last.origin,
           [
-            M({
-              x: float_of_int(m_last.last.col - m_last.origin.col),
-              y:
-                float_of_int(m_last.last.row - m_last.origin.row + 1)
-                +. DecUtil.shadow_adj,
-            }),
+            shadowfudge(
+              m(
+                ~x=m_last.last.col - m_last.origin.col,
+                ~y=m_last.last.row - m_last.origin.row + 1,
+              ),
+            ),
             h(~x=r.col - m_last.origin.col),
             ...hook,
           ],
@@ -307,14 +306,11 @@ let uni_lines =
         (
           m_flast.origin,
           [
-            M({
-              x: 0.,
-              y:
-                float_of_int(m_flast.last.row - m_flast.origin.row + 1)
-                +. DecUtil.shadow_adj,
-            }),
+            shadowfudge(
+              m(~x=0, ~y=m_flast.last.row - m_flast.origin.row + 1),
+            ),
             h(~x=indent - m_flast.origin.col),
-            v(~y=r.row - m_flast.origin.row + 1),
+            shadowfudge(v(~y=r.row - m_flast.origin.row + 1)),
             h(~x=r.col - m_flast.origin.col),
             ...hook,
           ],
