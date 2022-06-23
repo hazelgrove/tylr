@@ -46,7 +46,7 @@ let view =
   DecUtil.code_svg(
     ~font_metrics,
     ~origin,
-    ~base_cls=["caret"],
+    ~id="caret",
     ~path_cls=["caret-path"],
     ~height_fudge=DecUtil.shadow_adj *. font_metrics.row_height,
     ~left_fudge=l_adj *. font_metrics.col_width,

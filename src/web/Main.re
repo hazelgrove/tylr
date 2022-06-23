@@ -41,11 +41,27 @@ module App = {
     Async_kernel.Deferred.return();
   };
 
+  let restart_caret_animation = () =>
+    // necessary to trigger reflow
+    // <https://css-tricks.com/restart-css-animation/>
+    try({
+      let caret_elem = JsUtil.get_elem_by_id("caret");
+      caret_elem##.classList##remove(Js.string("blink"));
+      let _ = caret_elem##getBoundingClientRect;
+      caret_elem##.classList##add(Js.string("blink"));
+    }) {
+    | _ => ()
+    };
+
   let create = (model: Incr.t(Web.Model.t), ~old_model as _, ~inject) => {
     open Incr.Let_syntax;
     let%map model = model;
     Component.create(
-      ~apply_action=Web.Update.apply(model),
+      ~apply_action=
+        (action, state) => {
+          restart_caret_animation();
+          Web.Update.apply(model, action, state);
+        },
       // ~on_display=
       //   (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
