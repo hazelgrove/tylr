@@ -12,13 +12,13 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   let now_save_u = u => Update.[u, Save, UpdateDoubleTap(None)];
   let now_save = a => now_save_u(PerformAction(a));
   switch (k) {
-  | (U(key), _, _, _, _, _) =>
+  | {key: U(key), _} =>
     switch (key) {
     | "Shift" => [] // NOTE: don't change doubletap
     | "Alt" => [Update.SetShowBackpackTargets(false)]
     | _ => [UpdateDoubleTap(None)]
     }
-  | (D(key), _, Shift(shift), Meta(Up), Ctrl(Up), Alt(Up)) =>
+  | {key: D(key), sys: _, shift, meta: Up, ctrl: Up, alt: Up} =>
     switch (shift, key) {
     | (Up, "ArrowLeft") => now(Move(Local(Left(ByChar))))
     | (Up, "ArrowRight") => now(Move(Local(Right(ByChar))))
@@ -59,7 +59,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
       now_save(Insert(key))
     | _ => []
     }
-  | (D(key), IsMac, Shift(Down), Meta(Down), Ctrl(Up), Alt(Up)) =>
+  | {key: D(key), sys: Mac, shift: Down, meta: Down, ctrl: Up, alt: Up} =>
     switch (key) {
     | "Z" => now_save_u(Redo)
     | "ArrowLeft" => now(Select(Extreme(Left(ByToken))))
@@ -68,7 +68,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "ArrowDown" => now(Select(Extreme(Down)))
     | _ => []
     }
-  | (D(key), IsPC, Shift(Down), Meta(Up), Ctrl(Down), Alt(Up)) =>
+  | {key: D(key), sys: PC, shift: Down, meta: Up, ctrl: Down, alt: Up} =>
     switch (key) {
     | "Z" => now_save_u(Redo)
     | "ArrowLeft" => now(Select(Local(Left(ByToken))))
@@ -79,7 +79,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "End" => now(Select(Extreme(Down)))
     | _ => []
     }
-  | (D(key), IsMac, Shift(Up), Meta(Down), Ctrl(Up), Alt(Up)) =>
+  | {key: D(key), sys: Mac, shift: Up, meta: Down, ctrl: Up, alt: Up} =>
     switch (key) {
     | "z" => now_save_u(Undo)
     | "x" => now(Pick_up)
@@ -92,7 +92,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "ArrowDown" => now(Move(Extreme(Down)))
     | _ => []
     }
-  | (D(key), IsPC, Shift(Up), Meta(Up), Ctrl(Down), Alt(Up)) =>
+  | {key: D(key), sys: PC, shift: Up, meta: Up, ctrl: Down, alt: Up} =>
     switch (key) {
     | "z" => now_save_u(Undo)
     | "x" => now(Pick_up)
@@ -105,20 +105,20 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "End" => now(Move(Extreme(Down)))
     | _ => []
     }
-  | (D(key), IsMac, Shift(Up), Meta(Up), Ctrl(Down), Alt(Up)) =>
+  | {key: D(key), sys: Mac, shift: Up, meta: Up, ctrl: Down, alt: Up} =>
     switch (key) {
     | "a" => now(Move(Extreme(Left(ByToken))))
     | "e" => now(Move(Extreme(Right(ByToken))))
     | _ => []
     }
-  | (D(key), platform, Shift(Up), Meta(Up), Ctrl(Up), Alt(Down)) =>
-    switch (platform, key) {
+  | {key: D(key), sys, shift: Up, meta: Up, ctrl: Up, alt: Down} =>
+    switch (sys, key) {
     | (_, "ArrowLeft") when restricted =>
       now(MoveToBackpackTarget(Left(ByToken)))
     | (_, "ArrowRight") when restricted =>
       now(MoveToBackpackTarget(Right(ByToken)))
-    | (IsMac, "ArrowLeft") => now(Move(Local(Left(ByToken))))
-    | (IsMac, "ArrowRight") => now(Move(Local(Right(ByToken))))
+    | (Mac, "ArrowLeft") => now(Move(Local(Left(ByToken))))
+    | (Mac, "ArrowRight") => now(Move(Local(Right(ByToken))))
     | (_, "Alt") => [SetShowBackpackTargets(true), UpdateDoubleTap(None)]
     | (_, "ArrowUp") => now(MoveToBackpackTarget(Up))
     | (_, "ArrowDown") => now(MoveToBackpackTarget(Down))
@@ -139,6 +139,12 @@ let do_many = (evts): Virtual_dom.Vdom.Event.t => {
 
 let update_handler = (~inject, ~model, ~dir: Key.dir, evt) =>
   Key.mk(dir, evt)
+  |> (
+    k => {
+      print_endline(Key.show(k));
+      k;
+    }
+  )
   |> handle_key_event(~model)
   |> List.map(inject)
   |> do_many;
