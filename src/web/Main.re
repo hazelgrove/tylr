@@ -2,6 +2,21 @@ open Js_of_ocaml;
 open Incr_dom;
 open Web;
 
+let write_to_clipboard = (_string: string) => {
+  //let _ = Dom_html.window##.navigator##.clipboard##writeText(string);
+  let _ =
+    Dom_html.document##execCommand(
+      Js.string("copy"),
+      Js.bool(false),
+      Js.Opt.return(Js.string("testtest")),
+    );
+  // note: using unsafe as js_of_ocaml doesn't have clipboard bindings
+  //let q =
+  // Printf.sprintf("window.navigator.clipboard.writeText(\"%s\")", string);
+  //let _ = Js.Unsafe.js_expr(q);
+  ();
+};
+
 let observe_font_specimen = (id, update) =>
   ResizeObserver.observe(
     ~node=JsUtil.get_elem_by_id(id),
@@ -105,6 +120,8 @@ module App = {
   let create = (model: Incr.t(Web.Model.t), ~old_model as _, ~inject) => {
     open Incr.Let_syntax;
     let%map model = model;
+    print_endline("writing lol");
+    write_to_clipboard("{roflmao:look at me im json 2 electric boogaloo}");
     Component.create(
       ~apply_action=apply(model),
       // ~on_display= (_, ~schedule_action as _) => {print_endline("on_display")},

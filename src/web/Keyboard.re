@@ -38,7 +38,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
       LocalStorage.reset_zipper_log();
       [];
     | _ => []
-    };
+    }
   | {key: D(key), sys: _, shift, meta: Up, ctrl: Up, alt: Up} =>
     switch (shift, key) {
     | (Up, "ArrowLeft") => now(Move(Local(Left(ByChar))))

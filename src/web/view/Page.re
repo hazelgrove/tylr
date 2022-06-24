@@ -50,7 +50,26 @@ let redo = (~inject, ~disabled) => {
     [Icons.redo],
   );
 };
-
+let write_to_clipboard = (_string: string) => {
+  open Js_of_ocaml;
+  //note: to use execommand would need to introduce a textarea
+  /*let _ =
+    Dom_html.document##execCommand(
+      Js.string("copy"),
+      Js.bool(true),
+      Js.Opt.return(Js.string("testtest")),
+    );*/
+  // note: using unsafe as js_of_ocaml doesn't have clipboard bindings
+  print_endline(LocalStorage.get_action_log());
+  // note: uses backticks to allow for newlines in the string
+  let q =
+    Printf.sprintf(
+      "window.navigator.clipboard.writeText(`%s`);",
+      LocalStorage.get_action_log(),
+    );
+  let _ = Js.Unsafe.js_expr(q);
+  ();
+};
 let left_panel_view = (~inject, history) =>
   div(
     [Attr.id("history-button-container")],
@@ -63,6 +82,16 @@ let left_panel_view = (~inject, history) =>
           Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
         ],
         [Icons.eye],
+      ),
+      div(
+        [
+          Attr.class_("topbar-icon"),
+          Attr.on_mousedown(_ => {
+            write_to_clipboard("Sd");
+            inject(Update.Set(WhitespaceIcons));
+          }),
+        ],
+        [Icons.export],
       ),
     ],
   );
