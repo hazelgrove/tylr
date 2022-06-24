@@ -50,7 +50,7 @@ let redo = (~inject, ~disabled) => {
     [Icons.redo],
   );
 };
-let write_to_clipboard = (_string: string) => {
+let write_to_clipboard = (string: string) => {
   open Js_of_ocaml;
   //note: to use execommand would need to introduce a textarea
   /*let _ =
@@ -63,10 +63,7 @@ let write_to_clipboard = (_string: string) => {
   print_endline(LocalStorage.get_action_log());
   // note: uses backticks to allow for newlines in the string
   let q =
-    Printf.sprintf(
-      "window.navigator.clipboard.writeText(`%s`);",
-      LocalStorage.get_action_log(),
-    );
+    Printf.sprintf("window.navigator.clipboard.writeText(`%s`);", string);
   let _ = Js.Unsafe.js_expr(q);
   ();
 };
@@ -87,8 +84,10 @@ let left_panel_view = (~inject, history) =>
         [
           Attr.class_("topbar-icon"),
           Attr.on_mousedown(_ => {
-            write_to_clipboard("Sd");
-            inject(Update.Set(WhitespaceIcons));
+            Log.append_json_updates_log();
+            let log = Log.get_json_update_log_string();
+            write_to_clipboard(log);
+            Event.Many([]);
           }),
         ],
         [Icons.export],
@@ -99,8 +98,14 @@ let left_panel_view = (~inject, history) =>
 let center_panel_view = (~inject, cur_idx) => {
   let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
   let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
-  let incr_ed = _ => inject(Update.SwitchEditor(next_ed));
-  let decr_ed = _ => inject(Update.SwitchEditor(prev_ed));
+  let incr_ed = _ => {
+    Log.append_json_updates_log();
+    inject(Update.SwitchEditor(next_ed));
+  };
+  let decr_ed = _ => {
+    Log.append_json_updates_log();
+    inject(Update.SwitchEditor(prev_ed));
+  };
   let toggle_captions = _ => inject(Update.Set(Captions));
   let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
   div(

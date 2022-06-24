@@ -83,7 +83,7 @@ let do_many = (evts): Virtual_dom.Vdom.Event.t => {
 let update_handler = (~inject, ~model, ~dir: Key.dir, evt) => {
   let key = Key.mk(dir, evt);
   Keyboard.handle_key_event(key, ~model)
-  |> Log.keystoke(key)
+  //|> Log.keystoke(key)
   |> List.map(inject)
   |> do_many;
 };
@@ -101,6 +101,7 @@ module App = {
   module State = State;
 
   let on_startup = (~schedule_action, _) => {
+    Log.load_json_updates_log();
     let _ =
       observe_font_specimen("font-specimen", fm =>
         schedule_action(Web.Update.SetFontMetrics(fm))
@@ -120,8 +121,8 @@ module App = {
   let create = (model: Incr.t(Web.Model.t), ~old_model as _, ~inject) => {
     open Incr.Let_syntax;
     let%map model = model;
-    print_endline("writing lol");
-    write_to_clipboard("{roflmao:look at me im json 2 electric boogaloo}");
+    // print_endline("writing lol");
+    //write_to_clipboard("{roflmao:look at me im json 2 electric boogaloo}");
     Component.create(
       ~apply_action=apply(model),
       // ~on_display= (_, ~schedule_action as _) => {print_endline("on_display")},

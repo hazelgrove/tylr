@@ -23,9 +23,9 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
       when is_f_key(key) =>
     switch (key) {
-    | "F1" => print(LocalStorage.get_action_log())
-    | "F2" => print(LocalStorage.get_keystoke_log())
-    | "F3" => print(LocalStorage.get_zipper_log())
+    | "F1" => print(Log.get_json_update_log_string())
+    //| "F2" => print(LocalStorage.get_keystoke_log())
+    //| "F3" => print(LocalStorage.get_zipper_log())
     | "F4" => []
     | "F5" => []
     | "F6" => toggle(Log.debug_update)
@@ -33,9 +33,10 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "F8" => toggle(Log.debug_zipper)
     | "F9" => print(Zipper.show(zipper))
     | "F10" =>
-      LocalStorage.reset_keystoke_log();
-      LocalStorage.reset_action_log();
-      LocalStorage.reset_zipper_log();
+      //LocalStorage.reset_keystoke_log();
+      //LocalStorage.reset_action_log();
+      //LocalStorage.reset_zipper_log();
+      Log.reset_json_log();
       [];
     | _ => []
     }

@@ -5,7 +5,7 @@ type editor_model =
   | Simple(Zipper.t)
   | Study(int, list(Zipper.t));
 
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type timestamp = float;
 
 [@deriving sexp]

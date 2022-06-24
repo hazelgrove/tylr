@@ -2,12 +2,12 @@ open Sexplib.Std;
 open Util;
 open Core;
 
-[@deriving (show, sexp)]
+[@deriving (show, sexp, yojson)]
 type settings_action =
   | Captions
   | WhitespaceIcons;
 
-[@deriving (show({with_path: false}), sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | Set(settings_action)
   | UpdateDoubleTap(option(float))
@@ -26,7 +26,7 @@ type t =
   | MoveToNextHole(Direction.t);
 
 module Failure = {
-  [@deriving (show({with_path: false}), sexp)]
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
     | CantUndo
     | CantRedo

@@ -1,24 +1,24 @@
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type dir =
   | KeyUp
   | KeyDown;
 
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type key =
   | D(string)
   | U(string);
 
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type sys =
   | Mac
   | PC;
 
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type held =
   | Down
   | Up;
 
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type t = {
   key,
   sys,

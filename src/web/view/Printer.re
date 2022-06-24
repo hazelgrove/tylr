@@ -1,9 +1,9 @@
 open Core;
 open Util;
 
-[@deriving show({with_path: false})]
+[@deriving (show({with_path: false}), yojson)]
 type t = {
-  code: string,
+  code: list(string),
   selection: string,
   backpack: list(string),
 };
@@ -46,7 +46,7 @@ let of_zipper = (z: Zipper.t): t => {
     | _ => rows
     };
   {
-    code: String.concat("\n", rows),
+    code: rows, //String.concat("", rows),
     selection: of_segment(z.selection.content),
     backpack:
       List.map((s: Selection.t) => of_segment(s.content), z.backpack),
@@ -57,7 +57,7 @@ let to_string = (z: Zipper.t): string => {
   let {code, selection, backpack} = of_zipper(z);
   Printf.sprintf(
     "CODE:\n%s\nSELECTION:\n%s\n%s\n",
-    code,
+    String.concat("\n", code),
     selection,
     backpack
     |> List.mapi((i, b) => "BP(" ++ string_of_int(i) ++ "):\n" ++ b ++ "\n")

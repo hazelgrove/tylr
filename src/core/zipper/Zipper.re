@@ -30,26 +30,26 @@ type t = {
 };
 type state = (t, IdGen.state);
 
-[@deriving (show({with_path: false}), sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type chunkiness =
   | ByChar
   | MonoByChar
   | ByToken;
 
-[@deriving (show({with_path: false}), sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type plane_move =
   | Up
   | Down
   | Left(chunkiness)
   | Right(chunkiness);
 
-[@deriving (show({with_path: false}), sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type move =
   | Extreme(plane_move)
   | Local(plane_move);
 
 module Action = {
-  [@deriving (show({with_path: false}), sexp)]
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
     | Move(move)
     | Select(move)
@@ -62,7 +62,7 @@ module Action = {
     | Put_down;
 
   module Failure = {
-    [@deriving (show, sexp)]
+    [@deriving (show({with_path: false}), sexp, yojson)]
     type t =
       | Cant_move
       | Cant_insert
