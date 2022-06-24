@@ -36,7 +36,7 @@ let apply = (model, action, state, ~schedule_action): Model.t => {
   switch (
     try(
       Update.apply(model, action, state, ~schedule_action)
-      |> Log.update(action)
+      |> Log.update(action, model)
     ) {
     | exc => Error(Exception(Printexc.to_string(exc)))
     }

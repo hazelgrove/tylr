@@ -84,6 +84,7 @@ let save_ed_idx_key: string = "CURRENT_EDITOR";
 let save_settings_key: string = "SETTINGS";
 let action_log_key: string = "ACTION_LOG";
 let keystoke_log_key: string = "KEYSTROKE_LOG";
+let zipper_log_key: string = "ZIPPER_LOG";
 
 let insert_to_zid: (Zipper.state, string) => Zipper.state =
   (z_id, c) => {
@@ -112,7 +113,7 @@ let parse_to_zid = (id_gen: IdGen.state, str: string): option(Zipper.state) =>
 let save_syntax = (save_idx: int, z: Zipper.t) =>
   set_localstore(
     save_syntax_key(save_idx),
-    z |> Zipper.zip |> Code.CodeString.of_segment,
+    z |> Zipper.zip |> Printer.of_segment,
   );
 
 let load_default_syntax: (int, IdGen.state) => option(Zipper.state) =
@@ -171,6 +172,11 @@ let append_string_log = (log_key, new_entry_str) =>
 let get_action_log = () => get_string_log(action_log_key);
 let reset_action_log = () => reset_string_log(action_log_key);
 let append_action_log = append_string_log(action_log_key);
+
 let get_keystoke_log = () => get_string_log(keystoke_log_key);
 let reset_keystoke_log = () => reset_string_log(keystoke_log_key);
 let append_keystroke_log = append_string_log(keystoke_log_key);
+
+let get_zipper_log = () => get_string_log(zipper_log_key);
+let reset_zipper_log = () => reset_string_log(zipper_log_key);
+let append_zipper_log = append_string_log(zipper_log_key);

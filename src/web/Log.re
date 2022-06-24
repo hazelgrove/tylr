@@ -1,5 +1,6 @@
-let debug_update = false;
-let debug_keystoke = false;
+let debug_update = ref(false);
+let debug_zipper = ref(false);
+let debug_keystoke = ref(false);
 
 type entry = {
   update: Update.t,
@@ -54,12 +55,22 @@ let key_entry_to_string = ({key, updates, timestamp}: key_entry) => {
   Printf.sprintf("%.0f: %s -> [%s]", timestamp, Key.to_string(key), updates);
 };
 
-let update = (update: Update.t, res) => {
+let update = (update: Update.t, model: Model.t, res) => {
   if (is_action_logged(update)) {
     let update_str = to_string(mk_entry(update, res));
     LocalStorage.append_action_log(update_str);
-    if (debug_update) {
+    if (debug_update^) {
       print_endline(update_str);
+    };
+    let model' =
+      switch (res) {
+      | Ok(model) => model
+      | Error(_) => model
+      };
+    let zipper_str = model' |> Model.get_zipper |> Printer.to_string;
+    LocalStorage.append_zipper_log(zipper_str);
+    if (debug_zipper^) {
+      print_endline(zipper_str);
     };
   };
   res;
@@ -69,7 +80,7 @@ let keystoke = (key: Key.t, updates) => {
   if (is_keystroke_logged(key)) {
     let keystroke_str = key_entry_to_string(mk_key_entry(key, updates));
     LocalStorage.append_keystroke_log(keystroke_str);
-    if (debug_keystoke) {
+    if (debug_keystoke^) {
       print_endline(keystroke_str);
     };
   };

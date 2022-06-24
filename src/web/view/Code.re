@@ -5,21 +5,6 @@ open Util;
 
 let span_c = cls => span([Attr.class_(cls)]);
 
-module CodeString = {
-  let rec of_segment = (seg: Segment.t): string =>
-    seg |> List.map(of_piece) |> String.concat("")
-  and of_piece: Piece.t => string =
-    fun
-    | Tile(t) => of_tile(t)
-    | Grout(_) => " "
-    | Whitespace(w) => w.content == Whitespace.linebreak ? "\n" : w.content
-  and of_tile = (t: Tile.t): string =>
-    Aba.mk(t.shards, t.children)
-    |> Aba.join(of_delim(t), of_segment)
-    |> String.concat("")
-  and of_delim = (t: Piece.tile, i: int): string => List.nth(t.label, i);
-};
-
 let expected_sorts = (sort: Sort.t, seg: Segment.t): list((int, Sort.t)) => {
   let t = List.nth(seg);
   let rec go = (in_sort: Sort.t, skel: Skel.t) => {

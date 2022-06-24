@@ -1,8 +1,8 @@
 open Core;
 
 let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
-
 let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
+let is_f_key = s => Re.Str.(string_match(regexp("^F[0-9][0-9]*$"), s, 0));
 
 let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   let zipper = Model.get_zipper(model);
@@ -12,6 +12,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   let now_save_u = u => Update.[u, Save, UpdateDoubleTap(None)];
   let now_save = a => now_save_u(PerformAction(a));
   let print = str => str |> print_endline |> (_ => []);
+  let toggle = m => (m := ! m^) |> (_ => []);
   switch (k) {
   | {key: U(key), _} =>
     switch (key) {
@@ -19,6 +20,25 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "Alt" => [Update.SetShowBackpackTargets(false)]
     | _ => [UpdateDoubleTap(None)]
     }
+  | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
+      when is_f_key(key) =>
+    switch (key) {
+    | "F1" => print(LocalStorage.get_action_log())
+    | "F2" => print(LocalStorage.get_keystoke_log())
+    | "F3" => print(LocalStorage.get_zipper_log())
+    | "F4" => []
+    | "F5" => []
+    | "F6" => toggle(Log.debug_update)
+    | "F7" => toggle(Log.debug_keystoke)
+    | "F8" => toggle(Log.debug_zipper)
+    | "F9" => print(Zipper.show(zipper))
+    | "F10" =>
+      LocalStorage.reset_keystoke_log();
+      LocalStorage.reset_action_log();
+      LocalStorage.reset_zipper_log();
+      [];
+    | _ => []
+    };
   | {key: D(key), sys: _, shift, meta: Up, ctrl: Up, alt: Up} =>
     switch (shift, key) {
     | (Up, "ArrowLeft") => now(Move(Local(Left(ByChar))))
@@ -31,28 +51,21 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | (Up, "Delete") => now_save(Destruct(Right))
     | (Up, "Escape") => now(Unselect)
     | (Up, "Tab") => now_save(Put_down) //TODO: if empty, move to next hole
-    | (Up, "F2") => print(Zipper.show(zipper))
-    | (Up, "F4") =>
-      LocalStorage.reset_keystoke_log();
-      LocalStorage.reset_action_log();
-      [];
     | (Up, "F6") => [Load]
     | (Up, "F8") => [LoadDefault, Save]
-    | (Up, "F9") => print(LocalStorage.get_action_log())
-    | (Up, "F10") => print(LocalStorage.get_keystoke_log())
     | (Down, "ArrowLeft") => now(Select(Local(Left(ByToken))))
     | (Down, "ArrowRight") => now(Select(Local(Right(ByToken))))
     | (Down, "ArrowUp") => now(Select(Local(Up)))
     | (Down, "ArrowDown") => now(Select(Local(Down)))
     | (_, "Shift") =>
-      let cur_ts = JsUtil.timestamp();
+      let cur_time = JsUtil.timestamp();
       switch (double_tap) {
-      | None => [UpdateDoubleTap(Some(cur_ts))]
-      | Some(past_ts) =>
-        if (cur_ts -. past_ts < 400.) {
+      | None => [UpdateDoubleTap(Some(cur_time))]
+      | Some(prev_time) =>
+        if (cur_time -. prev_time < 400.) {
           [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
         } else {
-          [UpdateDoubleTap(Some(cur_ts))];
+          [UpdateDoubleTap(Some(cur_time))];
         }
       };
     | (_, "Enter") =>
