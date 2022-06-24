@@ -11,6 +11,7 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   let now = a => [Update.PerformAction(a), Update.UpdateDoubleTap(None)];
   let now_save_u = u => Update.[u, Save, UpdateDoubleTap(None)];
   let now_save = a => now_save_u(PerformAction(a));
+  let print = str => str |> print_endline |> (_ => []);
   switch (k) {
   | {key: U(key), _} =>
     switch (key) {
@@ -30,10 +31,15 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | (Up, "Delete") => now_save(Destruct(Right))
     | (Up, "Escape") => now(Unselect)
     | (Up, "Tab") => now_save(Put_down) //TODO: if empty, move to next hole
-    | (Up, "F2") => zipper |> Zipper.show |> print_endline |> (_ => [])
-    | (Up, "F4") => [Save]
+    | (Up, "F2") => print(Zipper.show(zipper))
+    | (Up, "F4") =>
+      LocalStorage.reset_keystoke_log();
+      LocalStorage.reset_action_log();
+      [];
     | (Up, "F6") => [Load]
     | (Up, "F8") => [LoadDefault, Save]
+    | (Up, "F9") => print(LocalStorage.get_action_log())
+    | (Up, "F10") => print(LocalStorage.get_keystoke_log())
     | (Down, "ArrowLeft") => now(Select(Local(Left(ByToken))))
     | (Down, "ArrowRight") => now(Select(Local(Right(ByToken))))
     | (Down, "ArrowUp") => now(Select(Local(Up)))
@@ -127,31 +133,3 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   | _ => []
   };
 };
-
-let do_many = (evts): Virtual_dom.Vdom.Event.t => {
-  Virtual_dom.Vdom.Event.(
-    switch (evts) {
-    | [] => Many([])
-    | evts => Many([Prevent_default, Stop_propagation, ...evts])
-    }
-  );
-};
-
-let update_handler = (~inject, ~model, ~dir: Key.dir, evt) =>
-  Key.mk(dir, evt)
-  |> (
-    k => {
-      print_endline(Key.show(k));
-      k;
-    }
-  )
-  |> handle_key_event(~model)
-  |> List.map(inject)
-  |> do_many;
-
-let handlers = (~inject, ~model: Model.t) =>
-  Virtual_dom.Vdom.[
-    Attr.on_keypress(_ => Event.Prevent_default),
-    Attr.on_keyup(update_handler(~inject, ~model, ~dir=KeyUp)),
-    Attr.on_keydown(update_handler(~inject, ~model, ~dir=KeyDown)),
-  ];

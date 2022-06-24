@@ -82,6 +82,8 @@ let save_syntax_key: int => string =
   save_idx => "SAVE" ++ string_of_int(save_idx);
 let save_ed_idx_key: string = "CURRENT_EDITOR";
 let save_settings_key: string = "SETTINGS";
+let action_log_key: string = "ACTION_LOG";
+let keystoke_log_key: string = "KEYSTROKE_LOG";
 
 let insert_to_zid: (Zipper.state, string) => Zipper.state =
   (z_id, c) => {
@@ -154,3 +156,21 @@ let load_settings = (): Model.settings =>
     | _ => Model.settings_init
     }
   };
+
+let get_string_log = log_key =>
+  switch (get_localstore(log_key)) {
+  | None => ""
+  | Some(str) => str
+  };
+
+let reset_string_log = log_key => set_localstore(log_key, "");
+
+let append_string_log = (log_key, new_entry_str) =>
+  set_localstore(log_key, get_string_log(log_key) ++ "\n" ++ new_entry_str);
+
+let get_action_log = () => get_string_log(action_log_key);
+let reset_action_log = () => reset_string_log(action_log_key);
+let append_action_log = append_string_log(action_log_key);
+let get_keystoke_log = () => get_string_log(keystoke_log_key);
+let reset_keystoke_log = () => reset_string_log(keystoke_log_key);
+let append_keystroke_log = append_string_log(keystoke_log_key);

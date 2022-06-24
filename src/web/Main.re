@@ -34,13 +34,10 @@ let restart_caret_animation = () =>
 let apply = (model, action, state, ~schedule_action): Model.t => {
   restart_caret_animation();
   switch (
-    try({
-      let res = Update.apply(model, action, state, ~schedule_action);
-      if (Log.is_logged(action)) {
-        print_endline(Log.to_string(Log.mk_entry(action, res)));
-      };
-      res;
-    }) {
+    try(
+      Update.apply(model, action, state, ~schedule_action)
+      |> Log.update(action)
+    ) {
     | exc => Error(Exception(Printexc.to_string(exc)))
     }
   ) {
@@ -58,6 +55,30 @@ let apply = (model, action, state, ~schedule_action): Model.t => {
     model;
   };
 };
+
+let do_many = (evts): Virtual_dom.Vdom.Event.t => {
+  Virtual_dom.Vdom.Event.(
+    switch (evts) {
+    | [] => Many([])
+    | evts => Many([Prevent_default, Stop_propagation, ...evts])
+    }
+  );
+};
+
+let update_handler = (~inject, ~model, ~dir: Key.dir, evt) => {
+  let key = Key.mk(dir, evt);
+  Keyboard.handle_key_event(key, ~model)
+  |> Log.keystoke(key)
+  |> List.map(inject)
+  |> do_many;
+};
+
+let handlers = (~inject, ~model: Model.t) =>
+  Virtual_dom.Vdom.[
+    Attr.on_keypress(_ => Event.Prevent_default),
+    Attr.on_keyup(update_handler(~inject, ~model, ~dir=KeyUp)),
+    Attr.on_keydown(update_handler(~inject, ~model, ~dir=KeyDown)),
+  ];
 
 module App = {
   module Model = Model;
@@ -88,7 +109,7 @@ module App = {
       ~apply_action=apply(model),
       // ~on_display= (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
-      Web.Page.view(~inject, model),
+      Web.Page.view(~inject, ~handlers, model),
     );
   };
 };

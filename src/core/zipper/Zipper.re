@@ -30,7 +30,7 @@ type t = {
 };
 type state = (t, IdGen.state);
 
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp)]
 type chunkiness =
   | ByChar
   | MonoByChar

@@ -149,7 +149,7 @@ let editor_caption_view = (model: Model.t) =>
       : [],
   );
 
-let view = (~inject, model: Model.t) => {
+let view = (~inject, ~handlers, model: Model.t) => {
   div(
     Attr.[
       id("page"),
@@ -159,7 +159,7 @@ let view = (~inject, model: Model.t) => {
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
-      ...Keyboard.handlers(~inject, ~model),
+      ...handlers(~inject, ~model),
     ],
     [
       FontSpecimen.view("font-specimen"),
