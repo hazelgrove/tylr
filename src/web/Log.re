@@ -19,6 +19,7 @@ let is_action_logged: Update.t => bool =
   fun
   | UpdateDoubleTap(_) => false
   | Save => false
+  | SetFontMetrics(_) => false
   | _ => true;
 
 let is_keystroke_logged: Key.t => bool = _ => true;
@@ -72,13 +73,17 @@ let updates_of_string: string => updates =
     try(
       switch (str |> Yojson.Safe.from_string |> updates_of_yojson) {
       | Ok(updates) => updates
-      | Error(_) =>
-        print_endline("log: json decoding (1) read error");
+      | Error(err) =>
+        print_endline("log: json decoding (1) read error: " ++ err ++ "\n");
         [];
       }
     ) {
-    | _ =>
-      print_endline("log: json decoding (2) exception");
+    | exc =>
+      print_endline(
+        "log: json decoding (2) exception: "
+        ++ Printexc.to_string(exc)
+        ++ "\n",
+      );
       [];
     };
 let json_update_log_key = "JSON_UPDATE_LOG";
@@ -105,14 +110,8 @@ let append_json_updates_log = () => {
   LocalStorage.set_localstore(json_update_log_key, blah);
 };
 
-let load_json_updates_log = () => {
-  mut_log := get_json_update_log();
-};
-
 let update = (update: Update.t, old_model: Model.t, res) => {
   if (is_action_logged(update)) {
-    //let update_str = to_string(mk_entry(update, res));
-    //LocalStorage.append_action_log(update_str);
     let cur_model =
       switch (res) {
       | Ok(model) => model
@@ -121,12 +120,11 @@ let update = (update: Update.t, old_model: Model.t, res) => {
     let zip = cur_model |> Model.get_zipper;
     let new_entry = mk_entry(update, zip, res);
     mut_log := List.cons(new_entry, mut_log^);
-    //append_json_log(mk_entry(update, zip, res));
     if (debug_update^) {
-      new_entry |> entry_to_yojson |> Yojson.Safe.to_string |> print_endline; //let update_str = to_string(mk_entry(update, zip,res));
-                                                                    //print_endline(update_str)
+      let update_str = to_string(mk_entry(update, zip, res));
+      print_endline(update_str);
+      //new_entry |> entry_to_yojson |> Yojson.Safe.to_string |> print_endline;
     };
-    //LocalStorage.append_zipper_log(zipper_str);
     if (debug_zipper^) {
       cur_model |> Model.get_zipper |> Printer.to_string |> print_endline;
     };
@@ -136,9 +134,8 @@ let update = (update: Update.t, old_model: Model.t, res) => {
 
 let keystoke = (key: Key.t, updates) => {
   if (is_keystroke_logged(key)) {
-    let keystroke_str = key_entry_to_string(mk_key_entry(key, updates));
-    //LocalStorage.append_keystroke_log(keystroke_str);
     if (debug_keystoke^) {
+      let keystroke_str = key_entry_to_string(mk_key_entry(key, updates));
       print_endline(keystroke_str);
     };
   };

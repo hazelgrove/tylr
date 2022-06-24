@@ -101,7 +101,6 @@ module App = {
   module State = State;
 
   let on_startup = (~schedule_action, _) => {
-    Log.load_json_updates_log();
     let _ =
       observe_font_specimen("font-specimen", fm =>
         schedule_action(Web.Update.SetFontMetrics(fm))

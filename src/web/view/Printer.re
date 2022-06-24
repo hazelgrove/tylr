@@ -4,8 +4,8 @@ open Util;
 [@deriving (show({with_path: false}), yojson)]
 type t = {
   code: list(string),
-  selection: string,
-  backpack: list(string),
+  selection: list(string),
+  backpack: list(list(string)),
 };
 
 let caret_str: string = "░";
@@ -24,12 +24,14 @@ and of_tile = (t: Tile.t): string =>
   |> String.concat("")
 and of_delim = (t: Piece.tile, i: int): string => List.nth(t.label, i);
 
+let lines_to_list = String.split_on_char('\n');
+
 let of_zipper = (z: Zipper.t): t => {
   let unselected = Zipper.unselect_and_zip(z);
   let map = Measured.of_segment(unselected);
   let mrows = map.rows;
   let Measured.{row, col} = Zipper.caret_point(map, z);
-  let rows = unselected |> of_segment |> String.split_on_char('\n');
+  let rows = unselected |> of_segment |> lines_to_list;
   let rows =
     List.mapi(
       (i, r) => {
@@ -47,9 +49,12 @@ let of_zipper = (z: Zipper.t): t => {
     };
   {
     code: rows, //String.concat("", rows),
-    selection: of_segment(z.selection.content),
+    selection: z.selection.content |> of_segment |> lines_to_list,
     backpack:
-      List.map((s: Selection.t) => of_segment(s.content), z.backpack),
+      List.map(
+        (s: Selection.t) => s.content |> of_segment |> lines_to_list,
+        z.backpack,
+      ),
   };
 };
 
@@ -58,9 +63,15 @@ let to_string = (z: Zipper.t): string => {
   Printf.sprintf(
     "CODE:\n%s\nSELECTION:\n%s\n%s\n",
     String.concat("\n", code),
-    selection,
+    String.concat("\n", selection),
     backpack
-    |> List.mapi((i, b) => "BP(" ++ string_of_int(i) ++ "):\n" ++ b ++ "\n")
+    |> List.mapi((i, b) =>
+         "BP("
+         ++ string_of_int(i)
+         ++ "):\n"
+         ++ String.concat("\n", b)
+         ++ "\n"
+       )
     |> String.concat(""),
   );
 };
