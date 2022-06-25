@@ -40,13 +40,9 @@ module Path = {
     let (h, v) = (x, y);
     switch (c) {
     | M({x, y}) => M({x: x +. h, y: y +. v})
-    | M_({dx, dy}) => M_({dx: dx +. h, dy: dy +. v})
     | L({x, y}) => L({x: x +. h, y: y +. v})
-    | L_({dx, dy}) => L_({dx: dx +. h, dy: dy +. v})
     | H({x}) => H({x: x +. h})
-    | H_({dx}) => H_({dx: dx +. h})
     | V({y}) => V({y: y +. v})
-    | V_({dy}) => V_({dy: dy +. v})
     | _ => c
     };
   };
