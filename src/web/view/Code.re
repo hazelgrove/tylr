@@ -85,19 +85,25 @@ module Text = (M: {
       );
     let is_consistent = Sort.consistent(t.mold.out, expected_sort);
     Aba.mk(t.shards, children_and_sorts)
-    |> Aba.join(of_delim(is_consistent, t), ((seg, sort)) =>
+    |> Aba.join(of_delim(t.mold.out, is_consistent, t), ((seg, sort)) =>
          of_segment(~sort, seg)
        )
     |> List.concat;
   }
-  and of_delim = (is_consistent, t: Piece.tile, i: int): list(Node.t) => {
+  and of_delim =
+      (sort: Sort.t, is_consistent, t: Piece.tile, i: int): list(Node.t) => {
     let cls =
       List.length(t.label) == 1
         ? is_consistent ? "single" : "mono-sort-inconsistent"
         : is_consistent
             ? Tile.is_complete(t) ? "delim" : "delim-incomplete"
             : "delim-sort-inconsistent";
-    [span_c(cls, [Node.text(List.nth(t.label, i))])];
+    [
+      span(
+        [Attr.classes([cls, "text-" ++ Sort.to_string(sort)])],
+        [Node.text(List.nth(t.label, i))],
+      ),
+    ];
   };
 };
 
@@ -163,7 +169,7 @@ module Deco =
       let shape = Zipper.caret_direction(z);
       let side =
         switch (Zipper.indicated_piece(z)) {
-        | Some((_, side)) => side
+        | Some((_, side, _)) => side
         | _ => Right
         };
       DecUtil.caret_adjust(side, shape);
@@ -286,7 +292,7 @@ module Deco =
     let shape = Zipper.caret_direction(z);
     let side =
       switch (Zipper.indicated_piece(z)) {
-      | Some((_, side)) => side
+      | Some((_, side, _)) => side
       | _ => Right
       };
     [
@@ -340,11 +346,12 @@ module Deco =
       };
     let l = fst(List.hd(shards));
     let r = fst(ListUtil.last(shards));
-    PieceDec.Profile.{shards, mold, style: Selected(l, r)};
+    PieceDec.Profile.{shards, mold, style: Selected(l, r), index: 0};
   };
 
   let root_piece_profile =
-      (p: Piece.t, nib_shape: Nib.Shape.t, (l, r)): PieceDec.Profile.t => {
+      (index: int, p: Piece.t, nib_shape: Nib.Shape.t, (l, r))
+      : PieceDec.Profile.t => {
     // TODO(d) fix sorts
     let mold =
       switch (p) {
@@ -359,7 +366,7 @@ module Deco =
       | Grout(g) => [(0, Measured.find_g(g, M.map))]
       | Tile(t) => Measured.find_shards(t, M.map)
       };
-    PieceDec.Profile.{shards, mold, style: Root(l, r)};
+    PieceDec.Profile.{shards, mold, style: Root(l, r), index};
   };
 
   let selected_pieces = (z: Zipper.t): list(Node.t) =>
@@ -389,7 +396,7 @@ module Deco =
     switch (Zipper.indicated_piece(z)) {
     | _ when z.selection.content != [] => []
     | None => []
-    | Some((p, side)) =>
+    | Some((p, side, _)) =>
       let nib_shape =
         switch (Zipper.caret_direction(z)) {
         | None => Nib.Shape.Convex
@@ -410,13 +417,34 @@ module Deco =
           let m = Measured.find_p(p, M.map);
           Some((m.origin, m.last));
         };
+      let index =
+        switch (Zipper.indicated_shard_index(z)) {
+        | None => (-1)
+        | Some(i) => i
+        };
+      //TODO(andrew): get this working
+      let _segs =
+        switch (p) {
+        | Tile({children, mold, _}) =>
+          children
+          |> List.flatten
+          |> List.filter(
+               fun
+               | Piece.Whitespace(w) when w.content == Whitespace.linebreak =>
+                 false
+               | _ => true,
+             )
+          |> List.map(p => (mold, Measured.find_p(p, M.map)))
+        | _ => []
+        };
       switch (range) {
       | None => []
       | Some(range) =>
         PieceDec.view(
           ~font_metrics,
           ~rows=M.map.rows,
-          root_piece_profile(p, nib_shape, range),
+          ~segs=[],
+          root_piece_profile(index, p, nib_shape, range),
         )
       };
     };

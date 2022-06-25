@@ -36,6 +36,17 @@ module Path = {
         dy: float,
       });
 
+  let cmdfudge = (~x=0., ~y=0., c: cmd): cmd => {
+    let (h, v) = (x, y);
+    switch (c) {
+    | M({x, y}) => M({x: x +. h, y: y +. v})
+    | L({x, y}) => L({x: x +. h, y: y +. v})
+    | H({x}) => H({x: x +. h})
+    | V({y}) => V({y: y +. v})
+    | _ => c
+    };
+  };
+
   let m = (~x, ~y) => M({x: Float.of_int(x), y: Float.of_int(y)});
   let l_ = (~dx, ~dy) => L_({dx: Float.of_int(dx), dy: Float.of_int(dy)});
   let h = (~x) => H({x: Float.of_int(x)});
