@@ -257,12 +257,6 @@ module Trim = {
 
   let ws = ((wss, _): t): seg => List.(map(Piece.whitespace, concat(wss)));
 
-  [@deriving show]
-  type bleh = list(Whitespace.t);
-  [@deriving show]
-  type bleh2 = list(list(Whitespace.t));
-  [@deriving show]
-  type bleh3 = list(Grout.t);
   // postcond: result is either <ws> or <ws,g,ws'>
   let merge = ((wss, gs): t): t => {
     switch (Grout.merge(gs)) {
@@ -329,6 +323,19 @@ module Trim = {
          somewhat hacky; we may just want to remove all the spaces
          whenever there is a linebreak; not making this chance now
          as I'm worried about it introducing subtle jank */
+      /* David PR comment:
+         All these changes assume the trim is ordered left-to-right,
+         but this may not be true when Trim.regrout is called by
+         regrout_affix(Left, ...) below, which reverses the affix before
+         processing. (This didn't pose an issue before with trim because
+         the whitespace and grout are symmetric and the existing code
+         didn't affect order.)
+
+         Proper fix would require threading through directional parameter
+         from regrout_affix into Trim.regrout and appending to correct side.
+         Similar threading for add_grout. That said, I couldn't trigger any
+         undesirable behavior with these changes and am fine with going ahead
+         with this for now. */
       let wss = [new_spaces @ List.concat(wss)];
       IdGen.return(Aba.mk(wss, []));
     } else {

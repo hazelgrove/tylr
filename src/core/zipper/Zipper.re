@@ -857,8 +857,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     //|> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_insert)
-  | Pick_up =>
-  Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
+  | Pick_up => Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
   | Put_down =>
     z
     |> put_down
