@@ -320,7 +320,7 @@ type relation =
   | Sibling;
 
 let indicated_piece = (z: t): option((Piece.t, Direction.t, relation)) => {
-  let ws = Piece.is_whitespace;
+  let ws = p => Piece.(is_whitespace(p) || is_grout(p));
   /* Returns the piece currently indicated (if any) and which side of
      that piece the caret is on. We favor indicating the piece to the
      (R)ight, but may end up indicating the (P)arent or the (L)eft.

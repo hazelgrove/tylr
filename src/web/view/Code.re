@@ -411,6 +411,7 @@ module Deco =
     switch (Zipper.indicated_piece(z)) {
     | _ when z.selection.content != [] => []
     | None => []
+    | Some((Grout(_), _, _)) => []
     | Some((p, side, _)) =>
       let nib_shape =
         switch (Zipper.caret_direction(z)) {
