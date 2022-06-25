@@ -842,6 +842,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     switch (d) {
     | Extreme(d) =>
       do_extreme(move(ByToken, from_plane(d)), d, z)
+      |> Option.map(update_target)
       |> Option.map(IdGen.id(id_gen))
       |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
@@ -865,7 +866,9 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | Select(d) =>
     let selected =
       switch (d) {
-      | Extreme(d) => do_extreme(select(from_plane(d)), d, z)
+      | Extreme(d) =>
+        do_extreme(select(from_plane(d)), d, z)
+        |> Option.map(update_target)
       | Local(d) =>
         /* Note: Don't update target on vertical selection */
         switch (d) {

@@ -13,14 +13,14 @@ fun center ->
 let x, y = center in
 rect(x - 2, y - 2, 4, 4)
 in
-[mark(p1), line(p1, p2), mark(p2)]
+[mark(p1); line(p1, p2); mark(p2)]
 else
 let mark =
 fun center ->
 let r = 4 in
 circle(center, 4)
 in
-[mark(p1), line(p1, p2), mark(p2)]",
+[mark(p1); line(p1, p2); mark(p2)]",
   "shapes
 |> map(rotate(pi / 4))
 |> map(translate(6, 7))

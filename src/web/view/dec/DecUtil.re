@@ -65,12 +65,14 @@ let code_svg =
       ~top_fudge=0.0,
       ~width_fudge=0.0,
       ~height_fudge=0.0,
+      ~id="",
       ~attrs=[],
       paths: list(SvgUtil.Path.cmd),
     ) =>
   create_svg(
     "svg",
-    [
+    (id == "" ? [] : [Attr.id(id)])
+    @ [
       Attr.classes(base_cls),
       abs_position(
         ~font_metrics,

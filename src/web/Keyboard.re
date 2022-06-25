@@ -63,15 +63,9 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
         | "F2" =>
           zipper |> Zipper.show |> print_endline;
           [];
-        | "F4" =>
-          print_endline("F4 SAVE");
-          [Save];
-        | "F6" =>
-          print_endline("F6 LOAD");
-          [Load];
-        | "F8" =>
-          print_endline("F8 LOAD DEFAULT");
-          [LoadDefault, Save];
+        | "F4" => [Save]
+        | "F6" => [Load]
+        | "F8" => [LoadDefault, Save]
         | "Shift" =>
           let cur_ts = JsUtil.date_now()##valueOf;
           switch (double_tap) {

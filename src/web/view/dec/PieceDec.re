@@ -28,10 +28,10 @@ let adj: Nib.Shape.t => float =
   | Concave(_) => DecUtil.concave_adj;
 
 let l_hook = (l: Nib.Shape.t): list(Path.cmd) => [
-  H({x: -. adj(l)}),
+  H_({dx: -. adj(l)}),
   L_({dx: -. run(l), dy: (-0.5)}),
   L_({dx: +. run(l), dy: (-0.5)}),
-  H({x: +. adj(l)}),
+  H_({dx: +. adj(l)}),
 ];
 
 let r_hook = (r: Nib.Shape.t): list(Path.cmd) => [
@@ -46,7 +46,7 @@ let simple_shard_path = ((l, r): Nibs.shapes, length: int): list(Path.cmd) =>
     Path.[
       [m(~x=0, ~y=0), h(~x=length)],
       r_hook(r),
-      [h(~x=- length)],
+      [h(~x=0)],
       l_hook(l),
     ],
   );
@@ -55,7 +55,7 @@ let chunky_shard_path =
     (
       {origin, last}: Measured.measurement,
       (l, r): Nibs.shapes,
-      min_col: int,
+      indent_col: int,
       max_col: int,
     )
     : list(Path.cmd) =>
@@ -68,7 +68,7 @@ let chunky_shard_path =
         h(~x=last.col - origin.col),
       ],
       r_hook(r),
-      [h(~x=min_col - origin.col), v(~y=1)],
+      [h(~x=indent_col - origin.col), v(~y=1), h(~x=0)],
       l_hook(l),
     ],
   );
@@ -120,13 +120,13 @@ let chunky_shard =
   let last = List.assoc(j, shards).last;
   let (nib_l, _) = Mold.nib_shapes(~index=i, mold);
   let (_, nib_r) = Mold.nib_shapes(~index=j, mold);
-  let min_col = Measured.Rows.find(origin.row, rows).indent;
+  let indent_col = Measured.Rows.find(origin.row, rows).indent;
   let max_col =
     ListUtil.range(~lo=origin.row, last.row + 1)
     |> List.map(r => Measured.Rows.find(r, rows).max_col)
     |> List.fold_left(max, 0);
   let path =
-    chunky_shard_path({origin, last}, (nib_l, nib_r), min_col, max_col);
+    chunky_shard_path({origin, last}, (nib_l, nib_r), indent_col, max_col);
   let clss = ["tile-path", "selected", "raised", Sort.to_string(mold.out)];
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };

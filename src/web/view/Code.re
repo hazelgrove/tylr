@@ -412,42 +412,55 @@ module Deco =
     | _ when z.selection.content != [] => []
     | None => []
     | Some((p, side, _)) =>
-      let ranges = TermRanges.mk(Zipper.zip(z));
-      switch (TermRanges.find_opt(Piece.id(p), ranges)) {
+      let nib_shape =
+        switch (Zipper.caret_direction(z)) {
+        | None => Nib.Shape.Convex
+        | Some(nib) => Nib.Shape.relative(nib, side)
+        };
+      let range: option((Measured.point, Measured.point)) =
+        if (Piece.has_ends(p)) {
+          let ranges = TermRanges.mk(Zipper.zip(z));
+          switch (TermRanges.find_opt(Piece.id(p), ranges)) {
+          | None => None
+          | Some((p_l, p_r)) =>
+            let l = Measured.find_p(p_l, M.map).origin;
+            let r = Measured.find_p(p_r, M.map).last;
+            Some((l, r));
+          };
+        } else {
+          // using range of piece itself hides unidelimited child borders
+          let m = Measured.find_p(p, M.map);
+          Some((m.origin, m.last));
+        };
+      let index =
+        switch (Zipper.indicated_shard_index(z)) {
+        | None => (-1)
+        | Some(i) => i
+        };
+      //TODO(andrew): get this working
+      let _segs =
+        switch (p) {
+        | Tile({children, mold, _}) =>
+          children
+          |> List.flatten
+          |> List.filter(
+               fun
+               | Piece.Whitespace(w) when w.content == Whitespace.linebreak =>
+                 false
+               | _ => true,
+             )
+          |> List.map(p => (mold, Measured.find_p(p, M.map)))
+        | _ => []
+        };
+      switch (range) {
       | None => []
-      | Some((p_l, p_r)) =>
-        let l = Measured.find_p(p_l, M.map).origin;
-        let r = Measured.find_p(p_r, M.map).last;
-        let nib_shape =
-          switch (Zipper.caret_direction(z)) {
-          | None => Nib.Shape.Convex
-          | Some(nib) => Nib.Shape.relative(nib, side)
-          };
-        let index =
-          switch (Zipper.indicated_shard_index(z)) {
-          | None => (-1)
-          | Some(i) => i
-          };
-        let segs =
-          switch (p) {
-          | Tile({children, mold, _}) =>
-            children
-            |> List.flatten
-            |> List.filter(
-                 fun
-                 | Piece.Whitespace(w) when w.content == Whitespace.linebreak =>
-                   false
-                 | _ => true,
-               )
-            |> List.map(p => (mold, Measured.find_p(p, M.map)))
-          | _ => []
-          };
+      | Some(range) =>
         PieceDec.view(
           ~font_metrics,
           ~rows=M.map.rows,
-          ~segs,
-          root_piece_profile(index, p, nib_shape, (l, r)),
-        );
+          ~segs=[],
+          root_piece_profile(index, p, nib_shape, range),
+        )
       };
     };
   };
