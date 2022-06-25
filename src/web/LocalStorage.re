@@ -33,12 +33,10 @@ let yz = transform_y(transform_z(shapes)) in
   "8",
   "9",
   "let foo =
-fun taz -> {
-case taz of {
+fun taz ->
+case taz of
 | (2, torb) -> bargle + 7*torb
 | (blee, 5) -> krunk ? blee : 66
-}
-}
 in foo(0!)",
   "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
 ];

@@ -70,12 +70,12 @@
 
   --hole-stroke-color: #dc322f;
 
-  --exp-bg-color: #dbf6de;
-  --exp-shadow-color: #329f43;
+  --exp-bg-color: #ebdfc5; /*#dbf6de;*/
+  --exp-shadow-color: #c4b599;/*#329f43;*/
   --exp-rail-color: #a7d3ad;
 
-  --pat-bg-color: #c4e6ff;
-  --pat-shadow-color: #268bd2;
+  --pat-bg-color: #f5fbff;
+  --pat-shadow-color: #90bdde; /*#268bd2;*/
   --pat-rail-color: #a1c4dd;
 
   --typ-bg-color: #caccf4;
@@ -85,7 +85,7 @@
   --rul-shadow-color: #d461d0;
 
   --nul-bg-color: #b6b6b6;
-  --nul-shadow-color: #666666;
+  --nul-shadow-color: #a97804;
 
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c2a964;
@@ -368,6 +368,14 @@
   stroke: var(--pat-shadow-color);
 }
 
+
+/*TODO(andrew): clean up text classes*/
+.code .text-Pat {
+  color: #236eac;
+}
+.code .text-Exp {
+  color: #576d75;
+}
 .code .delim {
   color: var(--delim-color);
   font-weight: bold;
@@ -384,15 +392,12 @@
   font-weight: bold;
 }
 
-.tile-path {
+/*.tile-path {
   stroke-width: 0.4;
   fill-rule: evenodd;
   fill: var(--nul-bg-color);
-}
+}*/
 
-.tile-path.raised {
-  stroke-width: 0.4;
-}
 .tile-path.selected {
   fill: var(--selection-color);
 }
@@ -413,12 +418,20 @@
 }
 
 
+/* TODO(andrew): hack important */
+.tile-path.raised.selected {
+  filter: url(#raised-drop-shadow-Nul) !important;
+}
+
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
   filter: url(#drop-shadow-Exp);
 }
 
 .tile-path.Any.indicated {
+  fill: #f0dead;
+}
+.tile-path.Any.indicated-caret {
   fill: #f0dead;
 }
 .tile-path.Any.raised {
@@ -430,11 +443,21 @@
 }
 
 .tile-path.Exp.indicated {
-  fill:#b9e3be;
+  fill: var(--exp-bg-color);
+  /*fill:#b9e3be;*/
 }
-.tile-path.Exp.raised {
-  filter: url(#raised-drop-shadow-Exp);
+.tile-path.Exp.indicated-caret {
+  fill: #feddb3;
+  /*fill:#b9e3be;*/
 }
+.Exp.indicated-child {
+  fill: #f9eed8;
+}
+.child-backing {
+  z-index: -1;
+}
+
+
 #drop-shadow-Exp .tile-drop-shadow,
 #raised-drop-shadow-Exp .tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
@@ -446,6 +469,12 @@
 }
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
+}
+.tile-path.Pat.indicated-caret {
+  fill: #c4e6ff;
+}
+.Pat.indicated-child {
+  fill: #e4f1fa;
 }
 .tile-path.Pat.raised {
   filter: url(#raised-drop-shadow-Pat);

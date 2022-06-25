@@ -315,7 +315,11 @@ let representative_piece = (z: t): option((Piece.t, Direction.t)) => {
   };
 };
 
-let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
+type relation =
+  | Parent
+  | Sibling;
+
+let indicated_piece = (z: t): option((Piece.t, Direction.t, relation)) => {
   let ws = Piece.is_whitespace;
   /* Returns the piece currently indicated (if any) and which side of
      that piece the caret is on. We favor indicating the piece to the
@@ -329,7 +333,8 @@ let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   /* Empty syntax => no indication */
   | ((None, None), None) => None
   /* L not whitespace, R is whitespace => indicate L */
-  | ((Some(l), Some(r)), _) when !ws(l) && ws(r) => Some((l, Left))
+  | ((Some(l), Some(r)), _) when !ws(l) && ws(r) =>
+    Some((l, Left, Sibling))
   /* L and R are whitespaces => no indication */
   | ((Some(l), Some(r)), _) when ws(l) && ws(r) => None
   /* At right end of syntax and L is whitespace => no indication */
@@ -337,19 +342,51 @@ let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   /* At left end of syntax and R is whitespace => no indication */
   | ((None, Some(r)), None) when ws(r) => None
   /* No L and R is a whitespace and there is a P => indicate P */
-  | ((None, Some(r)), Some(parent)) when ws(r) => Some((parent, Left))
+  | ((None, Some(r)), Some(parent)) when ws(r) =>
+    Some((parent, Left, Parent))
   /* L is not whitespace and caret is outer => indicate L */
-  | ((Some(l), _), _) when !ws(l) && z.caret == Outer => Some((l, Left))
+  | ((Some(l), _), _) when !ws(l) && z.caret == Outer =>
+    Some((l, Left, Sibling))
   /* No L, some P, and caret is outer => indicate R */
-  | ((None, _), Some(parent)) when z.caret == Outer => Some((parent, Left))
+  | ((None, _), Some(parent)) when z.caret == Outer =>
+    Some((parent, Left, Parent))
   /* R is not whitespace, either no L or L is whitespace or caret is inner => indicate R */
-  | ((_, Some(r)), _) => Some((r, Right))
+  | ((_, Some(r)), _) => Some((r, Right, Sibling))
   /* No R and there is a P => indicate P */
-  | ((_, None), Some(parent)) => Some((parent, Right))
+  | ((_, None), Some(parent)) => Some((parent, Right, Parent))
   /* There is an L but no R and no P => indicate L */
-  | ((Some(l), None), None) => Some((l, Right))
+  //TODO(andrew): Right below seems wrong but it gets fucky otherwise
+  | ((Some(l), None), None) => Some((l, Right, Sibling))
   };
 };
+
+let indicated_shard_index = (z: t): option(int) =>
+  switch (indicated_piece(z)) {
+  | None => None
+  | Some((p, side, relation)) =>
+    switch (relation) {
+    | Parent =>
+      switch (Ancestors.parent(z.relatives.ancestors)) {
+      | None => failwith("indicated_shard_index impossible")
+      | Some({children: (before, _), _}) =>
+        let before = List.length(before);
+        switch (Siblings.neighbors(z.relatives.siblings)) {
+        | (_, None) => Some(before + 1)
+        | _ => Some(before)
+        };
+      }
+    | Sibling =>
+      switch (p) {
+      | Whitespace(_)
+      | Grout(_) => Some(0)
+      | Tile(t) =>
+        switch (side) {
+        | Left => Some(List.length(t.children))
+        | Right => Some(0)
+        }
+      }
+    }
+  };
 
 let update_caret = (f: caret => caret, z: t): t => {
   ...z,

@@ -13,6 +13,7 @@ module Profile = {
     shards: Measured.Shards.t,
     mold: Mold.t,
     style,
+    index: int,
   };
 };
 
@@ -76,19 +77,35 @@ let simple_shard =
     (
       ~font_metrics: FontMetrics.t,
       ~mold: Mold.t,
-      (index, {origin, last}: Measured.measurement),
+      ~index: int,
+      (this_index, {origin, last}: Measured.measurement),
     )
     : t => {
-  let nib_shapes = Mold.nib_shapes(index, mold);
+  let nib_shapes = Mold.nib_shapes(~index=this_index, mold);
   let path = simple_shard_path(nib_shapes, last.col - origin.col);
-  let path_cls = [
-    "tile-path",
-    "raised",
-    "indicated",
-    Sort.to_string(mold.out),
-  ];
+  let path_cls =
+    ["tile-path", "raised", Sort.to_string(mold.out)]
+    @ (index == this_index ? ["indicated-caret"] : ["indicated"]);
   let base_cls = ["tile-indicated"];
   DecUtil.code_svg(~font_metrics, ~origin, ~base_cls, ~path_cls, path);
+};
+
+let simple_shard_child =
+    (
+      ~font_metrics: FontMetrics.t,
+      (mold: Mold.t, {origin, last}: Measured.measurement),
+    )
+    : t => {
+  let nib_shapes = Mold.nib_shapes(mold);
+  let path = simple_shard_path(nib_shapes, last.col - origin.col);
+  let clss = ["indicated-child", Sort.to_string(mold.out)];
+  DecUtil.code_svg(
+    ~font_metrics,
+    ~origin,
+    ~path_cls=clss,
+    ~base_cls=["child-backing"],
+    path,
+  );
 };
 
 let chunky_shard =
@@ -101,8 +118,8 @@ let chunky_shard =
     ) => {
   let origin = List.assoc(i, shards).origin;
   let last = List.assoc(j, shards).last;
-  let (nib_l, _) = Mold.nib_shapes(i, mold);
-  let (_, nib_r) = Mold.nib_shapes(j, mold);
+  let (nib_l, _) = Mold.nib_shapes(~index=i, mold);
+  let (_, nib_r) = Mold.nib_shapes(~index=j, mold);
   let indent_col = Measured.Rows.find(origin.row, rows).indent;
   let max_col =
     ListUtil.range(~lo=origin.row, last.row + 1)
@@ -113,6 +130,8 @@ let chunky_shard =
   let clss = ["tile-path", "selected", "raised", Sort.to_string(mold.out)];
   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
 };
+
+let shadowfudge = Path.cmdfudge(~y=DecUtil.shadow_adj);
 
 let bi_lines =
     (
@@ -132,8 +151,8 @@ let bi_lines =
            (
              l.origin,
              SvgUtil.Path.[
-               M({x: 0., y: 1. +. DecUtil.shadow_adj}),
-               H({x: Float.of_int(r.last.col - l.origin.col)}),
+               shadowfudge(m(~x=0, ~y=1)),
+               h(~x=r.last.col - l.origin.col),
              ],
            )
          ),
@@ -152,9 +171,9 @@ let bi_lines =
          (
            origin,
            SvgUtil.Path.[
-             m(~x=0, ~y=0 + 1),
+             shadowfudge(m(~x=0, ~y=1)),
              h_(~dx=indent - origin.col),
-             v_(~dy=origin'.row - origin.row + v_delta),
+             shadowfudge(v_(~dy=origin'.row - origin.row + v_delta)),
              h_(~dx=origin'.col - indent),
            ],
          );
@@ -198,16 +217,16 @@ let uni_lines =
           ? (
             m_first.origin,
             [
-              M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+              shadowfudge(m(~x=0, ~y=1)),
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
-                dy: -. DecUtil.short_tip_height,
+                dy: -. DecUtil.short_tip_height /. 2. //hack
               }),
-              L_({
-                dx: DecUtil.short_tip_width,
-                dy: -. DecUtil.short_tip_height,
-              }),
+              //L_({
+              //  dx: DecUtil.short_tip_width,
+              //  dy: -. DecUtil.short_tip_height,
+              //}),
             ],
           )
           : (
@@ -218,23 +237,23 @@ let uni_lines =
                   m(~x=m_last_of_first.last.col - m_first.origin.col, ~y=0),
                   // TODO(d) need to take max of all rows, not just top
                   h(~x=max_col - m_first.origin.col),
-                  v(~y=l.row - m_last_of_first.origin.row),
+                  shadowfudge(v(~y=l.row - m_last_of_first.origin.row)),
                 ]
                 : [
-                  M({x: 0., y: 1. +. DecUtil.shadow_adj}),
+                  shadowfudge(m(~x=0, ~y=1)),
                   h(~x=indent - m_first.origin.col),
-                  v(~y=m_first.origin.row - m_first.origin.row),
+                  shadowfudge(v(~y=l.row + 1 - m_first.origin.row)),
                   h(~x=max_col - m_first.origin.col),
-                  v(~y=l.row - m_first.origin.row),
+                  shadowfudge(v(~y=l.row - m_first.origin.row)),
                 ]
             )
             @ [
               h(~x=l.col - m_first.origin.col),
               L_({
                 dx: -. DecUtil.short_tip_width,
-                dy: DecUtil.short_tip_height,
+                dy: DecUtil.short_tip_height /. 2. //hack
               }),
-              L_({dx: DecUtil.short_tip_width, dy: DecUtil.short_tip_height}),
+              //L_({dx: DecUtil.short_tip_width, dy: DecUtil.short_tip_height}),
             ],
           ),
       ];
@@ -247,21 +266,21 @@ let uni_lines =
     let hook = [
       L_({
         dx: DecUtil.short_tip_width,
-        dy: Float.neg(DecUtil.short_tip_height),
+        dy: -. DecUtil.short_tip_height /. 2. //hack
       }),
-      L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
+      //L_({dx: -. DecUtil.short_tip_width, dy: -. DecUtil.short_tip_height}),
     ];
     if (r.row == m_last.last.row && r.col != m_last.last.col) {
       [
         (
           m_last.origin,
           [
-            M({
-              x: float_of_int(m_last.last.col - m_last.origin.col),
-              y:
-                float_of_int(m_last.last.row - m_last.origin.row + 1)
-                +. DecUtil.shadow_adj,
-            }),
+            shadowfudge(
+              m(
+                ~x=m_last.last.col - m_last.origin.col,
+                ~y=m_last.last.row - m_last.origin.row + 1,
+              ),
+            ),
             h(~x=r.col - m_last.origin.col),
             ...hook,
           ],
@@ -287,14 +306,11 @@ let uni_lines =
         (
           m_flast.origin,
           [
-            M({
-              x: 0.,
-              y:
-                float_of_int(m_flast.last.row - m_flast.origin.row + 1)
-                +. DecUtil.shadow_adj,
-            }),
+            shadowfudge(
+              m(~x=0, ~y=m_flast.last.row - m_flast.origin.row + 1),
+            ),
             h(~x=indent - m_flast.origin.col),
-            v(~y=r.row - m_flast.origin.row + 1),
+            shadowfudge(v(~y=r.row - m_flast.origin.row + 1)),
             h(~x=r.col - m_flast.origin.col),
             ...hook,
           ],
@@ -316,7 +332,8 @@ let view =
     (
       ~font_metrics: FontMetrics.t,
       ~rows: Measured.Rows.t,
-      {mold, shards, _} as profile: Profile.t,
+      ~segs: list((Mold.t, Measured.measurement))=[],
+      {mold, shards, index, _} as profile: Profile.t,
     )
     : list(Node.t) =>
   switch (profile.style) {
@@ -324,7 +341,8 @@ let view =
       chunky_shard(~font_metrics, ~rows, (i, j), mold, shards),
     ]
   | Root(l, r) =>
-    List.map(simple_shard(~font_metrics, ~mold), shards)
+    List.map(simple_shard(~font_metrics, ~mold, ~index), shards)
+    @ List.map(simple_shard_child(~font_metrics), segs)
     @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
     @ bi_lines(~font_metrics, ~rows, mold, shards)
   };
