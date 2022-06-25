@@ -46,8 +46,8 @@ let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
     (regexp("^[a-z][A-Za-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
   ),
   ("type", (regexp("^[A-Z][A-Za-z0-9_]*$"), [mk_op(Typ, [])])),
-  ("whatever", (regexp("#*$"), [mk_op(Nul, [])])),
-  ("whatever", (regexp("@*$"), [mk_op(Rul, [])])),
+  // ("whatever", (regexp("#*$"), [mk_op(Nul, [])])),
+  // ("whatever", (regexp("@*$"), [mk_op(Rul, [])])),
   ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
   ("wild", (regexp("^_$"), [mk_op(Pat, [])])),
 ];
@@ -70,7 +70,7 @@ let forms: list((string, t)) = [
   ("logical_or", mk_infix("||", Exp, 5)),
   ("bitwise_and", mk_infix("&", Exp, 5)),
   ("logical_and", mk_infix("&&", Exp, 5)),
-  ("concat", mk_infix("++", Exp, 5)),
+  ("concat", mk_infix("@", Exp, P.concat)),
   ("rev_ap", mk_infix("|>", Exp, P.eqs)),
   //("cons", mk_infix("::", Exp, 5)),
   // ("type-ann", mk_infix(":", Exp, 5)), // bad sorts

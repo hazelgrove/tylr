@@ -12,14 +12,15 @@ let fact = 1;
 let ap = 2;
 let mult = 3;
 let plus = 4;
-let eqs = 5;
-let cond = 6;
-let prod = 7;
-let if_ = 8;
-let semi = 9;
-let let_ = 10;
+let concat = 5;
+let eqs = 6;
+let cond = 7;
+let prod = 8;
+let if_ = 9;
+let semi = 10;
+let let_ = 11;
 
-let min = 11;
+let min = 12;
 
 let compare = (p1: t, p2: t): int =>
   (-1) * Int.compare((p1 :> int), (p2 :> int));
@@ -29,6 +30,7 @@ let associativity_map: IntMap.t(Direction.t) =
   [
     (mult, Direction.Left),
     (plus, Left),
+    (concat, Right),
     (prod, Right),
     (cond, Left),
     (eqs, Left),
