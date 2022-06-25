@@ -20,15 +20,18 @@ fun center ->
 let r = 4 in
 circle(center, 4)
 in
-[mark(p1); line(p1, p2); mark(p2)]",
+[mark(p1); line(p1, p2); mark(p2)]
+",
   "shapes
 |> map(rotate(pi / 4))
 |> map(translate(6, 7))
 |> filter(fun shape -> area(shape) < 50)
-|> map(dilate(5))",
-  "let wx = observe(msg, transform_w(transform_x(shapes))) in
-let yz = transform_y(transform_z(shapes)) in
-[wx; yz]",
+|> map(dilate(5))
+",
+  "let ss1 = observe(msg, map_rotate(map_dilate(shapes))) in
+let ss2 = map_brighten(shapes) in
+[ss1; ss2]
+",
   "7",
   "8",
   "9",
