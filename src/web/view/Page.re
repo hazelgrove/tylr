@@ -51,6 +51,12 @@ let redo = (~inject, ~disabled) => {
   );
 };
 
+let copy_log_to_clipboard = _ => {
+  Log.append_json_updates_log();
+  JsUtil.copy_to_clipboard(Log.get_json_update_log_string());
+  Event.Ignore;
+};
+
 let left_panel_view = (~inject, history) =>
   div(
     [Attr.id("history-button-container")],
@@ -64,14 +70,27 @@ let left_panel_view = (~inject, history) =>
         ],
         [Icons.eye],
       ),
+      div(
+        [
+          Attr.class_("topbar-icon"),
+          Attr.on_mousedown(copy_log_to_clipboard),
+        ],
+        [Icons.export],
+      ),
     ],
   );
 
 let center_panel_view = (~inject, cur_idx) => {
   let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
   let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
-  let incr_ed = _ => inject(Update.SwitchEditor(next_ed));
-  let decr_ed = _ => inject(Update.SwitchEditor(prev_ed));
+  let incr_ed = _ => {
+    Log.append_json_updates_log();
+    inject(Update.SwitchEditor(next_ed));
+  };
+  let decr_ed = _ => {
+    Log.append_json_updates_log();
+    inject(Update.SwitchEditor(prev_ed));
+  };
   let toggle_captions = _ => inject(Update.Set(Captions));
   let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
   div(
@@ -95,6 +114,7 @@ let link_icon = (str, url, icon) =>
     [Attr.id(str)],
     [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
+
 let right_panel_view =
   div(
     [Attr.id("about-button-container")],
@@ -148,9 +168,7 @@ let editor_caption_view = (model: Model.t) =>
       : [],
   );
 
-let view = (~inject, model: Model.t) => {
-  //print_endline("Page.view");
-  let zipper = Model.get_zipper(model);
+let view = (~inject, ~handlers, model: Model.t) => {
   div(
     Attr.[
       id("page"),
@@ -160,7 +178,7 @@ let view = (~inject, model: Model.t) => {
         JsUtil.get_elem_by_id("page")##focus;
         Event.Many([]);
       }),
-      ...Keyboard.handlers(~inject, ~zipper, ~double_tap=model.double_tap),
+      ...handlers(~inject, ~model),
     ],
     [
       FontSpecimen.view("font-specimen"),

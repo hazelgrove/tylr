@@ -2,31 +2,45 @@ open Sexplib.Std;
 open Util;
 open Core;
 
-[@deriving sexp]
+[@deriving (show, sexp, yojson)]
 type settings_action =
   | Captions
   | WhitespaceIcons;
 
-[@deriving sexp]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | Set(settings_action)
   | UpdateDoubleTap(option(float))
   | LoadInit
-  | Load
   | LoadDefault
+  | Load
   | Save
   | SwitchEditor(int)
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
   | PerformAction(Zipper.Action.t)
-  | FailedInput(FailedInput.reason)
+  | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
   | Redo
-  | Escape(Direction.t)
   | SetShowBackpackTargets(bool)
   | MoveToNextHole(Direction.t);
 
-let escape = (~d=Direction.Left, ()) => Escape(d);
+module Failure = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t =
+    | CantUndo
+    | CantRedo
+    | FailedToLoad
+    | FailedToSwitch
+    | UnrecognizedInput(FailedInput.reason)
+    | FailedToPerform(Zipper.Action.Failure.t)
+    | Exception(string);
+};
+
+module Result = {
+  include Result;
+  type t('success) = Result.t('success, Failure.t);
+};
 
 let save = (model: Model.t): unit =>
   switch (model.editor_model) {
@@ -58,14 +72,14 @@ let move_to_start = z =>
   | None => z
   };
 
-let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
+let apply =
+    (model: Model.t, update: t, _: State.t, ~schedule_action as _)
+    : Result.t(Model.t) => {
   //print_endline("Update.apply");
   switch (update) {
-  | Set(s_action) => {
-      ...model,
-      settings: update_settings(s_action, model.settings),
-    }
-  | UpdateDoubleTap(double_tap) => {...model, double_tap}
+  | Set(s_action) =>
+    Ok({...model, settings: update_settings(s_action, model.settings)})
+  | UpdateDoubleTap(double_tap) => Ok({...model, double_tap})
   | LoadInit =>
     let (zs, id_gen) =
       List.fold_left(
@@ -78,96 +92,108 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
         List.init(LocalStorage.num_editors, n => n),
       );
     let zs = List.map(move_to_start, zs);
-    {
+    Ok({
       ...model,
       history: ActionHistory.empty,
       id_gen,
       settings: LocalStorage.load_settings(),
       editor_model: Study(LocalStorage.load_editor_idx(), zs),
+    });
+  | LoadDefault =>
+    let n = Model.current_editor(model);
+    switch (LocalStorage.load_default_syntax(n, model.id_gen)) {
+    | Some((z, id_gen)) =>
+      Ok({
+        ...model,
+        history: ActionHistory.empty,
+        editor_model: Model.put_zipper(model, move_to_start(z)),
+        id_gen,
+      })
+    | None => Error(FailedToLoad)
     };
   | Load =>
     let n = Model.current_editor(model);
     switch (LocalStorage.load_syntax(n, model.id_gen)) {
-    | Some((z, id_gen)) => {
+    | Some((z, id_gen)) =>
+      Ok({
         ...model,
         history: ActionHistory.empty,
         editor_model: Model.put_zipper(model, move_to_start(z)),
         id_gen,
-      }
-    | None => model
-    };
-  | LoadDefault =>
-    let n = Model.current_editor(model);
-    switch (LocalStorage.load_default_syntax(n, model.id_gen)) {
-    | Some((z, id_gen)) => {
-        ...model,
-        history: ActionHistory.empty,
-        editor_model: Model.put_zipper(model, move_to_start(z)),
-        id_gen,
-      }
-    | None => model
+      })
+    | None => Error(FailedToLoad)
     };
   | Save =>
     save(model);
-    model;
+    Ok(model);
   | SwitchEditor(n) =>
     switch (model.editor_model) {
-    | Simple(_) => model
-    | Study(m, _) when m == n => model
+    | Simple(_) => Error(FailedToSwitch)
+    | Study(m, _) when m == n => Error(FailedToSwitch)
     | Study(_, zs) =>
-      assert(n < List.length(zs));
-      LocalStorage.save_editor_idx(n);
-      {...model, history: ActionHistory.empty, editor_model: Study(n, zs)};
+      switch (n < List.length(zs)) {
+      | false => Error(FailedToSwitch)
+      | true =>
+        assert(n < List.length(zs));
+        LocalStorage.save_editor_idx(n);
+        Ok({
+          ...model,
+          history: ActionHistory.empty,
+          editor_model: Study(n, zs),
+        });
+      }
     }
-  | SetShowBackpackTargets(b) => {
+  | SetShowBackpackTargets(b) =>
+    Ok({
       ...model,
       history: ActionHistory.clear_just_failed(model.history),
       show_backpack_targets: b,
-    }
-  | SetFontMetrics(font_metrics) => {...model, font_metrics}
-  | SetLogoFontMetrics(logo_font_metrics) => {...model, logo_font_metrics}
+    })
+  | SetFontMetrics(font_metrics) => Ok({...model, font_metrics})
+  | SetLogoFontMetrics(logo_font_metrics) =>
+    Ok({...model, logo_font_metrics})
   | PerformAction(a) =>
     let z_id = (Model.get_zipper(model), model.id_gen);
     switch (Zipper.perform(a, z_id)) {
-    | Error(err) =>
-      print_endline(Zipper.Action.Failure.show(err));
-      {...model, history: ActionHistory.failure(err, model.history)};
-    | Ok((z, id_gen)) => {
+    | Error(err) => Error(FailedToPerform(err))
+    // TODO(andrew): refactor history
+    | Ok((z, id_gen)) =>
+      Ok({
         ...model,
         editor_model: Model.put_zipper(model, z),
         id_gen,
         history: ActionHistory.succeeded(a, z_id, model.history),
-      }
+      })
     };
-  | FailedInput(reason) => {
-      ...model,
-      history: ActionHistory.just_failed(reason, model.history),
-    }
-  | Escape(_d) => model
+  | FailedInput(reason) => Error(UnrecognizedInput(reason))
   | Undo =>
+    // TODO(andrew): refactor history
     let z_id = (Model.get_zipper(model), model.id_gen);
     switch (ActionHistory.undo(z_id, model.history)) {
-    | None => model
-    | Some(((z, id_gen), history)) => {
+    | None => Error(CantUndo)
+    | Some(((z, id_gen), history)) =>
+      Ok({
         ...model,
         editor_model: Model.put_zipper(model, z),
         id_gen,
         history,
-      }
+      })
     };
   | Redo =>
+    // TODO(andrew): refactor history
     let z_id = (Model.get_zipper(model), model.id_gen);
     switch (ActionHistory.redo(z_id, model.history)) {
-    | None => model
-    | Some(((z, id_gen), history)) => {
+    | None => Error(CantRedo)
+    | Some(((z, id_gen), history)) =>
+      Ok({
         ...model,
         editor_model: Model.put_zipper(model, z),
         id_gen,
         history,
-      }
+      })
     };
   | MoveToNextHole(_d) =>
     // TODO restore
-    model
+    Ok(model)
   };
 };

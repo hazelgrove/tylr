@@ -1,7 +1,7 @@
 open Sexplib.Std;
 
 [@warning "-33"]
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   row_height: float,
   col_width: float,
