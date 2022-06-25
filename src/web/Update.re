@@ -54,7 +54,7 @@ let move_to_start = z =>
   switch (
     Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
   ) {
-  | Some(z) => z
+  | Some(z) => Zipper.update_target(z)
   | None => z
   };
 
@@ -113,7 +113,6 @@ let apply = (model: Model.t, update: t, _: State.t, ~schedule_action as _) => {
   | SwitchEditor(n) =>
     switch (model.editor_model) {
     | Simple(_) =>
-      print_endline("Can't switch");
       model;
     | Study(m, _) when m == n => model
     | Study(_, zs) =>

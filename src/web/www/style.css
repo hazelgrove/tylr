@@ -125,6 +125,8 @@
 }
 
 #page {
+  overflow-x: auto;
+  overflow-y: auto;
   height: 100vh;
   width: 100vw;
   position: fixed;
@@ -284,13 +286,6 @@
   color: #ce9600 !important;
 }
 
-.caret {
-  z-index: var(--caret-z);
-}
-.caret-path {
-  fill: #f62116;
-  stroke: none;
-}
 .empty-hole {
   z-index: var(--empty-hole-z);
 }
@@ -345,7 +340,7 @@
 .current-caret-pos-container {
   z-index: var(--current-caret-pos-z);
 }
-.sibling-container {
+.sibling{
   z-index: var(--caret-position-z);
 }
 .inner-cousin-container {
@@ -935,4 +930,23 @@
 
 svg {
   overflow: visible;
+}
+
+#caret {
+  z-index: var(--caret-z);
+}
+#caret.blink {
+  animation: 1s blink step-end infinite;
+}
+.caret-path {
+  fill: #f62116;
+  stroke: none;
+}
+@keyframes blink {
+  from, to {
+    opacity: 100%;
+  }
+  50% {
+    opacity: 0%;
+  }
 }

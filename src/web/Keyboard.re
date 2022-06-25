@@ -64,13 +64,10 @@ let handlers = (~inject: Update.t => Event.t, ~zipper: Zipper.t, ~double_tap) =>
           zipper |> Zipper.show |> print_endline;
           [];
         | "F4" =>
-          print_endline("F4 SAVE");
           [Save];
         | "F6" =>
-          print_endline("F6 LOAD");
           [Load];
         | "F8" =>
-          print_endline("F8 LOAD DEFAULT");
           [LoadDefault, Save];
         | "Shift" =>
           let cur_ts = JsUtil.date_now()##valueOf;

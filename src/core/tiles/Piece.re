@@ -96,3 +96,5 @@ let is_length_one_monotile: t => bool =
     | Some(t) => String.length(t) == 1
     | None => false
     };
+
+let has_ends = get(_ => true, _ => true, Tile.has_ends);
