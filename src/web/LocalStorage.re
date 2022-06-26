@@ -4,16 +4,7 @@ open Core;
 let default_editor_idx = 1;
 
 let editor_defaults = [
-  "0",
-  "let foo =
-fun taz -> {
-case taz of {
-| (2, torb) -> bargle + 7*torb
-| (blee, 5) -> krunk ? blee : 66
-}
-}
-in foo(0!)",
-  "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
+  "",
   "",
   "fun square, p1, p2 ->
 if square then
@@ -22,18 +13,35 @@ fun center ->
 let x, y = center in
 rect(x - 2, y - 2, 4, 4)
 in
-[mark(p1), line(p1, p2), mark(p2)]
+[mark(p1); line(p1, p2); mark(p2)]
 else
-let mark = fun center -> circle(center, 4) in
-[mark(p1), line(p1, p2), mark(p2)]",
+let mark =
+fun center ->
+let r = 4 in
+circle(center, 4)
+in
+[mark(p1); line(p1, p2); mark(p2)]
+",
   "shapes
 |> map(rotate(pi / 4))
 |> map(translate(6, 7))
-|> filter(fun shape -> area(shape) < 50)",
-  "6",
+|> filter(fun shape -> area(shape) < 50)
+|> map(dilate(5))
+",
+  "let ss1 = observe(msg, map_rotate(map_dilate(shapes))) in
+let ss2 = map_brighten(shapes) in
+[ss1; ss2]
+",
   "7",
   "8",
   "9",
+  "let foo =
+fun taz ->
+case taz of
+| (2, torb) -> bargle + 7*torb
+| (blee, 5) -> krunk ? blee : 66
+in foo(0!)",
+  "let foo = fun taz -> (fun bar -> (taz + 2*bar)) in foo(1!)",
 ];
 
 let editor_captions = [
@@ -75,6 +83,9 @@ let save_syntax_key: int => string =
   save_idx => "SAVE" ++ string_of_int(save_idx);
 let save_ed_idx_key: string = "CURRENT_EDITOR";
 let save_settings_key: string = "SETTINGS";
+let action_log_key: string = "ACTION_LOG";
+let keystoke_log_key: string = "KEYSTROKE_LOG";
+let zipper_log_key: string = "ZIPPER_LOG";
 
 let insert_to_zid: (Zipper.state, string) => Zipper.state =
   (z_id, c) => {
@@ -103,7 +114,7 @@ let parse_to_zid = (id_gen: IdGen.state, str: string): option(Zipper.state) =>
 let save_syntax = (save_idx: int, z: Zipper.t) =>
   set_localstore(
     save_syntax_key(save_idx),
-    z |> Zipper.zip |> Code.CodeString.of_segment,
+    z |> Zipper.zip |> Printer.of_segment,
   );
 
 let load_default_syntax: (int, IdGen.state) => option(Zipper.state) =
@@ -147,3 +158,28 @@ let load_settings = (): Model.settings =>
     | _ => Model.settings_init
     }
   };
+
+/*
+ let get_string_log = log_key =>
+   switch (get_localstore(log_key)) {
+   | None => ""
+   | Some(str) => str
+   };
+
+ let reset_string_log = log_key => set_localstore(log_key, "");
+
+ let append_string_log = (log_key, new_entry_str) =>
+   set_localstore(log_key, get_string_log(log_key) ++ "\n" ++ new_entry_str);
+
+ let get_action_log = () => get_string_log(action_log_key);
+ let reset_action_log = () => reset_string_log(action_log_key);
+ let append_action_log = append_string_log(action_log_key);
+
+ let get_keystoke_log = () => get_string_log(keystoke_log_key);
+ let reset_keystoke_log = () => reset_string_log(keystoke_log_key);
+ let append_keystroke_log = append_string_log(keystoke_log_key);
+
+ let get_zipper_log = () => get_string_log(zipper_log_key);
+ let reset_zipper_log = () => reset_string_log(zipper_log_key);
+ let append_zipper_log = append_string_log(zipper_log_key);
+ */

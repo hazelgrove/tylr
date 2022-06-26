@@ -5,7 +5,7 @@ open Util;
 let tip_width = 0.32;
 let concave_adj = 0.25;
 let convex_adj = (-0.13);
-let shadow_adj = 0.01;
+let shadow_adj = 0.015;
 
 let caret_adjust = (side: Direction.t, shape: option(Direction.t)) =>
   switch (side, shape) {
@@ -24,9 +24,9 @@ let short_tip_height = (1. -. t) *. 0.5;
 let stretch_dx = 0.15;
 
 let raised_shadow_dx = "0.1";
-let raised_shadow_dy = "0.03";
-let shadow_dx = "0.12";
-let shadow_dy = "0.05";
+let raised_shadow_dy = "0.037";
+let shadow_dx = raised_shadow_dx;
+let shadow_dy = raised_shadow_dy;
 
 let extra_tail = 0.;
 let jagged_edge_h = child_border_thickness /. 3.;
@@ -65,12 +65,14 @@ let code_svg =
       ~top_fudge=0.0,
       ~width_fudge=0.0,
       ~height_fudge=0.0,
+      ~id="",
       ~attrs=[],
       paths: list(SvgUtil.Path.cmd),
     ) =>
   create_svg(
     "svg",
-    [
+    (id == "" ? [] : [Attr.id(id)])
+    @ [
       Attr.classes(base_cls),
       abs_position(
         ~font_metrics,

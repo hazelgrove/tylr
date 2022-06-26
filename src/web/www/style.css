@@ -64,21 +64,18 @@
   --top_bar_icon_fill: #c7b480;
   --top-bar-text: #a79f89;
   --delim-color: #586e75; /*#aeb5b8;*/ /*#657b83;*/
-  --ap-color: #aeb5b8;
 
   --selection-color: #fae294;
-  --revealed-tile-color: var(--light-page-color);/*#faf2df;*/
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
-  --empty-hole-fill-color: #ffef00;
 
-  --exp-bg-color: #dbf6de;
-  --exp-shadow-color: #329f43;
+  --exp-bg-color: #ebdfc5; /*#dbf6de;*/
+  --exp-shadow-color: #c4b599;/*#329f43;*/
   --exp-rail-color: #a7d3ad;
 
-  --pat-bg-color: #c4e6ff;
-  --pat-shadow-color: #268bd2;
+  --pat-bg-color: #f5fbff;
+  --pat-shadow-color: #90bdde; /*#268bd2;*/
   --pat-rail-color: #a1c4dd;
 
   --typ-bg-color: #caccf4;
@@ -88,7 +85,7 @@
   --rul-shadow-color: #d461d0;
 
   --nul-bg-color: #b6b6b6;
-  --nul-shadow-color: #666666;
+  --nul-shadow-color: #a97804;
 
   --unsorted-bg-color: #ffd0e6;
   --unsorted-shadow-color: #c2a964;
@@ -109,16 +106,10 @@
 
   --selection-box-z: 1;
   --genie-z: 1;
-  --empty-hole-z: 20; /* andrew: changed this lol */
-  --err-hole-z: 2;
-  --revealed-tile-z: 3;
-  --uni-child-z: 4;
+  --empty-hole-z: 5;
   --tile-z: 4;
-  --inset-empty-hole-z: 5;
-  --ap-z: 6;
   --code-text-z: 6;
-  --target-bounds-z: 7;
-  --flag-z: 8;
+  --code-text-shards-z: 7;
   --bar-z: 0;
   --inner-cousin-z: 9;
   --outer-cousin-caret-position-z: 9;
@@ -134,6 +125,8 @@
 }
 
 #page {
+  overflow-x: auto;
+  overflow-y: auto;
   height: 100vh;
   width: 100vw;
   position: fixed;
@@ -177,10 +170,7 @@
 
 #font-specimen, #logo-font-specimen {
   position: fixed;
-  top: 0;
   left: 100%;
-  line-height: var(--line-height);
-  vertical-align: middle;
 }
 
 #logo-font-specimen, #logo {
@@ -189,6 +179,7 @@
   font-size: 16pt;
 }
 #font-specimen, #code-container {
+  line-height: var(--line-height);
   font-family: "Source Code Pro", monospace;
   font-weight: normal;
   font-size: 13pt;
@@ -196,12 +187,6 @@
 
 #code-container {
   padding: 1em 6em 6em 6em;
-  /*width: 100%;
-  display: flex;
-  position: fixed;
-  top: max(min(23%, 100vh - 350px), 80px);
-  left: 0%;
-  width: 100vw;*/
 }
 #code-container:focus {
   outline: none;
@@ -211,16 +196,6 @@
   #code-container {
     top: max(min(30%, 100vh - 350px), 64px);
   }
-}
-
-#spotlight {
-  position: absolute;
-}
-.spotlight-outline {
-  vector-effect: non-scaling-stroke;
-  stroke: var(--selection-color);
-  stroke-width: 0;
-  fill: var(--selection-color);
 }
 
 #bar {
@@ -281,58 +256,15 @@
   fill: var(--light-text-color);
 }
 
-svg.rail line {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 2px;
-}
-svg.rail line.Exp {
-  stroke: var(--exp-rail-color);
-}
-svg.rail line.Pat {
-  stroke: var(--pat-rail-color);
-}
-svg.rail line.unsorted {
-  stroke: var(--unsorted-rail-color);
-}
-
-#rail-gradient stop.Exp {
-  stop-color: var(--exp-rail-color);
-}
-#rail-gradient stop.Pat {
-  stop-color: var(--pat-rail-color);
-}
-
-#target-bounds {
-  position: absolute;
-  z-index: var(--target-bounds-z);
-}
-#target-bounds stop.Exp {
-  stop-color: var(--exp-rail-color);
-}
-#target-bounds stop.Pat {
-  stop-color: var(--pat-rail-color);
-}
-#target-bounds stop.unsorted {
-  stop-color: var(--unsorted-rail-color);
-}
-
 .code {
   position: relative;
   line-height: var(--line-height);
   white-space: nowrap
 }
-.code#under-the-rail {
-  /*position: fixed;
-  left: 50%;
-  transform: translate(-50%, 0%);*/
-  z-index: 1;
-}
 
 .code-text {
-  /*line-height: 1;  TODO(andrew)*/
   position: absolute;
   z-index: var(--code-text-z);
-  vertical-align: middle;
 }
 
 /* TODO(andrew): refactor to make this unnecessary */
@@ -341,13 +273,11 @@ svg.rail line.unsorted {
 }
 
 /* NOTE(andrew): below 3 styles are part of
-   a hack to display incomplete delims in 
+   a hack to display incomplete delims in
    selections */
 .code-text-shards {
-  /*line-height: 1; TODO(andrew)*/
   position: absolute;
-  z-index: 9;
-  vertical-align: middle;
+  z-index: var(--code-text-shards-z);
 }
 .code-text-shards span {
   color: #0000 !important;
@@ -356,13 +286,6 @@ svg.rail line.unsorted {
   color: #ce9600 !important;
 }
 
-.caret {
-  z-index: var(--caret-z);
-}
-.caret-path {
-  fill: #f62116;
-  stroke: none;
-}
 .empty-hole {
   z-index: var(--empty-hole-z);
 }
@@ -372,21 +295,6 @@ svg.rail line.unsorted {
   stroke-width: 0.75px;
   vector-effect: non-scaling-stroke;
 }
-/*
-.empty-hole-path.unsorted {
-  stroke: var(--unsorted-shadow-color);
-}
-.empty-hole-path.Exp {
-  stroke: var(--exp-shadow-color);
-}
-.empty-hole-path.Pat {
-  stroke: var(--pat-shadow-color);
-}
-.empty-hole-path.Typ {
-  stroke: var(--typ-shadow-color);
-}
-*/
-
 
 .selection {
   position: relative;
@@ -395,12 +303,10 @@ svg.rail line.unsorted {
   position: absolute;
   z-index: var(--selection-box-z);
   box-sizing: border-box;
-  /* background-color: var(--selection-color); */
   background-color: transparent;
   position: absolute;
   height: 100%;
   width: 100%;
-  /*filter: blur(1px);*/
   border-radius: 3px;
 }
 .selection-box.unfocused {
@@ -411,10 +317,6 @@ svg.rail line.unsorted {
 }
 .restructuring {
   position: relative;
-}
-.flag {
-  position: absolute;
-  z-index: var(--flag-z);
 }
 .placeholder {
   position: absolute;
@@ -428,21 +330,17 @@ svg.rail line.unsorted {
   border-radius: 4px;
 }
 
-.tile-container {
-  position: absolute;
+.tile-indicated {
   z-index: var(--tile-z);
 }
 
-.uni-child-container {
-  z-index: var(--uni-child-z);
-}
 .anchor-container {
   z-index: var(--anchor-z);
 }
 .current-caret-pos-container {
   z-index: var(--current-caret-pos-z);
 }
-.sibling-container {
+.sibling{
   z-index: var(--caret-position-z);
 }
 .inner-cousin-container {
@@ -451,22 +349,11 @@ svg.rail line.unsorted {
 .outer-cousin-container {
   z-index: var(--outer-cousin-caret-position-z);
 }
-.rail-container {
-  z-index: var(--rail-z);
-}
-.restructuring-genie-container {
-  z-index: var(--genie-z);
-}
 
 .restructuring-genie-path {
   stroke-width: 0;
   fill: var(--selection-color);
   vector-effect: non-scaling-stroke;
-}
-
-.uni-child-path {
-  stroke-width: 0.5;
-  fill: none;
 }
 
 .child-line {
@@ -481,6 +368,14 @@ svg.rail line.unsorted {
   stroke: var(--pat-shadow-color);
 }
 
+
+/*TODO(andrew): clean up text classes*/
+.code .text-Pat {
+  color: #236eac;
+}
+.code .text-Exp {
+  color: #576d75;
+}
 .code .delim {
   color: var(--delim-color);
   font-weight: bold;
@@ -496,22 +391,13 @@ svg.rail line.unsorted {
   color: red;
   font-weight: bold;
 }
-.code .ap {
-  color: var(--ap-color);
-}
 
-.tile-path {
+/*.tile-path {
   stroke-width: 0.4;
   fill-rule: evenodd;
-}
-
-
-.tile-path {
   fill: var(--nul-bg-color);
-}
-.tile-path.raised {
-  stroke-width: 0.4;
-}
+}*/
+
 .tile-path.selected {
   fill: var(--selection-color);
 }
@@ -532,12 +418,20 @@ svg.rail line.unsorted {
 }
 
 
+/* TODO(andrew): hack important */
+.tile-path.raised.selected {
+  filter: url(#raised-drop-shadow-Nul) !important;
+}
+
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
   filter: url(#drop-shadow-Exp);
 }
 
 .tile-path.Any.indicated {
+  fill: #f0dead;
+}
+.tile-path.Any.indicated-caret {
   fill: #f0dead;
 }
 .tile-path.Any.raised {
@@ -549,11 +443,21 @@ svg.rail line.unsorted {
 }
 
 .tile-path.Exp.indicated {
-  fill:#b9e3be;
+  fill: var(--exp-bg-color);
+  /*fill:#b9e3be;*/
 }
-.tile-path.Exp.raised {
-  filter: url(#raised-drop-shadow-Exp);
+.tile-path.Exp.indicated-caret {
+  fill: #feddb3;
+  /*fill:#b9e3be;*/
 }
+.Exp.indicated-child {
+  fill: #f9eed8;
+}
+.child-backing {
+  z-index: -1;
+}
+
+
 #drop-shadow-Exp .tile-drop-shadow,
 #raised-drop-shadow-Exp .tile-drop-shadow {
   flood-color: var(--exp-shadow-color);
@@ -565,6 +469,12 @@ svg.rail line.unsorted {
 }
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
+}
+.tile-path.Pat.indicated-caret {
+  fill: #c4e6ff;
+}
+.Pat.indicated-child {
+  fill: #e4f1fa;
 }
 .tile-path.Pat.raised {
   filter: url(#raised-drop-shadow-Pat);
@@ -625,10 +535,6 @@ svg.rail line.unsorted {
 .caret-position-path.outer-cousin {
   stroke: var(--bar-color);
   fill: var(--bar-color);
-  /* stroke: #586e752e;
-  fill: #586e752e; */
-  /* stroke: var(--exp-rail-color);
-  fill: var(--exp-rail-color); */
 }
 
 .caret-position-path.Exp.sibling {
@@ -637,8 +543,6 @@ svg.rail line.unsorted {
 }
 
 .caret-position-path.Exp.inner-cousin {
-  /* stroke: var(--bar-color);
-  fill: var(--bar-color); */
   stroke: var(--exp-rail-color);
   fill: var(--exp-rail-color);
 }
@@ -1055,4 +959,23 @@ svg.rail line.unsorted {
 
 svg {
   overflow: visible;
+}
+
+#caret {
+  z-index: var(--caret-z);
+}
+#caret.blink {
+  animation: 1s blink step-end infinite;
+}
+.caret-path {
+  fill: #f62116;
+  stroke: none;
+}
+@keyframes blink {
+  from, to {
+    opacity: 100%;
+  }
+  50% {
+    opacity: 0%;
+  }
 }

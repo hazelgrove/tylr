@@ -1,6 +1,6 @@
 open Core;
 
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type reason =
   | Unrecognized
   | Failure(Zipper.Action.Failure.t);

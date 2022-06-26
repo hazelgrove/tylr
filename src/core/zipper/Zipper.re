@@ -30,26 +30,26 @@ type t = {
 };
 type state = (t, IdGen.state);
 
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type chunkiness =
   | ByChar
   | MonoByChar
   | ByToken;
 
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type plane_move =
   | Up
   | Down
   | Left(chunkiness)
   | Right(chunkiness);
 
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type move =
   | Extreme(plane_move)
   | Local(plane_move);
 
 module Action = {
-  [@deriving (show, sexp)]
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
     | Move(move)
     | Select(move)
@@ -62,7 +62,7 @@ module Action = {
     | Put_down;
 
   module Failure = {
-    [@deriving (show, sexp)]
+    [@deriving (show({with_path: false}), sexp, yojson)]
     type t =
       | Cant_move
       | Cant_insert
@@ -226,7 +226,7 @@ module Outer = {
         let+ id = IdGen.fresh;
         z
         |> update_siblings(((l, r)) =>
-             (l @ [Piece.Whitespace({id, content})], r)
+             (l @ [Whitespace({id, content})], r)
            );
       | _ =>
         let z = destruct(z);
@@ -234,7 +234,6 @@ module Outer = {
         assert(molds != []);
         // initial mold to typecheck, will be remolded
         let mold = List.hd(molds);
-
         let+ id = IdGen.fresh;
         let selections =
           Tile.split_shards(id, label, mold, List.mapi((i, _) => i, label))
@@ -261,14 +260,7 @@ module Outer = {
     | Some(z) => IdGen.return(z)
     | None =>
       let (lbl, direction) = Molds.instant_completion(t, direction_pref);
-      /* NOTE(andrew): Temp hack to suppress whitespace next
-         to infix grout. We verify both that whitespace is being
-         inserted, and that there will be a shape mismatch. The
-         latter check is necessary for cases like let|x, where
-         there won't actually be an infix grout inserted, so we
-         want there to be a space. */
-      lbl == [Whitespace.space] && Siblings.is_mismatch(z.relatives.siblings)
-        ? IdGen.return(z) : construct(direction, lbl, z);
+      construct(direction, lbl, z);
     };
   };
 
@@ -336,8 +328,12 @@ let representative_piece = (z: t): option((Piece.t, Direction.t)) => {
   };
 };
 
-let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
-  let ws = Piece.is_whitespace;
+type relation =
+  | Parent
+  | Sibling;
+
+let indicated_piece = (z: t): option((Piece.t, Direction.t, relation)) => {
+  let ws = p => Piece.(is_whitespace(p) || is_grout(p));
   /* Returns the piece currently indicated (if any) and which side of
      that piece the caret is on. We favor indicating the piece to the
      (R)ight, but may end up indicating the (P)arent or the (L)eft.
@@ -350,7 +346,8 @@ let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   /* Empty syntax => no indication */
   | ((None, None), None) => None
   /* L not whitespace, R is whitespace => indicate L */
-  | ((Some(l), Some(r)), _) when !ws(l) && ws(r) => Some((l, Left))
+  | ((Some(l), Some(r)), _) when !ws(l) && ws(r) =>
+    Some((l, Left, Sibling))
   /* L and R are whitespaces => no indication */
   | ((Some(l), Some(r)), _) when ws(l) && ws(r) => None
   /* At right end of syntax and L is whitespace => no indication */
@@ -358,19 +355,51 @@ let indicated_piece = (z: t): option((Piece.t, Direction.t)) => {
   /* At left end of syntax and R is whitespace => no indication */
   | ((None, Some(r)), None) when ws(r) => None
   /* No L and R is a whitespace and there is a P => indicate P */
-  | ((None, Some(r)), Some(parent)) when ws(r) => Some((parent, Left))
+  | ((None, Some(r)), Some(parent)) when ws(r) =>
+    Some((parent, Left, Parent))
   /* L is not whitespace and caret is outer => indicate L */
-  | ((Some(l), _), _) when !ws(l) && z.caret == Outer => Some((l, Left))
+  | ((Some(l), _), _) when !ws(l) && z.caret == Outer =>
+    Some((l, Left, Sibling))
   /* No L, some P, and caret is outer => indicate R */
-  | ((None, _), Some(parent)) when z.caret == Outer => Some((parent, Left))
+  | ((None, _), Some(parent)) when z.caret == Outer =>
+    Some((parent, Left, Parent))
   /* R is not whitespace, either no L or L is whitespace or caret is inner => indicate R */
-  | ((_, Some(r)), _) => Some((r, Right))
+  | ((_, Some(r)), _) => Some((r, Right, Sibling))
   /* No R and there is a P => indicate P */
-  | ((_, None), Some(parent)) => Some((parent, Right))
+  | ((_, None), Some(parent)) => Some((parent, Right, Parent))
   /* There is an L but no R and no P => indicate L */
-  | ((Some(l), None), None) => Some((l, Right))
+  //TODO(andrew): Right below seems wrong but it gets fucky otherwise
+  | ((Some(l), None), None) => Some((l, Right, Sibling))
   };
 };
+
+let indicated_shard_index = (z: t): option(int) =>
+  switch (indicated_piece(z)) {
+  | None => None
+  | Some((p, side, relation)) =>
+    switch (relation) {
+    | Parent =>
+      switch (Ancestors.parent(z.relatives.ancestors)) {
+      | None => failwith("indicated_shard_index impossible")
+      | Some({children: (before, _), _}) =>
+        let before = List.length(before);
+        switch (Siblings.neighbors(z.relatives.siblings)) {
+        | (_, None) => Some(before + 1)
+        | _ => Some(before)
+        };
+      }
+    | Sibling =>
+      switch (p) {
+      | Whitespace(_)
+      | Grout(_) => Some(0)
+      | Tile(t) =>
+        switch (side) {
+        | Left => Some(List.length(t.children))
+        | Right => Some(0)
+        }
+      }
+    }
+  };
 
 let update_caret = (f: caret => caret, z: t): t => {
   ...z,
@@ -833,6 +862,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
     switch (d) {
     | Extreme(d) =>
       do_extreme(move(ByToken, from_plane(d)), d, z)
+      |> Option.map(update_target)
       |> Option.map(IdGen.id(id_gen))
       |> Result.of_option(~error=Action.Failure.Cant_move)
     | Local(d) =>
@@ -856,7 +886,9 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | Select(d) =>
     let selected =
       switch (d) {
-      | Extreme(d) => do_extreme(select(from_plane(d)), d, z)
+      | Extreme(d) =>
+        do_extreme(select(from_plane(d)), d, z)
+        |> Option.map(update_target)
       | Local(d) =>
         /* Note: Don't update target on vertical selection */
         switch (d) {
@@ -872,7 +904,7 @@ let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   | Destruct(d) =>
     (z, id_gen)
     |> destruct_or_merge(d)
-    |> Option.map(((z, id_gen)) => remold_regrout(Left, z, id_gen))
+    |> Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen))
     |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
     |> Result.of_option(~error=Action.Failure.Cant_destruct)
   | Insert(char) =>

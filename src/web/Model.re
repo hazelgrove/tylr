@@ -5,6 +5,7 @@ type editor_model =
   | Simple(Zipper.t)
   | Study(int, list(Zipper.t));
 
+[@deriving (show({with_path: false}), yojson)]
 type timestamp = float;
 
 [@deriving sexp]
@@ -35,7 +36,7 @@ let empty_zipper: Zipper.t = {
   },
   backpack: [],
   relatives: {
-    siblings: ([Grout({id: 0, shape: Convex})], []),
+    siblings: ([], [Grout({id: 0, shape: Convex})]),
     ancestors: [],
   },
   caret: Outer,

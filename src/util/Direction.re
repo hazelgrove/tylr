@@ -1,4 +1,4 @@
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | Left
   | Right;

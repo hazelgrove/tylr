@@ -130,7 +130,12 @@ module ShardInfo = {
       | Some(c) =>
         let c = {
           ...c,
-          counts: Id.Map.update(t.id, Option.map((+)(1)), c.counts),
+          counts:
+            Id.Map.update(
+              t.id,
+              Option.map((+)(List.length(t.shards))),
+              c.counts,
+            ),
         };
         set(t.id, c, cs);
       };
