@@ -81,7 +81,8 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     }
   | {key: D(key), sys: Mac, shift: Down, meta: Down, ctrl: Up, alt: Up} =>
     switch (key) {
-    | "Z" => now_save_u(Redo)
+    | "Z"
+    | "z" => now_save_u(Redo)
     | "ArrowLeft" => now(Select(Extreme(Left(ByToken))))
     | "ArrowRight" => now(Select(Extreme(Right(ByToken))))
     | "ArrowUp" => now(Select(Extreme(Up)))
@@ -90,7 +91,8 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     }
   | {key: D(key), sys: PC, shift: Down, meta: Up, ctrl: Down, alt: Up} =>
     switch (key) {
-    | "Z" => now_save_u(Redo)
+    | "Z"
+    | "z" => now_save_u(Redo)
     | "ArrowLeft" => now(Select(Local(Left(ByToken))))
     | "ArrowRight" => now(Select(Local(Right(ByToken))))
     | "ArrowUp" => now(Select(Local(Up)))
