@@ -4,10 +4,22 @@ let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
 let is_f_key = s => Re.Str.(string_match(regexp("^F[0-9][0-9]*$"), s, 0));
 
+let update_double_tap = (model: Model.t): list(Update.t) => {
+  let cur_time = JsUtil.timestamp();
+  switch (model.double_tap) {
+  | None => [UpdateDoubleTap(Some(cur_time))]
+  | Some(prev_time) =>
+    if (cur_time -. prev_time < 400.) {
+      [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
+    } else {
+      [UpdateDoubleTap(Some(cur_time))];
+    }
+  };
+};
+
 let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   let zipper = Model.get_zipper(model);
   let restricted = Backpack.restricted(zipper.backpack);
-  let double_tap = model.double_tap;
   let now = a => [Update.PerformAction(a), Update.UpdateDoubleTap(None)];
   let now_save_u = u => Update.[u, Save, UpdateDoubleTap(None)];
   let now_save = a => now_save_u(PerformAction(a));
@@ -16,26 +28,22 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   switch (k) {
   | {key: U(key), _} =>
     switch (key) {
-    | "Shift" => [] // NOTE: don't change doubletap
-    | "Alt" => [Update.SetShowBackpackTargets(false)]
+    | "Shift" => [] // NOTE: don't update double_tap here
+    | "Alt" => [SetShowBackpackTargets(false)]
     | _ => [UpdateDoubleTap(None)]
     }
   | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
       when is_f_key(key) =>
     switch (key) {
     | "F1" => print(Log.get_json_update_log_string())
-    //| "F2" => print(LocalStorage.get_keystoke_log())
-    //| "F3" => print(LocalStorage.get_zipper_log())
-    | "F4" => []
-    | "F5" => []
-    | "F6" => toggle(Log.debug_update)
-    | "F7" => toggle(Log.debug_keystoke)
-    | "F8" => toggle(Log.debug_zipper)
-    | "F9" => print(Zipper.show(zipper))
+    | "F2" => print(Zipper.show(zipper))
+    | "F3" => toggle(Log.debug_update)
+    | "F4" => toggle(Log.debug_keystoke)
+    | "F5" => toggle(Log.debug_zipper)
+    | "F6" => [Load]
+    | "F7" => []
+    | "F8" => []
     | "F10" =>
-      //LocalStorage.reset_keystoke_log();
-      //LocalStorage.reset_action_log();
-      //LocalStorage.reset_zipper_log();
       Log.reset_json_log();
       [];
     | _ => []
@@ -52,23 +60,11 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | (Up, "Delete") => now_save(Destruct(Right))
     | (Up, "Escape") => now(Unselect)
     | (Up, "Tab") => now_save(Put_down) //TODO: if empty, move to next hole
-    | (Up, "F6") => [Load]
-    | (Up, "F8") => [LoadDefault, Save]
     | (Down, "ArrowLeft") => now(Select(Local(Left(ByToken))))
     | (Down, "ArrowRight") => now(Select(Local(Right(ByToken))))
     | (Down, "ArrowUp") => now(Select(Local(Up)))
     | (Down, "ArrowDown") => now(Select(Local(Down)))
-    | (_, "Shift") =>
-      let cur_time = JsUtil.timestamp();
-      switch (double_tap) {
-      | None => [UpdateDoubleTap(Some(cur_time))]
-      | Some(prev_time) =>
-        if (cur_time -. prev_time < 400.) {
-          [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
-        } else {
-          [UpdateDoubleTap(Some(cur_time))];
-        }
-      };
+    | (_, "Shift") => update_double_tap(model)
     | (_, "Enter") =>
       //TODO(andrew): using funky char to avoid weird regexp issues with using \n
       now_save(Insert(Whitespace.linebreak))

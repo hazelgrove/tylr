@@ -66,13 +66,6 @@ let left_panel_view = (~inject, history) =>
       div(
         [
           Attr.class_("topbar-icon"),
-          Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
-        ],
-        [Icons.eye],
-      ),
-      div(
-        [
-          Attr.class_("topbar-icon"),
           Attr.on_mousedown(copy_log_to_clipboard),
         ],
         [Icons.export],
@@ -115,10 +108,24 @@ let link_icon = (str, url, icon) =>
     [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
 
-let right_panel_view =
+let right_panel_view = (~inject) =>
   div(
     [Attr.id("about-button-container")],
     [
+      div(
+        [
+          Attr.class_("topbar-icon"),
+          Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
+        ],
+        [Icons.eye],
+      ),
+      div(
+        [
+          Attr.class_("topbar-icon"),
+          Attr.on_mousedown(_ => inject(Update.LoadDefault)),
+        ],
+        [Icons.trash],
+      ),
       link_icon("github", "https://github.com/hazelgrove/tylr", Icons.github),
       link_icon(
         "help",
@@ -134,8 +141,7 @@ let top_bar_view = (~inject, model: Model.t) =>
     [
       left_panel_view(~inject, model.history),
       center_panel_view(~inject, Model.current_editor(model)),
-      //logo(~font_metrics=logo_font_metrics),
-      right_panel_view,
+      right_panel_view(~inject),
     ],
   );
 
