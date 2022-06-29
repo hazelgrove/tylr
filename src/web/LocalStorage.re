@@ -6,6 +6,20 @@ let default_editor_idx = 1;
 let editor_defaults = [
   "",
   "",
+  "fun center, p ->
+let x1, y1 = center in
+let x2, y2 = p in
+let r = sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2)) in
+circle(center, r)
+",
+  "",
+  "shapes
+|> map(rotate(pi / 4))
+|> map(translate(6, 7))
+|> filter(fun shape -> area(shape) < 50)
+|> map(dilate(5))
+",
+  "",
   "fun square, p1, p2 ->
 if square then
 let mark =
@@ -22,19 +36,10 @@ circle(center, 4)
 in
 [mark(p1); line(p1, p2); mark(p2)]
 ",
-  "shapes
-|> map(rotate(pi / 4))
-|> map(translate(6, 7))
-|> filter(fun shape -> area(shape) < 50)
-|> map(dilate(5))
-",
   "let ss1 = observe(msg, map_rotate(map_dilate(shapes))) in
 let ss2 = map_brighten(shapes) in
 [ss1; ss2]
 ",
-  "7",
-  "8",
-  "9",
   "let foo =
 fun taz ->
 case taz of
