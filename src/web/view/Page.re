@@ -25,27 +25,29 @@ open Node;
 //   );
 // };
 
-let undo = (~inject, ~disabled) => {
+let unless = (p, a) => p ? Event.Many([]) : a;
+
+let undo = (~inject, ~disabled: bool) => {
   let clss = disabled ? ["disabled"] : [];
-  let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
+  let undo = _ => unless(disabled, inject(Update.Undo));
   span(
     Attr.[
       id("undo"),
       classes(["history-button", ...clss]),
-      on_mousedown(mousedown),
+      on_mousedown(undo),
     ],
     [Icons.undo],
   );
 };
 
-let redo = (~inject, ~disabled) => {
+let redo = (~inject, ~disabled: bool) => {
   let clss = disabled ? ["disabled"] : [];
-  let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Redo);
+  let redo = _ => unless(disabled, inject(Update.Redo));
   span(
     Attr.[
       id("redo"),
       classes(["history-button", ...clss]),
-      on_mousedown(mousedown),
+      on_mousedown(redo),
     ],
     [Icons.redo],
   );
@@ -73,61 +75,47 @@ let left_panel_view = (~inject, history) =>
     ],
   );
 
-let center_panel_view = (~inject, cur_idx) => {
-  let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
-  let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
-  let incr_ed = _ => {
-    Log.append_json_updates_log();
-    inject(Update.SwitchEditor(next_ed));
-  };
-  let decr_ed = _ => {
-    Log.append_json_updates_log();
-    inject(Update.SwitchEditor(prev_ed));
-  };
-  let toggle_captions = _ => inject(Update.Set(Captions));
-  let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
-  div(
-    [Attr.id("editor-id")],
-    [
-      div(
-        [Attr.class_("topbar-icon"), Attr.on_mousedown(decr_ed)],
-        [Icons.back],
-      ),
-      div([Attr.on_mousedown(toggle_captions)], [text(s)]),
-      div(
-        [Attr.class_("topbar-icon"), Attr.on_mousedown(incr_ed)],
-        [Icons.forward],
-      ),
-    ],
-  );
-};
+let button = (icon, action) =>
+  div([Attr.class_("topbar-icon"), Attr.on_mousedown(action)], [icon]);
 
-let link_icon = (str, url, icon) =>
+let link = (str, url, icon) =>
   div(
     [Attr.id(str)],
     [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
 
+let center_panel_view = (~inject, cur_idx) => {
+  let increment_editor = _ => {
+    let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
+    Log.append_json_updates_log();
+    inject(Update.SwitchEditor(next_ed));
+  };
+  let decrement_editor = _ => {
+    let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
+    Log.append_json_updates_log();
+    inject(Update.SwitchEditor(prev_ed));
+  };
+  let toggle_captions = _ => inject(Update.Set(Captions));
+  let current_editor =
+    Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
+  div(
+    [Attr.id("editor-id")],
+    [
+      button(Icons.back, decrement_editor),
+      div([Attr.on_mousedown(toggle_captions)], [text(current_editor)]),
+      button(Icons.forward, increment_editor),
+    ],
+  );
+};
+
 let right_panel_view = (~inject) =>
   div(
     [Attr.id("about-button-container")],
     [
-      div(
-        [
-          Attr.class_("topbar-icon"),
-          Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
-        ],
-        [Icons.eye],
-      ),
-      div(
-        [
-          Attr.class_("topbar-icon"),
-          Attr.on_mousedown(_ => inject(Update.LoadDefault)),
-        ],
-        [Icons.trash],
-      ),
-      link_icon("github", "https://github.com/hazelgrove/tylr", Icons.github),
-      link_icon(
+      button(Icons.eye, _ => inject(Update.Set(WhitespaceIcons))),
+      button(Icons.trash, _ => inject(Update.LoadDefault)),
+      link("github", "https://github.com/hazelgrove/tylr", Icons.github),
+      link(
         "help",
         "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
         Icons.circle_question,
@@ -188,7 +176,7 @@ let view = (~inject, ~handlers, model: Model.t) => {
     ],
     [
       FontSpecimen.view("font-specimen"),
-      FontSpecimen.view("logo-font-specimen"),
+      //FontSpecimen.view("logo-font-specimen"),
       DecUtil.filters,
       top_bar_view(~inject, model),
       editor_caption_view(model),
