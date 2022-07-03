@@ -9,8 +9,8 @@ type caret =
 
 [@deriving show]
 type movability =
-  | CanMoveInto(int, int)
-  | CanMovePast
+  | CanEnter(int, int)
+  | CanPass
   | CantEven;
 
 [@deriving show]
@@ -559,9 +559,9 @@ let movability = (chunkiness: chunkiness, label, delim_idx): movability => {
   | (ByChar, _, _)
   | (MonoByChar, [_], 0) =>
     let char_max = Token.length(List.nth(label, delim_idx)) - 2;
-    char_max < 0 ? CanMovePast : CanMoveInto(delim_idx, char_max);
+    char_max < 0 ? CanPass : CanEnter(delim_idx, char_max);
   | (ByToken, _, _)
-  | (MonoByChar, _, _) => CanMovePast
+  | (MonoByChar, _, _) => CanPass
   };
 };
 
@@ -581,39 +581,43 @@ let neighbor_movability =
   let l =
     switch (l_nhbr) {
     | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
-    | Some(_) => CanMovePast
+    | Some(_) => CanPass
     | _ => supernhbr_l
     };
   let r =
     switch (r_nhbr) {
     | Some(Tile({label, _})) => movability(label, 0)
-    | Some(_) => CanMovePast
+    | Some(_) => CanPass
     | _ => supernhbr_r
     };
   (l, r);
 };
 
-let move = (chunkiness: chunkiness, d: Direction.t, z: t): option(t) =>
+let pop_out = z => Some(z |> set_caret(Outer));
+let pop_move = (d, z) => z |> set_caret(Outer) |> Outer.move(d);
+let inner_incr = (delim, c, z) => Some(set_caret(Inner(delim, c + 1), z));
+let inner_decr = z => Some(update_caret(decrement_caret, z));
+let inner_start = (d_init, z) => Some(set_caret(Inner(d_init, 0), z));
+let inner_end = (d, d_init, c_max, z) =>
+  z |> set_caret(Inner(d_init, c_max)) |> Outer.move(d);
+
+let move = (chunkiness: chunkiness, d: Direction.t, z: t): option(t) => {
   switch (d, z.caret, neighbor_movability(chunkiness, z)) {
-  | _ when z.selection.content != [] =>
-    /* this case maybe shouldn't be necessary but currently covers an edge
-       (select an open parens to left of a multichar token and press left) */
-    z |> set_caret(Outer) |> Outer.move(d)
-  | (Left, Outer, (CanMoveInto(d_init, c_max), _)) =>
-    z |> set_caret(Inner(d_init, c_max)) |> Outer.move(d)
+  /* this case maybe shouldn't be necessary but currently covers an edge
+     (select an open parens to left of a multichar token and press left) */
+  | _ when z.selection.content != [] => pop_move(d, z)
+  | (Left, Outer, (CanEnter(dlm, c_max), _)) => inner_end(d, dlm, c_max, z)
   | (Left, Outer, _) => Outer.move(d, z)
-  | (Left, Inner(_), _) when chunkiness == ByToken =>
-    Some(z |> set_caret(Outer))
+  | (Left, Inner(_), _) when chunkiness == ByToken => pop_out(z)
   | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
-  | (Right, Outer, (_, CanMoveInto(d_init, _))) =>
-    Some(set_caret(Inner(d_init, 0), z))
+  | (Right, Outer, (_, CanEnter(d_init, _))) => inner_start(d_init, z)
   | (Right, Outer, _) => Outer.move(d, z)
-  | (Right, Inner(_, c), (_, CanMoveInto(_, c_max))) when c == c_max =>
-    z |> set_caret(Outer) |> Outer.move(d)
-  | (Right, Inner(_), _) when chunkiness == ByToken =>
-    z |> set_caret(Outer) |> Outer.move(d)
-  | (Right, Inner(delim, c), _) => Some(set_caret(Inner(delim, c + 1), z))
+  | (Right, Inner(_, c), (_, CanEnter(_, c_max))) when c == c_max =>
+    pop_move(d, z)
+  | (Right, Inner(_), _) when chunkiness == ByToken => pop_move(d, z)
+  | (Right, Inner(delim, c), _) => inner_incr(delim, c, z)
   };
+};
 
 let select = (d: Direction.t, z: t): option(t) =>
   if (z.caret == Outer) {
