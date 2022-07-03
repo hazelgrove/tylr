@@ -1,6 +1,5 @@
 open Zipper;
 open Util;
-//open OptUtil.Syntax;
 
 [@deriving show]
 type appendability =
@@ -18,21 +17,46 @@ let sibling_appendability: (string, Siblings.t) => appendability =
     | _ => AppendNeither
     };
 
+let expand_keyword = ((z, _) as state: state): option(state) =>
+  /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
+     is down (removing the rest of the set from backpack on edit) as something
+     like this is necessary for backspace to act as undo after kw-expansion */
+  switch (neighbor_monotiles(z.relatives.siblings)) {
+  | (Some(kw), _) =>
+    let (new_label, direction) = Molds.delayed_completion(kw, Left);
+    Outer.replace(direction, new_label, state);
+  | _ => Some(state)
+  };
+
+let barf_or_construct =
+    (t: Token.t, direction_pref: Direction.t, z: t): IdGen.t(t) => {
+  let barfed =
+    Backpack.is_first_matching(t, z.backpack) ? Outer.put_down(z) : None;
+  switch (barfed) {
+  | Some(z) => IdGen.return(z)
+  | None =>
+    let (lbl, direction) = Molds.instant_completion(t, direction_pref);
+    Outer.construct(direction, lbl, z);
+  };
+};
+
+let expand_and_barf_or_construct = (char: string, state: state) =>
+  state
+  |> expand_keyword
+  |> Option.map(((z, id_gen)) => barf_or_construct(char, Left, z, id_gen));
+
 let insert_outer = (char: string, (z, id_gen): state): option(state) =>
   switch (sibling_appendability(char, z.relatives.siblings)) {
-  | AppendNeither => Outer.expand_and_barf_or_construct(char, (z, id_gen))
+  | AppendNeither => expand_and_barf_or_construct(char, (z, id_gen))
   | AppendLeft(new_t) =>
     z
     |> Outer.directional_destruct(Left)
-    |> Option.map(z => Outer.barf_or_construct(new_t, Left, z, id_gen))
+    |> Option.map(z => barf_or_construct(new_t, Left, z, id_gen))
   | AppendRight(new_t) =>
     z
     |> Outer.directional_destruct(Right)
-    |> Option.map(z => Outer.barf_or_construct(new_t, Right, z, id_gen))
+    |> Option.map(z => barf_or_construct(new_t, Right, z, id_gen))
   };
-
-let opt_regrold = d =>
-  Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen));
 
 let split =
     ((z, id_gen): state, char: string, idx: int, t: Token.t): option(state) => {
@@ -42,8 +66,11 @@ let split =
   |> Outer.select(Right)
   |> Option.map(z => Outer.construct(Right, [r], z, id_gen))  //overwrite right
   |> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(char));
+  |> OptUtil.and_then(expand_and_barf_or_construct(char));
 };
+
+let opt_regrold = d =>
+  Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen));
 
 let go =
     (

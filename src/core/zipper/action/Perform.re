@@ -1,7 +1,6 @@
-open Zipper;
 open Util;
 open Sexplib.Std;
-//open OptUtil.Syntax;
+open Zipper;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type move =
@@ -39,7 +38,39 @@ module Action = {
 
 let update_target = Caret.update_target;
 
-let select = (d: Direction.t, z: t): option(t) =>
+let put_down = (z: t): option(t) =>
+  /* Alternatively, putting down inside token could eiter merge-in or split */
+  switch (z.caret) {
+  | Inner(_) => None
+  | Outer => Outer.put_down(z)
+  };
+
+let move = (d, z, id_gen) =>
+  switch (d) {
+  | Extreme(d) =>
+    Caret.do_extreme(Move.primary(ByToken, Zipper.from_plane(d)), d, z)
+    |> Option.map(update_target)
+    |> Option.map(IdGen.id(id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
+  | Local(d) =>
+    /* Note: Don't update target on vertical movement */
+    z
+    |> (
+      z =>
+        switch (d) {
+        | Left(chunk) =>
+          Move.primary(chunk, Left, z) |> Option.map(update_target)
+        | Right(chunk) =>
+          Move.primary(chunk, Right, z) |> Option.map(update_target)
+        | Up => Move.vertical(Left, z)
+        | Down => Move.vertical(Right, z)
+        }
+    )
+    |> Option.map(IdGen.id(id_gen))
+    |> Result.of_option(~error=Action.Failure.Cant_move)
+  };
+
+let select_primary = (d: Direction.t, z: t): option(t) =>
   if (z.caret == Outer) {
     Outer.select(d, z);
   } else if (d == Left) {
@@ -52,62 +83,34 @@ let select = (d: Direction.t, z: t): option(t) =>
   };
 
 let select_vertical = (d: Direction.t, z: t): option(t) =>
-  Caret.do_vertical(select(d), d, z);
+  Caret.do_vertical(select_primary(d), d, z);
 
-let put_down = (z: t): option(t) =>
-  /* Alternatively, putting down inside token could eiter merge-in or split */
-  switch (z.caret) {
-  | Inner(_) => None
-  | Outer => Outer.put_down(z)
-  };
+let select = (d, z, id_gen) =>
+  (
+    switch (d) {
+    | Extreme(d) =>
+      Caret.do_extreme(select_primary(Zipper.from_plane(d)), d, z)
+      |> Option.map(update_target)
+    | Local(d) =>
+      /* Note: Don't update target on vertical selection */
+      switch (d) {
+      | Left(_) => select_primary(Left, z) |> Option.map(update_target)
+      | Right(_) => select_primary(Right, z) |> Option.map(update_target)
+      | Up => select_vertical(Left, z)
+      | Down => select_vertical(Right, z)
+      }
+    }
+  )
+  |> Option.map(IdGen.id(id_gen))
+  |> Result.of_option(~error=Action.Failure.Cant_select);
 
 let go = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
   IncompleteBidelim.clear();
   switch (a) {
-  | Move(d) =>
-    switch (d) {
-    | Extreme(d) =>
-      Caret.do_extreme(Move.primary(ByToken, Zipper.from_plane(d)), d, z)
-      |> Option.map(update_target)
-      |> Option.map(IdGen.id(id_gen))
-      |> Result.of_option(~error=Action.Failure.Cant_move)
-    | Local(d) =>
-      /* Note: Don't update target on vertical movement */
-      z
-      |> (
-        z =>
-          switch (d) {
-          | Left(chunk) =>
-            Move.primary(chunk, Left, z) |> Option.map(update_target)
-          | Right(chunk) =>
-            Move.primary(chunk, Right, z) |> Option.map(update_target)
-          | Up => Move.vertical(Left, z)
-          | Down => Move.vertical(Right, z)
-          }
-      )
-      |> Option.map(IdGen.id(id_gen))
-      |> Result.of_option(~error=Action.Failure.Cant_move)
-    }
+  | Move(d) => move(d, z, id_gen)
   | Unselect =>
     Ok((Outer.directional_unselect(z.selection.focus, z), id_gen))
-  | Select(d) =>
-    let selected =
-      switch (d) {
-      | Extreme(d) =>
-        Caret.do_extreme(select(Zipper.from_plane(d)), d, z)
-        |> Option.map(update_target)
-      | Local(d) =>
-        /* Note: Don't update target on vertical selection */
-        switch (d) {
-        | Left(_) => select(Left, z) |> Option.map(update_target)
-        | Right(_) => select(Right, z) |> Option.map(update_target)
-        | Up => select_vertical(Left, z)
-        | Down => select_vertical(Right, z)
-        }
-      };
-    selected
-    |> Option.map(IdGen.id(id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_select);
+  | Select(d) => select(d, z, id_gen)
   | Destruct(d) =>
     (z, id_gen)
     |> Destruct.go(d)

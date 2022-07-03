@@ -1,5 +1,4 @@
 open Util;
-//open Sexplib.Std;
 open OptUtil.Syntax;
 
 [@deriving show]
@@ -16,6 +15,8 @@ type t = {
   caret,
   caret_col_target: int,
 };
+
+[@deriving show]
 type state = (t, IdGen.state);
 
 [@deriving (show({with_path: false}), sexp, yojson)]
@@ -77,6 +78,24 @@ let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
     | (None, Some(r)) => (None, Piece.monotile(r))
     | (None, None) => (None, None)
     };
+
+let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
+  assert(Selection.is_empty(z.selection));
+  open IdGen.Syntax;
+  let* state = IdGen.get;
+  let ls_relatives =
+    Relatives.remold(z.relatives)
+    |> List.map(rs => Relatives.regrout(d, rs, state))
+    |> List.sort(((rel, _), (rel', _)) => {
+         open Relatives;
+         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
+         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
+       });
+  assert(ls_relatives != []);
+  let (relatives, state) = List.hd(ls_relatives);
+  let+ () = IdGen.put(state);
+  {...z, relatives};
+};
 
 module Outer = {
   let unselect = (z: t): t => {
@@ -213,52 +232,6 @@ module Outer = {
       (d: Direction.t, l: Label.t, (z, id_gen): state): option(state) =>
     /* i.e. select and construct, overwriting the selection */
     z |> select(d) |> Option.map(z => construct(d, l, z, id_gen));
-
-  let barf_or_construct =
-      (t: Token.t, direction_pref: Direction.t, z: t): IdGen.t(t) => {
-    let barfed =
-      Backpack.is_first_matching(t, z.backpack) ? put_down(z) : None;
-    switch (barfed) {
-    | Some(z) => IdGen.return(z)
-    | None =>
-      let (lbl, direction) = Molds.instant_completion(t, direction_pref);
-      construct(direction, lbl, z);
-    };
-  };
-
-  let expand_keyword = ((z, _) as state: state): option(state) =>
-    /* NOTE(andrew): We may want to allow editing of shards when only 1 of set
-       is down (removing the rest of the set from backpack on edit) as something
-       like this is necessary for backspace to act as undo after kw-expansion */
-    switch (neighbor_monotiles(z.relatives.siblings)) {
-    | (Some(kw), _) =>
-      let (new_label, direction) = Molds.delayed_completion(kw, Left);
-      replace(direction, new_label, state);
-    | _ => Some(state)
-    };
-
-  let expand_and_barf_or_construct = (char: string, state: state) =>
-    state
-    |> expand_keyword
-    |> Option.map(((z, id_gen)) => barf_or_construct(char, Left, z, id_gen));
 };
 
 let unselect_and_zip = (z: t): Segment.t => z |> Outer.unselect |> zip;
-
-let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
-  assert(Selection.is_empty(z.selection));
-  open IdGen.Syntax;
-  let* state = IdGen.get;
-  let ls_relatives =
-    Relatives.remold(z.relatives)
-    |> List.map(rs => Relatives.regrout(d, rs, state))
-    |> List.sort(((rel, _), (rel', _)) => {
-         open Relatives;
-         let c = Int.compare(sort_rank(rel), sort_rank(rel'));
-         c != 0 ? c : Int.compare(shape_rank(rel), shape_rank(rel'));
-       });
-  assert(ls_relatives != []);
-  let (relatives, state) = List.hd(ls_relatives);
-  let+ () = IdGen.put(state);
-  {...z, relatives};
-};
