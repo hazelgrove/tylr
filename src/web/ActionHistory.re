@@ -1,7 +1,7 @@
 open Core;
 
 type t = {
-  succeeded: (list((Zipper.Action.t, Zipper.state)) as 'affix, 'affix),
+  succeeded: (list((Perform.Action.t, Zipper.state)) as 'affix, 'affix),
   just_failed: option(FailedInput.t),
   // TODO(d): forgetting why we need this...
   // not seeing it get read anywhere. possibly
@@ -31,7 +31,7 @@ let just_failed = (reason: FailedInput.reason, history: t) => {
 let unrecognized_input = just_failed(Unrecognized);
 let failure = f => just_failed(Failure(f));
 
-let succeeded = (a: Zipper.Action.t, zipper: Zipper.state, history: t) => {
+let succeeded = (a: Perform.Action.t, zipper: Zipper.state, history: t) => {
   let (before, _) = history.succeeded;
   {
     succeeded: ([(a, zipper), ...before], []),

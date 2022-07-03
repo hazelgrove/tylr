@@ -1,23 +1,11 @@
 open Util;
-open Sexplib.Std;
+//open Sexplib.Std;
 open OptUtil.Syntax;
 
 [@deriving show]
 type caret =
   | Outer
   | Inner(int, int);
-
-[@deriving show]
-type movability =
-  | CanEnter(int, int)
-  | CanPass
-  | CantEven;
-
-[@deriving show]
-type appendability =
-  | AppendLeft(Token.t)
-  | AppendRight(Token.t)
-  | AppendNeither;
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
 [@deriving show]
@@ -37,45 +25,18 @@ type chunkiness =
   | ByToken;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type plane_move =
+type planar =
   | Up
   | Down
   | Left(chunkiness)
   | Right(chunkiness);
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type move =
-  | Extreme(plane_move)
-  | Local(plane_move);
-
-module Action = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t =
-    | Move(move)
-    | Select(move)
-    | Unselect
-    | Destruct(Direction.t)
-    | Insert(string)
-    | RotateBackpack
-    | MoveToBackpackTarget(plane_move)
-    | Pick_up
-    | Put_down;
-
-  module Failure = {
-    [@deriving (show({with_path: false}), sexp, yojson)]
-    type t =
-      | Cant_move
-      | Cant_insert
-      | Cant_destruct
-      | Cant_select
-      | Cant_put_down;
-  };
-
-  module Result = {
-    include Result;
-    type t('success) = Result.t('success, Failure.t);
-  };
-};
+let from_plane: planar => Direction.t =
+  fun
+  | Left(_) => Left
+  | Right(_) => Right
+  | Up => Left
+  | Down => Right;
 
 let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
   ...z,
@@ -84,6 +45,26 @@ let update_relatives = (f: Relatives.t => Relatives.t, z: t): t => {
 
 let update_siblings: (Siblings.t => Siblings.t, t) => t =
   f => update_relatives(rs => {...rs, siblings: f(rs.siblings)});
+
+let parent = (z: t): option(Piece.t) =>
+  Relatives.parent(~sel=z.selection.content, z.relatives);
+
+let zip = (z: t): Segment.t =>
+  Relatives.zip(~sel=z.selection.content, z.relatives);
+
+let sibs_with_sel =
+    (
+      {
+        selection: {content, focus},
+        relatives: {siblings: (l_sibs, r_sibs), _},
+        _,
+      }: t,
+    )
+    : Siblings.t =>
+  switch (focus) {
+  | Left => (l_sibs, content @ r_sibs)
+  | Right => (l_sibs @ content, r_sibs)
+  };
 
 let pop_backpack = (z: t) =>
   Backpack.pop(Relatives.local_incomplete_tiles(z.relatives), z.backpack);
@@ -97,15 +78,6 @@ let neighbor_monotiles: Siblings.t => (option(Token.t), option(Token.t)) =
     | (None, None) => (None, None)
     };
 
-let sibling_appendability: (string, Siblings.t) => appendability =
-  (char, siblings) =>
-    switch (neighbor_monotiles(siblings)) {
-    | (Some(t), _) when Form.is_valid_token(t ++ char) =>
-      AppendLeft(t ++ char)
-    | (_, Some(t)) when Form.is_valid_token(char ++ t) =>
-      AppendRight(char ++ t)
-    | _ => AppendNeither
-    };
 module Outer = {
   let unselect = (z: t): t => {
     let relatives =
@@ -269,219 +241,9 @@ module Outer = {
     state
     |> expand_keyword
     |> Option.map(((z, id_gen)) => barf_or_construct(char, Left, z, id_gen));
-
-  let insert = (char: string, (z, id_gen): state): option(state) =>
-    switch (sibling_appendability(char, z.relatives.siblings)) {
-    | AppendNeither => expand_and_barf_or_construct(char, (z, id_gen))
-    | AppendLeft(new_t) =>
-      z
-      |> directional_destruct(Left)
-      |> Option.map(z => barf_or_construct(new_t, Left, z, id_gen))
-    | AppendRight(new_t) =>
-      z
-      |> directional_destruct(Right)
-      |> Option.map(z => barf_or_construct(new_t, Right, z, id_gen))
-    };
 };
-
-let parent = (z: t): option(Piece.t) =>
-  Relatives.parent(~sel=z.selection.content, z.relatives);
-
-let zip = (z: t): Segment.t =>
-  Relatives.zip(~sel=z.selection.content, z.relatives);
 
 let unselect_and_zip = (z: t): Segment.t => z |> Outer.unselect |> zip;
-
-let sibs_with_sel =
-    (
-      {
-        selection: {content, focus},
-        relatives: {siblings: (l_sibs, r_sibs), _},
-        _,
-      }: t,
-    )
-    : Siblings.t =>
-  switch (focus) {
-  | Left => (l_sibs, content @ r_sibs)
-  | Right => (l_sibs @ content, r_sibs)
-  };
-
-let representative_piece = (z: t): option((Piece.t, Direction.t)) => {
-  /* The piece to the left of the caret, or if none exists, the piece to the right */
-  switch (Siblings.neighbors(sibs_with_sel(z))) {
-  | (Some(l), _) => Some((l, Left))
-  | (_, Some(r)) => Some((r, Right))
-  | _ => None
-  };
-};
-
-type relation =
-  | Parent
-  | Sibling;
-
-let indicated_piece = (z: t): option((Piece.t, Direction.t, relation)) => {
-  let ws = p => Piece.(is_whitespace(p) || is_grout(p));
-  /* Returns the piece currently indicated (if any) and which side of
-     that piece the caret is on. We favor indicating the piece to the
-     (R)ight, but may end up indicating the (P)arent or the (L)eft.
-     We don't indicate whitespace tiles. This function ignores whether
-     or not there is a selection so this can be used to get the caret
-     direction, but the caller shouldn't indicate if there's a selection */
-  switch (Siblings.neighbors(sibs_with_sel(z)), parent(z)) {
-  /* Non-empty selection => no indication */
-  //| _ when z.selection.content != [] => None
-  /* Empty syntax => no indication */
-  | ((None, None), None) => None
-  /* L not whitespace, R is whitespace => indicate L */
-  | ((Some(l), Some(r)), _) when !ws(l) && ws(r) =>
-    Some((l, Left, Sibling))
-  /* L and R are whitespaces => no indication */
-  | ((Some(l), Some(r)), _) when ws(l) && ws(r) => None
-  /* At right end of syntax and L is whitespace => no indication */
-  | ((Some(l), None), None) when ws(l) => None
-  /* At left end of syntax and R is whitespace => no indication */
-  | ((None, Some(r)), None) when ws(r) => None
-  /* No L and R is a whitespace and there is a P => indicate P */
-  | ((None, Some(r)), Some(parent)) when ws(r) =>
-    Some((parent, Left, Parent))
-  /* L is not whitespace and caret is outer => indicate L */
-  | ((Some(l), _), _) when !ws(l) && z.caret == Outer =>
-    Some((l, Left, Sibling))
-  /* No L, some P, and caret is outer => indicate R */
-  | ((None, _), Some(parent)) when z.caret == Outer =>
-    Some((parent, Left, Parent))
-  /* R is not whitespace, either no L or L is whitespace or caret is inner => indicate R */
-  | ((_, Some(r)), _) => Some((r, Right, Sibling))
-  /* No R and there is a P => indicate P */
-  | ((_, None), Some(parent)) => Some((parent, Right, Parent))
-  /* There is an L but no R and no P => indicate L */
-  //TODO(andrew): Right below seems wrong but it gets fucky otherwise
-  | ((Some(l), None), None) => Some((l, Right, Sibling))
-  };
-};
-
-let indicated_shard_index = (z: t): option(int) =>
-  switch (indicated_piece(z)) {
-  | None => None
-  | Some((p, side, relation)) =>
-    switch (relation) {
-    | Parent =>
-      switch (Ancestors.parent(z.relatives.ancestors)) {
-      | None => failwith("indicated_shard_index impossible")
-      | Some({children: (before, _), _}) =>
-        let before = List.length(before);
-        switch (Siblings.neighbors(z.relatives.siblings)) {
-        | (_, None) => Some(before + 1)
-        | _ => Some(before)
-        };
-      }
-    | Sibling =>
-      switch (p) {
-      | Whitespace(_)
-      | Grout(_) => Some(0)
-      | Tile(t) =>
-        switch (side) {
-        | Left => Some(List.length(t.children))
-        | Right => Some(0)
-        }
-      }
-    }
-  };
-
-let update_caret = (f: caret => caret, z: t): t => {
-  ...z,
-  caret: f(z.caret),
-};
-
-let set_caret = (caret: caret): (t => t) => update_caret(_ => caret);
-
-let decrement_caret: caret => caret =
-  fun
-  | Outer
-  | Inner(_, 0) => Outer
-  | Inner(d, c) => Inner(d, c - 1);
-
-let caret_offset: caret => int =
-  fun
-  | Outer => 0
-  | Inner(_, c) => c + 1;
-
-let caret_direction = (z: t): option(Direction.t) =>
-  /* Direction the caret is facing in */
-  switch (z.caret) {
-  | Inner(_) => None
-  | Outer =>
-    switch (Siblings.neighbors(sibs_with_sel(z))) {
-    | (Some(l), Some(r))
-        when Piece.is_whitespace(l) && Piece.is_whitespace(r) =>
-      None
-    | _ => Siblings.direction_between(sibs_with_sel(z))
-    }
-  };
-
-let destruct =
-    (
-      d: Direction.t,
-      ({caret, relatives: {siblings: (l_sibs, r_sibs), _}, _} as z, id_gen): state,
-    )
-    : option(state) => {
-  /* Could add checks on valid tokens (all of these hold assuming substring) */
-  let last_inner_pos = t => Token.length(t) - 2;
-  switch (d, caret, neighbor_monotiles((l_sibs, r_sibs))) {
-  /* When there's a selection, defer to Outer */
-  | _ when z.selection.content != [] =>
-    z |> Outer.destruct |> IdGen.id(id_gen) |> Option.some
-  | (Left, Inner(_, c_idx), (_, Some(t))) =>
-    let z = update_caret(decrement_caret, z);
-    Outer.replace(Right, [Token.rm_nth(c_idx, t)], (z, id_gen));
-  | (Right, Inner(_, c_idx), (_, Some(t))) when c_idx == last_inner_pos(t) =>
-    Outer.replace(Right, [Token.rm_nth(c_idx + 1, t)], (z, id_gen))
-    |> OptUtil.and_then(((z, id_gen)) =>
-         z
-         |> set_caret(Outer)
-         |> Outer.move(Right)
-         |> Option.map(IdGen.id(id_gen))
-       )
-  /* If not on last inner position */
-  | (Right, Inner(_, c_idx), (_, Some(t))) =>
-    Outer.replace(Right, [Token.rm_nth(c_idx + 1, t)], (z, id_gen))
-  /* Can't subdestruct in delimiter, so just destruct on whole delimiter */
-  | (Left, Inner(_), (_, None))
-  | (Right, Inner(_), (_, None)) =>
-    /* Note: Counterintuitve, but yes, these cases are identically handled */
-    z
-    |> set_caret(Outer)
-    |> Outer.directional_destruct(Right)
-    |> Option.map(IdGen.id(id_gen))
-  //| (_, Inner(_), (_, None)) => None
-  | (Left, Outer, (Some(t), _)) when Token.length(t) > 1 =>
-    //Option.map(IdGen.id(id_gen)
-    Outer.replace(Left, [Token.rm_last(t)], (z, id_gen))
-  | (Right, Outer, (_, Some(t))) when Token.length(t) > 1 =>
-    Outer.replace(Right, [Token.rm_first(t)], (z, id_gen))
-  | (_, Outer, (Some(_), _)) /* t.length == 1 */
-  | (_, Outer, (None, _)) =>
-    z |> Outer.directional_destruct(d) |> Option.map(IdGen.id(id_gen))
-  };
-};
-
-let merge =
-    ((l, r): (Token.t, Token.t), (z, id_gen): state): option(state) =>
-  z
-  |> set_caret(Inner(0, Token.length(l) - 1))  // note monotile assumption
-  |> Outer.directional_destruct(Left)
-  |> OptUtil.and_then(Outer.directional_destruct(Right))
-  |> Option.map(z => Outer.construct(Right, [l ++ r], z, id_gen));
-
-let destruct_or_merge = (d: Direction.t, (z, id_gen): state): option(state) => {
-  let* (z, id_gen) = destruct(d, (z, id_gen));
-  let z_trimmed = update_siblings(Siblings.trim_whitespace_and_grout, z);
-  switch (z.caret, neighbor_monotiles(z_trimmed.relatives.siblings)) {
-  | (Outer, (Some(l), Some(r))) when Form.is_valid_token(l ++ r) =>
-    merge((l, r), (z_trimmed, id_gen))
-  | _ => Some((z, id_gen))
-  };
-};
 
 let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
   assert(Selection.is_empty(z.selection));
@@ -499,418 +261,4 @@ let remold_regrout = (d: Direction.t, z: t): IdGen.t(t) => {
   let (relatives, state) = List.hd(ls_relatives);
   let+ () = IdGen.put(state);
   {...z, relatives};
-};
-
-let opt_regrold = d =>
-  Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen));
-
-let split =
-    ((z, id_gen): state, char: string, idx: int, t: Token.t): option(state) => {
-  let (l, r) = Token.split_nth(idx, t);
-  z
-  |> set_caret(Outer)
-  |> Outer.select(Right)
-  |> Option.map(z => Outer.construct(Right, [r], z, id_gen))  //overwrite right
-  |> Option.map(((z, id_gen)) => Outer.construct(Left, [l], z, id_gen))
-  |> OptUtil.and_then(Outer.expand_and_barf_or_construct(char));
-};
-
-let insert =
-    (
-      char: string,
-      ({caret, relatives: {siblings, _}, _} as z, id_gen): state,
-    )
-    : option(state) => {
-  /* If there's a selection, delete it before proceeding */
-  let z = z.selection.content != [] ? Outer.destruct(z) : z;
-  switch (caret, neighbor_monotiles(siblings)) {
-  | (Inner(d_idx, n), (_, Some(t))) =>
-    let idx = n + 1;
-    let new_t = Token.insert_nth(idx, char, t);
-    /* If inserting wouldn't produce a valid token, split */
-    Form.is_valid_token(new_t)
-      ? z
-        |> set_caret(Inner(d_idx, idx))
-        |> (z => Outer.replace(Right, [new_t], (z, id_gen)))
-        |> opt_regrold(Left)
-      : split((z, id_gen), char, idx, t) |> opt_regrold(Right);
-  /* Can't insert inside delimiter */
-  | (Inner(_, _), (_, None)) => None
-  | (Outer, (_, Some(_))) =>
-    let caret =
-      /* If we're adding to the right, move caret inside right nhbr */
-      switch (sibling_appendability(char, siblings)) {
-      | AppendRight(_) => Inner(0, 0) //Note: assumption of monotile
-      | AppendNeither
-      | AppendLeft(_) => Outer
-      };
-    (z, id_gen)
-    |> Outer.insert(char)
-    |> Option.map(((z, id_gen)) => (set_caret(caret, z), id_gen))
-    |> opt_regrold(Left);
-  | (Outer, (_, None)) =>
-    Outer.insert(char, (z, id_gen)) |> opt_regrold(Left)
-  };
-};
-
-let movability = (chunkiness: chunkiness, label, delim_idx): movability => {
-  assert(delim_idx < List.length(label));
-  switch (chunkiness, label, delim_idx) {
-  | (ByChar, _, _)
-  | (MonoByChar, [_], 0) =>
-    let char_max = Token.length(List.nth(label, delim_idx)) - 2;
-    char_max < 0 ? CanPass : CanEnter(delim_idx, char_max);
-  | (ByToken, _, _)
-  | (MonoByChar, _, _) => CanPass
-  };
-};
-
-let neighbor_movability =
-    (chunkiness: chunkiness, {relatives: {siblings, ancestors}, _}: t)
-    : (movability, movability) => {
-  let movability = movability(chunkiness);
-  let (supernhbr_l, supernhbr_r) =
-    switch (ancestors) {
-    | [] => (CantEven, CantEven)
-    | [({children: (l_kids, _), label, _}, _), ..._] => (
-        movability(label, List.length(l_kids)),
-        movability(label, List.length(l_kids) + 1),
-      )
-    };
-  let (l_nhbr, r_nhbr) = Siblings.neighbors(siblings);
-  let l =
-    switch (l_nhbr) {
-    | Some(Tile({label, _})) => movability(label, List.length(label) - 1)
-    | Some(_) => CanPass
-    | _ => supernhbr_l
-    };
-  let r =
-    switch (r_nhbr) {
-    | Some(Tile({label, _})) => movability(label, 0)
-    | Some(_) => CanPass
-    | _ => supernhbr_r
-    };
-  (l, r);
-};
-
-let pop_out = z => Some(z |> set_caret(Outer));
-let pop_move = (d, z) => z |> set_caret(Outer) |> Outer.move(d);
-let inner_incr = (delim, c, z) => Some(set_caret(Inner(delim, c + 1), z));
-let inner_decr = z => Some(update_caret(decrement_caret, z));
-let inner_start = (d_init, z) => Some(set_caret(Inner(d_init, 0), z));
-let inner_end = (d, d_init, c_max, z) =>
-  z |> set_caret(Inner(d_init, c_max)) |> Outer.move(d);
-
-let move = (chunkiness: chunkiness, d: Direction.t, z: t): option(t) => {
-  switch (d, z.caret, neighbor_movability(chunkiness, z)) {
-  /* this case maybe shouldn't be necessary but currently covers an edge
-     (select an open parens to left of a multichar token and press left) */
-  | _ when z.selection.content != [] => pop_move(d, z)
-  | (Left, Outer, (CanEnter(dlm, c_max), _)) => inner_end(d, dlm, c_max, z)
-  | (Left, Outer, _) => Outer.move(d, z)
-  | (Left, Inner(_), _) when chunkiness == ByToken => pop_out(z)
-  | (Left, Inner(_), _) => Some(update_caret(decrement_caret, z))
-  | (Right, Outer, (_, CanEnter(d_init, _))) => inner_start(d_init, z)
-  | (Right, Outer, _) => Outer.move(d, z)
-  | (Right, Inner(_, c), (_, CanEnter(_, c_max))) when c == c_max =>
-    pop_move(d, z)
-  | (Right, Inner(_), _) when chunkiness == ByToken => pop_move(d, z)
-  | (Right, Inner(delim, c), _) => inner_incr(delim, c, z)
-  };
-};
-
-let select = (d: Direction.t, z: t): option(t) =>
-  if (z.caret == Outer) {
-    Outer.select(d, z);
-  } else if (d == Left) {
-    z
-    |> set_caret(Outer)
-    |> Outer.move(Right)
-    |> OptUtil.and_then(Outer.select(d));
-  } else {
-    z |> set_caret(Outer) |> Outer.select(d);
-  };
-
-let base_caret_point = (map: Measured.t, z: t): Measured.point => {
-  switch (representative_piece(z)) {
-  | Some((p, d)) =>
-    let seg = Piece.disassemble(p);
-    switch (d) {
-    | Left =>
-      let p = ListUtil.last(seg);
-      let m = Measured.find_p(p, map);
-      m.last;
-    | Right =>
-      let p = List.hd(seg);
-      let m = Measured.find_p(p, map);
-      m.origin;
-    };
-  | None => {row: 0, col: 0}
-  };
-};
-
-let caret_point = (map: Measured.t, z: t): Measured.point => {
-  let Measured.{row, col} = base_caret_point(map, z);
-  {row, col: col + caret_offset(z.caret)};
-};
-
-type comparison =
-  | Exact
-  | Under
-  | Over;
-
-let comp = (current, target): comparison =>
-  switch () {
-  | _ when current == target => Exact
-  | _ when current < target => Under
-  | _ => Over
-  };
-
-let dcomp = (direction: Direction.t, a, b) =>
-  switch (direction) {
-  | Right => comp(a, b)
-  | Left => comp(b, a)
-  };
-
-let rec do_towards =
-        (
-          f: t => option(t),
-          d: Direction.t,
-          cursorpos: t => Measured.point,
-          goal: Measured.point,
-          cur: t,
-          prev: t,
-        )
-        : t => {
-  let cur_p = cursorpos(cur);
-  //Printf.printf("go_towards: current: %s\n", Measured.show_point(cur_p));
-  switch (dcomp(d, cur_p.col, goal.col), dcomp(d, cur_p.row, goal.row)) {
-  | (Exact, Exact) => cur
-  | (_, Over) => prev
-  | (_, Under)
-  | (Under, Exact) =>
-    switch (f(cur)) {
-    | None => cur
-    | Some(next) => do_towards(f, d, cursorpos, goal, next, cur)
-    }
-  | (Over, Exact) =>
-    let d_cur = abs(cur_p.col - goal.col);
-    let d_prev = abs(cursorpos(prev).col - goal.col);
-    switch () {
-    | _ when d_cur < d_prev => cur
-    | _ when d_prev < d_cur => prev
-    | _ => cur /* default to going over */
-    };
-  };
-};
-
-let do_vertical = (f: t => option(t), d: Direction.t, z: t): option(t) => {
-  /* Here f should be a function which results in strict d-wards
-     movement of the caret. Iterate f until we get to the closet
-     caret position to a target derived from the initial position */
-  let cursorpos = caret_point(Measured.of_segment(unselect_and_zip(z)));
-  let cur_p = cursorpos(z);
-  let goal =
-    Measured.{
-      col: z.caret_col_target,
-      row: cur_p.row + (d == Right ? 1 : (-1)),
-    };
-  // Printf.printf("do_vertical: cur: %s\n", Measured.show_point(cur_p));
-  // Printf.printf("do_vertical: goal: %s\n", Measured.show_point(goal));
-  let res = do_towards(f, d, cursorpos, goal, z, z);
-  let res_p = cursorpos(res);
-  Measured.point_equals(res_p, cur_p) ? None : Some(res);
-};
-
-let from_plane: plane_move => Direction.t =
-  fun
-  | Left(_) => Left
-  | Right(_) => Right
-  | Up => Left
-  | Down => Right;
-
-let do_extreme = (f: t => option(t), d: plane_move, z: t): option(t) => {
-  let cursorpos = caret_point(Measured.of_segment(unselect_and_zip(z)));
-  let cur_p = cursorpos(z);
-  let goal: Measured.point =
-    switch (d) {
-    | Right(_) => {col: Int.max_int, row: cur_p.row}
-    | Left(_) => {col: 0, row: cur_p.row}
-    | Up => {col: 0, row: 0}
-    | Down => {col: Int.max_int, row: Int.max_int}
-    };
-  let res = do_towards(f, from_plane(d), cursorpos, goal, z, z);
-  Measured.point_equals(cursorpos(res), cursorpos(z)) ? None : Some(res);
-};
-
-let select_vertical = (d: Direction.t, z: t): option(t) =>
-  do_vertical(select(d), d, z);
-
-let move_vertical = (d: Direction.t, z: t): option(t) =>
-  z.selection.content == []
-    ? do_vertical(move(ByChar, d), d, z)
-    : Some(Outer.directional_unselect(d, z));
-
-let update_target = (z: t): t =>
-  //NOTE(andrew): $$$ this recomputes all measures
-  {
-    ...z,
-    caret_col_target:
-      caret_point(Measured.of_segment(unselect_and_zip(z)), z).col,
-  };
-
-let put_down = (z: t): option(t) =>
-  /* Alternatively, putting down inside token could eiter merge-in or split */
-  switch (z.caret) {
-  | Inner(_) => None
-  | Outer => Outer.put_down(z)
-  };
-
-let targets_within_row = (map: Measured.t, z: t): list(t) => {
-  let caret = caret_point(map);
-  let init = caret(z);
-  let rec go = (d: Direction.t, z: t) => {
-    switch (move(ByChar, d, z)) {
-    | None => []
-    | Some(z) =>
-      if (caret(z).row != init.row) {
-        [];
-      } else {
-        switch (pop_backpack(z)) {
-        | None => go(d, z)
-        | Some(_) => [z, ...go(d, z)]
-        };
-      }
-    };
-  };
-  let curr =
-    switch (pop_backpack(z)) {
-    | None => []
-    | Some(_) => [z]
-    };
-  List.rev(go(Left, z)) @ curr @ go(Right, z);
-};
-
-// TODO(d): unify this logic with rest of movement logic
-let rec move_to_backpack_target = (d: plane_move, map, z: t): option(t) => {
-  let caret_point = caret_point(map);
-  let done_or_try_again = (d, z) =>
-    switch (pop_backpack(z)) {
-    | None => move_to_backpack_target(d, map, z)
-    | Some(_) => Some(z)
-    };
-  switch (d) {
-  | Left(chunk) =>
-    let* z = Option.map(update_target, move(chunk, Left, z));
-    done_or_try_again(d, z);
-  | Right(chunk) =>
-    let* z = Option.map(update_target, move(chunk, Right, z));
-    done_or_try_again(d, z);
-  | Up =>
-    let* z = move_vertical(Left, z);
-    let zs =
-      targets_within_row(map, z)
-      |> List.sort((z1, z2) => {
-           let dist1 = caret_point(z1).col - z.caret_col_target;
-           let dist2 = caret_point(z2).col - z.caret_col_target;
-           let c = Int.compare(abs(dist1), abs(dist2));
-           // favor left
-           c != 0 ? c : Int.compare(dist1, dist2);
-         });
-    switch (zs) {
-    | [] => move_to_backpack_target(d, map, z)
-    | [z, ..._] => Some(z)
-    };
-  | Down =>
-    let* z = move_vertical(Right, z);
-    let zs =
-      targets_within_row(map, z)
-      |> List.sort((z1, z2) => {
-           let dist1 = caret_point(z1).col - z.caret_col_target;
-           let dist2 = caret_point(z2).col - z.caret_col_target;
-           let c = Int.compare(abs(dist1), abs(dist2));
-           // favor right
-           c != 0 ? c : - Int.compare(dist1, dist2);
-         });
-    switch (zs) {
-    | [] => move_to_backpack_target(d, map, z)
-    | [z, ..._] => Some(z)
-    };
-  };
-};
-
-let perform = (a: Action.t, (z, id_gen): state): Action.Result.t(state) => {
-  IncompleteBidelim.clear();
-  switch (a) {
-  | Move(d) =>
-    switch (d) {
-    | Extreme(d) =>
-      do_extreme(move(ByToken, from_plane(d)), d, z)
-      |> Option.map(update_target)
-      |> Option.map(IdGen.id(id_gen))
-      |> Result.of_option(~error=Action.Failure.Cant_move)
-    | Local(d) =>
-      /* Note: Don't update target on vertical movement */
-      z
-      |> (
-        z =>
-          switch (d) {
-          | Left(chunk) => move(chunk, Left, z) |> Option.map(update_target)
-          | Right(chunk) =>
-            move(chunk, Right, z) |> Option.map(update_target)
-          | Up => move_vertical(Left, z)
-          | Down => move_vertical(Right, z)
-          }
-      )
-      |> Option.map(IdGen.id(id_gen))
-      |> Result.of_option(~error=Action.Failure.Cant_move)
-    }
-  | Unselect =>
-    Ok((Outer.directional_unselect(z.selection.focus, z), id_gen))
-  | Select(d) =>
-    let selected =
-      switch (d) {
-      | Extreme(d) =>
-        do_extreme(select(from_plane(d)), d, z)
-        |> Option.map(update_target)
-      | Local(d) =>
-        /* Note: Don't update target on vertical selection */
-        switch (d) {
-        | Left(_) => select(Left, z) |> Option.map(update_target)
-        | Right(_) => select(Right, z) |> Option.map(update_target)
-        | Up => select_vertical(Left, z)
-        | Down => select_vertical(Right, z)
-        }
-      };
-    selected
-    |> Option.map(IdGen.id(id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_select);
-  | Destruct(d) =>
-    (z, id_gen)
-    |> destruct_or_merge(d)
-    |> Option.map(((z, id_gen)) => remold_regrout(d, z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_destruct)
-  | Insert(char) =>
-    (z, id_gen)
-    |> insert(char)
-    /* note: remolding here is done case-by-case */
-    //|> Option.map(((z, id_gen)) => remold_regrout(Right, z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_insert)
-  | Pick_up => Ok(remold_regrout(Left, Outer.pick_up(z), id_gen))
-  | Put_down =>
-    z
-    |> put_down
-    |> Option.map(z => remold_regrout(Left, z, id_gen))
-    |> Option.map(((z, id_gen)) => (update_target(z), id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_put_down)
-  | RotateBackpack =>
-    Ok(({...z, backpack: Util.ListUtil.rotate(z.backpack)}, id_gen))
-  | MoveToBackpackTarget(d) =>
-    let map = Measured.of_segment(unselect_and_zip(z));
-    move_to_backpack_target(d, map, z)
-    |> Option.map(IdGen.id(id_gen))
-    |> Result.of_option(~error=Action.Failure.Cant_move);
-  };
 };

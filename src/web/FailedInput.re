@@ -3,7 +3,7 @@ open Core;
 [@deriving (show({with_path: false}), sexp, yojson)]
 type reason =
   | Unrecognized
-  | Failure(Zipper.Action.Failure.t);
+  | Failure(Perform.Action.Failure.t);
 
 [@deriving show]
 type t = {

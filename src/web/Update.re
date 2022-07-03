@@ -18,7 +18,7 @@ type t =
   | SwitchEditor(int)
   | SetFontMetrics(FontMetrics.t)
   | SetLogoFontMetrics(FontMetrics.t)
-  | PerformAction(Zipper.Action.t)
+  | PerformAction(Perform.Action.t)
   | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
   | Redo
@@ -33,7 +33,7 @@ module Failure = {
     | FailedToLoad
     | FailedToSwitch
     | UnrecognizedInput(FailedInput.reason)
-    | FailedToPerform(Zipper.Action.Failure.t)
+    | FailedToPerform(Perform.Action.Failure.t)
     | Exception(string);
 };
 
@@ -64,14 +64,6 @@ let update_settings =
   settings;
 };
 
-let move_to_start = z =>
-  switch (
-    Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
-  ) {
-  | Some(z) => Zipper.update_target(z)
-  | None => z
-  };
-
 let apply =
     (model: Model.t, update: t, _: State.t, ~schedule_action as _)
     : Result.t(Model.t) => {
@@ -91,7 +83,7 @@ let apply =
         ([], model.id_gen),
         List.init(LocalStorage.num_editors, n => n),
       );
-    let zs = List.map(move_to_start, zs);
+    let zs = List.map(Move.to_start, zs);
     Ok({
       ...model,
       history: ActionHistory.empty,
@@ -106,7 +98,7 @@ let apply =
       Ok({
         ...model,
         history: ActionHistory.empty,
-        editor_model: Model.put_zipper(model, move_to_start(z)),
+        editor_model: Model.put_zipper(model, Move.to_start(z)),
         id_gen,
       })
     | None => Error(FailedToLoad)
@@ -118,7 +110,7 @@ let apply =
       Ok({
         ...model,
         history: ActionHistory.empty,
-        editor_model: Model.put_zipper(model, move_to_start(z)),
+        editor_model: Model.put_zipper(model, Move.to_start(z)),
         id_gen,
       })
     | None => Error(FailedToLoad)
@@ -154,7 +146,7 @@ let apply =
     Ok({...model, logo_font_metrics})
   | PerformAction(a) =>
     let z_id = (Model.get_zipper(model), model.id_gen);
-    switch (Zipper.perform(a, z_id)) {
+    switch (Perform.go(a, z_id)) {
     | Error(err) => Error(FailedToPerform(err))
     // TODO(andrew): refactor history
     | Ok((z, id_gen)) =>

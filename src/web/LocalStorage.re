@@ -89,11 +89,9 @@ let zipper_log_key: string = "ZIPPER_LOG";
 
 let insert_to_zid: (Zipper.state, string) => Zipper.state =
   (z_id, c) => {
-    switch (
-      Zipper.perform(Insert(c == "\n" ? Whitespace.linebreak : c), z_id)
-    ) {
+    switch (Perform.go(Insert(c == "\n" ? Whitespace.linebreak : c), z_id)) {
     | Error(err) =>
-      print_endline("WARNING: insert: " ++ Zipper.Action.Failure.show(err));
+      print_endline("WARNING: insert: " ++ Perform.Action.Failure.show(err));
       z_id;
     | Ok(r) => r
     };

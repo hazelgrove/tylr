@@ -166,9 +166,9 @@ module Deco =
       | None => false
       };
     let caret_adj = {
-      let shape = Zipper.caret_direction(z);
+      let shape = Caret.direction(z);
       let side =
-        switch (Zipper.indicated_piece(z)) {
+        switch (Indicated.piece(z)) {
         | Some((_, side, _)) => side
         | _ => Right
         };
@@ -288,10 +288,10 @@ module Deco =
     |> List.concat;
 
   let caret = (z: Zipper.t): list(Node.t) => {
-    let origin = Zipper.caret_point(M.map, z);
-    let shape = Zipper.caret_direction(z);
+    let origin = Caret.point(M.map, z);
+    let shape = Caret.direction(z);
     let side =
-      switch (Zipper.indicated_piece(z)) {
+      switch (Indicated.piece(z)) {
       | Some((_, side, _)) => side
       | _ => Right
       };
@@ -393,13 +393,13 @@ module Deco =
     |> List.flatten;
 
   let indicated_piece_deco = (z: Zipper.t): list(Node.t) => {
-    switch (Zipper.indicated_piece(z)) {
+    switch (Indicated.piece(z)) {
     | _ when z.selection.content != [] => []
     | None => []
     | Some((Grout(_), _, _)) => []
     | Some((p, side, _)) =>
       let nib_shape =
-        switch (Zipper.caret_direction(z)) {
+        switch (Caret.direction(z)) {
         | None => Nib.Shape.Convex
         | Some(nib) => Nib.Shape.relative(nib, side)
         };
@@ -419,7 +419,7 @@ module Deco =
           Some((m.origin, m.last));
         };
       let index =
-        switch (Zipper.indicated_shard_index(z)) {
+        switch (Indicated.shard_index(z)) {
         | None => (-1)
         | Some(i) => i
         };
