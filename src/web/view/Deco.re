@@ -1,6 +1,6 @@
 open Virtual_dom.Vdom;
-open Core;
 open Util;
+open Core;
 
 module Deco =
        (
@@ -11,24 +11,6 @@ module Deco =
          },
        ) => {
   let font_metrics = M.font_metrics;
-
-  let rec holes = (seg: Segment.t): list(Node.t) =>
-    seg
-    |> List.map(
-         fun
-         | Piece.Whitespace(_) => []
-         | Tile(t) => t.children |> List.map(holes) |> List.concat
-         | Grout(g) => [
-             EmptyHoleDec.view(
-               ~font_metrics, // TODO(d) fix sort
-               {
-                 measurement: Measured.find_g(g, M.map),
-                 mold: Mold.of_grout(g, Any),
-               },
-             ),
-           ],
-       )
-    |> List.concat;
 
   let caret = (z: Zipper.t): list(Node.t) => {
     let origin = Caret.point(M.map, z);
@@ -41,30 +23,32 @@ module Deco =
     [CaretDec.view(~font_metrics, ~profile={side, origin, shape})];
   };
 
-  let children = (p: Piece.t): list(Measured.measurement_lin) =>
-    switch (p) {
-    | Whitespace(_)
-    | Grout(_) => []
-    | Tile(t) =>
-      let m = Measured.find_t(t, M.map);
-      let token = List.nth(t.label);
-      Aba.mk(t.shards, t.children)
-      |> Aba.fold_left(
-           shard => (m.origin.col + Unicode.length(token(shard)), []),
-           (
-             (origin, children: list(Measured.measurement_lin)),
-             child,
-             shard,
-           ) => {
-             let length = Measured.length(child, M.map);
-             (
-               origin + length + Unicode.length(token(shard)),
-               children @ [{origin, length}],
-             );
-           },
-         )
-      |> snd;
-    };
+  /*
+   let children = (p: Piece.t): list(Measured.measurement_lin) =>
+     switch (p) {
+     | Whitespace(_)
+     | Grout(_) => []
+     | Tile(t) =>
+       let m = Measured.find_t(t, M.map);
+       let token = List.nth(t.label);
+       Aba.mk(t.shards, t.children)
+       |> Aba.fold_left(
+            shard => (m.origin.col + Unicode.length(token(shard)), []),
+            (
+              (origin, children: list(Measured.measurement_lin)),
+              child,
+              shard,
+            ) => {
+              let length = Measured.length(child, M.map);
+              (
+                origin + length + Unicode.length(token(shard)),
+                children @ [{origin, length}],
+              );
+            },
+          )
+       |> snd;
+     };
+     */
 
   let selected_piece_profile =
       (p: Piece.t, nib_shape: Nib.Shape.t): PieceDec.Profile.t => {
@@ -245,11 +229,20 @@ module Deco =
   };
 
   let backback = (z: Zipper.t): list(Node.t) => [
-    BackpackV.view(~font_metrics, ~origin=Caret.point(M.map, z), z),
+    BackpackView.view(~font_metrics, ~origin=Caret.point(M.map, z), z),
   ];
 
   let targets' = (backpack, seg) => {
     M.show_backpack_targets && Backpack.restricted(backpack)
       ? targets(backpack, seg) : [];
   };
+
+  let all = (zipper, sel_seg) =>
+    List.concat([
+      caret(zipper),
+      indicated_piece_deco(zipper),
+      selected_pieces(zipper),
+      backback(zipper),
+      targets'(zipper.backpack, sel_seg),
+    ]);
 };

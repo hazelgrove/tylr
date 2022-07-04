@@ -11,7 +11,7 @@ let backpack_sel_view =
       {focus: _, content}: Selection.t,
     ) => {
   module Text =
-    CodeText.Text({
+    Code.Text({
       let map = Measured.of_segment(content);
       let settings = Model.settings_init;
     });

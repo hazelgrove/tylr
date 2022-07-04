@@ -138,7 +138,7 @@ let editor_view =
   div(
     [Attr.id("code-container")],
     [
-      Code.view(
+      Editor.view(
         ~font_metrics,
         ~show_backpack_targets,
         ~zipper=Model.get_zipper(model),
