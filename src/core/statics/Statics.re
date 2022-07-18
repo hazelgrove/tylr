@@ -1,5 +1,11 @@
+type typ =
+  | Unknown
+  | Int
+  | Bool
+  | Arrow(typ, typ);
+
 type htyp =
-  | InvalidType
+  | InvalidTyp
   | TypeHole
   | Int
   | Bool
@@ -27,7 +33,7 @@ and value =
   | Fun(hpat, hexp)
 //| FunAnn(Token.t, htyp, hexp)
 and term =
-  | Invalid //everything? text? keyword?
+  | InvalidExp //everything? text? keyword?
   | EmptyHole
   | Lit(value)
   | Var(Token.t)
@@ -35,6 +41,31 @@ and term =
   //| LetAnn(Token.t, htyp, hexp, hexp)
   | Ap(hexp, hexp)
   //| ApBuiltin(Token.t, list(hexp))
+  // maybe everything with fn semantics should be a builtin e.g. plus??
   | If(hexp, hexp, hexp)
   | OpInt(op_int, hexp, hexp)
   | OpBool(op_bool, hexp, hexp);
+
+let zip_to_hexp = (_z: Zipper.t): hexp => {id: 666, term: InvalidExp};
+
+type mode =
+  | Syn
+  | Ana(typ);
+
+type ctx_entry = {
+  id: Id.t,
+  typ,
+};
+
+type ctx = VarMap.t_(ctx_entry);
+
+type co_ctx_entry = list(Id.t);
+
+type co_ctx = VarMap.t_(co_ctx_entry);
+
+type info = {
+  syn_typ: typ,
+  mode,
+  ctx,
+  co_ctx,
+};
