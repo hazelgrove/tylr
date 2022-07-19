@@ -5,7 +5,7 @@ type typ =
   | Arrow(typ, typ);
 
 type htyp =
-  | InvalidTyp
+  | InvalidTyp(Piece.t)
   | TypeHole
   | Int
   | Bool
@@ -18,7 +18,7 @@ type op_bool =
   | And;
 
 type term_p =
-  | InvalidPat(Piece.t) //TODO(andrew): pieceify
+  | InvalidPat(Piece.t)
   | EmptyHolePat
   | VarPat(Token.t);
 
@@ -74,23 +74,23 @@ and of_piece = (p: Piece.t, children_h: list(hexp)): hexp => {
     | Convex => {id, term: EmptyHole}
     | Concave => invalid(p)
     }
-  | Tile({id, label, children, mold, shards: _} as t) =>
+  | Tile({id, label, children, mold: _, shards: _} as t) =>
     // TODO(andrew): do better than switching label
-    let id = (term): hexp => {id, term};
-    switch (mold.out, label, children_h, children) {
-    | _ when !Tile.is_complete(t) => {id: (-1), term: InvalidPiece(p)}
-    | (Exp, ["+"], [l, r], []) => id(OpInt(Plus, l, r))
-    | (Exp, ["&&"], [l, r], []) => id(OpBool(And, l, r))
-    | (Exp, ["fun", "->"], [body], [pat]) =>
-      id(Fun(hpat_of_seg(pat), body))
-    | (Exp, ["let", "=", "in"], [body], [pat, def]) =>
-      id(Let(hpat_of_seg(pat), of_seg(def), body))
-    | (Exp, ["if", "then", "else"], [alt], [cond, conseq]) =>
-      id(If(of_seg(cond), of_seg(conseq), alt))
-    | (Exp, ["(", ")"], [fn], [arg]) => id(Ap(fn, of_seg(arg)))
-    //TODO(andrew): more cases
-    | _ => id(InvalidPiece(p))
-    };
+    let term =
+      switch (/*mold.out,*/ label, children_h, children) {
+      | _ when !Tile.is_complete(t) => InvalidPiece(p)
+      | (["+"], [l, r], []) => OpInt(Plus, l, r)
+      | (["&&"], [l, r], []) => OpBool(And, l, r)
+      | (["fun", "->"], [body], [pat]) => Fun(hpat_of_seg(pat), body)
+      | (["let", "=", "in"], [body], [pat, def]) =>
+        Let(hpat_of_seg(pat), of_seg(def), body)
+      | (["if", "then", "else"], [alt], [cond, conseq]) =>
+        If(of_seg(cond), of_seg(conseq), alt)
+      | (["(", ")"], [fn], [arg]) => Ap(fn, of_seg(arg))
+      //TODO(andrew): more cases
+      | _ => InvalidPiece(p)
+      };
+    {id, term};
   };
 }
 and of_seg = (ps: Segment.t): hexp =>
