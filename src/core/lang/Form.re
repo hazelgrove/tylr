@@ -34,6 +34,11 @@ let mk = (expansion, label, mold) => {label, mold, expansion};
 let mk_infix = (t: Token.t, sort: Sort.t, prec) =>
   mk(ss, [t], mk_bin(prec, sort, []));
 
+let is_var = regexp("^[a-z][A-Za-z0-9_]*$");
+let is_int = regexp("^[0-9]*$");
+let is_typ_lit = regexp("^[A-Z][A-Za-z0-9_]*$");
+let is_wild = regexp("^_$");
+
 /* A. Whitespace: */
 let whitespace = [Whitespace.space, Whitespace.linebreak];
 
@@ -41,15 +46,12 @@ let whitespace = [Whitespace.space, Whitespace.linebreak];
    Order in this list determines relative remolding
    priority for forms with overlapping regexps */
 let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
-  (
-    "var",
-    (regexp("^[a-z][A-Za-z0-9_]*$"), [mk_op(Exp, []), mk_op(Pat, [])]),
-  ),
-  ("type", (regexp("^[A-Z][A-Za-z0-9_]*$"), [mk_op(Typ, [])])),
+  ("var", (is_var, [mk_op(Exp, []), mk_op(Pat, [])])),
+  ("type", (is_typ_lit, [mk_op(Typ, [])])),
   // ("whatever", (regexp("#*$"), [mk_op(Nul, [])])),
   // ("whatever", (regexp("@*$"), [mk_op(Rul, [])])),
-  ("num", (regexp("^[0-9]*$"), [mk_op(Exp, []), mk_op(Pat, [])])),
-  ("wild", (regexp("^_$"), [mk_op(Pat, [])])),
+  ("num", (is_int, [mk_op(Exp, []), mk_op(Pat, [])])),
+  ("wild", (is_wild, [mk_op(Pat, [])])),
 ];
 
 /* C. Compound Forms:
