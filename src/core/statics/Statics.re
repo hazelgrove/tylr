@@ -16,6 +16,7 @@ type info_typ = unit; //TODO(andrew)
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info =
+  | Invalid
   | InfoExp(info_exp)
   | InfoPat(info_pat)
   | InfoTyp(info_typ);
@@ -45,5 +46,42 @@ let uexp_to_info_map =
   | If(_uexp, _uexp', _uexp'') => m
   | OpInt(_op_int, _uexp, _uexp') => m
   | OpBool(_op_bool, _uexp, _uexp') => m
+  };
+};
+
+let upat_to_info_map =
+    (
+      ~m=Id.Map.empty,
+      ~ctx as _=VarMap.empty,
+      ~mode as _=Typ.Syn,
+      {id: _, term_p}: Term.upat,
+    )
+    : info_map => {
+  //TODO(andrew): implement
+  switch (term_p) {
+  | InvalidPat(_p) => m
+  | EmptyHolePat => m
+  | Wild => m
+  | IntPat(_i) => m
+  | BoolPat(_b) => m
+  | VarPat(_name) => m
+  };
+};
+
+let utyp_to_info_map =
+    (
+      ~m=Id.Map.empty,
+      ~ctx as _=VarMap.empty,
+      ~mode as _=Typ.Syn,
+      {id: _, term_t}: Term.utyp,
+    )
+    : info_map => {
+  //TODO(andrew): implement
+  switch (term_t) {
+  | InvalidTyp(_p) => m
+  | EmptyHoleTyp => m
+  | Int => m
+  | Bool => m
+  | Arrow(_ty, _ty') => m
   };
 };
