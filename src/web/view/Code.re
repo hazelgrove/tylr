@@ -111,7 +111,6 @@ let view =
       let map = map;
       let settings = settings;
     });
-  //div()
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [

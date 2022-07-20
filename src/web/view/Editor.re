@@ -23,6 +23,7 @@ let view =
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [Code.view(~font_metrics, ~sel_seg, ~unsel_seg, ~map, ~settings)]
-    @ Deco.all(zipper, sel_seg),
+    @ Deco.all(zipper, sel_seg)
+    @ [text(zipper |> Term.of_zipper |> Term.show_uexp)],
   );
 };
