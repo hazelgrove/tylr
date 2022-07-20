@@ -1,5 +1,5 @@
 module Shape = {
-  [@deriving show]
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
     | Convex
     | Concave(Precedence.t);
@@ -42,7 +42,7 @@ module Shape = {
     nib == side ? Convex : concave();
 };
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   shape: Shape.t,
   sort: Sort.t,

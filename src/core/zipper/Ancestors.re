@@ -1,9 +1,10 @@
+open Sexplib.Std;
 open Util;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type generation = (Ancestor.t, Siblings.t);
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = list(generation);
 
 let empty = [];

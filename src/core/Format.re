@@ -1,6 +1,6 @@
 //TODO(andrew): autoformatter
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type padding =
   | None
   | Bi

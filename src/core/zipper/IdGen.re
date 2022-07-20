@@ -1,6 +1,8 @@
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type state = Id.t;
-[@deriving show]
+//open Sexplib.Std;
+
+[@deriving (show({with_path: false}), sexp)]
 type t('a) = state => ('a, state);
 
 let get: t(state) = state => (state, state);

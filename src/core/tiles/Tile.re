@@ -5,7 +5,7 @@ exception Ambiguous_molds;
 exception Invalid_mold;
 exception Empty_tile;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = tile;
 
 let id = t => t.id;
@@ -103,7 +103,7 @@ let pop_r = (tile: t): (segment, piece) =>
 //   type tile = t;
 
 //   module Make = (O: Orientation.S) => {
-//     [@deriving show]
+//     [@deriving (show({with_path: false}), sexp, yojson)]
 //     type t = Aba.t(Shard.t, segment);
 
 //     let id = (m: t) => Aba.hd(m).tile_id;

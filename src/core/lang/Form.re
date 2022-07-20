@@ -1,21 +1,22 @@
+open Sexplib.Std;
 open Mold;
 module P = Precedence;
 
 let regexp = (r, s) => Re.Str.string_match(Re.Str.regexp(r), s, 0);
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type label = list(Token.t);
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type expansion_time =
   | Static
   | Instant
   | Delayed;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type expansion = (expansion_time, expansion_time);
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   label,
   expansion,
@@ -36,8 +37,10 @@ let mk_infix = (t: Token.t, sort: Sort.t, prec) =>
 
 let is_var = regexp("^[a-z][A-Za-z0-9_]*$");
 let is_int = regexp("^[0-9]*$");
-let is_typ_lit = regexp("^[A-Z][A-Za-z0-9_]*$");
+let is_typ_lit = regexp("^Int|Bool$");
+let is_typ_lit_partial = regexp("^[A-Z][A-Za-z0-9_]*$");
 let is_wild = regexp("^_$");
+let is_bool = regexp("^true|false$");
 
 /* A. Whitespace: */
 let whitespace = [Whitespace.space, Whitespace.linebreak];
@@ -47,7 +50,9 @@ let whitespace = [Whitespace.space, Whitespace.linebreak];
    priority for forms with overlapping regexps */
 let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
   ("var", (is_var, [mk_op(Exp, []), mk_op(Pat, [])])),
-  ("type", (is_typ_lit, [mk_op(Typ, [])])),
+  ("type", (is_typ_lit, [mk_op(Exp, [])])), // bad sort
+  ("type-partial", (is_typ_lit_partial, [mk_op(Typ, [])])), // bad sort (should be bottom)
+  // TODO(andrew): above thing: color same as sort inconsistency errors
   // ("whatever", (regexp("#*$"), [mk_op(Nul, [])])),
   // ("whatever", (regexp("@*$"), [mk_op(Rul, [])])),
   ("num", (is_int, [mk_op(Exp, []), mk_op(Pat, [])])),
@@ -75,7 +80,8 @@ let forms: list((string, t)) = [
   ("concat", mk_infix("@", Exp, P.concat)),
   ("rev_ap", mk_infix("|>", Exp, P.eqs)),
   //("cons", mk_infix("::", Exp, 5)),
-  // ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
+  ("type-arrow", mk_infix("->", Typ, 6)), // bad sorts
+  ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
   ("dot-access", mk_infix(".", Exp, 5)), // bad sorts
   ("assign_incr", mk_infix("+=", Exp, 10)), // bad sorts
   ("unary_minus", mk(ss, ["-"], mk_pre(P.fact, Exp, []))),
@@ -89,8 +95,8 @@ let forms: list((string, t)) = [
   ("list_lit", mk(ii, ["[", "]"], mk_op(Exp, [Exp]))),
   ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
-  ("funann", mk(di, ["fun", ":", "->"], mk_pre(P.let_, Exp, [Pat, Typ]))),
-  ("fun_", mk(di, ["fun", "->"], mk_pre(P.let_, Exp, [Pat]))),
+  ("funann", mk(ds, ["fun", ":", "->"], mk_pre(P.let_, Exp, [Pat, Typ]))),
+  ("fun_", mk(ds, ["fun", "->"], mk_pre(P.let_, Exp, [Pat]))),
   ("if_", mk(di, ["if", "then", "else"], mk_pre(P.if_, Exp, [Exp, Exp]))),
   /* Something must instant on => as not valid monotile on its own */
   ("ap", mk(ii, ["(", ")"], mk_post(P.ap, Exp, [Exp]))),
@@ -99,7 +105,7 @@ let forms: list((string, t)) = [
     "letann",
     mk(ds, ["let", ":", "=", "in"], mk_pre(P.let_, Exp, [Pat, Typ, Exp])),
   ),
-  ("cond", mk(ii, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
+  ("cond", mk(is, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
   ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
   ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
   ("rule_first", mk(ds, ["|", "->"], mk_pre(9, Exp, [Pat]))),

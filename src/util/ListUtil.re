@@ -32,7 +32,6 @@ let rec range = (~lo=0, hi) =>
   };
 
 // heads of prefix and suffix neighbor the subject
-[@deriving show]
 type frame('x) = (list('x), list('x));
 
 let rec mk_frame = (n: int, xs: list('x)): frame('x) => {

@@ -1,7 +1,10 @@
 open DecUtil;
 open SvgUtil.Path;
+open Sexplib.Std;
 
-[@deriving show]
+//TODO(?): deprecate this module
+
+[@deriving (show({with_path: false}), sexp, yojson)]
 type tip_shape = (Core.Nib.t, int);
 
 // top right to bottom left

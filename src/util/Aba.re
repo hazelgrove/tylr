@@ -1,5 +1,5 @@
 // invariant: List.length(as) == List.length(bs) + 1
-[@deriving show]
+
 type t('a, 'b) = (list('a), list('b));
 
 let mk = (as_: list('a), bs: list('b)): t('a, 'b) => {

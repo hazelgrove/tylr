@@ -1,7 +1,7 @@
 open Zipper;
 open Util;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type appendability =
   | AppendLeft(Token.t)
   | AppendRight(Token.t)

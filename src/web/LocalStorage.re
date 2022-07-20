@@ -3,7 +3,9 @@ open Core;
 
 let default_editor_idx = 1;
 
-let editor_defaults = [
+let editor_defaults = ["", "", "", "", "", "", "", "", "", ""];
+
+let _ = [
   "",
   "",
   "fun square, p1, p2 ->

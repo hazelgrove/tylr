@@ -1,6 +1,6 @@
 open Util;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   siblings: Siblings.t,
   ancestors: Ancestors.t,

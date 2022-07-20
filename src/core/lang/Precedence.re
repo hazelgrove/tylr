@@ -1,9 +1,10 @@
+open Sexplib.Std;
 open Util;
 
 /**
  * higher precedence means lower int representation
  */
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = int;
 
 let max: t = 0;

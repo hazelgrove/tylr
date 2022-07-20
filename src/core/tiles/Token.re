@@ -1,7 +1,7 @@
 open Sexplib.Std;
 
 // make an enum
-[@deriving (show, sexp)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = string;
 
 module Index = {

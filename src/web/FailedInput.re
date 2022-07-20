@@ -1,11 +1,12 @@
 open Core;
+open Sexplib.Std;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type reason =
   | Unrecognized
   | Failure(Perform.Action.Failure.t);
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   reason,
   prior_attempts: int,

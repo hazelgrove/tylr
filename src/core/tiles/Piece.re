@@ -1,7 +1,7 @@
 // open Util;
 include Base;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = piece;
 
 let whitespace = w => Whitespace(w);

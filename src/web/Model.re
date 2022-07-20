@@ -8,7 +8,7 @@ type editor_model =
 [@deriving (show({with_path: false}), yojson)]
 type timestamp = float;
 
-[@deriving sexp]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type settings = {
   captions: bool,
   whitespace_icons: bool,

@@ -1,6 +1,7 @@
+open Sexplib.Std;
 open Util;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type completions = list((Token.t, (list(Token.t), Direction.t)));
 
 let forms_assoc: list((Label.t, list(Mold.t))) =

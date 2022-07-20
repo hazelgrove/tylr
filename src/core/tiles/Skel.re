@@ -1,6 +1,7 @@
 open Util;
+open Sexplib.Std;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | Op(int)
   | Pre(int, t)

@@ -78,8 +78,8 @@
   --pat-shadow-color: #90bdde; /*#268bd2;*/
   --pat-rail-color: #a1c4dd;
 
-  --typ-bg-color: #caccf4;
-  --typ-shadow-color: #9d338f;
+  --typ-bg-color: #bdf5c4;
+  --typ-shadow-color: #458b4f;
 
   --rul-bg-color: #f3caf4;
   --rul-shadow-color: #d461d0;
@@ -377,7 +377,7 @@
   color: #576d75;
 }
 .code .text-Typ {
-  color: #f61e7e;
+  color: #36a468;
 }
 .code .delim {
   color: var(--delim-color);
@@ -495,7 +495,7 @@
   fill: var(--typ-bg-color);
 }
 .tile-path.Typ.indicated-caret {
-  fill: #ffcdf8; /* TODO(andrew) */
+  fill: var(--typ-bg-color); /* TODO(andrew) */
 }
 .tile-path.Typ.raised {
   filter: url(#raised-drop-shadow-Typ);

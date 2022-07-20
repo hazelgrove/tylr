@@ -1,13 +1,14 @@
+open Sexplib.Std;
 open Util;
 open OptUtil.Syntax;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type caret =
   | Outer
   | Inner(int, int);
 
 // assuming single backpack, shards may appear in selection, backpack, or siblings
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   selection: Selection.t,
   backpack: Backpack.t,
@@ -16,7 +17,7 @@ type t = {
   caret_col_target: int,
 };
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type state = (t, IdGen.state);
 
 [@deriving (show({with_path: false}), sexp, yojson)]

@@ -2,7 +2,7 @@ open Util;
 
 exception Empty_segment;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.segment;
 
 let empty = [];

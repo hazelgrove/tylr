@@ -1,4 +1,4 @@
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = (Nib.t, Nib.t);
 
 type shapes = (Nib.Shape.t, Nib.Shape.t);

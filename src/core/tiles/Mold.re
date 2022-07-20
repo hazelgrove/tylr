@@ -1,8 +1,9 @@
+open Sexplib.Std;
 // supports tiles that take different-sorted unichildren
 // but for now the codebase assumes that tiles only take
 // same-sorted unichildren
 // TODO refactor nibs
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   out: Sort.t,
   in_: list(Sort.t),

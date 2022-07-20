@@ -1,11 +1,12 @@
+open Sexplib.Std;
 open Util;
 
 exception Empty_shard_affix;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type step = int;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   id: Id.t,
   label: Label.t,

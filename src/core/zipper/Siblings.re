@@ -3,7 +3,7 @@ open Util;
 // module Prefix = Affix.Make(Orientation.L);
 // module Suffix = Affix.Make(Orientation.R);
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = (Segment.t, Segment.t);
 
 let empty = Segment.(empty, empty);

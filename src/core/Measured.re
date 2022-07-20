@@ -1,6 +1,7 @@
+open Sexplib.Std;
 open Util;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type point = {
   // indent: int,
   row: int,
@@ -8,19 +9,19 @@ type point = {
 };
 let zero = {row: 0, col: 0};
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type measurement_lin = {
   origin: int,
   length: int,
 };
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type measurement = {
   origin: point,
   last: point,
 };
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type token = {
   row: int,
   indent: int,

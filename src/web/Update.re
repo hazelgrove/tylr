@@ -2,7 +2,7 @@ open Sexplib.Std;
 open Util;
 open Core;
 
-[@deriving (show, sexp, yojson)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type settings_action =
   | Captions
   | WhitespaceIcons;

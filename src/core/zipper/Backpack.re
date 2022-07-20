@@ -1,3 +1,4 @@
+open Sexplib.Std;
 open Util;
 
 module ShardInfo = {
@@ -203,7 +204,7 @@ module ShardInfo = {
   };
 };
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = list(Selection.t);
 
 let empty = [];

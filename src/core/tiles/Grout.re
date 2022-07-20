@@ -1,11 +1,11 @@
 open Util;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type shape =
   | Convex
   | Concave;
 
-[@deriving show]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
   id: Id.t,
   shape,
