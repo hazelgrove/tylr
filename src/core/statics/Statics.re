@@ -1,4 +1,4 @@
-open Sexplib.Std;
+//open Sexplib.Std;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info_exp = {
@@ -12,7 +12,7 @@ type info_exp = {
 type info_pat = {inherent: Typ.inherent}; //TODO(andrew): more
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type info_typ = unit;
+type info_typ = {ty: Typ.t};
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info =
@@ -77,19 +77,16 @@ let rec uexp_to_info_map =
     | Some(ce) =>
       addi'(~inherent=Just(ce.typ), ~co_ctx=[(name, [{id, mode}])], m)
     }
-  | OpInt(Plus, uexp1, uexp2) =>
-    binop(uexp1, uexp2, Ana(Int), Ana(Int), Just(Int))
-  | OpInt(Lt, uexp1, uexp2) =>
-    binop(uexp1, uexp2, Ana(Int), Ana(Int), Just(Bool))
-  | OpBool(And, uexp1, uexp2) =>
-    binop(uexp1, uexp2, Ana(Bool), Ana(Bool), Just(Bool))
-  | If(cond, cons, alt) =>
-    let (_, co_ctx_1, m1) = go(~mode=Ana(Bool), cond);
-    let (ty_cons, co_ctx_2, m2) = go(~mode, cons);
-    let (ty_alt, co_ctx_3, m3) = go(~mode, alt);
+  | OpInt(Plus, e1, e2) => binop(e1, e2, Ana(Int), Ana(Int), Just(Int))
+  | OpInt(Lt, e1, e2) => binop(e1, e2, Ana(Int), Ana(Int), Just(Bool))
+  | OpBool(And, e1, e2) => binop(e1, e2, Ana(Bool), Ana(Bool), Just(Bool))
+  | If(cond, e1, e2) =>
+    let (_, co_ctx_e0, m1) = go(~mode=Ana(Bool), cond);
+    let (ty_e1, co_ctx_e1, m2) = go(~mode, e1);
+    let (ty_e2, co_ctx_e2, m3) = go(~mode, e2);
     addi'(
-      ~inherent=Joined([ty_cons, ty_alt]),
-      ~co_ctx=union_co_ctxs_all([co_ctx_1, co_ctx_2, co_ctx_3]),
+      ~inherent=Joined([ty_e1, ty_e2]),
+      ~co_ctx=union_co_ctxs_all([co_ctx_e0, co_ctx_e1, co_ctx_e2]),
       union_m_all([m1, m2, m3]),
     );
   | Fun(pat, body) =>
@@ -143,7 +140,7 @@ and utyp_to_info_map =
       ~m=Id.Map.empty,
       ~ctx as _=VarMap.empty,
       ~mode as _=Typ.Syn,
-      {id, term_t}: Term.utyp,
+      {id, term_t} as utyp: Term.utyp,
     )
     : info_map => {
   let addm = i => Id.Map.add(id, i, m);
@@ -153,6 +150,6 @@ and utyp_to_info_map =
   | EmptyHoleTyp
   | Int
   | Bool
-  | Arrow(_) => addm(InfoTyp())
+  | Arrow(_) => addm(InfoTyp({ty: Term.utyp_to_ty(utyp)}))
   };
 };

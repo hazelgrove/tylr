@@ -58,6 +58,16 @@ and term =
   | OpInt(exp_op_int, uexp, uexp)
   | OpBool(exp_op_bool, uexp, uexp);
 
+let rec utyp_to_ty: utyp => Typ.t =
+  utyp =>
+    switch (utyp.term_t) {
+    | InvalidTyp(_)
+    | EmptyHoleTyp => Unknown
+    | Int => Int
+    | Bool => Bool
+    | Arrow(u1, u2) => Arrow(utyp_to_ty(u1), utyp_to_ty(u2))
+    };
+
 let piece_and_kids = (ps, skel: Skel.t): (Piece.t, list(Skel.t)) => {
   let at = List.nth(ps);
   switch (skel) {
