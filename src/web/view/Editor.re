@@ -19,11 +19,25 @@ let view =
       let map = map;
       let show_backpack_targets = show_backpack_targets;
     });
+
+  let ci =
+    switch (zipper |> Indicated.index) {
+    | None => "No index indicated"
+    | Some(index) =>
+      let (_, _, info_map) =
+        zipper |> Term.of_zipper |> Statics.uexp_to_info_map;
+      switch (Id.Map.find_opt(index, info_map)) {
+      | None => "No info for index"
+      | Some(ci) => Statics.show_info(ci)
+      };
+    };
+
   //TODO(andrew): new div name/class
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [Code.view(~font_metrics, ~sel_seg, ~unsel_seg, ~map, ~settings)]
     @ Deco.all(zipper, sel_seg)
-    @ [text(zipper |> Term.of_zipper |> Term.show_uexp)],
+    //@ [text(zipper |> Term.of_zipper |> Term.show_uexp)]
+    @ [text(ci)],
   );
 };

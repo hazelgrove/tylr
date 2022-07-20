@@ -97,15 +97,39 @@ let rec uexp_to_info_map =
     let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~m, pat);
     let ctx = VarMap.union(ctx, ctx_pat);
     let (ty_body, co_ctx_body, m_body) =
-      uexp_to_info_map(~m, ~ctx, ~mode, body);
+      uexp_to_info_map(~m, ~ctx, ~mode, body); //TODO: mode?
     add(
       ~inherent=Just(Arrow(ty_pat, ty_body)),
       ~co_ctx=co_ctx_body, //TODO(andrew): remove current var uses
       union_m_all([m_pat, m_body]),
     );
+  | Ap(fn, arg) =>
+    let (ty_fn, co_ctx_fn, m_fn) = uexp_to_info_map(~m, ~ctx, ~mode=Syn, fn);
+    let (ty_in, ty_out) =
+      switch (ty_fn) {
+      | Arrow(ty_in, ty_out) => (ty_in, ty_out)
+      | _ => (Unknown, Unknown)
+      };
+    let (_, co_ctx_arg, m_arg) =
+      uexp_to_info_map(~m, ~ctx, ~mode=Ana(ty_in), arg);
+    add(
+      ~inherent=Just(ty_out),
+      ~co_ctx=union_co_ctxs_all([co_ctx_fn, co_ctx_arg]),
+      union_m_all([m_fn, m_arg]),
+    );
+  | Let(pat, def, body) =>
+    let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~m, pat);
+    let (_ty_def, co_ctx_def, m_def) =
+      uexp_to_info_map(~m, ~ctx, ~mode=Ana(ty_pat), def);
+    let ctx = VarMap.union(ctx, ctx_pat); // TODO: ana pat to incorporate def typ?
+    let (ty_body, co_ctx_body, m_body) =
+      uexp_to_info_map(~m, ~ctx, ~mode, body);
+    add(
+      ~inherent=Just(ty_body),
+      ~co_ctx=union_co_ctxs_all([co_ctx_def, co_ctx_body]), //TODO(andrew): remove current var uses
+      union_m_all([m_pat, m_def, m_body]),
+    );
   | FunAnn(_upat, _utyp, _uexp) => (Unknown, [], addm(Invalid))
-  | Ap(_uexp, _uexp') => (Unknown, [], addm(Invalid))
-  | Let(_upat, _uexp, _uexp') => (Unknown, [], addm(Invalid))
   | LetAnn(_upat, _utyp, _uexp, _uexp') => (Unknown, [], addm(Invalid))
   };
 }

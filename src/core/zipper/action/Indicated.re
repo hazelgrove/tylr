@@ -73,3 +73,14 @@ let shard_index = (z: Zipper.t): option(int) =>
       }
     }
   };
+
+let index = (z: Zipper.t): option(int) =>
+  switch (piece(z)) {
+  | None => None
+  | Some((p, _, _)) =>
+    switch (p) {
+    | Whitespace(_) => None
+    | Grout({id, _}) => Some(id)
+    | Tile({id, _}) => Some(id)
+    }
+  };

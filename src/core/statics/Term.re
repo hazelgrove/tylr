@@ -110,7 +110,8 @@ and of_piece = (p: Piece.t, children_h: list(uexp)): uexp => {
     let term =
       switch (/*mold.out,*/ label, children_h, children) {
       | _ when !Tile.is_complete(t) => InvalidExp(p)
-      | ([t], [], []) when Form.is_bool(t) => Bool(bool_of_string(t))
+      | (["true"], [], []) => Bool(true) //TODO(andrew):generify
+      | (["false"], [], []) => Bool(false)
       | ([t], [], []) when Form.is_int(t) => Int(int_of_string(t))
       | ([t], [], []) when Form.is_var(t) => Var(t)
       | (["+"], [l, r], []) => OpInt(Plus, l, r)
