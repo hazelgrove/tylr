@@ -9,7 +9,7 @@ type info_exp = {
 };
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type info_pat = unit; //TODO(andrew)
+type info_pat = {inherent: Typ.inherent}; //TODO(andrew): more
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info_typ = unit;
@@ -23,10 +23,11 @@ type info =
 
 type info_map = Id.Map.t(info);
 
-let union_co_ctxs = (co_ctx1, _co_ctx2) => co_ctx1;
-//Id.Map.union((_, a, b) => Some(a), co_ctx1, co_ctx2);
-//TODO(andrew): do this
+let union_co_ctxs = (co_ctx1, _co_ctx2) => co_ctx1; //TODO(andrew): write this
+
+let union_co_ctxs_all = List.fold_left(union_co_ctxs, []);
 let union_ms = (m1, m2) => Id.Map.union((_, _, b) => Some(b), m1, m2);
+let union_m_all = List.fold_left(union_ms, Id.Map.empty);
 
 let ty_of_inherent: Typ.inherent => Typ.t =
   fun
@@ -82,48 +83,76 @@ let rec uexp_to_info_map =
     binop(uexp1, uexp2, Ana(Int), Ana(Int), Just(Bool))
   | OpBool(And, uexp1, uexp2) =>
     binop(uexp1, uexp2, Ana(Bool), Ana(Bool), Just(Bool))
-  | Fun(_upat, _uexp) => (Unknown, [], addm(Invalid))
+  | If(cond, cons, alt) =>
+    let (_, co_ctx_1, m1) = go(~mode=Ana(Bool), cond);
+    let (ty_cons, co_ctx_2, m2) = go(~mode, cons);
+    let (ty_alt, co_ctx_3, m3) = go(~mode, alt);
+    addi'(
+      ~inherent=Joined([ty_cons, ty_alt]),
+      ~co_ctx=union_co_ctxs_all([co_ctx_1, co_ctx_2, co_ctx_3]),
+      union_m_all([m1, m2, m3]),
+    );
+  | Fun(pat, body) =>
+    let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~m, pat);
+    let ctx = VarMap.union(ctx, ctx_pat);
+    let (ty_body, co_ctx_body, m_body) =
+      uexp_to_info_map(~m, ~ctx, ~mode, body);
+    addi'(
+      ~inherent=Just(Arrow(ty_pat, ty_body)),
+      ~co_ctx=co_ctx_body, //TODO(andrew): remove current var uses
+      union_m_all([m_pat, m_body]),
+    );
   | FunAnn(_upat, _utyp, _uexp) => (Unknown, [], addm(Invalid))
+  | Ap(_uexp, _uexp') => (Unknown, [], addm(Invalid))
   | Let(_upat, _uexp, _uexp') => (Unknown, [], addm(Invalid))
   | LetAnn(_upat, _utyp, _uexp, _uexp') => (Unknown, [], addm(Invalid))
-  | If(_uexp, _uexp', _uexp'') => (Unknown, [], addm(Invalid))
-  | Ap(_uexp, _uexp') => (Unknown, [], addm(Invalid))
   };
-};
-
-let upat_to_info_map =
+}
+and upat_to_info_map =
     (
       ~m=Id.Map.empty,
-      ~ctx as _=VarMap.empty,
-      ~mode as _=Typ.Syn,
-      {id: _, term_p}: Term.upat,
+      //~ctx as _=VarMap.empty,
+      //~mode as _=Typ.Syn,
+      {id, term_p}: Term.upat,
     )
-    : info_map => {
+    : (Typ.t, Typ.ctx, info_map) => {
+  let addih = (~inherent: Typ.inherent, m) => (
+    ty_of_inherent(inherent),
+    [],
+    Id.Map.add(id, InfoPat({inherent: inherent}), m),
+  );
+  let add = i => addih(~inherent=i, m);
   //TODO(andrew): implement
   switch (term_p) {
-  | InvalidPat(_p) => m
-  | EmptyHolePat => m
-  | Wild => m
-  | IntPat(_i) => m
-  | BoolPat(_b) => m
-  | VarPat(_name) => m
+  | InvalidPat(_p) => add(Free)
+  | EmptyHolePat => add(Free)
+  | Wild => add(Just(Unknown))
+  | IntPat(_) => add(Just(Int))
+  | BoolPat(_) => add(Just(Bool))
+  | VarPat(name) =>
+    //TODO(andrew): Free doesnt make sense
+    (
+      Unknown,
+      [(name, {id, typ: Unknown})],
+      Id.Map.add(id, InfoPat({inherent: Free}), m),
+    )
   };
-};
-
-let utyp_to_info_map =
+}
+and utyp_to_info_map =
     (
       ~m=Id.Map.empty,
       ~ctx as _=VarMap.empty,
       ~mode as _=Typ.Syn,
-      {id: _, term_t}: Term.utyp,
+      {id, term_t}: Term.utyp,
     )
     : info_map => {
+  let addm = i => Id.Map.add(id, i, m);
   //TODO(andrew): implement
   switch (term_t) {
-  | InvalidTyp(_p) => m
-  | EmptyHoleTyp => m
-  | Int => m
-  | Bool => m
-  | Arrow(_ty, _ty') => m
+  | InvalidTyp(_)
+  | EmptyHoleTyp
+  | Int
+  | Bool
+  | Arrow(_) => addm(InfoTyp())
   };
 };
