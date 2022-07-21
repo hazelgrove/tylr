@@ -63,38 +63,38 @@ let convex_monos: list((string, (string => bool, list(Mold.t)))) = [
    Order in this list determines relative remolding
    priority for forms which share the same labels */
 let forms: list((string, t)) = [
-  ("times", mk_infix("*", Exp, P.mult)),
-  ("divide", mk_infix("/", Exp, P.mult)),
-  ("equals", mk_infix("=", Exp, P.eqs)),
   ("plus", mk_infix("+", Exp, P.plus)),
-  // experimental operators (all follow substring property)
-  ("not_equals", mk_infix("!=", Exp, 5)),
-  ("gt", mk_infix(">", Exp, P.eqs)),
+  //("times", mk_infix("*", Exp, P.mult)),
+  //("divide", mk_infix("/", Exp, P.mult)),
+  ("equals", mk_infix("=", Exp, P.eqs)),
+  //("not_equals", mk_infix("!=", Exp, 5)),
+  //("gt", mk_infix(">", Exp, P.eqs)),
   ("lt", mk_infix("<", Exp, P.eqs)),
-  ("gte", mk_infix("<=", Exp, P.eqs)),
-  ("lte", mk_infix(">=", Exp, P.eqs)),
-  ("bitwise_or", mk_infix("|", Exp, 5)),
-  ("logical_or", mk_infix("||", Exp, 5)),
-  ("bitwise_and", mk_infix("&", Exp, 5)),
+  //("gte", mk_infix("<=", Exp, P.eqs)),
+  //("lte", mk_infix(">=", Exp, P.eqs)),
+  //("bitwise_or", mk_infix("|", Exp, 5)),
+  //("logical_or", mk_infix("||", Exp, 5)),
+  ("bitwise_and", mk_infix("&", Exp, 5)), // substring req
   ("logical_and", mk_infix("&&", Exp, 5)),
-  ("concat", mk_infix("@", Exp, P.concat)),
-  ("rev_ap", mk_infix("|>", Exp, P.eqs)),
+  //("concat", mk_infix("@", Exp, P.concat)),
+  //("rev_ap", mk_infix("|>", Exp, P.eqs)),
   //("cons", mk_infix("::", Exp, 5)),
   ("type-arrow", mk_infix("->", Typ, 6)), // bad sorts
-  ("type-ann", mk_infix(":", Exp, 5)), // bad sorts
-  ("dot-access", mk_infix(".", Exp, 5)), // bad sorts
-  ("assign_incr", mk_infix("+=", Exp, 10)), // bad sorts
-  ("unary_minus", mk(ss, ["-"], mk_pre(P.fact, Exp, []))),
+  //("type-ann", mk_infix(":", Exp, 5)), // bad sorts
+  //("dot-access", mk_infix(".", Exp, 5)), // bad sorts
+  //("assign_incr", mk_infix("+=", Exp, 10)), // bad sorts
+  ("unary_minus", mk(ss, ["-"], mk_pre(P.fact, Exp, []))), // substring req
   // end experimental operators
-  ("minus", mk_infix("-", Exp, P.plus)),
+  //("minus", mk_infix("-", Exp, P.plus)),
   ("comma_exp", mk_infix(",", Exp, P.prod)),
   ("comma_pat", mk_infix(",", Pat, P.prod)),
-  ("semi", mk_infix(";", Exp, P.semi)),
-  ("fact", mk(ss, ["!"], mk_post(P.fact, Exp, []))),
+  ("comma_typ", mk_infix(",", Typ, P.prod)),
+  //("semi", mk_infix(";", Exp, P.semi)),
+  //("fact", mk(ss, ["!"], mk_post(P.fact, Exp, []))),
   // ("array_access", mk(ii, ["[", "]"], mk_post(P.ap, Exp, [Exp]))),
-  ("list_lit", mk(ii, ["[", "]"], mk_op(Exp, [Exp]))),
-  ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
-  ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
+  //("list_lit", mk(ii, ["[", "]"], mk_op(Exp, [Exp]))),
+  ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))), // construction req
+  //("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
   (
     "funann",
     mk(ds, ["funann", ":", "->"], mk_pre(P.let_, Exp, [Pat, Typ])),
@@ -112,12 +112,12 @@ let forms: list((string, t)) = [
       mk_pre(P.let_, Exp, [Pat, Typ, Exp]),
     ),
   ),
-  ("cond", mk(is, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
-  ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
-  ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
-  ("rule_first", mk(ds, ["|", "->"], mk_pre(9, Exp, [Pat]))),
+  //("cond", mk(is, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
+  //("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
+  //("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),
+  //("rule_first", mk(ds, ["|", "->"], mk_pre(9, Exp, [Pat]))),
   /* Something must instant on | as not valid monotile on its own */
-  ("rule_rest", mk(ds, ["|", "->"], mk_bin(9, Exp, [Pat]))),
+  //("rule_rest", mk(ds, ["|", "->"], mk_bin(9, Exp, [Pat]))),
 ];
 
 let get: Token.t => t = name => List.assoc(name, forms);

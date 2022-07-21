@@ -36,7 +36,7 @@ let view =
   let ci_is_wrapped =
     switch (ci) {
     | None => "??"
-    | Some(ci) => string_of_bool(Statics.is_error_wrapped(ci))
+    | Some(ci) => Statics.show_error_status(Statics.error_status(ci))
     };
   //TODO(andrew): new div name/class
   div(

@@ -23,7 +23,9 @@ let get = (label: Label.t): list(Mold.t) =>
   | ([t], _) when Form.convex_mono_molds(t) != [] =>
     Form.convex_mono_molds(t)
   | (_, Some(molds)) => molds
-  | (_, None) => []
+  | (lbl, None) =>
+    Printf.printf("MOLD NOT FOUND: %s\n", Label.show(lbl));
+    [];
   };
 
 let delayed_completes: completions =

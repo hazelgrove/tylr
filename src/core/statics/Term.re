@@ -1,71 +1,156 @@
 open Sexplib.Std;
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type term_t =
-  | InvalidTyp(Piece.t)
-  | EmptyHoleTyp
-  | Int
-  | Bool
-  | Arrow(utyp, utyp)
-and utyp = {
-  id: Id.t,
-  term_t,
+/* cls = SYNTAX CLASSES: source of truth for supported forms
+   TODO: add tests to check if there are forms and/or terms
+   without correponding syntax classes */
+
+module UTyp = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type cls =
+    | Invalid
+    | EmptyHole
+    | Int
+    | Bool
+    | Arrow
+    | Prod;
+
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type term =
+    | Invalid(Piece.t)
+    | EmptyHole
+    | Int
+    | Bool
+    | Arrow(t, t)
+    | Prod(t, t)
+  and t = {
+    id: Id.t,
+    term,
+  };
+
+  let cls_of_term: term => cls =
+    fun
+    | Invalid(_) => Invalid
+    | EmptyHole => EmptyHole
+    | Int => Int
+    | Bool => Bool
+    | Arrow(_) => Arrow
+    | Prod(_) => Prod;
 };
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type term_p =
-  | InvalidPat(Piece.t)
-  | EmptyHolePat
-  | Wild
-  | IntPat(int)
-  | BoolPat(bool)
-  | VarPat(Token.t)
-and upat = {
-  id: Id.t,
-  term_p,
+module UPat = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type cls =
+    | Invalid
+    | EmptyHole
+    | Wild
+    | Int
+    | Bool
+    | Var
+    | Pair;
+
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type term =
+    | Invalid(Piece.t)
+    | EmptyHole
+    | Wild
+    | Int(int)
+    | Bool(bool)
+    | Var(Token.t)
+    | Pair(t, t)
+  and t = {
+    id: Id.t,
+    term,
+  };
+
+  let cls_of_term: term => cls =
+    fun
+    | Invalid(_) => Invalid
+    | EmptyHole => EmptyHole
+    | Wild => Wild
+    | Int(_) => Int
+    | Bool(_) => Bool
+    | Var(_) => Var
+    | Pair(_) => Pair;
 };
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type exp_op_int =
-  | Plus
-  | Lt;
+module UExp = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type exp_op_int =
+    | Plus
+    | Lt;
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type exp_op_bool =
-  | And;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type exp_op_bool =
+    | And;
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type uexp = {
-  id: Id.t,
-  term,
-}
-and term =
-  | InvalidExp(Piece.t) //everything? text? keyword?
-  //| InvalidSegment(Segment.t)
-  | EmptyHole
-  //| Triv
-  | Bool(bool)
-  | Int(int)
-  | Fun(upat, uexp)
-  | FunAnn(upat, utyp, uexp)
-  | Var(Token.t)
-  | Let(upat, uexp, uexp)
-  | LetAnn(upat, utyp, uexp, uexp)
-  | Ap(uexp, uexp)
-  //| ApBuiltin(Token.t, list(uexp))
-  // maybe everything with fn semantics should be a builtin e.g. plus??
-  | If(uexp, uexp, uexp)
-  | OpInt(exp_op_int, uexp, uexp)
-  | OpBool(exp_op_bool, uexp, uexp);
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type cls =
+    | Invalid
+    | EmptyHole
+    | Bool
+    | Int
+    | Fun
+    | FunAnn
+    | Pair
+    | Var
+    | Let
+    | LetAnn
+    | Ap
+    | If
+    | OpInt(exp_op_int)
+    | OpBool(exp_op_bool);
 
-let rec utyp_to_ty: utyp => Typ.t =
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type term =
+    | Invalid(Piece.t) //everything? text? keyword?
+    //| InvalidSegment(Segment.t)
+    | EmptyHole
+    | Bool(bool)
+    | Int(int)
+    | Fun(UPat.t, t)
+    | FunAnn(UPat.t, UTyp.t, t)
+    | Pair(t, t)
+    | Var(Token.t)
+    | Let(UPat.t, t, t)
+    | LetAnn(UPat.t, UTyp.t, t, t)
+    | Ap(t, t)
+    //| ApBuiltin(Token.t, list(t))
+    // maybe everything with fn semantics should be a builtin e.g. plus??
+    | If(t, t, t)
+    | OpInt(exp_op_int, t, t)
+    | OpBool(exp_op_bool, t, t)
+  and t = {
+    id: Id.t,
+    term,
+  };
+
+  let cls_of_term: term => cls =
+    fun
+    | Invalid(_) => Invalid
+    | EmptyHole => EmptyHole
+    | Bool(_) => Bool
+    | Int(_) => Int
+    | Fun(_) => Fun
+    | FunAnn(_) => FunAnn
+    | Pair(_) => Pair
+    | Var(_) => Var
+    | Let(_) => Let
+    | LetAnn(_) => LetAnn
+    | Ap(_) => Ap
+    | If(_) => If
+    | OpInt(x, _, _) => OpInt(x)
+    | OpBool(x, _, _) => OpBool(x);
+};
+
+let rec utyp_to_ty: UTyp.t => Typ.t =
   utyp =>
-    switch (utyp.term_t) {
-    | InvalidTyp(_)
-    | EmptyHoleTyp => Unknown
+    switch (utyp.term) {
+    | Invalid(_)
+    | EmptyHole => Unknown
     | Int => Int
     | Bool => Bool
     | Arrow(u1, u2) => Arrow(utyp_to_ty(u1), utyp_to_ty(u2))
+    | Prod(u1, u2) => Prod(utyp_to_ty(u1), utyp_to_ty(u2))
     };
 
 let piece_and_kids = (ps, skel: Skel.t): (Piece.t, list(Skel.t)) => {
@@ -78,26 +163,26 @@ let piece_and_kids = (ps, skel: Skel.t): (Piece.t, list(Skel.t)) => {
   };
 };
 
-let rec of_seg_and_skel = (ps: Segment.t, skel: Skel.t): uexp => {
+let rec of_seg_and_skel = (ps: Segment.t, skel: Skel.t): UExp.t => {
   let (p, kids) = piece_and_kids(ps, skel);
   of_piece(p, List.map(of_seg_and_skel(ps), kids));
 }
-and uhexp_of_seg = (ps: Segment.t): uexp =>
+and uhexp_of_seg = (ps: Segment.t): UExp.t =>
   ps |> Segment.skel |> of_seg_and_skel(ps)
-and of_seg_and_skel_pat = (ps: Segment.t, skel: Skel.t): upat => {
+and of_seg_and_skel_pat = (ps: Segment.t, skel: Skel.t): UPat.t => {
   let (p, kids) = piece_and_kids(ps, skel);
   of_piece_pat(p, List.map(of_seg_and_skel_pat(ps), kids));
 }
-and upat_of_seg = (ps: Segment.t): upat =>
+and upat_of_seg = (ps: Segment.t): UPat.t =>
   ps |> Segment.skel |> of_seg_and_skel_pat(ps)
-and of_seg_and_skel_typ = (ps: Segment.t, skel: Skel.t): utyp => {
+and of_seg_and_skel_typ = (ps: Segment.t, skel: Skel.t): UTyp.t => {
   let (p, kids) = piece_and_kids(ps, skel);
   of_piece_typ(p, List.map(of_seg_and_skel_typ(ps), kids));
 }
-and utyp_of_seg = (ps: Segment.t): utyp =>
+and utyp_of_seg = (ps: Segment.t): UTyp.t =>
   ps |> Segment.skel |> of_seg_and_skel_typ(ps)
-and of_piece = (p: Piece.t, children_h: list(uexp)): uexp => {
-  let invalid = (p: Piece.t) => {id: (-1), term: InvalidExp(p)};
+and of_piece = (p: Piece.t, children_h: list(UExp.t)): UExp.t => {
+  let invalid = (p: Piece.t): UExp.t => {id: (-1), term: Invalid(p)};
   switch (p) {
   | Whitespace(_) => invalid(p)
   | Grout({id, shape}) =>
@@ -107,13 +192,14 @@ and of_piece = (p: Piece.t, children_h: list(uexp)): uexp => {
     }
   | Tile({id, label, children, mold: _, shards: _} as t) =>
     // TODO(andrew): do better than switching label
-    let term =
+    let term: UExp.term =
       switch (/*mold.out,*/ label, children_h, children) {
-      | _ when !Tile.is_complete(t) => InvalidExp(p)
+      | _ when !Tile.is_complete(t) => Invalid(p)
       | (["true"], [], []) => Bool(true) //TODO(andrew):generify
       | (["false"], [], []) => Bool(false)
       | ([t], [], []) when Form.is_int(t) => Int(int_of_string(t))
       | ([t], [], []) when Form.is_var(t) => Var(t)
+      | ([","], [l, r], []) => Pair(l, r)
       | (["+"], [l, r], []) => OpInt(Plus, l, r)
       | (["<"], [l, r], []) => OpInt(Lt, l, r)
       | (["&&"], [l, r], []) => OpBool(And, l, r)
@@ -128,55 +214,57 @@ and of_piece = (p: Piece.t, children_h: list(uexp)): uexp => {
         If(uhexp_of_seg(cond), uhexp_of_seg(conseq), alt)
       | (["(", ")"], [fn], [arg]) => Ap(fn, uhexp_of_seg(arg))
       //TODO(andrew): more cases
-      | _ => InvalidExp(p)
+      | _ => Invalid(p)
       };
     {id, term};
   };
 }
-and of_piece_pat = (p: Piece.t, children_h: list(upat)): upat => {
-  let invalid = {id: (-1), term_p: InvalidPat(p)};
+and of_piece_pat = (p: Piece.t, children_h: list(UPat.t)): UPat.t => {
+  let invalid: UPat.t = {id: (-1), term: Invalid(p)};
   switch (p) {
   | Whitespace(_) => invalid
   | Grout({id, shape}) =>
     switch (shape) {
-    | Convex => {id, term_p: EmptyHolePat}
+    | Convex => {id, term: EmptyHole}
     | Concave => invalid
     }
   | Tile({id, label, children, mold: _, shards: _} as t) =>
     // TODO(andrew): do better than switching label
-    let term_p =
+    let term: UPat.term =
       switch (/*mold.out,*/ label, children_h, children) {
-      | _ when !Tile.is_complete(t) => InvalidPat(p)
-      | ([t], [], []) when Form.is_bool(t) => BoolPat(bool_of_string(t))
-      | ([t], [], []) when Form.is_int(t) => IntPat(int_of_string(t))
-      | ([t], [], []) when Form.is_var(t) => VarPat(t)
+      | _ when !Tile.is_complete(t) => Invalid(p)
+      | ([","], [l, r], []) => Pair(l, r)
+      | ([t], [], []) when Form.is_bool(t) => Bool(bool_of_string(t))
+      | ([t], [], []) when Form.is_int(t) => Int(int_of_string(t))
+      | ([t], [], []) when Form.is_var(t) => Var(t)
       | ([t], [], []) when Form.is_wild(t) => Wild
-      | _ => InvalidPat(p)
+      | _ => Invalid(p)
       };
-    {id, term_p};
+    {id, term};
   };
 }
-and of_piece_typ = (p: Piece.t, children_h: list(utyp)): utyp => {
-  let invalid = {id: (-1), term_t: InvalidTyp(p)};
+and of_piece_typ = (p: Piece.t, children_h: list(UTyp.t)): UTyp.t => {
+  let invalid: UTyp.t = {id: (-1), term: Invalid(p)};
   switch (p) {
   | Whitespace(_) => invalid
   | Grout({id, shape}) =>
     switch (shape) {
-    | Convex => {id, term_t: EmptyHoleTyp}
+    | Convex => {id, term: EmptyHole}
     | Concave => invalid
     }
   | Tile({id, label, children, mold: _, shards: _} as t) =>
     // TODO(andrew): do better than switching label
-    let term_t =
+    let term: UTyp.term =
       switch (/*mold.out,*/ label, children_h, children) {
-      | _ when !Tile.is_complete(t) => InvalidTyp(p)
+      | _ when !Tile.is_complete(t) => Invalid(p)
       | (["Int"], [], []) => Int
       | (["Bool"], [], []) => Bool
       | (["->"], [l, r], []) => Arrow(l, r)
-      | _ => InvalidTyp(p)
+      | ([","], [l, r], []) => Prod(l, r)
+      | _ => Invalid(p)
       };
-    {id, term_t};
+    {id, term};
   };
 };
 
-let of_zipper = (z: Zipper.t): uexp => z |> Zipper.zip |> uhexp_of_seg;
+let of_zipper = (z: Zipper.t): UExp.t => z |> Zipper.zip |> uhexp_of_seg;

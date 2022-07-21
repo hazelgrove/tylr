@@ -2,20 +2,26 @@
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info_exp = {
+  cls: Term.UExp.cls,
   mode: Typ.mode,
   self: Typ.self,
   ctx: Typ.ctx,
   uses: Typ.co_ctx,
 };
 
+//TODO(andrew): ctx-like fields to detect duplicates
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info_pat = {
+  cls: Term.UPat.cls,
   mode: Typ.mode,
   self: Typ.self,
-}; //TODO(andrew): ctx-like fields
+};
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type info_typ = {ty: Typ.t};
+type info_typ = {
+  cls: Term.UTyp.cls,
+  ty: Typ.t,
+};
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info =
@@ -26,6 +32,12 @@ type info =
 
 type info_map = Id.Map.t(info);
 
+[@deriving (show({with_path: false}), sexp, yojson)]
+type error_status =
+  | InHole
+  | NotInHole
+  | AtLeast(Typ.t);
+
 //TODO(andrew): is this a correct implementation?
 let union_uses = List.fold_left((uses1, uses2) => uses1 @ uses2, []);
 
@@ -35,7 +47,7 @@ let union_m =
     Id.Map.empty,
   );
 
-// as if after hole-fixing: Void becomes Unknown
+// What the type would be as if after hole-fixing
 let ty_of_self: Typ.self => Typ.t =
   fun
   | Free => Unknown
@@ -46,16 +58,23 @@ let ty_of_self: Typ.self => Typ.t =
     | Some(t) => t
     };
 
-// should be in non-empty hole
-let is_error_wrapped = (info: info): bool =>
+let error_status = (info: info): error_status =>
   switch (info) {
-  | InfoExp({mode: Syn, self: _, _}) => false
-  | InfoExp({mode: Ana(_), self: Free, _}) => true
+  | InfoExp({mode: Syn, self: _, _}) => AtLeast(Unknown)
+  | InfoExp({mode: Ana(_), self: Free, _}) => InHole
   | InfoExp({mode: Ana(ty_ana), self: Just(ty_syn), _}) =>
-    Typ.join(ty_ana, ty_syn) == None
+    switch (Typ.join(ty_ana, ty_syn)) {
+    | None => InHole
+    | Some(ty) => AtLeast(ty)
+    }
   | InfoExp({mode: Ana(ty_ana), self: Joined(ty_syn), _}) =>
-    Typ.join_all([ty_ana] @ ty_syn) == None
-  | _ => false
+    switch (Typ.join_all([ty_ana] @ ty_syn)) {
+    | None => InHole
+    | Some(ty) => AtLeast(ty)
+    }
+  | InfoTyp(_) => NotInHole
+  | InfoPat(_) => NotInHole //TODO
+  | Invalid => InHole
   };
 
 let remove_ctx_from_uses = (ctx: Typ.ctx, uses: Typ.co_ctx): Typ.co_ctx =>
@@ -73,20 +92,21 @@ let rec uexp_to_info_map =
           ~m=Id.Map.empty,
           ~ctx=VarMap.empty,
           ~mode=Typ.Syn,
-          {id, term}: Term.uexp,
+          {id, term}: Term.UExp.t,
         )
         : (Typ.t, Typ.co_ctx, info_map) => {
+  let cls = Term.UExp.cls_of_term(term);
   let go = uexp_to_info_map(~ctx);
   let addm = i => Id.Map.add(id, i, m);
   let add = (~self, ~uses, m) => (
     ty_of_self(self),
     uses,
-    Id.Map.add(id, InfoExp({self, mode, ctx, uses}), m),
+    Id.Map.add(id, InfoExp({cls, self, mode, ctx, uses}), m),
   );
   let atomic = self => (
     ty_of_self(self),
     [],
-    addm(InfoExp({self, mode, ctx, uses: []})),
+    addm(InfoExp({cls, self, mode, ctx, uses: []})),
   );
   let binop = (e1, e2, ty1, ty2, ty_out) => {
     let (_, uses1, m1) = go(~mode=ty1, e1);
@@ -94,7 +114,7 @@ let rec uexp_to_info_map =
     add(~self=ty_out, ~uses=union_uses([uses1, uses2]), union_m([m1, m2]));
   };
   switch (term) {
-  | InvalidExp(_p) => (Unknown, [], addm(Invalid))
+  | Invalid(_p) => (Unknown, [], addm(Invalid))
   | EmptyHole => atomic(Free)
   | Bool(_) => atomic(Just(Bool))
   | Int(_) => atomic(Just(Int))
@@ -107,6 +127,21 @@ let rec uexp_to_info_map =
   | OpInt(Plus, e1, e2) => binop(e1, e2, Ana(Int), Ana(Int), Just(Int))
   | OpInt(Lt, e1, e2) => binop(e1, e2, Ana(Int), Ana(Int), Just(Bool))
   | OpBool(And, e1, e2) => binop(e1, e2, Ana(Bool), Ana(Bool), Just(Bool))
+  | Pair(e1, e2) =>
+    let (mode_l: Typ.mode, mode_r: Typ.mode) =
+      switch (mode) {
+      | Syn => (Syn, Syn)
+      | Ana(ty) =>
+        let (ty_l, ty_r) = Typ.matched_prod(ty);
+        (Ana(ty_l), Ana(ty_r));
+      };
+    let (ty1, uses1, m1) = go(~mode=mode_l, e1);
+    let (ty2, uses2, m2) = go(~mode=mode_r, e2);
+    add(
+      ~self=Just(Prod(ty1, ty2)),
+      ~uses=union_uses([uses1, uses2]),
+      union_m([m1, m2]),
+    );
   | If(cond, e1, e2) =>
     let (_, uses_e0, m1) = go(~mode=Ana(Bool), cond);
     let (ty_e1, uses_e1, m2) = go(~mode, e1);
@@ -117,7 +152,9 @@ let rec uexp_to_info_map =
       union_m([m1, m2, m3]),
     );
   | Ap(fn, arg) =>
-    let (ty_fn, uses_fn, m_fn) = uexp_to_info_map(~ctx, ~mode=Syn, fn);
+    // NOTE: funpos currently set to Ana instead of Syn
+    let (ty_fn, uses_fn, m_fn) =
+      uexp_to_info_map(~ctx, ~mode=Ana(Arrow(Unknown, Unknown)), fn);
     let (ty_in, ty_out) = Typ.matched_arrow(ty_fn);
     let (_, uses_arg, m_arg) =
       uexp_to_info_map(~ctx, ~mode=Ana(ty_in), arg);
@@ -209,22 +246,23 @@ and upat_to_info_map =
       ~m=Id.Map.empty,
       //~ctx as _=VarMap.empty,
       ~mode: Typ.mode=Typ.Syn,
-      {id, term_p}: Term.upat,
+      {id, term}: Term.UPat.t,
     )
     : (Typ.t, Typ.ctx, info_map) => {
+  let cls = Term.UPat.cls_of_term(term);
   let addih = (~self: Typ.self, m) => (
     ty_of_self(self),
     [],
-    Id.Map.add(id, InfoPat({mode, self}), m),
+    Id.Map.add(id, InfoPat({cls, mode, self}), m),
   );
   let add = i => addih(~self=i, m);
-  switch (term_p) {
-  | InvalidPat(_p) => add(Free)
-  | EmptyHolePat => add(Free)
+  switch (term) {
+  | Invalid(_p) => add(Free)
+  | EmptyHole => add(Free)
   | Wild => add(Just(Unknown))
-  | IntPat(_) => add(Just(Int))
-  | BoolPat(_) => add(Just(Bool))
-  | VarPat(name) =>
+  | Int(_) => add(Just(Int))
+  | Bool(_) => add(Just(Bool))
+  | Var(name) =>
     let typ =
       switch (mode) {
       | Syn => Typ.Unknown
@@ -234,7 +272,28 @@ and upat_to_info_map =
     (
       typ,
       ctx,
-      Id.Map.add(id, InfoPat({mode, self: Free}), m) //TODO(andrew): Free doesnt make sense
+      Id.Map.add(id, InfoPat({cls, mode, self: Free}), m) //TODO(andrew): Free doesnt make sense
+    );
+  | Pair(p1, p2) =>
+    let (mode_l: Typ.mode, mode_r: Typ.mode) =
+      switch (mode) {
+      | Syn => (Syn, Syn)
+      | Ana(ty) =>
+        let (ty_l, ty_r) = Typ.matched_prod(ty);
+        (Ana(ty_l), Ana(ty_r));
+      };
+    let (ty_p1, ctx_p1, m_p1) = upat_to_info_map(~mode=mode_l, p1);
+    let (ty_p2, ctx_p2, m_p2) = upat_to_info_map(~mode=mode_r, p2);
+    let ctx = VarMap.union(ctx_p1, ctx_p2);
+    let ty = Typ.Prod(ty_p1, ty_p2);
+    (
+      ty,
+      ctx,
+      Id.Map.add(
+        id,
+        InfoPat({cls, mode, self: Just(ty)}),
+        union_m([m, m_p1, m_p2]),
+      ),
     );
   };
 }
@@ -243,18 +302,20 @@ and utyp_to_info_map =
       ~m=Id.Map.empty,
       ~ctx as _=VarMap.empty,
       ~mode as _=Typ.Syn,
-      {id, term_t} as utyp: Term.utyp,
+      {id, term} as utyp: Term.UTyp.t,
     )
     : (Typ.t, info_map) => {
+  let cls = Term.UTyp.cls_of_term(term);
   let addm = i => Id.Map.add(id, i, m);
-  switch (term_t) {
-  | InvalidTyp(_)
-  | EmptyHoleTyp
+  switch (term) {
+  | Invalid(_)
+  | EmptyHole
   | Int
   | Bool
-  | Arrow(_) =>
+  | Arrow(_)
+  | Prod(_) =>
     let ty = Term.utyp_to_ty(utyp);
-    (ty, addm(InfoTyp({ty: ty})));
+    (ty, addm(InfoTyp({cls, ty})));
   };
 };
 
