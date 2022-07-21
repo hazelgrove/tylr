@@ -63,11 +63,14 @@ let error_status = (info: info): error_status =>
   | InfoExp({mode: Syn, self: _, _}) => AtLeast(Unknown)
   | InfoExp({mode: Ana(_), self: Free, _}) => InHole
   | InfoExp({mode: Ana(ty_ana), self: Just(ty_syn), _}) =>
+    // TODO(andrew): instead of joining deeply, this should do a shallow check
+    // e.g. for let (a, true) = (1, 2) this currently puts an error around (1,2) as (unk, bool) doesnt join with (int,int)
     switch (Typ.join(ty_ana, ty_syn)) {
     | None => InHole
     | Some(ty) => AtLeast(ty)
     }
   | InfoExp({mode: Ana(ty_ana), self: Joined(ty_syn), _}) =>
+    // TODO(andrew): instead of joining deeply, this should do a shallow check
     switch (Typ.join_all([ty_ana] @ ty_syn)) {
     | None => InHole
     | Some(ty) => AtLeast(ty)
@@ -204,11 +207,11 @@ let rec uexp_to_info_map =
       union_m([m_pat, m_body, m_typ]),
     );
   | Let(pat, def, body) =>
-    let (ty_pat, _ctx_pat, m_pat) = upat_to_info_map(~mode=Syn, pat);
+    let (ty_pat, _ctx_pat, _m_pat) = upat_to_info_map(~mode=Syn, pat);
     let (ty_def, uses_def, m_def) =
       uexp_to_info_map(~ctx, ~mode=Ana(ty_pat), def);
     // ana pat to incorporate def type into ctx
-    let (_, ctx_pat_ana, _) = upat_to_info_map(~mode=Ana(ty_def), pat);
+    let (_, ctx_pat_ana, m_pat) = upat_to_info_map(~mode=Ana(ty_def), pat);
     let ctx = VarMap.union(ctx, ctx_pat_ana);
     let (ty_body, uses_body, m_body) = uexp_to_info_map(~ctx, ~mode, body);
     add(

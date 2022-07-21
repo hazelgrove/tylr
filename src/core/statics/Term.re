@@ -234,7 +234,8 @@ and of_piece_pat = (p: Piece.t, children_h: list(UPat.t)): UPat.t => {
       switch (/*mold.out,*/ label, children_h, children) {
       | _ when !Tile.is_complete(t) => Invalid(p)
       | ([","], [l, r], []) => Pair(l, r)
-      | ([t], [], []) when Form.is_bool(t) => Bool(bool_of_string(t))
+      | (["true"], [], []) => Bool(true) //TODO(andrew):generify
+      | (["false"], [], []) => Bool(false)
       | ([t], [], []) when Form.is_int(t) => Int(int_of_string(t))
       | ([t], [], []) when Form.is_var(t) => Var(t)
       | ([t], [], []) when Form.is_wild(t) => Wild
