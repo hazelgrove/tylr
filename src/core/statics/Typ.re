@@ -60,3 +60,8 @@ let join_all =
     (acc, ty) => Util.OptUtil.and_then(join(ty), acc),
     Some(Unknown),
   );
+
+let matched_arrow: t => (t, t) =
+  fun
+  | Arrow(ty_in, ty_out) => (ty_in, ty_out)
+  | _ => (Unknown, Unknown);

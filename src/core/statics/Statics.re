@@ -12,7 +12,7 @@ type info_exp = {
 type info_pat = {
   mode: Typ.mode,
   self: Typ.self,
-}; //TODO(andrew): more fields
+}; //TODO(andrew): ctx-like fields
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type info_typ = {ty: Typ.t};
@@ -26,8 +26,8 @@ type info =
 
 type info_map = Id.Map.t(info);
 
-//TODO(andrew): actually implement this
-let union_uses = List.fold_left((uses1, _uses2) => uses1, []);
+//TODO(andrew): is this a correct implementation?
+let union_uses = List.fold_left((uses1, uses2) => uses1 @ uses2, []);
 
 let union_m =
   List.fold_left(
@@ -58,6 +58,16 @@ let is_error_wrapped = (info: info): bool =>
   | _ => false
   };
 
+let remove_ctx_from_uses = (ctx: Typ.ctx, uses: Typ.co_ctx): Typ.co_ctx =>
+  VarMap.filter(
+    ((k, _)) =>
+      switch (VarMap.lookup(ctx, k)) {
+      | None => true
+      | Some(_) => false
+      },
+    uses,
+  );
+
 let rec uexp_to_info_map =
         (
           ~m=Id.Map.empty,
@@ -66,7 +76,7 @@ let rec uexp_to_info_map =
           {id, term}: Term.uexp,
         )
         : (Typ.t, Typ.co_ctx, info_map) => {
-  let go = uexp_to_info_map(~m, ~ctx);
+  let go = uexp_to_info_map(~ctx);
   let addm = i => Id.Map.add(id, i, m);
   let add = (~self, ~uses, m) => (
     ty_of_self(self),
@@ -86,8 +96,8 @@ let rec uexp_to_info_map =
   switch (term) {
   | InvalidExp(_p) => (Unknown, [], addm(Invalid))
   | EmptyHole => atomic(Free)
-  | Bool(_b) => atomic(Just(Bool))
-  | Int(_i) => atomic(Just(Int))
+  | Bool(_) => atomic(Just(Bool))
+  | Int(_) => atomic(Just(Int))
   | Var(name) =>
     switch (VarMap.lookup(ctx, name)) {
     | None => atomic(Free)
@@ -106,60 +116,92 @@ let rec uexp_to_info_map =
       ~uses=union_uses([uses_e0, uses_e1, uses_e2]),
       union_m([m1, m2, m3]),
     );
-  | Fun(pat, body) =>
-    let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~mode=Typ.Syn, pat);
-    let ctx = VarMap.union(ctx, ctx_pat);
-    let (ty_body, uses_body, m_body) =
-      uexp_to_info_map(~m, ~ctx, ~mode, body); //TODO: mode?
-    add(
-      ~self=Just(Arrow(ty_pat, ty_body)),
-      ~uses=uses_body, //TODO(andrew): remove current var uses
-      union_m([m_pat, m_body]),
-    );
   | Ap(fn, arg) =>
-    let (ty_fn, uses_fn, m_fn) = uexp_to_info_map(~m, ~ctx, ~mode=Syn, fn);
-    let (ty_in, ty_out) =
-      switch (ty_fn) {
-      | Arrow(ty_in, ty_out) => (ty_in, ty_out)
-      | _ => (Unknown, Unknown)
-      };
+    let (ty_fn, uses_fn, m_fn) = uexp_to_info_map(~ctx, ~mode=Syn, fn);
+    let (ty_in, ty_out) = Typ.matched_arrow(ty_fn);
     let (_, uses_arg, m_arg) =
-      uexp_to_info_map(~m, ~ctx, ~mode=Ana(ty_in), arg);
+      uexp_to_info_map(~ctx, ~mode=Ana(ty_in), arg);
     add(
       ~self=Just(ty_out),
       ~uses=union_uses([uses_fn, uses_arg]),
       union_m([m_fn, m_arg]),
     );
-  | Let(pat, def, body) =>
-    // TODO: see essay 'planning for a better let' below
-    let (ty_pat, _ctx_pat, m_pat) = upat_to_info_map(~mode=Syn, pat);
-    let (ty_def, uses_def, m_def) =
-      uexp_to_info_map(~m, ~ctx, ~mode=Ana(ty_pat), def);
-    // ana pat to incorporate def type into ctx
-    let (_, ctx_pat_ana, _) = upat_to_info_map(~mode=Ana(ty_def), pat);
-    let ctx = VarMap.union(ctx, ctx_pat_ana); 
+  | Fun(pat, body) =>
+    let (mode_pat: Typ.mode, mode_body: Typ.mode) =
+      switch (mode) {
+      | Syn => (Syn, Syn)
+      | Ana(ty) =>
+        let (ty_in, ty_out) = Typ.matched_arrow(ty);
+        (Ana(ty_in), Ana(ty_out));
+      };
+    let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~mode=mode_pat, pat);
+    let ctx_body = VarMap.union(ctx, ctx_pat);
     let (ty_body, uses_body, m_body) =
-      uexp_to_info_map(~m, ~ctx, ~mode, body);
-    add(
-      ~self=Just(ty_body),
-      ~uses=union_uses([uses_def, uses_body]), //TODO(andrew): remove current var uses
-      union_m([m_pat, m_def, m_body]),
-    );
-  | FunAnn(pat, typ, body) =>
-    let typ_typ = Term.utyp_to_ty(typ);
-    let m_typ = utyp_to_info_map(typ);
-    //TODO: add mode to pats and ana pat againt ty
-    let (ty_pat, ctx_pat, m_pat) =
-      upat_to_info_map(~mode=Ana(typ_typ), pat);
-    let ctx = VarMap.union(ctx_pat, ctx);
-    let (ty_body, uses_body, m_body) =
-      uexp_to_info_map(~m, ~ctx, ~mode, body); //TODO: mode?
+      uexp_to_info_map(~ctx=ctx_body, ~mode=mode_body, body);
     add(
       ~self=Just(Arrow(ty_pat, ty_body)),
-      ~uses=uses_body, //TODO(andrew): remove current var uses
+      ~uses=remove_ctx_from_uses(ctx_pat, uses_body),
+      union_m([m_pat, m_body]),
+    );
+  | FunAnn(pat, typ, body) =>
+    let (typ_typ, m_typ) = utyp_to_info_map(typ);
+    let (mode_pat: Typ.mode, mode_body: Typ.mode) =
+      switch (mode) {
+      | Syn => (Syn, Syn)
+      | Ana(ty) =>
+        let (ty_in, ty_out) = Typ.matched_arrow(ty);
+        let ty_in' =
+          switch (Typ.join(ty_in, typ_typ)) {
+          | None => ty_in
+          | Some(ty) => ty
+          };
+        (Ana(ty_in'), Ana(ty_out));
+      };
+    let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~mode=mode_pat, pat);
+    let ctx_body = VarMap.union(ctx_pat, ctx);
+    let (ty_body, uses_body, m_body) =
+      uexp_to_info_map(~ctx=ctx_body, ~mode=mode_body, body);
+    add(
+      ~self=Just(Arrow(ty_pat, ty_body)),
+      ~uses=remove_ctx_from_uses(ctx_pat, uses_body),
       union_m([m_pat, m_body, m_typ]),
     );
-  | LetAnn(_upat, _utyp, _uexp, _uexp') => (Unknown, [], addm(Invalid))
+  | Let(pat, def, body) =>
+    let (ty_pat, _ctx_pat, m_pat) = upat_to_info_map(~mode=Syn, pat);
+    let (ty_def, uses_def, m_def) =
+      uexp_to_info_map(~ctx, ~mode=Ana(ty_pat), def);
+    // ana pat to incorporate def type into ctx
+    let (_, ctx_pat_ana, _) = upat_to_info_map(~mode=Ana(ty_def), pat);
+    let ctx = VarMap.union(ctx, ctx_pat_ana);
+    let (ty_body, uses_body, m_body) = uexp_to_info_map(~ctx, ~mode, body);
+    add(
+      ~self=Just(ty_body),
+      ~uses=
+        union_uses([uses_def, remove_ctx_from_uses(ctx_pat_ana, uses_body)]),
+      union_m([m_pat, m_def, m_body]),
+    );
+  | LetAnn(pat, typ, def, body) =>
+    let (typ_typ, m_typ) = utyp_to_info_map(typ);
+    let (ty_pat, _ctx_pat, m_pat) =
+      upat_to_info_map(~mode=Ana(typ_typ), pat);
+    let (ty_def, uses_def, m_def) =
+      uexp_to_info_map(~ctx, ~mode=Ana(ty_pat), def);
+    // joint_ty if consistent, otherwise pat type wins
+    let joint_ty =
+      switch (Typ.join(ty_def, ty_pat)) {
+      | None => ty_pat
+      | Some(ty) => ty
+      };
+    // ana pat to incorporate def type into ctx
+    let (_, ctx_pat_ana, _) = upat_to_info_map(~mode=Ana(joint_ty), pat);
+    let ctx = VarMap.union(ctx, ctx_pat_ana);
+    let (ty_body, uses_body, m_body) = uexp_to_info_map(~ctx, ~mode, body);
+    add(
+      ~self=Just(ty_body),
+      ~uses=
+        union_uses([uses_def, remove_ctx_from_uses(ctx_pat_ana, uses_body)]),
+      union_m([m_pat, m_typ, m_def, m_body]),
+    );
   };
 }
 and upat_to_info_map =
@@ -203,14 +245,16 @@ and utyp_to_info_map =
       ~mode as _=Typ.Syn,
       {id, term_t} as utyp: Term.utyp,
     )
-    : info_map => {
+    : (Typ.t, info_map) => {
   let addm = i => Id.Map.add(id, i, m);
   switch (term_t) {
   | InvalidTyp(_)
   | EmptyHoleTyp
   | Int
   | Bool
-  | Arrow(_) => addm(InfoTyp({ty: Term.utyp_to_ty(utyp)}))
+  | Arrow(_) =>
+    let ty = Term.utyp_to_ty(utyp);
+    (ty, addm(InfoTyp({ty: ty})));
   };
 };
 
