@@ -95,16 +95,23 @@ let forms: list((string, t)) = [
   ("list_lit", mk(ii, ["[", "]"], mk_op(Exp, [Exp]))),
   ("parens_exp", mk(ii, ["(", ")"], mk_op(Exp, [Exp]))),
   ("parens_pat", mk(ii, ["(", ")"], mk_op(Pat, [Pat]))),
-  //("funann", mk(ds, ["fun", ":", "->"], mk_pre(P.let_, Exp, [Pat, Typ]))),
+  (
+    "funann",
+    mk(ds, ["funann", ":", "->"], mk_pre(P.let_, Exp, [Pat, Typ])),
+  ),
   ("fun_", mk(ds, ["fun", "->"], mk_pre(P.let_, Exp, [Pat]))),
   ("if_", mk(di, ["if", "then", "else"], mk_pre(P.if_, Exp, [Exp, Exp]))),
   /* Something must instant on => as not valid monotile on its own */
   ("ap", mk(ii, ["(", ")"], mk_post(P.ap, Exp, [Exp]))),
   ("let_", mk(ds, ["let", "=", "in"], mk_pre(P.let_, Exp, [Pat, Exp]))),
-  /*(
-      "letann",
-      mk(ds, ["let", ":", "=", "in"], mk_pre(P.let_, Exp, [Pat, Typ, Exp])),
-    ),*/
+  (
+    "letann",
+    mk(
+      ds,
+      ["letann", ":", "=", "in"],
+      mk_pre(P.let_, Exp, [Pat, Typ, Exp]),
+    ),
+  ),
   ("cond", mk(is, ["?", ":"], mk_bin(P.cond, Exp, [Exp]))),
   ("block", mk(ii, ["{", "}"], mk_op(Exp, [Exp]))),
   ("case", mk(ds, ["case", "of"], mk_pre(9, Exp, [Exp]))),

@@ -118,11 +118,11 @@ and of_piece = (p: Piece.t, children_h: list(uexp)): uexp => {
       | (["<"], [l, r], []) => OpInt(Lt, l, r)
       | (["&&"], [l, r], []) => OpBool(And, l, r)
       | (["fun", "->"], [body], [pat]) => Fun(upat_of_seg(pat), body)
-      | (["fun", ":", "->"], [body], [pat, typ]) =>
+      | (["funann", ":", "->"], [body], [pat, typ]) =>
         FunAnn(upat_of_seg(pat), utyp_of_seg(typ), body)
       | (["let", "=", "in"], [body], [pat, def]) =>
         Let(upat_of_seg(pat), uhexp_of_seg(def), body)
-      | (["let", ":", "=", "in"], [body], [pat, typ, def]) =>
+      | (["letann", ":", "=", "in"], [body], [pat, typ, def]) =>
         LetAnn(upat_of_seg(pat), utyp_of_seg(typ), uhexp_of_seg(def), body)
       | (["if", "then", "else"], [alt], [cond, conseq]) =>
         If(uhexp_of_seg(cond), uhexp_of_seg(conseq), alt)

@@ -8,7 +8,7 @@ type t =
   | Arrow(t, t);
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type inherent =
+type self =
   // is this just a list??
   | Just(t)
   | Joined(list(t))
@@ -43,8 +43,8 @@ type co_ctx = VarMap.t_(co_ctx_entry);
 
 let rec join = (ty1: t, ty2: t): option(t) =>
   switch (ty1, ty2) {
-  | (Unknown, _)
-  | (_, Unknown) => Some(Unknown)
+  | (Unknown, a)
+  | (a, Unknown) => Some(a)
   | (Int, Int) => Some(Int)
   | (Bool, Bool) => Some(Bool)
   | (Arrow(ty1_1, ty1_2), Arrow(ty2_1, ty2_2)) =>
@@ -54,3 +54,9 @@ let rec join = (ty1: t, ty2: t): option(t) =>
     }
   | _ => None
   };
+
+let join_all =
+  List.fold_left(
+    (acc, ty) => Util.OptUtil.and_then(join(ty), acc),
+    Some(Unknown),
+  );

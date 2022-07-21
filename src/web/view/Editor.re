@@ -22,22 +22,29 @@ let view =
 
   let ci =
     switch (zipper |> Indicated.index) {
-    | None => "No index indicated"
     | Some(index) =>
       let (_, _, info_map) =
         zipper |> Term.of_zipper |> Statics.uexp_to_info_map;
-      switch (Id.Map.find_opt(index, info_map)) {
-      | None => "No info for index"
-      | Some(ci) => Statics.show_info(ci)
-      };
+      Id.Map.find_opt(index, info_map);
+    | None => None
     };
-
+  let ci_text =
+    switch (ci) {
+    | None => "No index or info"
+    | Some(ci) => Statics.show_info(ci)
+    };
+  let ci_is_wrapped =
+    switch (ci) {
+    | None => "??"
+    | Some(ci) => string_of_bool(Statics.is_error_wrapped(ci))
+    };
   //TODO(andrew): new div name/class
   div(
     [Attr.class_("code"), Attr.id("under-the-rail")],
     [Code.view(~font_metrics, ~sel_seg, ~unsel_seg, ~map, ~settings)]
     @ Deco.all(zipper, sel_seg)
     //@ [text(zipper |> Term.of_zipper |> Term.show_uexp)]
-    @ [text(ci)],
+    @ [text(ci_is_wrapped)]
+    @ [text(ci_text)],
   );
 };
