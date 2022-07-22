@@ -21,27 +21,6 @@ type mode =
   | Syn
   | Ana(t);
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type ctx_entry = {
-  id: Id.t,
-  typ: t,
-};
-
-[@deriving (show({with_path: false}), sexp, yojson)]
-type ctx = VarMap.t_(ctx_entry);
-
-[@deriving (show({with_path: false}), sexp, yojson)]
-type co_ctx_item = {
-  id: Id.t,
-  mode,
-};
-
-[@deriving (show({with_path: false}), sexp, yojson)]
-type co_ctx_entry = list(co_ctx_item);
-
-[@deriving (show({with_path: false}), sexp, yojson)]
-type co_ctx = VarMap.t_(co_ctx_entry);
-
 let rec join = (ty1: t, ty2: t): option(t) =>
   switch (ty1, ty2) {
   | (Unknown, a)
@@ -61,11 +40,17 @@ let rec join = (ty1: t, ty2: t): option(t) =>
   | _ => None
   };
 
-let join_all =
+let join_all: list(t) => option(t) =
   List.fold_left(
     (acc, ty) => Util.OptUtil.and_then(join(ty), acc),
     Some(Unknown),
   );
+
+let join_or_fst = (ty: t, ty': t): t =>
+  switch (join(ty, ty')) {
+  | None => ty
+  | Some(ty) => ty
+  };
 
 let matched_arrow: t => (t, t) =
   fun
@@ -76,3 +61,47 @@ let matched_prod: t => (t, t) =
   fun
   | Prod(ty_in, ty_out) => (ty_in, ty_out)
   | _ => (Unknown, Unknown);
+
+let matched_arrow_mode: mode => (mode, mode) =
+  fun
+  | Syn => (Syn, Syn)
+  | Ana(ty) => {
+      let (ty_in, ty_out) = matched_arrow(ty);
+      (Ana(ty_in), Ana(ty_out));
+    };
+
+let matched_prod_mode: mode => (mode, mode) =
+  fun
+  | Syn => (Syn, Syn)
+  | Ana(ty) => {
+      let (ty_l, ty_r) = matched_prod(ty);
+      (Ana(ty_l), Ana(ty_r));
+    };
+
+// TODO: clarify
+let of_mode: mode => t =
+  fun
+  | Syn => Unknown
+  | Ana(ty) => ty;
+
+// TODO: clarify; compare to Statics.error_status
+let of_self: self => t =
+  fun
+  | Free => Unknown
+  | Just(t) => t
+  | Joined(tys) =>
+    switch (join_all(tys)) {
+    | None => Unknown
+    | Some(t) => t
+    };
+
+// What the type would be as if after hole-fixing
+let reconcile = (mode: mode, self: self): t =>
+  switch (mode) {
+  | Syn => of_self(self)
+  | Ana(ty) =>
+    switch (join(ty, of_self(self))) {
+    | None => Unknown
+    | Some(ty) => ty
+    }
+  };

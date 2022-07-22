@@ -237,6 +237,19 @@ module Deco =
       ? targets(backpack, seg) : [];
   };
 
+  let error_holes = zipper => {
+    //TODO(andrew): how do i fold over this
+    let _ci =
+      switch (zipper |> Indicated.index) {
+      | Some(index) =>
+        let (_, _, info_map) =
+          zipper |> Term.of_zipper |> Statics.uexp_to_info_map;
+        Id.Map.find_opt(index, info_map);
+      | None => None
+      };
+    ();
+  };
+
   let all = (zipper, sel_seg) =>
     List.concat([
       caret(zipper),
