@@ -48,7 +48,7 @@ let union_m =
 let error_status = (info: info): error_status =>
   switch (info) {
   | InfoExp({mode: Syn, _})
-  | InfoPat({mode: Syn, _}) => AtLeast(Unknown)
+  | InfoPat({mode: Syn, _}) => AtLeast(Unknown(Internal))
   | InfoExp({mode: Ana(_), self: Free, _})
   | InfoPat({mode: Ana(_), self: Free, _}) => InHole
   | InfoExp({mode: Ana(ty_ana), self: Just(ty_syn), _})
@@ -88,8 +88,8 @@ let rec uexp_to_info_map =
     add(~self=ty_out, ~free=Ctx.union([free1, free2]), union_m([m1, m2]));
   };
   switch (term) {
-  | Invalid(_p) => (Unknown, [], Id.Map.singleton(id, Invalid))
-  | EmptyHole => atomic(Free)
+  | Invalid(_p) => (Unknown(Internal), [], Id.Map.singleton(id, Invalid))
+  | EmptyHole => atomic(Just(Unknown(Internal)))
   | Bool(_) => atomic(Just(Bool))
   | Int(_) => atomic(Just(Int))
   | Var(name) =>
@@ -122,7 +122,11 @@ let rec uexp_to_info_map =
   | Ap(fn, arg) =>
     // NOTE: funpos currently set to Ana instead of Syn
     let (ty_fn, free_fn, m_fn) =
-      uexp_to_info_map(~ctx, ~mode=Ana(Arrow(Unknown, Unknown)), fn);
+      uexp_to_info_map(
+        ~ctx,
+        ~mode=Ana(Arrow(Unknown(ModeSwitch), Unknown(ModeSwitch))),
+        fn,
+      );
     let (ty_in, ty_out) = Typ.matched_arrow(ty_fn);
     let (_, free_arg, m_arg) =
       uexp_to_info_map(~ctx, ~mode=Ana(ty_in), arg);
@@ -149,7 +153,7 @@ let rec uexp_to_info_map =
       | Syn => (Typ.Syn, Typ.Syn)
       | Ana(ty) =>
         let (ty_in, ty_out) = Typ.matched_arrow(ty);
-        let ty_in' = Typ.join_or_fst(ty_in, ty_ann);
+        let ty_in' = Typ.join_or_fst(ty_ann, ty_in);
         (Ana(ty_in'), Ana(ty_out));
       };
     let (ty_pat, ctx_pat, m_pat) = upat_to_info_map(~mode=mode_pat, pat);
@@ -205,8 +209,8 @@ and upat_to_info_map =
   );
   switch (term) {
   | Invalid(_p) => add(Free)
-  | EmptyHole => add(Free)
-  | Wild => add(Just(Unknown))
+  | EmptyHole => add(Just(Unknown(ModeSwitch)))
+  | Wild => add(Just(Unknown(ModeSwitch)))
   | Int(_) => add(Just(Int))
   | Bool(_) => add(Just(Bool))
   | Var(name) =>
@@ -214,7 +218,10 @@ and upat_to_info_map =
     (
       typ,
       [(name, Ctx.{id, typ})],
-      Id.Map.singleton(id, InfoPat({cls, mode, self: Free})) //TODO(andrew): Free?
+      Id.Map.singleton(
+        id,
+        InfoPat({cls, mode, self: Just(Unknown(ModeSwitch))}),
+      ),
     );
   | Pair(p1, p2) =>
     let (mode_l, mode_r) = Typ.matched_prod_mode(mode);

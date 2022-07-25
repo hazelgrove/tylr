@@ -146,7 +146,7 @@ let rec utyp_to_ty: UTyp.t => Typ.t =
   utyp =>
     switch (utyp.term) {
     | Invalid(_)
-    | EmptyHole => Unknown
+    | EmptyHole => Unknown(Internal) //TODO: is this correct?
     | Int => Int
     | Bool => Bool
     | Arrow(u1, u2) => Arrow(utyp_to_ty(u1), utyp_to_ty(u2))

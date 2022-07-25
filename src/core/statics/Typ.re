@@ -1,8 +1,13 @@
 open Sexplib.Std;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
+type type_provenance =
+  | ModeSwitch
+  | Internal;
+
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
-  | Unknown
+  | Unknown(type_provenance)
   | Int
   | Bool
   | Arrow(t, t)
@@ -17,14 +22,16 @@ type self =
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type mode =
-  //| FunPos
+  //| FunPos?
   | Syn
   | Ana(t);
 
 let rec join = (ty1: t, ty2: t): option(t) =>
   switch (ty1, ty2) {
-  | (Unknown, a)
-  | (a, Unknown) => Some(a)
+  | (Unknown(Internal), Unknown(_))
+  | (Unknown(_), Unknown(Internal)) => Some(Unknown(Internal))
+  | (Unknown(_), a)
+  | (a, Unknown(_)) => Some(a)
   | (Int, Int) => Some(Int)
   | (Bool, Bool) => Some(Bool)
   | (Arrow(ty1_1, ty1_2), Arrow(ty2_1, ty2_2)) =>
@@ -43,7 +50,7 @@ let rec join = (ty1: t, ty2: t): option(t) =>
 let join_all: list(t) => option(t) =
   List.fold_left(
     (acc, ty) => Util.OptUtil.and_then(join(ty), acc),
-    Some(Unknown),
+    Some(Unknown(Internal)),
   );
 
 let join_or_fst = (ty: t, ty': t): t =>
@@ -55,12 +62,14 @@ let join_or_fst = (ty: t, ty': t): t =>
 let matched_arrow: t => (t, t) =
   fun
   | Arrow(ty_in, ty_out) => (ty_in, ty_out)
-  | _ => (Unknown, Unknown);
+  | Unknown(prov) => (Unknown(prov), Unknown(prov))
+  | _ => (Unknown(Internal), Unknown(Internal));
 
 let matched_prod: t => (t, t) =
   fun
   | Prod(ty_in, ty_out) => (ty_in, ty_out)
-  | _ => (Unknown, Unknown);
+  | Unknown(prov) => (Unknown(prov), Unknown(prov))
+  | _ => (Unknown(Internal), Unknown(Internal));
 
 let matched_arrow_mode: mode => (mode, mode) =
   fun
@@ -81,17 +90,17 @@ let matched_prod_mode: mode => (mode, mode) =
 // TODO: clarify
 let of_mode: mode => t =
   fun
-  | Syn => Unknown
+  | Syn => Unknown(Internal) //TODO
   | Ana(ty) => ty;
 
 // TODO: clarify; compare to Statics.error_status
 let of_self: self => t =
   fun
-  | Free => Unknown
+  | Free => Unknown(Internal) //TODO
   | Just(t) => t
   | Joined(tys) =>
     switch (join_all(tys)) {
-    | None => Unknown
+    | None => Unknown(Internal) //TODO
     | Some(t) => t
     };
 
@@ -101,7 +110,7 @@ let reconcile = (mode: mode, self: self): t =>
   | Syn => of_self(self)
   | Ana(ty) =>
     switch (join(ty, of_self(self))) {
-    | None => Unknown
+    | None => Unknown(Internal) //TODO
     | Some(ty) => ty
     }
   };
