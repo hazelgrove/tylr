@@ -34,12 +34,6 @@ let concat = (sibss: list(t)): t =>
 
 let remold = ((pre, _) as sibs: t, s: Sort.t): t =>
   Segment.remold(zip(sibs), s) |> unzip(List.length(pre));
-// let remold = ((pre, suf): t, s): list(t) => {
-//   open ListUtil.Syntax;
-//   let+ pre = Segment.remold(pre, s)
-//   and+ suf = Segment.remold(suf, s);
-//   (pre, suf);
-// };
 
 let shapes = ((pre, suf): t) => {
   let s = Nib.Shape.concave();
