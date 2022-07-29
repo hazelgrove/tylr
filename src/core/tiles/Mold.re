@@ -1,3 +1,5 @@
+open Util;
+
 // supports tiles that take different-sorted unichildren
 // but for now the codebase assumes that tiles only take
 // same-sorted unichildren
@@ -93,3 +95,14 @@ let of_whitespace = (l: Nib.t) => {
   out: l.sort,
   in_: [],
 };
+
+let fits_shape = (d: Direction.t, s: Nib.Shape.t, m: t): bool => {
+  let s' = Direction.choose(d, nib_shapes(m));
+  Nib.Shape.fits(s, s');
+};
+
+let consistent_shapes = (ms: list(t)) =>
+  ms
+  |> List.map(nib_shapes)
+  |> List.split
+  |> TupleUtil.map2(ListUtil.single_elem);

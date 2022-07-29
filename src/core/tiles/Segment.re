@@ -101,52 +101,200 @@ let split_by_grout: t => Aba.t(t, Grout.t) =
     | p => L(p),
   );
 
-let rec remold = (seg: t, s: Sort.t): list(t) =>
-  fold_right(
-    (p: Piece.t, remolded) => {
-      open ListUtil.Syntax;
-      let+ seg = remolded
-      and+ p = remold_piece(p, s);
-      [p, ...seg];
-    },
-    seg,
-    [empty],
-  )
-and remold_piece = (p: Piece.t, s: Sort.t) =>
-  switch (p) {
-  | Grout(_)
-  | Whitespace(_) => [p]
-  | Tile(t) =>
-    open ListUtil.Syntax;
-    let* mold = {
-      let molds = Molds.get(t.label);
-      switch (List.filter((m: Mold.t) => Sort.consistent(m.out, s), molds)) {
-      | [] => molds
-      | ms => ms
-      };
+let rec remold = (seg: t, s: Sort.t): t => {
+  let tiles = List.filter_map(Piece.is_tile, seg);
+
+  let molds =
+    tiles
+    |> List.map((t: Tile.t) => Id.Map.singleton(t.id, Molds.get(t.label)))
+    |> List.fold_left(Id.Map.disj_union, Id.Map.empty);
+
+  let ((molds, _), iss) =
+    tiles
+    |> List.mapi((i, t) => (i, t))
+    |> List.fold_left_map(
+         ((molds, shape), (i, t: Tile.t)) => {
+           let ms = Id.Map.find(t.id, molds);
+           let ms =
+             ms
+             |> List.filter(Mold.fits_shape(Left, shape))
+             |> (
+               fun
+               | [] => ms
+               | [_, ..._] as ms => ms
+             );
+           let molds = Id.Map.update(t.id, _ => Some(ms), molds);
+           let r =
+             snd(Mold.consistent_shapes(ms))
+             |> OptUtil.get_or_fail(
+                  "currently expecting right shapes to be unambiguous for any label",
+                );
+           ((molds, r), (i, (Nib.Shape.flip(shape), r)));
+         },
+         (molds, Nib.Shape.concave()),
+       );
+
+  let rec filter_sorts = (skel: Skel.t, s: Sort.t): Id.Map.t(Mold.t) => {
+    switch (List.nth(tiles, Skel.root_index(skel))) {
+    | exception (Invalid_argument(_)) =>
+      // hole
+      Id.Map.empty
+    | t =>
+      let ms = Id.Map.find(t.id, molds);
+      let mold =
+        ms
+        |> List.filter((m: Mold.t) => Sort.consistent(s, m.out))
+        |> (
+          fun
+          | [] => List.hd(ms)
+          | [m, ..._] => m
+        );
+      let (l, r) = mold.nibs;
+      let inner_molds =
+        switch (skel) {
+        | Op(_) => Id.Map.empty
+        | Pre(_, skel) => filter_sorts(skel, r.sort)
+        | Post(skel, _) => filter_sorts(skel, l.sort)
+        | Bin(skel_l, _, skel_r) =>
+          Id.Map.disj_union(
+            filter_sorts(skel_l, l.sort),
+            filter_sorts(skel_r, r.sort),
+          )
+        };
+      Id.Map.add(t.id, mold, inner_molds);
     };
-    let+ children =
-      List.fold_right(
-        ((l, child, r), remolded) => {
-          let+ child =
-            if (l
-                + 1 == r
-                && (
-                  List.nth(mold.in_, l) != List.nth(t.mold.in_, l)
-                  || IncompleteBidelim.contains(t.id, l)
-                )) {
-              remold(child, List.nth(mold.in_, l));
-            } else {
-              [child];
-            }
-          and+ children = remolded;
-          [child, ...children];
-        },
-        Aba.aba_triples(Aba.mk(t.shards, t.children)),
-        [[]],
-      );
-    Piece.Tile({...t, mold, children});
   };
+
+  let skels = Skel.mk_err(iss);
+  let molds =
+    switch (skels) {
+    | [skel] => filter_sorts(skel, s)
+    | _ =>
+      skels
+      |> List.map(skel => filter_sorts(skel, Any))
+      |> List.fold_left(Id.Map.disj_union, Id.Map.empty)
+    };
+
+  seg
+  |> List.map(
+       fun
+       | Piece.(Grout(_) | Whitespace(_)) as p => p
+       | Tile(t) => {
+           let mold = Id.Map.find(t.id, molds);
+           let children =
+             List.fold_right(
+               ((l, child, r), children) => {
+                 let child =
+                   if (l
+                       + 1 == r
+                       && (
+                         List.nth(mold.in_, l) != List.nth(t.mold.in_, l)
+                         || IncompleteBidelim.contains(t.id, l)
+                       )) {
+                     remold(child, List.nth(mold.in_, l));
+                   } else {
+                     child;
+                   };
+                 [child, ...children];
+               },
+               Aba.aba_triples(Aba.mk(t.shards, t.children)),
+               [],
+             );
+           Tile({...t, mold, children});
+         },
+     );
+};
+
+// let remold = (seg: t, s: Sort.t): list(t) => {
+//   let ips = seg |> List.mapi((i, p) => (i, p));
+//   let itiles =
+//     ips
+//     |> List.filter_map(((i, p)) =>
+//       Piece.is_tile(p)
+//       |> Option.is_map(t => (i, t))
+//     );
+
+//     |> List.fold_left(
+//       (shaped, (i, t: Tile.t)) => {
+//         let shape =
+//           switch (shaped) {
+//           | [] => Nib.Shape.concave()
+//           // mold on t safe to ignore?
+//           | [(_, _t, molds), ..._] =>
+//             right_shape(molds)
+//             |> OptUtil.get_or_fail("expected mold assignments with no ambiguity on right edge")
+//           };
+//         let molds =
+//           Molds.get(t.label)
+//           |> List.filter(Mold.has_shape(Right, shape))
+//           |> (
+//             fun
+//             | [] => Molds.get(t.label)
+//             | [_, ..._] as molds => molds
+//           );
+//         [(i, t, molds), ...shaped];
+//       },
+//       [],
+//     );
+
+//   let shapes =
+//     shaped
+//     |> List.map((i, t, molds) => )
+
+//   let shaped: list((Piece.t, list(Mold.t))) =
+//     seg
+//     |> List.fold_left(
+
+//       [],
+//     )
+// }
+
+// let rec remold = (seg: t, s: Sort.t): list(t) =>
+//   fold_right(
+//     (p: Piece.t, remolded) => {
+//       open ListUtil.Syntax;
+//       let+ seg = remolded
+//       and+ p = remold_piece(p, s);
+//       [p, ...seg];
+//     },
+//     seg,
+//     [empty],
+//   )
+// and remold_piece = (p: Piece.t, s: Sort.t) =>
+//   switch (p) {
+//   | Grout(_)
+//   | Whitespace(_) => [p]
+//   | Tile(t) =>
+//     open ListUtil.Syntax;
+//     let* mold = {
+//       let molds = Molds.get(t.label);
+//       switch (List.filter((m: Mold.t) => Sort.consistent(m.out, s), molds)) {
+//       | [] => molds
+//       | ms => ms
+//       };
+//     };
+//     let+ children =
+//       List.fold_right(
+//         ((l, child, r), remolded) => {
+//           let+ child =
+//             if (l
+//                 + 1 == r
+//                 && (
+//                   List.nth(mold.in_, l) != List.nth(t.mold.in_, l)
+//                   || IncompleteBidelim.contains(t.id, l)
+//                 )) {
+//               remold(child, List.nth(mold.in_, l));
+//             } else {
+//               [child];
+//             }
+//           and+ children = remolded;
+//           [child, ...children];
+//         },
+//         Aba.aba_triples(Aba.mk(t.shards, t.children)),
+//         [[]],
+//       );
+//     Piece.Tile({...t, mold, children});
+//   };
 
 let skel = seg =>
   seg
@@ -351,6 +499,47 @@ module Trim = {
     |> Aba.join(List.map(Piece.whitespace), g => [Piece.Grout(g)])
     |> List.concat;
 };
+
+// let rec reshape = ((l, r), seg): IdGen.t((Segment.t, Id.Map.t(list(Mold.t)))) => {
+//   open IdGen.Syntax;
+//   let* (trim, r, tl, molds) = reshape_affix(Direction.Right, seg, r);
+//   let+ trim = Trim.regrout((l, r), trim);
+//   (Trim.to_seg(trim) @ tl, molds);
+// }
+// and reshape_affix =
+//     (d: Direction.t, affix: t, r: Nib.Shape.t)
+//     : IdGen.t((Trim.t, Nib.Shape.t, t, Id.Map.t(list(Mold.t)))) => {
+//   open IdGen.Syntax;
+//   let+ (trim, s, affix) =
+//     fold_right(
+//       (p: Piece.t, id_gen) => {
+//         let* (trim, r, tl, map) = id_gen;
+//         switch (p) {
+//         | Whitespace(w) => IdGen.return((Trim.cons_w(w, trim), r, tl, map))
+//         | Grout(g) => IdGen.return((Trim.(merge(cons_g(g, trim))), r, tl, map))
+//         | Tile(t) =>
+//           let* (children, map) =
+//             List.fold_right(
+//               (hd, tl) => {
+//                 let* (tl, map_tl) = tl;
+//                 let+ (hd, map_hd) = regrout(Nib.Shape.(concave(), concave()), hd);
+//                 ([hd, ...tl], Id.Map.union((_, _, _) => None, map_hd, map_tl));
+//               },
+//               t.children,
+//               IdGen.return(([], map)),
+//             );
+//           let p = Piece.Tile({...t, children});
+//           let (l', r') =
+//             Tile.shapes(t) |> (d == Left ? TupleUtil.swap : Fun.id);
+//           let+ trim = Trim.regrout((r', r), trim);
+//           (Trim.empty, l', [p, ...Trim.to_seg(trim)] @ tl);
+//         };
+//       },
+//       (d == Left ? List.rev : Fun.id)(affix),
+//       IdGen.return((Aba.mk([[]], []), r, empty, Id.Map.empty)),
+//     );
+//   d == Left ? (Trim.rev(trim), s, rev(affix)) : (trim, s, affix);
+// };
 
 let rec regrout = ((l, r), seg) => {
   open IdGen.Syntax;

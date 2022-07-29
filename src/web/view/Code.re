@@ -20,7 +20,7 @@ module Text = (M: {
     let sort_of_p_idx = idx =>
       switch (List.assoc_opt(idx, expected_sorts)) {
       | None => Sort.Any
-      | Some(sort) => sortm
+      | Some(sort) => sort
       };
     seg |> List.mapi((i, p) => of_piece(sort_of_p_idx(i), p)) |> List.concat;
   }
