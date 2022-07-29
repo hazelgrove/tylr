@@ -58,8 +58,6 @@ let disassemble = ({siblings, ancestors}: t): Siblings.t =>
   Siblings.concat([siblings, Ancestors.disassemble(ancestors)]);
 
 let remold = ({siblings, ancestors}: t): t => {
-  // open ListUtil.Syntax;
-  // let+ ancestors = Ancestors.remold(ancestors)
   let s = Ancestors.sort(ancestors);
   let siblings = Siblings.remold(siblings, s);
   {ancestors, siblings};
