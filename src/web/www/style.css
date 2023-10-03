@@ -967,6 +967,9 @@ svg {
 #caret.blink {
   animation: 1s blink step-end infinite;
 }
+#page:not(:focus) #caret {
+  animation: none;
+}
 .caret-path {
   fill: #f62116;
   stroke: none;

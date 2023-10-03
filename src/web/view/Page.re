@@ -180,10 +180,10 @@ let view = (~inject, ~handlers, model: Model.t) => {
       id("page"),
       // necessary to make cell focusable
       create("tabindex", "0"),
-      on_blur(_ => {
-        JsUtil.get_elem_by_id("page")##focus;
-        Event.Many([]);
-      }),
+      // on_blur(_ => {
+      //   JsUtil.get_elem_by_id("page")##focus;
+      //   Event.Many([]);
+      // }),
       ...handlers(~inject, ~model),
     ],
     [
