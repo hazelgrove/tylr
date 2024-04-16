@@ -1,5 +1,5 @@
 (library
- (name util)
+ (name base)
  (libraries base ptmap)
  (js_of_ocaml
   (flags
