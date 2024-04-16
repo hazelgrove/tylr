@@ -1,5 +1,3 @@
-open Util;
-
 let decode = (s: string): list(Uchar.t) =>
   s
   |> Uutf.String.fold_utf_8(

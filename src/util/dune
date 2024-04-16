@@ -1,11 +1,17 @@
 (library
- (name base)
- (libraries base ptmap)
+ (name util)
+ (libraries base ptmap uutf sexplib)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))
  (preprocess
-  (pps ppx_let ppx_sexp_conv ppx_deriving.show ppx_deriving_yojson)))
+  (pps
+   ppx_let
+   ppx_sexp_conv
+   ppx_deriving.ord
+   ppx_deriving_hash
+   ppx_deriving.show
+   ppx_deriving_yojson)))
 
 (rule
  (write-file js-of-ocaml-flags-dev "(:standard --debuginfo --noinline)"))
