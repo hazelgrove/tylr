@@ -49,6 +49,7 @@ let unknil =
 module Tl = {
   type t('link, 'loop) = (list('link), list('loop));
   let empty = ([], []);
+  let is_empty = ((lks, lps)) => lks == [] && lps == [];
   let cons = (lk, lp, (lks, lps): t(_)) => ([lk, ...lks], [lp, ...lps]);
   let length = ((lks, _): t(_)) => List.length(lks);
   let snoc = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
@@ -58,6 +59,10 @@ module Tl = {
     | [] => None
     | [lk, ...lks] => Some((lk, (lps, lks)))
     };
+};
+module Frame = {
+  type t('lp, 'lk) = (Tl.t('lk, 'lp), Tl.t('lk, 'lp));
+  let empty = (Tl.empty, Tl.empty);
 };
 
 let rec extend = (tl: Tl.t('lk, 'lp), c: t('lp, 'lk)) =>
