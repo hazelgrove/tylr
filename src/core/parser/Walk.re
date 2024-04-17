@@ -1,4 +1,6 @@
 open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+open Util;
 
 // stance phase of gait cycle is when foot is on the ground.
 // in this setting, this is when grammar walk reaches a T sym.

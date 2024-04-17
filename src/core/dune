@@ -3,7 +3,7 @@
 (library
  (name tylr_core)
  (virtual_modules sort grammar)
- (libraries util sedlex re sexplib uutf)
+ (libraries util sedlex re sexplib uutf core)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))
@@ -11,10 +11,10 @@
   (pps
    ppx_let
    ppx_sexp_conv
+   ppx_yojson_conv
    ppx_deriving.show
    ppx_deriving.ord
    ppx_deriving_hash
-   ppx_yojson_conv
    sedlex.ppx)))
 
 (rule

@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
 module Base = {
   // invariant: List.length(loops) == List.length(links) + 1

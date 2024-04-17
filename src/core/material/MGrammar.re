@@ -1,3 +1,5 @@
+open Util;
+
 // materialized grammar
 type t = Mtrl.Sorted.Map.t(Prec.Table.t(Mtrl.Regex.t));
 

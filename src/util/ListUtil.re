@@ -306,3 +306,21 @@ let rotate = (xs: list('x)): list('x) =>
   | [] => []
   | [hd, ...tl] => tl @ [hd]
   };
+
+// use stdlib once we're on 5.1
+let find_index = (p, xs) =>
+  xs
+  |> List.mapi((i, x) => (i, x))
+  |> List.filter(((_, x)) => p(x))
+  |> hd_opt
+  |> Option.map(fst);
+
+let min = compare =>
+  List.fold_left(
+    (min, x) =>
+      switch (min) {
+      | None => Some(x)
+      | Some(y) => Some(compare(x, y) <= 0 ? x : y)
+      },
+    None,
+  );

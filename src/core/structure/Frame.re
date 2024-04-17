@@ -1,3 +1,5 @@
+open Util;
+
 module Open = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = (Slope.Dn.t, Slope.Up.t);

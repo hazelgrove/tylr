@@ -1,3 +1,5 @@
+open Util;
+
 let map: Mtrl.Labeled.Map.t(list(Mold.t)) =
   Walker.walk_into(~from=L, Root)
   |> Walk.Index.to_list

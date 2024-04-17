@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
 // token classes determined by lexer.mll
 // todo: add operator class
