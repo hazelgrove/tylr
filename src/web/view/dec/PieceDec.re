@@ -1,5 +1,5 @@
 open Util;
-open Core;
+open Tylr_core;
 open Virtual_dom.Vdom;
 open Node;
 open SvgUtil;

@@ -51,18 +51,18 @@ let redo = (~inject, ~disabled) => {
   );
 };
 
-let copy_log_to_clipboard = _ => {
-  Log.append_json_updates_log();
-  JsUtil.copy_to_clipboard(Log.get_json_update_log_string());
-  Event.Ignore;
-};
+// let copy_log_to_clipboard = _ => {
+//   Log.append_json_updates_log();
+//   JsUtil.copy_to_clipboard(Log.get_json_update_log_string());
+//   Event.Ignore;
+// };
 
 let left_panel_view = (~inject, history) =>
   div(
     [Attr.id("history-button-container")],
     [
-      undo(~inject, ~disabled=!ActionHistory.can_undo(history)),
-      redo(~inject, ~disabled=!ActionHistory.can_redo(history)),
+      undo(~inject, ~disabled=!History.can_undo(history)),
+      redo(~inject, ~disabled=!History.can_redo(history)),
       div(
         [
           Attr.class_("topbar-icon"),

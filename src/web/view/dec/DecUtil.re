@@ -7,7 +7,7 @@ let concave_adj = 0.25;
 let convex_adj = (-0.13);
 let shadow_adj = 0.015;
 
-let caret_adjust = (side: Direction.t, shape: option(Direction.t)) =>
+let caret_adjust = (side: Dir.t, shape: option(Dir.t)) =>
   switch (side, shape) {
   | (_, None) => 0.
   | (Left, Some(Left)) => concave_adj

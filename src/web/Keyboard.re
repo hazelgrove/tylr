@@ -1,4 +1,4 @@
-open Core;
+open Tylr_core;
 
 let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
@@ -32,22 +32,22 @@ let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
     | "Alt" => [SetShowBackpackTargets(false)]
     | _ => [UpdateDoubleTap(None)]
     }
-  | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
-      when is_f_key(key) =>
-    switch (key) {
-    | "F1" => print(Log.get_json_update_log_string())
-    | "F2" => print(Zipper.show(zipper))
-    | "F3" => toggle(Log.debug_update)
-    | "F4" => toggle(Log.debug_keystoke)
-    | "F5" => toggle(Log.debug_zipper)
-    | "F6" => [Load]
-    | "F7" => []
-    | "F8" => []
-    | "F10" =>
-      Log.reset_json_log();
-      [];
-    | _ => []
-    }
+  // | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
+  //     when is_f_key(key) =>
+  //   switch (key) {
+  //   | "F1" => print(Log.get_json_update_log_string())
+  //   | "F2" => print(Zipper.show(zipper))
+  //   | "F3" => toggle(Log.debug_update)
+  //   | "F4" => toggle(Log.debug_keystoke)
+  //   | "F5" => toggle(Log.debug_zipper)
+  //   | "F6" => [Load]
+  //   | "F7" => []
+  //   | "F8" => []
+  //   | "F10" =>
+  //     Log.reset_json_log();
+  //     [];
+  //   | _ => []
+  //   }
   | {key: D(key), sys: _, shift, meta: Up, ctrl: Up, alt: Up} =>
     switch (shift, key) {
     | (Up, "ArrowLeft") => now(Move(Local(Left(ByChar))))

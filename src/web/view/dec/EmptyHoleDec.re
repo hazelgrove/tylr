@@ -1,5 +1,5 @@
 open Virtual_dom.Vdom;
-open Core;
+open Tylr_core;
 
 module Profile = {
   type t = {

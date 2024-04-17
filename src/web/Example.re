@@ -1,4 +1,4 @@
-open Core;
+open Tylr_core;
 open Model;
 
 let id_gen: ref(int) = ref(0);

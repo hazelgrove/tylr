@@ -7,13 +7,13 @@ let caret_bend = DecUtil.tip_width;
 
 module Profile = {
   type t = {
-    side: Direction.t,
+    side: Dir.t,
     origin: Core.Measured.point,
-    shape: option(Direction.t),
+    shape: option(Dir.t),
   };
 };
 
-let caret_path = (shape: option(Direction.t)) => {
+let caret_path = (shape: option(Dir.t)) => {
   let caret_bend_param =
     switch (shape) {
     | Some(Right) => -. caret_bend
