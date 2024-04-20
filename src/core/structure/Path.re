@@ -28,7 +28,7 @@ module Cell = {
 
 module Token = {
   module Idx = Int_ppx;
-  module Base = {
+  module Ord = {
     // absolute path from root cell to a token within
     [@deriving (show({with_path: false}), sexp, yojson)]
     type t = (Cell.t, Idx.t);
@@ -37,8 +37,8 @@ module Token = {
       c == 0 ? Idx.compare(t_l, t_r) : 0;
     };
   };
-  include Base;
-  module Map = MapUtil.Make(Base);
+  include Ord;
+  module Map = MapUtil.Make(Ord);
   let cons = n => PairUtil.map_fst(Cell.cons(n));
   let uncons = ((cell, t)) =>
     Cell.uncons(cell) |> Option.map(((n, cell)) => (n, (cell, t)));
@@ -87,27 +87,48 @@ module Point = {
     };
 };
 
+module Range = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = (Dir.t, (Point.t, Point.t));
+  let uncons = (_: t): option((Cell.Idx.t, t)) => failwith("todo");
+  let cons = (_, _) => failwith("todo range.cons");
+};
+
 // ----------------------------------------------------------------
 
 module Cursor = {
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = option(Point.t);
-  let here = Some(Point.here);
-  let cons = n => Option.map(Point.cons(n));
-  open OptUtil.Syntax;
-  let uncons = (c: t): option((Cell.Idx.t, t)) => {
-    let* p = c;
-    let+ (n, p) = Point.uncons(p);
-    (n, Some(p));
-  };
-  let peel = (n, c) => Option.bind(c, Point.peel(n));
-  let union = (l, r) =>
-    switch (l, r) {
-    | (None, None) => None
-    | (Some(l), _) => Some(l)
-    | (_, Some(r)) => Some(r)
-    };
+  type t =
+    | Point(Point.t)
+    | Select(Range.t);
+  let here = Point(Point.here);
+  let cons = n =>
+    fun
+    | Point(p) => Point(Point.cons(n, p))
+    | Select(rng) => Select(Range.cons(n, rng));
+  let peel = (_, _) => failwith("todo");
+  let union = (_, _) => failwith("todo");
 };
+
+// module Cursor = {
+//   [@deriving (show({with_path: false}), sexp, yojson)]
+//   type t = option(Point.t);
+//   let here = Some(Point.here);
+//   let cons = n => Option.map(Point.cons(n));
+//   open OptUtil.Syntax;
+//   let uncons = (c: t): option((Cell.Idx.t, t)) => {
+//     let* p = c;
+//     let+ (n, p) = Point.uncons(p);
+//     (n, Some(p));
+//   };
+//   let peel = (n, c) => Option.bind(c, Point.peel(n));
+//   let union = (l, r) =>
+//     switch (l, r) {
+//     | (None, None) => None
+//     | (Some(l), _) => Some(l)
+//     | (_, Some(r)) => Some(r)
+//     };
+// };
 
 module Ghosts = {
   include Token.Map;
@@ -133,15 +154,15 @@ module Ghosts = {
 module Marks = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    cursor: Cursor.t,
+    cursor: option(Cursor.t),
     ghosts: Ghosts.t,
   };
   let mk = (~cursor=?, ~ghosts=Ghosts.empty, ()) => {cursor, ghosts};
   let empty = mk();
-  let cursor = mk(~cursor=?Cursor.here, ());
+  let cursor = mk(~cursor=Cursor.here, ());
   let put_cursor = (path, marks) => {...marks, cursor: Some(path)};
   let cons = (n, {cursor, ghosts}) => {
-    cursor: Cursor.cons(n, cursor),
+    cursor: Option.map(Cursor.cons(n), cursor),
     ghosts: Ghosts.cons(n, ghosts),
   };
   let peel = (n, {cursor, ghosts}) => {
