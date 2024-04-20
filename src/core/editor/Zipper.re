@@ -27,136 +27,101 @@ let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
       : (Melder.Slope.Dn.unroll(cell), []);
   Ctx.map_fst(Frame.Open.cat(f_open), ctx);
 };
-let unzip_cell =
-    (~ctx=Ctx.empty, n: Path.Cell.Idx.t, cell: Cell.t): (Cell.t, Ctx.t) => {
-  let M(l, w, r) = Cell.get(cell) |> OptUtil.get_or_raise(Path.Invalid);
-  if (n == 0) {
-    let terr = Terr.{wald: w, cell: r};
-    let ctx = Ctx.map_fst(Frame.Open.cat(([], [terr])), ctx);
-    (l, ctx);
-  } else if (n == Wald.length(w)) {
-    let terr = Terr.{cell: l, wald: Wald.rev(w)};
-    let ctx = Ctx.map_fst(Frame.Open.cat(([terr], [])), ctx);
-    (r, ctx);
-  } else {
-    let (pre, cell, suf) = Wald.unzip_cell(n - 1, w);
-    let terrs = Terr.({cell: l, wald: pre}, {wald: suf, cell: r});
-    (cell, Ctx.link(terrs, ctx));
-  };
-};
-let rec unzip_point = (~ctx=Ctx.empty, p: Path.Point.Idx.t, cell: Cell.t) =>
-  switch (p) {
-  | End(side) => unroll_cell(~ctx, side, cell)
-  | Tok(i, j) =>
-    let M(l, w, r) = Cell.get(cell) |> OptUtil.get_or_raise(Path.Invalid);
-    let (pre, tok, suf) = Wald.unzip_tok(i, w);
-    switch (Token.split(j, tok)) {
-    | Error(side) =>
-      // normalize to overlapping cursor position in neighboring cell
-      let n = Dir.pick(side, (i - 1, i));
-      let (cell, ctx) = unzip_cell(~ctx, n, cell);
-      unzip_point(~ctx, End(Dir.toggle(side)), cell);
-    | Ok((tok_l, tok_r)) =>
-      let l = Terr.{cell: l, wald: Wald.zip_tok(~suf=pre, tok_l)};
-      let r = Terr.{wald: Wald.zip_tok(tok_r, ~suf), cell: r};
-      Ctx.link((l, r), ctx);
-    };
-  };
 
-// let normalize_cursor = (c: Cell) =>
-//   switch (c.marks.cursor) {
-//   | None
-//   | Some(Point(_)) => c
-//   | Some(Select(l, r)) =>
-//     switch (Path.Point.(uncons(l), uncons(r))) {
-//     | (Some((hd_l, tl_l)), Some((hd_r, tl_r))) when hd_l == hd_r =>
-
-//     }
-//   };
-
-// unzips assuming range path normalized and common prefix trimmed
-let unzip_range = (~ctx=Ctx.empty, (d, (l, r)): Path.Range.t, c: Cell.t) => {
-  let m = Cell.get(c) |> OptUtil.get_or_raise(Path.Invalid);
-  let (uc_l, uc_r) = Path.Point.(uncons(l), uncons(r));
-  let n_l =
-    switch (uc_l) {
-    | Ok((hd_l, _)) => hd_l + 1
-    | Error(End(L)) => 0
-    | Error(End(R)) => failwith("expected normalized cursor")
-    | Error(Tok(n, _)) => n
-    };
+let unzip_select =
+    (~ctx=Ctx.empty, d: Dir.t, (l, r): Path.Range.t, meld: Meld.t) => {
+  let n_l = ListUtil.hd_opt(l) |> Option.value(~default=0);
   let n_r =
-    switch (uc_r) {
-    | Ok((hd_r, _)) => hd_r
-    | Error(End(L)) => failwith("expected normalized cursor")
-    | Error(End(R)) => Meld.length(m)
-    | Error(Tok(n, _)) => n
-    };
+    ListUtil.hd_opt(r) |> Option.value(~default=Meld.total_length(meld) - 1);
   let (pre, top, suf) = Meld.split_subwald(n_l, n_r, m);
-  let (hd_pre: Cell.t, tl_pre) = Chain.split_hd(pre);
-  let ((pre_dn, pre_up), top) =
-    switch (uc_l) {
-    | Ok((_, tl_l)) =>
-      let ctx_pre = Ctx.unit((Option.to_list(Terr.mk(tl_pre)), []));
-      // todo: fix so that unzip_point takes path.point.t
-      (Ctx.flatten(unzip_point(tl_l, hd_pre, ~ctx=ctx_pre)), top);
-    | Error(End(L)) =>
-      let ctx_pre = Ctx.unit((Option.to_list(Terr.mk(tl_pre)), []));
-      (unroll_cell(L, hd_pre, ~ctx=ctx_pre), top);
-    | Error(End(R)) => failwith("expected normalized cursor")
-    | Error(Tok(_, j)) =>
-      let hd_top = Wald.hd(top);
-      switch (Token.split(j, hd_top)) {
-      | Error(_) => failwith("expected normalized cursor")
-      | Ok((hd_top_l, hd_top_r)) =>
+  let ((pre_dn, pre_up), top) = {
+    let (hd_pre, tl_pre) = Chain.split_hd(pre);
+    let ctx_pre = Ctx.unit((Option.to_list(Terr.mk(tl_pre)), []));
+    switch (l) {
+    | [] =>
+      // selection covers left end of meld
+      assert(Chain.Tl.is_empty(tl_pre));
+      (Ctx.flatten(unroll_cell(L, hd_pre, ~ctx=ctx_pre)), top);
+    | [hd_l, ...tl_l] when hd_l % 2 == 0 =>
+      // hd_l points to cell
+      let z = unzip(hd_pre, ~ctx=ctx_pre);
+      (Ctx.flatten(z.ctx), top);
+    | [hd_l, ...tl_l] =>
+      // hd_l points to token
+      switch (tl_l) {
+      | [] =>
+        // no char index => left end of token
+        (Ctx.flatten(unroll_cell(R, hd_pre, ~ctx=ctx_pre)), top)
+      | [j, ..._] =>
+        // char index (ignore rest)
+        let (hd_top_l, hd_top_r) =
+          Token.split(j, Wald.hd(top))
+          |> Result.get_or_fail("expected normalized cursor");
         let (cs_pre, ts_pre) = pre;
         let pre = ([Terr.mk([hd_top_l, ...ts_pre], cs_pre)], []);
         (pre, Wald.put_hd(hd_top_r, top));
-      };
+      }
     };
-  let (hd_suf: Cell.t, tl_suf) = Chain.split_hd(suf);
-  let (top, (suf_dn, suf_up)) =
-    switch (uc_r) {
-    | Ok((_, tl_r)) =>
-      let ctx_suf = Ctx.unit(([], Option.to_list(Terr.mk(tl_suf))));
-      // todo: fix so that unzip_point takes path.point.t
-      (Ctx.flatten(unzip_point(tl_r, hd_suf, ~ctx=ctx_suf)), top);
-    | Error(End(L)) => failwith("expected normalized cursor")
-    | Error(End(R)) =>
-      let ctx_suf = Ctx.unit(([], Option.to_list(Terr.mk(tl_suf))));
-      (unroll_cell(R, hd_suf, ~ctx=ctx_suf), top);
-    | Error(Tok(_, j)) =>
-      let ft_top = Wald.ft(top);
-      switch (Token.split(j, hd_top)) {
-      | Error(_) => failwith("expected normalized cursor")
-      | Ok((ft_top_l, ft_top_r)) =>
+  };
+  let (top, (suf_dn, suf_up)) = {
+    let (hd_suf, tl_suf) = Chain.split_hd(suf);
+    let ctx_suf = Ctx.unit(([], Option.to_list(Terr.mk(tl_suf))));
+    switch (r) {
+    | [] =>
+      // selection covers right end of meld
+      assert(Chain.Tl.is_empty(tl_pre));
+      (top, Ctx.flatten(unroll_cell(R, hd_suf, ~ctx=ctx_suf)));
+    | [hd_r, ...tl_r] when hd_r % 2 == 0 =>
+      // hd_r points to cell
+      let z = unzip(hd_suf, ~ctx=ctx_suf);
+      (top, Ctx.flatten(z.ctx));
+    | [hd_r, ...tl_r] =>
+      // hd_r points to token
+      switch (tl_r) {
+      | [] =>
+        // no char index => right end of token
+        (top, Ctx.flatten(unroll_cell(L, hd_suf, ~ctx=ctx_suf)))
+      | [j, ..._] =>
+        // char index (ignore rest)
+        let (ft_top_l, ft_top_r) =
+          Token.split(j, Wald.ft(top))
+          |> Result.get_or_fail("expected normalized cursor");
         let (cs_suf, ts_suf) = suf;
-        let suf = ([Terr.mk([ft_top_l, ...ts_suf], cs_suf)], []);
-        (suf, Wald.put_ft(ft_top_r, top));
-      };
+        let suf = ([], [Terr.mk([ft_top_r, ...ts_suf], cs_suf)]);
+        (Wald.put_ft(ft_top_l, top), suf);
+      }
     };
+  };
   let zigg = Zigg.mk(~up=pre_up, top, ~dn=suf_dn);
   let ctx = Ctx.map_fst(Frame.Open.cat((pre_dn, suf_up)), ctx);
   Zipper.mk(~foc=Select(d, zigg), ctx);
 };
 
-let unzip_cursor = (c: Cell.t) => {
-  let rec go = (~ctx=Ctx.empty, c: Cell.t) =>
-    switch (c.marks.cursor) {
-    | None => unroll_cell(L, c, ~ctx)
-    | Some(cur) =>
-      switch (Path.Cursor.uncons(cur)) {
-      | Some((n, cur)) =>
-        let (c, ctx) = unzip_cell(n, c, ~ctx);
-        go(c, ~ctx);
-      | None =>
-        switch (cur) {
-        | Point((_, p)) => unzip_point(p, c, ~ctx)
-        | Select(rng) => unzip_range(rng, c, ~ctx)
-        }
+let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
+  let (cursor, meld) = Cell.get(cell);
+  switch (meld) {
+  | None => mk(ctx)
+  | Some(M(l, w, r) as m) =>
+    switch (cursor) {
+    | None
+    | Some(Here(Point)) => mk(unroll_cell(L, cell, ~ctx))
+    | Some(Here(Select(d, (l, r)))) => unzip_select(d, (l, r), m, ~ctx)
+    | Some(There(step)) =>
+      if (n == 0) {
+        let terr = Terr.{wald: w, cell: r};
+        let ctx = Ctx.map_fst(Frame.Open.cat(([], [terr])), ctx);
+        unzip(l, ~ctx);
+      } else if (n == Wald.length(w)) {
+        let terr = Terr.{cell: l, wald: Wald.rev(w)};
+        let ctx = Ctx.map_fst(Frame.Open.cat(([terr], [])), ctx);
+        unzip(r, ~ctx);
+      } else {
+        let (pre, cell, suf) = Wald.unzip_cell(n - 1, w);
+        let terrs = Terr.({cell: l, wald: pre}, {wald: suf, cell: r});
+        unzip(cell, ~ctx=Ctx.link(terrs, ctx));
       }
-    };
-  go(normalize_cursor(c));
+    }
+  };
 };
 
 let zip_closed = ((l, r): Frame.Closed.t, zipped: Cell.t) => {
