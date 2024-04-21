@@ -8,3 +8,5 @@ let insert_nth = (n, s, t) => {
 let repeat = (n, s) => String.concat("", List.init(n, _ => s));
 
 let unzip_opt = (_, _) => failwith("todo move to Utf8");
+
+let count = c => Base.String.count(~f=(==)(c));

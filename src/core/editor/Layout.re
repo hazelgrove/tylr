@@ -34,7 +34,8 @@ module Pos = {
       // let h = Dims.Height.total(over.height);
       // let w = Dims.Width.total(over.width);
       row: pos.row + over.height,
-      col: (over.height > 0 ? return : pos.col) + w,
+      col:
+        (over.height > 0 ? return : pos.col) + Dims.Width.total(over.width),
     };
   };
 };
@@ -57,20 +58,21 @@ module Ictx = {
 };
 
 let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
-  let rec go = (~ctx: Ictx.t, ~pos: Pos.t, path: Path.Point.t, cell) => {
+  let rec go = (~ctx: Ictx.t, ~pos: Pos.t, path: Path.t, cell) => {
     let dims = Dims.of_cell(cell);
     let (l, r) = (pos, Pos.skip(pos, ~over=dims, ~return=ctx.right));
     switch (Cell.Space.get(cell)) {
     | Some(spc) =>
+      // todo: consider joining with tok case below
       switch (path) {
-      | ([0], _)
-      | ([], End(L)) => l
-      | ([1], _)
-      | ([], End(R)) => r
-      | ([], Tok(0, j)) =>
-        let mid = Ictx.middle(~newline=dims.height.head > 0, ctx);
+      | []
+      | [0, ..._] => l
+      | [2, ..._] => r
+      | [1, j, ..._] =>
+        let h = StringUtil.count('\n', spc.text);
+        let mid = Ictx.middle(~newline=h > 0, ctx);
         let (l, r) = Utf8.split(j, spc.text);
-        let h_r = List.length(String.split_on_char('\n', r)) - 1;
+        let h_r = StringUtil.count('\n', r);
         Pos.skip(
           pos,
           ~over=Dims.of_space(l),
@@ -79,13 +81,14 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
       | _ => raise(Path.Invalid)
       }
     | None =>
-      let m = Cell.get(cell) |> OptUtil.get_or_raise(Path.Invalid);
+      let M(c_l, _, _) as m =
+        Cell.get(cell) |> OptUtil.get_or_raise(Path.Invalid);
+      let mid = Ictx.middle(~newline=Dims.of_cell(c_l).height > 0, ctx);
       switch (path) {
-      | ([], End(L)) => l
-      | ([], End(R)) => r
-      | ([], Tok(i, j)) =>
-        let (pre, _, _) = Meld.unzip_tok(i, m);
-        let mid = Ictx.middle(~newline=dims.height.head > 0, ctx);
+      | [] => l
+      // | ([], End(R)) => r
+      | [tok, ...tl] when tok mod 2 != 0 =>
+        let (pre, _, _) = Meld.unzip_tok(tok, m);
         pre
         |> Chain.fold_left(
              cell => Pos.skip(pos, ~over=Dims.of_cell(cell), ~return=mid),
@@ -94,10 +97,8 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
                |> Pos.skip(~over=Dims.of_tok(tok), ~return=mid)
                |> Pos.skip(~over=Dims.of_cell(cell), ~return=mid),
            )
-        |> Pos.skip_col(j);
-      | ([c, ...cs], p) =>
-        let m = Cell.get(cell) |> OptUtil.get_or_raise(Path.Invalid);
-        let mid = Ictx.middle(~newline=Dims.of_meld(m).height.head > 0, ctx);
+        |> Pos.skip_col(ListUtil.hd_opt(tl) |> Option.value(~default=0));
+      | [c, ...cs] =>
         let ((toks, cells), cell, suf) = Meld.unzip(c, m);
         let pos =
           List.fold_right2(
@@ -109,12 +110,20 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
             cells,
             pos,
           );
-        let ctx =
-          switch (suf) {
-          | ([], _) => {...ctx, right: mid}
-          | ([t, ..._], _) => {...ctx, delim: Node(t), left: mid}
-          };
-        go(~pos, ~ctx, (cs, p), cell);
+        let ctx = {
+          let (delim, left) =
+            switch (toks) {
+            | [] => (ctx.delim, ctx.left)
+            | [t, ..._] => (Bound.Node(t), mid)
+            };
+          let right =
+            switch (suf) {
+            | ([], _) => ctx.right
+            | ([_, ..._], _) => mid
+            };
+          Ictx.{delim, left, right};
+        };
+        go(~pos, ~ctx, cs, cell);
       };
     };
   };

@@ -2,6 +2,8 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
+exception Invalid;
+
 module Step = {
   include Int;
   [@deriving (show({with_path: false}), sexp, yojson)]

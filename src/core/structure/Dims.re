@@ -119,27 +119,15 @@ let add = (l: t, r: t) => {
 };
 let sum = List.fold_left(add, zero);
 
-/**
-(
-  1
-)
-
-(
-  fun x ->
-    x + y
-)
-
- */
+let of_space = (spc: string) => {
+  let lines = String.split_on_char('\n', spc);
+  let width = Width.mk(0, ~foot=Utf8.length(ListUtil.last(lines)));
+  mk(~height=List.length(lines) - 1, width);
+};
 
 let of_tok = (tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space =>
-    let lines = String.split_on_char('\n', tok.text);
-    let last = ListUtil.last(lines);
-    mk(
-      ~height=List.length(lines) - 1,
-      Width.mk(0, ~foot=String.length(last)),
-    );
+  | Space => of_space(tok.text)
   | Grout => mk(Width.mk(1))
   | Tile(_) => mk(Width.mk(Token.length(tok)))
   };
