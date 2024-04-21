@@ -14,6 +14,7 @@ module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Step.t);
   let compare = List.compare(Step.compare);
+  let cons = List.cons;
   let peel = n =>
     fun
     | [hd, ...tl] when n == hd => Some(tl)

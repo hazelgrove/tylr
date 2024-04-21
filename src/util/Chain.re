@@ -121,7 +121,10 @@ let map_link = (f_lk: 'lk1 => 'lk2, (lps, lks): t('lp, 'lk1)): t('lp, 'lk2) => (
 );
 let map = (f_lp, f_lk, c) => c |> map_loop(f_lp) |> map_link(f_lk);
 
-let mapi_loop = (f_lp, (lps, lks)) => (List.mapi(f_lp, lps), lks);
+let mapi_loop = (f_lp, (lps, lks)) => {
+  let _ = failwith("todo update indexing scheme");
+  (List.mapi(f_lp, lps), lks);
+};
 let mapi_link = (f_lk, (lps, lks)) => (lps, List.mapi(f_lk, lks));
 let mapi = (f_lp, f_lk, c) => c |> mapi_loop(f_lp) |> mapi_link(f_lk);
 

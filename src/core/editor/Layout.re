@@ -132,53 +132,51 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
 
 // returns a valid path into c whose pos is nearest the given target,
 // where nearest is defined by the ordering relation Pos.lt
-let path_of_pos = (target: Pos.t, c: Cell.t): Path.Point.t => {
+let path_of_pos = (target: Pos.t, c: Cell.t): Path.t => {
   open Result.Syntax;
   let rec go_cell =
-          (~ctx: Ictx.t, ~pos: Pos.t, cell: Cell.t)
-          : Result.t(Path.Point.t, Pos.t) => {
+          (~ctx: Ictx.t, ~pos: Pos.t, cell: Cell.t): Result.t(Path.t, Pos.t) => {
     let c_end = Pos.skip(pos, ~over=Dims.of_cell(cell), ~return=ctx.right);
     if (Pos.lt(c_end, target)) {
       Error(c_end);
     } else if (Pos.eq(c_end, target)) {
-      Ok(Path.Point.mk(End(R)));
+      Ok(Cell.end_path(~side=R, cell));
     } else {
       switch (Cell.get(cell)) {
-      | None => Ok(Path.Point.here)
+      | None => Ok([])
       | Some(m) => go_meld(~ctx, ~pos, m)
       };
     };
   }
   and go_meld =
-      (~ctx: Ictx.t, ~pos: Pos.t, m: Meld.t): Result.t(Path.Point.t, Pos.t) => {
-    let dims = Dims.of_meld(m);
+      (~ctx: Ictx.t, ~pos: Pos.t, m: Meld.t): Result.t(Path.t, Pos.t) => {
+    let M(l, _, _) = m;
     // indentation of meld's root tokens
-    let ind = Ictx.middle(~newline=dims.height.head > 0, ctx);
+    let mid = Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
     Meld.to_chain(m)
     |> Chain.mapi_loop((step, cell) => (step, cell))
     |> Chain.fold_left(
          ((step, cell)) => {
-           go_cell(~ctx={...ctx, right: ind}, ~pos, cell)
-           |> Result.map(~f=Path.Point.cons(step))
+           go_cell(~ctx={...ctx, right: mid}, ~pos, cell)
+           |> Result.map(~f=Path.cons(step))
          },
          (found, tok, (step, cell)) => {
            let/ pos = found;
            let/ pos =
-             go_tok(~ctx, ~pos, tok)
-             |> Result.map(~f=i => Path.Point.mk(Tok(step - 1, i)));
+             go_tok(~ctx, ~pos, tok) |> Result.map(~f=Path.cons(step - 1));
            let ctx =
              Ictx.{
                delim: Node(tok),
-               left: ind,
-               right: step == Meld.length(m) ? ctx.right : ind,
+               left: mid,
+               right: step == Meld.total_length(m) - 1 ? ctx.right : mid,
              };
-           go_cell(~ctx, ~pos, cell) |> Result.map(~f=Path.Point.cons(step));
+           go_cell(~ctx, ~pos, cell) |> Result.map(~f=Path.cons(step));
          },
        );
   }
   // ctx is ctx of containing meld
   and go_tok =
-      (~ctx: Ictx.t, ~pos: Pos.t, tok: Token.t): Result.t(int, Pos.t) => {
+      (~ctx: Ictx.t, ~pos: Pos.t, tok: Token.t): Result.t(Path.t, Pos.t) => {
     let _ = failwith("using ctx.right below doesn't always seem right...");
     let t_end = Pos.skip(pos, ~over=Dims.of_tok(tok), ~return=ctx.right);
     if (Pos.lt(t_end, target)) {
@@ -203,9 +201,9 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.Point.t => {
              } else if (col + len < target.col) {
                i == n - 1
                  ? Error((chars + len, Pos.{row, col: col + len}))
-                 : Ok(chars + len);
+                 : Ok([chars + len]);
              } else {
-               Ok(chars + target.col - col);
+               Ok([chars + target.col - col]);
              };
            },
            Error((0, pos)),
@@ -215,11 +213,11 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.Point.t => {
   };
 
   if (Pos.leq(target, Pos.zero)) {
-    Path.Point.mk(End(L));
+    Cell.end_path(~side=L, c);
   } else {
     switch (go_cell(~ctx=Ictx.init, ~pos=Pos.zero, c)) {
     | Ok(path) => path
-    | Error(_) => Path.Point.mk(End(R))
+    | Error(_) => Cell.end_path(~side=R, c)
     };
   };
 };

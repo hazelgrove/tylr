@@ -78,6 +78,15 @@ let put = (m: Meld.t) =>
     mk(~marks, ~meld=Meld.map_cells(clear_marks, m), ());
   };
 
+let rec end_path = (~side: Dir.t, c: t) =>
+  switch (get(c)) {
+  | None => []
+  | Some(M(l, _, r) as m) =>
+    let hd = Dir.pick(side, (0, Meld.total_length(m) - 1));
+    let tl = end_path(~side, Dir.pick(side, (l, r)));
+    [hd, ...tl];
+  };
+
 // let rec normalize_cursor = (c: t) =>
 //   switch (get(c)) {
 //   | (None | Some(Here(Point(_))), _) => c
