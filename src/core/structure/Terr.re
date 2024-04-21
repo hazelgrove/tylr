@@ -12,6 +12,11 @@ let mk = (toks, cells) =>
   | None => raise(Invalid_argument("Terr.mk"))
   | Some((cells, cell)) => {wald: Wald.mk(toks, cells), cell}
   };
+let mk' = ((toks, cells)) =>
+  switch (mk(toks, cells)) {
+  | terr => Some(terr)
+  | exception (Invalid_argument(_)) => None
+  };
 
 let sort = (terr: t) => Wald.sort(terr.wald);
 let face = (terr: t) => Wald.face(terr.wald);

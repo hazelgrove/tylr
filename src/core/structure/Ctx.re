@@ -31,3 +31,5 @@ let extend = (~side as d: Dir.t, tl, ctx) => {
     link(~slopes, terrs, ctx);
   };
 };
+
+let flatten = _ => failwith("todo Ctx.flatten");

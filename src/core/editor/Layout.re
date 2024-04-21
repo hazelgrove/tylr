@@ -30,9 +30,12 @@ module Pos = {
   let skip_col = (n, pos) => {...pos, col: pos.col + n};
 
   let skip = (pos: t, ~over: Dims.t, ~return: Col.t) => {
-    let h = Dims.Height.total(over.height);
-    let w = Dims.Width.total(over.width);
-    {row: pos.row + h, col: (h > 0 ? return : pos.col) + w};
+    {
+      // let h = Dims.Height.total(over.height);
+      // let w = Dims.Width.total(over.width);
+      row: pos.row + over.height,
+      col: (over.height > 0 ? return : pos.col) + w,
+    };
   };
 };
 
@@ -53,7 +56,7 @@ module Ictx = {
   };
 };
 
-let pos_of_path = (path: Path.Point.t, cell: Cell.t): Pos.t => {
+let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
   let rec go = (~ctx: Ictx.t, ~pos: Pos.t, path: Path.Point.t, cell) => {
     let dims = Dims.of_cell(cell);
     let (l, r) = (pos, Pos.skip(pos, ~over=dims, ~return=ctx.right));

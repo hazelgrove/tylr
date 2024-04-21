@@ -36,7 +36,7 @@ module Found_cursor = {
     | There(Path.Step.t);
 };
 
-let get = (c: t) => {
+let get_cur = (c: t) => {
   let fc =
     c.marks.focus
     |> Option.map(
@@ -59,6 +59,7 @@ let get = (c: t) => {
        });
   (fc, meld);
 };
+let get = c => snd(get_cur(c));
 
 // let empty = () => mk();
 let put = (m: Meld.t) =>
@@ -123,7 +124,7 @@ module Space = {
   let point = (~foc=true, ()) => mk(~marks=Path.Marks.point(foc), ());
   let get = (c: t) =>
     switch (get(c)) {
-    | (_, None) => Some(Token.Space.empty)
-    | (_, Some(m)) => Meld.Space.get(m)
+    | None => Some(Token.Space.empty)
+    | Some(m) => Meld.Space.get(m)
     };
 };

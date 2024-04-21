@@ -85,6 +85,9 @@ let rec mk_grout = (~l=false, ~r=false, sort: Mtrl.Sorted.t) => {
 };
 // let of_tok = tok => mk(Wald.of_tok(tok));
 
+let total_length = _ => failwith("todo chain indexing/sizing names");
+let split_subwald = (_, _, _) => failwith("todo Meld.split_subwald");
+
 let to_chain = (M(l, W((toks, cells)), r)) => (
   [l, ...cells] @ [r],
   toks,

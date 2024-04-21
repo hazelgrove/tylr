@@ -6,7 +6,10 @@ type t = Meld.Wald.t(Cell.t);
 
 let split_hd = (W(w)) => Chain.split_fst(w);
 let hd = w => fst(split_hd(w));
+let put_hd = (_, _) => failwith("todo Wald.put_hd");
 
+let ft = _ => failwith("todo Wald.ft");
+let put_ft = (_, _) => failwith("todo Wald.put_ft");
 // let fst = (W(w)) => Chain.fst(w);
 // let lst = (W(w)) => Chain.lst(w);
 // let face =
