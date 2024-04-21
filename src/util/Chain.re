@@ -65,6 +65,13 @@ module Frame = {
   let empty = (Tl.empty, Tl.empty);
 };
 
+module Elem = {
+  type t('loop, 'link) =
+    | Loop('loop)
+    | Link('link);
+};
+let nth = (_, _): Elem.t(_) => failwith("todo Chain.nth");
+
 let rec extend = (tl: Tl.t('lk, 'lp), c: t('lp, 'lk)) =>
   switch (tl) {
   | ([lk, ...lks], [lp, ...lps]) => extend((lks, lps), link(lp, lk, c))

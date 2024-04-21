@@ -95,6 +95,8 @@ let unzip_tok = (_, _) => failwith("todo unzip_tok");
 let link = (~cell=Cell.empty, t: Token.t, M(l, W(w), r): t) =>
   M(cell, W(Chain.link(t, l, w)), r);
 
+let map_cell = (_, _) => failwith("todo Meld.map_cell");
+
 let rev = (M(l, W(w), r): t) => M(r, W(Chain.rev(w)), l);
 
 let face = (~side: Dir.t, M(_, w, _)) => Wald.face(~side, w);

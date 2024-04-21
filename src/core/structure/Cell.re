@@ -33,32 +33,31 @@ let clear_marks = cell => {...cell, marks: Path.Marks.empty};
 module Found_cursor = {
   type t =
     | Here(Path.Cursor.t)
-    | Step(Path.Step.t);
+    | There(Path.Step.t);
 };
 
-let get = (cell: t) => {
-  open OptUtil.Syntax;
-  let cursor =
-    cell.marks.cursor
+let get = (c: t) => {
+  let fc =
+    c.marks.focus
     |> Option.map(
          fun
          | ([], cursor) => Found_cursor.Here(cursor)
          | ([step, ..._], _) => There(step),
        );
   let meld =
-    cell.meld
-    |> Option.map((M(l, W((toks, cells)), r)) => {
+    c.meld
+    |> Option.map((Meld.M(l, W((toks, cells)), r)) => {
          let n = List.length(toks);
-         let l = l |> add_marks(Path.Marks.peel(0, marks));
+         let l = l |> add_marks(Path.Marks.peel(0, c.marks));
          let cells =
            cells
            |> List.mapi((i, cell) =>
-                cell |> add_marks(Path.Marks.peel(i + 1, marks))
+                cell |> add_marks(Path.Marks.peel(i + 1, c.marks))
               );
-         let r = r |> add_marks(Path.Marks.peel(n, marks));
+         let r = r |> add_marks(Path.Marks.peel(n, c.marks));
          Meld.M(l, W((toks, cells)), r);
        });
-  (cursor, meld);
+  (fc, meld);
 };
 
 // let empty = () => mk();
@@ -78,63 +77,53 @@ let put = (m: Meld.t) =>
     mk(~marks, ~meld=Meld.map_cells(clear_marks, m), ());
   };
 
-let rec normalize_cursor = (c: Cell.t) =>
-  switch (get(c)) {
-  | (None | Some(Here(Point)), _) => c
-  | (_, None) => put_cursor(([], Point), c)
-  | (Some(Here(Select(_, (l, r)))), _) when l == r =>
-    put_cursor((l, Point), c)
-  | (Some(Here(Select(d, (l, r)))), Some(m)) =>
-    let l =
-      switch (l) {
-      | [i, j] =>
-        switch (Chain.nth(i, Meld.to_chain(meld))) {
-        | Loop(_) => l
-        | Link(tok) =>
-          switch (Token.split(j, tok)) {
-          | Ok(_)
-          | Error(End(L)) => l
-          | Error(End(R)) => [i + 1]
-          }
-        }
-      | _ => l
-      };
-    let r =
-      switch (r) {
-      | [i, j] =>
-        switch (Chain.nth(i, Meld.to_chain(meld))) {
-        | Loop(_) => r
-        | Link(tok) =>
-          switch (Token.split(j, tok)) {
-          | Ok(_)
-          | Error(End(R)) => r
-          | Error(End(L)) => [i - 1]
-          }
-        }
-      | _ => r
-      };
-    ();
+// let rec normalize_cursor = (c: t) =>
+//   switch (get(c)) {
+//   | (None | Some(Here(Point(_))), _) => c
+//   | (_, None) => put_cursor(([], Point(true)), c)
+//   | (Some(Here(Select(_, (l, r)))), _) when l == r =>
+//     put_cursor((l, Point(true)), c)
+//   | (Some(Here(Select(d, (l, r)))), Some(m)) =>
+//     let l =
+//       switch (l) {
+//       | [i, j] =>
+//         switch (Chain.nth(i, Meld.to_chain(m))) {
+//         | Loop(_) => l
+//         | Link(tok) =>
+//           switch (Token.split(j, tok)) {
+//           | Ok(_)
+//           | Error(L) => l
+//           | Error(R) => [i + 1]
+//           }
+//         }
+//       | _ => l
+//       };
+//     let r =
+//       switch (r) {
+//       | [i, j] =>
+//         switch (Chain.nth(i, Meld.to_chain(m))) {
+//         | Loop(_) => r
+//         | Link(tok) =>
+//           switch (Token.split(j, tok)) {
+//           | Ok(_)
+//           | Error(R) => r
+//           | Error(L) => [i - 1]
+//           }
+//         }
+//       | _ => r
+//       };
+//     failwith("todo");
 
-  | (Some(Step(step)), Some(m)) =>
-    let m = Meld.map_cell(normalize_cursor, c);
-    put(m);
-  };
-
-// switch (c.marks.cursor) {
-// | None
-// | Some((_, Point)) => c
-// | Some((steps, Select(d, (l, r)))) =>
-//   switch (c.meld) {
-//   | None => put_cursor((steps, Point), c)
-//   | Some(m) =>
-//   }
-// }
+//   | (Some(There(step)), Some(m)) =>
+//     let m = Meld.map_cell(normalize_cursor, c);
+//     put(m);
+//   };
 
 module Space = {
-  let cursor = mk(~marks=Path.Marks.cursor, ());
+  let point = (~foc=true, ()) => mk(~marks=Path.Marks.point(foc), ());
   let get = (c: t) =>
     switch (get(c)) {
-    | None => Some(Token.Space.empty)
-    | Some(m) => Meld.Space.get(m)
+    | (_, None) => Some(Token.Space.empty)
+    | (_, Some(m)) => Meld.Space.get(m)
     };
 };
