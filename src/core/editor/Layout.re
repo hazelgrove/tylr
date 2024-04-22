@@ -27,6 +27,11 @@ module Pos = {
   let lt = (l, r) => compare(l, r) < 0;
   let leq = (l, r) => compare(l, r) <= 0;
 
+  let min = (l, r) => lt(l, r) ? l : r;
+  let max = (l, r) => lt(r, l) ? l : r;
+
+  let bound = (~min as l=zero, ~max as r: t, pos: t) => min(max(l, pos), r);
+
   let skip_col = (n, pos) => {...pos, col: pos.col + n};
 
   let skip = (pos: t, ~over: Dims.t, ~return: Col.t) => {
@@ -38,6 +43,11 @@ module Pos = {
         (over.height > 0 ? return : pos.col) + Dims.Width.total(over.width),
     };
   };
+};
+
+let max_pos = (c: Cell.t) => {
+  let dims = Dims.of_cell(c);
+  Pos.{row: dims.height, col: Dims.Width.total(dims.width)};
 };
 
 module Ictx = {

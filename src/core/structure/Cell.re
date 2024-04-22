@@ -7,7 +7,7 @@ type t = Meld.Cell.t(Meld.t);
 // let empty = mk();
 let is_empty = c => Option.is_none(c.meld);
 
-let put_cursor = (cur: Cursor.t(Path.Point.t, Path.Range.t), cell: t) => {
+let put_cursor = (cur: Cursor.t(Path.Point.t, Path.Select.t), cell: t) => {
   ...cell,
   marks: Path.Marks.put_cursor(cur, cell.marks),
 };
@@ -24,15 +24,13 @@ let face = (~side: Dir.t, c: t) =>
 //   | _ => false
 //   };
 
-let add_marks = (marks, cell) => {
-  ...cell,
-  marks: Path.Marks.union(marks, cell.marks),
-};
+let map_marks = (f, cell) => {...cell, marks: f(cell.marks)};
+let add_marks = marks => map_marks(Path.Marks.union(marks));
 let clear_marks = cell => {...cell, marks: Path.Marks.empty};
 
 module Found_cursor = {
   type t =
-    | Here(Cursor.t(Path.Point.is_focus, Path.Range.t))
+    | Here(Cursor.t(Path.Point.is_focus, Path.Select.t))
     | There(Path.Step.t);
 };
 
@@ -44,9 +42,12 @@ let get_cur = (c: t) => {
          | Cursor.Point(Path.Point.{is_focus, path: []}) =>
            Found_cursor.Here(Point(is_focus))
          | Point({path: [hd, ..._], _}) => There(hd)
-         | Select(_, ([hd_l, ..._], [hd_r, ..._])) when hd_l == hd_r =>
-           There(hd_l)
-         | Select(d, r) => Here(Select(d, r)),
+         | Select(
+             Path.Select.{focus: [hd_foc, ..._], anchor: [hd_anc, ..._]},
+           )
+             when hd_foc == hd_anc =>
+           There(hd_foc)
+         | Select(sel) => Here(Select(sel)),
        );
   let meld =
     c.meld
@@ -133,8 +134,9 @@ let rec end_path = (~side: Dir.t, c: t) =>
 //     put(m);
 //   };
 
+let point = (~foc=true, ()) => mk(~marks=Path.Marks.point(foc), ());
+
 module Space = {
-  let point = (~foc=true, ()) => mk(~marks=Path.Marks.point(foc), ());
   let get = (c: t) =>
     switch (get(c)) {
     | None => Some(Token.Space.empty)

@@ -13,11 +13,11 @@ module Action = {
 
 // d is side of cleared focus contents the cursor should end up
 let clear_focus = (d: Dir.t, z: Zipper.t) =>
-  switch (z.foc) {
-  | Point => z.ctx
-  | Select(_, sel) =>
+  switch (z.cur) {
+  | Point () => z.ctx
+  | Select((_, zigg)) =>
     let onto = Dir.toggle(d);
-    Melder.Ctx.push_zigg(~onto, sel, z.ctx);
+    Melder.Ctx.push_zigg(~onto, zigg, z.ctx);
   };
 
 let pull_neighbors = ctx => {
@@ -38,14 +38,14 @@ let insert = (s: string, z: Zipper.t) => {
   let ((l, r), ctx) = pull_neighbors(ctx);
   Labeler.label(l ++ s ++ r)
   |> List.fold_left((ctx, tok) => Molder.mold(ctx, tok), ctx)
-  |> Molder.remold(~fill=[Cell.Space.cursor])
+  |> Molder.remold(~fill=[Cell.point()])
   |> Zipper.mk
   |> Zipper.move_to_cursor;
 };
 
 let delete = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open OptUtil.Syntax;
-  let+ z = Focus.is_empty(z.foc) ? Select.select(d, z) : return(z);
+  let+ z = Cursor.is_point(z.cur) ? Select.select(d, z) : return(z);
   insert("", z);
 };
 

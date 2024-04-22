@@ -1,23 +1,25 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
 // todo: document potential same-id token on either side of caret
 // l|et x = 1 in x + 1
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
-  foc: Focus.t,
+  cur: Cursor.t(unit, (Dir.t, Zigg.t)),
   ctx: Ctx.t,
 };
 
-let mk = (~foc=Focus.Point, ctx) => {foc, ctx};
+let mk = (~cur=Cursor.point(), ctx) => {cur, ctx};
 
 let init = failwith("todo: zipper init");
 
 let unselect = (~toward=?, z: t) =>
-  switch (z.foc) {
-  | Point => z
-  | Select(d, sel) =>
+  switch (z.cur) {
+  | Point () => z
+  | Select((d, zigg)) =>
     let onto = Dir.toggle(Option.value(toward, ~default=d));
-    mk(Melder.Ctx.push_zigg(~onto, sel, z.ctx));
+    mk(Melder.Ctx.push_zigg(~onto, zigg, z.ctx));
   };
 
 let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
@@ -36,7 +38,7 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
     switch (cursor) {
     | None
     | Some(Here(Point(_))) => mk(unroll_cell(L, cell, ~ctx))
-    | Some(Here(Select(d, (l, r)))) => unzip_select(d, (l, r), m, ~ctx)
+    | Some(Here(Select(sel))) => unzip_select(sel, m, ~ctx)
     | Some(There(step)) =>
       if (step == 0) {
         let terr = Terr.{wald: w, cell: r};
@@ -54,8 +56,8 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
     }
   };
 }
-and unzip_select =
-    (~ctx=Ctx.empty, d: Dir.t, (l, r): Path.Range.t, meld: Meld.t) => {
+and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
+  let (d, (l, r)) = Path.Select.order(sel);
   let n_l = ListUtil.hd_opt(l) |> Option.value(~default=0);
   let n_r =
     ListUtil.hd_opt(r) |> Option.value(~default=Meld.total_length(meld) - 1);
@@ -122,7 +124,7 @@ and unzip_select =
   };
   let zigg = Zigg.mk(~up=pre_up, top, ~dn=suf_dn);
   let ctx = Ctx.map_fst(Frame.Open.cat((pre_dn, suf_up)), ctx);
-  mk(~foc=Select(d, zigg), ctx);
+  mk(~cur=Select((d, zigg)), ctx);
 };
 
 let zip_closed = ((l, r): Frame.Closed.t, zipped: Cell.t) => {
@@ -150,7 +152,7 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) => {
 let zip = (z: t) =>
   z.ctx
   |> Ctx.fold(
-       open_ => zip_open(open_, Cell.Space.point()),
+       open_ => zip_open(open_, Cell.point()),
        (zipped, closed, open_) =>
          zipped |> zip_closed(closed) |> zip_open(open_),
      );
