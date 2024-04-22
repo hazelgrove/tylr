@@ -7,9 +7,9 @@ type t = Meld.Cell.t(Meld.t);
 // let empty = mk();
 let is_empty = c => Option.is_none(c.meld);
 
-let put_cursor = (path, cell: t) => {
+let put_cursor = (cur: Cursor.t(Path.Point.t, Path.Range.t), cell: t) => {
   ...cell,
-  marks: Path.Marks.put_cursor(path, cell.marks),
+  marks: Path.Marks.put_cursor(cur, cell.marks),
 };
 
 let face = (~side: Dir.t, c: t) =>
@@ -32,17 +32,21 @@ let clear_marks = cell => {...cell, marks: Path.Marks.empty};
 
 module Found_cursor = {
   type t =
-    | Here(Path.Cursor.t)
+    | Here(Cursor.t(Path.Point.is_focus, Path.Range.t))
     | There(Path.Step.t);
 };
 
 let get_cur = (c: t) => {
   let fc =
-    c.marks.focus
+    c.marks.cursor
     |> Option.map(
          fun
-         | ([], cursor) => Found_cursor.Here(cursor)
-         | ([step, ..._], _) => There(step),
+         | Cursor.Point(Path.Point.{is_focus, path: []}) =>
+           Found_cursor.Here(Point(is_focus))
+         | Point({path: [hd, ..._], _}) => There(hd)
+         | Select(_, ([hd_l, ..._], [hd_r, ..._])) when hd_l == hd_r =>
+           There(hd_l)
+         | Select(d, r) => Here(Select(d, r)),
        );
   let meld =
     c.meld

@@ -24,47 +24,53 @@ include Base;
 
 module Map = MapUtil.Make(Base);
 
+module Point = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type is_focus = bool;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = {
+    is_focus,
+    path: Base.t,
+  };
+  let cons = (n, p: t) => {...p, path: Base.cons(n, p.path)};
+  let peel = (n, p: t) =>
+    Base.peel(n, p.path) |> Option.map(path => {...p, path});
+};
+
 module Range = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = (Base.t, Base.t);
   // conservative check for non-normalized paths
   let is_empty = ((l, r)) => l == r;
+  let cons = (n, (l, r)) => Base.(cons(n, l), cons(n, r));
+  let peel = (n, (l, r)) => {
+    open OptUtil.Syntax;
+    let+ l = Base.peel(n, l)
+    and+ r = Base.peel(n, r);
+    (l, r);
+  };
 };
 
 module Cursor = {
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t =
-    // whether this point is focus rather than anchor
-    | Point(bool)
-    | Select(Dir.t, Range.t);
-  // conservative for non-normalized paths
-  let is_point =
-    fun
-    | Point(_) => true
-    | Select(_, rng) => Range.is_empty(rng);
-};
-module Focus = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = option((Base.t, Cursor.t));
-  let zip_prefix = (_, _) => failwith("todo");
-  let cons = (n, foc: t) =>
-    foc |> Option.map(((path, cur)) => ([n, ...path], cur));
-  let peel = (n, foc: t) => {
-    open OptUtil.Syntax;
-    let* (path, cur) = foc;
-    let+ path = peel(n, path);
-    (path, cur);
-  };
+  type t = option(Cursor.t(Point.t, Range.t));
+  let cons = n => Option.map(Cursor.map(Point.cons(n), Range.cons(n)));
+  let peel = (n, cur) =>
+    Option.bind(
+      cur,
+      fun
+      | Cursor.Point(p) => Option.map(Cursor.point, Point.peel(n, p))
+      | Select(d, r) => Option.map(Cursor.select(d), Range.peel(n, r)),
+    );
   let union = (l: t, r: t) =>
     switch (l, r) {
     | (None, None) => None
     | (Some(_), None)
-    | (Some((_, Select(_))), _) => l
+    | (Some(Select(_)), _) => l
     | (None, Some(_))
-    | (_, Some((_, Select(_)))) => r
-    | (Some((path_l, Point(foc))), Some((path_r, Point(_)))) =>
-      let (pre, (path_l, path_r)) = zip_prefix(path_l, path_r);
-      Some((pre, Select(foc ? L : R, (path_l, path_r))));
+    | (_, Some(Select(_))) => r
+    | (Some(Point(l)), Some(Point(r))) =>
+      Some(Select(l.is_focus ? L : R, (l.path, r.path)))
     };
 };
 
@@ -93,23 +99,23 @@ module Ghosts = {
 module Marks = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    focus: Focus.t,
+    cursor: Cursor.t,
     ghosts: Ghosts.t,
   };
-  let mk = (~focus=?, ~ghosts=Ghosts.empty, ()) => {focus, ghosts};
+  let mk = (~cursor=?, ~ghosts=Ghosts.empty, ()) => {cursor, ghosts};
   let empty = mk();
-  let point = foc => mk(~focus=([], Point(foc)), ());
-  let put_cursor = (cur, marks) => {...marks, focus: Some(cur)};
-  let cons = (n, {focus, ghosts}) => {
-    focus: Focus.cons(n, focus),
+  let point = is_focus => mk(~cursor=Point(Point.{is_focus, path: []}), ());
+  let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
+  let cons = (n, {cursor, ghosts}) => {
+    cursor: Cursor.cons(n, cursor),
     ghosts: Ghosts.cons(n, ghosts),
   };
-  let peel = (n, {focus, ghosts}) => {
-    focus: Focus.peel(n, focus),
+  let peel = (n, {cursor, ghosts}) => {
+    cursor: Cursor.peel(n, cursor),
     ghosts: Ghosts.peel(n, ghosts),
   };
   let union = (l: t, r: t) => {
-    focus: Focus.union(l.focus, r.focus),
+    cursor: Cursor.union(l.cursor, r.cursor),
     ghosts: Ghosts.union(l.ghosts, r.ghosts),
   };
   let union_all = List.fold_left(union, empty);
