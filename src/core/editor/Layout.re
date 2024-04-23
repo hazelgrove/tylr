@@ -62,6 +62,42 @@ module Ictx = {
   };
 };
 
+let fold =
+    (
+      init: 'acc,
+      f_tok: (Ictx.t, Pos.t, Token.t) => 'acc,
+      f_cell: Chain.t('acc, 'acc) => 'acc,
+      c: Cell.t,
+    ) => {
+  let rec go = (~ctx=Ictx.init, ~pos=Pos.zero, c: Cell.t) =>
+    switch (Cell.get(c)) {
+    | None => init
+    | Some(M(l, _, _) as m) =>
+      let mid = Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
+      let n = Meld.total_length(m);
+      Meld.to_chain(m)
+      |> Chain.mapi_loop((i, c) => (i, c))
+      |> Chain.fold_left_map(
+           ((_, c)) => {
+             let ctx = {...ctx, right: mid};
+             let acc = go(~ctx={...ctx, right: mid}, ~pos, c);
+             (Pos.skip(pos, ~over=Dims.of_cell(l), ~return=mid), acc);
+           },
+           (pos, t, (i, c)) => {
+             let t_acc = f_tok(ctx, pos, t);
+             let pos = Pos.skip(pos, ~over=Dims.of_tok(t), ~return=mid);
+             let return = i < n - 1 ? mid : ctx.right;
+             let ctx = Ictx.{delim: Node(t), left: mid, right: return};
+             let c_acc = go(~ctx, ~pos, c);
+             (Pos.skip(pos, ~over=Dims.of_cell(c), ~return), t_acc, c_acc);
+           },
+         )
+      |> snd
+      |> f_cell;
+    };
+  go(c);
+};
+
 let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
   let rec go = (~ctx: Ictx.t, ~pos: Pos.t, path: Path.t, cell) => {
     let dims = Dims.of_cell(cell);
@@ -158,6 +194,7 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.t => {
     let M(l, _, _) = m;
     // indentation of meld's root tokens
     let mid = Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
+    let _ = failwith("todo: double check Chain.mapi_loop index");
     Meld.to_chain(m)
     |> Chain.mapi_loop((step, cell) => (step, cell))
     |> Chain.fold_left(
