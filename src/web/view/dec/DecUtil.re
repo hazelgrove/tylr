@@ -10,10 +10,10 @@ let shadow_adj = 0.015;
 let caret_adjust = (side: Dir.t, shape: option(Dir.t)) =>
   switch (side, shape) {
   | (_, None) => 0.
-  | (Left, Some(Left)) => concave_adj
-  | (Right, Some(Right)) => -. concave_adj
-  | (Left, Some(Right)) => convex_adj
-  | (Right, Some(Left)) => -. convex_adj
+  | (L, Some(L)) => concave_adj
+  | (R, Some(R)) => -. concave_adj
+  | (L, Some(R)) => convex_adj
+  | (R, Some(L)) => -. convex_adj
   };
 
 let child_border_thickness = 0.05;
@@ -41,7 +41,7 @@ let abs_position =
       ~width_fudge=0.0,
       ~height_fudge=0.0,
       ~font_metrics: FontMetrics.t,
-      origin: Core.Measured.point,
+      origin: Tylr_core.Layout.Pos.t,
     ) => {
   Attr.create(
     "style",
@@ -58,7 +58,7 @@ let abs_position =
 let code_svg =
     (
       ~font_metrics: FontMetrics.t,
-      ~origin: Core.Measured.point,
+      ~origin: Tylr_core.Layout.Pos.t,
       ~base_cls=[],
       ~path_cls=[],
       ~left_fudge=0.0,
@@ -71,33 +71,34 @@ let code_svg =
     ) =>
   create_svg(
     "svg",
-    (id == "" ? [] : [Attr.id(id)])
-    @ [
-      Attr.classes(base_cls),
-      abs_position(
-        ~font_metrics,
-        ~left_fudge,
-        ~top_fudge,
-        ~width_fudge,
-        ~height_fudge,
-        origin,
-      ),
-      Attr.create("viewBox", Printf.sprintf("0 0 1 1")),
-      Attr.create("preserveAspectRatio", "none"),
-    ]
-    @ attrs,
+    ~attrs=
+      (id == "" ? [] : [Attr.id(id)])
+      @ [
+        Attr.classes(base_cls),
+        abs_position(
+          ~font_metrics,
+          ~left_fudge,
+          ~top_fudge,
+          ~width_fudge,
+          ~height_fudge,
+          origin,
+        ),
+        Attr.create("viewBox", Printf.sprintf("0 0 1 1")),
+        Attr.create("preserveAspectRatio", "none"),
+      ]
+      @ attrs,
     [SvgUtil.Path.view(~attrs=[Attr.classes(path_cls)], paths)],
   );
 
-let raised_shadow_filter = (sort: Core.Sort.t) => {
-  let s = Core.Sort.to_string(sort);
+let raised_shadow_filter = (sort: Tylr_core.Sort.t) => {
+  let s = Tylr_core.Sort.to_str(sort);
   create_svg(
     "filter",
-    [Attr.id("raised-drop-shadow-" ++ s)],
+    ~attrs=[Attr.id("raised-drop-shadow-" ++ s)],
     [
       create_svg(
         "feDropShadow",
-        [
+        ~attrs=[
           Attr.classes(["tile-drop-shadow"]),
           Attr.create("dx", raised_shadow_dx),
           Attr.create("dy", raised_shadow_dy),
@@ -109,15 +110,15 @@ let raised_shadow_filter = (sort: Core.Sort.t) => {
   );
 };
 
-let shadow_filter = (sort: Core.Sort.t) => {
-  let s = Core.Sort.to_string(sort);
+let shadow_filter = (sort: Tylr_core.Sort.t) => {
+  let s = Tylr_core.Sort.to_str(sort);
   create_svg(
     "filter",
-    [Attr.id("drop-shadow-" ++ s)],
+    ~attrs=[Attr.id("drop-shadow-" ++ s)],
     [
       create_svg(
         "feDropShadow",
-        [
+        ~attrs=[
           Attr.classes(["tile-drop-shadow"]),
           Attr.create("dx", shadow_dx),
           Attr.create("dy", shadow_dy),
@@ -132,6 +133,6 @@ let shadow_filter = (sort: Core.Sort.t) => {
 let filters =
   NodeUtil.svg(
     Attr.[id("filters")],
-    List.map(raised_shadow_filter, Core.Sort.all)
-    @ List.map(shadow_filter, Core.Sort.all),
+    List.map(raised_shadow_filter, Tylr_core.Sort.all)
+    @ List.map(shadow_filter, Tylr_core.Sort.all),
   );

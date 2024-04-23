@@ -2,6 +2,7 @@
 type t;
 
 let root: t;
+let all: list(t);
 // let compare: (t, t) => int;
 // let lca: (t, t) => t;
 

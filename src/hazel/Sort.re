@@ -5,6 +5,7 @@ type t =
   | Typ;
 
 let root = Exp;
+let all = [Exp, Pat, Typ];
 // let to_int =
 //   fun
 //   | Exp => 0
