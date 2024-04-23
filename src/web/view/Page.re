@@ -29,11 +29,12 @@ let undo = (~inject, ~disabled) => {
   let clss = disabled ? ["disabled"] : [];
   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
   span(
-    Attr.[
-      id("undo"),
-      classes(["history-button", ...clss]),
-      on_mousedown(mousedown),
-    ],
+    ~attrs=
+      Attr.[
+        id("undo"),
+        classes(["history-button", ...clss]),
+        on_mousedown(mousedown),
+      ],
     [Icons.undo],
   );
 };
@@ -42,11 +43,12 @@ let redo = (~inject, ~disabled) => {
   let clss = disabled ? ["disabled"] : [];
   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Redo);
   span(
-    Attr.[
-      id("redo"),
-      classes(["history-button", ...clss]),
-      on_mousedown(mousedown),
-    ],
+    ~attrs=
+      Attr.[
+        id("redo"),
+        classes(["history-button", ...clss]),
+        on_mousedown(mousedown),
+      ],
     [Icons.redo],
   );
 };
@@ -57,122 +59,114 @@ let redo = (~inject, ~disabled) => {
 //   Event.Ignore;
 // };
 
-let left_panel_view = (~inject, history) =>
-  div(
-    [Attr.id("history-button-container")],
-    [
-      undo(~inject, ~disabled=!History.can_undo(history)),
-      redo(~inject, ~disabled=!History.can_redo(history)),
-      div(
-        [
-          Attr.class_("topbar-icon"),
-          Attr.on_mousedown(copy_log_to_clipboard),
-        ],
-        [Icons.export],
-      ),
-    ],
-  );
+// let left_panel_view = (~inject, history) =>
+//   div(
+//     [Attr.id("history-button-container")],
+//     [
+//       undo(~inject, ~disabled=!History.can_undo(history)),
+//       redo(~inject, ~disabled=!History.can_redo(history)),
+//       div(
+//         [
+//           Attr.class_("topbar-icon"),
+//           Attr.on_mousedown(copy_log_to_clipboard),
+//         ],
+//         [Icons.export],
+//       ),
+//     ],
+//   );
 
-let center_panel_view = (~inject, cur_idx) => {
-  let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
-  let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
-  let incr_ed = _ => {
-    Log.append_json_updates_log();
-    inject(Update.SwitchEditor(next_ed));
-  };
-  let decr_ed = _ => {
-    Log.append_json_updates_log();
-    inject(Update.SwitchEditor(prev_ed));
-  };
-  let toggle_captions = _ => inject(Update.Set(Captions));
-  let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
-  div(
-    [Attr.id("editor-id")],
-    [
-      div(
-        [Attr.class_("topbar-icon"), Attr.on_mousedown(decr_ed)],
-        [Icons.back],
-      ),
-      div([Attr.on_mousedown(toggle_captions)], [text(s)]),
-      div(
-        [Attr.class_("topbar-icon"), Attr.on_mousedown(incr_ed)],
-        [Icons.forward],
-      ),
-    ],
-  );
-};
+// let center_panel_view = (~inject, cur_idx) => {
+//   let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
+//   let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
+//   let incr_ed = _ => {
+//     Log.append_json_updates_log();
+//     inject(Update.SwitchEditor(next_ed));
+//   };
+//   let decr_ed = _ => {
+//     Log.append_json_updates_log();
+//     inject(Update.SwitchEditor(prev_ed));
+//   };
+//   let toggle_captions = _ => inject(Update.Set(Captions));
+//   let s = Printf.sprintf("%d / %d", cur_idx + 1, LocalStorage.num_editors);
+//   div(
+//     [Attr.id("editor-id")],
+//     [
+//       div(
+//         [Attr.class_("topbar-icon"), Attr.on_mousedown(decr_ed)],
+//         [Icons.back],
+//       ),
+//       div([Attr.on_mousedown(toggle_captions)], [text(s)]),
+//       div(
+//         [Attr.class_("topbar-icon"), Attr.on_mousedown(incr_ed)],
+//         [Icons.forward],
+//       ),
+//     ],
+//   );
+// };
 
 let link_icon = (str, url, icon) =>
   div(
-    [Attr.id(str)],
+    ~attrs=[Attr.id(str)],
     [a(Attr.[href(url), create("target", "_blank")], [icon])],
   );
 
-let right_panel_view = (~inject) =>
+// let right_panel_view = (~inject) =>
+//   div(
+//     [Attr.id("about-button-container")],
+//     [
+//       div(
+//         [
+//           Attr.class_("topbar-icon"),
+//           Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
+//         ],
+//         [Icons.eye],
+//       ),
+//       div(
+//         [
+//           Attr.class_("topbar-icon"),
+//           Attr.on_mousedown(_ => inject(Update.LoadDefault)),
+//         ],
+//         [Icons.trash],
+//       ),
+//       link_icon("github", "https://github.com/hazelgrove/tylr", Icons.github),
+//       link_icon(
+//         "help",
+//         "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
+//         Icons.circle_question,
+//       ),
+//     ],
+//   );
+
+// let top_bar_view = (~inject, model: Model.t) =>
+//   div(
+//     [Attr.id("top-bar")],
+//     [
+//       left_panel_view(~inject, model.history),
+//       center_panel_view(~inject, Model.current_editor(model)),
+//       right_panel_view(~inject),
+//     ],
+//   );
+
+let editor_view = (model: Model.t) =>
   div(
-    [Attr.id("about-button-container")],
-    [
-      div(
-        [
-          Attr.class_("topbar-icon"),
-          Attr.on_mousedown(_ => inject(Update.Set(WhitespaceIcons))),
-        ],
-        [Icons.eye],
-      ),
-      div(
-        [
-          Attr.class_("topbar-icon"),
-          Attr.on_mousedown(_ => inject(Update.LoadDefault)),
-        ],
-        [Icons.trash],
-      ),
-      link_icon("github", "https://github.com/hazelgrove/tylr", Icons.github),
-      link_icon(
-        "help",
-        "https://twitter.com/dm_0ney/status/1414742742530498566?s=20",
-        Icons.circle_question,
-      ),
-    ],
+    ~attrs=[Attr.id("code-container")],
+    [Code.view(~font_metrics=model.font_metrics, ~zipper=model.zipper)],
   );
 
-let top_bar_view = (~inject, model: Model.t) =>
-  div(
-    [Attr.id("top-bar")],
-    [
-      left_panel_view(~inject, model.history),
-      center_panel_view(~inject, Model.current_editor(model)),
-      right_panel_view(~inject),
-    ],
-  );
-
-let editor_view =
-    ({font_metrics, show_backpack_targets, settings, _} as model: Model.t) =>
-  div(
-    [Attr.id("code-container")],
-    [
-      Code.view(
-        ~font_metrics,
-        ~show_backpack_targets,
-        ~zipper=Model.get_zipper(model),
-        ~settings,
-      ),
-    ],
-  );
-
-let editor_caption_view = (model: Model.t) =>
-  div(
-    [Attr.class_("editor-caption")],
-    model.settings.captions
-      ? [
-        text(
-          List.nth(
-            LocalStorage.editor_captions,
-            Model.current_editor(model),
-          ),
-        ),
-      ]
-      : [],
-  );
+// let editor_caption_view = (model: Model.t) =>
+//   div(
+//     [Attr.class_("editor-caption")],
+//     model.settings.captions
+//       ? [
+//         text(
+//           List.nth(
+//             LocalStorage.editor_captions,
+//             Model.current_editor(model),
+//           ),
+//         ),
+//       ]
+//       : [],
+//   );
 
 let view = (~inject, ~handlers, model: Model.t) => {
   div(
@@ -188,10 +182,10 @@ let view = (~inject, ~handlers, model: Model.t) => {
     ],
     [
       FontSpecimen.view("font-specimen"),
-      FontSpecimen.view("logo-font-specimen"),
+      // FontSpecimen.view("logo-font-specimen"),
       DecUtil.filters,
-      top_bar_view(~inject, model),
-      editor_caption_view(model),
+      // top_bar_view(~inject, model),
+      // editor_caption_view(model),
       editor_view(model),
     ],
   );

@@ -4,18 +4,18 @@ let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
 let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
 let is_f_key = s => Re.Str.(string_match(regexp("^F[0-9][0-9]*$"), s, 0));
 
-let update_double_tap = (model: Model.t): list(Update.t) => {
-  let cur_time = JsUtil.timestamp();
-  switch (model.double_tap) {
-  | None => [UpdateDoubleTap(Some(cur_time))]
-  | Some(prev_time) =>
-    if (cur_time -. prev_time < 400.) {
-      [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
-    } else {
-      [UpdateDoubleTap(Some(cur_time))];
-    }
-  };
-};
+// let update_double_tap = (model: Model.t): list(Update.t) => {
+//   let cur_time = JsUtil.timestamp();
+//   switch (model.double_tap) {
+//   | None => [UpdateDoubleTap(Some(cur_time))]
+//   | Some(prev_time) =>
+//     if (cur_time -. prev_time < 400.) {
+//       [UpdateDoubleTap(None), PerformAction(RotateBackpack)];
+//     } else {
+//       [UpdateDoubleTap(Some(cur_time))];
+//     }
+//   };
+// };
 
 let handle_key_event = (k: Key.t, ~model): list(Update.t) => {
   let zipper = Model.get_zipper(model);
