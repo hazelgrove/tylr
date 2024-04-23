@@ -346,10 +346,10 @@ module Ctx = {
       let* ctx = push_wald(~onto, hd.wald, ~fill, ctx);
       push_slope(~onto, tl, ~fill=[hd.cell], ctx);
     };
-  let push_zigg = (~onto as d: Dir.t, zigg: Z.t, ctx: C.t) => {
+  let push_zigg = (~onto as d: Dir.t, zigg: Z.t, ~fill=[], ctx: C.t) => {
     let get_fail = OptUtil.get_or_fail("bug: failed to push zigg");
     let (s_d, s_b) = Dir.order(d, (zigg.dn, zigg.up));
-    let ctx = get_fail(push_slope(~onto=d, s_d, ctx));
+    let ctx = get_fail(push_slope(~onto=d, s_d, ~fill, ctx));
     let top = Dir.pick(d, (Fun.id, W.rev), zigg.top);
     let ctx = get_fail(push_wald(~onto=d, top, ctx));
     let rest = Dir.order(d, ([], s_b));

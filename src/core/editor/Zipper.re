@@ -14,14 +14,6 @@ let mk = (~cur=Cursor.point(), ctx) => {cur, ctx};
 
 let init = failwith("todo: zipper init");
 
-let unselect = (~toward=?, z: t) =>
-  switch (z.cur) {
-  | Point () => z
-  | Select((d, zigg)) =>
-    let onto = Dir.toggle(Option.value(toward, ~default=d));
-    mk(Melder.Ctx.push_zigg(~onto, zigg, z.ctx));
-  };
-
 let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
     side == L

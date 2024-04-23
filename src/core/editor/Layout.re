@@ -45,11 +45,6 @@ module Pos = {
   };
 };
 
-let max_pos = (c: Cell.t) => {
-  let dims = Dims.of_cell(c);
-  Pos.{row: dims.height, col: Dims.Width.total(dims.width)};
-};
-
 module Ictx = {
   type t = {
     // left delimiter
@@ -232,45 +227,33 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.t => {
   };
 };
 
-module Range = {
-  type t = (Pos.t, Pos.t);
+let max_pos = (c: Cell.t) => {
+  let dims = Dims.of_cell(c);
+  Pos.{row: dims.height, col: Dims.Width.total(dims.width)};
 };
 
-module Rows = {
-  include IntMap;
-  type shape = {
-    indent: Col.t,
-    max_col: Col.t,
+// bounds goal pos to within start/end pos of program.
+// returns none if the resulting goal pos is same as start pos.
+let map_focus = (f: Pos.t => Pos.t, z: Zipper.t): option(Zipper.t) => {
+  open OptUtil.Syntax;
+  let c = Zipper.zip(z);
+  let* init_path = Path.Marks.get_focus(c.marks);
+  let init_pos = pos_of_path(init_path, c);
+  let goal_pos = Pos.bound(f(init_pos), ~max=max_pos(c));
+  let+ goal_path =
+    Pos.eq(init_pos, goal_pos) ? None : Some(path_of_pos(goal_pos, c));
+  c |> Cell.map_marks(Path.Marks.put_focus(goal_path)) |> Zipper.unzip;
+};
+
+let vstep_focus = (d: Dir.t) =>
+  map_focus(pos => {...pos, row: pos.row + Dir.pick(d, ((-1), 1))});
+
+let skip_focus = (d2: Dir2.t, z: Zipper.t) =>
+  switch (d2) {
+  | H(L) => map_focus(pos => Pos.{...pos, col: 0}, z)
+  | H(R) => map_focus(pos => Pos.{...pos, col: Int.max_int}, z)
+  | V(L) => map_focus(_ => Pos.zero, z)
+  | V(R) => map_focus(_ => max_pos(Zipper.zip(z)), z)
   };
-  type t = Row.Map.t(shape);
 
-  let max_col = (rs: list(Row.t), map: t) =>
-    rs |> List.map(r => find(r, map).max_col) |> List.fold_left(max, 0);
-
-  let min_col = (rs: list(Row.t), map: t) =>
-    rs
-    |> List.map(r => find(r, map).indent)
-    |> List.fold_left(min, Int.max_int);
-};
-
-type t = {
-  toks: Id.Map.t(Range.t),
-  rows: Rows.t,
-};
-
-let empty = {toks: Id.Map.empty, rows: Rows.empty};
-
-let union2 = (l: t, r: t) => {
-  toks: Id.Map.union((_, m, _) => Some(m), l.toks, r.toks),
-  rows:
-    Rows.union(
-      (_, s: Rows.shape, s': Rows.shape) =>
-        Some({
-          indent: min(s.indent, s'.indent),
-          max_col: max(s.max_col, s'.max_col),
-        }),
-      l.rows,
-      r.rows,
-    ),
-};
-let union = List.fold_left(union2, empty);
+let jump_focus = pos => map_focus(_ => pos);

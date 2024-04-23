@@ -3,12 +3,21 @@ open Util;
 module Action = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
-    | Un // unselect
+    | Un(Dir.t)
     | All
     | Wald
     | Meld
     | Move(Move.Action.t);
 };
+
+let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
+  switch (z.cur) {
+  | Point () => z
+  | Select((d, zigg)) =>
+    let onto = Dir.toggle(Option.value(toward, ~default=d));
+    let fill = save_anchor ? [Cell.point(~foc=false, ())] : [];
+    Zipper.mk(Melder.Ctx.push_zigg(~onto, zigg, ~fill, z.ctx));
+  };
 
 let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open OptUtil.Syntax;
@@ -36,5 +45,18 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   };
 };
 
-let perform = (_a: Action.t, _z: Zipper.t): option(Zipper.t) =>
-  failwith("todo");
+let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>
+  switch (a) {
+  | Un(d) => Some(unselect(~toward=d, z))
+  | All
+  | Wald
+  | Meld => failwith("todo Select.perform")
+  | Move(a) =>
+    switch (a) {
+    | Step(H(d)) => select(d, z)
+    | Step(V(d)) => Layout.vstep_focus(d, z)
+    | Skip(d2) => Layout.skip_focus(d2, z)
+    | Jump(pos) => Layout.jump_focus(pos, z)
+    | Hole(_) => failwith("unimplemented")
+    }
+  };
