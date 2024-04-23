@@ -3,7 +3,7 @@
 (library
  (name tylr_web)
  (modules :standard \ Main)
- (libraries incr_dom util tylr_hazel ppx_deriving_yojson.runtime)
+ (libraries incr_dom util tylr_core ppx_deriving_yojson.runtime)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))
@@ -18,7 +18,7 @@
 (executable
  (name main)
  (modules Main)
- (libraries tylr_web ppx_deriving_yojson.runtime)
+ (libraries tylr_web tylr_hazel ppx_deriving_yojson.runtime)
  (modes js)
  (js_of_ocaml
   (flags
