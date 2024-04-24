@@ -32,7 +32,9 @@
    ppx_deriving.show)))
 
 (rule
- (write-file js-of-ocaml-flags-dev "(:standard)"))
+ (write-file
+  js-of-ocaml-flags-dev
+  "(:standard --debuginfo --noinline --enable=effects)"))
 
 (rule
- (write-file js-of-ocaml-flags-release "(:standard)"))
+ (write-file js-of-ocaml-flags-release "(:standard --enable=effects)"))
