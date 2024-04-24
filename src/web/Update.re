@@ -1,4 +1,5 @@
 open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 open Tylr_core;
 
@@ -17,9 +18,9 @@ type t =
   // | Save
   // | SwitchEditor(int)
   | SetFontMetrics(FontMetrics.t)
-  | SetLogoFontMetrics(FontMetrics.t)
-  | PerformAction(Zipper.Action.t)
-  | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
+  // | SetLogoFontMetrics(FontMetrics.t)
+  | PerformAction(Edit.Action.t)
+  // | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
   | Redo;
 
@@ -30,8 +31,8 @@ module Failure = {
     | CantRedo
     // | FailedToLoad
     // | FailedToSwitch
-    | UnrecognizedInput(FailedInput.reason)
-    // | FailedToPerform(Zipper.Action.Failure.t)
+    // | UnrecognizedInput(FailedInput.reason)
+    | FailedToPerform
     | Exception(string);
 };
 
@@ -62,13 +63,13 @@ module Result = {
 //   settings;
 // };
 
-let move_to_start = z =>
-  switch (
-    Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
-  ) {
-  | Some(z) => Zipper.update_target(z)
-  | None => z
-  };
+// let move_to_start = z =>
+//   switch (
+//     Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
+//   ) {
+//   | Some(z) => Zipper.update_target(z)
+//   | None => z
+//   };
 
 let apply =
     (model: Model.t, update: t, _: State.t, ~schedule_action as _)
@@ -76,48 +77,25 @@ let apply =
   //print_endline("Update.apply");
   switch (update) {
   | SetFontMetrics(font_metrics) => Ok({...model, font_metrics})
-  | SetLogoFontMetrics(logo_font_metrics) =>
-    Ok({...model, logo_font_metrics})
+  // | SetLogoFontMetrics(logo_font_metrics) =>
+  //   Ok({...model, logo_font_metrics})
   | PerformAction(a) =>
-    let z_id = (Model.get_zipper(model), model.id_gen);
-    switch (Zipper.perform(a, z_id)) {
-    | Error(err) => Error(FailedToPerform(err))
-    // TODO(andrew): refactor history
-    | Ok((z, id_gen)) =>
-      Ok({
-        ...model,
-        editor_model: Model.put_zipper(model, z),
-        id_gen,
-        history: History.succeeded(a, z_id, model.history),
-      })
-    };
-  | FailedInput(reason) => Error(UnrecognizedInput(reason))
+    switch (Edit.perform(a, model.zipper)) {
+    | None => Error(FailedToPerform)
+    | Some(z) =>
+      Ok({...model, zipper: z, history: History.do_(a, z, model.history)})
+    }
+  // | FailedInput(reason) => Error(UnrecognizedInput(reason))
   | Undo =>
-    // TODO(andrew): refactor history
-    let z_id = (Model.get_zipper(model), model.id_gen);
-    switch (History.undo(z_id, model.history)) {
+    switch (History.undo(model.zipper, model.history)) {
     | None => Error(CantUndo)
-    | Some(((z, id_gen), history)) =>
-      Ok({
-        ...model,
-        editor_model: Model.put_zipper(model, z),
-        id_gen,
-        history,
-      })
-    };
+    | Some((zipper, history)) => Ok({...model, zipper, history})
+    }
   | Redo =>
-    // TODO(andrew): refactor history
-    let z_id = (Model.get_zipper(model), model.id_gen);
-    switch (History.redo(z_id, model.history)) {
+    switch (History.redo(model.zipper, model.history)) {
     | None => Error(CantRedo)
-    | Some(((z, id_gen), history)) =>
-      Ok({
-        ...model,
-        editor_model: Model.put_zipper(model, z),
-        id_gen,
-        history,
-      })
-    };
+    | Some((zipper, history)) => Ok({...model, zipper, history})
+    }
   // | Set(s_action) =>
   //   Ok({...model, settings: update_settings(s_action, model.settings)})
   // | LoadInit =>

@@ -2,11 +2,17 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
+module Cursor = {
+  include Cursor;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = Cursor.t(unit, (Dir.t, Zigg.t));
+};
+
 // todo: document potential same-id token on either side of caret
 // l|et x = 1 in x + 1
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = {
-  cur: Cursor.t(unit, (Dir.t, Zigg.t)),
+  cur: Cursor.t,
   ctx: Ctx.t,
 };
 
@@ -60,7 +66,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     switch (l) {
     | [] =>
       // selection covers left end of meld
-      assert(Chain.Tl.is_empty(tl_pre));
+      assert(Chain.Affix.is_empty(tl_pre));
       (Ctx.flatten(unroll_cell(L, hd_pre, ~ctx=ctx_pre)), top);
     | [hd_l, ..._tl_l] when hd_l mod 2 == 0 =>
       // hd_l points to cell
@@ -90,7 +96,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     switch (r) {
     | [] =>
       // selection covers right end of meld
-      assert(Chain.Tl.is_empty(tl_suf));
+      assert(Chain.Affix.is_empty(tl_suf));
       (top, Ctx.flatten(unroll_cell(R, hd_suf, ~ctx=ctx_suf)));
     | [hd_r, ..._tl_r] when hd_r mod 2 == 0 =>
       // hd_r points to cell

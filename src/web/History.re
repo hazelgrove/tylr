@@ -9,15 +9,16 @@ open Tylr_core;
 //   // to trigger view redraw? review blame
 //   last_attempt: option(float),
 // };
-type t = Chain.Frame.t(Zipper.t, Edit.Action.t);
+type t = (Chain.Affix.t(Edit.Action.t, Zipper.t) as 'affix, 'affix);
 
 // let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 let empty = Chain.Frame.empty;
 
-// let can_undo = ({succeeded: (prefix, _), _}: t) => prefix != [];
-// let can_redo = ({succeeded: (_, suffix), _}: t) => suffix != [];
-let can_undo = ((pre, _): t) => Chain.Tl.is_empty(pre);
-let can_undo = ((_, suf): t) => Chain.Tl.is_empty(suf);
+// not sure why warning flag is needed
+[@warning "-32"]
+let can_undo = ((before, _): t) => Chain.Affix.is_empty(before);
+[@warning "-32"]
+let can_undo = ((_, after): t) => Chain.Affix.is_empty(after);
 
 // let clear_just_failed = history => {...history, just_failed: None};
 
@@ -44,8 +45,8 @@ let can_undo = ((_, suf): t) => Chain.Tl.is_empty(suf);
 //     last_attempt: Some(JsUtil.timestamp()),
 //   };
 // };
-let add = (a: Edit.Action.t, z: Zipper.t, (pre, _): t) =>
-  Chain.Tl.(cons(a, z, pre), empty);
+let do_ = (a: Edit.Action.t, z: Zipper.t, (pre, _): t) =>
+  Chain.Affix.(cons(a, z, pre), empty);
 
 // let escaped = (history: t) => {
 //   ...history,
@@ -53,18 +54,14 @@ let add = (a: Edit.Action.t, z: Zipper.t, (pre, _): t) =>
 //   last_attempt: Some(JsUtil.timestamp()),
 // };
 
-let undo = (z_id: Zipper.state, history: t): option((Zipper.state, t)) =>
-  switch (history.succeeded) {
-  | ([], _) => None
-  | ([(a, prev), ...before], after) =>
-    let succeeded = (before, [(a, z_id), ...after]);
-    Some((prev, {...history, just_failed: None, succeeded}));
-  };
+let undo = (z: Zipper.t, (before, after): t): option((Zipper.t, t)) =>
+  Chain.Affix.uncons(before)
+  |> Option.map((((a, prev), before)) =>
+       (prev, (before, Chain.Affix.cons(a, z, after)))
+     );
 
-let redo = (z_id: Zipper.state, history: t): option((Zipper.state, t)) =>
-  switch (history.succeeded) {
-  | (_, []) => None
-  | (before, [(a, next), ...after]) =>
-    let succeeded = ([(a, z_id), ...before], after);
-    Some((next, {...history, just_failed: None, succeeded}));
-  };
+let redo = (z: Zipper.t, (before, after): t): option((Zipper.t, t)) =>
+  Chain.Affix.uncons(after)
+  |> Option.map((((a, next), after)) =>
+       (next, (Chain.Affix.cons(a, z, before), after))
+     );

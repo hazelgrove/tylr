@@ -36,13 +36,13 @@ let sort = w => Token.sort(hd(w));
 
 let fold = (f, g, W(w)) => Chain.fold_left(f, g, w);
 
-module Tl = {
-  include Chain.Tl;
-  type t = Chain.Tl.t(Cell.t, Token.t);
+module Affix = {
+  include Chain.Affix;
+  type t = Chain.Affix.t(Cell.t, Token.t);
 };
 
 let unzip_tok = (n, W(w)) => Chain.unzip_nth(n, w);
-let zip_tok = (~pre=Tl.empty, ~suf=Tl.empty, tok) =>
+let zip_tok = (~pre=Affix.empty, ~suf=Affix.empty, tok) =>
   W(Chain.zip(~pre, tok, ~suf));
 
 let unzip_cell = (n, W((toks, cells)): t) => {

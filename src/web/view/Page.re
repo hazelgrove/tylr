@@ -25,33 +25,33 @@ open Node;
 //   );
 // };
 
-let undo = (~inject, ~disabled) => {
-  let clss = disabled ? ["disabled"] : [];
-  let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
-  span(
-    ~attrs=
-      Attr.[
-        id("undo"),
-        classes(["history-button", ...clss]),
-        on_mousedown(mousedown),
-      ],
-    [Icons.undo],
-  );
-};
+// let undo = (~inject, ~disabled) => {
+//   let clss = disabled ? ["disabled"] : [];
+//   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Undo);
+//   span(
+//     ~attrs=
+//       Attr.[
+//         id("undo"),
+//         classes(["history-button", ...clss]),
+//         on_mousedown(mousedown),
+//       ],
+//     [Icons.undo],
+//   );
+// };
 
-let redo = (~inject, ~disabled) => {
-  let clss = disabled ? ["disabled"] : [];
-  let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Redo);
-  span(
-    ~attrs=
-      Attr.[
-        id("redo"),
-        classes(["history-button", ...clss]),
-        on_mousedown(mousedown),
-      ],
-    [Icons.redo],
-  );
-};
+// let redo = (~inject, ~disabled) => {
+//   let clss = disabled ? ["disabled"] : [];
+//   let mousedown = _ => disabled ? Event.Many([]) : inject(Update.Redo);
+//   span(
+//     ~attrs=
+//       Attr.[
+//         id("redo"),
+//         classes(["history-button", ...clss]),
+//         on_mousedown(mousedown),
+//       ],
+//     [Icons.redo],
+//   );
+// };
 
 // let copy_log_to_clipboard = _ => {
 //   Log.append_json_updates_log();
@@ -104,11 +104,11 @@ let redo = (~inject, ~disabled) => {
 //   );
 // };
 
-let link_icon = (str, url, icon) =>
-  div(
-    ~attrs=[Attr.id(str)],
-    [a(Attr.[href(url), create("target", "_blank")], [icon])],
-  );
+// let link_icon = (str, url, icon) =>
+//   div(
+//     ~attrs=[Attr.id(str)],
+//     [a(Attr.[href(url), create("target", "_blank")], [icon])],
+//   );
 
 // let right_panel_view = (~inject) =>
 //   div(
@@ -168,18 +168,19 @@ let editor_view = (model: Model.t) =>
 //       : [],
 //   );
 
-let view = (~inject, ~handlers, model: Model.t) => {
+let view = (~inject as _, model: Model.t) => {
   div(
-    Attr.[
-      id("page"),
-      // necessary to make cell focusable
-      create("tabindex", "0"),
-      on_blur(_ => {
-        JsUtil.get_elem_by_id("page")##focus;
-        Event.Many([]);
-      }),
-      ...handlers(~inject, ~model),
-    ],
+    ~attrs=
+      Attr.[
+        id("page"),
+        // necessary to make cell focusable
+        create("tabindex", "0"),
+        on_blur(_ => {
+          JsUtil.get_elem_by_id("page")##focus;
+          Effect.Prevent_default;
+        }),
+      ],
+    // ...handlers(~inject, ~model),
     [
       FontSpecimen.view("font-specimen"),
       // FontSpecimen.view("logo-font-specimen"),

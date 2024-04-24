@@ -46,11 +46,16 @@ let unknil =
        ((lps, lks), link, loop);
      });
 
-module Tl = {
+module Affix = {
   type t('link, 'loop) = (list('link), list('loop));
   let empty = ([], []);
   let is_empty = ((lks, lps)) => lks == [] && lps == [];
   let cons = (lk, lp, (lks, lps): t(_)) => ([lk, ...lks], [lp, ...lps]);
+  let uncons =
+    fun
+    | ([], _)
+    | (_, []) => None
+    | ([lk, ...lks], [lp, ...lps]) => Some(((lk, lp), (lks, lps)));
   let length = ((lks, _): t(_)) => List.length(lks);
   let snoc = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
   let split_fst =
@@ -61,8 +66,8 @@ module Tl = {
     };
 };
 module Frame = {
-  type t('lp, 'lk) = (Tl.t('lk, 'lp), Tl.t('lk, 'lp));
-  let empty = (Tl.empty, Tl.empty);
+  type t('lp, 'lk) = (Affix.t('lk, 'lp), Affix.t('lk, 'lp));
+  let empty = (Affix.empty, Affix.empty);
 };
 
 module Elem = {
@@ -72,13 +77,13 @@ module Elem = {
 };
 let nth = (_, _): Elem.t(_) => failwith("todo Chain.nth");
 
-let rec extend = (tl: Tl.t('lk, 'lp), c: t('lp, 'lk)) =>
+let rec extend = (tl: Affix.t('lk, 'lp), c: t('lp, 'lk)) =>
   switch (tl) {
   | ([lk, ...lks], [lp, ...lps]) => extend((lks, lps), link(lp, lk, c))
   | _ => c
   };
 
-let split_fst = ((lps, lks): t('lp, 'lk)): ('lp, Tl.t('lk, 'lp)) => {
+let split_fst = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
   assert(lps != []);
   (List.hd(lps), (lks, List.tl(lps)));
 };
@@ -201,10 +206,10 @@ let trim = ((lps, lks): t('lp, 'lk)): option(('lp, t('lk, 'lp), 'lp)) =>
 let untrim = (l, (lks, lps), r) => mk([l, ...lps] @ [r], lks);
 
 module Unzipped = {
-  type t('lp, 'lk) = (Tl.t('lk, 'lp), 'lp, Tl.t('lk, 'lp));
+  type t('lp, 'lk) = (Affix.t('lk, 'lp), 'lp, Affix.t('lk, 'lp));
 };
 
-let zip = (~pre=Tl.empty, ~suf=Tl.empty, foc) => {
+let zip = (~pre=Affix.empty, ~suf=Affix.empty, foc) => {
   let (lks_pre, lps_pre) = pre;
   let (lks_suf, lps_suf) = suf;
   let lps = List.rev(lps_pre) @ [foc, ...lps_suf];
@@ -217,15 +222,15 @@ let unzip = (c: t('lp, 'lk)): list(Unzipped.t('lp, 'lk)) =>
   |> fold_right(
        (lp, lk, unzipped) => {
          let (_, foc, suf) = List.hd(unzipped);
-         let hd = (Tl.empty, lp, Tl.cons(lk, foc, suf));
+         let hd = (Affix.empty, lp, Affix.cons(lk, foc, suf));
          let tl =
            unzipped
            |> List.map(((pre, foc, suf)) =>
-                (Tl.snoc(pre, lk, lp), foc, suf)
+                (Affix.snoc(pre, lk, lp), foc, suf)
               );
          [hd, ...tl];
        },
-       lp => [(Tl.empty, lp, Tl.empty)],
+       lp => [(Affix.empty, lp, Affix.empty)],
      );
 
 let unzip_nth = (n, c) => List.nth(unzip(c), n);

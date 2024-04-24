@@ -1,12 +1,11 @@
 open Tylr_core;
-open Sexplib.Std;
 
 // type editor_model =
 //   | Simple(Zipper.t)
 //   | Study(int, list(Zipper.t));
 
-[@deriving (show({with_path: false}), yojson)]
-type timestamp = float;
+// [@deriving (show({with_path: false}), yojson)]
+// type timestamp = float;
 
 // [@deriving sexp]
 // type settings = {
@@ -17,38 +16,34 @@ type timestamp = float;
 // let settings_init = {captions: false, whitespace_icons: false};
 
 type t = {
-  zipper,
+  zipper: Zipper.t,
   history: History.t,
   font_metrics: FontMetrics.t,
   // logo_font_metrics: FontMetrics.t,
   // settings,
 };
 
-let cutoff = (===);
+let cutoff = (==);
 
-let empty_zipper: Zipper.t = {
-  selection: {
-    focus: Left,
-    content: [],
-  },
-  backpack: [],
-  relatives: {
-    siblings: ([], [Grout({id: 0, shape: Convex})]),
-    ancestors: [],
-  },
-  caret: Outer,
-  caret_col_target: 0,
-};
+// let empty_zipper: Zipper.t = {
+//   selection: {
+//     focus: Left,
+//     content: [],
+//   },
+//   backpack: [],
+//   relatives: {
+//     siblings: ([], [Grout({id: 0, shape: Convex})]),
+//     ancestors: [],
+//   },
+//   caret: Outer,
+//   caret_col_target: 0,
+// };
 
-let mk = editor_model => {
-  editor_model,
+let init = {
+  zipper: Zipper.init,
   history: History.empty,
   font_metrics: FontMetrics.init,
-  logo_font_metrics: FontMetrics.init,
-  // settings: settings_init,
 };
-
-let blank = mk(Simple(empty_zipper));
 
 // let get_zipper = (model: t): Zipper.t =>
 //   switch (model.editor_model) {

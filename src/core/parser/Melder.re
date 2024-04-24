@@ -316,7 +316,7 @@ module Ctx = {
       let slopes = Dir.order(d, (s_d, s_b));
       Some(Ctx.zip(slopes, ~suf=tl));
     | Error(fill) =>
-      switch (Ctx.Tl.split_fst(tl)) {
+      switch (Ctx.Affix.split_fst(tl)) {
       | None =>
         let+ s_d = Wald.meld_root(~from=d, ~fill, w);
         C.unit(Dir.order(d, (s_d, s_b)));
