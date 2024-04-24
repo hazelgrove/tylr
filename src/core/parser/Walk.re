@@ -65,7 +65,11 @@ module End = {
 module Index = {
   include End.Map;
   type t = End.Map.t(list(Base.t));
-  let find = (_end: End.t, _map: t) => failwith("todo Walk.Index");
+  let find = (end_: End.t, map: t) =>
+    switch (find_opt(end_, map)) {
+    | None => []
+    | Some(ws) => ws
+    };
   let map = f => map(List.map(f));
   let union: (t, t) => t = union((_, l, r) => Some(l @ r));
   let union_all: list(t) => t = List.fold_left(union, empty);
