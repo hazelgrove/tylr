@@ -31,20 +31,6 @@ let push = (~from: Dir.t, r) =>
   | (Atom(_) | Star(_) | Alt(_)) as r' =>
     Seq(from == L ? [r, r'] : [r', r]);
 
-let rec atoms =
-  fun
-  | Atom(a) => [a]
-  | Star(r) => atoms(r)
-  | Seq(rs)
-  | Alt(rs) => List.concat_map(atoms, rs);
-
-let rec map = f =>
-  fun
-  | Atom(a) => Atom(f(a))
-  | Star(r) => Star(map(f, r))
-  | Seq(rs) => Seq(List.map(map(f), rs))
-  | Alt(rs) => Alt(List.map(map(f), rs));
-
 let rec fold =
         (
           ~atom: 'a => 'acc,
@@ -61,6 +47,11 @@ let rec fold =
   | Alt(rs) => alt(List.map(fold, rs))
   };
 };
+
+let atoms = r =>
+  fold(~atom=a => [a], ~star=Fun.id, ~seq=List.concat, ~alt=List.concat, r);
+
+let map = f => fold(~atom=a => atom(f(a)), ~star, ~seq, ~alt);
 
 let nullable = r =>
   r
