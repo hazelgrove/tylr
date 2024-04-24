@@ -65,11 +65,6 @@ module Affix = {
     | [lk, ...lks] => Some((lk, (lps, lks)))
     };
 };
-module Frame = {
-  type t('lp, 'lk) = (Affix.t('lk, 'lp), Affix.t('lk, 'lp));
-  let empty = (Affix.empty, Affix.empty);
-};
-
 module Elem = {
   type t('loop, 'link) =
     | Loop('loop)

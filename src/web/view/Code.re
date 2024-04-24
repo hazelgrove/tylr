@@ -525,7 +525,7 @@ let view_text =
     [],
     (_ctx, _pos, tok: Token.t) =>
       switch (tok.mtrl) {
-      | Space => failwith("todo")
+      | Space => failwith("todo Code")
       | Grout => Node.[span([text("•")])]
       | Tile(_) => Node.[span([text(tok.text)])]
       },

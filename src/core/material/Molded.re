@@ -9,7 +9,7 @@ module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Mtrl.NT.t, Mold.t);
   let mtrl = fst;
-  let bounds = _ => failwith("todo");
+  let bounds = _ => failwith("todo Molded");
 };
 module Sym = {
   include Sym;

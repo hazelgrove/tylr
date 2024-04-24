@@ -25,8 +25,8 @@ let get_space =
   | [c] => Cell.Space.get(c)
   | [_, ..._] => None;
 
-let _ = failwith("todo: change padding to be cell for cursors");
-let rec pad_meld = (~side as d: Dir.t, spc: Token.t, m: Meld.t) =>
+let rec pad_meld = (~side as d: Dir.t, spc: Token.t, m: Meld.t) => {
+  let _ = failwith("todo: change padding to be cell for cursors");
   switch (Meld.Space.get(m)) {
   | Some(spc') =>
     let (l, r) = Dir.order(d, (spc, spc'));
@@ -38,7 +38,8 @@ let rec pad_meld = (~side as d: Dir.t, spc: Token.t, m: Meld.t) =>
     let c_d = pad_cell(~side=d, spc, c_d);
     let (l, r) = Dir.order(d, (c_d, c_b));
     Meld.M(l, w, r);
-  }
+  };
+}
 and pad_cell = (~side: Dir.t, spc: Token.t, c: Cell.t) =>
   Cell.put(
     switch (Cell.get(c)) {

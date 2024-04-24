@@ -18,8 +18,6 @@ type t = {
 
 let mk = (~cur=Cursor.point(), ctx) => {cur, ctx};
 
-let init = failwith("todo: zipper init");
-
 let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
     side == L

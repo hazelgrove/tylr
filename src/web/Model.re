@@ -39,8 +39,14 @@ let cutoff = (==);
 //   caret_col_target: 0,
 // };
 
+let init_zipper =
+  Zipper.{
+    cur: Point(),
+    ctx: Ctx.unit(([Terr.of_tok(Token.Grout.op_(Tile(Sort.root)))], [])),
+  };
+
 let init = {
-  zipper: Zipper.init,
+  zipper: init_zipper,
   history: History.empty,
   font_metrics: FontMetrics.init,
 };

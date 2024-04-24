@@ -32,7 +32,7 @@ let brack = [%sedlex.regexp? round | square | curly];
 //   const | id_lower | id_upper | int_lit | float_lit
 // ];
 
-let default_tips = _ => failwith("todo");
+// let default_tips = _ => failwith("todo");
 
 let lexeme = Sedlexing.Latin1.lexeme;
 

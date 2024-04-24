@@ -12,7 +12,7 @@ open Tylr_core;
 type t = (Chain.Affix.t(Edit.Action.t, Zipper.t) as 'affix, 'affix);
 
 // let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
-let empty = Chain.Frame.empty;
+let empty = Chain.Affix.(empty, empty);
 
 // not sure why warning flag is needed
 [@warning "-32"]

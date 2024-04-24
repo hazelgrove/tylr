@@ -22,6 +22,8 @@ let sort = (terr: t) => Wald.sort(terr.wald);
 let face = (terr: t) => Wald.face(terr.wald);
 let cells = (terr: t) => Wald.cells(terr.wald) @ [terr.cell];
 
+let of_tok = tok => {cell: Cell.empty, wald: Wald.of_tok(tok)};
+
 let extend = (tl, terr: t) => {...terr, wald: Wald.extend(tl, terr.wald)};
 
 module L = {

@@ -2,7 +2,7 @@ include Base.Result;
 
 let to_option = Stdlib.Result.to_option;
 
-let get_or_fail = (_, _) => failwith("todo");
+let get_or_fail = (_, _) => failwith("todo Result");
 
 module Syntax = {
   let ( let* ) = (result, f) => bind(~f, result);

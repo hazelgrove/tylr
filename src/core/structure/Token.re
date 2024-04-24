@@ -62,10 +62,10 @@ module Space = {
   let mk = (~id=?, ~text="", ()) =>
     Molded.mk(~id?, ~text, Space, Space.Mold.of_t);
   let empty = mk();
-  let cursor = failwith("todo");
+  // let cursor = failwith("todo Token.Space");
 };
 module Grout = {
-  let text = failwith("todo: grout text");
+  let text = " ";
   let mk = (~id=?, mold: Mtrl.Sorted.t => Mold.t, s: Mtrl.Sorted.t) =>
     Molded.mk(~id?, ~text, Mtrl.Grout, mold(s));
   let op_ = (~id=?) => mk(~id?, Grout.Mold.T.op_);

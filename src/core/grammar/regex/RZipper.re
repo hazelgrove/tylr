@@ -50,7 +50,7 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
   go(Atom(a), ctx);
 };
 
-let framed_elems = _ => failwith("todo");
+let framed_elems = _ => failwith("todo RZipper");
 
 let map = (f: t('a, 'a) => 'b, rgx: Regex.t('a)): Regex.t('b) => {
   let rec go = (rgx: Regex.t(_), ctx: RCtx.t(_)): Regex.t(_) =>

@@ -3,8 +3,10 @@ open Util;
 module Melded = {
   type t = Rel.t(Wald.t, Slope.t);
 
-  let mk_eq = (_src: Wald.t, _bake, _dst: Wald.t) => failwith("todo");
-  let mk_neq = (_bake: Baked.t, _dst: Wald.t) => failwith("todo");
+  let mk_eq = (_src: Wald.t, _bake, _dst: Wald.t) =>
+    failwith("todo Melded mk_eq");
+  let mk_neq = (_bake: Baked.t, _dst: Wald.t) =>
+    failwith("todo Melded mk_neq");
   let mk = (src: Wald.t, bake: Baked.t, dst: Wald.t) =>
     switch (Baked.is_eq(bake)) {
     | Some(eq) => Rel.Eq(mk_eq(src, eq, dst))
