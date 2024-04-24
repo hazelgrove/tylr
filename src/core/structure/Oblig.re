@@ -49,20 +49,18 @@ module Delta = {
       0,
     );
 
-  let add_effect = (R(eff): Effects.recorded) =>
-    switch (eff) {
+  let add_effect =
+    fun
     | Effects.Insert(t) =>
       switch (of_token(t)) {
       | None => Fun.id
       | Some(o) => incr(o)
       }
-    | Effects.Remove(t) =>
+    | Remove(t) =>
       switch (of_token(t)) {
       | None => Fun.id
       | Some(o) => decr(o)
-      }
-    | _ => Fun.id
-    };
+      };
   let of_effects = List.fold_left(Fun.flip(add_effect), zero);
 
   let minimize =
@@ -70,12 +68,14 @@ module Delta = {
     open OptUtil.Syntax;
     let* (y, effs, delta) =
       xs
-      |> List.map(Effects.record(f))
+      |> List.map(Effects.dry_run(f))
       |> List.filter_map(((y_opt, effs)) =>
            y_opt |> Option.map(y => (y, effs, of_effects(effs)))
          )
       |> ListUtil.min(((_, _, l), (_, _, r)) => compare(l, r));
+    let _ = failwith("what's with this condition?");
     if (!to_zero || compare(delta, zero) <= 0) {
+      let _ = failwith("what's with this condition?");
       Effects.commit(effs);
       Some(y);
     } else {

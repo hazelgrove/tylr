@@ -1,50 +1,41 @@
-open Effect;
-open Effect.Deep;
+type t =
+  | Insert(Token.t)
+  | Remove(Token.t);
 
-type t(_) +=
-  | Insert(Token.t): t(unit)
-  | Remove(Token.t): t(unit);
+let log = ref([]);
 
+let perform = eff => log := [eff, ...log^];
 let insert = tok => perform(Insert(tok));
 let remove = tok => perform(Remove(tok));
 
 // necessary to wrap recorded effects in existential wrapper for reasons
 // I don't fully understand:
 // https://stackoverflow.com/questions/49538251/heterogeneous-list-of-gadt-in-ocaml
-type recorded =
-  | R(t('a)): recorded;
+// type recorded =
+//   | R(t('a)): recorded;
 
-// execute and record effects emitted by applying f to x.
-// useful for choosing between numerous effectful paths
-// and choosing one based on their results.
-let record = (f, x): (_, list(recorded)) => {
-  let recorded = ref([]);
-  let effc: 'a. t('a) => option(continuation('a, _) => _) =
-    (type a, eff: t(a)) =>
-      switch (eff) {
-      | Insert(_) =>
-        recorded := [R(eff), ...recorded^];
-        Some((k: continuation(a, _)) => continue(k, ()));
-      | Remove(_) =>
-        recorded := [R(eff), ...recorded^];
-        Some((k: continuation(a, _)) => continue(k, ()));
-      | _ => None
-      };
-  let result = try_with(f, x, {effc: effc});
-  (result, recorded^);
+// apply f to x, record effects, and emit as values without commiting log.
+// useful for choosing between numerous effectful paths and choosing one based
+// on their results, after which caller should call commit on chosen effects.
+let dry_run = (f, x): (_, list(t)) => {
+  let saved = log^;
+  log := [];
+  let y = f(x);
+  let recorded = log^;
+  log := saved;
+  (y, recorded);
 };
 
-let commit = (effs: list(recorded)) =>
-  List.iter((R(eff)) => ignore(perform(eff)), effs);
+let commit = (effs: list(t)) => List.iter(perform, effs);
 
 // let perform_all = set =>
 //   to_list(set)
 //   |> List.iter(((_, eff)) => Effect.perform(eff));
 
-let perform_if = (o, eff: t(unit)) =>
-  switch (o) {
-  | None => None
-  | Some(x) =>
-    perform(eff);
-    Some(x);
-  };
+// let perform_if = (o, eff: t(unit)) =>
+//   switch (o) {
+//   | None => None
+//   | Some(x) =>
+//     perform(eff);
+//     Some(x);
+//   };

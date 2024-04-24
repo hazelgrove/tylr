@@ -121,10 +121,12 @@ let eq = (l: End.t, r: End.t) =>
 
 let walk = (~from: Dir.t, src: End.t) => {
   let seen = Hashtbl.create(100);
-  let rec go = (src: Bound.t(Molded.T.t)) =>
+  let rec go = (src: Bound.t(Molded.T.t)) => {
+    print_endline("2");
     switch (Hashtbl.find_opt(seen, src)) {
     | Some () => Index.empty
     | None =>
+      print_endline("1");
       Hashtbl.add(seen, src, ());
       let stepped = step(~from, src);
       let walked = {
@@ -139,6 +141,7 @@ let walk = (~from: Dir.t, src: End.t) => {
       };
       Index.union(stepped, walked);
     };
+  };
   go(src);
 };
 
