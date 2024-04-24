@@ -16,8 +16,14 @@ let enter =
   MGrammar.v
   |> Mtrl.Sorted.Map.find(s)
   |> Prec.Table.mapi(((p, a), rgx) => {
+       let bounded =
+         fun
+         | Dir.L =>
+           l |> Bound.map(l => Prec.lt(~a, l, p)) |> Bound.get(~root=true)
+         | R =>
+           r |> Bound.map(r => Prec.gt(~a, p, r)) |> Bound.get(~root=true);
        // need to check for legal bounded entry from both sides
-       let go = (from: Dir.t, bounded) =>
+       let go = (from: Dir.t) =>
          // currently filtering without assuming single operator form
          // for each prec level. this may need to change.
          RZipper.enter(~from, rgx)
@@ -27,10 +33,11 @@ let enter =
               | Node((msym, rctx)) => {
                   let msrt = expect_srt(msym);
                   let mold = Mold.{sort: s, prec: p, rctx};
-                  bounded || Mtrl.is_space(msrt) ? Some((msrt, mold)) : None;
+                  bounded(from) || Mtrl.is_space(msrt)
+                    ? Some((msrt, mold)) : None;
                 },
             );
-       switch (go(L, Prec.lt(~a, l, p)), go(R, Prec.gt(~a, p, r))) {
+       switch (go(L), go(R)) {
        | ([], _)
        | (_, []) => []
        | ([_, ..._] as ent_l, [_, ..._] as ent_r) =>
@@ -54,22 +61,19 @@ let swing_over = (~from: Dir.t, sort: Bound.t(Molded.NT.t)): Index.t =>
   };
 
 let swing_into = (~from: Dir.t, sort: Bound.t(Molded.NT.t)): Index.t => {
-  let bounds = (s: Molded.NT.t) => {
+  let bounds = (s: Bound.t(Molded.NT.t)) => {
     let (l_sort, r_sort) = Molded.NT.bounds(sort);
-    let (l_s, r_s) = Molded.NT.bounds(Bound.Node(s));
+    let (l_s, r_s) = Molded.NT.bounds(s);
     Dir.pick(from, ((l_sort, r_s), (l_s, r_sort)));
   };
   let seen = Hashtbl.create(10);
   let rec go = (s: Bound.t(Molded.NT.t)) => {
-    let (mtrl, (l, r)) =
-      switch (s) {
-      | Root => (Mtrl.Sorted.root, Bound.(Root, Root))
-      | Node((mtrl, _) as nt) => (mtrl, bounds(nt))
-      };
+    let mtrl = Molded.NT.mtrl(s);
     switch (Hashtbl.find_opt(seen, mtrl)) {
     | Some () => Index.empty
     | None =>
       Hashtbl.add(seen, mtrl, ());
+      let (l, r) = bounds(s);
       enter(~from, ~l, ~r, mtrl)
       |> List.map((s: Molded.NT.t) =>
            Index.union(swing_over(~from, Node(s)), go(Node(s)))

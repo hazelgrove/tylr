@@ -48,13 +48,11 @@ and pad_cell = (~side: Dir.t, spc: Token.t, c: Cell.t) =>
     },
   );
 
-let mtrl = (nt: Bound.t(Molded.NT.t)) =>
-  nt |> Bound.map(Molded.NT.mtrl) |> Bound.get(~root=Mtrl.Sorted.root);
 // let padding = (nt: Bound.t(Molded.NT.t)) =>
 //   nt |> Bound.map(Molded.NT.padding) |> Bound.get(~root=Padding.root);
 
 let fill_default = (nt: Bound.t(Molded.NT.t)) =>
-  switch (mtrl(nt)) {
+  switch (Molded.NT.mtrl(nt)) {
   | Space => Cell.empty
   | (Grout | Tile(_)) as s => Cell.put(Meld.Grout.op_(s))
   };
@@ -67,7 +65,7 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
   | Some(spc) => fill_default(nt) |> pad_cell(~side=L, spc)
   | None =>
     assert(!is_empty(fill));
-    let s = mtrl(nt);
+    let s = Molded.NT.mtrl(nt);
     let cells =
       [l ? [Cell.empty] : [], fill, r ? [Cell.empty] : []] |> List.concat;
     let toks =

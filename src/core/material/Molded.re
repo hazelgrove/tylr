@@ -1,3 +1,5 @@
+open Util;
+
 // molded mtrlized syms
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -8,8 +10,14 @@ module T = {
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Mtrl.NT.t, Mold.t);
-  let mtrl = fst;
-  let bounds = _ => failwith("todo Molded");
+  let mtrl =
+    fun
+    | Bound.Root => Mtrl.Sorted.root
+    | Node((mtrl, _)) => mtrl;
+  let bounds =
+    fun
+    | Bound.Root => Bound.(Root, Root)
+    | Node((_, mold)) => Mold.bounds(mold);
 };
 module Sym = {
   include Sym;
