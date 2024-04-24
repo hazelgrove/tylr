@@ -51,14 +51,15 @@ let rec fold =
           ~star: 'acc => 'acc,
           ~seq: list('acc) => 'acc,
           ~alt: list('acc) => 'acc,
-        )
-        : (t('a) => 'acc) => {
+          r: t('a),
+        ) => {
   let fold = fold(~atom, ~star, ~seq, ~alt);
-  fun
+  switch (r) {
   | Atom(a) => atom(a)
   | Star(r) => star(fold(r))
   | Seq(rs) => seq(List.map(fold, rs))
-  | Alt(rs) => alt(List.map(fold, rs));
+  | Alt(rs) => alt(List.map(fold, rs))
+  };
 };
 
 let nullable = r =>
