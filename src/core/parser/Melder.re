@@ -311,14 +311,14 @@ module Ctx = {
   let push_wald =
       (~onto as d: Dir.t, w: W.t, ~fill=[], ctx: C.t): option(C.t) => {
     open OptUtil.Syntax;
-    let (slopes, tl) = Ctx.split_fst(ctx);
+    let (slopes, tl) = Ctx.split_hd(ctx);
     let (s_d, s_b) = Dir.order(d, slopes);
     switch (Slope.push(~onto=d, w, ~fill, s_d)) {
     | Ok(s_d) =>
       let slopes = Dir.order(d, (s_d, s_b));
       Some(Ctx.zip(slopes, ~suf=tl));
     | Error(fill) =>
-      switch (Ctx.Affix.split_fst(tl)) {
+      switch (Ctx.Affix.split_hd(tl)) {
       | None =>
         let+ s_d = Wald.meld_root(~from=d, ~fill, w);
         C.unit(Dir.order(d, (s_d, s_b)));
@@ -331,7 +331,7 @@ module Ctx = {
           C.link(~slopes, terrs, ctx);
         | Eq(wald) =>
           let slopes = Dir.order(d, ([T.{...t_d, wald}], s_b @ [t_b]));
-          C.map_fst(Frame.Open.cat(slopes), ctx);
+          C.map_hd(Frame.Open.cat(slopes), ctx);
         };
       }
     };
@@ -355,7 +355,7 @@ module Ctx = {
     let top = Dir.pick(d, (Fun.id, W.rev), zigg.top);
     let ctx = get_fail(push_wald(~onto=d, top, ctx));
     let rest = Dir.order(d, ([], s_b));
-    Ctx.map_fst(Frame.Open.cat(rest), ctx);
+    Ctx.map_hd(Frame.Open.cat(rest), ctx);
   };
 
   let rec pull = (~from as d: Dir.t, ctx: C.t): option((Token.t, C.t)) => {
@@ -374,40 +374,40 @@ module Ctx = {
       | None =>
         let (t_d, t_b) = Dir.order(d, terrs);
         let slopes = order(([t_d], s_b @ [t_b]));
-        pull(~from=d, Ctx.map_fst(Frame.Open.cat(slopes), ctx));
+        pull(~from=d, Ctx.map_hd(Frame.Open.cat(slopes), ctx));
       };
     };
   };
 
   let close = (~sel=?, ctx: C.t) => {
     let rec go = (ctx: C.t) =>
-      switch (C.fst(ctx)) {
+      switch (C.hd(ctx)) {
       | ([], _)
       | (_, []) => ctx
       | ([l, ..._] as pre, [r, ...suf]) when Wald.lt(l.wald, r.wald) =>
         ctx
-        |> C.put_fst((pre, suf))
+        |> C.put_hd((pre, suf))
         |> go
-        |> C.map_fst(Frame.Open.cons(~onto=R, r))
+        |> C.map_hd(Frame.Open.cons(~onto=R, r))
       | ([l, ...pre], [r, ..._] as suf) when Wald.gt(l.wald, r.wald) =>
         ctx
-        |> C.put_fst((pre, suf))
+        |> C.put_hd((pre, suf))
         |> go
-        |> C.map_fst(Frame.Open.cons(~onto=L, l))
+        |> C.map_hd(Frame.Open.cons(~onto=L, l))
       | ([l, ...pre], [r, ...suf]) =>
         assert(Wald.eq(l.wald, r.wald));
-        ctx |> C.put_fst((pre, suf)) |> go |> C.link((l, r));
+        ctx |> C.put_hd((pre, suf)) |> go |> C.link((l, r));
       };
     switch (sel) {
     | None => go(ctx)
     | Some(zigg) =>
-      let (pre, suf) = C.fst(ctx);
+      let (pre, suf) = C.hd(ctx);
       let (pre_lt, pre_geq) = Zigg.take_geq(pre, zigg);
       let (suf_leq, suf_gt) = Zigg.take_leq(zigg, suf);
       ctx
-      |> C.put_fst((pre_lt, suf_gt))
+      |> C.put_hd((pre_lt, suf_gt))
       |> go
-      |> C.map_fst(Frame.Open.cat((pre_geq, suf_leq)));
+      |> C.map_hd(Frame.Open.cat((pre_geq, suf_leq)));
     };
   };
 };

@@ -23,7 +23,7 @@ let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
     side == L
       ? ([], Melder.Slope.Up.unroll(cell))
       : (Melder.Slope.Dn.unroll(cell), []);
-  Ctx.map_fst(Frame.Open.cat(f_open), ctx);
+  Ctx.map_hd(Frame.Open.cat(f_open), ctx);
 };
 
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
@@ -38,11 +38,11 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
     | Some(There(step)) =>
       if (step == 0) {
         let terr = Terr.{wald: w, cell: r};
-        let ctx = Ctx.map_fst(Frame.Open.cat(([], [terr])), ctx);
+        let ctx = Ctx.map_hd(Frame.Open.cat(([], [terr])), ctx);
         unzip(l, ~ctx);
       } else if (step == Wald.length(w)) {
         let terr = Terr.{cell: l, wald: Wald.rev(w)};
-        let ctx = Ctx.map_fst(Frame.Open.cat(([terr], [])), ctx);
+        let ctx = Ctx.map_hd(Frame.Open.cat(([terr], [])), ctx);
         unzip(r, ~ctx);
       } else {
         let (pre, cell, suf) = Wald.unzip_cell(step - 1, w);
@@ -59,7 +59,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     ListUtil.hd_opt(r) |> Option.value(~default=Meld.total_length(meld) - 1);
   let (pre, top, suf) = Meld.split_subwald(n_l, n_r, meld);
   let ((pre_dn, pre_up), top) = {
-    let (hd_pre, tl_pre) = Chain.split_fst(pre);
+    let (hd_pre, tl_pre) = Chain.split_hd(pre);
     let ctx_pre = Ctx.unit((Option.to_list(Terr.mk'(tl_pre)), []));
     switch (l) {
     | [] =>
@@ -89,7 +89,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     };
   };
   let (top, (suf_dn, suf_up)) = {
-    let (hd_suf, tl_suf) = Chain.split_fst(suf);
+    let (hd_suf, tl_suf) = Chain.split_hd(suf);
     let ctx_suf = Ctx.unit(([], Option.to_list(Terr.mk'(tl_suf))));
     switch (r) {
     | [] =>
@@ -119,7 +119,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     };
   };
   let zigg = Zigg.mk(~up=pre_up, top, ~dn=suf_dn);
-  let ctx = Ctx.map_fst(Frame.Open.cat((pre_dn, suf_up)), ctx);
+  let ctx = Ctx.map_hd(Frame.Open.cat((pre_dn, suf_up)), ctx);
   mk(~cur=Select((d, zigg)), ctx);
 };
 

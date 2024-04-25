@@ -4,18 +4,18 @@ include Meld.Wald;
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Meld.Wald.t(Cell.t);
 
-let split_hd = (W(w)) => Chain.split_fst(w);
+let split_hd = (W(w)) => Chain.split_hd(w);
 let hd = w => fst(split_hd(w));
 let put_hd = (_, _) => failwith("todo Wald.put_hd");
 
 let ft = _ => failwith("todo Wald.ft");
 let put_ft = (_, _) => failwith("todo Wald.put_ft");
-// let fst = (W(w)) => Chain.fst(w);
-// let lst = (W(w)) => Chain.lst(w);
+// let fst = (W(w)) => Chain.hd(w);
+// let ft = (W(w)) => Chain.ft(w);
 // let face =
 //   fun
 //   | Dir.L => fst
-//   | R => lst;
+//   | R => ft;
 
 let get = (f, W(w)) => f(w);
 let map = (f, W(w)) => W(f(w));

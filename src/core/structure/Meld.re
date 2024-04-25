@@ -28,7 +28,7 @@ module Wald = {
     W(Chain.mk(toks, cells));
   let of_tok = tok => W(Chain.unit(tok));
   let face = (~side=Dir.L, W(w): t(_)) => {
-    let tok = Dir.pick(side, (Chain.fst, Chain.lst), w);
+    let tok = Dir.pick(side, (Chain.hd, Chain.ft), w);
     (tok.mtrl, tok.mold);
   };
   // let dims = (W(w)) =>

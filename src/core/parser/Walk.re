@@ -17,8 +17,8 @@ module Swing = {
   let mk_eq = Chain.unit;
   let is_eq = s => height(s) == 1;
   let is_neq = s => !is_eq(s);
-  let top = Chain.fst;
-  let bot = Chain.lst;
+  let top = Chain.hd;
+  let bot = Chain.ft;
   // let has_sort = s =>
   //   Chain.loops(s)
   //   |> List.exists(
@@ -40,8 +40,8 @@ let height = w =>
 
 // let has_sort = w => List.exists(Swing.has_sort, strides(w));
 
-let fst = Chain.fst;
-let lst = Chain.lst;
+let fst = Chain.hd;
+let ft = Chain.ft;
 
 let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
 let is_neq = w => !is_eq(w);
@@ -51,7 +51,7 @@ let singleton = Chain.unit;
 let append = Chain.append;
 
 let cons = (bound: Bound.t(Molded.NT.t)) =>
-  Chain.map_fst(Chain.link(bound, ()));
+  Chain.map_hd(Chain.link(bound, ()));
 
 module End = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]

@@ -58,7 +58,7 @@ module Affix = {
     | ([lk, ...lks], [lp, ...lps]) => Some(((lk, lp), (lks, lps)));
   let length = ((lks, _): t(_)) => List.length(lks);
   let snoc = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
-  let split_fst =
+  let split_hd =
       ((lks, lps): t('lk, 'lp)): option(('lk, Base.t('lp, 'lk))) =>
     switch (lks) {
     | [] => None
@@ -78,31 +78,31 @@ let rec extend = (tl: Affix.t('lk, 'lp), c: t('lp, 'lk)) =>
   | _ => c
   };
 
-let split_fst = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
+let split_hd = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
   assert(lps != []);
   (List.hd(lps), (lks, List.tl(lps)));
 };
-let fst = (c: t('lp, _)): 'lp => fst(split_fst(c));
-let map_fst = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
-  let (a, (lks, lps)) = split_fst(c);
+let hd = (c: t('lp, _)): 'lp => fst(split_hd(c));
+let map_hd = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
+  let (a, (lks, lps)) = split_hd(c);
   ([f(a), ...lps], lks);
 };
-let put_fst = lp => map_fst(_ => lp);
+let put_hd = lp => map_hd(_ => lp);
 
-let split_lst = ((lps, lks)) => {
+let split_ft = ((lps, lks)) => {
   assert(lps != []);
   let (lps, lp) = ListUtil.split_last(lps);
   ((lps, lks), lp);
 };
-let lst = ((lps, _): t('lp, _)): 'lp => {
+let ft = ((lps, _): t('lp, _)): 'lp => {
   assert(lps != []);
   ListUtil.last(lps);
 };
-let map_lst = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
-  let ((lps, lks), a) = split_lst(c);
+let map_ft = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
+  let ((lps, lks), a) = split_ft(c);
   (lps @ [f(a)], lks);
 };
-let put_lst = lp => map_lst(_ => lp);
+let put_ft = lp => map_ft(_ => lp);
 
 let rev =
     (~rev_loop=Fun.id, ~rev_link=Fun.id, (lps, lks): t('lp, 'lk))
@@ -185,7 +185,7 @@ let fold_right =
 
 let cat =
     (cat: ('lp, 'lp) => 'lp, l: t('lp, 'lk), r: t('lp, 'lk)): t('lp, 'lk) =>
-  l |> fold_right(link, lp => map_fst(cat(lp), r));
+  l |> fold_right(link, lp => map_hd(cat(lp), r));
 
 let append = (l: t('lp, 'lk), lk: 'lk, r: t('lp, 'lk)): t('lp, 'lk) =>
   l |> fold_right(link, lp => link(lp, lk, r));

@@ -48,7 +48,7 @@ let mold = (ctx: Ctx.t, ~fill=[], t: Token.Unmolded.t) =>
   };
 
 let rec remold = (~fill=[], ctx: Ctx.t) => {
-  let ((dn, up), tl) = Ctx.split_fst(ctx);
+  let ((dn, up), tl) = Ctx.split_hd(ctx);
   switch (up) {
   | [] =>
     let unrolled =
@@ -59,7 +59,7 @@ let rec remold = (~fill=[], ctx: Ctx.t) => {
       Terr.cells(terr) |> List.concat_map(Melder.Slope.Up.unroll);
     remold(Ctx.zip((dn, Slope.cat(unrolled, up)), ~suf=tl));
   | [terr, ...up] =>
-    let ctx = Ctx.put_fst((dn, up), ctx);
+    let ctx = Ctx.put_hd((dn, up), ctx);
     let (hd, rest) = Wald.split_hd(terr.wald);
     let molded = mold(ctx, ~fill, Token.Unmolded.unmold(hd));
     switch (Ctx.face(~side=L, molded)) {
@@ -79,7 +79,7 @@ let rec remold = (~fill=[], ctx: Ctx.t) => {
           let _ = failwith("todo: make sure cell distributes paths");
           Slope.cat(Melder.Slope.Up.unroll(cell), [terr]);
         };
-      ctx |> Ctx.map_fst(Frame.Open.cat(([], up))) |> remold;
+      ctx |> Ctx.map_hd(Frame.Open.cat(([], up))) |> remold;
     };
   };
 };
