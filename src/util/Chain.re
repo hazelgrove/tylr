@@ -20,6 +20,8 @@ let unit = (lp: 'lp): t('lp, _) => ([lp], []);
 let loops: t('lp, _) => list('lp) = fst;
 let links: t(_, 'lk) => list('lk) = snd;
 
+let size = ((lps, _): t(_)) => List.length(lps) * 2 - 1;
+
 let length = ((lps, _)) => List.length(lps);
 
 let link = (a: 'lp, b: 'lk, (lps, lks): t('lp, 'lk)): t('lp, 'lk) => (
@@ -200,10 +202,6 @@ let trim = ((lps, lks): t('lp, 'lk)): option(('lp, t('lk, 'lp), 'lp)) =>
   };
 let untrim = (l, (lks, lps), r) => mk([l, ...lps] @ [r], lks);
 
-module Unzipped = {
-  type t('lp, 'lk) = (Affix.t('lk, 'lp), 'lp, Affix.t('lk, 'lp));
-};
-
 let zip = (~pre=Affix.empty, ~suf=Affix.empty, foc) => {
   let (lks_pre, lps_pre) = pre;
   let (lks_suf, lps_suf) = suf;
@@ -212,7 +210,7 @@ let zip = (~pre=Affix.empty, ~suf=Affix.empty, foc) => {
   mk(lps, lks);
 };
 
-let unzip = (c: t('lp, 'lk)): list(Unzipped.t('lp, 'lk)) =>
+let unzip = (c: t('lp, 'lk)): list((Affix.t(_), Affix.t(_))) =>
   c
   |> fold_right(
        (lp, lk, unzipped) => {
