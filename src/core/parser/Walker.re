@@ -58,6 +58,10 @@ let swing_over = (~from: Dir.t, sort: Bound.t(Molded.NT.t)): Index.t =>
        )
     |> List.map(lbl => (lbl, [singleton(Swing.mk_eq(sort))]))
     |> Index.of_list
+    |> (
+      Mold.nullable(~side=Dir.toggle(from), mold)
+        ? Index.add(Root, [singleton(Swing.mk_eq(sort))]) : Fun.id
+    )
   };
 
 let swing_into = (~from: Dir.t, sort: Bound.t(Molded.NT.t)): Index.t => {
@@ -121,7 +125,7 @@ let eq = (l: End.t, r: End.t) =>
 
 let walk = (~from: Dir.t, src: End.t) => {
   let seen = Hashtbl.create(100);
-  let rec go = (src: Bound.t(Molded.T.t)) => {
+  let rec go = (src: End.t) =>
     switch (Hashtbl.find_opt(seen, src)) {
     | Some () => Index.empty
     | None =>
@@ -139,7 +143,6 @@ let walk = (~from: Dir.t, src: End.t) => {
       };
       Index.union(stepped, walked);
     };
-  };
   go(src);
 };
 
