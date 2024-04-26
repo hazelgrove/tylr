@@ -33,6 +33,8 @@ module Base = {
 include Base;
 
 let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
+let of_tok = (~l=Cell.empty, ~r=Cell.empty, tok) =>
+  mk(~l, Wald.of_tok(tok), ~r);
 
 let length = (M(_, W(w), _): t) => Chain.length(w);
 

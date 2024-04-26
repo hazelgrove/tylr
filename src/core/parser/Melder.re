@@ -37,7 +37,7 @@ module Wald = {
     |> (((cell, wald)) => Terr.{wald: W.rev(wald), cell});
 
   // assumes w is already oriented toward side
-  let round = (~side: Dir.t, ~fill=[], w: W.t): Terr.t => {
+  let round = (~side: Dir.t, ~fill=Filling.empty, w: W.t): Terr.t => {
     let bake = Baker.bake(~from=Dir.toggle(side));
     let exited = Walker.exit(~from=Dir.toggle(side), Node(W.face(w)));
     switch (Oblig.Delta.minimize(bake(~fill), exited)) {
@@ -56,7 +56,7 @@ module Wald = {
   };
 
   let meld =
-      (~repair=false, ~from: Dir.t, src: W.t, ~fill=[], dst: W.t)
+      (~repair=false, ~from: Dir.t, src: W.t, ~fill=Filling.empty, dst: W.t)
       : option(Melded.t) => {
     open OptUtil.Syntax;
     let walk = repair ? Walker.walk : Walker.step;
@@ -70,7 +70,7 @@ module Wald = {
     and rm_ghost_and_go = (src, fill) =>
       switch (W.unlink(src)) {
       | Ok((hd, cell, tl)) when Token.is_ghost(hd) =>
-        let fill = [cell, ...fill];
+        let fill = Filling.cons(cell, fill);
         switch (go(tl, fill)) {
         // require eq match further in to accept removing hd
         | Some(Rel.Eq(_)) as r =>
@@ -90,7 +90,8 @@ module Wald = {
   };
 
   let meld_root =
-      (~repair=false, ~from: Dir.t, ~fill=[], dst: W.t): option(Slope.t) =>
+      (~repair=false, ~from: Dir.t, ~fill=Filling.empty, dst: W.t)
+      : option(Slope.t) =>
     Walker.walk(~from, Root, Node(W.face(dst)))
     |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake(~from, ~fill))
     |> Option.map(bake => Melded.mk_neq(bake, dst));
@@ -110,12 +111,12 @@ module Terr = {
          | Eq(cell) => Meld.link(~cell, tok, meld)
        );
 
-  let roll = (~onto: Dir.t, ~fill=[], terr: T.t): Filling.t => {
+  let roll = (~onto: Dir.t, ~fill=Filling.empty, terr: T.t): Filling.t => {
     let bake = Baker.bake(~from=onto);
     let exited = Walker.exit(~from=onto, Node(T.face(terr)));
     let orient = Dir.pick(onto, (Meld.rev, Fun.id));
     switch (Oblig.Delta.minimize(bake(~fill), exited)) {
-    | Some(baked) => [Cell.put(orient(attach(baked, terr)))]
+    | Some(baked) => Filling.unit(Cell.put(orient(attach(baked, terr))))
     | None =>
       let exited =
         ListUtil.hd_opt(exited)
@@ -125,7 +126,7 @@ module Terr = {
         |> OptUtil.get_or_fail(
              "bug: bake expected to succeed if no fill required",
            );
-      [Cell.put(orient(attach(baked, terr))), ...fill];
+      Filling.cons(Cell.put(orient(attach(baked, terr))), fill);
     };
   };
 
@@ -154,12 +155,12 @@ module Slope = {
     go(cell, []);
   };
 
-  let roll = (~onto: Dir.t, ~fill=[]) =>
+  let roll = (~onto: Dir.t, ~fill=Filling.empty) =>
     S.fold(fill => Terr.roll(~onto, ~fill), fill);
   // let roll_fail =
 
   let push =
-      (~repair=false, ~onto: Dir.t, w: W.t, ~fill=[], slope: S.t)
+      (~repair=false, ~onto: Dir.t, w: W.t, ~fill=Filling.empty, slope: S.t)
       : Result.t(S.t, Filling.t) => {
     let meld = Wald.meld(~repair, ~from=onto);
     let roll = Terr.roll(~onto);
@@ -238,7 +239,8 @@ module Zigg = {
        );
 
   let push_wald =
-      (~side as d: Dir.t, w: W.t, ~fill=[], zigg: Z.t): Result.t(Z.t, S.t) => {
+      (~side as d: Dir.t, w: W.t, ~fill=Filling.empty, zigg: Z.t)
+      : Result.t(Z.t, S.t) => {
     let b = Dir.toggle(d);
     let (s_d, top, s_b) = Z.orient(d, zigg);
     let unorient = Z.unorient(d);
@@ -282,25 +284,25 @@ module Zigg = {
     | Error(s_b) => Z.unorient(side, ([], W.of_tok(tok), s_b))
     };
 
-  let rec take_leq = (zigg: Z.t, ~fill=[], suf: S.Up.t) =>
+  let rec take_leq = (zigg: Z.t, ~fill=Filling.empty, suf: S.Up.t) =>
     switch (suf) {
     | [] => ([], suf)
     | [hd, ...tl] =>
       switch (push_wald(~side=R, hd.wald, ~fill, zigg)) {
       | Error(_) => ([], suf)
       | Ok(zigg) =>
-        let (leq, gt) = take_leq(zigg, ~fill=[hd.cell], tl);
+        let (leq, gt) = take_leq(zigg, ~fill=Filling.unit(hd.cell), tl);
         ([hd, ...leq], gt);
       }
     };
-  let rec take_geq = (pre: S.Dn.t, ~fill=[], zigg: Z.t) =>
+  let rec take_geq = (pre: S.Dn.t, ~fill=Filling.empty, zigg: Z.t) =>
     switch (pre) {
     | [] => (pre, [])
     | [hd, ...tl] =>
       switch (push_wald(~side=L, hd.wald, ~fill, zigg)) {
       | Error(_) => (pre, [])
       | Ok(zigg) =>
-        let (lt, geq) = take_geq(tl, ~fill=[hd.cell], zigg);
+        let (lt, geq) = take_geq(tl, ~fill=Filling.unit(hd.cell), zigg);
         (lt, [hd, ...geq]);
       }
     };
@@ -309,7 +311,7 @@ module Zigg = {
 module C = Ctx;
 module Ctx = {
   let push_wald =
-      (~onto as d: Dir.t, w: W.t, ~fill=[], ctx: C.t): option(C.t) => {
+      (~onto as d: Dir.t, w: W.t, ~fill=Filling.empty, ctx: C.t): option(C.t) => {
     open OptUtil.Syntax;
     let (slopes, tl) = Ctx.split_hd(ctx);
     let (s_d, s_b) = Dir.order(d, slopes);
@@ -340,15 +342,16 @@ module Ctx = {
   let push_fail = (~onto: Dir.t, tok, ctx) =>
     push(~onto, tok, ctx) |> OptUtil.get_or_fail("bug: failed push");
 
-  let rec push_slope = (~onto: Dir.t, s: S.t, ~fill=[], ctx: C.t) =>
+  let rec push_slope = (~onto: Dir.t, s: S.t, ~fill=Filling.empty, ctx: C.t) =>
     switch (s) {
     | [] => Some(ctx)
     | [hd, ...tl] =>
       open OptUtil.Syntax;
       let* ctx = push_wald(~onto, hd.wald, ~fill, ctx);
-      push_slope(~onto, tl, ~fill=[hd.cell], ctx);
+      push_slope(~onto, tl, ~fill=Filling.unit(hd.cell), ctx);
     };
-  let push_zigg = (~onto as d: Dir.t, zigg: Z.t, ~fill=[], ctx: C.t) => {
+  let push_zigg =
+      (~onto as d: Dir.t, zigg: Z.t, ~fill=Filling.empty, ctx: C.t) => {
     let get_fail = OptUtil.get_or_fail("bug: failed to push zigg");
     let (s_d, s_b) = Dir.order(d, (zigg.dn, zigg.up));
     let ctx = get_fail(push_slope(~onto=d, s_d, ~fill, ctx));

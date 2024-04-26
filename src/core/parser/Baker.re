@@ -1,7 +1,8 @@
 open Util;
 
 let bake_eq =
-    (~fill=[], sort: Bound.t(Molded.NT.t)): option(Rel.t(Cell.t, Cell.t)) => {
+    (~fill=Filling.empty, sort: Bound.t(Molded.NT.t))
+    : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
   let (f_l, f_r) = Filling.faces(fill);
   let+ w_l = ListUtil.hd_opt(Walker.enter(~from=L, sort, Node(f_l)))
@@ -12,7 +13,11 @@ let bake_eq =
 };
 
 let bake_lt =
-    (~fill=[], bound: Bound.t(Molded.NT.t), sort: Bound.t(Molded.NT.t))
+    (
+      ~fill=Filling.empty,
+      bound: Bound.t(Molded.NT.t),
+      sort: Bound.t(Molded.NT.t),
+    )
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
   let (f_l, f_r) = Filling.faces(fill);
@@ -23,7 +28,11 @@ let bake_lt =
 };
 
 let bake_gt =
-    (~fill=[], sort: Bound.t(Molded.NT.t), bound: Bound.t(Molded.NT.t))
+    (
+      ~fill=Filling.empty,
+      sort: Bound.t(Molded.NT.t),
+      bound: Bound.t(Molded.NT.t),
+    )
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
   let (f_l, f_r) = Filling.faces(fill);
@@ -36,7 +45,7 @@ let bake_gt =
 let bake_swing =
     (~fill=Filling.empty, ~from: Dir.t, sw: Walk.Swing.t)
     : option(Rel.t(Cell.t, Cell.t)) => {
-  let fill = Dir.pick(from, (Fun.id, List.rev), fill);
+  let fill = Dir.pick(from, (Fun.id, Filling.rev), fill);
   switch (from) {
   | _ when Walk.Swing.height(sw) <= 1 => bake_eq(~fill, Walk.Swing.bot(sw))
   | L => bake_lt(~fill, Walk.Swing.top(sw), Walk.Swing.bot(sw))

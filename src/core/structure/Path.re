@@ -60,19 +60,19 @@ module Select = {
   };
 };
 
-module Cur = Cursor;
 module Cursor = {
+  include Cursor;
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = option(Cur.t(Point.t, Select.t));
-  let cons = n => Option.map(Cur.map(Point.cons(n), Select.cons(n)));
-  let peel = (n, cur) =>
+  type t = Cursor.t(Point.t, Select.t);
+  let cons = n => Option.map(map(Point.cons(n), Select.cons(n)));
+  let peel = (n, cur: option(t)) =>
     Option.bind(
       cur,
       fun
-      | Cur.Point(p) => Option.map(Cur.point, Point.peel(n, p))
-      | Select(sel) => Option.map(Cur.select, Select.peel(n, sel)),
+      | Point(p) => Option.map(point, Point.peel(n, p))
+      | Select(sel) => Option.map(select, Select.peel(n, sel)),
     );
-  let union = (l: t, r: t) =>
+  let union = (l: option(t), r: option(t)) =>
     switch (l, r) {
     | (None, None) => None
     | (Some(_), None)
@@ -84,6 +84,26 @@ module Cursor = {
       let anchor = l.is_focus ? r.path : l.path;
       Some(Select({focus, anchor}));
     };
+  let get_focus = cur =>
+    Option.bind(
+      cur,
+      fun
+      | Point(p: Point.t) => p.is_focus ? None : Some(p.path)
+      | Select(sel: Select.t) => Some(sel.focus),
+    );
+  let put_focus = path =>
+    fun
+    | None
+    | Some(Point(_)) => Some(Point(Point.{is_focus: true, path}))
+    | Some(Select(sel)) => Some(Select(Select.{...sel, focus: path}));
+  let map_paths = f =>
+    Option.map(
+      Cursor.map(
+        (p: Point.t) => {...p, path: f(p.path)},
+        ({anchor, focus}: Select.t) =>
+          Select.{anchor: f(anchor), focus: f(focus)},
+      ),
+    );
 };
 
 module Ghosts = {
@@ -106,33 +126,26 @@ module Ghosts = {
        )
     |> of_list;
   let union = union((_, m, _) => Some(m));
+  let map_paths = (f, ghosts) =>
+    to_list(ghosts)
+    |> List.map(((path, mold)) => (f(path), mold))
+    |> of_list;
 };
 
 module Marks = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    cursor: Cursor.t,
+    cursor: option(Cursor.t),
     ghosts: Ghosts.t,
   };
   let mk = (~cursor=?, ~ghosts=Ghosts.empty, ()) => {cursor, ghosts};
   let empty = mk();
   let point = is_focus => mk(~cursor=Point(Point.{is_focus, path: []}), ());
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
-  let get_focus = (marks: t) =>
-    Option.bind(
-      marks.cursor,
-      fun
-      | Cur.Point(p: Point.t) => p.is_focus ? None : Some(p.path)
-      | Select(sel: Select.t) => Some(sel.focus),
-    );
+  let get_focus = (marks: t) => Cursor.get_focus(marks.cursor);
   let put_focus = (path: Base.t, marks: t) => {
     ...marks,
-    cursor:
-      switch (marks.cursor) {
-      | None
-      | Some(Point(_)) => Some(Cur.Point(Point.{is_focus: true, path}))
-      | Some(Select(sel)) => Some(Select({...sel, focus: path}))
-      },
+    cursor: Cursor.put_focus(path, marks.cursor),
   };
   let cons = (n, {cursor, ghosts}) => {
     cursor: Cursor.cons(n, cursor),
@@ -147,4 +160,8 @@ module Marks = {
     ghosts: Ghosts.union(l.ghosts, r.ghosts),
   };
   let union_all = List.fold_left(union, empty);
+  let map_paths = (f, {cursor, ghosts}) => {
+    cursor: Cursor.map_paths(f, cursor),
+    ghosts: Ghosts.map_paths(f, ghosts),
+  };
 };

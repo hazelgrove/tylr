@@ -97,48 +97,6 @@ let rec end_path = (~side: Dir.t, c: t) =>
     [hd, ...tl];
   };
 
-// let rec normalize_cursor = (c: t) =>
-//   switch (get(c)) {
-//   | (None | Some(Here(Point(_))), _) => c
-//   | (_, None) => put_cursor(([], Point(true)), c)
-//   | (Some(Here(Select(_, (l, r)))), _) when l == r =>
-//     put_cursor((l, Point(true)), c)
-//   | (Some(Here(Select(d, (l, r)))), Some(m)) =>
-//     let l =
-//       switch (l) {
-//       | [i, j] =>
-//         switch (Chain.nth(i, Meld.to_chain(m))) {
-//         | Loop(_) => l
-//         | Link(tok) =>
-//           switch (Token.split(j, tok)) {
-//           | Ok(_)
-//           | Error(L) => l
-//           | Error(R) => [i + 1]
-//           }
-//         }
-//       | _ => l
-//       };
-//     let r =
-//       switch (r) {
-//       | [i, j] =>
-//         switch (Chain.nth(i, Meld.to_chain(m))) {
-//         | Loop(_) => r
-//         | Link(tok) =>
-//           switch (Token.split(j, tok)) {
-//           | Ok(_)
-//           | Error(R) => r
-//           | Error(L) => [i - 1]
-//           }
-//         }
-//       | _ => r
-//       };
-//     failwith("todo");
-
-//   | (Some(There(step)), Some(m)) =>
-//     let m = Meld.map_cell(normalize_cursor, c);
-//     put(m);
-//   };
-
 let point = (~foc=true, ()) => mk(~marks=Path.Marks.point(foc), ());
 
 module Space = {
@@ -147,4 +105,38 @@ module Space = {
     | None => Some(Token.Space.empty)
     | Some(m) => Meld.Space.get(m)
     };
+  let is_space = c => Option.is_some(get(c));
+
+  let merge = (l: t, r: t) => {
+    open OptUtil.Syntax;
+    let+ l_spc = get(l)
+    and+ r_spc = get(r);
+    let spc = Token.merge_text(l_spc, r_spc);
+    {
+      meld: Some(Meld.of_tok(spc)),
+      marks:
+        Path.Marks.union(
+          l.marks,
+          r.marks
+          |> Path.Marks.map_paths(
+               fun
+               | []
+               | [0, ..._] => [1, Token.length(l_spc)]
+               | [1] => [1, Token.length(l_spc)]
+               | [1, j, ..._] => [1, Token.length(l_spc) + j]
+               | path => path,
+             ),
+        ),
+    };
+  };
+
+  let get_cur = (c: t) => {
+    let (cur, m) = get_cur(c);
+    switch (m) {
+    | None => Some((cur, Token.Space.empty))
+    | Some(m) => Meld.Space.get(m) |> Option.map(spc => (cur, spc))
+    };
+  };
+  // let merge = (l: t, r: t) =>
+  //   switch (get_cur(l), get_cur(r))
 };

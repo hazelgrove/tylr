@@ -15,7 +15,8 @@ let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
   | Point () => z
   | Select((d, zigg)) =>
     let onto = Dir.toggle(Option.value(toward, ~default=d));
-    let fill = save_anchor ? [Cell.point(~foc=false, ())] : [];
+    let fill =
+      save_anchor ? Filling.unit(Cell.point(~foc=false, ())) : Filling.empty;
     Zipper.mk(Melder.Ctx.push_zigg(~onto, zigg, ~fill, z.ctx));
   };
 

@@ -1,9 +1,13 @@
 open Util;
 
-type t = list(Cell.t);
+type t = Chain.t(Cell.t, unit);
 
-let empty = [];
+let empty = Chain.unit(Cell.empty);
 let is_empty: t => bool = (==)(empty);
+
+let unit = Chain.unit;
+
+let hd = Chain.hd;
 
 // let init = (c: Cell.t) =>
 //   switch (Cell.get(c)) {
@@ -11,13 +15,62 @@ let is_empty: t => bool = (==)(empty);
 //   | Some(m) => [m]
 //   };
 
-let faces =
-  fun
-  | [] => Space.Molded.(t, t)
-  | [hd, ..._] as fill =>
-    Cell.(face(~side=L, hd), face(~side=R, ListUtil.last(fill)));
+let to_list = Chain.loops;
+let length = fill => List.length(to_list(fill));
 
-let squash = _ => failwith("todo: squash");
+let faces = (fill: t) => {
+  let (hd, ft) = Chain.(hd(fill), ft(fill));
+  Cell.(face(~side=L, hd), face(ft, ~side=R));
+};
+
+let is_space = (fill: t) =>
+  switch (Chain.unlink(fill)) {
+  | Error(cell) when Cell.Space.is_space(cell) => Some(cell)
+  | _ => None
+  };
+
+let cons = (c: Cell.t, fill: t) => Chain.link(c, (), fill);
+let rev = fill => Chain.rev(fill);
+
+let rec pad = (~side: Dir.t, ~spc: Cell.t, c: Cell.t): option(Cell.t) => {
+  open OptUtil.Syntax;
+  let/ () = {
+    let (l, r) = Dir.order(side, (spc, c));
+    Cell.Space.merge(l, r);
+  };
+  let* M(l, w, r) = Cell.get(c);
+  switch (side) {
+  | L =>
+    let+ l = pad(~side, ~spc, l);
+    Cell.put(M(l, w, r));
+  | R =>
+    let+ r = pad(r, ~spc, ~side);
+    Cell.put(M(l, w, r));
+  };
+};
+
+let squash = (fill: t) => {
+  let rec go = (~pre=Chain.Affix.empty, fill) =>
+    switch (Chain.Affix.unlink(pre), Chain.unlink(fill)) {
+    | (None, Error(_)) => fill
+    | (None, Ok((cell, (), fill))) =>
+      go(~pre=Chain.Affix.link((), cell, pre), fill)
+    | (Some(((), cell, pre_tl)), Error(hd)) =>
+      switch (pad(~side=L, ~spc=cell, hd), pad(cell, ~spc=hd, ~side=R)) {
+      | (None, None) => Chain.extend(pre, fill)
+      | (Some(padded), _)
+      | (_, Some(padded)) => Chain.extend(pre_tl, Chain.unit(padded))
+      }
+    | (Some(((), cell, pre_tl)), Ok((hd, (), tl))) =>
+      switch (pad(~side=L, ~spc=cell, hd), pad(cell, ~spc=hd, ~side=R)) {
+      | (None, None) => go(~pre=Chain.Affix.link((), hd, pre), tl)
+      | (Some(padded), _)
+      | (_, Some(padded)) =>
+        go(~pre=Chain.Affix.link((), padded, pre_tl), tl)
+      }
+    };
+  go(fill);
+};
 
 let get_space =
   fun
@@ -61,17 +114,21 @@ let fill_default = (nt: Bound.t(Molded.NT.t)) =>
 // and that fill has been oriented
 let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
   let fill = squash(fill);
-  switch (get_space(fill)) {
-  | Some(spc) => fill_default(nt) |> pad_cell(~side=L, spc)
+  switch (is_space(fill)) {
+  | Some(spc) =>
+    fill_default(nt)
+    |> pad(~side=L, ~spc)
+    |> OptUtil.get_or_fail("todo: shouldn't be possible")
   | None =>
     assert(!is_empty(fill));
     let s = Molded.NT.mtrl(nt);
     let cells =
-      [l ? [Cell.empty] : [], fill, r ? [Cell.empty] : []] |> List.concat;
+      [l ? [Cell.empty] : [], to_list(fill), r ? [Cell.empty] : []]
+      |> List.concat;
     let toks =
       Token.Grout.[
         l ? [pre(s)] : [],
-        List.init(List.length(fill) - 1, _ => in_(s)),
+        List.init(length(fill) - 1, _ => in_(s)),
         r ? [pos(s)] : [],
       ]
       |> List.concat;
@@ -83,4 +140,26 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
       Cell.put(M(l, Wald.mk(toks, cells), r));
     };
   };
+  // switch (get_space(fill)) {
+  // | Some(spc) => fill_default(nt) |> pad_cell(~side=L, spc)
+  // | None =>
+  //   assert(!is_empty(fill));
+  //   let s = Molded.NT.mtrl(nt);
+  //   let cells =
+  //     [l ? [Cell.empty] : [], fill, r ? [Cell.empty] : []] |> List.concat;
+  //   let toks =
+  //     Token.Grout.[
+  //       l ? [pre(s)] : [],
+  //       List.init(List.length(fill) - 1, _ => in_(s)),
+  //       r ? [pos(s)] : [],
+  //     ]
+  //     |> List.concat;
+  //   switch (toks) {
+  //   | [] => List.hd(cells)
+  //   | [_, ..._] =>
+  //     let (l, cells) = ListUtil.split_first(cells);
+  //     let (cells, r) = ListUtil.split_last(cells);
+  //     Cell.put(M(l, Wald.mk(toks, cells), r));
+  //   };
+  // };
 };
