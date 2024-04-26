@@ -3,12 +3,6 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
 module Cell = {
-  // module Content = {
-  //   type t('meld) =
-  //     | Pri('meld)
-  //     | Sec()
-  // }
-
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('meld) = {
     marks: Path.Marks.t,
@@ -16,8 +10,6 @@ module Cell = {
   };
   let mk = (~marks=Path.Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
-  // let empty = {marks: Path.Marks.empty, dims: Dims.zero, meld: None};
-  // let full = m => {marks: Path.Marks.empty, meld: Some(m)};
 };
 
 module Wald = {
@@ -31,13 +23,14 @@ module Wald = {
     let tok = Dir.pick(side, (Chain.hd, Chain.ft), w);
     (tok.mtrl, tok.mold);
   };
-  // let dims = (W(w)) =>
-  //   w |> Chain.to_list(Token.dims, c => Cell.(c.dims)) |> Dims.sum;
 };
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t =
-  | M(Cell.t(t), Wald.t(Cell.t(t)), Cell.t(t));
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t =
+    | M(Cell.t(t), Wald.t(Cell.t(t)), Cell.t(t));
+};
+include Base;
 
 let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
 
@@ -53,6 +46,11 @@ let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
 
 let fold = (f_hd, f_tl, m: t) => Chain.fold_left(f_hd, f_tl, to_chain(m));
 
+module Affix = {
+  include Chain.Affix;
+  type t = Chain.Affix.t(Token.t, Cell.t(Base.t));
+};
+
 module Space = {
   let mk = (tok: Token.t) => {
     assert(Mtrl.is_space(tok.mtrl));
@@ -67,33 +65,14 @@ module Grout = {
   let op_ = (s: Mtrl.Sorted.t) => mk(Wald.of_tok(Token.Grout.op_(s)));
 };
 
-// let get_spaces = ms =>
-//   ms
-//   |> List.map(get_space)
-//   |> OptUtil.sequence
-//   |> Option.map(String.concat(""));
-
-// let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
-[@warning "-27-39"]
-let rec mk_grout = (~l=false, ~r=false, sort: Mtrl.Sorted.t) => {
-  // let c_l = l ? Cell.full(mk_grout(Grout)) : Cell.empty;
-  // let c_r = r ? Cell.full(mk_grout(Grout)) : Cell.empty;
-  // mk(~l=c_l, Wald.of_tok(Token.mk_grout(~l, sort, ~r)), ~r=c_r);
-  failwith(
-    "todo: make full molded sorts for Cell.full calls above",
-  );
-};
-// let of_tok = tok => mk(Wald.of_tok(tok));
-
-let total_length = _ => failwith("todo chain indexing/sizing names");
 let split_subwald = (_, _, _) => failwith("todo Meld.split_subwald");
 
-let to_chain = (M(l, W((toks, cells)), r)) => (
-  [l, ...cells] @ [r],
-  toks,
-);
-let unzip = (n, m) => Chain.unzip_nth(n, to_chain(m));
-let unzip_tok = (_, _) => failwith("todo unzip_tok");
+let size = m => Chain.size(to_chain(m));
+
+let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
+let unzip_tok = (step, m) =>
+  Chain.unzip_link(step, to_chain(m))
+  |> OptUtil.get_or_fail("impossible: meld has at least one token");
 
 let link = (~cell=Cell.empty, t: Token.t, M(l, W(w), r): t) =>
   M(cell, W(Chain.link(t, l, w)), r);
@@ -114,33 +93,3 @@ let map_cells = (f, M(l, W((toks, cells)), r)) => {
   let cells = List.map(f, cells);
   M(l, W((toks, cells)), r);
 };
-
-// let singleton = (~l=Cell.empty, ~r=Cell.empty, t) =>
-//   mk(~l, W(Chain.unit(t)), ~r);
-
-// let of_piece = (~l=empty(), ~r=empty(), p: Piece.t) =>
-//   of_chain(Chain.mk([l, r], [p])) |> aggregate;
-
-// let root = mel =>
-//   mel.chain |> Option.map(Chain.links) |> Option.value(~default=[]);
-// let kids = mel =>
-//   mel.chain |> Option.map(Chain.loops) |> Option.value(~default=[]);
-// let length = mel => List.length(root(mel));
-
-// let sort = mel => root(mel) |> ListUtil.hd_opt |> Option.map(Piece.sort);
-// let prec = _ => failwith("todo prec");
-
-// let fst_id = mel => Option.map(Piece.id_, end_piece(~side=L, mel));
-// let lst_id = mel => Option.map(Piece.id_, end_piece(~side=R, mel));
-
-// let link = (~slot=None, a, M(l, W(w), r)) =>
-//   M(slot, W(Chain.link(a, l, w)), r);
-
-// // left to right: l w r a slot
-// let knil = (~slot=None, M(l, W(w), r), a) =>
-//   M(l, W(Chain.knil(w, r, a)), slot);
-
-// let unlink = (M(l, W(w), r)) =>
-//   Chain.unlink(w)
-//   |> Result.map(~f=((a, slot, tl)) => (l, a, (slot, W(tl), r)))
-//   |> Result.map_error(~f=a => (l, a, r));

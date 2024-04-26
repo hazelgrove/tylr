@@ -47,7 +47,7 @@ let bake_swing =
 let bake = (~from: Dir.t, ~fill=Filling.empty, w: Walk.t): option(Baked.t) =>
   w
   |> Chain.map_link(((mtrl, mold)) => Token.mk(mtrl, mold))
-  |> Chain.unzip
+  |> Chain.unzip_loops
   // choose swing to fill that minimizes obligations.
   // currently simply chooses a single swing to fill even when there are
   // multiple fill elements. ideally this choice would distribute multiple

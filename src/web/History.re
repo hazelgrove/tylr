@@ -46,7 +46,7 @@ let can_undo = ((_, after): t) => Chain.Affix.is_empty(after);
 //   };
 // };
 let do_ = (a: Edit.Action.t, z: Zipper.t, (pre, _): t) =>
-  Chain.Affix.(cons(a, z, pre), empty);
+  Chain.Affix.(link(a, z, pre), empty);
 
 // let escaped = (history: t) => {
 //   ...history,
@@ -55,13 +55,13 @@ let do_ = (a: Edit.Action.t, z: Zipper.t, (pre, _): t) =>
 // };
 
 let undo = (z: Zipper.t, (before, after): t): option((Zipper.t, t)) =>
-  Chain.Affix.uncons(before)
-  |> Option.map((((a, prev), before)) =>
-       (prev, (before, Chain.Affix.cons(a, z, after)))
+  Chain.Affix.unlink(before)
+  |> Option.map(((a, prev, before)) =>
+       (prev, (before, Chain.Affix.link(a, z, after)))
      );
 
 let redo = (z: Zipper.t, (before, after): t): option((Zipper.t, t)) =>
-  Chain.Affix.uncons(after)
-  |> Option.map((((a, next), after)) =>
-       (next, (Chain.Affix.cons(a, z, before), after))
+  Chain.Affix.unlink(after)
+  |> Option.map(((a, next, after)) =>
+       (next, (Chain.Affix.link(a, z, before), after))
      );

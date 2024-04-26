@@ -30,7 +30,9 @@ let clear_marks = cell => {...cell, marks: Path.Marks.empty};
 
 module Found_cursor = {
   type t =
-    | Here(Cursor.t(Path.Point.is_focus, Path.Select.t))
+    // at the current cell
+    | Here(Cursor.t(Path.Point.t, Path.Select.t))
+    // in a sub-cell of the current cell
     | There(Path.Step.t);
 };
 
@@ -39,15 +41,18 @@ let get_cur = (c: t) => {
     c.marks.cursor
     |> Option.map(
          fun
-         | Cursor.Point(Path.Point.{is_focus, path: []}) =>
-           Found_cursor.Here(Point(is_focus))
-         | Point({path: [hd, ..._], _}) => There(hd)
-         | Select(
-             Path.Select.{focus: [hd_foc, ..._], anchor: [hd_anc, ..._]},
-           )
-             when hd_foc == hd_anc =>
-           There(hd_foc)
-         | Select(sel) => Here(Select(sel)),
+         | Cursor.Point(p: Path.Point.t) =>
+           switch (p.path) {
+           | [] => Found_cursor.Here(Point(p))
+           | [hd, ..._] => hd mod 2 == 0 ? There(hd) : Here(Point(p))
+           }
+         | Select(sel: Path.Select.t) =>
+           switch (sel) {
+           | {focus: [hd_foc, ..._], anchor: [hd_anc, ..._]}
+               when hd_foc == hd_anc =>
+             There(hd_foc)
+           | _ => Here(Select(sel))
+           },
        );
   let meld =
     c.meld
@@ -87,7 +92,7 @@ let rec end_path = (~side: Dir.t, c: t) =>
   switch (get(c)) {
   | None => []
   | Some(M(l, _, r) as m) =>
-    let hd = Dir.pick(side, (0, Meld.total_length(m) - 1));
+    let hd = Dir.pick(side, (0, Meld.size(m) - 1));
     let tl = end_path(~side, Dir.pick(side, (l, r)));
     [hd, ...tl];
   };

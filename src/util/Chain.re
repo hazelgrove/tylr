@@ -52,14 +52,14 @@ module Affix = {
   type t('link, 'loop) = (list('link), list('loop));
   let empty = ([], []);
   let is_empty = ((lks, lps)) => lks == [] && lps == [];
-  let cons = (lk, lp, (lks, lps): t(_)) => ([lk, ...lks], [lp, ...lps]);
-  let uncons =
+  let cons = (lk, (lps, lks): Base.t(_)) => ([lk, ...lks], lps);
+  let link = (lk, lp, (lks, lps): t(_)) => ([lk, ...lks], [lp, ...lps]);
+  let unlink =
     fun
     | ([], _)
     | (_, []) => None
-    | ([lk, ...lks], [lp, ...lps]) => Some(((lk, lp), (lks, lps)));
-  let length = ((lks, _): t(_)) => List.length(lks);
-  let snoc = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
+    | ([lk, ...lks], [lp, ...lps]) => Some((lk, lp, (lks, lps)));
+  let knil = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
   let split_hd =
       ((lks, lps): t('lk, 'lp)): option(('lk, Base.t('lp, 'lk))) =>
     switch (lks) {
@@ -67,12 +67,6 @@ module Affix = {
     | [lk, ...lks] => Some((lk, (lps, lks)))
     };
 };
-module Elem = {
-  type t('loop, 'link) =
-    | Loop('loop)
-    | Link('link);
-};
-let nth = (_, _): Elem.t(_) => failwith("todo Chain.nth");
 
 let rec extend = (tl: Affix.t('lk, 'lp), c: t('lp, 'lk)) =>
   switch (tl) {
@@ -90,6 +84,11 @@ let map_hd = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
   ([f(a), ...lps], lks);
 };
 let put_hd = lp => map_hd(_ => lp);
+
+let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
+  [hd, ...lps],
+  lks,
+);
 
 let split_ft = ((lps, lks)) => {
   assert(lps != []);
@@ -210,20 +209,45 @@ let zip = (~pre=Affix.empty, ~suf=Affix.empty, foc) => {
   mk(lps, lks);
 };
 
-let unzip = (c: t('lp, 'lk)): list((Affix.t(_), Affix.t(_))) =>
-  c
-  |> fold_right(
-       (lp, lk, unzipped) => {
-         let (_, foc, suf) = List.hd(unzipped);
-         let hd = (Affix.empty, lp, Affix.cons(lk, foc, suf));
-         let tl =
-           unzipped
-           |> List.map(((pre, foc, suf)) =>
-                (Affix.snoc(pre, lk, lp), foc, suf)
-              );
-         [hd, ...tl];
-       },
-       lp => [(Affix.empty, lp, Affix.empty)],
-     );
+let unzip_loop = (n: int, c: t('lp, 'lk)): (Affix.t(_), 'lp, Affix.t(_)) => {
+  let invalid = Invalid_argument("Chain.unzip_loop");
+  if (n < 0 || n mod 2 != 0) {
+    raise(invalid);
+  };
+  let rec go = (~pre=Affix.empty, n, c) =>
+    if (n == 0) {
+      let (lp, suf) = split_hd(c);
+      (pre, lp, suf);
+    } else {
+      let (lp, lk, c) = unlink(c) |> Result.get_or_raise(invalid);
+      let pre = Affix.link(lk, lp, pre);
+      go(~pre, n - 2, c);
+    };
+  go(n, c);
+};
+let unzip_loops = (c: t('lp, 'lk)): list((Affix.t(_), 'lp, Affix.t(_))) => {
+  let rec go = (~unzipped=[], ~pre=Affix.empty, c) =>
+    switch (unlink(c)) {
+    | Error(lp) => [(pre, lp, Affix.empty), ...unzipped]
+    | Ok((lp, lk, c)) =>
+      let unzipped = [(pre, lp, Affix.cons(lk, c)), ...unzipped];
+      let pre = Affix.link(lk, lp, pre);
+      go(~unzipped, ~pre, c);
+    };
+  go(c);
+};
 
-let unzip_nth = (n, c) => List.nth(unzip(c), n);
+let unzip_link = (n: int, c: t('lp, 'lk)): option((t(_), 'lk, t(_))) => {
+  let invalid = Invalid_argument("Chain.unzip_link");
+  if (n < 1 || n mod 2 == 0) {
+    raise(invalid);
+  };
+  let rec go = (pre, n, suf) => {
+    open OptUtil.Syntax;
+    let* (lk, lp, suf) = Affix.unlink(suf);
+    n == 1
+      ? Some((pre, lk, cons(lp, suf))) : go(link(lp, lk, pre), n - 2, suf);
+  };
+  let (hd, tl) = split_hd(c);
+  go(unit(hd), n, tl);
+};

@@ -41,7 +41,7 @@ module Affix = {
   type t = Chain.Affix.t(Cell.t, Token.t);
 };
 
-let unzip_tok = (n, W(w)) => Chain.unzip_nth(n, w);
+let unzip_tok = (n, W(w)) => Chain.unzip_loop(n, w);
 let zip_tok = (~pre=Affix.empty, ~suf=Affix.empty, tok) =>
   W(Chain.zip(~pre, tok, ~suf));
 

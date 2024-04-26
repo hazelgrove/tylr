@@ -30,3 +30,15 @@ let extend = (~side as d: Dir.t, tl, ctx) => {
 };
 
 let flatten = _ => failwith("todo Ctx.flatten");
+
+let cons = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) => {
+  let l = () => Terr.mk(fst(pre), snd(pre));
+  let r = () => Terr.mk(fst(suf), snd(suf));
+  if (Meld.Affix.is_empty(pre)) {
+    map_hd(((dn, up)) => (dn, [r(), ...up]));
+  } else if (Meld.Affix.is_empty(suf)) {
+    map_hd(((dn, up)) => ([l(), ...dn], up));
+  } else {
+    link((l(), r()));
+  };
+};

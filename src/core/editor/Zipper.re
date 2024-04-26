@@ -26,29 +26,42 @@ let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   Ctx.map_hd(Frame.Open.cat(f_open), ctx);
 };
 
+let unzip_point = (~ctx=Ctx.empty, p: Path.Point.t, m: Meld.t) =>
+  switch (p.path) {
+  | [] => mk(unroll_cell(L, Cell.put(m), ~ctx))
+  | [hd, ...tl] =>
+    let (pre, tok, suf) = Meld.unzip_tok(hd, m);
+    let j = ListUtil.hd_opt(tl) |> Option.value(~default=0);
+    switch (Token.split(j, tok)) {
+    | Ok((l, r)) =>
+      let pre = Chain.Affix.cons(l, pre);
+      let suf = Chain.Affix.cons(r, suf);
+      mk(Ctx.cons((pre, suf), ctx));
+    | Error(L) =>
+      let (cell, pre) = Chain.split_hd(pre);
+      let suf = Chain.Affix.cons(tok, suf);
+      let ctx = Ctx.cons((pre, suf), ctx);
+      mk(unroll_cell(R, cell, ~ctx));
+    | Error(R) =>
+      let pre = Chain.Affix.cons(tok, pre);
+      let (cell, suf) = Chain.split_hd(suf);
+      let ctx = Ctx.cons((pre, suf), ctx);
+      mk(unroll_cell(L, cell, ~ctx));
+    };
+  };
+
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   let (cursor, meld) = Cell.get_cur(cell);
   switch (meld) {
   | None => mk(ctx)
-  | Some(M(l, w, r) as m) =>
+  | Some(m) =>
     switch (cursor) {
-    | None
-    | Some(Here(Point(_))) => mk(unroll_cell(L, cell, ~ctx))
+    | None => mk(unroll_cell(L, cell, ~ctx))
+    | Some(Here(Point(p))) => unzip_point(p, m)
     | Some(Here(Select(sel))) => unzip_select(sel, m, ~ctx)
     | Some(There(step)) =>
-      if (step == 0) {
-        let terr = Terr.{wald: w, cell: r};
-        let ctx = Ctx.map_hd(Frame.Open.cat(([], [terr])), ctx);
-        unzip(l, ~ctx);
-      } else if (step == Wald.length(w)) {
-        let terr = Terr.{cell: l, wald: Wald.rev(w)};
-        let ctx = Ctx.map_hd(Frame.Open.cat(([terr], [])), ctx);
-        unzip(r, ~ctx);
-      } else {
-        let (pre, cell, suf) = Wald.unzip_cell(step - 1, w);
-        let terrs = Terr.({cell: l, wald: pre}, {wald: suf, cell: r});
-        unzip(cell, ~ctx=Ctx.link(terrs, ctx));
-      }
+      let (pre, cell, suf) = Meld.unzip_cell(step, m);
+      unzip(~ctx=Ctx.cons((pre, suf), ctx), cell);
     }
   };
 }
@@ -56,7 +69,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
   let (d, (l, r)) = Path.Select.order(sel);
   let n_l = ListUtil.hd_opt(l) |> Option.value(~default=0);
   let n_r =
-    ListUtil.hd_opt(r) |> Option.value(~default=Meld.total_length(meld) - 1);
+    ListUtil.hd_opt(r) |> Option.value(~default=Meld.size(meld) - 1);
   let (pre, top, suf) = Meld.split_subwald(n_l, n_r, meld);
   let ((pre_dn, pre_up), top) = {
     let (hd_pre, tl_pre) = Chain.split_hd(pre);

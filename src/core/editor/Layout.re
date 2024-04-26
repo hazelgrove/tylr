@@ -74,7 +74,7 @@ let fold =
     | None => init
     | Some(M(l, _, _) as m) =>
       let mid = Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
-      let n = Meld.total_length(m);
+      let n = Meld.size(m);
       Meld.to_chain(m)
       |> Chain.mapi_loop((i, c) => (i, c))
       |> Chain.fold_left_map(
@@ -140,7 +140,7 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
            )
         |> Pos.skip_col(ListUtil.hd_opt(tl) |> Option.value(~default=0));
       | [c, ...cs] =>
-        let ((toks, cells), cell, suf) = Meld.unzip(c, m);
+        let ((toks, cells), cell, suf) = Meld.unzip_cell(c, m);
         let pos =
           List.fold_right2(
             (tok, cell, pos) =>
@@ -210,7 +210,7 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.t => {
              Ictx.{
                delim: Node(tok),
                left: mid,
-               right: step == Meld.total_length(m) - 1 ? ctx.right : mid,
+               right: step == Meld.size(m) - 1 ? ctx.right : mid,
              };
            go_cell(~ctx, ~pos, cell) |> Result.map(~f=Path.cons(step));
          },
