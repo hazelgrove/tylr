@@ -1,51 +1,51 @@
 open Util;
 
 let bake_eq =
-    (~fill=Filling.empty, sort: Bound.t(Molded.NT.t))
+    (~fill=Fill.empty, sort: Bound.t(Molded.NT.t))
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
-  let (f_l, f_r) = Filling.faces(fill);
+  let (f_l, f_r) = Fill.faces(fill);
   let+ w_l = ListUtil.hd_opt(Walker.enter(~from=L, sort, Node(f_l)))
   and+ w_r = ListUtil.hd_opt(Walker.enter(~from=R, sort, Node(f_r)));
   let (l, r) = Walk.(height(w_l) > 2, height(w_r) > 2);
-  let cell = Filling.fill(~l, fill, sort, ~r);
+  let cell = Fill.fill(~l, fill, sort, ~r);
   Rel.Eq(cell);
 };
 
 let bake_lt =
     (
-      ~fill=Filling.empty,
+      ~fill=Fill.empty,
       bound: Bound.t(Molded.NT.t),
       sort: Bound.t(Molded.NT.t),
     )
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
-  let (f_l, f_r) = Filling.faces(fill);
+  let (f_l, f_r) = Fill.faces(fill);
   let+ _w_l = ListUtil.hd_opt(Walker.enter(~from=L, bound, Node(f_l)))
   and+ w_r = ListUtil.hd_opt(Walker.enter(~from=R, sort, Node(f_r)));
-  let cell = Filling.fill(fill, sort, ~r=Walk.height(w_r) > 2);
+  let cell = Fill.fill(fill, sort, ~r=Walk.height(w_r) > 2);
   Rel.Neq(cell);
 };
 
 let bake_gt =
     (
-      ~fill=Filling.empty,
+      ~fill=Fill.empty,
       sort: Bound.t(Molded.NT.t),
       bound: Bound.t(Molded.NT.t),
     )
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
-  let (f_l, f_r) = Filling.faces(fill);
+  let (f_l, f_r) = Fill.faces(fill);
   let+ w_l = ListUtil.hd_opt(Walker.enter(~from=L, sort, Node(f_l)))
   and+ _w_r = ListUtil.hd_opt(Walker.enter(~from=R, bound, Node(f_r)));
-  let cell = Filling.fill(~l=Walk.height(w_l) > 2, fill, sort);
+  let cell = Fill.fill(~l=Walk.height(w_l) > 2, fill, sort);
   Rel.Neq(cell);
 };
 
 let bake_swing =
-    (~fill=Filling.empty, ~from: Dir.t, sw: Walk.Swing.t)
+    (~fill=Fill.empty, ~from: Dir.t, sw: Walk.Swing.t)
     : option(Rel.t(Cell.t, Cell.t)) => {
-  let fill = Dir.pick(from, (Fun.id, Filling.rev), fill);
+  let fill = Dir.pick(from, (Fun.id, Fill.rev), fill);
   switch (from) {
   | _ when Walk.Swing.height(sw) <= 1 => bake_eq(~fill, Walk.Swing.bot(sw))
   | L => bake_lt(~fill, Walk.Swing.top(sw), Walk.Swing.bot(sw))
@@ -53,7 +53,7 @@ let bake_swing =
   };
 };
 
-let bake = (~from: Dir.t, ~fill=Filling.empty, w: Walk.t): option(Baked.t) =>
+let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
   w
   |> Chain.map_link(((mtrl, mold)) => Token.mk(mtrl, mold))
   |> Chain.unzip_loops

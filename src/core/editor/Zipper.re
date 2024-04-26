@@ -144,9 +144,9 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
   switch (dn, up) {
   | ([], []) => zipped
   | ([], [_, ..._]) =>
-    Filling.hd(Melder.Slope.Up.roll(~fill=Filling.unit(zipped), up))
+    Fill.hd(Melder.Slope.Up.roll(~fill=Fill.unit(zipped), up))
   | ([_, ..._], []) =>
-    Filling.hd(Melder.Slope.Dn.roll(dn, ~fill=Filling.unit(zipped)))
+    Fill.hd(Melder.Slope.Dn.roll(dn, ~fill=Fill.unit(zipped)))
   | ([l, ..._] as dn, [r, ..._]) when Melder.Wald.lt(l.wald, r.wald) =>
     Cell.put(Meld.mk(~l=zipped, r.wald, ~r=r.cell)) |> zip_open((dn, up))
   | ([l, ...dn], [r, ..._] as up) when Melder.Wald.gt(l.wald, r.wald) =>

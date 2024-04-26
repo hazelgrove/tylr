@@ -38,7 +38,7 @@ let insert = (s: string, z: Zipper.t) => {
   let ((l, r), ctx) = pull_neighbors(ctx);
   Labeler.label(l ++ s ++ r)
   |> List.fold_left((ctx, tok) => Molder.mold(ctx, tok), ctx)
-  |> Molder.remold(~fill=Filling.unit(Cell.point()))
+  |> Molder.remold(~fill=Fill.unit(Cell.point()))
   |> Zipper.mk
   |> Zipper.move_to_cursor;
 };

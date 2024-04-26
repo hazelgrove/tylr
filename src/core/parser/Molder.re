@@ -35,7 +35,7 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
     },
   );
 
-let mold = (ctx: Ctx.t, ~fill=Filling.empty, t: Token.Unmolded.t) =>
+let mold = (ctx: Ctx.t, ~fill=Fill.empty, t: Token.Unmolded.t) =>
   switch (
     candidates(t)
     |> Oblig.Delta.minimize(tok => Melder.Ctx.push(~onto=L, tok, ~fill, ctx))
@@ -47,12 +47,12 @@ let mold = (ctx: Ctx.t, ~fill=Filling.empty, t: Token.Unmolded.t) =>
     |> OptUtil.get_or_fail("bug: failed to meld unmolded token")
   };
 
-let rec remold = (~fill=Filling.empty, ctx: Ctx.t) => {
+let rec remold = (~fill=Fill.empty, ctx: Ctx.t) => {
   let ((dn, up), tl) = Ctx.split_hd(ctx);
   switch (up) {
   | [] =>
     let unrolled =
-      Filling.to_list(fill)
+      Fill.to_list(fill)
       |> List.rev_map(Melder.Slope.Dn.unroll)
       |> List.concat;
     Ctx.zip((Slope.cat(unrolled, dn), []), ~suf=tl);
@@ -70,7 +70,7 @@ let rec remold = (~fill=Filling.empty, ctx: Ctx.t) => {
       molded
       |> Ctx.extend(~side=L, rest)
       |> Option.get  // must succeed if Ctx.face succeeded
-      |> remold(~fill=Filling.unit(terr.cell))
+      |> remold(~fill=Fill.unit(terr.cell))
     | _ =>
       // otherwise add rest of wald to suffix queue
       let up =
