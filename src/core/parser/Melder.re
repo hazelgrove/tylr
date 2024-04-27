@@ -168,7 +168,7 @@ module Slope = {
       switch (slope) {
       | [] => Error(fill)
       | [{wald: W(([tok, ...toks], cells)), cell}, ...tl]
-          when Token.is_grout(tok) =>
+          when Token.Grout.is(tok) =>
         Effects.remove(tok);
         let (cell, slope) =
           switch (cells) {

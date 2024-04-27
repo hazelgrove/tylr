@@ -52,15 +52,9 @@ module Delta = {
   let add_effect =
     fun
     | Effects.Insert(t) =>
-      switch (of_token(t)) {
-      | None => Fun.id
-      | Some(o) => incr(o)
-      }
+      of_token(t) |> Option.map(incr) |> Option.value(~default=Fun.id)
     | Remove(t) =>
-      switch (of_token(t)) {
-      | None => Fun.id
-      | Some(o) => decr(o)
-      };
+      of_token(t) |> Option.map(decr) |> Option.value(~default=Fun.id);
   let of_effects = List.fold_left(Fun.flip(add_effect), zero);
 
   let minimize =

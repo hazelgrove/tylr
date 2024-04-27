@@ -20,7 +20,7 @@ let face = (~side: Dir.t, c: t) =>
 
 // let has_space = (cell: t) =>
 //   switch (cell.meld) {
-//   | Some(M(_, W(([tok], [])), _)) when Token.is_space(tok) => true
+//   | Some(M(_, W(([tok], [])), _)) when Token.Space.is(tok) => true
 //   | _ => false
 //   };
 
@@ -137,6 +137,4 @@ module Space = {
     | Some(m) => Meld.Space.get(m) |> Option.map(spc => (cur, spc))
     };
   };
-  // let merge = (l: t, r: t) =>
-  //   switch (get_cur(l), get_cur(r))
 };

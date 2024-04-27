@@ -4,15 +4,10 @@ type t =
 
 let log = ref([]);
 
-let perform = eff => log := [eff, ...log^];
+let perform = (eff: t) => log := [eff, ...log^];
 let insert = tok => perform(Insert(tok));
 let remove = tok => perform(Remove(tok));
-
-// necessary to wrap recorded effects in existential wrapper for reasons
-// I don't fully understand:
-// https://stackoverflow.com/questions/49538251/heterogeneous-list-of-gadt-in-ocaml
-// type recorded =
-//   | R(t('a)): recorded;
+// let merge = (l, r) => perform(Merge(l, r));
 
 // apply f to x, record effects, and emit as values without commiting log.
 // useful for choosing between numerous effectful paths and choosing one based
@@ -27,15 +22,3 @@ let dry_run = (f, x): (_, list(t)) => {
 };
 
 let commit = (effs: list(t)) => List.iter(perform, effs);
-
-// let perform_all = set =>
-//   to_list(set)
-//   |> List.iter(((_, eff)) => Effect.perform(eff));
-
-// let perform_if = (o, eff: t(unit)) =>
-//   switch (o) {
-//   | None => None
-//   | Some(x) =>
-//     perform(eff);
-//     Some(x);
-//   };

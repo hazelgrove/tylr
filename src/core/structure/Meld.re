@@ -60,7 +60,7 @@ module Space = {
   };
   let get =
     fun
-    | M(_, W(([tok], [])), _) when Token.is_space(tok) => Some(tok)
+    | M(_, W(([tok], [])), _) when Token.Space.is(tok) => Some(tok)
     | _ => None;
 };
 module Grout = {

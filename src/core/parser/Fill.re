@@ -4,19 +4,12 @@ type t = Chain.t(Cell.t, unit);
 
 let empty = Chain.unit(Cell.empty);
 let is_empty: t => bool = (==)(empty);
-
 let unit = Chain.unit;
-
 let hd = Chain.hd;
-
-// let init = (c: Cell.t) =>
-//   switch (Cell.get(c)) {
-//   | None => empty
-//   | Some(m) => [m]
-//   };
-
 let to_list = Chain.loops;
 let length = fill => List.length(to_list(fill));
+let rev = fill => Chain.rev(fill);
+let cons = (c: Cell.t, fill: t) => Chain.link(c, (), fill);
 
 let faces = (fill: t) => {
   let (hd, ft) = Chain.(hd(fill), ft(fill));
@@ -28,9 +21,6 @@ let is_space = (fill: t) =>
   | Error(cell) when Cell.Space.is_space(cell) => Some(cell)
   | _ => None
   };
-
-let cons = (c: Cell.t, fill: t) => Chain.link(c, (), fill);
-let rev = fill => Chain.rev(fill);
 
 let rec pad = (~side: Dir.t, ~spc: Cell.t, c: Cell.t): option(Cell.t) => {
   open OptUtil.Syntax;
@@ -72,38 +62,6 @@ let squash = (fill: t) => {
   go(fill);
 };
 
-let get_space =
-  fun
-  | [] => Some(Token.Space.empty)
-  | [c] => Cell.Space.get(c)
-  | [_, ..._] => None;
-
-let rec pad_meld = (~side as d: Dir.t, spc: Token.t, m: Meld.t) => {
-  let _ = failwith("todo: change padding to be cell for cursors");
-  switch (Meld.Space.get(m)) {
-  | Some(spc') =>
-    let (l, r) = Dir.order(d, (spc, spc'));
-    let spc = Token.merge(l, r);
-    Meld.Space.mk(spc);
-  | None =>
-    let M(l, w, r) = m;
-    let (c_d, c_b) = Dir.order(d, (l, r));
-    let c_d = pad_cell(~side=d, spc, c_d);
-    let (l, r) = Dir.order(d, (c_d, c_b));
-    Meld.M(l, w, r);
-  };
-}
-and pad_cell = (~side: Dir.t, spc: Token.t, c: Cell.t) =>
-  Cell.put(
-    switch (Cell.get(c)) {
-    | None => Meld.Space.mk(spc)
-    | Some(m) => pad_meld(~side, spc, m)
-    },
-  );
-
-// let padding = (nt: Bound.t(Molded.NT.t)) =>
-//   nt |> Bound.map(Molded.NT.padding) |> Bound.get(~root=Padding.root);
-
 let fill_default = (nt: Bound.t(Molded.NT.t)) =>
   switch (Molded.NT.mtrl(nt)) {
   | Space => Cell.empty
@@ -140,26 +98,4 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
       Cell.put(M(l, Wald.mk(toks, cells), r));
     };
   };
-  // switch (get_space(fill)) {
-  // | Some(spc) => fill_default(nt) |> pad_cell(~side=L, spc)
-  // | None =>
-  //   assert(!is_empty(fill));
-  //   let s = Molded.NT.mtrl(nt);
-  //   let cells =
-  //     [l ? [Cell.empty] : [], fill, r ? [Cell.empty] : []] |> List.concat;
-  //   let toks =
-  //     Token.Grout.[
-  //       l ? [pre(s)] : [],
-  //       List.init(List.length(fill) - 1, _ => in_(s)),
-  //       r ? [pos(s)] : [],
-  //     ]
-  //     |> List.concat;
-  //   switch (toks) {
-  //   | [] => List.hd(cells)
-  //   | [_, ..._] =>
-  //     let (l, cells) = ListUtil.split_first(cells);
-  //     let (cells, r) = ListUtil.split_last(cells);
-  //     Cell.put(M(l, Wald.mk(toks, cells), r));
-  //   };
-  // };
 };
