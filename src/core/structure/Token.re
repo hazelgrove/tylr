@@ -95,12 +95,12 @@ module Unmolded = {
   let defer = (tok: t): Molded.t => Space.mk(~id=tok.id, ~text=tok.text, ());
 };
 
-let merge_text = (l: t, r: t) => {
-  let _ = failwith("perform effect here?");
+let merge = (l: t, r: t) => {
+  Effects.merge(l, r);
   {...l, text: l.text ++ r.text};
 };
 
-let merge = (l: t, r: t) =>
+let zip = (l: t, r: t) =>
   if (Id.eq(l.id, r.id)) {
     assert(Mold.equal(l.mold, r.mold));
     Some({...l, text: l.text ++ r.text});
@@ -108,7 +108,7 @@ let merge = (l: t, r: t) =>
     None;
   };
 
-let split = (n: int, tok: t): Result.t((t, t), Dir.t) =>
+let unzip = (n: int, tok: t): Result.t((t, t), Dir.t) =>
   switch (tok.mtrl, StringUtil.unzip_opt(n, tok.text)) {
   | (_, Some(("", _))) => Error(L)
   | (Space | Grout, Some((_, ""))) => Error(R)

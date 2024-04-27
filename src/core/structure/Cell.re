@@ -111,7 +111,7 @@ module Space = {
     open OptUtil.Syntax;
     let+ l_spc = get(l)
     and+ r_spc = get(r);
-    let spc = Token.merge_text(l_spc, r_spc);
+    let spc = Token.merge(l_spc, r_spc);
     {
       meld: Some(Meld.of_tok(spc)),
       marks:

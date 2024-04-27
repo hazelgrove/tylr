@@ -83,7 +83,7 @@ let rec pad_meld = (~side as d: Dir.t, spc: Token.t, m: Meld.t) => {
   switch (Meld.Space.get(m)) {
   | Some(spc') =>
     let (l, r) = Dir.order(d, (spc, spc'));
-    let spc = Token.merge_text(l, r);
+    let spc = Token.merge(l, r);
     Meld.Space.mk(spc);
   | None =>
     let M(l, w, r) = m;

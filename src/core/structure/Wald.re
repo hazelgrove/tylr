@@ -61,6 +61,6 @@ let zip_hds = (~from: Dir.t, src: t, dst: t): option(t) => {
   let (hd_src, tl_src) = split_hd(src);
   let (hd_dst, tl_dst) = split_hd(dst);
   let (hd_l, hd_r) = Dir.order(from, (hd_src, hd_dst));
-  Token.merge(hd_l, hd_r)
+  Token.zip(hd_l, hd_r)
   |> Option.map(tok => W(Chain.zip(~pre=tl_dst, tok, ~suf=tl_src)));
 };

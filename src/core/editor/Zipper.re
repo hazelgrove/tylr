@@ -32,7 +32,7 @@ let unzip_point = (~ctx=Ctx.empty, p: Path.Point.t, m: Meld.t) =>
   | [hd, ...tl] =>
     let (pre, tok, suf) = Meld.unzip_tok(hd, m);
     let j = ListUtil.hd_opt(tl) |> Option.value(~default=0);
-    switch (Token.split(j, tok)) {
+    switch (Token.unzip(j, tok)) {
     | Ok((l, r)) =>
       let pre = Chain.Affix.cons(l, pre);
       let suf = Chain.Affix.cons(r, suf);
@@ -93,7 +93,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
       | [j, ..._] =>
         // char index (ignore rest)
         let (hd_top_l, hd_top_r) =
-          Token.split(j, Wald.hd(top))
+          Token.unzip(j, Wald.hd(top))
           |> Result.get_or_fail("expected normalized cursor");
         let (cs_pre, ts_pre) = pre;
         let pre = ([Terr.mk([hd_top_l, ...ts_pre], cs_pre)], []);
@@ -123,7 +123,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
       | [j, ..._] =>
         // char index (ignore rest)
         let (ft_top_l, ft_top_r) =
-          Token.split(j, Wald.ft(top))
+          Token.unzip(j, Wald.ft(top))
           |> Result.get_or_fail("expected normalized cursor");
         let (cs_suf, ts_suf) = suf;
         let suf = ([], [Terr.mk([ft_top_r, ...ts_suf], cs_suf)]);
