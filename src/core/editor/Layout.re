@@ -74,7 +74,7 @@ let fold =
     | None => init
     | Some(M(l, _, _) as m) =>
       let mid = Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
-      let n = Meld.size(m);
+      let n = Meld.length(m);
       Meld.to_chain(m)
       |> Chain.mapi_loop((i, c) => (i, c))
       |> Chain.fold_left_map(
@@ -194,7 +194,6 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.t => {
     let M(l, _, _) = m;
     // indentation of meld's root tokens
     let mid = Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
-    let _ = failwith("todo: double check Chain.mapi_loop index");
     Meld.to_chain(m)
     |> Chain.mapi_loop((step, cell) => (step, cell))
     |> Chain.fold_left(
@@ -210,7 +209,7 @@ let path_of_pos = (target: Pos.t, c: Cell.t): Path.t => {
              Ictx.{
                delim: Node(tok),
                left: mid,
-               right: step == Meld.size(m) - 1 ? ctx.right : mid,
+               right: step == Meld.length(m) - 1 ? ctx.right : mid,
              };
            go_cell(~ctx, ~pos, cell) |> Result.map(~f=Path.cons(step));
          },

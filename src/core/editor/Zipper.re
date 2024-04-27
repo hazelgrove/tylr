@@ -69,7 +69,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
   let (d, (l, r)) = Path.Select.order(sel);
   let n_l = ListUtil.hd_opt(l) |> Option.value(~default=0);
   let n_r =
-    ListUtil.hd_opt(r) |> Option.value(~default=Meld.size(meld) - 1);
+    ListUtil.hd_opt(r) |> Option.value(~default=Meld.length(meld) - 1);
   let (pre, top, suf) = Meld.split_subwald(n_l, n_r, meld);
   let ((pre_dn, pre_up), top) = {
     let (hd_pre, tl_pre) = Chain.split_hd(pre);

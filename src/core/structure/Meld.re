@@ -69,7 +69,7 @@ module Grout = {
 
 let split_subwald = (_, _, _) => failwith("todo Meld.split_subwald");
 
-let size = m => Chain.size(to_chain(m));
+let size = m => Chain.length(to_chain(m));
 
 let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
 let unzip_tok = (step, m) =>

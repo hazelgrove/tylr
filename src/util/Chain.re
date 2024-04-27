@@ -16,17 +16,18 @@ let mk = (lps: list('lp), lks: list('lk)): t('lp, 'lk) => {
 };
 
 let unit = (lp: 'lp): t('lp, _) => ([lp], []);
-
 let loops: t('lp, _) => list('lp) = fst;
 let links: t(_, 'lk) => list('lk) = snd;
-
-let size = ((lps, _): t(_)) => List.length(lps) * 2 - 1;
-
-let length = ((lps, _)) => List.length(lps);
+let loop_length = ((lps, _)) => List.length(lps);
+let length = c => loop_length(c) * 2 - 1;
 
 let link = (a: 'lp, b: 'lk, (lps, lks): t('lp, 'lk)): t('lp, 'lk) => (
   [a, ...lps],
   [b, ...lks],
+);
+let knil = ((lps, lks): t('lp, 'lk), b: 'lk, a: 'lp): t('lp, 'lk) => (
+  lps @ [a],
+  lks @ [b],
 );
 let unlink =
     ((lps, lks): t('lp, 'lk)): Result.t(('lp, 'lk, t('lp, 'lk)), 'lp) =>
@@ -34,11 +35,6 @@ let unlink =
   | [] => Error(List.hd(lps))
   | [b, ...lks] => Ok((List.hd(lps), b, (List.tl(lps), lks)))
   };
-
-let knil = ((lps, lks): t('lp, 'lk), b: 'lk, a: 'lp): t('lp, 'lk) => (
-  lps @ [a],
-  lks @ [b],
-);
 let unknil =
     ((lps, lks): t('lp, 'lk)): Result.t((t('lp, 'lk), 'lk, 'lp), 'lp) =>
   ListUtil.split_last_opt(lks)
@@ -122,18 +118,15 @@ let map_link = (f_lk: 'lk1 => 'lk2, (lps, lks): t('lp, 'lk1)): t('lp, 'lk2) => (
 );
 let map = (f_lp, f_lk, c) => c |> map_loop(f_lp) |> map_link(f_lk);
 
-let mapi_loop = (f_lp, (lps, lks)) => {
-  let _ = failwith("todo update indexing scheme");
-  (List.mapi(f_lp, lps), lks);
-};
-let mapi_link = (f_lk, (lps, lks)) => (lps, List.mapi(f_lk, lks));
+let mapi_loop = (f_lp, (lps, lks)) => (
+  List.mapi(i => f_lp(2 * i), lps),
+  lks,
+);
+let mapi_link = (f_lk, (lps, lks)) => (
+  lps,
+  List.mapi(i => f_lk(1 + 2 * i), lks),
+);
 let mapi = (f_lp, f_lk, c) => c |> mapi_loop(f_lp) |> mapi_link(f_lk);
-
-let split_nth_link = (n: int, (lps, lks): t('lp, 'lk) as 'c): ('c, 'lk, 'c) => {
-  let (lps_l, lps_r) = ListUtil.split_n(n + 1, lps);
-  let (lks_l, lk, lks_r) = ListUtil.split_nth(n, lks);
-  ((lps_l, lks_l), lk, (lps_r, lks_r));
-};
 
 let to_list = (f_lp: 'lp => 'x, f_lk: 'lk => 'x, c: t('lp, 'lk)): list('x) => {
   let (lps, lp) = ListUtil.split_last(loops(c));

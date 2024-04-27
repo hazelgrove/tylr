@@ -92,7 +92,7 @@ let rec end_path = (~side: Dir.t, c: t) =>
   switch (get(c)) {
   | None => []
   | Some(M(l, _, r) as m) =>
-    let hd = Dir.pick(side, (0, Meld.size(m) - 1));
+    let hd = Dir.pick(side, (0, Meld.length(m) - 1));
     let tl = end_path(~side, Dir.pick(side, (l, r)));
     [hd, ...tl];
   };
