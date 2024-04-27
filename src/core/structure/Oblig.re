@@ -67,13 +67,11 @@ module Delta = {
            y_opt |> Option.map(y => (y, effs, of_effects(effs)))
          )
       |> ListUtil.min(((_, _, l), (_, _, r)) => compare(l, r));
-    let _ = failwith("what's with this condition?");
-    if (!to_zero || compare(delta, zero) <= 0) {
-      let _ = failwith("what's with this condition?");
+    if (to_zero && compare(delta, zero) > 0) {
+      None;
+    } else {
       Effects.commit(effs);
       Some(y);
-    } else {
-      None;
     };
   };
 };
