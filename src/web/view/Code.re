@@ -517,17 +517,35 @@ open Util;
 //   };
 // };
 
-let indent = (ctx: Layout.Ictx.t, M(l, _, _): Meld.t) =>
-  Layout.Ictx.middle(~newline=Dims.of_cell(l).height > 0, ctx);
+let view_str =
+  Core.Memo.general(
+    fun
+    | "" => []
+    | str => Node.[span([text(str)])],
+  );
+
+let view_indent =
+  Core.Memo.general(n => view_str(StringUtil.repeat(n, Unicode.nbsp)));
 
 let view_text =
   Layout.fold(
     [],
-    (_ctx, _pos, tok: Token.t) =>
+    (ctx, _pos, tok: Token.t) =>
       switch (tok.mtrl) {
-      | Space => failwith("todo Code")
-      | Grout => Node.[span([text("•")])]
-      | Tile(_) => Node.[span([text(tok.text)])]
+      | Space =>
+        let (hd, tl) =
+          ListUtil.split_first(StringUtil.split(~on='\n', tok.text));
+        tl
+        |> List.mapi((i, line) => (i, line))
+        |> List.concat_map(((i, line)) =>
+             view_indent(
+               i < List.length(tl) - 1 ? Layout.Ictx.middle(ctx) : ctx.right,
+             )
+             @ view_str(line)
+           )
+        |> (@)(view_str(hd));
+      | Grout => view_str("•")
+      | Tile(_) => view_str(tok.text)
       },
     txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
   );
