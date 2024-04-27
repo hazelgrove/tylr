@@ -67,13 +67,6 @@ module Molded = {
 };
 include Molded;
 
-let is_ghost = (tok: t) =>
-  switch (tok.mtrl) {
-  | Space
-  | Grout => false
-  | Tile(lbl) => !Label.is_complete(tok.text, lbl)
-  };
-
 module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
   let mk = (~id=?, ~text="", ()) =>
@@ -90,6 +83,14 @@ module Grout = {
   let pre = (~id=?) => mk(~id?, Grout.Mold.T.pre);
   let pos = (~id=?) => mk(~id?, Grout.Mold.T.pos);
   let in_ = (~id=?) => mk(~id?, Grout.Mold.T.in_);
+};
+module Tile = {
+  let is_unfinished = (tok: t) =>
+    switch (tok.mtrl) {
+    | Space
+    | Grout => false
+    | Tile(lbl) => !Label.is_complete(tok.text, lbl)
+    };
 };
 
 module Unmolded = {
