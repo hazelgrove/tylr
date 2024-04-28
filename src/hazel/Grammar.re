@@ -19,7 +19,30 @@ let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
 
 module Typ = {
   let sort = Sort.of_str("Typ");
-  let tbl = [];
+  let typ = nt(sort)
+
+
+  let comma_sep = seq([typ, Star(seq([c(","), typ]))]);
+
+  let operand = 
+    alt([
+      c("Int"),
+      c("Float"),
+      c("Bool"),
+      c("String"),
+      //List type
+      seq([c("list"), c("("), typ, c(")")]),
+      //Tuple type
+      seq([c("("), comma_sep, c(")")]),
+    ])
+
+  let tbl = [
+      //Arrow
+      p(seq([typ, c("->"), typ])),
+      //Ap
+      p(seq([typ, c("("), typ, c(")")])),
+      p(operand)
+  ];
 };
 
 module Pat = {
