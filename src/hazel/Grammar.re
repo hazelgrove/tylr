@@ -24,7 +24,42 @@ module Typ = {
 
 module Pat = {
   let sort = Sort.of_str("Pat");
-  let tbl = [];
+  let pat = nt(sort)
+
+  let comma_sep = seq([pat, Star(seq([c(","), pat]))]);
+
+
+  let bool_lit = alt([c("true"), c("false")])
+  let operand = 
+    alt([
+      t(Int_lit),
+      t(Float_lit),
+      t(Id_lower),
+      bool_lit,
+      //Constructor
+      t(Id_upper),
+      seq([c("("), comma_sep, c(")")]),
+      seq([c("["), comma_sep, c("]")]),
+      seq([c("\""), t(Id_lower), c("\"")]),
+      //Wild
+      c("_"),
+      //Empty hole
+      seq([c("{"), c("}")]),
+      //Non-empty hole
+      seq([c("{"), pat, c("}")])
+    ])
+
+
+  let tbl = [
+    //Typeann
+    //Was one of the limitations not ending with a non-terminal of a different sort? bc if so, this breaks that rule
+    p(seq([pat, c(":"), nt(Typ.sort)])), 
+    //ap
+    p(seq([pat, c("("), pat, c(")")])),
+    //Cons
+    p(seq([pat, c("::"), pat])),
+    p(operand)          
+  ];
 };
 
 module Exp = {
@@ -34,21 +69,28 @@ module Exp = {
   [@warning "-32"]
   let comma_sep = seq([exp, Star(seq([c(","), exp]))]);
 
-  // let rule = seq([tokc("|"), p, tokc("=>"), e]);
-
-  // let statement = seq([e, tokc(";")]);
-  // let block = Star(statement);
+  let rul = seq([c("|"), nt(Pat.sort), c("=>"), exp])
+  let bool_lit = alt([c("true"), c("false")])
 
   let operand =
     alt([
       t(Int_lit),
       t(Float_lit),
       t(Id_lower),
+      bool_lit,
       // todo: seq([tokc("("), opt(comma_sep), tokc(")")]),
-      seq([c("("), exp, c(")")]),
+      seq([c("("), comma_sep, c(")")]),
       // todo: seq([tokc("["), opt(comma_sep), tokc("]")]),
-      seq([c("["), exp, c("]")]),
+      seq([c("["), comma_sep, c("]")]),
       // seq([tokc("case"), e, Star(rule), tokc("end")]),
+      //TODO: figure out how to do the string better? 
+      seq([c("\""), t(Id_lower), c("\"")]),
+            //fun
+      seq([c("fun"), nt(Pat.sort), c("->"), exp]),
+      //if
+      seq([c("if"), exp, c("then"), exp, c("else"), exp]),
+      //case
+      seq([c("case"), exp, rul, star(rul)]),
     ]);
 
   let tokc_alt = ss => alt(List.map(c, ss));
@@ -56,10 +98,19 @@ module Exp = {
   let mult_op = tokc_alt(["*", "*.", "/", "/."]);
   let neg_op = tokc_alt(["-", "-."]);
 
+  //TODO: ask david if this is a valid way to do this?
+  let concat_op = tokc_alt(["@", "++"])
+
+
+
   let tbl = [
     p(~a=L, seq([exp, add_op, exp])),
     p(~a=L, seq([exp, mult_op, exp])),
+    //List/string concat ops
+    p(~a=L, seq([exp, concat_op, exp])),
     p(seq([neg_op, exp])),
+    //ap
+    p(seq([exp, c("("), exp, c(")")])),
     p(operand),
   ];
 };
