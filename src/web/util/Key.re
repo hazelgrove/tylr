@@ -40,7 +40,7 @@ let key_of = (dir: dir, evt): key => {
 
 let to_held: bool => held = b => b ? Down : Up;
 
-let mk = (dir, evt): t => {
+let mk = (dir: dir, evt): t => {
   key: key_of(dir, evt),
   sys: Os.is_mac^ ? Mac : PC,
   shift: to_held(JsUtil.shift_held(evt)),

@@ -168,19 +168,40 @@ let editor_view = (model: Model.t) =>
 //       : [],
 //   );
 
-let view = (~inject as _, model: Model.t) => {
+let on_key = (~inject, ~model) =>
+  Attr.[
+    on_keypress(_ => Effect.Prevent_default),
+    on_keyup(evt =>
+      Effect.Many(
+        List.map(
+          inject,
+          Keyboard.handle_key_event(Key.mk(KeyUp, evt), ~model),
+        ),
+      )
+    ),
+    on_keydown(evt =>
+      Effect.Many(
+        List.map(
+          inject,
+          Keyboard.handle_key_event(Key.mk(KeyDown, evt), ~model),
+        ),
+      )
+    ),
+  ];
+
+let view = (~inject, model: Model.t) => {
   div(
     ~attrs=
       Attr.[
         id("page"),
         // necessary to make cell focusable
-        create("tabindex", "0"),
+        // tabindex(0),
         on_blur(_ => {
           JsUtil.get_elem_by_id("page")##focus;
           Effect.Prevent_default;
         }),
+        ...on_key(~inject, ~model),
       ],
-    // ...handlers(~inject, ~model),
     [
       FontSpecimen.view("font-specimen"),
       // FontSpecimen.view("logo-font-specimen"),
