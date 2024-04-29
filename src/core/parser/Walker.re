@@ -64,98 +64,122 @@ let swing_over = (~from: Dir.t, sort: Bound.t(Molded.NT.t)): Index.t =>
     )
   };
 
-let swing_into = (~from: Dir.t, sort: Bound.t(Molded.NT.t)): Index.t => {
-  let bounds = (s: Bound.t(Molded.NT.t)) => {
-    let (l_sort, r_sort) = Molded.NT.bounds(sort);
-    let (l_s, r_s) = Molded.NT.bounds(s);
-    Dir.pick(from, ((l_sort, r_s), (l_s, r_sort)));
-  };
-  let seen = Hashtbl.create(10);
-  let rec go = (s: Bound.t(Molded.NT.t)) => {
-    let mtrl = Molded.NT.mtrl(s);
-    switch (Hashtbl.find_opt(seen, mtrl)) {
-    | Some () => Index.empty
-    | None =>
-      Hashtbl.add(seen, mtrl, ());
-      let (l, r) = bounds(s);
-      enter(~from, ~l, ~r, mtrl)
-      |> List.map((s: Molded.NT.t) =>
-           Index.union(swing_over(~from, Node(s)), go(Node(s)))
-         )
-      |> Index.union_all
-      |> Index.map(Walk.cons(s));
+let swing_into =
+  Core.Memo.general(((from: Dir.t, sort: Bound.t(Molded.NT.t))) => {
+    let bounds = (s: Bound.t(Molded.NT.t)) => {
+      let (l_sort, r_sort) = Molded.NT.bounds(sort);
+      let (l_s, r_s) = Molded.NT.bounds(s);
+      Dir.pick(from, ((l_sort, r_s), (l_s, r_sort)));
     };
-  };
-  go(sort);
-};
-let swing = (~from: Dir.t, sort: Bound.t(Molded.NT.t)) =>
-  Index.union(swing_over(~from, sort), swing_into(~from, sort));
-
-let step = (~from: Dir.t, src: End.t) =>
-  switch (src) {
-  | Root => swing(~from, Root)
-  | Node((mtrl, mold)) =>
-    (Sym.T(mtrl), mold.rctx)
-    |> RZipper.step(Dir.toggle(from))
-    |> List.map(
-         Bound.map(((msym, rctx)) => (expect_srt(msym), {...mold, rctx})),
-       )
-    |> List.map(swing(~from))
-    |> Index.union_all
-  };
-
-let lt = (l: End.t, r: End.t): list(Bound.t(Molded.NT.t)) =>
-  step(~from=L, l)
-  |> Index.find(r)
-  |> List.filter_map(walk => {
-       let swing = fst(walk);
-       Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
-     });
-let gt = (l: End.t, r: End.t) =>
-  step(~from=R, r)
-  |> Index.find(l)
-  |> List.filter_map(walk => {
-       let swing = fst(walk);
-       Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
-     });
-let eq = (l: End.t, r: End.t) =>
-  step(~from=L, l)
-  |> Index.find(r)
-  |> List.filter(walk => Swing.is_eq(fst(walk)));
-
-let walk = (~from: Dir.t, src: End.t) => {
-  let seen = Hashtbl.create(100);
-  let rec go = (src: End.t) =>
-    switch (Hashtbl.find_opt(seen, src)) {
-    | Some () => Index.empty
-    | None =>
-      Hashtbl.add(seen, src, ());
-      let stepped = step(~from, src);
-      let walked = {
-        open Index.Syntax;
-        let* (src_mid, mid) = stepped;
-        switch (mid) {
-        | Root => Index.empty
-        | Node(mid) =>
-          let* (mid_dst, dst) = go(Node(mid));
-          return(append(src_mid, mid, mid_dst), dst);
-        };
+    let seen = Hashtbl.create(10);
+    let rec go = (s: Bound.t(Molded.NT.t)) => {
+      let mtrl = Molded.NT.mtrl(s);
+      switch (Hashtbl.find_opt(seen, mtrl)) {
+      | Some () => Index.empty
+      | None =>
+        Hashtbl.add(seen, mtrl, ());
+        let (l, r) = bounds(s);
+        enter(~from, ~l, ~r, mtrl)
+        |> List.map((s: Molded.NT.t) =>
+             Index.union(swing_over(~from, Node(s)), go(Node(s)))
+           )
+        |> Index.union_all
+        |> Index.map(Walk.cons(s));
       };
-      Index.union(stepped, walked);
     };
-  go(src);
-};
+    go(sort);
+  });
+let swing_into = (~from: Dir.t, sort) => swing_into((from, sort));
 
-let walk_into = (~from: Dir.t, sort: Bound.t(Molded.NT.t)) => {
-  open Index.Syntax;
-  let* (src_mid, mid) = swing_into(~from, sort);
-  switch (mid) {
-  | Root => Index.empty
-  | Node(mid) =>
-    let* (mid_dst, dst) = walk(~from, Node(mid));
-    return(append(src_mid, mid, mid_dst), dst);
-  };
-};
+let swing =
+  Core.Memo.general(((from: Dir.t, sort: Bound.t(Molded.NT.t))) =>
+    Index.union(swing_over(~from, sort), swing_into(~from, sort))
+  );
+let swing = (~from: Dir.t, sort) => swing((from, sort));
+
+let step =
+  Core.Memo.general(((from: Dir.t, src: End.t)) =>
+    switch (src) {
+    | Root => swing(~from, Root)
+    | Node((mtrl, mold)) =>
+      (Sym.T(mtrl), mold.rctx)
+      |> RZipper.step(Dir.toggle(from))
+      |> List.map(
+           Bound.map(((msym, rctx)) =>
+             (expect_srt(msym), {...mold, rctx})
+           ),
+         )
+      |> List.map(swing(~from))
+      |> Index.union_all
+    }
+  );
+let step = (~from: Dir.t, src: End.t) => step((from, src));
+
+let lt =
+  Core.Memo.general(((l: End.t, r: End.t)) =>
+    step(~from=L, l)
+    |> Index.find(r)
+    |> List.filter_map(walk => {
+         let swing = fst(walk);
+         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
+       })
+  )
+  |> FunUtil.curry;
+let gt =
+  Core.Memo.general(((l: End.t, r: End.t)) =>
+    step(~from=R, r)
+    |> Index.find(l)
+    |> List.filter_map(walk => {
+         let swing = fst(walk);
+         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
+       })
+  )
+  |> FunUtil.curry;
+let eq =
+  Core.Memo.general(((l: End.t, r: End.t)) =>
+    step(~from=L, l)
+    |> Index.find(r)
+    |> List.filter(walk => Swing.is_eq(fst(walk)))
+  )
+  |> FunUtil.curry;
+
+let walk =
+  Core.Memo.general(((from: Dir.t, src: End.t)) => {
+    let seen = Hashtbl.create(100);
+    let rec go = (src: End.t) =>
+      switch (Hashtbl.find_opt(seen, src)) {
+      | Some () => Index.empty
+      | None =>
+        Hashtbl.add(seen, src, ());
+        let stepped = step(~from, src);
+        let walked = {
+          open Index.Syntax;
+          let* (src_mid, mid) = stepped;
+          switch (mid) {
+          | Root => Index.empty
+          | Node(mid) =>
+            let* (mid_dst, dst) = go(Node(mid));
+            return(append(src_mid, mid, mid_dst), dst);
+          };
+        };
+        Index.union(stepped, walked);
+      };
+    go(src);
+  });
+let walk = (~from: Dir.t, src: End.t) => walk((from, src));
+
+let walk_into =
+  Core.Memo.general(((from: Dir.t, sort: Bound.t(Molded.NT.t))) => {
+    open Index.Syntax;
+    let* (src_mid, mid) = swing_into(~from, sort);
+    switch (mid) {
+    | Root => Index.empty
+    | Node(mid) =>
+      let* (mid_dst, dst) = walk(~from, Node(mid));
+      return(append(src_mid, mid, mid_dst), dst);
+    };
+  });
+let walk_into = (~from: Dir.t, sort) => walk_into((from, sort));
 
 let step = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
   Index.find(dst, step(~from, src));
