@@ -19,12 +19,11 @@ let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
 
 module Typ = {
   let sort = Sort.of_str("Typ");
-  let typ = nt(sort)
-
+  let typ = nt(sort);
 
   let comma_sep = seq([typ, Star(seq([c(","), typ]))]);
 
-  let operand = 
+  let operand =
     alt([
       c("Int"),
       c("Float"),
@@ -34,26 +33,25 @@ module Typ = {
       seq([c("list"), c("("), typ, c(")")]),
       //Tuple type
       seq([c("("), comma_sep, c(")")]),
-    ])
+    ]);
 
   let tbl = [
-      //Arrow
-      p(seq([typ, c("->"), typ])),
-      //Ap
-      p(seq([typ, c("("), typ, c(")")])),
-      p(operand)
+    //Arrow
+    p(seq([typ, c("->"), typ])),
+    //Ap
+    p(seq([typ, c("("), typ, c(")")])),
+    p(operand),
   ];
 };
 
 module Pat = {
   let sort = Sort.of_str("Pat");
-  let pat = nt(sort)
+  let pat = nt(sort);
 
   let comma_sep = seq([pat, Star(seq([c(","), pat]))]);
 
-
-  let bool_lit = alt([c("true"), c("false")])
-  let operand = 
+  let bool_lit = alt([c("true"), c("false")]);
+  let operand =
     alt([
       t(Int_lit),
       t(Float_lit),
@@ -69,19 +67,18 @@ module Pat = {
       //Empty hole
       seq([c("{"), c("}")]),
       //Non-empty hole
-      seq([c("{"), pat, c("}")])
-    ])
-
+      seq([c("{"), pat, c("}")]),
+    ]);
 
   let tbl = [
     //Typeann
     //Was one of the limitations not ending with a non-terminal of a different sort? bc if so, this breaks that rule
-    p(seq([pat, c(":"), nt(Typ.sort)])), 
+    p(seq([pat, c(":"), nt(Typ.sort)])),
     //ap
     p(seq([pat, c("("), pat, c(")")])),
     //Cons
     p(seq([pat, c("::"), pat])),
-    p(operand)          
+    p(operand),
   ];
 };
 
@@ -92,8 +89,8 @@ module Exp = {
   [@warning "-32"]
   let comma_sep = seq([exp, Star(seq([c(","), exp]))]);
 
-  let rul = seq([c("|"), nt(Pat.sort), c("=>"), exp])
-  let bool_lit = alt([c("true"), c("false")])
+  let rul = seq([c("|"), nt(Pat.sort), c("=>"), exp]);
+  let bool_lit = alt([c("true"), c("false")]);
 
   let operand =
     alt([
@@ -106,9 +103,9 @@ module Exp = {
       // todo: seq([tokc("["), opt(comma_sep), tokc("]")]),
       seq([c("["), comma_sep, c("]")]),
       // seq([tokc("case"), e, Star(rule), tokc("end")]),
-      //TODO: figure out how to do the string better? 
+      //TODO: figure out how to do the string better?
       seq([c("\""), t(Id_lower), c("\"")]),
-            //fun
+      //fun
       seq([c("fun"), nt(Pat.sort), c("->"), exp]),
       //if
       seq([c("if"), exp, c("then"), exp, c("else"), exp]),
@@ -122,9 +119,7 @@ module Exp = {
   let neg_op = tokc_alt(["-", "-."]);
 
   //TODO: ask david if this is a valid way to do this?
-  let concat_op = tokc_alt(["@", "++"])
-
-
+  let concat_op = tokc_alt(["@", "++"]);
 
   let tbl = [
     p(~a=L, seq([exp, add_op, exp])),
