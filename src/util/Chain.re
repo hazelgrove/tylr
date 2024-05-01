@@ -25,24 +25,12 @@ let link = (a: 'lp, b: 'lk, (lps, lks): t('lp, 'lk)): t('lp, 'lk) => (
   [a, ...lps],
   [b, ...lks],
 );
-let knil = ((lps, lks): t('lp, 'lk), b: 'lk, a: 'lp): t('lp, 'lk) => (
-  lps @ [a],
-  lks @ [b],
-);
 let unlink =
     ((lps, lks): t('lp, 'lk)): Result.t(('lp, 'lk, t('lp, 'lk)), 'lp) =>
   switch (lks) {
   | [] => Error(List.hd(lps))
   | [b, ...lks] => Ok((List.hd(lps), b, (List.tl(lps), lks)))
   };
-let unknil =
-    ((lps, lks): t('lp, 'lk)): Result.t((t('lp, 'lk), 'lk, 'lp), 'lp) =>
-  ListUtil.split_last_opt(lks)
-  |> Result.of_option(~error=List.hd(lps))
-  |> Result.map(~f=((lks, link)) => {
-       let (lps, loop) = ListUtil.split_last(lps);
-       ((lps, lks), link, loop);
-     });
 
 module Affix = {
   type t('link, 'loop) = (list('link), list('loop));
@@ -163,9 +151,10 @@ let fold_left_map =
        },
        ((acc, mapped), lk1, lp1) => {
          let (acc, lk2, lp2) = f_link(acc, lk1, lp1);
-         (acc, knil(mapped, lk2, lp2));
+         (acc, link(lp2, lk2, mapped));
        },
-     );
+     )
+  |> PairUtil.map_snd(rev);
 
 let fold_right =
     (
