@@ -6,7 +6,6 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t =
   | Const(Padding.t, string)
-  | Space
   | Id_lower
   | Id_upper
   | Int_lit
@@ -38,7 +37,6 @@ let is_const =
 
 let is_complete = text =>
   fun
-  | Space
   | Id_lower
   | Id_upper
   | Int_lit

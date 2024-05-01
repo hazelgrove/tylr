@@ -13,7 +13,6 @@ let const = Label.Set.(elements(filter(Label.is_const, all)));
 
 let completions = (lbl: Label.t) =>
   switch (lbl) {
-  | Space
   | Id_lower
   | Id_upper
   | Int_lit
