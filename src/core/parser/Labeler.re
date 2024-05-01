@@ -44,11 +44,9 @@ let pop = buf => {
   // I'm guessing buf state is altered by this switch expression?
   // so I can't call lexeme(buf) before it?
   switch%sedlex (buf) {
-  | space => mk(lexeme(buf), Space)
-  // | grout_op => mk(Grout((Convex, Convex)))
-  // | grout_pre => mk(Grout((Convex, Concave)))
-  // | grout_pos => mk(Grout((Concave, Convex)))
-  // | grout_in => mk(Grout((Concave, Concave)))
+  | space =>
+    let text = lexeme(buf);
+    Some(Token.Unmolded.mk(~text, Mtrl.Space));
   | int_lit => mk(lexeme(buf), Int_lit)
   | float_lit => mk(lexeme(buf), Float_lit)
   | id_lower => mk(lexeme(buf), Id_lower)
