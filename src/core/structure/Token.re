@@ -24,18 +24,23 @@ module Molded = {
   [@deriving (sexp, yojson)]
   type t = Base.t(Mtrl.T.t, Mold.t);
 
-  let pp = (out, tok: t) =>
+  let pp = (out, tok: t) => {
+    let l =
+      Mold.(
+        is_null(~side=L, tok.mold)
+          ? "<" : nullable(~side=L, tok.mold) ? "|" : ">"
+      );
+    let r =
+      Mold.(
+        is_null(~side=R, tok.mold)
+          ? ">" : nullable(~side=R, tok.mold) ? "|" : "<"
+      );
     switch (tok.mtrl) {
     | Space => Format.fprintf(out, "[spc]")
-    | Grout =>
-      let l = Mold.nullable(~side=L, tok.mold) ? "<" : ">";
-      let r = Mold.nullable(~side=R, tok.mold) ? "<" : ">";
-      Format.fprintf(out, "%s%s", l, r);
-    | Tile(_) =>
-      let l = Mold.nullable(~side=L, tok.mold) ? "<" : ">";
-      let r = Mold.nullable(~side=R, tok.mold) ? "<" : ">";
-      Format.fprintf(out, "%s%s%s", l, tok.text, r);
+    | Grout => Format.fprintf(out, "%s%s", l, r)
+    | Tile(_) => Format.fprintf(out, "%s%s%s", l, tok.text, r)
     };
+  };
   let show = Fmt.to_to_string(pp);
 
   let mk = (~id=?, ~text="", mtrl: Mtrl.T.t, mold: Mold.t) =>

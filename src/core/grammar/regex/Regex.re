@@ -53,12 +53,18 @@ let atoms = r =>
 
 let map = f => fold(~atom=a => atom(f(a)), ~star, ~seq, ~alt);
 
-let nullable = r =>
+let is_null = (~atom, r) =>
   r
   |> fold(
-       // assuming all atoms are non-nullable
-       // but could change this in future
-       ~atom=_ => false,
+       ~atom,
+       ~star=Fun.id,
+       ~seq=List.for_all(Fun.id),
+       ~alt=List.for_all(Fun.id),
+     );
+let nullable = (~atom, r) =>
+  r
+  |> fold(
+       ~atom,
        ~star=_ => true,
        ~seq=List.for_all(Fun.id),
        ~alt=List.exists(Fun.id),

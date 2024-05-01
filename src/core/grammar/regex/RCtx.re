@@ -20,4 +20,7 @@ let push_s = (~onto: Dir.t, s: Regex.s(_), ctx: t(_)): t(_) =>
   };
 let push = (~onto, r) => push_s(~onto, Regex.flatten(r));
 
-let nullable = (side: Dir.t) => List.for_all(RFrame.nullable(side));
+let is_null = (~atom, ~side: Dir.t) =>
+  List.for_all(RFrame.is_null(~atom, ~side));
+let nullable = (~atom, ~side: Dir.t) =>
+  List.for_all(RFrame.nullable(~atom, ~side));

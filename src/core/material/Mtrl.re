@@ -51,6 +51,11 @@ module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Sym.t(T.t, NT.t);
+  let is_null =
+    fun
+    | T(_) => false
+    | NT(Space) => true
+    | NT(Grout | Tile(_)) => false;
 };
 
 module Regex = {

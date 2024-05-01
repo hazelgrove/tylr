@@ -22,9 +22,15 @@ let zip = (f: t(_), r: Regex.t(_)) =>
   | Seq_(ls, rs) => Seq(List.rev(ls) @ [r, ...rs])
   };
 
-let nullable = (side: Dir.t, f: t(_)) =>
+let is_null = (~atom, ~side: Dir.t, f: t(_)) =>
   switch (side, f) {
   | (_, Star_ | Alt_(_)) => true
-  | (L, Seq_(gs_l, _)) => Regex.nullable(Seq(gs_l))
-  | (R, Seq_(_, gs_r)) => Regex.nullable(Seq(gs_r))
+  | (L, Seq_(ls, _)) => Regex.is_null(~atom, Seq(ls))
+  | (R, Seq_(_, rs)) => Regex.is_null(~atom, Seq(rs))
+  };
+let nullable = (~atom, ~side: Dir.t, f: t(_)) =>
+  switch (side, f) {
+  | (_, Star_ | Alt_(_)) => true
+  | (L, Seq_(ls, _)) => Regex.nullable(~atom, Seq(ls))
+  | (R, Seq_(_, rs)) => Regex.nullable(~atom, Seq(rs))
   };

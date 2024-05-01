@@ -9,7 +9,10 @@ type t = {
 
 let equal = (==);
 
-let nullable = (~side: Dir.t, m: t) => RCtx.nullable(side, m.rctx);
+let is_null = (~side: Dir.t, m: t) =>
+  RCtx.is_null(~atom=Mtrl.Sym.is_null, ~side, m.rctx);
+let nullable = (~side: Dir.t, m: t) =>
+  RCtx.nullable(~atom=Mtrl.Sym.is_null, ~side, m.rctx);
 
 let bounds = m =>
   Bound.(
