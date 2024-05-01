@@ -1,5 +1,8 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = Chain.t(Cell.t, unit);
 
 let empty = Chain.unit(Cell.empty);
@@ -92,10 +95,7 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
       |> List.concat;
     switch (toks) {
     | [] => List.hd(cells)
-    | [_, ..._] =>
-      let (l, cells) = ListUtil.split_first(cells);
-      let (cells, r) = ListUtil.split_last(cells);
-      Cell.put(M(l, Wald.mk(toks, cells), r));
+    | [_, ..._] => Cell.put(Meld.of_chain(Chain.mk(cells, toks)))
     };
   };
 };

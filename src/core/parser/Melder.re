@@ -1,17 +1,38 @@
 open Util;
 
-module Melded = {
-  type t = Rel.t(Wald.t, Slope.t);
+// module Melded = {
+//   type t = Rel.t(Wald.t, Slope.t);
 
-  let mk_eq = (_src: Wald.t, _bake, _dst: Wald.t) =>
-    failwith("todo Melded mk_eq");
-  let mk_neq = (_bake: Baked.t, _dst: Wald.t) =>
-    failwith("todo Melded mk_neq");
-  let mk = (src: Wald.t, bake: Baked.t, dst: Wald.t) =>
-    switch (Baked.is_eq(bake)) {
-    | Some(eq) => Rel.Eq(mk_eq(src, eq, dst))
-    | None => Rel.Neq(mk_neq(bake, dst))
+//   let mk_eq = (_src: Wald.t, _bake, _dst: Wald.t) =>
+//     failwith("todo Melded mk_eq");
+//   let mk_neq = (_bake: Baked.t, _dst: Wald.t) =>
+//     failwith("todo Melded mk_neq");
+//   let mk = (src: Wald.t, bake: Baked.t, dst: Wald.t) =>
+//     switch (Baked.is_eq(bake)) {
+//     | Some(eq) => Rel.Eq(mk_eq(src, eq, dst))
+//     | None => Rel.Neq(mk_neq(bake, dst))
+//     };
+// };
+
+module Melded = {
+  type t = (Slope.t, Wald.t);
+  let map_hd = (f: Wald.t => Wald.t, (s, w): t) =>
+    switch (s) {
+    | [] => ([], f(w))
+    | [hd, ...tl] => ([{...hd, wald: f(hd.wald)}, ...tl], w)
     };
+  let link = (w: Wald.t, c: Rel.t(Cell.t, Cell.t), (slope, wald): t) =>
+    switch (c) {
+    | Neq(c) => ([Terr.{cell: c, wald: Wald.rev(w)}, ...slope], wald)
+    | Eq(c) => map_hd(Wald.zip_cell(w, c), (slope, wald))
+    };
+  let mk = (src: Wald.t, baked: Baked.t, dst: Wald.t) =>
+    baked
+    |> Baked.fold(
+         (Slope.empty, src),
+         (melded, c, t) => link(Wald.of_tok(t), c, melded),
+         (melded, c) => link(dst, c, melded),
+       );
 };
 
 module W = Wald;
@@ -25,14 +46,14 @@ module Wald = {
 
   let attach = (wald: W.t, baked: Baked.t): Terr.t =>
     baked
-    |> Baked.fold(
+    |> Chain.map_loop(
          fun
-         | Rel.Neq(_) => raise(Invalid_argument("Melder.Terr.attach"))
-         | Eq(cell) => (cell, wald),
-         ((cell, wald), tok) =>
-         fun
-         | Rel.Neq(_) => raise(Invalid_argument("Melder.Terr.attach"))
-         | Eq(c) => (c, W.link(tok, cell, wald))
+         | Rel.Neq(_) => failwith("bug: expected only eq strides")
+         | Eq(c) => c,
+       )
+    |> Chain.fold_left(
+         c => (c, wald),
+         ((cell, wald), t, c) => (c, W.link(t, cell, wald)),
        )
     |> (((cell, wald)) => Terr.{wald: W.rev(wald), cell});
 
@@ -43,6 +64,9 @@ module Wald = {
     switch (Oblig.Delta.minimize(bake(~fill), exited)) {
     | Some(baked) => attach(w, baked)
     | None =>
+      if (!Fill.is_empty(fill)) {
+        print_endline("warning: dropping fill " ++ Fill.show(fill));
+      };
       let exited =
         ListUtil.hd_opt(exited)
         |> OptUtil.get_or_fail("bug: expected at least one exit");
@@ -73,7 +97,7 @@ module Wald = {
         let fill = Fill.cons(cell, fill);
         switch (go(tl, fill)) {
         // require eq match further in to accept removing hd
-        | Some(Rel.Eq(_)) as r =>
+        | Some(([], _)) as r =>
           Effects.remove(hd);
           r;
         | _ => None
@@ -84,7 +108,7 @@ module Wald = {
       // first try zipping
       let+ zipped = W.zip_hds(~from, src, dst);
       assert(Fill.is_empty(fill));
-      Rel.Eq(zipped);
+      ([], zipped);
     };
     go(src, fill);
   };
@@ -94,21 +118,27 @@ module Wald = {
       : option(Slope.t) =>
     Walker.walk(~from, Root, Node(W.face(dst)))
     |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake(~from, ~fill))
-    |> Option.map(bake => Melded.mk_neq(bake, dst));
+    |> Option.map(
+         Baked.fold(
+           Slope.empty,
+           (slope, c, t) => Slope.link(Wald.of_tok(t), c, slope),
+           (slope, c) => Slope.link(dst, c, slope),
+         ),
+       );
 };
 
 module T = Terr;
 module Terr = {
   let attach = (baked: Baked.t, terr: T.t) =>
     baked
+    |> Chain.map_loop(
+         fun
+         | Rel.Neq(_) => failwith("bug: expected only eq strides")
+         | Eq(c) => c,
+       )
     |> Chain.fold_left(
-         fun
-         | Rel.Neq(_) => raise(Invalid_argument("Melder.Terr.attach"))
-         | Eq(cell) => Meld.M(terr.cell, terr.wald, cell),
-         (meld, tok) =>
-         fun
-         | Rel.Neq(_) => raise(Invalid_argument("Melder.Terr.attach"))
-         | Eq(cell) => Meld.link(~cell, tok, meld)
+         cell => Meld.M(terr.cell, terr.wald, cell),
+         (meld, tok, cell) => Meld.link(~cell, tok, meld),
        );
 
   let roll = (~onto: Dir.t, ~fill=Fill.empty, terr: T.t): Fill.t => {
@@ -181,8 +211,10 @@ module Slope = {
       | [hd, ...tl] =>
         switch (meld(hd.wald, ~fill, w)) {
         | None => go(roll(~fill, hd), tl)
-        | Some(Eq(wald)) => Ok([{...hd, wald}, ...tl])
-        | Some(Neq(s)) => Ok(S.cat(s, slope))
+        | Some(([], wald)) => Ok([{...hd, wald}, ...tl])
+        | Some(([_, ..._] as s, wald)) =>
+          let slope = [{...hd, wald}, ...tl];
+          Ok(S.cat(s, slope));
         }
       };
     go(fill, slope);
@@ -230,12 +262,20 @@ module Zigg = {
   let of_dn = dn =>
     ListUtil.split_last_opt(dn)
     |> Option.map(((dn, t: T.t)) =>
-         Z.{up: Slope.Up.unroll(t.cell), top: W.rev(t.wald), dn}
+         Z.{
+           up: Slope.Up.unroll(t.cell),
+           top: W.rev(t.wald),
+           dn: List.rev(dn),
+         }
        );
   let of_up = up =>
     ListUtil.split_last_opt(up)
     |> Option.map(((up, t: T.t)) =>
-         Z.{up, top: W.rev(t.wald), dn: Slope.Up.unroll(t.cell)}
+         Z.{
+           up: List.rev(up),
+           top: W.rev(t.wald),
+           dn: Slope.Up.unroll(t.cell),
+         }
        );
 
   let push_wald =
@@ -248,8 +288,8 @@ module Zigg = {
     | Ok(s_d) => Ok(unorient((s_d, top, s_b)))
     | Error(fill) =>
       switch (Wald.meld(~from=b, top, ~fill, w)) {
-      | Some(Eq(top)) => Ok(unorient(([], top, s_b)))
-      | Some(Neq(s_d)) => Ok(unorient((s_d, top, s_b)))
+      | Some(([], top)) => Ok(unorient(([], top, s_b)))
+      | Some(([_, ..._] as s_d, top)) => Ok(unorient((s_d, top, s_b)))
       | None => Error(s_b @ [Wald.round(~side=d, ~fill, top)])
       }
     };
@@ -328,11 +368,12 @@ module Ctx = {
         let (t_d, t_b) = Dir.order(d, terrs);
         let+ melded = Wald.meld(~from=d, t_d.wald, ~fill, w);
         switch (melded) {
-        | Neq(s_d) =>
+        | (s_d, wald) when wald == t_d.wald =>
           let slopes = Dir.order(d, (s_d, s_b));
           C.link(~slopes, terrs, ctx);
-        | Eq(wald) =>
-          let slopes = Dir.order(d, ([T.{...t_d, wald}], s_b @ [t_b]));
+        | (s_d, wald) =>
+          let slopes =
+            Dir.order(d, (s_d @ [T.{...t_d, wald}], s_b @ [t_b]));
           C.map_hd(Frame.Open.cat(slopes), ctx);
         };
       }

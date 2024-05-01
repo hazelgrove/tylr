@@ -45,6 +45,13 @@ let is_empty =
   | _ => false;
 
 let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
+let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
+  let get = OptUtil.get_or_raise(Invalid_argument("Meld.of_chain"));
+  // cs reversed twice
+  let (cs, r) = get(ListUtil.split_last_opt(cs));
+  let (cs, l) = get(ListUtil.split_last_opt(cs));
+  mk(~l, W((ts, cs)), ~r);
+};
 
 let fold = (f_hd, f_tl, m: t) => Chain.fold_left(f_hd, f_tl, to_chain(m));
 

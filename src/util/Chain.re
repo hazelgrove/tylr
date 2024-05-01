@@ -74,18 +74,18 @@ let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
   lks,
 );
 
-let split_ft = ((lps, lks)) => {
+let split_ft = ((lps, lks): t(_)): (Affix.t('lk, 'lp), 'lp) => {
   assert(lps != []);
   let (lps, lp) = ListUtil.split_last(lps);
-  ((lps, lks), lp);
+  ((lks, lps), lp);
 };
 let ft = ((lps, _): t('lp, _)): 'lp => {
   assert(lps != []);
   ListUtil.last(lps);
 };
 let map_ft = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
-  let ((lps, lks), a) = split_ft(c);
-  (lps @ [f(a)], lks);
+  let ((lks, lps), lp) = split_ft(c);
+  (lps @ [f(lp)], lks);
 };
 let put_ft = lp => map_ft(_ => lp);
 
@@ -117,53 +117,51 @@ let mapi_link = (f_lk, (lps, lks)) => (
 let mapi = (f_lp, f_lk, c) => c |> mapi_loop(f_lp) |> mapi_link(f_lk);
 
 let to_list = (f_lp: 'lp => 'x, f_lk: 'lk => 'x, c: t('lp, 'lk)): list('x) => {
-  let (lps, lp) = ListUtil.split_last(loops(c));
+  let (lps, lks) = c;
+  let (lp, lps) = ListUtil.split_first(lps);
   List.fold_right2(
-    (lp, lk, xs) => [f_lp(lp), f_lk(lk), ...xs],
+    (lk, lp, xs) => [f_lk(lk), f_lp(lp), ...xs],
+    lks,
     lps,
-    links(c),
-    [f_lp(lp)],
-  );
+    [],
+  )
+  |> List.cons(f_lp(lp));
 };
 
 let fold_left =
     (
-      f_loop: 'lp => 'acc,
-      f_link: ('acc, 'lk, 'lp) => 'acc,
+      f_lp: 'lp => 'acc,
+      f_lk: ('acc, 'lk, 'lp) => 'acc,
       (lps, lks): t('lp, 'lk),
     )
     : 'acc => {
   let (a, lps) = ListUtil.split_first(lps);
-  List.fold_left2(f_link, f_loop(a), lks, lps);
+  List.fold_left2(f_lk, f_lp(a), lks, lps);
 };
 let fold_left_map =
     (
-      f_loop: 'lp1 => ('acc, 'lp2),
-      f_link: ('acc, 'lk1, 'lp1) => ('acc, 'lk2, 'lp2),
+      f_lp: 'lp1 => ('acc, 'lp2),
+      f_lk: ('acc, 'lk1, 'lp1) => ('acc, 'lk2, 'lp2),
       c: t('lp1, 'lk1),
     )
     : ('acc, t('lp2, 'lk2)) =>
   c
   |> fold_left(
        lp1 => {
-         let (acc, lp2) = f_loop(lp1);
+         let (acc, lp2) = f_lp(lp1);
          (acc, unit(lp2));
        },
        ((acc, mapped), lk1, lp1) => {
-         let (acc, lk2, lp2) = f_link(acc, lk1, lp1);
+         let (acc, lk2, lp2) = f_lk(acc, lk1, lp1);
          (acc, link(lp2, lk2, mapped));
        },
      )
   |> PairUtil.map_snd(rev);
 
 let fold_right =
-    (
-      f_link: ('lp, 'lk, 'acc) => 'acc,
-      f_loop: 'lp => 'acc,
-      (lps, lks): t('lp, 'lk),
-    ) => {
-  let (lps, lp) = ListUtil.split_last(lps);
-  List.fold_right2(f_link, lps, lks, f_loop(lp));
+    (f2: ('lp, 'lk, 'acc) => 'acc, f1: 'lp => 'acc, c: t('lp, 'lk)) => {
+  let ((lks, lps), lp) = split_ft(c);
+  List.fold_left2((acc, lk, lp) => f2(lp, lk, acc), f1(lp), lks, lps);
 };
 
 let cat =
@@ -172,16 +170,6 @@ let cat =
 
 let append = (l: t('lp, 'lk), lk: 'lk, r: t('lp, 'lk)): t('lp, 'lk) =>
   l |> fold_right(link, lp => link(lp, lk, r));
-
-let trim = ((lps, lks): t('lp, 'lk)): option(('lp, t('lk, 'lp), 'lp)) =>
-  switch (lks) {
-  | [] => None
-  | [_, ..._] =>
-    let (l, lps) = ListUtil.split_first(lps);
-    let (lps, r) = ListUtil.split_last(lps);
-    Some((l, mk(lks, lps), r));
-  };
-let untrim = (l, (lks, lps), r) => mk([l, ...lps] @ [r], lks);
 
 let zip = (~pre=Affix.empty, ~suf=Affix.empty, foc) => {
   let (lks_pre, lps_pre) = pre;

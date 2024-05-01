@@ -183,14 +183,15 @@ let rec put_nth = (n: int, x: 'x, xs: list('x)): list('x) =>
     [hd, ...tl];
   };
 
-let rec split_last_opt = (xs: list('x)): option((list('x), 'x)) =>
-  switch (xs) {
-  | [] => None
-  | [x] => Some(([], x))
-  | [x, ...xs] =>
-    split_last_opt(xs)
-    |> Option.map(((leading, last)) => ([x, ...leading], last))
-  };
+let split_last_opt = (xs: list('x)): option((list('x), 'x)) => {
+  let rec go = (pre, xs) =>
+    switch (xs) {
+    | [] => None
+    | [x] => Some((pre, x))
+    | [x, ...xs] => go([x, ...pre], xs)
+    };
+  go([], xs);
+};
 let last_opt = xs => xs |> split_last_opt |> Option.map(snd);
 
 let split_last = (xs: list('x)): (list('x), 'x) =>

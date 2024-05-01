@@ -9,6 +9,16 @@ let singleton = t => [t];
 // let of_piece = p => of_terr(Terr.of_piece(p));
 let height = List.length;
 
+let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
+  switch (c) {
+  | Neq(c) => [Terr.{cell: c, wald: Wald.rev(w)}, ...slope]
+  | Eq(c) =>
+    switch (slope) {
+    | [] => [Terr.{cell: c, wald: Wald.rev(w)}]
+    | [hd, ...tl] => [{...hd, wald: Wald.zip_cell(w, c, hd.wald)}, ...tl]
+    }
+  };
+
 let face =
   fun
   | [] => None
