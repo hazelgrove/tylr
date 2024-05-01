@@ -14,7 +14,9 @@
    ppx_yojson_conv)))
 
 (rule
- (write-file js-of-ocaml-flags-dev "(:standard --debuginfo --noinline)"))
+ (write-file
+  js-of-ocaml-flags-dev
+  "(:standard --debug-info --no-inline --pretty --source-map)"))
 
 (rule
  (write-file js-of-ocaml-flags-release "(:standard)"))
