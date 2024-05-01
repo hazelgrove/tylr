@@ -21,8 +21,22 @@ module Base = {
 
 module Molded = {
   include Base;
-  [@deriving (show({with_path: false}), sexp, yojson)]
+  [@deriving (sexp, yojson)]
   type t = Base.t(Mtrl.T.t, Mold.t);
+
+  let pp = (out, tok: t) =>
+    switch (tok.mtrl) {
+    | Space => Format.fprintf(out, "[spc]")
+    | Grout =>
+      let l = Mold.nullable(~side=L, tok.mold) ? "<" : ">";
+      let r = Mold.nullable(~side=R, tok.mold) ? "<" : ">";
+      Format.fprintf(out, "%s%s", l, r);
+    | Tile(_) =>
+      let l = Mold.nullable(~side=L, tok.mold) ? "<" : ">";
+      let r = Mold.nullable(~side=R, tok.mold) ? "<" : ">";
+      Format.fprintf(out, "%s%s%s", l, tok.text, r);
+    };
+  let show = Fmt.to_to_string(pp);
 
   let mk = (~id=?, ~text="", mtrl: Mtrl.T.t, mold: Mold.t) =>
     Base.mk(~id?, ~text, mtrl, mold);
