@@ -3,13 +3,20 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
 module Cell = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
+  [@deriving (sexp, yojson)]
   type t('meld) = {
     marks: Path.Marks.t,
     meld: option('meld),
   };
   let mk = (~marks=Path.Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
+  let pp = (ppm, out, cell: t(_)) =>
+    // ignoring marks for now
+    switch (cell.meld) {
+    | None => Fmt.pf(out, "{}")
+    | Some(m) => Fmt.pf(out, "{%a}", ppm, m)
+    };
+  let show = ppm => Fmt.to_to_string(pp(ppm));
 };
 
 module Wald = {
