@@ -10,17 +10,17 @@ module Cell = {
   };
   let mk = (~marks=Path.Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
-  let pp = (ppm, out, cell: t(_)) =>
+  let pp = (pp_meld, out, cell: t(_)) =>
     // ignoring marks for now
     switch (cell.meld) {
     | None => Fmt.pf(out, "{}")
-    | Some(m) => Fmt.pf(out, "{%a}", ppm, m)
+    | Some(m) => Fmt.pf(out, "{%a}", pp_meld, m)
     };
-  let show = ppm => Fmt.to_to_string(pp(ppm));
+  let show = pp_meld => Fmt.to_to_string(pp(pp_meld));
 };
 
 module Wald = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
+  [@deriving (sexp, yojson)]
   type t('cell) =
     | W(Chain.t(Token.t, 'cell));
   let mk = (toks: list(_), cells: list(Cell.t(_))) =>
@@ -30,12 +30,26 @@ module Wald = {
     let tok = Dir.pick(side, (Chain.hd, Chain.ft), w);
     (tok.mtrl, tok.mold);
   };
+  let pp = (pp_cell, out, W(w): t(_)) => {
+    let pp_hd = Token.pp;
+    let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_cell, Token.pp)));
+    let pp = Fmt.(pair(~sep=sp, pp_hd, pp_tl));
+    let (t, (cs, ts)) = Chain.split_hd(w);
+    pp(out, (t, List.combine(cs, ts)));
+  };
+  let show = pp_cell => Fmt.to_to_string(pp(pp_cell));
 };
 
 module Base = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
+  [@deriving (sexp, yojson)]
   type t =
     | M(Cell.t(t), Wald.t(Cell.t(t)), Cell.t(t));
+  let rec pp = (out, M(l, w, r): t) => {
+    let pp_cell = Cell.pp(pp);
+    let pp_wald = Wald.pp(pp_cell);
+    Fmt.pf(out, "%a@ %a@ %a", pp_cell, l, pp_wald, w, pp_cell, r);
+  };
+  let show = Fmt.to_to_string(pp);
 };
 include Base;
 

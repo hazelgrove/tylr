@@ -25,20 +25,17 @@ module Molded = {
   type t = Base.t(Mtrl.T.t, Mold.t);
 
   let pp = (out, tok: t) => {
-    let l =
+    let (l, r) =
       Mold.(
         is_null(~side=L, tok.mold)
-          ? "<" : nullable(~side=L, tok.mold) ? "|" : ">"
-      );
-    let r =
-      Mold.(
+          ? "<" : nullable(~side=L, tok.mold) ? "|" : ">",
         is_null(~side=R, tok.mold)
-          ? ">" : nullable(~side=R, tok.mold) ? "|" : "<"
+          ? ">" : nullable(~side=R, tok.mold) ? "|" : "<",
       );
     switch (tok.mtrl) {
-    | Space => Format.fprintf(out, "[spc]")
-    | Grout => Format.fprintf(out, "%s%s", l, r)
-    | Tile(_) => Format.fprintf(out, "%s%s%s", l, tok.text, r)
+    | Space => Fmt.pf(out, "|spc|")
+    | Grout => Fmt.pf(out, "%s%s", l, r)
+    | Tile(_) => Fmt.pf(out, "%s%s%s", l, tok.text, r)
     };
   };
   let show = Fmt.to_to_string(pp);
