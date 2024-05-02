@@ -25,13 +25,7 @@ module Molded = {
   type t = Base.t(Mtrl.T.t, Mold.t);
 
   let pp = (out, tok: t) => {
-    let (l, r) =
-      Mold.(
-        is_null(~side=L, tok.mold)
-          ? "<" : nullable(~side=L, tok.mold) ? "|" : ">",
-        is_null(~side=R, tok.mold)
-          ? ">" : nullable(~side=R, tok.mold) ? "|" : "<",
-      );
+    let (l, r) = Mold.display(tok.mold);
     switch (tok.mtrl) {
     | Space => Fmt.pf(out, "|spc|")
     | Grout => Fmt.pf(out, "%s%s", l, r)

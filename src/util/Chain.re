@@ -3,7 +3,7 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
 module Base = {
   // invariant: List.length(loops) == List.length(links) + 1
-  [@deriving (show({with_path: false}), sexp, yojson, ord)]
+  [@deriving (sexp, yojson, ord)]
   type t('loop, 'link) = (list('loop), list('link));
 };
 include Base;
@@ -221,3 +221,10 @@ let unzip_link = (n: int, c: t('lp, 'lk)): option((t(_), 'lk, t(_))) => {
   let (hd, tl) = split_hd(c);
   go(unit(hd), n, tl);
 };
+
+let pp = (pp_lp, pp_lk, out, c: t(_)) => {
+  let (lp, (lks, lps)) = split_hd(c);
+  let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_lk, pp_lp)));
+  Fmt.pf(out, "%a@ %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
+};
+let show = (pp_lp, pp_lk) => Fmt.to_to_string(pp(pp_lp, pp_lk));

@@ -24,3 +24,8 @@ let push = (~onto: Dir.t, msym: Mtrl.Sym.t, mold: t) => {
   ...mold,
   rctx: RCtx.push(~onto, Atom(msym), mold.rctx),
 };
+
+let display = (m: t) => (
+  is_null(~side=L, m) ? "<" : nullable(~side=L, m) ? "|" : ">",
+  is_null(~side=R, m) ? ">" : nullable(~side=R, m) ? "|" : "<",
+);

@@ -3,13 +3,22 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
 // token classes determined by lexer.mll
 // todo: add operator class
-[@deriving (show({with_path: false}), sexp, yojson, ord)]
+[@deriving (sexp, yojson, ord)]
 type t =
   | Const(Padding.t, string)
   | Id_lower
   | Id_upper
   | Int_lit
   | Float_lit;
+
+let pp = out =>
+  fun
+  | Id_lower => Fmt.pf(out, "Id_lower")
+  | Id_upper => Fmt.pf(out, "Id_upper")
+  | Int_lit => Fmt.pf(out, "Int_lit")
+  | Float_lit => Fmt.pf(out, "Float_lit")
+  | Const(_, s) => Fmt.pf(out, "Const(%s)", s);
+let show = Fmt.to_to_string(pp);
 
 module Ord = {
   type nonrec t = t;

@@ -11,8 +11,20 @@ module Swing = {
   // a swing is represented by a non-empty list of NTs where all
   // but the last are swung "into" (ie expanded in a grammar derivation
   // step) and the last is swung "over" to arrive at the next stance
-  [@deriving (show({with_path: false}), sexp, yojson, ord)]
+  [@deriving (sexp, yojson, ord)]
   type t = Chain.t(Bound.t(Molded.NT.t), unit);
+  let pp = (out, sw: t) => {
+    let pp_lps = Fmt.(list(~sep=semi, Bound.pp(Molded.NT.pp)));
+    Fmt.pf(out, "[%a]", pp_lps, Chain.loops(sw));
+  };
+  let show = Fmt.to_to_string(pp);
+  let mk = nts => {
+    let n = List.length(nts);
+    if (n == 0) {
+      raise(Invalid_argument("Walk.Swing.mk"));
+    };
+    Chain.mk(nts, List.init(n - 1, _ => ()));
+  };
   let height = Chain.length;
   let mk_eq = Chain.unit;
   let is_eq = s => height(s) == 1;
