@@ -31,6 +31,7 @@ module Swing = {
   let is_neq = s => !is_eq(s);
   let top = Chain.hd;
   let bot = Chain.ft;
+  let rev = sw => Chain.rev(sw);
   // let has_sort = s =>
   //   Chain.loops(s)
   //   |> List.exists(
@@ -52,11 +53,13 @@ let height = w =>
 
 // let has_sort = w => List.exists(Swing.has_sort, strides(w));
 
-let fst = Chain.hd;
+let hd = Chain.hd;
 let ft = Chain.ft;
+let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
 
 let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
-let is_neq = w => !is_eq(w);
+// note: stricter than !is_eq
+let is_neq = (w: t) => Swing.is_neq(hd(w)) && Swing.is_neq(ft(w));
 
 let singleton = Chain.unit;
 
@@ -82,6 +85,7 @@ module Index = {
     | None => []
     | Some(ws) => ws
     };
+  let filter = f => map(List.filter(f));
   let map = f => map(List.map(f));
   let union: (t, t) => t = union((_, l, r) => Some(l @ r));
   let union_all: list(t) => t = List.fold_left(union, empty);
