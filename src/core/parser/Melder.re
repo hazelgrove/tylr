@@ -29,9 +29,9 @@ module Melded = {
   let mk = (src: Wald.t, baked: Baked.t, dst: Wald.t) =>
     baked
     |> Baked.fold(
+         c => link(dst, c),
+         (t, c) => link(Wald.of_tok(t), c),
          (Slope.empty, src),
-         (melded, c, t) => link(Wald.of_tok(t), c, melded),
-         (melded, c) => link(dst, c, melded),
        );
 };
 
@@ -51,13 +51,14 @@ module Wald = {
          | Rel.Neq(_) => failwith("bug: expected only eq strides")
          | Eq(c) => c,
        )
-    |> Chain.fold_left(
+    |> Chain.fold_right(
+         (c, t, (cell, wald)) => (c, W.link(t, cell, wald)),
          c => (c, wald),
-         ((cell, wald), t, c) => (c, W.link(t, cell, wald)),
        )
     |> (((cell, wald)) => Terr.{wald: W.rev(wald), cell});
 
-  // assumes w is already oriented toward side
+  // assumes w is already oriented toward side.
+  // used to complete zigg top when it takes precedence over pushed wald.
   let round = (~side: Dir.t, ~fill=Fill.empty, w: W.t): Terr.t => {
     let bake = Baker.bake(~from=Dir.toggle(side));
     let exited = Walker.exit(~from=Dir.toggle(side), Node(W.face(w)));
@@ -115,16 +116,20 @@ module Wald = {
 
   let meld_root =
       (~repair=false, ~from: Dir.t, ~fill=Fill.empty, dst: W.t)
-      : option(Slope.t) =>
-    Walker.walk(~from, Root, Node(W.face(dst)))
+      : option(Slope.t) => {
+    print_endline("Wald.meld_root -");
+    let ws = Walker.walk(~from, Root, Node(W.face(dst)));
+    ws |> List.iter(w => print_endline(Walk.show(w)));
+    ws
     |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake(~from, ~fill))
     |> Option.map(
          Baked.fold(
+           c => Slope.link(dst, c),
+           (t, c) => Slope.link(Wald.of_tok(t), c),
            Slope.empty,
-           (slope, c, t) => Slope.link(Wald.of_tok(t), c, slope),
-           (slope, c) => Slope.link(dst, c, slope),
          ),
        );
+  };
 };
 
 module T = Terr;
@@ -136,9 +141,9 @@ module Terr = {
          | Rel.Neq(_) => failwith("bug: expected only eq strides")
          | Eq(c) => c,
        )
-    |> Chain.fold_left(
+    |> Chain.fold_right(
+         (cell, tok) => Meld.link(~cell, tok),
          cell => Meld.M(terr.cell, terr.wald, cell),
-         (meld, tok, cell) => Meld.link(~cell, tok, meld),
        );
 
   let roll = (~onto: Dir.t, ~fill=Fill.empty, terr: T.t): Fill.t => {

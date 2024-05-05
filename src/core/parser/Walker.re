@@ -47,6 +47,7 @@ let enter =
   |> List.concat;
 };
 
+// step from last molded NT to identify valid destinations for given walk
 let arrive = (~from: Dir.t, w: Walk.t): Index.t =>
   switch (Chain.hd(Chain.hd(w))) {
   | Root => Index.singleton(Root, [w])
@@ -117,34 +118,6 @@ let step =
   );
 let step = (~from: Dir.t, src: End.t): Index.t => step((from, src));
 
-let lt =
-  Core.Memo.general(((l: End.t, r: End.t)) =>
-    step(~from=L, l)
-    |> Index.find(r)
-    |> List.filter_map(walk => {
-         let swing = hd(walk);
-         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
-       })
-  )
-  |> FunUtil.curry;
-let gt =
-  Core.Memo.general(((l: End.t, r: End.t)) =>
-    step(~from=R, r)
-    |> Index.find(l)
-    |> List.filter_map(walk => {
-         let swing = hd(walk);
-         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
-       })
-  )
-  |> FunUtil.curry;
-let eq =
-  Core.Memo.general(((l: End.t, r: End.t)) =>
-    step(~from=L, l)
-    |> Index.find(r)
-    |> List.filter(walk => Swing.is_eq(hd(walk)))
-  )
-  |> FunUtil.curry;
-
 let walk =
   Core.Memo.general(((from: Dir.t, src: End.t)) => {
     // index populated on each queue pop
@@ -170,18 +143,44 @@ let walk = (~from: Dir.t, src: End.t) => walk((from, src));
 let walk_into =
   Core.Memo.general(((from: Dir.t, sort: Bound.t(Molded.NT.t))) => {
     open Index.Syntax;
-    let* (src_mid, mid) = Index.filter(is_neq, swing(~from, sort));
+    let* (mid, mid_src) = Index.filter(is_neq, swing(~from, sort));
     switch (mid) {
     | Root => Index.empty
     | Node(t) =>
-      let* (mid_dst, dst) = walk(~from, mid);
-      return(append(src_mid, t, mid_dst), dst);
+      let _ =
+        failwith("todo: need to initiate walk with mids counting as seen");
+      let* (dst, dst_mid) = walk(~from, mid);
+      return(dst, append(dst_mid, t, mid_src));
     };
   });
 let walk_into = (~from: Dir.t, sort) => walk_into((from, sort));
 
 let step = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
   Index.find(dst, step(~from, src));
+let lt =
+  Core.Memo.general(((l: End.t, r: End.t)) =>
+    step(~from=L, l, r)
+    |> List.filter_map(walk => {
+         let swing = hd(walk);
+         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
+       })
+  )
+  |> FunUtil.curry;
+let gt =
+  Core.Memo.general(((l: End.t, r: End.t)) =>
+    step(~from=R, r, l)
+    |> List.filter_map(walk => {
+         let swing = hd(walk);
+         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
+       })
+  )
+  |> FunUtil.curry;
+let eq =
+  Core.Memo.general(((l: End.t, r: End.t)) =>
+    step(~from=L, l, r) |> List.filter(walk => Swing.is_eq(hd(walk)))
+  )
+  |> FunUtil.curry;
+
 let walk = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
   Index.find(dst, walk(~from, src));
 
