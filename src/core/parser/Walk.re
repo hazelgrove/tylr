@@ -47,6 +47,12 @@ module Base = {
 };
 include Base;
 
+module Set =
+  Set.Make({
+    type nonrec t = t;
+    let compare = compare;
+  });
+
 let strides = Chain.loops;
 let height = w =>
   strides(w) |> List.filter(Swing.is_neq) |> List.length |> (+)(1);
@@ -79,32 +85,32 @@ module End = {
 };
 module Index = {
   include End.Map;
-  type t = End.Map.t(list(Base.t));
+  type t = End.Map.t(Set.t);
   let find = (end_: End.t, map: t) =>
     switch (find_opt(end_, map)) {
     | None => []
-    | Some(ws) => ws
+    | Some(ws) => Set.elements(ws)
     };
   let add = (dst, w) =>
     update(
       dst,
       fun
-      | None => Some([w])
-      | Some(ws) => Some([w, ...ws]),
+      | None => Some(Set.singleton(w))
+      | Some(ws) => Some(Set.add(w, ws)),
     );
-  let filter = f => map(List.filter(f));
-  let map = f => map(List.map(f));
-  let iter = f => iter((dst, ws) => List.iter(f(dst), ws));
-  let union: (t, t) => t = union((_, l, r) => Some(l @ r));
+  let filter = f => map(Set.filter(f));
+  let map = f => map(Set.map(f));
+  let iter = f => iter((dst, ws) => Set.iter(f(dst), ws));
+  let union: (t, t) => t = union((_, l, r) => Some(Set.union(l, r)));
   let union_all: list(t) => t = List.fold_left(union, empty);
   let to_list = bindings;
   let of_list = bs => of_seq(List.to_seq(bs));
   module Syntax = {
-    let return = (dst, walk) => singleton(dst, [walk]);
+    let return = (dst, walk) => singleton(dst, Set.singleton(walk));
     let ( let* ) = (ind, f) =>
       to_list(ind)
       |> List.concat_map(((dst, walks)) =>
-           walks |> List.map(w => (dst, w))
+           Set.elements(walks) |> List.map(w => (dst, w))
          )
       |> List.map(f)
       |> union_all;

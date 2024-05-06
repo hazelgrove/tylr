@@ -50,14 +50,14 @@ let enter =
 // step from last molded NT to identify valid destinations for given walk
 let arrive = (~from: Dir.t, w: Walk.t): Index.t =>
   switch (Chain.hd(Chain.hd(w))) {
-  | Root => Index.singleton(Root, [w])
+  | Root => Index.singleton(Root, Set.singleton(w))
   | Node((mtrl, mold)) =>
     (Sym.NT(mtrl), mold.rctx)
     |> RZipper.step(Dir.toggle(from))
     |> List.map(
          Bound.map(((msym, rctx)) => (expect_lbl(msym), {...mold, rctx})),
        )
-    |> List.map(lbl => (lbl, [w]))
+    |> List.map(lbl => (lbl, Set.singleton(w)))
     |> Index.of_list
     |> (
       Mold.nullable(~side=Dir.toggle(from), mold)
