@@ -1,0 +1,24 @@
+(include_subdirs unqualified)
+
+(library
+ (name tylr_prop_logic)
+ (libraries util re sexplib)
+ (implements tylr_core)
+ (js_of_ocaml
+  (flags
+   (:include js-of-ocaml-flags-%{profile})))
+ (preprocess
+  (pps
+   ppx_let
+   ppx_sexp_conv
+   ppx_deriving.show
+   ppx_deriving.ord
+   ppx_yojson_conv)))
+
+(rule
+ (write-file
+  js-of-ocaml-flags-dev
+  "(:standard --debug-info --no-inline --pretty --source-map)"))
+
+(rule
+ (write-file js-of-ocaml-flags-release "(:standard)"))
