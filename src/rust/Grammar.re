@@ -27,6 +27,24 @@ module Pat = {
   let tbl = [];
 };
 
+module Stat = {
+    let sort = Sort.of_str("Stat");
+    let stat = nt(sort)
+
+    let tbl = [];
+}
+
+module Item = {
+    let sort = Sort.of_str("Item");
+    let item = nt(sort);
+
+    let tbl = [
+        //function declaration will be our item
+        p(seq([]))
+    ]
+}
+
+
 module Exp = {
   let sort = Sort.of_str("Exp");
   let exp = nt(sort);
@@ -34,32 +52,17 @@ module Exp = {
   [@warning "-32"]
   let comma_sep = seq([exp, Star(seq([c(","), exp]))]);
 
-  // let rule = seq([tokc("|"), p, tokc("=>"), e]);
-
-  // let statement = seq([e, tokc(";")]);
-  // let block = Star(statement);
-
   let operand =
     alt([
       t(Int_lit),
       t(Float_lit),
       t(Id_lower),
-      // todo: seq([tokc("("), opt(comma_sep), tokc(")")]),
       seq([c("("), exp, c(")")]),
-      // todo: seq([tokc("["), opt(comma_sep), tokc("]")]),
-      seq([c("["), exp, c("]")]),
-      // seq([tokc("case"), e, Star(rule), tokc("end")]),
     ]);
 
   let tokc_alt = ss => alt(List.map(c, ss));
-  let add_op = tokc_alt(["+", "+.", "-", "-."]);
-  let mult_op = tokc_alt(["*", "*.", "/", "/."]);
-  let neg_op = tokc_alt(["-", "-."]);
 
   let tbl = [
-    p(~a=L, seq([exp, add_op, exp])),
-    p(~a=L, seq([exp, mult_op, exp])),
-    p(seq([neg_op, exp])),
     p(operand),
   ];
 };

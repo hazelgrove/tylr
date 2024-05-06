@@ -1,7 +1,7 @@
 (include_subdirs unqualified)
 
 (library
- (name tylr_prop_logic)
+ (name tylr_rust)
  (libraries util re sexplib)
  (implements tylr_core)
  (js_of_ocaml
@@ -16,9 +16,7 @@
    ppx_yojson_conv)))
 
 (rule
- (write-file
-  js-of-ocaml-flags-dev
-  "(:standard --debug-info --no-inline --pretty --source-map)"))
+ (write-file js-of-ocaml-flags-dev "(:standard --debuginfo --noinline)"))
 
 (rule
  (write-file js-of-ocaml-flags-release "(:standard)"))
