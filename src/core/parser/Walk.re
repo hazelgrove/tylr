@@ -85,18 +85,26 @@ module Index = {
     | None => []
     | Some(ws) => ws
     };
+  let add = (dst, w) =>
+    update(
+      dst,
+      fun
+      | None => Some([w])
+      | Some(ws) => Some([w, ...ws]),
+    );
   let filter = f => map(List.filter(f));
   let map = f => map(List.map(f));
+  let iter = f => iter((dst, ws) => List.iter(f(dst), ws));
   let union: (t, t) => t = union((_, l, r) => Some(l @ r));
   let union_all: list(t) => t = List.fold_left(union, empty);
   let to_list = bindings;
   let of_list = bs => of_seq(List.to_seq(bs));
   module Syntax = {
-    let return = (walk, dst) => singleton(dst, [walk]);
+    let return = (dst, walk) => singleton(dst, [walk]);
     let ( let* ) = (ind, f) =>
       to_list(ind)
       |> List.concat_map(((dst, walks)) =>
-           walks |> List.map(w => (w, dst))
+           walks |> List.map(w => (dst, w))
          )
       |> List.map(f)
       |> union_all;

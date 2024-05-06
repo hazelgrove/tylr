@@ -61,7 +61,7 @@ let arrive = (~from: Dir.t, w: Walk.t): Index.t =>
     |> Index.of_list
     |> (
       Mold.nullable(~side=Dir.toggle(from), mold)
-        ? Index.add(Root, [w]) : Fun.id
+        ? Index.add(Root, w) : Fun.id
     )
   };
 
@@ -118,40 +118,38 @@ let step =
   );
 let step = (~from: Dir.t, src: End.t): Index.t => step((from, src));
 
+let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
+  let index = ref(Index.empty);
+  while (!Queue.is_empty(q)) {
+    let (mid, mid_src) = Queue.pop(q);
+    let seen = Index.mem(mid, index^);
+    index := Index.add(mid, mid_src, index^);
+    // consider stepping further
+    switch (mid) {
+    | Node(_) when !seen =>
+      step(~from, mid)
+      |> Index.iter((dst, dst_mid) => Queue.push((dst, dst_mid), q))
+    | _ => ()
+    };
+  };
+  index^;
+};
+
 let walk =
   Core.Memo.general(((from: Dir.t, src: End.t)) => {
-    // index populated on each queue pop
-    let index = ref(Index.empty);
     let q = Queue.create();
-    step(~from, src) |> Index.iter((dst, w) => Queue.push((w, dst), q));
-    while (!Queue.is_empty(q)) {
-      let (src_mid, mid) = Queue.pop(q);
-      let seen = Index.mem(mid, index^);
-      index := Index.add(mid, src_mid, index^);
-      // consider stepping further
-      switch (mid) {
-      | Node(_) when !seen =>
-        step(~from, mid)
-        |> Index.iter((dst, mid_dst) => Queue.push((mid_dst, dst), q))
-      | _ => ()
-      };
-    };
-    index^;
+    step(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
+    bfs(~from, q);
   });
 let walk = (~from: Dir.t, src: End.t) => walk((from, src));
 
 let walk_into =
   Core.Memo.general(((from: Dir.t, sort: Bound.t(Molded.NT.t))) => {
-    open Index.Syntax;
-    let* (mid, mid_src) = Index.filter(is_neq, swing(~from, sort));
-    switch (mid) {
-    | Root => Index.empty
-    | Node(t) =>
-      let _ =
-        failwith("todo: need to initiate walk with mids counting as seen");
-      let* (dst, dst_mid) = walk(~from, mid);
-      return(dst, append(dst_mid, t, mid_src));
-    };
+    let q = Queue.create();
+    swing(~from, sort)
+    |> Index.filter(is_neq)
+    |> Index.iter((dst, w) => Queue.push((dst, w), q));
+    bfs(~from, q);
   });
 let walk_into = (~from: Dir.t, sort) => walk_into((from, sort));
 
