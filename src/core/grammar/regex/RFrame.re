@@ -1,10 +1,34 @@
 open Util;
 
-[@deriving (show({with_path: false}), sexp, yojson, ord)]
+[@deriving (sexp, yojson, ord)]
 type t('a) =
   | Star_
   | Seq_(Regex.s('a), Regex.s('a))
   | Alt_(Regex.s('a), Regex.s('a));
+
+let pp = (pp_a, out, f) =>
+  switch (f) {
+  | Star_ => Fmt.pf(out, "(•)*")
+  | Seq_(ls, rs) =>
+    let pp_s = Fmt.(list(~sep=sp, Regex.pp(pp_a)));
+    switch (ls, rs) {
+    | ([], []) => Fmt.pf(out, "(•)")
+    | ([], [_, ..._]) => Fmt.pf(out, "(•@ %a)", pp_s, rs)
+    | ([_, ..._], []) => Fmt.pf(out, "(%a@ •)", pp_s, ls)
+    | ([_, ..._], [_, ..._]) =>
+      Fmt.pf(out, "%a@ •@ %a", pp_s, ls, pp_s, rs)
+    };
+  | Alt_(ls, rs) =>
+    let pp_s = Fmt.(list(~sep=any("@ |@ "), Regex.pp(pp_a)));
+    switch (ls, rs) {
+    | ([], []) => Fmt.pf(out, "(•)")
+    | ([], [_, ..._]) => Fmt.pf(out, "(•@ |@ %a)", pp_s, rs)
+    | ([_, ..._], []) => Fmt.pf(out, "(%a@ |@ •)", pp_s, ls)
+    | ([_, ..._], [_, ..._]) =>
+      Fmt.pf(out, "%a@ |@ •@ |@ %a", pp_s, ls, pp_s, rs)
+    };
+  };
+let show = pp_a => Fmt.to_to_string(pp_a);
 
 let star_ = Star_;
 let seq_ = (ls, rs) => Seq_(ls, rs);

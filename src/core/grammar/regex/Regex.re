@@ -2,13 +2,25 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
-[@deriving (show({with_path: false}), sexp, yojson, ord)]
+[@deriving (sexp, yojson, ord)]
 type t('a) =
   | Atom('a)
   | Star(t('a))
   | Seq(s('a))
   | Alt(s('a))
 and s('a) = list(t('a));
+
+let rec pp = (pp_a, out) =>
+  fun
+  | Atom(a) => Fmt.pf(out, "%a", pp_a, a)
+  | Star(r) => Fmt.pf(out, "(%a)*", pp(pp_a), r)
+  | Seq(rs) => Fmt.(pf(out, "%a", list(~sep=sp, pp(pp_a)), rs))
+  | Alt(rs) =>
+    Fmt.(pf(out, "(%a)", list(~sep=any("@ |@ "), pp(pp_a)), rs));
+let show = pp_a => Fmt.to_to_string(pp(pp_a));
+
+let pp_s = (pp_a, out) => Fmt.(pf(out, "[%a]", list(~sep=semi, pp(pp_a))));
+let show_s = pp_a => Fmt.to_to_string(pp(pp_a));
 
 let atom = a => Atom(a);
 let star = r => Star(r);
