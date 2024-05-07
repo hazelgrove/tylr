@@ -81,13 +81,16 @@ let swing =
       index := Index.union(index^, arrive(~from, w));
       // consider going deeper
       let s = Chain.hd(Chain.hd(w));
-      let mtrl = Molded.NT.mtrl(s);
       // need only keep track of mtrl (sans mold) bc any differently-molded
       // same-mtrl NTs will only have tighter prec bounds and cannot access
       // any NTs not already reachable from the initial NT
-      switch (Hashtbl.find_opt(seen, mtrl)) {
-      | Some () => ()
-      | None =>
+      let mtrl = Molded.NT.mtrl(s);
+      switch (s, Hashtbl.find_opt(seen, mtrl)) {
+      // no further to go if "space" of space sort
+      | (Node((Space, Mold.{sort: Space, _})), _)
+      // avoid cycling
+      | (_, Some ()) => ()
+      | (_, None) =>
         Hashtbl.add(seen, mtrl, ());
         let (l, r) = bounds(s);
         enter(~from, ~l, ~r, mtrl)
