@@ -29,9 +29,9 @@ module Swing = {
   let mk_eq = Chain.unit;
   let is_eq = s => height(s) == 1;
   let is_neq = s => !is_eq(s);
-  let top = Chain.hd;
-  let bot = Chain.ft;
-  let rev = sw => Chain.rev(sw);
+  let top = Chain.ft;
+  let bot = Chain.hd;
+  // let rev = sw => Chain.rev(sw);
   // let has_sort = s =>
   //   Chain.loops(s)
   //   |> List.exists(
@@ -61,7 +61,7 @@ let height = w =>
 
 let hd = Chain.hd;
 let ft = Chain.ft;
-let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
+// let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
 
 let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
 // note: stricter than !is_eq
