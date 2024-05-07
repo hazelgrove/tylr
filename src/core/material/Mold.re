@@ -2,9 +2,9 @@ open Util;
 
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t = {
-  sort: Mtrl.Sorted.t,
-  prec: Prec.t,
   rctx: RCtx.t(Mtrl.Sym.t),
+  prec: Prec.t,
+  sort: Mtrl.Sorted.t,
 };
 
 let equal = (==);

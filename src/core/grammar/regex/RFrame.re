@@ -14,18 +14,18 @@ let pp = (pp_a, out, f) =>
     switch (ls, rs) {
     | ([], []) => Fmt.pf(out, "(•)")
     | ([], [_, ..._]) => Fmt.pf(out, "(•@ %a)", pp_s, rs)
-    | ([_, ..._], []) => Fmt.pf(out, "(%a@ •)", pp_s, ls)
+    | ([_, ..._], []) => Fmt.pf(out, "(%a@ •)", pp_s, List.rev(ls))
     | ([_, ..._], [_, ..._]) =>
-      Fmt.pf(out, "%a@ •@ %a", pp_s, ls, pp_s, rs)
+      Fmt.pf(out, "%a@ •@ %a", pp_s, List.rev(ls), pp_s, rs)
     };
   | Alt_(ls, rs) =>
-    let pp_s = Fmt.(list(~sep=any("@ |@ "), Regex.pp(pp_a)));
+    let pp_s = Fmt.(list(~sep=any("@ | "), Regex.pp(pp_a)));
     switch (ls, rs) {
     | ([], []) => Fmt.pf(out, "(•)")
-    | ([], [_, ..._]) => Fmt.pf(out, "(•@ |@ %a)", pp_s, rs)
-    | ([_, ..._], []) => Fmt.pf(out, "(%a@ |@ •)", pp_s, ls)
+    | ([], [_, ..._]) => Fmt.pf(out, "(•@ | %a)", pp_s, rs)
+    | ([_, ..._], []) => Fmt.pf(out, "(%a@ | •)", pp_s, List.rev(ls))
     | ([_, ..._], [_, ..._]) =>
-      Fmt.pf(out, "%a@ |@ •@ |@ %a", pp_s, ls, pp_s, rs)
+      Fmt.pf(out, "%a@ | •@ | %a", pp_s, List.rev(ls), pp_s, rs)
     };
   };
 let show = pp_a => Fmt.to_to_string(pp_a);

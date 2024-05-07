@@ -15,7 +15,7 @@ module Swing = {
   type t = Chain.t(Bound.t(Molded.NT.t), unit);
   let pp = (out, sw: t) => {
     let pp_lps = Fmt.(list(~sep=semi, Bound.pp(Molded.NT.pp)));
-    Fmt.pf(out, "[%a]", pp_lps, Chain.loops(sw));
+    Fmt.pf(out, "[@[<hv>%a@]]", pp_lps, Chain.loops(sw));
   };
   let show = Fmt.to_to_string(pp);
   let mk = nts => {
