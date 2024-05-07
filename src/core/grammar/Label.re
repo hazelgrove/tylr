@@ -17,7 +17,7 @@ let pp = out =>
   | Id_upper => Fmt.pf(out, "Id_upper")
   | Int_lit => Fmt.pf(out, "Int_lit")
   | Float_lit => Fmt.pf(out, "Float_lit")
-  | Const(_, s) => Fmt.pf(out, "Const(%s)", s);
+  | Const(_, s) => Fmt.pf(out, "\'%s\'", s);
 let show = Fmt.to_to_string(pp);
 
 module Ord = {
