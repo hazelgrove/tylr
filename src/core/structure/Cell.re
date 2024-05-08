@@ -12,11 +12,7 @@ let put_cursor = (cur: Cursor.t(Path.Point.t, Path.Select.t), cell: t) => {
   marks: Path.Marks.put_cursor(cur, cell.marks),
 };
 
-let face = (~side: Dir.t, c: t) =>
-  switch (c.meld) {
-  | None => Space.Molded.t
-  | Some(m) => Meld.face(~side, m)
-  };
+let face = (~side: Dir.t, c: t) => Option.map(Meld.face(~side), c.meld);
 
 // let has_space = (cell: t) =>
 //   switch (cell.meld) {

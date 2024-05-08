@@ -14,9 +14,9 @@ let length = fill => List.length(to_list(fill));
 let rev = fill => Chain.rev(fill);
 let cons = (c: Cell.t, fill: t) => Chain.link(c, (), fill);
 
-let faces = (fill: t) => {
-  let (hd, ft) = Chain.(hd(fill), ft(fill));
-  Cell.(face(~side=L, hd), face(ft, ~side=R));
+let face = (~side: Dir.t, fill: t) => {
+  let c = Dir.pick(side, Chain.(hd, ft), fill);
+  Cell.face(~side, c);
 };
 
 let is_space = (fill: t) =>

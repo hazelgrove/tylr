@@ -4,10 +4,22 @@ let bake_eq =
     (~fill=Fill.empty, sort: Bound.t(Molded.NT.t))
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
-  let (f_l, f_r) = Fill.faces(fill);
-  let+ w_l = ListUtil.hd_opt(Walker.enter(~from=L, sort, Node(f_l)))
-  and+ w_r = ListUtil.hd_opt(Walker.enter(~from=R, sort, Node(f_r)));
-  let (l, r) = Walk.(height(w_l) > 2, height(w_r) > 2);
+  let+ l =
+    switch (Fill.face(~side=L, fill)) {
+    | None => Some(false)
+    | Some(f_l) =>
+      Walker.enter(~from=L, sort, Node(f_l))
+      |> ListUtil.hd_opt
+      |> Option.map(w => Walk.height(w) > 2)
+    }
+  and+ r =
+    switch (Fill.face(~side=R, fill)) {
+    | None => Some(false)
+    | Some(f_r) =>
+      Walker.enter(~from=R, sort, Node(f_r))
+      |> ListUtil.hd_opt
+      |> Option.map(w => Walk.height(w) > 2)
+    };
   let cell = Fill.fill(~l, fill, sort, ~r);
   Rel.Eq(cell);
 };
@@ -20,10 +32,23 @@ let bake_lt =
     )
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
-  let (f_l, f_r) = Fill.faces(fill);
-  let+ _w_l = ListUtil.hd_opt(Walker.enter(~from=L, bound, Node(f_l)))
-  and+ w_r = ListUtil.hd_opt(Walker.enter(~from=R, sort, Node(f_r)));
-  let cell = Fill.fill(fill, sort, ~r=Walk.height(w_r) > 2);
+  let+ _l =
+    switch (Fill.face(~side=L, fill)) {
+    | None => Some(false)
+    | Some(f_l) =>
+      Walker.enter(~from=L, bound, Node(f_l))
+      |> ListUtil.hd_opt
+      |> Option.map(w => Walk.height(w) > 2)
+    }
+  and+ r =
+    switch (Fill.face(~side=R, fill)) {
+    | None => Some(false)
+    | Some(f_r) =>
+      Walker.enter(~from=R, sort, Node(f_r))
+      |> ListUtil.hd_opt
+      |> Option.map(w => Walk.height(w) > 2)
+    };
+  let cell = Fill.fill(fill, sort, ~r);
   Rel.Neq(cell);
 };
 
@@ -35,10 +60,23 @@ let bake_gt =
     )
     : option(Rel.t(Cell.t, Cell.t)) => {
   open OptUtil.Syntax;
-  let (f_l, f_r) = Fill.faces(fill);
-  let+ w_l = ListUtil.hd_opt(Walker.enter(~from=L, sort, Node(f_l)))
-  and+ _w_r = ListUtil.hd_opt(Walker.enter(~from=R, bound, Node(f_r)));
-  let cell = Fill.fill(~l=Walk.height(w_l) > 2, fill, sort);
+  let+ l =
+    switch (Fill.face(~side=L, fill)) {
+    | None => Some(false)
+    | Some(f_l) =>
+      Walker.enter(~from=L, sort, Node(f_l))
+      |> ListUtil.hd_opt
+      |> Option.map(w => Walk.height(w) > 2)
+    }
+  and+ _r =
+    switch (Fill.face(~side=R, fill)) {
+    | None => Some(false)
+    | Some(f_r) =>
+      Walker.enter(~from=R, bound, Node(f_r))
+      |> ListUtil.hd_opt
+      |> Option.map(w => Walk.height(w) > 2)
+    };
+  let cell = Fill.fill(~l, fill, sort);
   Rel.Neq(cell);
 };
 
