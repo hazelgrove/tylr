@@ -156,7 +156,7 @@ let fold_left_map =
          (acc, link(lp2, lk2, mapped));
        },
      )
-  |> PairUtil.map_snd(rev);
+  |> Tuples.map_snd(rev);
 
 let fold_right =
     (f2: ('lp, 'lk, 'acc) => 'acc, f1: 'lp => 'acc, c: t('lp, 'lk)) => {
