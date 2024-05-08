@@ -2,7 +2,7 @@ open Util;
 
 let all =
   {
-    open ListUtil.Syntax;
+    open Lists.Syntax;
     let* (_, tbl) = Sort.Map.bindings(Grammar.v);
     let* (_, r) = tbl;
     Regex.atoms(r) |> List.filter_map(Sym.get_t);

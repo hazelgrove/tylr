@@ -131,7 +131,7 @@
   //   let shard_rows = Measured.Shards.split_by_row(shards);
   //   let intra_lines =
   //     shard_rows
-  //     |> List.map(ListUtil.neighbors)
+  //     |> List.map(Lists.neighbors)
   //     |> List.map(
   //          List.map(
   //            (((_, l: Measured.measurement), (_, r: Measured.measurement))) =>
@@ -146,7 +146,7 @@
   //        )
   //     |> List.concat;
   //   let inter_lines =
-  //     ListUtil.neighbors(shard_rows)
+  //     Lists.neighbors(shard_rows)
   //     |> List.map(
   //          ((row_shards: Measured.Shards.t, row_shards': Measured.Shards.t)) => {
   //          assert(row_shards != []);
@@ -188,7 +188,7 @@
   //       assert(shard_rows != []);
   //       let row = List.hd(shard_rows);
   //       assert(row != []);
-  //       ListUtil.ft_exn(row);
+  //       Lists.ft_exn(row);
   //     };
   //     if (l != m_first.origin) {
   //       let max_col =
@@ -248,7 +248,7 @@
   //     };
   //   };
   //   let r_line = {
-  //     let (_, m_last) = ListUtil.ft_exn(shards);
+  //     let (_, m_last) = Lists.ft_exn(shards);
   //     let hook = [
   //       L_({
   //         dx: DecUtil.short_tip_width,
@@ -283,7 +283,7 @@
   //       let (_, m_flast) = {
   //         let shard_rows = Measured.Shards.split_by_row(shards);
   //         assert(shard_rows != []);
-  //         let row = ListUtil.ft_exn(shard_rows);
+  //         let row = Lists.ft_exn(shard_rows);
   //         assert(row != []);
   //         List.hd(row);
   //       };

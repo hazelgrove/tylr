@@ -11,7 +11,7 @@ include Base;
 
 let mk = (toks, cells) => {
   let (cells, cell) =
-    Util.ListUtil.Framed.ft(cells)
+    Util.Lists.Framed.ft(cells)
     |> OptUtil.get_or_raise(Invalid_argument("Terr.mk"));
   {wald: Wald.mk(toks, List.rev(cells)), cell};
 };

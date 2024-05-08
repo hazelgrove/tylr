@@ -64,7 +64,7 @@ let init = {
 //   | Simple(_) => Simple(z)
 //   | Study(n, zs) =>
 //     assert(n < List.length(zs));
-//     Study(n, Util.ListUtil.put_nth(n, z, zs));
+//     Study(n, Util.Lists.put_nth(n, z, zs));
 //   };
 
 // let update_zipper = (f: Zipper.state => Zipper.state, model: t): t => {

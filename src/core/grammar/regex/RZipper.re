@@ -11,7 +11,7 @@ let rec enter =
   | Atom(a) => [Node((a, ctx))]
   | Star(r) => [Root, ...go(~ctx=[Star_, ...ctx], r)]
   | Alt(s) =>
-    ListUtil.Framed.elems(s)
+    Lists.Framed.elems(s)
     |> List.concat_map(((r, (ls, rs))) =>
          go(~ctx=[Alt_(ls, rs), ...ctx], r)
        )

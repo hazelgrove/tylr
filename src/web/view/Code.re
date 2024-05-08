@@ -345,7 +345,7 @@ open Util;
 //         |> List.filter(((i, _)) => List.mem(i, t.shards))
 //       };
 //     let l = fst(List.hd(shards));
-//     let r = fst(ListUtil.ft_exn(shards));
+//     let r = fst(Lists.ft_exn(shards));
 //     PieceDec.Profile.{shards, mold, style: Selected(l, r), index: 0};
 //   };
 
@@ -377,7 +377,7 @@ open Util;
 //          | Piece.Whitespace(w) when w.content == Whitespace.linebreak => false
 //          | _ => true,
 //        )
-//     |> ListUtil.fold_left_map(
+//     |> Lists.fold_left_map(
 //          (l: Nib.Shape.t, p: Piece.t) => {
 //            let profile = selected_piece_profile(p, l);
 //            // TODO(andrew): do something different for the caret
@@ -458,7 +458,7 @@ open Util;
 //       | Some((l, r)) => ([l, ...pre], suf @ [r])
 //       };
 //     let root_targets =
-//       ListUtil.splits(seg)
+//       Lists.splits(seg)
 //       |> List.map(((l, r)) => {
 //            let sibs =
 //              Segment.(incomplete_tiles(l), incomplete_tiles(r))
@@ -534,7 +534,7 @@ let view_text =
       switch (tok.mtrl) {
       | Space =>
         let (hd, tl) =
-          ListUtil.Framed.hd_exn(StringUtil.split(~on='\n', tok.text));
+          Lists.Framed.hd_exn(StringUtil.split(~on='\n', tok.text));
         tl
         |> List.mapi((i, line) => (i, line))
         |> List.concat_map(((i, line)) =>

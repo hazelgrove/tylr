@@ -19,7 +19,7 @@ let encode = (us: list(Uchar.t)) => {
 
 // let sub = (i, j, s) =>
 //   decode(s)
-//   |> ListUtil.sublist(i, j)
+//   |> Lists.sublist(i, j)
 //   |> encode;
 
 let split = (i, s) => {

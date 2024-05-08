@@ -49,7 +49,7 @@
 
 // let of_space = (spc: string) => {
 //   let lines = String.split_on_char('\n', spc);
-//   let last = ListUtil.ft_exn(lines);
+//   let last = Lists.ft_exn(lines);
 //   let height = Height.{head: List.length(lines) - 1, body: 0};
 //   let width = Width.{body: 0, foot: Utf8.length(last)};
 //   {height, width};
@@ -121,7 +121,7 @@ let sum = List.fold_left(add, zero);
 
 let of_space = (spc: string) => {
   let lines = String.split_on_char('\n', spc);
-  let width = Width.mk(0, ~foot=Utf8.length(ListUtil.ft_exn(lines)));
+  let width = Width.mk(0, ~foot=Utf8.length(Lists.ft_exn(lines)));
   mk(~height=List.length(lines) - 1, width);
 };
 

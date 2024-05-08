@@ -76,12 +76,12 @@ let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
 
 let split_ft = ((lps, lks): t(_)): (Affix.t('lk, 'lp), 'lp) => {
   assert(lps != []);
-  let (lps, lp) = ListUtil.Framed.ft_exn(lps);
+  let (lps, lp) = Lists.Framed.ft_exn(lps);
   ((lks, lps), lp);
 };
 let ft = ((lps, _): t('lp, _)): 'lp => {
   assert(lps != []);
-  ListUtil.ft_exn(lps);
+  Lists.ft_exn(lps);
 };
 let map_ft = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
   let ((lks, lps), lp) = split_ft(c);
@@ -118,7 +118,7 @@ let mapi = (f_lp, f_lk, c) => c |> mapi_loop(f_lp) |> mapi_link(f_lk);
 
 let to_list = (f_lp: 'lp => 'x, f_lk: 'lk => 'x, c: t('lp, 'lk)): list('x) => {
   let (lps, lks) = c;
-  let (lp, lps) = ListUtil.Framed.hd_exn(lps);
+  let (lp, lps) = Lists.Framed.hd_exn(lps);
   List.fold_right2(
     (lk, lp, xs) => [f_lk(lk), f_lp(lp), ...xs],
     lks,
@@ -135,7 +135,7 @@ let fold_left =
       (lps, lks): t('lp, 'lk),
     )
     : 'acc => {
-  let (a, lps) = ListUtil.Framed.hd_exn(lps);
+  let (a, lps) = Lists.Framed.hd_exn(lps);
   List.fold_left2(f_lk, f_lp(a), lks, lps);
 };
 let fold_left_map =

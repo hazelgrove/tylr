@@ -9,7 +9,7 @@ type t =
 
 // low to high severity
 let all = [Missing_meld, Missing_tile, Incon_meld, Extra_meld];
-let severity = o => Option.get(ListUtil.find_index((==)(o), all));
+let severity = o => Option.get(Lists.find_index((==)(o), all));
 
 let of_token = (tok: Token.t) =>
   switch (tok.mtrl) {
@@ -66,7 +66,7 @@ module Delta = {
       |> List.filter_map(((y_opt, effs)) =>
            y_opt |> Option.map(y => (y, effs, of_effects(effs)))
          )
-      |> ListUtil.min(((_, _, l), (_, _, r)) => compare(l, r));
+      |> Lists.min(((_, _, l), (_, _, r)) => compare(l, r));
     if (to_zero && compare(delta, zero) > 0) {
       None;
     } else {

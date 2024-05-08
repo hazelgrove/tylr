@@ -265,7 +265,7 @@ module Zigg = {
     Z.{up, top, dn};
   };
   let of_dn = dn =>
-    ListUtil.Framed.ft(dn)
+    Lists.Framed.ft(dn)
     |> Option.map(((dn, t: T.t)) =>
          Z.{
            up: Slope.Up.unroll(t.cell),
@@ -274,7 +274,7 @@ module Zigg = {
          }
        );
   let of_up = up =>
-    ListUtil.Framed.ft(up)
+    Lists.Framed.ft(up)
     |> Option.map(((up, t: T.t)) =>
          Z.{
            up: List.rev(up),
