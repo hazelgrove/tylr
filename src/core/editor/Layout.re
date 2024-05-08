@@ -138,7 +138,7 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
                |> Pos.skip(~over=Dims.of_tok(tok), ~return=mid)
                |> Pos.skip(~over=Dims.of_cell(cell), ~return=mid),
            )
-        |> Pos.skip_col(ListUtil.hd_opt(tl) |> Option.value(~default=0));
+        |> Pos.skip_col(Base.List.hd(tl) |> Option.value(~default=0));
       | [c, ...cs] =>
         let ((toks, cells), cell, suf) = Meld.unzip_cell(c, m);
         let pos =

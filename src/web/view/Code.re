@@ -345,7 +345,7 @@ open Util;
 //         |> List.filter(((i, _)) => List.mem(i, t.shards))
 //       };
 //     let l = fst(List.hd(shards));
-//     let r = fst(ListUtil.last(shards));
+//     let r = fst(ListUtil.ft_exn(shards));
 //     PieceDec.Profile.{shards, mold, style: Selected(l, r), index: 0};
 //   };
 
@@ -534,7 +534,7 @@ let view_text =
       switch (tok.mtrl) {
       | Space =>
         let (hd, tl) =
-          ListUtil.split_first(StringUtil.split(~on='\n', tok.text));
+          ListUtil.Framed.hd_exn(StringUtil.split(~on='\n', tok.text));
         tl
         |> List.mapi((i, line) => (i, line))
         |> List.concat_map(((i, line)) =>

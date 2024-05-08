@@ -69,7 +69,7 @@ module Wald = {
         print_endline("warning: dropping fill " ++ Fill.show(fill));
       };
       let exited =
-        ListUtil.hd_opt(exited)
+        Base.List.hd(exited)
         |> OptUtil.get_or_fail("bug: expected at least one exit");
       let baked =
         bake(exited)
@@ -154,7 +154,7 @@ module Terr = {
     | Some(baked) => Fill.unit(Cell.put(orient(attach(baked, terr))))
     | None =>
       let exited =
-        ListUtil.hd_opt(exited)
+        Base.List.hd(exited)
         |> OptUtil.get_or_fail("bug: expected at least one exit");
       let baked =
         bake(exited)
@@ -265,7 +265,7 @@ module Zigg = {
     Z.{up, top, dn};
   };
   let of_dn = dn =>
-    ListUtil.split_last_opt(dn)
+    ListUtil.Framed.ft(dn)
     |> Option.map(((dn, t: T.t)) =>
          Z.{
            up: Slope.Up.unroll(t.cell),
@@ -274,7 +274,7 @@ module Zigg = {
          }
        );
   let of_up = up =>
-    ListUtil.split_last_opt(up)
+    ListUtil.Framed.ft(up)
     |> Option.map(((up, t: T.t)) =>
          Z.{
            up: List.rev(up),

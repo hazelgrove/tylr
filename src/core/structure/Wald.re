@@ -46,8 +46,8 @@ let zip_tok = (~pre=Affix.empty, ~suf=Affix.empty, tok) =>
   W(Chain.zip(~pre, tok, ~suf));
 
 let unzip_cell = (n, W((toks, cells)): t) => {
-  let (tok, (toks_l, toks_r)) = ListUtil.split_frame(n, toks);
-  let (cell, (cs_l, cs_r)) = ListUtil.split_frame(n, cells);
+  let (tok, (toks_l, toks_r)) = ListUtil.Framed.nth_exn(n, toks);
+  let (cell, (cs_l, cs_r)) = ListUtil.Framed.nth_exn(n, cells);
   (mk([tok, ...toks_l], cs_l), cell, mk(toks_r, cs_r));
 };
 let zip_cell = (pre: t, cell: Cell.t, suf: t) =>

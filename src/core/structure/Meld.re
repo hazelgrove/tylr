@@ -69,8 +69,8 @@ let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
 let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
   let get = OptUtil.get_or_raise(Invalid_argument("Meld.of_chain"));
   // cs reversed twice
-  let (cs, r) = get(ListUtil.split_last_opt(cs));
-  let (cs, l) = get(ListUtil.split_last_opt(cs));
+  let (cs, r) = get(ListUtil.Framed.ft(cs));
+  let (cs, l) = get(ListUtil.Framed.ft(cs));
   mk(~l, W((ts, cs)), ~r);
 };
 

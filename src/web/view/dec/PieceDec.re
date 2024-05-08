@@ -111,7 +111,7 @@
   //   let (_, nib_r) = Mold.nib_shapes(~index=j, mold);
   //   let indent_col = Measured.Rows.find(origin.row, rows).indent;
   //   let max_col =
-  //     ListUtil.range(~lo=origin.row, last.row + 1)
+  //     Base.List.range(origin.row, last.row + 1)
   //     |> List.map(r => Measured.Rows.find(r, rows).max_col)
   //     |> List.fold_left(max, 0);
   //   let path =
@@ -188,12 +188,12 @@
   //       assert(shard_rows != []);
   //       let row = List.hd(shard_rows);
   //       assert(row != []);
-  //       ListUtil.last(row);
+  //       ListUtil.ft_exn(row);
   //     };
   //     if (l != m_first.origin) {
   //       let max_col =
   //         Measured.Rows.max_col(
-  //           ListUtil.range(~lo=l.row, m_first.origin.row),
+  //           Base.List.range(l.row, m_first.origin.row),
   //           rows,
   //         )
   //         |> max(m_first.origin.col);
@@ -248,7 +248,7 @@
   //     };
   //   };
   //   let r_line = {
-  //     let (_, m_last) = ListUtil.last(shards);
+  //     let (_, m_last) = ListUtil.ft_exn(shards);
   //     let hook = [
   //       L_({
   //         dx: DecUtil.short_tip_width,
@@ -283,7 +283,7 @@
   //       let (_, m_flast) = {
   //         let shard_rows = Measured.Shards.split_by_row(shards);
   //         assert(shard_rows != []);
-  //         let row = ListUtil.last(shard_rows);
+  //         let row = ListUtil.ft_exn(shard_rows);
   //         assert(row != []);
   //         List.hd(row);
   //       };

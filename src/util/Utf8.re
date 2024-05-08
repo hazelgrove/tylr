@@ -23,6 +23,6 @@ let encode = (us: list(Uchar.t)) => {
 //   |> encode;
 
 let split = (i, s) => {
-  let (l, r) = ListUtil.split_n(i, decode(s));
+  let (l, r) = Base.List.split_n(decode(s), i);
   (encode(l), encode(r));
 };

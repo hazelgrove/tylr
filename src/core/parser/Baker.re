@@ -9,7 +9,7 @@ let bake_eq =
     | None => Some(false)
     | Some(f_l) =>
       Walker.enter(~from=L, sort, Node(f_l))
-      |> ListUtil.hd_opt
+      |> Base.List.hd
       |> Option.map(w => Walk.height(w) > 2)
     }
   and+ r =
@@ -17,7 +17,7 @@ let bake_eq =
     | None => Some(false)
     | Some(f_r) =>
       Walker.enter(~from=R, sort, Node(f_r))
-      |> ListUtil.hd_opt
+      |> Base.List.hd
       |> Option.map(w => Walk.height(w) > 2)
     };
   let cell = Fill.fill(~l, fill, sort, ~r);
@@ -37,7 +37,7 @@ let bake_lt =
     | None => Some(false)
     | Some(f_l) =>
       Walker.enter(~from=L, bound, Node(f_l))
-      |> ListUtil.hd_opt
+      |> Base.List.hd
       |> Option.map(w => Walk.height(w) > 2)
     }
   and+ r =
@@ -45,7 +45,7 @@ let bake_lt =
     | None => Some(false)
     | Some(f_r) =>
       Walker.enter(~from=R, sort, Node(f_r))
-      |> ListUtil.hd_opt
+      |> Base.List.hd
       |> Option.map(w => Walk.height(w) > 2)
     };
   let cell = Fill.fill(fill, sort, ~r);
@@ -65,7 +65,7 @@ let bake_gt =
     | None => Some(false)
     | Some(f_l) =>
       Walker.enter(~from=L, sort, Node(f_l))
-      |> ListUtil.hd_opt
+      |> Base.List.hd
       |> Option.map(w => Walk.height(w) > 2)
     }
   and+ _r =
@@ -73,7 +73,7 @@ let bake_gt =
     | None => Some(false)
     | Some(f_r) =>
       Walker.enter(~from=R, bound, Node(f_r))
-      |> ListUtil.hd_opt
+      |> Base.List.hd
       |> Option.map(w => Walk.height(w) > 2)
     };
   let cell = Fill.fill(~l, fill, sort);
