@@ -31,14 +31,14 @@
   //     List.mapi(
   //       (i, r) => {
   //         let m = Measured.Rows.find(i, mrows);
-  //         StringUtil.repeat(m.indent, " ") ++ r;
+  //         Strings.repeat(m.indent, " ") ++ r;
   //       },
   //       rows,
   //     );
   //   let rows =
   //     switch (Lists.split_nth_opt(row, rows)) {
   //     | Some((pre, caret_row, suf)) when col < String.length(caret_row) =>
-  //       pre @ [StringUtil.insert_nth(col, caret_str, caret_row)] @ suf
+  //       pre @ [Strings.insert_nth(col, caret_str, caret_row)] @ suf
   //     | Some((pre, caret_row, suf)) => pre @ [caret_row ++ caret_str] @ suf
   //     | _ => rows
   //     };

@@ -54,7 +54,7 @@ module Molded = {
       None;
     };
   let unzip = (n: int, tok: t): Result.t((t, t), Dir.t) =>
-    switch (tok.mtrl, StringUtil.unzip_opt(n, tok.text)) {
+    switch (tok.mtrl, Strings.unzip_opt(n, tok.text)) {
     | (_, Some(("", _))) => Error(L)
     | (Space | Grout, Some((_, ""))) => Error(R)
     | (Space | Grout, Some((l, r))) =>

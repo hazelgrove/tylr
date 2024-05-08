@@ -110,10 +110,10 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
       | [0, ..._] => l
       | [2, ..._] => r
       | [1, j, ..._] =>
-        let h = StringUtil.count('\n', spc.text);
+        let h = Strings.count('\n', spc.text);
         let mid = Ictx.middle(~newline=h > 0, ctx);
         let (l, r) = Utf8.split(j, spc.text);
-        let h_r = StringUtil.count('\n', r);
+        let h_r = Strings.count('\n', r);
         Pos.skip(
           pos,
           ~over=Dims.of_space(l),

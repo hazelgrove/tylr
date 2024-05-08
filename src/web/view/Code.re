@@ -65,7 +65,7 @@ open Util;
 //         [
 //           span_c("linebreak", [text(str)]),
 //           Node.br([]),
-//           Node.text(StringUtil.repeat(m(p).last.col, Unicode.nbsp)),
+//           Node.text(Strings.repeat(m(p).last.col, Unicode.nbsp)),
 //         ];
 //       } else if (content == Whitespace.space) {
 //         let str = M.settings.whitespace_icons ? "·" : Unicode.nbsp;
@@ -525,7 +525,7 @@ let view_str =
   );
 
 let view_indent =
-  Core.Memo.general(n => view_str(StringUtil.repeat(n, Unicode.nbsp)));
+  Core.Memo.general(n => view_str(Strings.repeat(n, Unicode.nbsp)));
 
 let view_text =
   Layout.fold(
@@ -534,7 +534,7 @@ let view_text =
       switch (tok.mtrl) {
       | Space =>
         let (hd, tl) =
-          Lists.Framed.hd_exn(StringUtil.split(~on='\n', tok.text));
+          Lists.Framed.hd_exn(Strings.split(~on='\n', tok.text));
         tl
         |> List.mapi((i, line) => (i, line))
         |> List.concat_map(((i, line)) =>
