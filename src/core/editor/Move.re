@@ -10,7 +10,7 @@ module Action = {
 };
 
 let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let b = Dir.toggle(d);
   let+ ctx =
     switch (z.cur) {
@@ -35,7 +35,7 @@ let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
 
 let rec move_n = (n: int, z: Zipper.t): Zipper.t => {
   let move = (d, z) =>
-    move(d, z) |> OptUtil.get_or_raise(Invalid_argument("Move.move_n"));
+    move(d, z) |> Options.get_or_raise(Invalid_argument("Move.move_n"));
   switch (n) {
   | _ when n < 0 => z |> move(L) |> move_n(n + 1)
   | _ when n > 0 => z |> move(R) |> move_n(n - 1)

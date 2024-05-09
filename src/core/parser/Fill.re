@@ -26,7 +26,7 @@ let is_space = (fill: t) =>
   };
 
 let rec pad = (~side: Dir.t, ~spc: Cell.t, c: Cell.t): option(Cell.t) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let/ () = {
     let (l, r) = Dir.order(side, (spc, c));
     Cell.Space.merge(l, r);
@@ -79,7 +79,7 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
   | Some(spc) =>
     fill_default(nt)
     |> pad(~side=L, ~spc)
-    |> OptUtil.get_or_fail("todo: shouldn't be possible")
+    |> Options.get_or_fail("todo: shouldn't be possible")
   | None =>
     assert(!is_empty(fill));
     let s = Molded.NT.mtrl(nt);

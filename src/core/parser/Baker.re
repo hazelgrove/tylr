@@ -3,7 +3,7 @@ open Util;
 let bake_eq =
     (~fill=Fill.empty, sort: Bound.t(Molded.NT.t))
     : option(Rel.t(Cell.t, Cell.t)) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let+ l =
     switch (Fill.face(~side=L, fill)) {
     | None => Some(false)
@@ -31,7 +31,7 @@ let bake_lt =
       sort: Bound.t(Molded.NT.t),
     )
     : option(Rel.t(Cell.t, Cell.t)) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let+ _l =
     switch (Fill.face(~side=L, fill)) {
     | None => Some(false)
@@ -59,7 +59,7 @@ let bake_gt =
       bound: Bound.t(Molded.NT.t),
     )
     : option(Rel.t(Cell.t, Cell.t)) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let+ l =
     switch (Fill.face(~side=L, fill)) {
     | None => Some(false)
@@ -100,14 +100,14 @@ let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
   // multiple fill elements. ideally this choice would distribute multiple
   // melds across multiple swings.
   |> Oblig.Delta.minimize(((pre, sw: Walk.Swing.t, suf)) => {
-       open OptUtil.Syntax;
+       open Options.Syntax;
        let bake_tl = ((toks, strs)) =>
          List.combine(toks, strs)
          |> List.map(((tok, sw)) => {
               let+ cell = bake_swing(~from, sw);
               (tok, cell);
             })
-         |> OptUtil.for_all
+         |> Options.for_all
          |> Option.map(List.split);
        let+ cell = bake_swing(~fill, ~from, sw)
        and+ pre = bake_tl(pre)

@@ -17,5 +17,5 @@ let fold =
 let is_eq = ((rels, toks): t) =>
   rels
   |> List.map(Rel.is_eq)
-  |> OptUtil.for_all
+  |> Options.for_all
   |> Option.map(cells => (cells, toks));

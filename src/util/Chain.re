@@ -213,7 +213,7 @@ let unzip_link = (n: int, c: t('lp, 'lk)): option((t(_), 'lk, t(_))) => {
     raise(invalid);
   };
   let rec go = (pre, n, suf) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let* (lk, lp, suf) = Affix.unlink(suf);
     n == 1
       ? Some((pre, lk, cons(lp, suf))) : go(link(lp, lk, pre), n - 2, suf);

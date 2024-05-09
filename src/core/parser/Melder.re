@@ -70,10 +70,10 @@ module Wald = {
       };
       let exited =
         Base.List.hd(exited)
-        |> OptUtil.get_or_fail("bug: expected at least one exit");
+        |> Options.get_or_fail("bug: expected at least one exit");
       let baked =
         bake(exited)
-        |> OptUtil.get_or_fail(
+        |> Options.get_or_fail(
              "bug: bake expected to succeed if no fill required",
            );
       attach(w, baked);
@@ -83,7 +83,7 @@ module Wald = {
   let meld =
       (~repair=false, ~from: Dir.t, src: W.t, ~fill=Fill.empty, dst: W.t)
       : option(Melded.t) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let walk = repair ? Walker.walk : Walker.step;
     let rec go = (src, fill) => {
       let/ () = repair ? rm_ghost_and_go(src, fill) : None;
@@ -155,10 +155,10 @@ module Terr = {
     | None =>
       let exited =
         Base.List.hd(exited)
-        |> OptUtil.get_or_fail("bug: expected at least one exit");
+        |> Options.get_or_fail("bug: expected at least one exit");
       let baked =
         bake(exited)
-        |> OptUtil.get_or_fail(
+        |> Options.get_or_fail(
              "bug: bake expected to succeed if no fill required",
            );
       Fill.cons(Cell.put(orient(attach(baked, terr))), fill);
@@ -259,7 +259,7 @@ module Z = Zigg;
 // for zigg functions are reverse of convention for parameters, not ideal
 module Zigg = {
   let unroll = (c: Cell.t) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let+ M(l, top, r) = Cell.get(c);
     let (up, dn) = Slope.(Up.unroll(l), Dn.unroll(r));
     Z.{up, top, dn};
@@ -357,7 +357,7 @@ module C = Ctx;
 module Ctx = {
   let push_wald =
       (~onto as d: Dir.t, w: W.t, ~fill=Fill.empty, ctx: C.t): option(C.t) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let (slopes, tl) = Ctx.split_hd(ctx);
     let (s_d, s_b) = Dir.order(d, slopes);
     switch (Slope.push(~onto=d, w, ~fill, s_d)) {
@@ -386,18 +386,18 @@ module Ctx = {
   };
   let push = (~onto: Dir.t, t: Token.t) => push_wald(~onto, W.of_tok(t));
   let push_fail = (~onto: Dir.t, tok, ctx) =>
-    push(~onto, tok, ctx) |> OptUtil.get_or_fail("bug: failed push");
+    push(~onto, tok, ctx) |> Options.get_or_fail("bug: failed push");
 
   let rec push_slope = (~onto: Dir.t, s: S.t, ~fill=Fill.empty, ctx: C.t) =>
     switch (s) {
     | [] => Some(ctx)
     | [hd, ...tl] =>
-      open OptUtil.Syntax;
+      open Options.Syntax;
       let* ctx = push_wald(~onto, hd.wald, ~fill, ctx);
       push_slope(~onto, tl, ~fill=Fill.unit(hd.cell), ctx);
     };
   let push_zigg = (~onto as d: Dir.t, zigg: Z.t, ~fill=Fill.empty, ctx: C.t) => {
-    let get_fail = OptUtil.get_or_fail("bug: failed to push zigg");
+    let get_fail = Options.get_or_fail("bug: failed to push zigg");
     let (s_d, s_b) = Dir.order(d, (zigg.dn, zigg.up));
     let ctx = get_fail(push_slope(~onto=d, s_d, ~fill, ctx));
     let top = Dir.pick(d, (Fun.id, W.rev), zigg.top);
@@ -407,7 +407,7 @@ module Ctx = {
   };
 
   let rec pull = (~from as d: Dir.t, ctx: C.t): option((Token.t, C.t)) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let order = Dir.order(d);
     switch (Ctx.unlink(ctx)) {
     | Error(slopes) =>

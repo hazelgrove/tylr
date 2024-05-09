@@ -53,7 +53,7 @@ module Select = {
     anchor: Base.cons(n, sel.anchor),
   };
   let peel = (n, sel) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let+ focus = Base.peel(n, sel.focus)
     and+ anchor = Base.peel(n, sel.anchor);
     {focus, anchor};

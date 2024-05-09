@@ -122,7 +122,7 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
       }
     | None =>
       let M(c_l, _, _) as m =
-        Cell.get(cell) |> OptUtil.get_or_raise(Path.Invalid);
+        Cell.get(cell) |> Options.get_or_raise(Path.Invalid);
       let mid = Ictx.middle(~newline=Dims.of_cell(c_l).height > 0, ctx);
       switch (path) {
       | [] => l
@@ -270,7 +270,7 @@ let max_pos = (c: Cell.t) => {
 // bounds goal pos to within start/end pos of program.
 // returns none if the resulting goal pos is same as start pos.
 let map_focus = (f: Pos.t => Pos.t, z: Zipper.t): option(Zipper.t) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let c = Zipper.zip(z);
   let* init_path = Path.Marks.get_focus(c.marks);
   let init_pos = pos_of_path(init_path, c);

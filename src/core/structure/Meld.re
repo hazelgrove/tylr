@@ -67,7 +67,7 @@ let is_empty =
 
 let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
 let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
-  let get = OptUtil.get_or_raise(Invalid_argument("Meld.of_chain"));
+  let get = Options.get_or_raise(Invalid_argument("Meld.of_chain"));
   // cs reversed twice
   let (cs, r) = get(Lists.Framed.ft(cs));
   let (cs, l) = get(Lists.Framed.ft(cs));
@@ -102,7 +102,7 @@ let size = m => Chain.length(to_chain(m));
 let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
 let unzip_tok = (step, m) =>
   Chain.unzip_link(step, to_chain(m))
-  |> OptUtil.get_or_fail("impossible: meld has at least one token");
+  |> Options.get_or_fail("impossible: meld has at least one token");
 
 let link = (~cell=Cell.empty, t: Token.t, M(l, W(w), r): t) =>
   M(cell, W(Chain.link(t, l, w)), r);

@@ -44,7 +44,7 @@ let insert = (s: string, z: Zipper.t) => {
 };
 
 let delete = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let+ z = Cursor.is_point(z.cur) ? Select.select(d, z) : return(z);
   insert("", z);
 };

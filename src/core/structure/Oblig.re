@@ -59,7 +59,7 @@ module Delta = {
 
   let minimize =
       (~to_zero=false, f: 'x => option('y), xs: list('x)): option('y) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let* (y, effs, delta) =
       xs
       |> List.map(Effects.dry_run(f))

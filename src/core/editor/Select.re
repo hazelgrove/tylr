@@ -21,7 +21,7 @@ let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
   };
 
 let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
-  open OptUtil.Syntax;
+  open Options.Syntax;
   let b = Dir.toggle(d);
   switch (z.cur) {
   | Point () =>

@@ -104,7 +104,7 @@ module Space = {
   let is_space = c => Option.is_some(get(c));
 
   let merge = (l: t, r: t) => {
-    open OptUtil.Syntax;
+    open Options.Syntax;
     let+ l_spc = get(l)
     and+ r_spc = get(r);
     let spc = Token.merge(l_spc, r_spc);
