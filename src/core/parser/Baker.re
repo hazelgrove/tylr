@@ -107,7 +107,7 @@ let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
               let+ cell = bake_swing(~from, sw);
               (tok, cell);
             })
-         |> OptUtil.sequence
+         |> OptUtil.for_all
          |> Option.map(List.split);
        let+ cell = bake_swing(~fill, ~from, sw)
        and+ pre = bake_tl(pre)

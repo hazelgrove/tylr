@@ -6,7 +6,6 @@ module Int_ppx = {
   include Int;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = int;
-  module Map = IntMap;
 };
 module Row = Int_ppx;
 module Col = Int_ppx;

@@ -7,7 +7,7 @@ let eq = Int.equal;
 let compare = Int.compare;
 let invalid = (-1);
 
-module Map = IntMap;
+module Map = Ptmap;
 
 module Gen = {
   let t: ref(t) = ref(0);
