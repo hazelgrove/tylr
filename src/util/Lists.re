@@ -7,7 +7,6 @@ module Frame = {
   // head elements are sequentially nearest neighbors of subject
   type t('x) = (list('x), list('x));
 };
-
 module Framed = {
   type t('subj, 'x) = ('subj, Frame.t('x));
 

@@ -29,7 +29,15 @@ let extend = (~side as d: Dir.t, tl, ctx) => {
   };
 };
 
-let flatten = _ => failwith("todo Ctx.flatten");
+let flatten =
+  Chain.fold_right(
+    (open_, (l, r), acc) =>
+      acc
+      |> Frame.Open.cons(~onto=L, l)
+      |> Frame.Open.cons(~onto=R, r)
+      |> Frame.Open.cat(open_),
+    Fun.id,
+  );
 
 let cons = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) => {
   let l = () => Terr.mk(fst(pre), snd(pre));

@@ -95,7 +95,18 @@ module Grout = {
   let op_ = (s: Mtrl.Sorted.t) => mk(Wald.of_tok(Token.Grout.op_(s)));
 };
 
-let split_subwald = (_, _, _) => failwith("todo Meld.split_subwald");
+let split_subwald = (i, j, M(l, W((ts, cs)), r): t) => {
+  let i = i / 2;
+  let j = j / 2 - (j mod 2 == 0 ? 1 : 0);
+  // assert(i mod 2 != 0 && j mod 2 != 0);
+  let (ts, (ts_l, ts_r)) = Lists.Framed.sublist(i, j + 1, ts);
+  let (cs, (cs_l, cs_r)) = Lists.Framed.sublist(i, j, cs);
+  (
+    Chain.mk(cs_l @ [l], ts_l),
+    Wald.mk(ts, cs),
+    Chain.mk(cs_r @ [r], ts_r),
+  );
+};
 
 let size = m => Chain.length(to_chain(m));
 

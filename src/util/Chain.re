@@ -18,8 +18,7 @@ let mk = (lps: list('lp), lks: list('lk)): t('lp, 'lk) => {
 let unit = (lp: 'lp): t('lp, _) => ([lp], []);
 let loops: t('lp, _) => list('lp) = fst;
 let links: t(_, 'lk) => list('lk) = snd;
-let loop_length = ((lps, _)) => List.length(lps);
-let length = c => loop_length(c) * 2 - 1;
+let length = ((lps, _): t(_)) => List.length(lps) * 2 - 1;
 
 let link = (a: 'lp, b: 'lk, (lps, lks): t('lp, 'lk)): t('lp, 'lk) => (
   [a, ...lps],
