@@ -116,11 +116,8 @@ module Wald = {
 
   let meld_root =
       (~repair=false, ~from: Dir.t, ~fill=Fill.empty, dst: W.t)
-      : option(Slope.t) => {
-    print_endline("Wald.meld_root -");
-    let ws = Walker.walk(~from, Root, Node(W.face(dst)));
-    ws |> List.iter(w => print_endline(Walk.show(w)));
-    ws
+      : option(Slope.t) =>
+    Walker.walk(~from, Root, Node(W.face(dst)))
     |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake(~from, ~fill))
     |> Option.map(
          Baked.fold(
@@ -129,7 +126,6 @@ module Wald = {
            Slope.empty,
          ),
        );
-  };
 };
 
 module T = Terr;

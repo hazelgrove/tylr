@@ -51,9 +51,6 @@ let unzip_point = (~ctx=Ctx.empty, p: Path.Point.t, m: Meld.t) =>
   };
 
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
-  print_endline("unzip");
-  print_endline("cell = " ++ Cell.show(cell));
-  print_endline("ctx = " ++ Ctx.show(ctx));
   let (cursor, meld) = Cell.get_cur(cell);
   switch (meld) {
   | None => mk(ctx)
