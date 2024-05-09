@@ -166,7 +166,7 @@ let lt =
          Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
        })
   )
-  |> FunUtil.curry;
+  |> Funs.curry;
 let gt =
   Core.Memo.general(((l: End.t, r: End.t)) =>
     step(~from=R, r, l)
@@ -175,12 +175,12 @@ let gt =
          Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
        })
   )
-  |> FunUtil.curry;
+  |> Funs.curry;
 let eq =
   Core.Memo.general(((l: End.t, r: End.t)) =>
     step(~from=L, l, r) |> List.filter(walk => Swing.is_eq(hd(walk)))
   )
-  |> FunUtil.curry;
+  |> Funs.curry;
 
 let walk = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
   Index.find(dst, walk(~from, src));
