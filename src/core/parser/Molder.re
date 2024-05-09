@@ -44,7 +44,7 @@ let mold = (ctx: Ctx.t, ~fill=Fill.empty, t: Token.Unmolded.t) =>
   | None =>
     ctx
     |> Melder.Ctx.push(~onto=L, Token.Unmolded.defer(t))
-    |> Options.get_or_fail("bug: failed to meld unmolded token")
+    |> Options.get_fail("bug: failed to meld unmolded token")
   };
 
 let rec remold = (~fill=Fill.empty, ctx: Ctx.t) => {

@@ -122,7 +122,7 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
       }
     | None =>
       let M(c_l, _, _) as m =
-        Cell.get(cell) |> Options.get_or_raise(Path.Invalid);
+        Cell.get(cell) |> Options.get_exn(Path.Invalid);
       let mid = Ictx.middle(~newline=Dims.of_cell(c_l).height > 0, ctx);
       switch (path) {
       | [] => l

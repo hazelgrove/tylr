@@ -3,8 +3,8 @@ let get = (if_none, o) =>
   | None => if_none()
   | Some(a) => a
   };
-let get_or_fail = s => get(() => failwith(s));
-let get_or_raise = e => get(() => raise(e));
+let get_fail = s => get(() => failwith(s));
+let get_exn = e => get(() => raise(e));
 
 let map2 = (f, o1, o2) =>
   Base.Option.both(o1, o2) |> Option.map(((v1, v2)) => f(v1, v2));

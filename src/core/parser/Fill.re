@@ -79,7 +79,7 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
   | Some(spc) =>
     fill_default(nt)
     |> pad(~side=L, ~spc)
-    |> Options.get_or_fail("todo: shouldn't be possible")
+    |> Options.get_fail("todo: shouldn't be possible")
   | None =>
     assert(!is_empty(fill));
     let s = Molded.NT.mtrl(nt);

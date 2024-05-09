@@ -16,7 +16,7 @@ module Framed = {
     | [] => None
     | [hd, ...tl] => Some((hd, tl));
   let hd_exn = xs =>
-    Options.get_or_raise(Invalid_argument("Lists.Framed.hd_exn"), hd(xs));
+    Options.get_exn(Invalid_argument("Lists.Framed.hd_exn"), hd(xs));
 
   let ft = (xs: list('x)): option((list('x), 'x)) => {
     let rec go = (pre, xs) =>
@@ -28,7 +28,7 @@ module Framed = {
     go([], xs);
   };
   let ft_exn = xs =>
-    Options.get_or_raise(Invalid_argument("Lists.Framed.ft_exn"), ft(xs));
+    Options.get_exn(Invalid_argument("Lists.Framed.ft_exn"), ft(xs));
 
   let nth = (n: int, xs: list('x)): option(t('x, 'x)) => {
     let (l, r) = Base.List.split_n(xs, n);
@@ -38,8 +38,7 @@ module Framed = {
     };
   };
   let nth_exn = (n, xs) =>
-    nth(n, xs)
-    |> Options.get_or_raise(Invalid_argument("Lists.Framed.nth_exn"));
+    nth(n, xs) |> Options.get_exn(Invalid_argument("Lists.Framed.nth_exn"));
 
   /**
   * Returns framed sublist from index i (inclusive) to index j (exclusive).
