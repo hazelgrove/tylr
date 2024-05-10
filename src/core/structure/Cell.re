@@ -108,21 +108,25 @@ module Space = {
     let+ l_spc = get(l)
     and+ r_spc = get(r);
     let spc = Token.merge(l_spc, r_spc);
-    {
-      meld: Some(Meld.of_tok(spc)),
-      marks:
-        Path.Marks.union(
-          l.marks,
-          r.marks
-          |> Path.Marks.map_paths(
-               fun
-               | []
-               | [0, ..._] => [1, Token.length(l_spc)]
-               | [1] => [1, Token.length(l_spc)]
-               | [1, j, ..._] => [1, Token.length(l_spc) + j]
-               | path => path,
-             ),
-        ),
+    if (Token.is_empty(spc)) {
+      {meld: None, marks: Path.Marks.union(l.marks, r.marks)};
+    } else {
+      {
+        meld: Some(Meld.of_tok(spc)),
+        marks:
+          Path.Marks.union(
+            l.marks,
+            r.marks
+            |> Path.Marks.map_paths(
+                 fun
+                 | []
+                 | [0, ..._] => [1, Token.length(l_spc)]
+                 | [1] => [1, Token.length(l_spc)]
+                 | [1, j, ..._] => [1, Token.length(l_spc) + j]
+                 | path => path,
+               ),
+          ),
+      };
     };
   };
 
