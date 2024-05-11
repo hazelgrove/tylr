@@ -19,6 +19,7 @@ let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
 
 module Typ = {
   let sort = Sort.of_str("Typ");
+  let typ = nt(sort);
   let tbl = [];
 };
 
@@ -61,8 +62,37 @@ module Exp = {
     ]);
 
   let tokc_alt = ss => alt(List.map(c, ss));
+  let unary_op = tokc_alt(["&", "&mut", "*", "-", "!"]);
+  let mult_ops = tokc_alt(["*", "/", "%"]);
+  let add_ops = tokc_alt(["+", "-"]);
+  
+  //TODO: ask David; rust says these ops "require parens" for the prec; does this mean that ~a=None?
+  let compare_ops = tokc_alt(["==", "!=", ">", "<", ">=", "<="])
+
+  let assignment_ops = tokc_alt(["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="]);
+  let jump_ops = tokc_alt(["return", "break"])
 
   let tbl = [
+    //question mark op
+    p(seq([c("?"), exp])),
+    //unary operators
+    p(seq([unary_op, exp])),
+    //type cast exp
+    p(~a=L, seq([exp, c("as"), Typ.typ])),
+    //mult
+    p(~a=L, seq([exp, mult_ops, exp])),
+    //add
+    p(~a=L, seq([exp, add_ops, exp])),
+    //comparison ops
+    p(seq([exp, compare_ops, exp])),
+    //bool and
+    p(seq([exp, c("&&"), exp])),
+    //bool or
+    p(seq([exp, c("||"), exp])),
+    //assignment ops
+    p(seq([exp, assignment_ops, exp])),
+    //cfg jumps
+    p(seq([jump_ops, exp])),
     p(operand),
   ];
 };

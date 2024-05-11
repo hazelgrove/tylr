@@ -14,7 +14,6 @@ let to_str =
   fun
   | Typ => "Typ"
   | Pat => "Pat"
-  // | Rul => "Rul"
   | Item => "Item"
   | Stat => "Stat"
   | Exp => "Exp";
