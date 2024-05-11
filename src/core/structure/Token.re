@@ -27,7 +27,7 @@ module Molded = {
   let pp = (out, tok: t) => {
     let (l, r) = Mold.display(tok.mold);
     switch (tok.mtrl) {
-    | Space => Fmt.pf(out, "|spc|")
+    | Space => Fmt.pf(out, "|%s|", tok.text)
     | Grout => Fmt.pf(out, "%s%s", l, r)
     | Tile(_) => Fmt.pf(out, "%s%s%s", l, tok.text, r)
     };
@@ -86,7 +86,7 @@ module Space = {
 };
 module Grout = {
   let is = (tok: Molded.t) => Mtrl.is_grout(tok.mtrl);
-  let text = " ";
+  let text = "";
   let mk = (~id=?, mold: Mtrl.Sorted.t => Mold.t, s: Mtrl.Sorted.t) =>
     Molded.mk(~id?, ~text, Mtrl.Grout, mold(s));
   let op_ = (~id=?) => mk(~id?, Grout.Mold.T.op_);
