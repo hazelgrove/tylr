@@ -36,11 +36,12 @@ let pull_neighbors = ctx => {
 let insert = (s: string, z: Zipper.t) => {
   let ctx = clear_focus(L, z);
   let ((l, r), ctx) = pull_neighbors(ctx);
-  Labeler.label(l ++ s ++ r)
-  |> List.fold_left((ctx, tok) => Molder.mold(ctx, tok), ctx)
-  |> Molder.remold(~fill=Fill.unit(Cell.point()))
-  |> Zipper.mk
-  |> Zipper.move_to_cursor;
+  let z =
+    Labeler.label(l ++ s ++ r)
+    |> List.fold_left((ctx, tok) => Molder.mold(ctx, tok), ctx)
+    |> Molder.remold(~fill=Fill.unit(Cell.point()))
+    |> Zipper.mk;
+  Option.value(Zipper.load_cursor(z), ~default=z);
 };
 
 let delete = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {

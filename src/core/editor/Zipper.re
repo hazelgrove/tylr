@@ -53,16 +53,18 @@ let unzip_point = (~ctx=Ctx.empty, p: Path.Point.t, m: Meld.t) =>
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   let (cursor, meld) = Cell.get_cur(cell);
   switch (meld) {
-  | None => mk(ctx)
+  | None => Some(mk(ctx))
   | Some(m) =>
-    switch (cursor) {
-    | None => mk(unroll_cell(L, cell, ~ctx))
-    | Some(Here(Point(p))) => unzip_point(p, m, ~ctx)
-    | Some(Here(Select(sel))) => unzip_select(sel, m, ~ctx)
-    | Some(There(step)) =>
-      let (pre, cell, suf) = Meld.unzip_cell(step, m);
-      unzip(~ctx=Ctx.cons((pre, suf), ctx), cell);
-    }
+    Option.bind(
+      cursor,
+      fun
+      | Here(Point(p)) => Some(unzip_point(p, m, ~ctx))
+      | Here(Select(sel)) => Some(unzip_select(sel, m, ~ctx))
+      | There(step) => {
+          let (pre, cell, suf) = Meld.unzip_cell(step, m);
+          unzip(~ctx=Ctx.cons((pre, suf), ctx), cell);
+        },
+    )
   };
 }
 and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
@@ -81,7 +83,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     | [hd_l, ..._tl_l] when hd_l mod 2 == 0 =>
       // hd_l points to cell
       // (assuming tl_l already propagated into hd_pre)
-      let z = unzip(hd_pre, ~ctx=ctx_pre);
+      let z = Options.get_exn(Not_found, unzip(hd_pre, ~ctx=ctx_pre));
       (Ctx.flatten(z.ctx), top);
     | [_hd_l, ...tl_l] =>
       // hd_l points to token
@@ -111,7 +113,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     | [hd_r, ..._tl_r] when hd_r mod 2 == 0 =>
       // hd_r points to cell
       // (assuming tl_r already propagated into hd_suf)
-      let z = unzip(hd_suf, ~ctx=ctx_suf);
+      let z = Options.get_exn(Not_found, unzip(hd_suf, ~ctx=ctx_suf));
       (top, Ctx.flatten(z.ctx));
     | [_hd_r, ...tl_r] =>
       // hd_r points to token
@@ -162,4 +164,5 @@ let zip = (z: t) =>
          zipped |> zip_closed(closed) |> zip_open(open_),
      );
 
-let move_to_cursor = (z: t) => unzip(zip(z));
+// tries zipping and unzipping to cursor
+let load_cursor = (z: t) => unzip(zip(z));

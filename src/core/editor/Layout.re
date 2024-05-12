@@ -277,7 +277,10 @@ let map_focus = (f: Pos.t => Pos.t, z: Zipper.t): option(Zipper.t) => {
   let goal_pos = Pos.bound(f(init_pos), ~max=max_pos(c));
   let+ goal_path =
     Pos.eq(init_pos, goal_pos) ? None : Some(path_of_pos(goal_pos, c));
-  c |> Cell.map_marks(Path.Marks.put_focus(goal_path)) |> Zipper.unzip;
+  c
+  |> Cell.map_marks(Path.Marks.put_focus(goal_path))
+  |> Zipper.unzip
+  |> Options.get_fail("bug: failed to unzip after putting path");
 };
 
 let vstep_focus = (d: Dir.t) =>
