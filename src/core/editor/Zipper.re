@@ -156,10 +156,11 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
     assert(Melder.Wald.eq(l.wald, r.wald));
     zipped |> zip_closed((l, r)) |> zip_open((dn, up));
   };
-let zip = (z: t) =>
+// todo: zip selection
+let zip = (~save_cursor=false, z: t) =>
   z.ctx
   |> Ctx.fold(
-       open_ => zip_open(open_, Cell.point()),
+       open_ => zip_open(open_, save_cursor ? Cell.point() : Cell.empty),
        (zipped, closed, open_) =>
          zipped |> zip_closed(closed) |> zip_open(open_),
      );

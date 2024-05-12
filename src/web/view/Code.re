@@ -551,7 +551,7 @@ let view_text =
   );
 
 let view = (~font_metrics as _, ~zipper: Zipper.t): Node.t => {
-  let c = Zipper.zip(zipper);
+  let c = Zipper.zip(~save_cursor=true, zipper);
   // module Text =
   //   Text({
   //     let map = map;
