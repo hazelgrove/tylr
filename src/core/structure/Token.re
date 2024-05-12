@@ -37,6 +37,12 @@ module Molded = {
   let mk = (~id=?, ~text="", mtrl: Mtrl.T.t, mold: Mold.t) =>
     Base.mk(~id?, ~text, mtrl, mold);
 
+  let is_empty = (tok: t) =>
+    switch (tok.mtrl) {
+    | Grout => false
+    | _ => is_empty(tok)
+    };
+
   let indent = (tok: t) => Mtrl.Labeled.padding(tok.mtrl).indent;
   let sort = (tok: t) => tok.mold.sort;
   let length = (tok: t) =>
