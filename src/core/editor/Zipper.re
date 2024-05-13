@@ -159,6 +159,15 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
 // todo: zip selection
 let zip = (~save_cursor=false, z: t) =>
   z.ctx
+  |> (
+    switch (z.cur) {
+    | Point () => Fun.id
+    | Select((foc, zigg)) =>
+      let fill =
+        save_cursor ? Fill.unit(Cell.point(~foc=false, ())) : Fill.empty;
+      Melder.Ctx.push_zigg(~onto=foc, zigg, ~fill);
+    }
+  )
   |> Ctx.fold(
        open_ => zip_open(open_, save_cursor ? Cell.point() : Cell.empty),
        (zipped, closed, open_) =>
