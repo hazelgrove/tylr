@@ -297,6 +297,8 @@ module Zigg = {
   };
   let push = (~side: Dir.t, tok: Token.t) =>
     push_wald(~side, W.of_tok(tok));
+  let push_fail = (~side: Dir.t, tok, zigg) =>
+    push(~side, tok, zigg) |> Result.get_fail("bug: failed push");
 
   let pull = (~side as d: Dir.t, zigg: Z.t): (Token.t, option(Z.t)) => {
     let b = Dir.toggle(d);

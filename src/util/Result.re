@@ -2,8 +2,14 @@ include Base.Result;
 
 let to_option = Stdlib.Result.to_option;
 
-let get_or_raise = (_, _) => failwith("todo Result");
-let get_or_fail = (_, _) => failwith("todo Result");
+let get_exn = exn =>
+  fun
+  | Error(_) => raise(exn)
+  | Ok(ok) => ok;
+let get_fail = msg =>
+  fun
+  | Error(_) => failwith(msg)
+  | Ok(ok) => ok;
 
 module Syntax = {
   let ( let* ) = (result, f) => bind(~f, result);

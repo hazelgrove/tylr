@@ -188,7 +188,7 @@ let unzip_loop = (n: int, c: t('lp, 'lk)): (Affix.t(_), 'lp, Affix.t(_)) => {
       let (lp, suf) = split_hd(c);
       (pre, lp, suf);
     } else {
-      let (lp, lk, c) = unlink(c) |> Result.get_or_raise(invalid);
+      let (lp, lk, c) = unlink(c) |> Result.get_exn(invalid);
       let pre = Affix.link(lk, lp, pre);
       go(~pre, n - 2, c);
     };

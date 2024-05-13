@@ -95,7 +95,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
         // char index (ignore rest)
         let (hd_top_l, hd_top_r) =
           Token.unzip(j, Wald.hd(top))
-          |> Result.get_or_fail("expected normalized cursor");
+          |> Result.get_fail("expected normalized cursor");
         let (cs_pre, ts_pre) = pre;
         let pre = ([Terr.mk([hd_top_l, ...ts_pre], cs_pre)], []);
         (pre, Wald.put_hd(hd_top_r, top));
@@ -125,7 +125,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
         // char index (ignore rest)
         let (ft_top_l, ft_top_r) =
           Token.unzip(j, Wald.ft(top))
-          |> Result.get_or_fail("expected normalized cursor");
+          |> Result.get_fail("expected normalized cursor");
         let (cs_suf, ts_suf) = suf;
         let suf = ([], [Terr.mk([ft_top_r, ...ts_suf], cs_suf)]);
         (Wald.put_ft(ft_top_l, top), suf);
