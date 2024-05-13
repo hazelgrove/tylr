@@ -156,7 +156,6 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
     assert(Melder.Wald.eq(l.wald, r.wald));
     zipped |> zip_closed((l, r)) |> zip_open((dn, up));
   };
-// todo: zip selection
 let zip = (~save_cursor=false, z: t) =>
   z.ctx
   |> (
@@ -165,7 +164,7 @@ let zip = (~save_cursor=false, z: t) =>
     | Select((foc, zigg)) =>
       let fill =
         save_cursor ? Fill.unit(Cell.point(~foc=false, ())) : Fill.empty;
-      Melder.Ctx.push_zigg(~onto=foc, zigg, ~fill);
+      Melder.Ctx.push_zigg(~onto=Dir.toggle(foc), zigg, ~fill);
     }
   )
   |> Ctx.fold(
