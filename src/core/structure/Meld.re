@@ -10,12 +10,17 @@ module Cell = {
   };
   let mk = (~marks=Path.Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
-  let pp = (pp_meld, out, cell: t(_)) =>
-    // ignoring marks for now
-    switch (cell.meld) {
-    | None => Fmt.pf(out, "{}")
-    | Some(m) => Fmt.pf(out, "{%a}", pp_meld, m)
-    };
+  let pp = (pp_meld, out, {marks, meld}: t(_)) =>
+    Path.Marks.is_empty(marks) && Option.is_none(meld)
+      ? Fmt.pf(out, "{}")
+      : Fmt.pf(
+          out,
+          "{%a@ |@ %a}",
+          Path.Marks.pp,
+          marks,
+          Fmt.option(pp_meld),
+          meld,
+        );
   let show = pp_meld => Fmt.to_to_string(pp(pp_meld));
 };
 

@@ -133,13 +133,32 @@ module Ghosts = {
 };
 
 module Marks = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
+  [@deriving (sexp, yojson)]
   type t = {
     cursor: option(Cursor.t),
     ghosts: Ghosts.t,
   };
   let mk = (~cursor=?, ~ghosts=Ghosts.empty, ()) => {cursor, ghosts};
   let empty = mk();
+  let is_empty = (==)(empty);
+  let pp = (out, marks) =>
+    if (is_empty(marks)) {
+      Fmt.nop(out, marks);
+    } else if (Option.is_none(marks.cursor)) {
+      Fmt.pf(out, "ghosts: %a", Ghosts.pp, marks.ghosts);
+    } else if (Ghosts.is_empty(marks.ghosts)) {
+      Fmt.pf(out, "cursor: %a", Cursor.pp, Option.get(marks.cursor));
+    } else {
+      Fmt.pf(
+        out,
+        "cursor: %a,@ ghosts: %a",
+        Cursor.pp,
+        Option.get(marks.cursor),
+        Ghosts.pp,
+        marks.ghosts,
+      );
+    };
+  let show = Fmt.to_to_string(pp);
   let point = is_focus => mk(~cursor=Point(Point.{is_focus, path: []}), ());
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
   let get_focus = (marks: t) => Cursor.get_focus(marks.cursor);

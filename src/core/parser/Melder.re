@@ -394,10 +394,10 @@ module Ctx = {
     };
   let push_zigg = (~onto as d: Dir.t, zigg: Z.t, ~fill=Fill.empty, ctx: C.t) => {
     let get_fail = Options.get_fail("bug: failed to push zigg");
-    let (s_d, s_b) = Dir.order(d, (zigg.dn, zigg.up));
+    let (s_d, top, s_b) = Z.orient(d, zigg);
     let ctx = get_fail(push_slope(~onto=d, s_d, ~fill, ctx));
-    let top = Dir.pick(d, (Fun.id, W.rev), zigg.top);
-    let ctx = get_fail(push_wald(~onto=d, top, ctx));
+    let fill = Base.List.is_empty(s_d) ? fill : Fill.empty;
+    let ctx = get_fail(push_wald(~onto=d, top, ~fill, ctx));
     let rest = Dir.order(d, ([], s_b));
     Ctx.map_hd(Frame.Open.cat(rest), ctx);
   };
