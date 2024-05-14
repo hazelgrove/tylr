@@ -27,17 +27,6 @@ module Stat = {
   let operand = alt([t(Id_upper), c("TOP"), c("BOT")]);
 
   let tokc_alt = ss => alt(List.map(c, ss));
-  //AND, equals, implies, NAND, nonequals, NOR, NOT, OR, XNOR, XOR
-  let prop_ops =
-    tokc_alt([
-      //or
-      "\\/",
-      //implies
-      "->",
-      //and
-      "/\\",
-    ]);
-
   let tbl = [
       //implies
       p(seq([stat, c("->") ,stat])),
