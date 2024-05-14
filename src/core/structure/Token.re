@@ -60,21 +60,18 @@ module Molded = {
       None;
     };
   let unzip = (n: int, tok: t): Result.t((t, t), Dir.t) =>
-    switch (tok.mtrl, Strings.unzip_opt(n, tok.text)) {
-    | (_, Some(("", _))) => Error(L)
-    | (Space | Grout, Some((_, ""))) => Error(R)
-    | (Space | Grout, Some((l, r))) =>
+    switch (tok.mtrl, Utf8.split(n, tok.text)) {
+    | (_, ("", _)) => Error(L)
+    | (Space | Grout, (_, "")) => Error(R)
+    | (Space | Grout, (l, r)) =>
       Ok(({...tok, text: l}, {...tok, text: r}))
-    | (Space | Grout, None) => raise(Invalid_argument("Token.unzip"))
-    | (Tile(lbl), Some((_, ""))) when Label.is_complete(tok.text, lbl) =>
+    | (Tile(lbl), (_, ""))
+        when Label.is_complete(tok.text, lbl) || n > Utf8.length(tok.text) =>
       Error(R)
-    | (Tile(_), Some((txt_l, txt_r))) =>
+    | (Tile(_), (txt_l, txt_r)) =>
       let l = {...tok, text: txt_l};
       let r = {...tok, text: txt_r};
       Ok((l, r));
-    | (Tile(lbl), None) =>
-      n > 0 && !Label.is_complete(tok.text, lbl)
-        ? Error(R) : raise(Invalid_argument("Token.unzip"))
     };
   let pull = (~from: Dir.t, tok: t): option((t, t)) => {
     let n = Dir.pick(from, (1, length(tok) - 1));
