@@ -24,25 +24,29 @@ module Stat = {
   [@warning "-32"]
   let comma_sep = seq([stat, Star(seq([c(","), stat]))]);
 
-  let operand = alt([t(Id_lower), t(Id_upper)]);
+  let operand = alt([t(Id_upper), c("TOP"), c("BOT")]);
 
   let tokc_alt = ss => alt(List.map(c, ss));
   //AND, equals, implies, NAND, nonequals, NOR, NOT, OR, XNOR, XOR
   let prop_ops =
     tokc_alt([
-      "AND",
-      "==",
+      //or
+      "\\/",
+      //implies
       "->",
-      "NAND",
-      "!=",
-      "NOR",
-      "NOT",
-      "OR",
-      "XNOR",
-      "XOR",
+      //and
+      "/\\",
     ]);
 
-  let tbl = [p(seq([stat, prop_ops, stat])), p(operand)];
+  let tbl = [
+      //implies
+      p(seq([stat, c("->") ,stat])),
+      //or
+      p(seq([stat, c("\\/"), stat])), 
+      //and
+      p(seq([stat, c("/\\"), stat])),
+      p(operand)
+  ];
 };
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
