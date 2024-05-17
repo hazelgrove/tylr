@@ -42,29 +42,12 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
       | (L, Seq_([], rs)) => go(Seq([r, ...rs]), fs)
       | (R, Seq_(ls, [])) => go(Seq(List.rev([r, ...ls])), fs)
       | (L, Seq_([hd, ...tl], rs)) =>
-        enter(hd, ~ctx=[Seq_(tl, [r, ...rs]), ...fs])
+        let _ = failwith("todo: if root in output, step again beyond hd");
+        enter(hd, ~ctx=[Seq_(tl, [r, ...rs]), ...fs]);
       | (R, Seq_(ls, [hd, ...tl])) =>
-        enter(hd, ~ctx=[Seq_([r, ...ls], tl), ...fs])
+        let _ = failwith("todo: if root in output, step again beyond hd");
+        enter(hd, ~ctx=[Seq_([r, ...ls], tl), ...fs]);
       }
     };
   go(Atom(a), ctx);
-};
-
-let framed_elems = _ => failwith("todo RZipper");
-
-let map = (f: t('a, 'a) => 'b, rgx: Regex.t('a)): Regex.t('b) => {
-  let rec go = (rgx: Regex.t(_), ctx: RCtx.t(_)): Regex.t(_) =>
-    switch (rgx) {
-    | Atom(a) => Atom(f((a, ctx)))
-    | Star(r) => Star(go(r, [Star_, ...ctx]))
-    | Seq(rs) =>
-      framed_elems(rs)
-      |> List.map(((ls, r, rs)) => go(r, [Seq_(ls, rs), ...ctx]))
-      |> Regex.seq
-    | Alt(rs) =>
-      framed_elems(rs)
-      |> List.map(((ls, r, rs)) => go(r, [Alt_(ls, rs), ...ctx]))
-      |> Regex.alt
-    };
-  go(rgx, RCtx.empty);
 };
