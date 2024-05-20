@@ -14,17 +14,11 @@ let severity = o => Option.get(Lists.find_index((==)(o), all));
 let of_token = (tok: Token.t) =>
   switch (tok.mtrl) {
   | Space => None
-  | Grout =>
-    let null_l = Mold.nullable(~side=L, tok.mold);
-    let null_r = Mold.nullable(~side=R, tok.mold);
-    if (null_l && null_r) {
-      Some(Missing_meld);
-    } else if (null_l || null_r) {
-      Some(Incon_meld);
-    } else {
-      Some(Extra_meld);
-    };
-  | Tile(lbl) => Label.is_complete(tok.text, lbl) ? None : Some(Missing_tile)
+  | Grout((_, (Conv, Conv))) => Some(Missing_meld)
+  | Grout((_, (Conv, Conc) | (Conc, Conv))) => Some(Incon_meld)
+  | Grout((_, (Conc, Conc))) => Some(Extra_meld)
+  | Tile((lbl, _)) =>
+    Label.is_complete(tok.text, lbl) ? None : Some(Missing_tile)
   };
 
 module Ord = {

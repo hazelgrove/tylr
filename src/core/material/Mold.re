@@ -2,17 +2,17 @@ open Util;
 
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t = {
-  rctx: RCtx.t(Mtrl.Sym.t),
+  rctx: RCtx.t(Grammar.Sym.t),
   prec: Prec.t,
-  sort: Mtrl.Sorted.t,
+  sort: Sort.t,
 };
 
 let equal = (==);
 
 let is_null = (~side: Dir.t, m: t) =>
-  RCtx.is_null(~atom=Mtrl.Sym.is_null, ~side, m.rctx);
+  RCtx.is_null(~atom=Fun.const(false), ~side, m.rctx);
 let nullable = (~side: Dir.t, m: t) =>
-  RCtx.nullable(~atom=Mtrl.Sym.is_null, ~side, m.rctx);
+  RCtx.nullable(~atom=Fun.const(false), ~side, m.rctx);
 
 let bounds = m =>
   Bound.(
@@ -20,9 +20,9 @@ let bounds = m =>
     nullable(~side=R, m) ? Node(m.prec) : Root,
   );
 
-let push = (~onto: Dir.t, msym: Mtrl.Sym.t, mold: t) => {
+let push = (~onto: Dir.t, sym: Grammar.Sym.t, mold: t) => {
   ...mold,
-  rctx: RCtx.push(~onto, Atom(msym), mold.rctx),
+  rctx: RCtx.push(~onto, Atom(sym), mold.rctx),
 };
 
 let display = (m: t) => (

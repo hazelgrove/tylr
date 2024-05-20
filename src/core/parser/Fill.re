@@ -65,24 +65,32 @@ let squash = (fill: t) => {
   go(fill);
 };
 
-let fill_default = (nt: Bound.t(Molded.NT.t)) =>
-  switch (Molded.NT.mtrl(nt)) {
-  | Space => Cell.empty
-  | (Grout | Tile(_)) as s => Cell.put(Meld.Grout.op_(s))
-  };
+let fill_default =
+  fun
+  | Bound.Root => Cell.put(Meld.Grout.op_(Sort.root))
+  | Node(Mtrl.Space) => Cell.empty
+  // grout case isn't quite right... but shouldn't arise
+  | Node(Grout(s) | Tile((s, _))) => Cell.put(Meld.Grout.op_(s));
 
 // assumes precedence-correctness already checked
 // and that fill has been oriented
-let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
+let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Mtrl.NT.t)): Cell.t => {
   let fill = squash(fill);
-  switch (is_space(fill)) {
-  | Some(spc) =>
+  let invalid = Invalid_argument("Fill.fill");
+  switch (nt) {
+  | Node(Grout(_)) => raise(invalid)
+  | Node(Space) =>
+    let spc = Options.get_exn(invalid, is_space(fill));
     fill_default(nt)
     |> pad(~side=L, ~spc)
-    |> Options.get_fail("todo: shouldn't be possible")
-  | None =>
-    assert(!is_empty(fill));
-    let s = Molded.NT.mtrl(nt);
+    |> Options.get_fail("todo: shouldn't be possible");
+  | Node(Tile(_))
+  | Root =>
+    let s =
+      switch (nt) {
+      | Node(Tile((s, _))) => s
+      | _root => Sort.root
+      };
     let cells =
       [l ? [Cell.empty] : [], to_list(fill), r ? [Cell.empty] : []]
       |> List.concat;
@@ -99,3 +107,4 @@ let fill = (~l=false, ~r=false, fill: t, nt: Bound.t(Molded.NT.t)): Cell.t => {
     };
   };
 };
+q;

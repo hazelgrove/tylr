@@ -49,7 +49,7 @@ let of_space = (spc: string) => {
 let of_tok = (tok: Token.t) =>
   switch (tok.mtrl) {
   | Space => of_space(tok.text)
-  | Grout => mk(Width.mk(1))
+  | Grout(_) => mk(Width.mk(1))
   | Tile(_) => mk(Width.mk(Token.length(tok)))
   };
 

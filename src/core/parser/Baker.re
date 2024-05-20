@@ -1,7 +1,7 @@
 open Util;
 
 let bake_eq =
-    (~fill=Fill.empty, sort: Bound.t(Molded.NT.t))
+    (~fill=Fill.empty, sort: Bound.t(Mtrl.NT.t))
     : option(Rel.t(Cell.t, Cell.t)) => {
   open Options.Syntax;
   let+ l =
@@ -25,11 +25,7 @@ let bake_eq =
 };
 
 let bake_lt =
-    (
-      ~fill=Fill.empty,
-      bound: Bound.t(Molded.NT.t),
-      sort: Bound.t(Molded.NT.t),
-    )
+    (~fill=Fill.empty, bound: Bound.t(Mtrl.NT.t), sort: Bound.t(Mtrl.NT.t))
     : option(Rel.t(Cell.t, Cell.t)) => {
   open Options.Syntax;
   let+ _l =
@@ -53,11 +49,7 @@ let bake_lt =
 };
 
 let bake_gt =
-    (
-      ~fill=Fill.empty,
-      sort: Bound.t(Molded.NT.t),
-      bound: Bound.t(Molded.NT.t),
-    )
+    (~fill=Fill.empty, sort: Bound.t(Mtrl.NT.t), bound: Bound.t(Mtrl.NT.t))
     : option(Rel.t(Cell.t, Cell.t)) => {
   open Options.Syntax;
   let+ l =
@@ -93,7 +85,7 @@ let bake_swing =
 
 let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
   w
-  |> Chain.map_link(((mtrl, mold)) => Token.mk(mtrl, mold))
+  |> Chain.map_link(Token.mk)
   |> Chain.unzip_loops
   // choose swing to fill that minimizes obligations.
   // currently simply chooses a single swing to fill even when there are

@@ -31,10 +31,8 @@ module Wald = {
   let mk = (toks: list(_), cells: list(Cell.t(_))) =>
     W(Chain.mk(toks, cells));
   let of_tok = tok => W(Chain.unit(tok));
-  let face = (~side=Dir.L, W(w): t(_)) => {
-    let tok = Dir.pick(side, (Chain.hd, Chain.ft), w);
-    (tok.mtrl, tok.mold);
-  };
+  let face = (~side=Dir.L, W(w): t(_)) =>
+    Dir.pick(side, (Chain.hd, Chain.ft), w).mtrl;
   let pp = (pp_cell, out, W(w): t(_)) => {
     let pp_hd = Token.pp;
     let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_cell, Token.pp)));
@@ -97,7 +95,7 @@ module Space = {
     | _ => None;
 };
 module Grout = {
-  let op_ = (s: Mtrl.Sorted.t) => mk(Wald.of_tok(Token.Grout.op_(s)));
+  let op_ = (s: Sort.t) => mk(Wald.of_tok(Token.Grout.op_(s)));
 };
 
 let split_subwald = (i, j, M(l, W((ts, cs)), r): t) => {

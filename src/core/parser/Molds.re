@@ -1,26 +1,27 @@
 open Util;
 
-let map: Mtrl.Labeled.Map.t(list(Mold.t)) =
+let add = (lbl, mold) =>
+  Label.Map.update(
+    lbl,
+    fun
+    | None => Some([mold])
+    | Some(ms) => Some([mold, ...ms]),
+  );
+
+let index: Label.Map.t(list(Mold.t)) =
   Walker.walk_into(~from=L, Root)
   |> Walk.Index.to_list
   |> List.rev_map(fst)
   |> List.fold_left(
        map =>
          fun
-         | Bound.Root => map
-         | Node((mtrl, mold)) =>
-           map
-           |> Mtrl.Labeled.Map.update(
-                mtrl,
-                fun
-                | None => Some([mold])
-                | Some(ms) => Some([mold, ...ms]),
-              ),
-       Mtrl.Labeled.Map.empty,
+         | Bound.Node(Mtrl.Tile((lbl, mold))) => add(lbl, mold, map)
+         | _ => map,
+       Label.Map.empty,
      );
 
 let with_label = lbl =>
-  switch (Mtrl.Labeled.Map.find_opt(lbl, map)) {
+  switch (Label.Map.find_opt(lbl, index)) {
   | None => []
   | Some(ms) => ms
   };

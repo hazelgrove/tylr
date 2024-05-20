@@ -10,11 +10,11 @@ let expect_srt =
   | Sym.T(_) => failwith("expected alternating form")
   | NT(msrt) => msrt;
 
-let enter =
-    (~from: Dir.t, ~l=Bound.Root, ~r=Bound.Root, s: Mtrl.Sorted.t)
-    : list(Molded.NT.t) => {
-  MGrammar.v
-  |> Mtrl.Sorted.Map.find(s)
+let derive =
+    (~from: Dir.t, ~l=Bound.Root, ~r=Bound.Root, s: Sort.t)
+    : list(Molded.Sym.t) => {
+  Grammar.v
+  |> Sort.Map.find(s)
   |> Prec.Table.mapi(((p, a), rgx) => {
        let bounded =
          fun
@@ -30,11 +30,9 @@ let enter =
          |> List.filter_map(
               fun
               | Bound.Root => None
-              | Node((msym, rctx)) => {
-                  let msrt = expect_srt(msym);
+              | Node((sym, rctx)) => {
                   let mold = Mold.{sort: s, prec: p, rctx};
-                  bounded(from) || Mtrl.is_space(msrt)
-                    ? Some((msrt, mold)) : None;
+                  bounded(from) || Sym.is_t(sym) ? Some((sym, mold)) : None;
                 },
             );
        switch (go(L), go(R)) {
@@ -47,22 +45,24 @@ let enter =
   |> List.concat;
 };
 
-// step from last molded NT to identify valid destinations for given walk
-let arrive = (~from: Dir.t, w: Walk.t): Index.t =>
-  switch (Chain.hd(Chain.hd(w))) {
-  | Root => Index.singleton(Root, Set.singleton(w))
-  | Node((mtrl, mold)) =>
-    (Sym.NT(mtrl), mold.rctx)
+// conclude walk at sym if it's a T, otherwise swing over to next syms
+// (assumed to be Ts given grammar in operator form)
+let arrive = (sym: Bound.t(Molded.Sym.t), w: Walk.t, ~from: Dir.t) =>
+  switch (sym) {
+  | Root => Index.single(Root, Walk.unit(Swing.unit(Root)))
+  | Node((T(t), mold)) =>
+    let w = Walk.cons(Node(Space), w);
+    Index.single(Node(Tile((t, mold))), w);
+  | Node((NT(nt), mold)) =>
+    let w = Walk.cons(Node(Tile((nt, mold))), w);
+    (Sym.NT(nt), mold.rctx)
     |> RZipper.step(Dir.toggle(from))
     |> List.map(
-         Bound.map(((msym, rctx)) => (expect_lbl(msym), {...mold, rctx})),
+         Bound.map(((sym, rctx)) =>
+           Mtrl.Tile((Sym.expect_t(sym), {...mold, rctx}))
+         ),
        )
-    |> List.map(lbl => (lbl, Set.singleton(w)))
-    |> Index.of_list
-    |> (
-      Mold.nullable(~side=Dir.toggle(from), mold)
-        ? Index.add(Root, w) : Fun.id
-    )
+    |> List.fold_left((index, dst) => Index.add(dst, w, index), Index.empty);
   };
 
 let swing =
@@ -75,28 +75,30 @@ let swing =
     let index = ref(Walk.Index.empty);
     let seen = Hashtbl.create(32);
     let q = Queue.create();
-    Queue.push(Walk.singleton(Swing.mk_eq(sort)), q);
+    Queue.push((Bound.map(Molded.map(Sym.nt), sort), Walk.empty), q);
     while (!Queue.is_empty(q)) {
-      let w = Queue.pop(q);
-      index := Index.union(index^, arrive(~from, w));
+      let (sym, w) = Queue.pop(q);
+      index := Index.union(index^, arrive(sym, w, ~from));
       // consider going deeper
-      let s = Chain.hd(Chain.hd(w));
-      // need only keep track of mtrl (sans mold) bc any differently-molded
-      // same-mtrl NTs will only have tighter prec bounds and cannot access
-      // any NTs not already reachable from the initial NT
-      let mtrl = Molded.NT.mtrl(s);
-      switch (s, Hashtbl.find_opt(seen, mtrl)) {
-      // no further to go if "space" of space sort
-      | (Node((Space, Mold.{sort: Space, _})), _)
-      // avoid cycling
-      | (_, Some ()) => ()
-      | (_, None) =>
-        Hashtbl.add(seen, mtrl, ());
-        let (l, r) = bounds(s);
-        enter(~from, ~l, ~r, mtrl)
-        |> List.iter((next: Molded.NT.t) =>
-             Queue.push(Walk.cons(Node(next), w), q)
-           );
+      switch (Molded.Sym.get_nt(sym)) {
+      | None => ()
+      | Some(nt) =>
+        // need only keep track of sort (sans mold) bc any differently-molded
+        // same-sort NTs will only have tighter prec bounds and cannot access
+        // any NTs not already reachable from the initial NT
+        let s = Molded.NT.sort(nt);
+        switch (Hashtbl.find_opt(seen, s)) {
+        // avoid cycling
+        | Some () => ()
+        | None =>
+          Hashtbl.add(seen, s, ());
+          let (l, r) = bounds(nt);
+          let w = Walk.cons(Bound.map(Mtrl.tile, nt), w);
+          derive(~from, ~l, ~r, s)
+          |> List.iter((sym: Molded.Sym.t) =>
+               Queue.push((Bound.Node(sym), w), q)
+             );
+        };
       };
     };
     index^;
@@ -107,15 +109,23 @@ let step =
   Core.Memo.general(((from: Dir.t, src: End.t)) =>
     switch (src) {
     | Root => swing(~from, Root)
-    | Node((mtrl, mold)) =>
-      (Sym.T(mtrl), mold.rctx)
+    // space takes prec over everything. could make it so that space eq space
+    // but this behavior is encoded in token zipping/merging instead of walks.
+    | Node(Space) => Index.empty
+    // grout always cleared and re-inserted based on walks between tiles/space
+    | Node(Grout(_)) => Index.empty
+    | Node(Tile((lbl, mold))) =>
+      (Sym.T(lbl), mold.rctx)
       |> RZipper.step(Dir.toggle(from))
       |> List.map(
-           Bound.map(((msym, rctx)) =>
-             (expect_srt(msym), {...mold, rctx})
-           ),
+           fun
+           // reached end of regex
+           | Bound.Root => Index.single(Root, Walk.empty)
+           | Node((Sym.T(lbl), rctx)) =>
+             Index.single(Node(Tile((lbl, {...mold, rctx}))), Walk.empty)
+           | Node((NT(sort), rctx)) =>
+             swing(~from, Node((sort, {...mold, rctx}))),
          )
-      |> List.map(swing(~from))
       |> Index.union_all
     }
   );
@@ -146,15 +156,15 @@ let walk =
   });
 let walk = (~from: Dir.t, src: End.t) => walk((from, src));
 
-let walk_into =
-  Core.Memo.general(((from: Dir.t, sort: Bound.t(Molded.NT.t))) => {
+let enter =
+  Core.Memo.general(((from: Dir.t, sort: Bound.t(Mtrl.NT.t))) => {
     let q = Queue.create();
     swing(~from, sort)
     |> Index.filter(is_neq)
     |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q);
   });
-let walk_into = (~from: Dir.t, sort) => walk_into((from, sort));
+let enter = (~from: Dir.t, sort) => enter((from, sort));
 
 let step = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
   Index.find(dst, step(~from, src));
@@ -182,10 +192,14 @@ let eq =
   )
   |> Funs.curry;
 
-let walk = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
+let walk = (~from: Dir.t, src: End.t, ~to_: End.t): list(t) =>
   Index.find(dst, walk(~from, src));
 
-let enter = (~from: Dir.t, sort: Bound.t(Molded.NT.t), dst: End.t) =>
-  Index.find(dst, walk_into(~from, sort));
+let enter = (~from: Dir.t, sort: Bound.t(Mtrl.NT.t), ~to_: End.t) =>
+  switch (sort, to_) {
+  | (Node(Space), Node(Space)) =>
+  }
+  Index.find(to_, enter(~from, sort));
+
 let exit = (~from: Dir.t, src: End.t) =>
   List.filter(is_eq, walk(~from, src, Root));
