@@ -25,7 +25,7 @@ module Molded = {
 
   let pp = (out, tok: t) =>
     switch (tok.mtrl) {
-    | Space => Fmt.pf(out, "|%s|", tok.text)
+    | Space () => Fmt.pf(out, "|%s|", tok.text)
     | Grout((_, tips)) =>
       let (l, r) = Tip.display(tips);
       Fmt.pf(out, "%s%s", l, r);
@@ -45,13 +45,18 @@ module Molded = {
 
   let indent = (tok: t) => Mtrl.T.padding(tok.mtrl).indent;
   let sort = tok =>
-    Mtrl.map(~grout=fst, ~tile=((_, m: Mold.t)) => m.sort, tok.mtrl);
+    Mtrl.map(
+      ~space=Fun.id,
+      ~grout=fst,
+      ~tile=((_, m: Mold.t)) => m.sort,
+      tok.mtrl,
+    );
   let length = (tok: t) =>
     switch (tok.mtrl) {
     | Grout(_) => 1
     | Tile((Const(_, c), _)) => Utf8.length(c)
     | Tile(_)
-    | Space => Utf8.length(tok.text)
+    | Space () => Utf8.length(tok.text)
     };
 
   let merge = (l: t, r: t) => {...l, text: l.text ++ r.text};
@@ -65,8 +70,8 @@ module Molded = {
   let unzip = (n: int, tok: t): Result.t((t, t), Dir.t) =>
     switch (tok.mtrl, Utf8.split(n, tok.text)) {
     | (_, ("", _)) => Error(L)
-    | (Space | Grout(_), (_, "")) => Error(R)
-    | (Space | Grout(_), (l, r)) =>
+    | (Space () | Grout(_), (_, "")) => Error(R)
+    | (Space () | Grout(_), (l, r)) =>
       Ok(({...tok, text: l}, {...tok, text: r}))
     | (Tile((lbl, _)), (_, ""))
         when Label.is_complete(tok.text, lbl) || n > Utf8.length(tok.text) =>
@@ -85,7 +90,7 @@ include Molded;
 
 module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
-  let mk = (~id=?, ~text="", ()) => Molded.mk(~id?, ~text, Space);
+  let mk = (~id=?, ~text="", ()) => Molded.mk(~id?, ~text, Space());
   let empty = mk();
   // let cursor = failwith("todo Token.Space");
 };
@@ -101,7 +106,7 @@ module Grout = {
 module Tile = {
   let is_unfinished = (tok: t) =>
     switch (tok.mtrl) {
-    | Space
+    | Space ()
     | Grout(_) => false
     | Tile((lbl, _)) => !Label.is_complete(tok.text, lbl)
     };
@@ -109,13 +114,13 @@ module Tile = {
 
 module Unmolded = {
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Base.t(Mtrl.t(unit, list(Label.t)));
-  let mk = (~id=?, ~text="", mtrl: Mtrl.t(unit, list(Label.t))) =>
+  type t = Base.t(Mtrl.t(unit, unit, list(Label.t)));
+  let mk = (~id=?, ~text="", mtrl: Mtrl.t(_)): t =>
     Base.mk(~id?, ~text, mtrl);
   let unmold = (tok: Molded.t): t => {
     let mtrl =
       switch (tok.mtrl) {
-      | Space => Mtrl.Space
+      | Space () => Mtrl.Space()
       | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
       | Tile((lbl, _)) =>
         Tile(

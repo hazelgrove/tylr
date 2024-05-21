@@ -1,8 +1,7 @@
 open Util;
 
 let bake_eq =
-    (~fill=Fill.empty, sort: Bound.t(Mtrl.NT.t))
-    : option(Rel.t(Cell.t, Cell.t)) => {
+    (~fill=Fill.empty, sort: Mtrl.NT.t): option(Rel.t(Cell.t, Cell.t)) => {
   open Options.Syntax;
   let+ l =
     switch (Fill.face(~side=L, fill)) {
@@ -25,7 +24,7 @@ let bake_eq =
 };
 
 let bake_lt =
-    (~fill=Fill.empty, bound: Bound.t(Mtrl.NT.t), sort: Bound.t(Mtrl.NT.t))
+    (~fill=Fill.empty, bound: Mtrl.NT.t, sort: Mtrl.NT.t)
     : option(Rel.t(Cell.t, Cell.t)) => {
   open Options.Syntax;
   let+ _l =
@@ -49,7 +48,7 @@ let bake_lt =
 };
 
 let bake_gt =
-    (~fill=Fill.empty, sort: Bound.t(Mtrl.NT.t), bound: Bound.t(Mtrl.NT.t))
+    (~fill=Fill.empty, sort: Mtrl.NT.t, bound: Mtrl.NT.t)
     : option(Rel.t(Cell.t, Cell.t)) => {
   open Options.Syntax;
   let+ l =

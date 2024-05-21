@@ -129,7 +129,7 @@ let face = (~side: Dir.t, M(_, w, _)) => Wald.face(~side, w);
 
 let is_space =
   fun
-  | M(_, W(([{mtrl: Space, _} as tok], [])), _) => Some(tok)
+  | M(_, W(([{mtrl: Space (), _} as tok], [])), _) => Some(tok)
   | _ => None;
 
 let map_cells = (f, M(l, W((toks, cells)), r)) => {

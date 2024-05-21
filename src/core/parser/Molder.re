@@ -22,15 +22,14 @@ open Util;
 
 let candidates = (t: Token.Unmolded.t): list(Token.t) =>
   List.map(
-    ((mtrl, mold)) => Token.mk(~id=t.id, ~text=t.text, mtrl, mold),
+    Token.mk(~id=t.id, ~text=t.text),
     switch (t.mtrl) {
-    | Space => [Space.Molded.t]
-    | Grout => failwith("bug: attempted to mold grout")
+    | Space () => [Mtrl.Space()]
+    | Grout(_) => failwith("bug: attempted to mold grout")
     | Tile(lbls) =>
       lbls
       |> List.concat_map(lbl =>
-           Molds.with_label(Tile(lbl))
-           |> List.map(mold => (Mtrl.Tile(lbl), mold))
+           Molds.with_label(lbl) |> List.map(mold => Mtrl.Tile((lbl, mold)))
          )
     },
   );
@@ -56,7 +55,7 @@ let rec remold = (~fill=Fill.empty, ctx: Ctx.t) => {
       |> List.rev_map(Melder.Slope.Dn.unroll)
       |> List.concat;
     Ctx.zip((Slope.cat(unrolled, dn), []), ~suf=tl);
-  | [terr, ...up] when Terr.sort(terr) == Mtrl.Grout =>
+  | [terr, ...up] when Mtrl.is_grout(Terr.sort(terr)) =>
     let unrolled =
       Terr.cells(terr) |> List.concat_map(Melder.Slope.Up.unroll);
     remold(Ctx.zip((dn, Slope.cat(unrolled, up)), ~suf=tl));
@@ -65,7 +64,7 @@ let rec remold = (~fill=Fill.empty, ctx: Ctx.t) => {
     let (hd, rest) = Wald.split_hd(terr.wald);
     let molded = mold(ctx, ~fill, Token.Unmolded.unmold(hd));
     switch (Ctx.face(~side=L, molded)) {
-    | Some((mtrl, mold)) when (mtrl, mold) == (hd.mtrl, hd.mold) =>
+    | Some(mtrl) when mtrl == hd.mtrl =>
       // fast path for when face piece retains mold
       molded
       |> Ctx.extend(~side=L, rest)

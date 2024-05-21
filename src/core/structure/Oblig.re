@@ -13,7 +13,7 @@ let severity = o => Option.get(Lists.find_index((==)(o), all));
 
 let of_token = (tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space => None
+  | Space () => None
   | Grout((_, (Conv, Conv))) => Some(Missing_meld)
   | Grout((_, (Conv, Conc) | (Conc, Conv))) => Some(Incon_meld)
   | Grout((_, (Conc, Conc))) => Some(Extra_meld)
