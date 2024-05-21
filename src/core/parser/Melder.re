@@ -106,9 +106,19 @@ module Wald = {
       | _ => None
       };
     let/ () = {
+      // cursor hack
+      let (src, dst) =
+        switch (Fill.is_point(fill)) {
+        | None => (src, dst)
+        | Some(foc) =>
+          switch (from) {
+          | L => (src, W.map(Chain.map_hd(Token.add_mark((0, foc))), dst))
+          | R => (W.map(Chain.map_hd(Token.add_mark((0, foc))), src), dst)
+          }
+        };
       // first try zipping
       let+ zipped = W.zip_hds(~from, src, dst);
-      assert(Fill.is_empty(fill));
+      // assert(Fill.is_empty(fill));
       ([], zipped);
     };
     go(src, fill);

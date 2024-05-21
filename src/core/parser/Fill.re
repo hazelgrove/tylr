@@ -25,6 +25,12 @@ let is_space = (fill: t) =>
   | _ => None
   };
 
+let is_point = (fill: t) =>
+  switch (Chain.unlink(fill)) {
+  | Error(cell) => Cell.is_point(cell)
+  | _ => None
+  };
+
 let rec pad = (~side: Dir.t, ~spc: Cell.t, c: Cell.t): option(Cell.t) => {
   open Options.Syntax;
   let/ () = {

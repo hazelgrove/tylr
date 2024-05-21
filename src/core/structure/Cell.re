@@ -94,6 +94,14 @@ let rec end_path = (~side: Dir.t, c: t) =>
   };
 
 let point = (~foc=true, ()) => mk(~marks=Path.Marks.point(foc), ());
+let is_point = c =>
+  if (c == point()) {
+    Some(true);
+  } else if (c == point(~foc=false, ())) {
+    Some(false);
+  } else {
+    None;
+  };
 
 module Space = {
   let get = (c: t) =>

@@ -2,20 +2,29 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
+module Marks = {
+  [@deriving (show({with_path: false}), sexp, yojson, hash)]
+  type t = list((int, bool));
+  let shift = n => List.map(((m, b)) => (m + n, b));
+  let union = (@);
+};
+
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, hash)]
   type t('mtrl) = {
     [@hash.ignore]
     id: Id.t,
     mtrl: 'mtrl,
+    marks: Marks.t,
     text: string,
   };
-  let mk = (~id=?, ~text="", mtrl) => {
+  let mk = (~id=?, ~text="", ~marks=[], mtrl) => {
     let id = Id.Gen.value(id);
-    {id, mtrl, text};
+    {id, mtrl, marks, text};
   };
   let id = (tok: t(_)) => tok.id;
   let is_empty = (tok: t(_)) => String.equal(tok.text, "");
+  let add_mark = (mark, tok) => {...tok, marks: [mark, ...tok.marks]};
 };
 
 module Molded = {
@@ -35,7 +44,8 @@ module Molded = {
     };
   let show = Fmt.to_to_string(pp);
 
-  let mk = (~id=?, ~text="", mtrl: Mtrl.T.t) => Base.mk(~id?, ~text, mtrl);
+  let mk = (~id=?, ~text="", ~marks=[], mtrl: Mtrl.T.t) =>
+    Base.mk(~id?, ~text, ~marks, mtrl);
 
   let is_empty = (tok: t) =>
     switch (tok.mtrl) {
@@ -59,11 +69,14 @@ module Molded = {
     | Space () => Utf8.length(tok.text)
     };
 
-  let merge = (l: t, r: t) => {...l, text: l.text ++ r.text};
+  let merge = (l: t, r: t) => {
+    let marks = Marks.(union(l.marks, shift(Utf8.length(l.text), r.marks)));
+    {...l, marks, text: l.text ++ r.text};
+  };
   let zip = (l: t, r: t) =>
     if (Id.eq(l.id, r.id)) {
       assert(Mold.equal(l.mtrl, r.mtrl));
-      Some({...l, text: l.text ++ r.text});
+      Some(merge(l, r));
     } else {
       None;
     };
@@ -90,7 +103,8 @@ include Molded;
 
 module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
-  let mk = (~id=?, ~text="", ()) => Molded.mk(~id?, ~text, Space());
+  let mk = (~id=?, ~text="", ~marks=[], ()) =>
+    Molded.mk(~id?, ~text, ~marks, Space());
   let empty = mk();
   // let cursor = failwith("todo Token.Space");
 };
