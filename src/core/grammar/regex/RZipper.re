@@ -3,6 +3,7 @@ open Util;
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t('focus, 'atom) = ('focus, RCtx.t('atom));
 
+// Root in output means one of the alternatives of r is null
 let rec enter =
         (~ctx=RCtx.empty, ~from: Dir.t, r: Regex.t('a))
         : list(Bound.t(t('a, 'a))) => {
@@ -32,6 +33,7 @@ let rec enter =
 
 let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
   let enter = enter(~from=Dir.toggle(d));
+  // step past r into ctx
   let rec go = (r: Regex.t('a), ctx: RCtx.t(_)) =>
     switch (ctx) {
     | [] => []
@@ -42,11 +44,21 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
       | (L, Seq_([], rs)) => go(Seq([r, ...rs]), fs)
       | (R, Seq_(ls, [])) => go(Seq(List.rev([r, ...ls])), fs)
       | (L, Seq_([hd, ...tl], rs)) =>
-        let _ = failwith("todo: if root in output, step again beyond hd");
-        enter(hd, ~ctx=[Seq_(tl, [r, ...rs]), ...fs]);
+        let ctx = [RFrame.Seq_(tl, [r, ...rs]), ...fs];
+        enter(hd, ~ctx)
+        |> List.concat_map(
+             fun
+             | Bound.Root => go(hd, ctx)
+             | Node(_) as z => [z],
+           );
       | (R, Seq_(ls, [hd, ...tl])) =>
-        let _ = failwith("todo: if root in output, step again beyond hd");
-        enter(hd, ~ctx=[Seq_([r, ...ls], tl), ...fs]);
+        let ctx = [RFrame.Seq_([r, ...ls], tl), ...fs];
+        enter(hd, ~ctx)
+        |> List.concat_map(
+             fun
+             | Bound.Root => go(hd, ctx)
+             | Node(_) as z => [z],
+           );
       }
     };
   go(Atom(a), ctx);
