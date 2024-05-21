@@ -29,7 +29,9 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     let (tok, ctx) =
       switch (Token.pull(~from=b, tok)) {
       | None => (tok, ctx)
-      | Some((c, tok)) => (c, Melder.Ctx.push_fail(~onto=b, tok, ctx))
+      | Some((l, r)) =>
+        let (c, tok) = Dir.order(b, (l, r));
+        (c, Melder.Ctx.push_fail(~onto=d, tok, ctx));
       };
     Zipper.mk(~cur=Select((d, Zigg.of_tok(tok))), ctx);
   | Select((side, zigg)) =>
