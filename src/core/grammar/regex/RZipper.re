@@ -36,7 +36,7 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
   // step past r into ctx
   let rec go = (r: Regex.t('a), ctx: RCtx.t(_)) =>
     switch (ctx) {
-    | [] => []
+    | [] => [Bound.Root]
     | [f, ...fs] =>
       switch (d, f) {
       | (_, Star_) => go(Star(r), fs) @ enter(r, ~ctx)
