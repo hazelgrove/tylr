@@ -532,7 +532,7 @@ let view_text =
     [],
     (ctx, _pos, tok: Token.t) =>
       switch (tok.mtrl) {
-      | Space =>
+      | Space () =>
         let (hd, tl) =
           Lists.Framed.hd_exn(Strings.split(~on='\n', tok.text));
         tl
@@ -544,7 +544,7 @@ let view_text =
              @ view_str(line)
            )
         |> (@)(view_str(hd));
-      | Grout => view_str("•")
+      | Grout(_) => view_str("•")
       | Tile(_) => view_str(tok.text)
       },
     txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
