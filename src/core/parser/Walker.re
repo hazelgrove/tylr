@@ -109,9 +109,14 @@ let step =
     | Root => swing(~from, Tile.NT.root)
     // space takes prec over everything. could make it so that space eq space
     // but this behavior is encoded in token zipping/merging instead of walks.
-    | Node(Space ()) => Index.empty
-    // grout always cleared and re-inserted based on walks between tiles/space
-    | Node(Grout(_)) => Index.empty
+    | Node(Space ()) => Index.single(Root, Walk.empty)
+    | Node(Grout((s, tips))) =>
+      // I think grouting behavior should be determined downstream of walks,
+      // so maybe weird that this is here, but it's currently used for exits
+      switch (Dir.pick(from, tips)) {
+      | Conv => Index.single(Root, Walk.space)
+      | Conc => Index.single(Root, Walk.unit(Swing.unit(Grout(s))))
+      }
     | Node(Tile((lbl, mold))) =>
       (Sym.T(lbl), mold.rctx)
       |> RZipper.step(Dir.toggle(from))
