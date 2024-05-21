@@ -42,7 +42,8 @@ module Wald = {
   let gt = (l: W.t, r: W.t) =>
     Walker.gt(Node(W.face(l)), Node(W.face(r))) != [];
   let eq = (l: W.t, r: W.t) =>
-    Walker.eq(Node(W.face(l)), Node(W.face(r))) != [];
+    W.hd(l).id == W.hd(r).id
+    || Walker.eq(Node(W.face(l)), Node(W.face(r))) != [];
 
   let attach = (wald: W.t, baked: Baked.t): Terr.t =>
     baked
