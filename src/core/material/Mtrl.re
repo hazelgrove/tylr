@@ -1,7 +1,10 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
-  type t('g, 't) =
-    | Space
+  type t('s, 'g, 't) =
+    | Space('s)
     | Grout('g)
     | Tile('t);
 };
@@ -11,24 +14,24 @@ let tile = t => Tile(t);
 
 let is_space =
   fun
-  | Space => true
+  | Space(_) => true
   | Grout(_)
   | Tile(_) => false;
 let is_grout =
   fun
   | Grout(_) => true
-  | Space
+  | Space(_)
   | Tile(_) => false;
 
-let map = (~grout, ~tile) =>
+let map = (~space, ~grout, ~tile) =>
   fun
-  | Space => Space
+  | Space(s) => Space(space(s))
   | Grout(g) => Grout(grout(g))
   | Tile(t) => Tile(tile(t));
 
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
-  type t = Base.t((Sort.t, Tip.s), (Label.t, Mold.t));
+  type t = Base.t(unit, Grout.T.t, Tile.T.t);
   module Map =
     Map.Make({
       type nonrec t = t;
@@ -36,13 +39,14 @@ module T = {
     });
   let padding =
     fun
-    | Space => Padding.none
+    | Space(_) => Padding.none
     | Grout(_) => Padding.mk()
     | Tile((lbl, _)) => Label.padding(lbl);
 };
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
-  type t = Base.t(Sort.t, (Sort.t, Mold.t));
+  type t = Base.t(bool, Grout.NT.t, Tile.NT.t);
+  let root = Tile(Tile.NT.root);
   // let root = Tile(Sort.root);
   // let bounds =
   //   fun
@@ -55,12 +59,6 @@ module NT = {
       type nonrec t = t;
       let compare = compare;
     });
-};
-
-module Space_or = {
-  type t('spc, 'or) =
-    | Space('spc)
-    | Or('or);
 };
 
 // module T = Molded;

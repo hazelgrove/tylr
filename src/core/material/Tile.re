@@ -1,15 +1,18 @@
 open Util;
 
-module Base = {
-  type t('a) = ('a, Mold.t);
-  let map = (f, (a, mold): t(_)) => (f(a), mold);
-};
-include Base;
+// module Base = {
+//   type t('a) = ('a, Mold.t);
+//   let map = (f, (a, mold): t(_)) => (f(a), mold);
+// };
+// include Base;
 
 module T = {
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Label.t, Mold.t);
 };
+
 module NT = {
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Sort.t, Bound.t(Mold.t));
   let root = (Sort.root, Bound.Root);
   let sort = fst;
@@ -19,13 +22,17 @@ module NT = {
       Mold.bounds(mold)
     | _ => Bound.(Root, Root);
 };
+
 module Sym = {
-  type t = Base.t(Grammar.Sym.t);
-  let get_nt =
-    fun
-    | Bound.Root => Some(Bound.Root)
-    | Node((Sym.NT(nt), mold)) => Some(Node((nt, mold)))
-    | Node((T(_), _)) => None;
+  include Sym;
+  type t = Sym.t(T.t, NT.t);
+  let mk = (sort, prec, (sym, rctx): RZipper.t(_)): t => {
+    let mold = Mold.{sort, prec, rctx};
+    switch (sym) {
+    | T(lbl) => T((lbl, mold))
+    | NT(s) => NT((s, Node(mold)))
+    };
+  };
 };
 
 // open Util;
