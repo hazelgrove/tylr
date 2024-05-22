@@ -21,6 +21,19 @@ module Marks = {
           ),
         (),
       );
+  let hd =
+    fun
+    | [] => 0
+    | [n, ..._] => n;
+  let of_paths = (marks: Path.Marks.t) =>
+    switch (marks.cursor) {
+    | None => []
+    | Some(Point({is_focus, path})) => [(hd(path), is_focus)]
+    | Some(Select({focus, anchor})) => [
+        (hd(focus), true),
+        (hd(anchor), false),
+      ]
+    };
 };
 
 module Base = {
@@ -39,6 +52,12 @@ module Base = {
   let id = (tok: t(_)) => tok.id;
   let is_empty = (tok: t(_)) => String.equal(tok.text, "");
   let add_mark = (mark, tok) => {...tok, marks: [mark, ...tok.marks]};
+  let add_marks = (marks, tok) => {...tok, marks: marks @ tok.marks};
+  let clear_marks = tok => {...tok, marks: []};
+  let pop_marks = (n, tok) => (
+    Path.Marks.cons(n, Marks.to_paths(tok.marks)),
+    clear_marks(tok),
+  );
 };
 
 module Molded = {

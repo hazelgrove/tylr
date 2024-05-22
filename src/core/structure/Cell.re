@@ -23,6 +23,43 @@ let face = (~side: Dir.t, c: t) => Option.map(Meld.face(~side), c.meld);
 let map_marks = (f, cell) => {...cell, marks: f(cell.marks)};
 let add_marks = marks => map_marks(Path.Marks.union(marks));
 let clear_marks = cell => {...cell, marks: Path.Marks.empty};
+let pop_marks = (n, cell) => (
+  Path.Marks.cons(n, cell.marks),
+  clear_marks(cell),
+);
+
+let aggregate_marks = (c: t) =>
+  switch (c.meld) {
+  | None => c
+  | Some(M(l, W((ts, cs)), r) as m) =>
+    open Path.Marks;
+    let (l_marks, l) = pop_marks(0, l);
+    let (ts_marks, ts) =
+      ts |> List.mapi(i => Token.pop_marks(1 + 2 * i)) |> List.split;
+    let (cs_marks, cs) =
+      cs |> List.mapi(i => pop_marks(2 * (1 + i))) |> List.split;
+    let (r_marks, r) = pop_marks(Meld.length(m) - 1, r);
+    let marks =
+      union_all(List.concat([[l_marks], ts_marks, cs_marks, [r_marks]]));
+    {marks, meld: Some(M(l, W((ts, cs)), r))};
+  };
+
+let distribute_marks = (c: t) =>
+  switch (c.meld) {
+  | None => c
+  | Some(M(l, W((ts, cs)), r) as m) =>
+    let l = l |> add_marks(Path.Marks.peel(0, c.marks));
+    let ts =
+      ts
+      |> List.mapi((i, t) => {
+           let marks = Path.Marks.peel(1 + 2 * i, c.marks);
+           Token.(add_marks(Marks.of_paths(marks), t));
+         });
+    let cs =
+      cs |> List.mapi(i => add_marks(Path.Marks.peel(2 * (1 + i), c.marks)));
+    let r = r |> add_marks(Path.Marks.peel(Meld.length(m) - 1, c.marks));
+    mk(~meld=Meld.M(l, W((ts, cs)), r), ());
+  };
 
 module Found_cursor = {
   type t =
@@ -50,45 +87,13 @@ let get_cur = (c: t) => {
            | _ => Here(Select(sel))
            },
        );
-  let meld =
-    c.meld
-    |> Option.map((Meld.M(l, W((toks, cells)), r)) => {
-         let n = List.length(toks);
-         let l = l |> add_marks(Path.Marks.peel(0, c.marks));
-         let cells =
-           cells
-           |> List.mapi((i, cell) =>
-                cell |> add_marks(Path.Marks.peel(i + 1, c.marks))
-              );
-         let r = r |> add_marks(Path.Marks.peel(n, c.marks));
-         Meld.M(l, W((toks, cells)), r);
-       });
-  (fc, meld);
+  let c = distribute_marks(c);
+  (fc, c.meld);
 };
 let get = c => snd(get_cur(c));
 
 // let empty = () => mk();
-let put = (m: Meld.t) =>
-  if (Meld.is_empty(m)) {
-    empty;
-  } else {
-    let M(l, W((toks, cells)), r) = m;
-    let n = List.length(toks);
-    let marks = {
-      open Path.Marks;
-      let l = cons(0, l.marks);
-      let cs =
-        cells |> List.mapi((i, cell) => cons(2 * (1 + i), cell.marks));
-      let r = cons(n, r.marks);
-      let ts =
-        toks
-        |> List.mapi((i, tok: Token.t) =>
-             cons(1 + 2 * i, Token.Marks.to_paths(tok.marks))
-           );
-      union_all([l, ...cs] @ [r, ...ts]);
-    };
-    mk(~marks, ~meld=Meld.map_cells(clear_marks, m), ());
-  };
+let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
 
 let rec end_path = (~side: Dir.t, c: t) =>
   switch (get(c)) {
