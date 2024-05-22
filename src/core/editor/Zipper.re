@@ -153,8 +153,13 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
   | ([l, ...dn], [r, ..._] as up) when Melder.Wald.gt(l.wald, r.wald) =>
     Cell.put(Meld.mk(~l=l.cell, l.wald, ~r=zipped)) |> zip_open((dn, up))
   | ([l, ...dn], [r, ...up]) =>
-    assert(Melder.Wald.eq(l.wald, r.wald));
-    zipped |> zip_closed((l, r)) |> zip_open((dn, up));
+    let cursor = Cell.is_point(zipped);
+    switch (Wald.zip_hds(~from=L, l.wald, ~cursor?, r.wald)) {
+    | Some(w) => Cell.put(M(l.cell, w, r.cell)) |> zip_open((dn, up))
+    | None =>
+      assert(Melder.Wald.eq(l.wald, r.wald));
+      zipped |> zip_closed((l, r)) |> zip_open((dn, up));
+    };
   };
 let zip = (~save_cursor=false, z: t) =>
   z.ctx

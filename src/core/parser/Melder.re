@@ -42,8 +42,7 @@ module Wald = {
   let gt = (l: W.t, r: W.t) =>
     Walker.gt(Node(W.face(l)), Node(W.face(r))) != [];
   let eq = (l: W.t, r: W.t) =>
-    W.hd(l).id == W.hd(r).id
-    || Walker.eq(Node(W.face(l)), Node(W.face(r))) != [];
+    Walker.eq(Node(W.face(l)), Node(W.face(r))) != [];
 
   let attach = (wald: W.t, baked: Baked.t): Terr.t =>
     baked
@@ -106,19 +105,11 @@ module Wald = {
         };
       | _ => None
       };
+
+    // first try zipping
     let/ () = {
-      // cursor hack
-      let (src, dst) =
-        switch (Fill.is_point(fill)) {
-        | None => (src, dst)
-        | Some(foc) =>
-          switch (from) {
-          | L => (src, W.map(Chain.map_hd(Token.add_mark((0, foc))), dst))
-          | R => (W.map(Chain.map_hd(Token.add_mark((0, foc))), src), dst)
-          }
-        };
-      // first try zipping
-      let+ zipped = W.zip_hds(~from, src, dst);
+      let cursor = Fill.is_point(fill);
+      let+ zipped = W.zip_hds(~from, src, ~cursor?, dst);
       // assert(Fill.is_empty(fill));
       ([], zipped);
     };
