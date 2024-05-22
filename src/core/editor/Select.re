@@ -40,7 +40,9 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       let (tok, ctx) =
         switch (Token.pull(~from=b, tok)) {
         | None => (tok, ctx)
-        | Some((c, tok)) => (c, Melder.Ctx.push_fail(~onto=b, tok, ctx))
+        | Some((l, r)) =>
+          let (c, tok) = Dir.order(b, (l, r));
+          (c, Melder.Ctx.push_fail(~onto=d, tok, ctx));
         };
       let zigg = Melder.Zigg.grow(~side, tok, zigg);
       Zipper.mk(~cur=Select((d, zigg)), ctx);
@@ -50,8 +52,11 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
         switch (Token.pull(~from=b, tok), rest) {
         | (None, None) => (tok, Cursor.Point())
         | (None, Some(zigg)) => (tok, Select((side, zigg)))
-        | (Some((c, tok)), None) => (c, Select((side, Zigg.of_tok(tok))))
-        | (Some((c, tok)), Some(zigg)) =>
+        | (Some((l, r)), None) =>
+          let (c, tok) = Dir.order(b, (l, r));
+          (c, Select((side, Zigg.of_tok(tok))));
+        | (Some((l, r)), Some(zigg)) =>
+          let (c, tok) = Dir.order(b, (l, r));
           let zigg = Melder.Zigg.push_fail(~side, tok, zigg);
           (c, Select((side, zigg)));
         };
