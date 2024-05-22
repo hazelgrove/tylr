@@ -60,8 +60,6 @@ let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
 let of_tok = (~l=Cell.empty, ~r=Cell.empty, tok) =>
   mk(~l, Wald.of_tok(tok), ~r);
 
-let length = (M(_, W(w), _): t) => Chain.length(w);
-
 let is_empty =
   fun
   | M({meld: None, _}, W(([tok], [])), {meld: None, _}) =>
@@ -111,7 +109,7 @@ let split_subwald = (i, j, M(l, W((ts, cs)), r): t) => {
   );
 };
 
-let size = m => Chain.length(to_chain(m));
+let length = m => Chain.length(to_chain(m));
 
 let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
 let unzip_tok = (step, m) =>
