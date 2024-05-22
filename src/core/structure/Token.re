@@ -7,6 +7,20 @@ module Marks = {
   type t = list((int, bool));
   let shift = n => List.map(((m, b)) => (m + n, b));
   let union = (@);
+  let to_paths =
+    fun
+    | [] => Path.Marks.empty
+    | [(n, is_focus)] =>
+      Path.Marks.mk(~cursor=Point({is_focus, path: [n]}), ())
+    | [(n1, b1), (n2, _), ..._] =>
+      Path.Marks.mk(
+        ~cursor=
+          Select(
+            b1
+              ? {focus: [n1], anchor: [n2]} : {focus: [n2], anchor: [n1]},
+          ),
+        (),
+      );
 };
 
 module Base = {

@@ -77,9 +77,15 @@ let put = (m: Meld.t) =>
     let marks = {
       open Path.Marks;
       let l = cons(0, l.marks);
-      let mid = cells |> List.mapi((i, cell) => cons(i + 1, cell.marks));
+      let cs =
+        cells |> List.mapi((i, cell) => cons(2 * (1 + i), cell.marks));
       let r = cons(n, r.marks);
-      union_all([l, ...mid] @ [r]);
+      let ts =
+        toks
+        |> List.mapi((i, tok: Token.t) =>
+             cons(1 + 2 * i, Token.Marks.to_paths(tok.marks))
+           );
+      union_all([l, ...cs] @ [r, ...ts]);
     };
     mk(~marks, ~meld=Meld.map_cells(clear_marks, m), ());
   };
