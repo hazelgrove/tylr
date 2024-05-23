@@ -11,17 +11,10 @@ let all =
 
 let const = Label.Set.(elements(filter(Label.is_const, all)));
 
-let completions = (lbl: Label.t) =>
-  switch (lbl) {
-  | Id_lower
-  | Id_upper
-  | Int_lit
-  | Float_lit => [lbl]
-  | Const(_, prefix) =>
-    const
-    |> List.filter(
-         fun
-         | Label.Const(_, t) => String.starts_with(~prefix, t)
-         | _ => false,
-       )
-  };
+let completions = (prefix: string) =>
+  const
+  |> List.filter(
+       fun
+       | Label.Const(_, t) => String.starts_with(~prefix, t)
+       | _ => false,
+     );

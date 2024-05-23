@@ -1,3 +1,4 @@
+let ascii = [%sedlex.regexp? 0 .. 255];
 let space = [%sedlex.regexp? Plus(white_space)];
 
 // let grout_op = [%sedlex.regexp? "⬣"];
@@ -10,6 +11,7 @@ let digit = [%sedlex.regexp? '0' .. '9'];
 let alpha_lower = [%sedlex.regexp? 'a' .. 'z'];
 let alpha_upper = [%sedlex.regexp? 'A' .. 'Z'];
 let alpha = [%sedlex.regexp? alpha_lower | alpha_upper];
+let alpha_num = [%sedlex.regexp? alpha | digit | '_'];
 
 let int_lit = [%sedlex.regexp? Plus(digit | '_')];
 let float_lit = [%sedlex.regexp?
@@ -28,6 +30,10 @@ let square = [%sedlex.regexp? '[' | ']'];
 let curly = [%sedlex.regexp? '{' | '}'];
 let brack = [%sedlex.regexp? round | square | curly];
 
+let op_char = [%sedlex.regexp? Sub(ascii, alpha_num | brack)];
+let operator = [%sedlex.regexp? Plus(op_char)];
+
+let keyword = [%sedlex.regexp? Plus(alpha_lower)];
 // let labeled = [%sedlex.regexp?
 //   const | id_lower | id_upper | int_lit | float_lit
 // ];
@@ -38,7 +44,10 @@ let lexeme = Sedlexing.Latin1.lexeme;
 
 let pop = buf => {
   let mk = (text: string, lbl: Label.t) => {
-    let lbls = Labels.completions(lbl);
+    let lbls =
+      Labels.completions(text)
+      // avoid dup
+      |> (Label.is_const(lbl) ? Fun.id : List.cons(lbl));
     Some(Token.Unmolded.mk(~text, Mtrl.Tile(lbls)));
   };
   // I'm guessing buf state is altered by this switch expression?
@@ -52,7 +61,8 @@ let pop = buf => {
   | id_lower => mk(lexeme(buf), Id_lower)
   | id_upper => mk(lexeme(buf), Id_upper)
   | brack
-  | Plus(Sub(any, white_space)) =>
+  | operator
+  | keyword =>
     let text = lexeme(buf);
     // padding filled in by label completions
     mk(text, Label.const(text));

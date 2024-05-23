@@ -170,10 +170,7 @@ module Unmolded = {
       | Space () => Mtrl.Space()
       | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
       | Tile((lbl, _)) =>
-        Tile(
-          is_empty(tok)
-            ? [lbl] : Labels.completions(Label.const(tok.text)),
-        )
+        Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
       };
     mk(~id=tok.id, ~text=tok.text, mtrl);
   };
