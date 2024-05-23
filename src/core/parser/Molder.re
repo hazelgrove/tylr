@@ -46,18 +46,15 @@ let mold = (ctx: Ctx.t, ~fill=Fill.empty, t: Token.Unmolded.t) =>
     |> Options.get_fail("bug: failed to meld unmolded token")
   };
 
-let rec remold = (~fill=Fill.empty, ctx: Ctx.t) => {
+let rec remold = (~fill=Fill.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   let ((dn, up), tl) = Ctx.split_hd(ctx);
   switch (up) {
   | [] =>
-    let unrolled =
-      Fill.to_list(fill)
-      |> List.rev_map(Melder.Slope.Dn.unroll)
-      |> List.concat;
-    Ctx.zip((Slope.cat(unrolled, dn), []), ~suf=tl);
+    let cell = Fill.hd(Melder.Slope.Dn.roll(dn, ~fill));
+    let ctx = Ctx.zip(Frame.Open.empty, ~suf=tl);
+    (cell, ctx);
   | [terr, ...up] when Mtrl.is_grout(Terr.sort(terr)) =>
-    let unrolled =
-      Terr.cells(terr) |> List.concat_map(Melder.Slope.Up.unroll);
+    let unrolled = List.concat_map(Melder.Slope.Up.unroll, Terr.cells(terr));
     remold(Ctx.zip((dn, Slope.cat(unrolled, up)), ~suf=tl));
   | [terr, ...up] =>
     let ctx = Ctx.put_hd((dn, up), ctx);

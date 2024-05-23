@@ -18,17 +18,19 @@ type t = {
 
 let mk = (~cur=Cursor.point(), ctx) => {cur, ctx};
 
-let unroll_cell = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
+let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
     side == L
       ? ([], Melder.Slope.Up.unroll(cell))
       : (Melder.Slope.Dn.unroll(cell), []);
   Ctx.map_hd(Frame.Open.cat(f_open), ctx);
 };
+let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
+  mk(unroll(side, cell, ~ctx));
 
 let unzip_point = (~ctx=Ctx.empty, p: Path.Point.t, m: Meld.t) =>
   switch (p.path) {
-  | [] => mk(unroll_cell(L, Cell.put(m), ~ctx))
+  | [] => mk(unroll(L, Cell.put(m), ~ctx))
   | [hd, ...tl] =>
     let (pre, tok, suf) = Meld.unzip_tok(hd, m);
     let j = Base.List.hd(tl) |> Option.value(~default=0);
@@ -41,12 +43,12 @@ let unzip_point = (~ctx=Ctx.empty, p: Path.Point.t, m: Meld.t) =>
       let (cell, pre) = Chain.split_hd(pre);
       let suf = Chain.Affix.cons(tok, suf);
       let ctx = Ctx.cons((pre, suf), ctx);
-      mk(unroll_cell(R, cell, ~ctx));
+      mk(unroll(R, cell, ~ctx));
     | Error(R) =>
       let pre = Chain.Affix.cons(tok, pre);
       let (cell, suf) = Chain.split_hd(suf);
       let ctx = Ctx.cons((pre, suf), ctx);
-      mk(unroll_cell(L, cell, ~ctx));
+      mk(unroll(L, cell, ~ctx));
     };
   };
 
@@ -79,7 +81,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     | [] =>
       // selection covers left end of meld
       assert(Chain.Affix.is_empty(tl_pre));
-      (Ctx.flatten(unroll_cell(L, hd_pre, ~ctx=ctx_pre)), top);
+      (Ctx.flatten(unroll(L, hd_pre, ~ctx=ctx_pre)), top);
     | [hd_l, ..._tl_l] when hd_l mod 2 == 0 =>
       // hd_l points to cell
       // (assuming tl_l already propagated into hd_pre)
@@ -90,7 +92,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
       switch (tl_l) {
       | [] =>
         // no char index => left end of token
-        (Ctx.flatten(unroll_cell(R, hd_pre, ~ctx=ctx_pre)), top)
+        (Ctx.flatten(unroll(R, hd_pre, ~ctx=ctx_pre)), top)
       | [j, ..._] =>
         // char index (ignore rest)
         let (hd_top_l, hd_top_r) =
@@ -109,7 +111,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
     | [] =>
       // selection covers right end of meld
       assert(Chain.Affix.is_empty(tl_suf));
-      (top, Ctx.flatten(unroll_cell(R, hd_suf, ~ctx=ctx_suf)));
+      (top, Ctx.flatten(unroll(R, hd_suf, ~ctx=ctx_suf)));
     | [hd_r, ..._tl_r] when hd_r mod 2 == 0 =>
       // hd_r points to cell
       // (assuming tl_r already propagated into hd_suf)
@@ -120,7 +122,7 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Select.t, meld: Meld.t) => {
       switch (tl_r) {
       | [] =>
         // no char index => right end of token
-        (top, Ctx.flatten(unroll_cell(L, hd_suf, ~ctx=ctx_suf)))
+        (top, Ctx.flatten(unroll(L, hd_suf, ~ctx=ctx_suf)))
       | [j, ..._] =>
         // char index (ignore rest)
         let (ft_top_l, ft_top_r) =
