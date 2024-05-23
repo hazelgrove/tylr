@@ -141,7 +141,7 @@ module Terr = {
        )
     |> Chain.fold_right(
          (cell, tok) => Meld.link(~cell, tok),
-         cell => Meld.M(terr.cell, terr.wald, cell),
+         cell => Meld.M(cell, terr.wald, terr.cell),
        );
 
   let roll = (~onto: Dir.t, ~fill=Fill.empty, terr: T.t): Fill.t => {
