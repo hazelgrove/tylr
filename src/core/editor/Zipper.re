@@ -151,7 +151,8 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
   | ([l, ..._] as dn, [r, ..._]) when Melder.Wald.lt(l.wald, r.wald) =>
     Cell.put(Meld.mk(~l=zipped, r.wald, ~r=r.cell)) |> zip_open((dn, up))
   | ([l, ...dn], [r, ..._] as up) when Melder.Wald.gt(l.wald, r.wald) =>
-    Cell.put(Meld.mk(~l=l.cell, l.wald, ~r=zipped)) |> zip_open((dn, up))
+    Cell.put(Meld.mk(~l=l.cell, Wald.rev(l.wald), ~r=zipped))
+    |> zip_open((dn, up))
   | ([l, ...dn], [r, ...up]) =>
     let cursor = Cell.is_point(zipped);
     switch (Wald.zip_hds(~from=L, l.wald, ~cursor?, r.wald)) {

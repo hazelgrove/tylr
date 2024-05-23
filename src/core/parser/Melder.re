@@ -223,6 +223,8 @@ module Slope = {
     go(fill, slope);
   };
 
+  // here "from" indicates which side slope is relative to puller
+  // eg "pull from dn slope on left"
   let pull = (~from: Dir.t, slope: S.t): option((Token.t, S.t)) =>
     switch (slope) {
     | [] => None
