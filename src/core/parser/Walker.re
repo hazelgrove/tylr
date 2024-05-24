@@ -165,7 +165,8 @@ let enter_all =
   Core.Memo.general(((from: Dir.t, nt: Mtrl.NT.t)) =>
     switch (nt) {
     | Space(false) => Index.empty
-    | Space(true) => Index.single(Node(Space()), Walk.empty)
+    | Space(true) =>
+      Index.single(Node(Space()), Walk.unit(Swing.mk([Space(false), nt])))
     | Grout(_) => Index.empty
     | Tile(nt) =>
       let q = Queue.create();
