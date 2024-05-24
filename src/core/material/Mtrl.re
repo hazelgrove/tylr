@@ -44,8 +44,20 @@ module T = {
     | Tile((lbl, _)) => Label.padding(lbl);
 };
 module NT = {
-  [@deriving (show({with_path: false}), sexp, yojson, ord)]
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(bool, Grout.NT.t, Tile.NT.t);
+  let compare = (l: t, r: t) =>
+    switch (l, r) {
+    | _ when l == r => 0
+    | (Space(false), _) => (-1)
+    | (_, Space(false)) => 1
+    | (Space(true), _) => (-1)
+    | (_, Space(true)) => 1
+    | (Grout(l), Grout(r)) => Grout.NT.compare(l, r)
+    | (Grout(_), _) => (-1)
+    | (_, Grout(_)) => 1
+    | (Tile(l), Tile(r)) => Tile.NT.compare(l, r)
+    };
   let root = Tile(Tile.NT.root);
   // let root = Tile(Sort.root);
   // let bounds =

@@ -12,7 +12,7 @@ module Swing = {
   // a swing is represented by a non-empty list of NTs where all
   // but the last are swung "into" (ie expanded in a grammar derivation
   // step) and the last is swung "over" to arrive at the next stance.
-  [@deriving (sexp, yojson, ord)]
+  [@deriving (sexp, yojson)]
   type t = Chain.t(Mtrl.NT.t, unit);
   let pp = (out, sw: t) => {
     let pp_lps = Fmt.(list(~sep=semi, Mtrl.NT.pp));
@@ -32,6 +32,10 @@ module Swing = {
   let is_neq = s => !is_eq(s);
   let top = Chain.ft;
   let bot = Chain.hd;
+  let compare = (l: t, r: t) => {
+    let c = Int.compare(height(l), height(r));
+    c == 0 ? Mtrl.NT.compare(bot(l), bot(r)) : c;
+  };
   // let rev = sw => Chain.rev(sw);
   // let has_sort = s =>
   //   Chain.loops(s)
@@ -43,7 +47,7 @@ module Swing = {
   //      );
 };
 
-[@deriving (show({with_path: false}), sexp, yojson, ord)]
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = Chain.t(Swing.t, Stance.t);
 
 let empty: t = Chain.unit(Swing.empty);
@@ -59,6 +63,11 @@ let height = w => List.length(List.filter(Swing.is_neq, strides(w)));
 let hd = Chain.hd;
 let ft = Chain.ft;
 // let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
+
+let compare = (l: t, r: t) => {
+  let c = Int.compare(height(l), height(r));
+  c == 0 ? Swing.compare(hd(l), hd(r)) : c;
+};
 
 let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
 // note: stricter than !is_eq
@@ -93,8 +102,8 @@ module Index = {
   let single = (dst, walk) => singleton(dst, Set.singleton(walk));
   let find = (end_: End.t, map: t) =>
     switch (find_opt(end_, map)) {
-    | None => []
-    | Some(ws) => Set.elements(ws)
+    | None => Set.empty
+    | Some(ws) => ws
     };
   let add = (dst, w) =>
     update(

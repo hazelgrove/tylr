@@ -38,11 +38,11 @@ module Melded = {
 module W = Wald;
 module Wald = {
   let lt = (l: W.t, r: W.t) =>
-    Walker.lt(Node(W.face(l)), Node(W.face(r))) != [];
+    !Walk.Set.is_empty(Walker.lt(Node(W.face(l)), Node(W.face(r))));
   let gt = (l: W.t, r: W.t) =>
-    Walker.gt(Node(W.face(l)), Node(W.face(r))) != [];
+    !Walk.Set.is_empty(Walker.gt(Node(W.face(l)), Node(W.face(r))));
   let eq = (l: W.t, r: W.t) =>
-    Walker.eq(Node(W.face(l)), Node(W.face(r))) != [];
+    !Walk.Set.is_empty(Walker.eq(Node(W.face(l)), Node(W.face(r))));
 
   let attach = (wald: W.t, baked: Baked.t): Terr.t =>
     baked
@@ -62,14 +62,14 @@ module Wald = {
   let round = (~side: Dir.t, ~fill=Fill.empty, w: W.t): Terr.t => {
     let bake = Baker.bake(~from=Dir.toggle(side));
     let exited = Walker.exit(~from=Dir.toggle(side), Node(W.face(w)));
-    switch (Oblig.Delta.minimize(bake(~fill), exited)) {
+    switch (Oblig.Delta.minimize(bake(~fill), Walk.Set.elements(exited))) {
     | Some(baked) => attach(w, baked)
     | None =>
       if (!Fill.is_empty(fill)) {
         print_endline("warning: dropping fill " ++ Fill.show(fill));
       };
       let exited =
-        Base.List.hd(exited)
+        Walk.Set.min_elt_opt(exited)
         |> Options.get_fail("bug: expected at least one exit");
       let baked =
         bake(exited)
@@ -89,6 +89,7 @@ module Wald = {
       let/ () = repair ? rm_ghost_and_go(src, fill) : None;
       let+ bake =
         walk(~from, Node(W.face(src)), Node(W.face(dst)))
+        |> Walk.Set.elements
         |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake(~from, ~fill));
       Melded.mk(src, bake, dst);
     }
@@ -120,6 +121,7 @@ module Wald = {
       (~repair=false, ~from: Dir.t, ~fill=Fill.empty, dst: W.t)
       : option(Slope.t) =>
     Walker.walk(~from, Root, Node(W.face(dst)))
+    |> Walk.Set.elements
     |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake(~from, ~fill))
     |> Option.map(
          Baked.fold(
@@ -148,11 +150,11 @@ module Terr = {
     let bake = Baker.bake(~from=onto);
     let exited = Walker.exit(~from=onto, Node(T.face(terr)));
     let orient = Dir.pick(onto, (Meld.rev, Fun.id));
-    switch (Oblig.Delta.minimize(bake(~fill), exited)) {
+    switch (Oblig.Delta.minimize(bake(~fill), Walk.Set.elements(exited))) {
     | Some(baked) => Fill.unit(Cell.put(orient(attach(baked, terr))))
     | None =>
       let exited =
-        Base.List.hd(exited)
+        Walk.Set.min_elt_opt(exited)
         |> Options.get_fail("bug: expected at least one exit");
       let baked =
         bake(exited)

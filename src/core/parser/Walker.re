@@ -178,38 +178,30 @@ let enter_all =
   );
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
-let step = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
+let step = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, step_all(~from, src));
 let lt =
   Core.Memo.general(((l: End.t, r: End.t)) =>
-    step(~from=L, l, r)
-    |> List.filter_map(walk => {
-         let swing = hd(walk);
-         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
-       })
+    Set.filter(Walk.is_neq, step(~from=L, l, r))
   )
   |> Funs.curry;
 let gt =
   Core.Memo.general(((l: End.t, r: End.t)) =>
-    step(~from=R, r, l)
-    |> List.filter_map(walk => {
-         let swing = hd(walk);
-         Swing.is_eq(swing) ? None : Some(Swing.bot(swing));
-       })
+    Set.filter(Walk.is_neq, step(~from=R, r, l))
   )
   |> Funs.curry;
 let eq =
   Core.Memo.general(((l: End.t, r: End.t)) =>
-    step(~from=L, l, r) |> List.filter(walk => Swing.is_eq(hd(walk)))
+    Set.filter(Walk.is_eq, step(~from=L, l, r))
   )
   |> Funs.curry;
 
 // todo: combine from and src
-let walk = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
+let walk = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, walk_all(~from, src));
 
 let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
   Index.find(dst, enter_all(~from, sort));
 
 let exit = (~from: Dir.t, src: End.t) =>
-  List.filter(is_eq, walk(~from, src, Root));
+  Set.filter(Walk.is_eq, walk(~from, src, Root));
