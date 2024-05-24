@@ -142,9 +142,11 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
     index := Index.add(mid, mid_src, index^);
     // consider stepping further
     switch (mid) {
-    | Node(_) when !seen =>
+    | Node(m) when !seen =>
       step_all(~from, mid)
-      |> Index.iter((dst, dst_mid) => Queue.push((dst, dst_mid), q))
+      |> Index.iter((dst, dst_mid) =>
+           Queue.push((dst, Walk.append(dst_mid, m, mid_src)), q)
+         )
     | _ => ()
     };
   };
