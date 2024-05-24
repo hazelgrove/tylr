@@ -22,16 +22,13 @@ module Swing = {
   let unit: Mtrl.NT.t => t = Chain.unit;
   let empty: t = unit(Space(false));
   let space: t = unit(Space(true));
-  let mk = nts => {
+  let mk = (nts: list(Mtrl.NT.t)) => {
     let n = List.length(nts);
-    if (n == 0) {
-      raise(Invalid_argument("Walk.Swing.mk"));
-    };
     Chain.mk(nts, List.init(n - 1, _ => ()));
   };
-  let height = Chain.length;
+  let height = (sw: t) => List.length(Chain.loops(sw)) - 1;
   let mk_eq = Chain.unit;
-  let is_eq = s => height(s) == 1;
+  let is_eq = s => height(s) == 0;
   let is_neq = s => !is_eq(s);
   let top = Chain.ft;
   let bot = Chain.hd;
@@ -55,8 +52,7 @@ let is_empty = (==)(empty);
 let space: t = Chain.unit(Swing.space);
 
 let strides = Chain.loops;
-let height = w =>
-  strides(w) |> List.filter(Swing.is_neq) |> List.length |> (+)(1);
+let height = w => List.length(List.filter(Swing.is_neq, strides(w)));
 
 // let has_sort = w => List.exists(Swing.has_sort, strides(w));
 

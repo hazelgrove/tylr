@@ -9,7 +9,7 @@ let bake_eq =
     | Some(f_l) =>
       Walker.enter(~from=L, sort, Node(f_l))
       |> Base.List.hd
-      |> Option.map(w => Walk.height(w) > 2)
+      |> Option.map(w => Walk.height(w) > 1)
     }
   and+ r =
     switch (Fill.face(~side=R, fill)) {
@@ -17,7 +17,7 @@ let bake_eq =
     | Some(f_r) =>
       Walker.enter(~from=R, sort, Node(f_r))
       |> Base.List.hd
-      |> Option.map(w => Walk.height(w) > 2)
+      |> Option.map(w => Walk.height(w) > 1)
     };
   let cell = Fill.fill(~l, fill, sort, ~r);
   Rel.Eq(cell);
@@ -33,7 +33,7 @@ let bake_lt =
     | Some(f_l) =>
       Walker.enter(~from=L, bound, Node(f_l))
       |> Base.List.hd
-      |> Option.map(w => Walk.height(w) > 2)
+      |> Option.map(w => Walk.height(w) > 1)
     }
   and+ r =
     switch (Fill.face(~side=R, fill)) {
@@ -41,7 +41,7 @@ let bake_lt =
     | Some(f_r) =>
       Walker.enter(~from=R, sort, Node(f_r))
       |> Base.List.hd
-      |> Option.map(w => Walk.height(w) > 2)
+      |> Option.map(w => Walk.height(w) > 1)
     };
   let cell = Fill.fill(fill, sort, ~r);
   Rel.Neq(cell);
@@ -57,7 +57,7 @@ let bake_gt =
     | Some(f_l) =>
       Walker.enter(~from=L, sort, Node(f_l))
       |> Base.List.hd
-      |> Option.map(w => Walk.height(w) > 2)
+      |> Option.map(w => Walk.height(w) > 1)
     }
   and+ _r =
     switch (Fill.face(~side=R, fill)) {
@@ -65,7 +65,7 @@ let bake_gt =
     | Some(f_r) =>
       Walker.enter(~from=R, bound, Node(f_r))
       |> Base.List.hd
-      |> Option.map(w => Walk.height(w) > 2)
+      |> Option.map(w => Walk.height(w) > 1)
     };
   let cell = Fill.fill(~l, fill, sort);
   Rel.Neq(cell);
