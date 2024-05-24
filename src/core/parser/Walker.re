@@ -103,7 +103,7 @@ let swing =
   });
 let swing = (~from: Dir.t, sort): Index.t => swing((from, sort));
 
-let step =
+let step_all =
   Core.Memo.general(((from: Dir.t, src: End.t)) =>
     switch (src) {
     | Root => swing(~from, Tile.NT.root)
@@ -132,7 +132,7 @@ let step =
       |> Index.union_all
     }
   );
-let step = (~from: Dir.t, src: End.t): Index.t => step((from, src));
+let step_all = (~from: Dir.t, src: End.t): Index.t => step_all((from, src));
 
 let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
   let index = ref(Index.empty);
@@ -143,7 +143,7 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
     // consider stepping further
     switch (mid) {
     | Node(_) when !seen =>
-      step(~from, mid)
+      step_all(~from, mid)
       |> Index.iter((dst, dst_mid) => Queue.push((dst, dst_mid), q))
     | _ => ()
     };
@@ -151,13 +151,13 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
   index^;
 };
 
-let walk =
+let walk_all =
   Core.Memo.general(((from: Dir.t, src: End.t)) => {
     let q = Queue.create();
-    step(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
+    step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q);
   });
-let walk = (~from: Dir.t, src: End.t) => walk((from, src));
+let walk_all = (~from: Dir.t, src: End.t) => walk_all((from, src));
 
 let enter_all =
   Core.Memo.general(((from: Dir.t, nt: Mtrl.NT.t)) =>
@@ -176,7 +176,7 @@ let enter_all =
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
 let step = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
-  Index.find(dst, step(~from, src));
+  Index.find(dst, step_all(~from, src));
 let lt =
   Core.Memo.general(((l: End.t, r: End.t)) =>
     step(~from=L, l, r)
@@ -203,7 +203,7 @@ let eq =
 
 // todo: combine from and src
 let walk = (~from: Dir.t, src: End.t, dst: End.t): list(t) =>
-  Index.find(dst, walk(~from, src));
+  Index.find(dst, walk_all(~from, src));
 
 let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
   Index.find(dst, enter_all(~from, sort));
