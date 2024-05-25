@@ -85,12 +85,13 @@ let find_index = (p, xs) =>
   |> Base.List.hd
   |> Option.map(fst);
 
+// picks first minimum element
 let min = compare =>
   List.fold_left(
     (min, x) =>
       switch (min) {
       | None => Some(x)
-      | Some(y) => Some(compare(x, y) <= 0 ? x : y)
+      | Some(y) => Some(compare(y, x) <= 0 ? y : x)
       },
     None,
   );
