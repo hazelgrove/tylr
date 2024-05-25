@@ -82,9 +82,15 @@ let bake_swing =
   };
 };
 
+let mk_token = (t: Mtrl.T.t) => {
+  let tok = Token.mk(t);
+  Effects.perform(Insert(tok));
+  tok;
+};
+
 let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
   w
-  |> Chain.map_link(Token.mk)
+  |> Chain.map_link(mk_token)
   |> Chain.unzip_loops
   // choose swing to fill that minimizes obligations.
   // currently simply chooses a single swing to fill even when there are
