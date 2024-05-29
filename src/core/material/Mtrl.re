@@ -59,6 +59,7 @@ module NT = {
     | (Tile(l), Tile(r)) => Tile.NT.compare(l, r)
     };
   let root = Tile(Tile.NT.root);
+  let sort = _ => failwith("todo Mtrl.NT.sort");
   // let root = Tile(Sort.root);
   // let bounds =
   //   fun
