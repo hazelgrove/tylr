@@ -150,11 +150,14 @@ let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
     Fill.hd(Melder.Slope.Up.roll(~fill=Fill.unit(zipped), up))
   | ([_, ..._], []) =>
     Fill.hd(Melder.Slope.Dn.roll(dn, ~fill=Fill.unit(zipped)))
-  | ([l, ..._] as dn, [r, ..._]) when Melder.Wald.lt(l.wald, r.wald) =>
-    Cell.put(Meld.mk(~l=zipped, r.wald, ~r=r.cell)) |> zip_open((dn, up))
-  | ([l, ...dn], [r, ..._] as up) when Melder.Wald.gt(l.wald, r.wald) =>
-    Cell.put(Meld.mk(~l=l.cell, Wald.rev(l.wald), ~r=zipped))
-    |> zip_open((dn, up))
+  | ([hd_dn, ..._], [hd_up, ...tl_up])
+      when Melder.Wald.lt(hd_dn.wald, hd_up.wald) =>
+    Cell.put(Meld.mk(~l=zipped, hd_up.wald, ~r=hd_up.cell))
+    |> zip_open((dn, tl_up))
+  | ([hd_dn, ...tl_dn], [hd_up, ..._])
+      when Melder.Wald.gt(hd_dn.wald, hd_up.wald) =>
+    Cell.put(Meld.mk(~l=hd_dn.cell, Wald.rev(hd_dn.wald), ~r=zipped))
+    |> zip_open((tl_dn, up))
   | ([l, ...dn], [r, ...up]) =>
     let cursor = Cell.is_point(zipped);
     switch (Wald.zip_hds(~from=L, l.wald, ~cursor?, r.wald)) {
