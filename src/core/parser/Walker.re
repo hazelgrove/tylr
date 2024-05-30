@@ -1,8 +1,6 @@
 open Util;
 open Walk;
 
-let descendants = (_s: Sort.t) => failwith("todo Walker.descendants");
-
 let mtrlize_tile =
     (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Tile.Sym.t) =>
   Grammar.v
@@ -98,7 +96,7 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
     // otherwise, potential soundness issues where a tile T can step to
     // any descendant sort T.
     Swing.height(swing) == 0
-      ? descendants(s)
+      ? Sort.Set.elements(Sorts.deps(s))
         |> List.concat_map(mtrlize(~from))
         |> List.map(sym => arrive(sym, w, ~from))
         |> Index.union_all
