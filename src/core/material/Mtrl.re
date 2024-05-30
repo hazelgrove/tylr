@@ -1,5 +1,6 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+open Util;
 
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -65,14 +66,12 @@ module NT = {
     };
   let root = Tile(Tile.NT.root);
   let sort: t => Sorted.t = map(~space=Fun.const(), ~grout=Fun.id, ~tile=fst);
-  let bounds = _ => failwith("todo");
-  // let root = Tile(Sort.root);
-  // let bounds =
-  //   fun
-  //   | Bound.Node(Tile((sort, mold: Mold.t))) when sort == mold.sort =>
-  //     Mold.bounds(mold)
-  //   // hack: morally grout may need different bounds but shouldn't matter rn
-  //   | _ => (Root, Root);
+  let bounds: t => _ =
+    fun
+    | Space(_) => Bound.(Root, Root)
+    | Grout(_) => (Node(0), Node(0))
+    | Tile((_, Root)) => (Root, Root)
+    | Tile((_, Node(mold))) => Mold.bounds(mold);
   module Map =
     Map.Make({
       type nonrec t = t;
