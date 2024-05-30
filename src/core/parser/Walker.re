@@ -64,10 +64,15 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
   | Space(false) => Index.empty
   | Space(true) => Index.single(Node(Space()), Walk.cons(Space(false), w))
   | Grout(s) =>
-    descendants(s)
-    |> List.concat_map(mtrlize(~from))
-    |> List.map(sym => arrive(sym, w, ~from))
-    |> Index.union_all
+    // grout NTs can only be entered from directly preceding grout T.
+    // otherwise, potential soundness issues where a tile T can step to
+    // any descendant sort T.
+    Swing.height(swing) == 0
+      ? descendants(s)
+        |> List.concat_map(mtrlize(~from))
+        |> List.map(sym => arrive(sym, w, ~from))
+        |> Index.union_all
+      : Index.empty
   | Tile((s, _)) =>
     let (l, r) = Swing.bounds(swing);
     mtrlize(~l, s, ~r, ~from)
