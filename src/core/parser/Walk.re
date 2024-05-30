@@ -36,7 +36,11 @@ module Swing = {
     let c = Int.compare(height(l), height(r));
     c == 0 ? Mtrl.NT.compare(bot(l), bot(r)) : c;
   };
-  let bounds = _ => failwith("todo Swing.bounds");
+  let bounds = (sw: t, ~from: Dir.t) => {
+    let (l_bot, r_bot) = Mtrl.NT.bounds(bot(sw));
+    let (l_top, r_top) = Mtrl.NT.bounds(top(sw));
+    Dir.pick(from, ((l_top, r_bot), (l_bot, r_top)));
+  };
   // let rev = sw => Chain.rev(sw);
   // let has_sort = s =>
   //   Chain.loops(s)

@@ -30,6 +30,10 @@ let map = (~space, ~grout, ~tile) =>
   | Grout(g) => Grout(grout(g))
   | Tile(t) => Tile(tile(t));
 
+module Sorted = {
+  type t = Base.t(unit, Sort.t, Sort.t);
+};
+
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Base.t(unit, Grout.T.t, Tile.T.t);
@@ -60,7 +64,8 @@ module NT = {
     | (Tile(l), Tile(r)) => Tile.NT.compare(l, r)
     };
   let root = Tile(Tile.NT.root);
-  let sort = _ => failwith("todo Mtrl.NT.sort");
+  let sort: t => Sorted.t = map(~space=Fun.const(), ~grout=Fun.id, ~tile=fst);
+  let bounds = _ => failwith("todo");
   // let root = Tile(Sort.root);
   // let bounds =
   //   fun

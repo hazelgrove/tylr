@@ -34,8 +34,7 @@ let mtrlize_tile =
   |> List.concat;
 
 let mtrlize_grout =
-    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t)
-    : list(Grout.Sym.t) =>
+    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t): list(Grout.Sym.t) =>
   Grout.T.(
     // here we materialize Ts directly, skipping over any intervening grout NTs,
     // because the NTs don't have enough contextual info to swing over.
@@ -52,7 +51,7 @@ let mtrlize_grout =
 let mtrlize =
     (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Mtrl.Sym.t) =>
   List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from))
-  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r, ~from));
+  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r));
 
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
   switch (Swing.bot(Walk.hd(w))) {
@@ -105,7 +104,7 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
         |> Index.union_all
       : Index.empty
   | Tile((s, _)) =>
-    let (l, r) = Swing.bounds(swing);
+    let (l, r) = Swing.bounds(swing, ~from);
     mtrlize(~l, s, ~r, ~from)
     |> List.map(sym => arrive(sym, w, ~from))
     |> Index.union_all;
