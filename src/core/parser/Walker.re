@@ -3,7 +3,7 @@ open Walk;
 
 let descendants = (_s: Sort.t) => failwith("todo Walker.descendants");
 
-let mtrlize =
+let mtrlize_tile =
     (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Tile.Sym.t) =>
   Grammar.v
   |> Sort.Map.find(s)
@@ -33,6 +33,27 @@ let mtrlize =
      })
   |> List.concat;
 
+let mtrlize_grout =
+    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t)
+    : list(Grout.Sym.t) =>
+  Grout.T.(
+    // here we materialize Ts directly, skipping over any intervening grout NTs,
+    // because the NTs don't have enough contextual info to swing over.
+    // instead these NTs are generated in `arrive`.
+    switch (l, r) {
+    | (Root, Root) => [op(s), pre(s), pos(s), in_(s)]
+    | (Root, Node(_)) => [op(s), pos(s)]
+    | (Node(_), Root) => [op(s), pre(s)]
+    | (Node(_), Node(_)) => [op(s)]
+    }
+  )
+  |> List.map(Sym.t);
+
+let mtrlize =
+    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Mtrl.Sym.t) =>
+  List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from))
+  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r, ~from));
+
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
   switch (Swing.bot(Walk.hd(w))) {
   | Space(_) => Index.empty // handled elsewhere
@@ -52,10 +73,20 @@ let swing_over = (w: Walk.t, ~from: Dir.t) =>
     |> List.fold_left((idx, dst) => Index.add(dst, w, idx), Index.empty)
   };
 
-let arrive = (sym: Tile.Sym.t, w: Walk.t, ~from: Dir.t) =>
+let arrive = (sym: Mtrl.Sym.t, w: Walk.t, ~from: Dir.t) =>
   switch (sym) {
-  | T(t) => Index.single(Node(Tile(t)), Walk.cons(Space(true), w))
-  | NT(nt) => swing_over(Walk.cons(Tile(nt), w), ~from)
+  | NT(nt) => swing_over(Walk.cons(nt, w), ~from)
+  | T(t) =>
+    // extra logic encapsulated here to deal with space and grout NTs
+    // not having enough contextual info to swing over
+    let over: Mtrl.NT.t =
+      switch (t) {
+      | Space () => Space(false)
+      | Grout((s, (Conc, _))) => Grout(s)
+      | Grout((_, (Conv, _)))
+      | Tile(_) => Space(true)
+      };
+    Index.single(Node(t), Walk.cons(over, w));
   };
 
 let swing_into = (w: Walk.t, ~from: Dir.t) => {

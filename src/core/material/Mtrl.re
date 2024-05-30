@@ -10,6 +10,7 @@ module Base = {
 };
 include Base;
 
+let grout = g => Grout(g);
 let tile = t => Tile(t);
 
 let is_space =
@@ -72,6 +73,14 @@ module NT = {
       type nonrec t = t;
       let compare = compare;
     });
+};
+
+module Sym = {
+  include Sym;
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
+  type t = Sym.t(T.t, NT.t);
+  let of_tile: Tile.Sym.t => t = Sym.map(tile, tile);
+  let of_grout: Grout.Sym.t => t = Sym.map(grout, grout);
 };
 
 // module T = Molded;
