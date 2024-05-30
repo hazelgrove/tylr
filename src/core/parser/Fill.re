@@ -92,19 +92,26 @@ let fill = (~l=false, ~r=false, fill: t, nt: Mtrl.NT.t): Cell.t => {
     |> pad(~side=L, ~spc)
     |> Options.get_fail("todo: shouldn't be possible");
   | Tile((s, _)) =>
-    let cells =
-      [l ? [Cell.empty] : [], to_list(fill), r ? [Cell.empty] : []]
-      |> List.concat;
-    let toks =
-      Token.Grout.[
-        l ? [pre(s)] : [],
-        List.init(length(fill) - 1, _ => in_(s)),
-        r ? [pos(s)] : [],
-      ]
-      |> List.concat;
-    switch (toks) {
-    | [] => List.hd(cells)
-    | [_, ..._] => Cell.put(Meld.of_chain(Chain.mk(cells, toks)))
-    };
+    switch (is_space(fill)) {
+    | Some(spc) =>
+      fill_default(nt)
+      |> pad(~side=L, ~spc)
+      |> Options.get_fail("todo: shouldn't be possible")
+    | None =>
+      let cells =
+        [l ? [Cell.empty] : [], to_list(fill), r ? [Cell.empty] : []]
+        |> List.concat;
+      let toks =
+        Token.Grout.[
+          l ? [pre(s)] : [],
+          List.init(length(fill) - 1, _ => in_(s)),
+          r ? [pos(s)] : [],
+        ]
+        |> List.concat;
+      switch (toks) {
+      | [] => List.hd(cells)
+      | [_, ..._] => Cell.put(Meld.of_chain(Chain.mk(cells, toks)))
+      };
+    }
   };
 };
