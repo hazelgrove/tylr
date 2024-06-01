@@ -22,7 +22,7 @@ module Base = {
 };
 include Base;
 
-module Map = MapUtil.Make(Base);
+module Map = Maps.Make(Base);
 
 module Point = {
   [@deriving (show({with_path: false}), sexp, yojson)]
