@@ -95,7 +95,7 @@ module Wald = {
     }
     and rm_ghost_and_go = (src, fill) =>
       switch (W.unlink(src)) {
-      | Ok((hd, cell, tl)) when Token.Tile.is_unfinished(hd) =>
+      | Ok((hd, cell, tl)) when Option.is_some(Token.Tile.is_ghost(hd)) =>
         let fill = Fill.cons(cell, fill);
         switch (go(tl, fill)) {
         // require eq match further in to accept removing hd

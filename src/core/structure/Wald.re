@@ -62,11 +62,12 @@ let zip_hds = (~from: Dir.t, src: t, ~cursor=?, dst: t): option(t) => {
   let (src, dst) =
     switch (cursor) {
     | None => (src, dst)
-    | Some(foc) =>
+    | Some(caret) =>
+      let p = Token.Marks.Point.mk(caret, 0);
       switch (from) {
-      | L => (src, map(Chain.map_hd(Token.add_mark((0, foc))), dst))
-      | R => (map(Chain.map_hd(Token.add_mark((0, foc))), src), dst)
-      }
+      | L => (src, map(Chain.map_hd(Token.add_mark(p)), dst))
+      | R => (map(Chain.map_hd(Token.add_mark(p)), src), dst)
+      };
     };
   let (hd_src, tl_src) = split_hd(src);
   let (hd_dst, tl_dst) = split_hd(dst);

@@ -2,39 +2,7 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
-module Marks = {
-  [@deriving (show({with_path: false}), sexp, yojson, hash)]
-  type t = list((int, bool));
-  let shift = n => List.map(((m, b)) => (m + n, b));
-  let union = (@);
-  let to_paths =
-    fun
-    | [] => Path.Marks.empty
-    | [(n, is_focus)] =>
-      Path.Marks.mk(~cursor=Point({is_focus, path: [n]}), ())
-    | [(n1, b1), (n2, _), ..._] =>
-      Path.Marks.mk(
-        ~cursor=
-          Select(
-            b1
-              ? {focus: [n1], anchor: [n2]} : {focus: [n2], anchor: [n1]},
-          ),
-        (),
-      );
-  let hd =
-    fun
-    | [] => 0
-    | [n, ..._] => n;
-  let of_paths = (marks: Path.Marks.t) =>
-    switch (marks.cursor) {
-    | None => []
-    | Some(Point({is_focus, path})) => [(hd(path), is_focus)]
-    | Some(Select({focus, anchor})) => [
-        (hd(focus), true),
-        (hd(anchor), false),
-      ]
-    };
-};
+module Marks = Marks.Token;
 
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, hash)]
@@ -45,19 +13,18 @@ module Base = {
     marks: Marks.t,
     text: string,
   };
-  let mk = (~id=?, ~text="", ~marks=[], mtrl) => {
+  let mk = (~id=?, ~text="", ~marks=?, mtrl) => {
     let id = Id.Gen.value(id);
     {id, mtrl, marks, text};
   };
   let id = (tok: t(_)) => tok.id;
   let is_empty = (tok: t(_)) => String.equal(tok.text, "");
-  let add_mark = (mark, tok) => {...tok, marks: [mark, ...tok.marks]};
-  let add_marks = (marks, tok) => {...tok, marks: marks @ tok.marks};
-  let clear_marks = tok => {...tok, marks: []};
-  let pop_marks = (n, tok) => (
-    Path.Marks.cons(n, Marks.to_paths(tok.marks)),
-    clear_marks(tok),
-  );
+  let add_mark = (p, tok) => {...tok, marks: Marks.add(p, tok.marks)};
+  // let add_mark = (mark, tok) => {...tok, marks: [mark, ...tok.marks]};
+  // let add_marks = (marks, tok) => {...tok, marks: marks @ tok.marks};
+  let put_marks = (marks, tok) => {...tok, marks};
+  let clear_marks = tok => put_marks(None, tok);
+  let pop_marks = tok => (tok.marks, clear_marks(tok));
 };
 
 module Molded = {
@@ -77,8 +44,8 @@ module Molded = {
     };
   let show = Fmt.to_to_string(pp);
 
-  let mk = (~id=?, ~text="", ~marks=[], mtrl: Mtrl.T.t) =>
-    Base.mk(~id?, ~text, ~marks, mtrl);
+  let mk = (~id=?, ~text="", ~marks=?, mtrl: Mtrl.T.t) =>
+    Base.mk(~id?, ~text, ~marks?, mtrl);
 
   let is_empty = (tok: t) =>
     switch (tok.mtrl) {
@@ -136,8 +103,8 @@ include Molded;
 
 module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
-  let mk = (~id=?, ~text="", ~marks=[], ()) =>
-    Molded.mk(~id?, ~text, ~marks, Space());
+  let mk = (~id=?, ~text="", ~marks=?, ()) =>
+    Molded.mk(~id?, ~text, ~marks?, Space());
   let empty = mk();
   // let cursor = failwith("todo Token.Space");
 };
@@ -151,11 +118,12 @@ module Grout = {
   let in_ = (~id=?) => mk(~id?, (Conc, Conc));
 };
 module Tile = {
-  let is_unfinished = (tok: t) =>
+  let is_ghost = (tok: t) =>
     switch (tok.mtrl) {
     | Space ()
-    | Grout(_) => false
-    | Tile((lbl, _)) => !Label.is_complete(tok.text, lbl)
+    | Grout(_) => None
+    | Tile((lbl, _) as t) =>
+      Label.is_complete(tok.text, lbl) ? None : Some(t)
     };
 };
 

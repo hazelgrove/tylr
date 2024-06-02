@@ -1,4 +1,4 @@
-[@deriving (show({with_path: false}), sexp, yojson)]
+[@deriving (show({with_path: false}), sexp, yojson, hash)]
 type t('point, 'select) =
   | Point('point)
   | Select('select);

@@ -2,21 +2,23 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Util;
 
+module Marks = Marks.Cell;
+
 module Cell = {
   [@deriving (sexp, yojson)]
   type t('meld) = {
-    marks: Path.Marks.t,
+    marks: Marks.t,
     meld: option('meld),
   };
-  let mk = (~marks=Path.Marks.empty, ~meld=?, ()) => {marks, meld};
+  let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
   let pp = (pp_meld, out, {marks, meld}: t(_)) =>
-    Path.Marks.is_empty(marks) && Option.is_none(meld)
+    Marks.is_empty(marks) && Option.is_none(meld)
       ? Fmt.pf(out, "{}")
       : Fmt.pf(
           out,
           "{%a@ |@ %a}",
-          Path.Marks.pp,
+          Marks.pp,
           marks,
           Fmt.option(pp_meld),
           meld,
