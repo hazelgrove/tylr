@@ -518,14 +518,14 @@ open Stds;
 // };
 
 let view_str =
-  Core.Memo.general(
+  Stds.Memo.general(
     fun
     | "" => []
     | str => Node.[span([text(str)])],
   );
 
 let view_indent =
-  Core.Memo.general(n => view_str(Strings.repeat(n, Unicode.nbsp)));
+  Stds.Memo.general(n => view_str(Strings.repeat(n, Util.Unicode.nbsp)));
 
 let view_text =
   Layout.fold(

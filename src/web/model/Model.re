@@ -15,6 +15,10 @@ open Tylr_core;
 
 // let settings_init = {captions: false, whitespace_icons: false};
 
+module State = State;
+module FontMetrics = FontMetrics;
+module History = History;
+
 type t = {
   zipper: Zipper.t,
   history: History.t,

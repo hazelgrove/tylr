@@ -65,3 +65,7 @@ let key_dir_string = (key: t): string =>
 
 let to_string = (key: t): string =>
   "KEY" ++ key_dir_string(key) ++ modifiers_string(key);
+
+let is_printable = s => Re.Str.(string_match(regexp("^[ -~]$"), s, 0));
+let is_digit = s => Re.Str.(string_match(regexp("^[0-9]$"), s, 0));
+let is_f_key = s => Re.Str.(string_match(regexp("^F[0-9][0-9]*$"), s, 0));

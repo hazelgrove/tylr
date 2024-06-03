@@ -20,13 +20,13 @@ let write_to_clipboard = (_string: string) => {
 
 let observe_font_specimen = (id, update) =>
   ResizeObserver.observe(
-    ~node=JsUtil.get_elem_by_id(id),
+    ~node=Util.JsUtil.get_elem_by_id(id),
     ~f=
       (entries, _) => {
         let specimen = Js.to_array(entries)[0];
         let rect = specimen##.contentRect;
         update(
-          FontMetrics.{
+          Model.FontMetrics.{
             row_height: rect##.bottom -. rect##.top,
             col_width: rect##.right -. rect##.left,
           },
@@ -39,7 +39,7 @@ let restart_caret_animation = () =>
   // necessary to trigger reflow
   // <https://css-tricks.com/restart-css-animation/>
   try({
-    let caret_elem = JsUtil.get_elem_by_id("caret");
+    let caret_elem = Util.JsUtil.get_elem_by_id("caret");
     caret_elem##.classList##remove(Js.string("blink"));
     let _ = caret_elem##getBoundingClientRect;
     caret_elem##.classList##add(Js.string("blink"));
@@ -93,7 +93,7 @@ let apply = (model, action, state, ~schedule_action): Model.t => {
 module App = {
   module Model = Model;
   module Action = Update;
-  module State = State;
+  module State = Model.State;
 
   let on_startup = (~schedule_action, _) => {
     let _ =
@@ -104,7 +104,7 @@ module App = {
     //   observe_font_specimen("logo-font-specimen", fm =>
     //     schedule_action(Web.Update.SetLogoFontMetrics(fm))
     //   );
-    Os.is_mac :=
+    Util.Os.is_mac :=
       Dom_html.window##.navigator##.platform##toUpperCase##indexOf(
         Js.string("MAC"),
       )
@@ -121,7 +121,7 @@ module App = {
       ~apply_action=apply(model),
       // ~on_display= (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
-      Page.view(~inject, model),
+      View.Page.view(~inject, model),
     );
   };
 };

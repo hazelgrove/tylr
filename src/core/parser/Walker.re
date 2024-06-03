@@ -110,7 +110,7 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
 };
 
 let swing_all =
-  Core.Memo.general(((nt: Mtrl.NT.t, from: Dir.t)) => {
+  Memo.general(((nt: Mtrl.NT.t, from: Dir.t)) => {
     let index = ref(Walk.Index.empty);
     let seen = Hashtbl.create(32);
     let q = Queue.create();
@@ -140,7 +140,7 @@ let swing_all =
 let swing_all = (sort, ~from: Dir.t): Index.t => swing_all((sort, from));
 
 let step_all =
-  Core.Memo.general(((src: End.t, from: Dir.t)) =>
+  Memo.general(((src: End.t, from: Dir.t)) =>
     switch (src) {
     | Root => swing_all(Tile(Tile.NT.root), ~from)
     // space takes prec over everything. could make it so that space eq space
@@ -188,7 +188,7 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
 };
 
 let walk_all =
-  Core.Memo.general(((from: Dir.t, src: End.t)) => {
+  Memo.general(((from: Dir.t, src: End.t)) => {
     let q = Queue.create();
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q);
@@ -196,7 +196,7 @@ let walk_all =
 let walk_all = (~from: Dir.t, src: End.t) => walk_all((from, src));
 
 let enter_all =
-  Core.Memo.general(((from: Dir.t, nt: Mtrl.NT.t)) => {
+  Memo.general(((from: Dir.t, nt: Mtrl.NT.t)) => {
     let q = Queue.create();
     swing_all(~from, nt)
     |> Index.filter(is_neq)
@@ -208,17 +208,17 @@ let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 let step = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, step_all(~from, src));
 let lt =
-  Core.Memo.general(((l: End.t, r: End.t)) =>
+  Memo.general(((l: End.t, r: End.t)) =>
     Set.filter(Walk.is_neq, step(~from=L, l, r))
   )
   |> Funs.curry;
 let gt =
-  Core.Memo.general(((l: End.t, r: End.t)) =>
+  Memo.general(((l: End.t, r: End.t)) =>
     Set.filter(Walk.is_neq, step(~from=R, r, l))
   )
   |> Funs.curry;
 let eq =
-  Core.Memo.general(((l: End.t, r: End.t)) =>
+  Memo.general(((l: End.t, r: End.t)) =>
     Set.filter(Walk.is_eq, step(~from=L, l, r))
   )
   |> Funs.curry;

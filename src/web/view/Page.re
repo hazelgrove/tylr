@@ -175,7 +175,7 @@ let on_key = (~inject, ~model) =>
       Effect.Many(
         List.map(
           inject,
-          Keyboard.handle_key_event(Key.mk(KeyUp, evt), ~model),
+          Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
         ),
       )
     ),
@@ -183,7 +183,7 @@ let on_key = (~inject, ~model) =>
       Effect.Many(
         List.map(
           inject,
-          Keyboard.handle_key_event(Key.mk(KeyDown, evt), ~model),
+          Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
         ),
       )
     ),
@@ -197,7 +197,7 @@ let view = (~inject, model: Model.t) => {
         // necessary to make cell focusable
         // tabindex(0),
         on_blur(_ => {
-          JsUtil.get_elem_by_id("page")##focus;
+          Util.JsUtil.get_elem_by_id("page")##focus;
           Effect.Prevent_default;
         }),
         ...on_key(~inject, ~model),
@@ -205,7 +205,7 @@ let view = (~inject, model: Model.t) => {
     [
       FontSpecimen.view("font-specimen"),
       // FontSpecimen.view("logo-font-specimen"),
-      DecUtil.filters,
+      Dec.DecUtil.filters,
       // top_bar_view(~inject, model),
       // editor_caption_view(model),
       editor_view(model),

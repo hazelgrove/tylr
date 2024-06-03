@@ -1,6 +1,6 @@
 (library
  (name stds)
- (libraries base ptmap uutf sexplib fmt)
+ (libraries base core ptmap uutf sexplib fmt)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))

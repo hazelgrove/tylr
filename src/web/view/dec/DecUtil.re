@@ -1,6 +1,8 @@
 open Virtual_dom.Vdom;
 open Node;
 open Tylr_core;
+open Model;
+open Util;
 
 let tip_width = 0.32;
 let concave_adj = 0.25;
