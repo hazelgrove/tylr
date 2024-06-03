@@ -1,4 +1,4 @@
-open Util;
+open Stds;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Chain.t(Rel.t(Cell.t, Cell.t), Token.t);

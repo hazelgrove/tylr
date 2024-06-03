@@ -1,4 +1,4 @@
-open Util;
+open Stds;
 
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t('focus, 'atom) = ('focus, RCtx.t('atom));

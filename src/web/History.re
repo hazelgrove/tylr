@@ -1,4 +1,3 @@
-open Util;
 open Tylr_core;
 
 // type t = {

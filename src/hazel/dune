@@ -2,7 +2,7 @@
 
 (library
  (name tylr_hazel)
- (libraries util re sexplib)
+ (libraries stds re sexplib)
  (implements tylr_core)
  (js_of_ocaml
   (flags

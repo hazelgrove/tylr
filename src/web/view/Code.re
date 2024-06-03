@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 open Node;
 open Tylr_core;
-open Util;
+open Stds;
 
 // let span_c = cls => span([Attr.class_(cls)]);
 

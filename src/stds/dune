@@ -1,5 +1,5 @@
 (library
- (name util)
+ (name stds)
  (libraries base ptmap uutf sexplib fmt)
  (js_of_ocaml
   (flags

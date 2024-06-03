@@ -77,7 +77,7 @@ open Node;
 
 // let center_panel_view = (~inject, cur_idx) => {
 //   let next_ed = (cur_idx + 1) mod LocalStorage.num_editors;
-//   let prev_ed = Util.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
+//   let prev_ed = Stds.IntUtil.modulo(cur_idx - 1, LocalStorage.num_editors);
 //   let incr_ed = _ => {
 //     Log.append_json_updates_log();
 //     inject(Update.SwitchEditor(next_ed));

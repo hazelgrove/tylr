@@ -1,5 +1,3 @@
-open Util;
-
 [@deriving (sexp, yojson, ord)]
 type t('a) =
   | Star_

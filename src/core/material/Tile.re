@@ -1,5 +1,3 @@
-open Util;
-
 // module Base = {
 //   type t('a) = ('a, Mold.t);
 //   let map = (f, (a, mold): t(_)) => (f(a), mold);
@@ -35,7 +33,7 @@ module Sym = {
   };
 };
 
-// open Util;
+// open Stds;
 // // molded mtrlized syms
 // module T = {
 //   [@deriving (sexp, yojson, ord)]

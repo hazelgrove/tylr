@@ -3,7 +3,7 @@
 (library
  (name tylr_web)
  (modules :standard \ Main)
- (libraries incr_dom util tylr_core)
+ (libraries incr_dom stds tylr_core)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))

@@ -1,5 +1,3 @@
-open Util;
-
 module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]

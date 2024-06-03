@@ -1,4 +1,4 @@
-open Util;
+open Stds;
 
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
@@ -11,7 +11,7 @@ include Base;
 
 let mk = (toks, cells) => {
   let (cells, cell) =
-    Util.Lists.Framed.ft(cells)
+    Stds.Lists.Framed.ft(cells)
     |> Options.get_exn(Invalid_argument("Terr.mk"));
   {wald: Wald.mk(toks, List.rev(cells)), cell};
 };

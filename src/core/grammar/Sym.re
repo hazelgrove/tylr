@@ -12,7 +12,7 @@ let get_t =
   | NT(_) => None;
 let is_t = sym => Option.is_some(get_t(sym));
 let expect_t = sym =>
-  Util.Options.get_exn(Invalid_argument("Sym.expect_t"), get_t(sym));
+  Stds.Options.get_exn(Invalid_argument("Sym.expect_t"), get_t(sym));
 
 let get_nt =
   fun

@@ -1,4 +1,4 @@
-open Util;
+open Stds;
 
 let bake_eq =
     (~fill=Fill.empty, sort: Mtrl.NT.t): option(Rel.t(Cell.t, Cell.t)) => {

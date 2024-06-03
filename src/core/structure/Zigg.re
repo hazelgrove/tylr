@@ -1,5 +1,3 @@
-open Util;
-
 // L2R: up top dn
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = {

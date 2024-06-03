@@ -1,4 +1,4 @@
-open Util;
+open Stds;
 
 include Chain;
 [@deriving (show({with_path: false}), sexp, yojson)]
@@ -12,7 +12,7 @@ let fold = Chain.fold_left;
 let fold_root = Chain.fold_right;
 
 let face = (~side: Dir.t, ctx: t) => {
-  open Util.Options.Syntax;
+  open Stds.Options.Syntax;
   let/ () = Frame.Open.face(~side, hd(ctx));
   let+ (_, (l, r), _) = Result.to_option(unlink(ctx));
   Terr.face(Dir.pick(side, (l, r)));
@@ -22,7 +22,7 @@ let extend = (~side as d: Dir.t, tl, ctx) => {
   switch (Frame.Open.extend(~side=d, tl, hd(ctx))) {
   | Some(hd) => Some(put_hd(hd, ctx))
   | None =>
-    open Util.Options.Syntax;
+    open Stds.Options.Syntax;
     let+ (slopes, terrs, ctx) = Result.to_option(unlink(ctx));
     let (t_d, t_b) = Dir.order(d, terrs);
     let terrs = Dir.order(d, (Terr.extend(tl, t_d), t_b));

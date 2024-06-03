@@ -1,6 +1,5 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
-open Util;
 
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t('a) = list(RFrame.t('a));

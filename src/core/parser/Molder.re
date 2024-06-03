@@ -1,4 +1,4 @@
-open Util;
+open Stds;
 
 // replace ghost with piece above bridge
 // let x = 1 >in< x + 1

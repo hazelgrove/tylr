@@ -1,4 +1,4 @@
-// open Util;
+// open Stds;
   // open SvgUtil;
   // let caret_width_straight = 0.1;
   // let caret_width_bent = 0.1;

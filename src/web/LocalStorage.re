@@ -97,7 +97,7 @@
   // let parse_to_zid = (id_gen: IdGen.state, str: string): option(Zipper.state) =>
   //   try(
   //     str
-  //     |> Util.Strings.to_list
+  //     |> Stds.Strings.to_list
   //     |> List.fold_left(insert_to_zid, (Model.empty_zipper, id_gen))
   //     |> Option.some
   //   ) {

@@ -1,5 +1,3 @@
-open Util;
-
 let add = (lbl, mold) =>
   Label.Map.update(
     lbl,

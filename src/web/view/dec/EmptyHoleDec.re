@@ -26,7 +26,7 @@
   //   let sort = mold.out;
   //   let c_cls = Sort.to_string(sort);
   //   let (tip_l, tip_r): (Core.Nib.Shape.t, Core.Nib.Shape.t) =
-  //     Util.Tuples.map2(Core.Nib.shape, mold.nibs);
+  //     Stds.Tuples.map2(Core.Nib.shape, mold.nibs);
   //   let (tip_l, tip_r): (Core.Nib.t, Core.Nib.t) = (
   //     {sort, shape: tip_l},
   //     {sort, shape: tip_r},

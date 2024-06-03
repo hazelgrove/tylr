@@ -3,7 +3,7 @@
 (library
  (name tylr_core)
  (virtual_modules sort grammar)
- (libraries util sedlex re sexplib uutf core fmt)
+ (libraries stds sedlex re sexplib uutf core fmt)
  (js_of_ocaml
   (flags
    (:include js-of-ocaml-flags-%{profile})))
