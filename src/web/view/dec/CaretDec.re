@@ -1,5 +1,5 @@
 // open Stds;
-  // open SvgUtil;
+  // open Svgs;
   // let caret_width_straight = 0.1;
   // let caret_width_bent = 0.1;
   // let caret_bend = DecUtil.tip_width;

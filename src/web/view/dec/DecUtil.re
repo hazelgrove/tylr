@@ -69,7 +69,7 @@ let code_svg =
       ~height_fudge=0.0,
       ~id="",
       ~attrs=[],
-      paths: list(SvgUtil.Path.cmd),
+      paths: list(Svgs.Path.cmd),
     ) =>
   create_svg(
     "svg",
@@ -89,7 +89,7 @@ let code_svg =
         Attr.create("preserveAspectRatio", "none"),
       ]
       @ attrs,
-    [SvgUtil.Path.view(~attrs=[Attr.classes(path_cls)], paths)],
+    [Svgs.Path.view(~attrs=[Attr.classes(path_cls)], paths)],
   );
 
 let raised_shadow_filter = (sort: Tylr_core.Sort.t) => {
@@ -133,7 +133,7 @@ let shadow_filter = (sort: Tylr_core.Sort.t) => {
 };
 
 let filters =
-  NodeUtil.svg(
+  Nodes.svg(
     Attr.[id("filters")],
     List.map(raised_shadow_filter, Tylr_core.Sort.all)
     @ List.map(shadow_filter, Tylr_core.Sort.all),

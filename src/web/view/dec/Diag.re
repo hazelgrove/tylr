@@ -1,5 +1,5 @@
 // open DecUtil;
-  // open SvgUtil.Path;
+  // open Svgs.Path;
   // [@deriving show]
   // type tip_shape = (Core.Nib.t, int);
   // // top right to bottom left
@@ -12,7 +12,7 @@
   //       ~stretch_y=0.,
   //       (),
   //     ) =>
-  //   SvgUtil.Path.(
+  //   Svgs.Path.(
   //     {
   //       let (diag, junction) =
   //         with_child_border
@@ -41,7 +41,7 @@
   //       ~stretch_y=0.,
   //       (),
   //     ) =>
-  //   SvgUtil.Path.reverse(
+  //   Svgs.Path.reverse(
   //     tr_bl(~hemi, ~with_child_border, ~stretch_x, ~stretch_y, ()),
   //   );
   // // top left to bottom right
@@ -53,7 +53,7 @@
   //       ~stretch_y=0.,
   //       (),
   //     ) =>
-  //   SvgUtil.Path.(
+  //   Svgs.Path.(
   //     {
   //       let (diag, junction) =
   //         with_child_border
@@ -77,11 +77,11 @@
   //       ~stretch_y=0.,
   //       (),
   //     ) =>
-  //   SvgUtil.Path.reverse(
+  //   Svgs.Path.reverse(
   //     tl_br(~hemi, ~with_child_border, ~stretch_x, ~stretch_y, ()),
   //   );
   // let left_tip_path =
-  //     (~scale_x as s_x=1., ~scale_y as s_y=1., tip: tip_shape): SvgUtil.Path.t => {
+  //     (~scale_x as s_x=1., ~scale_y as s_y=1., tip: tip_shape): Svgs.Path.t => {
   //   let path =
   //     switch (tip) {
   //     | ({shape: Convex, _}, _) =>
@@ -115,13 +115,13 @@
   //   scale_x(s_x, scale_y(s_y, path));
   // };
   // let right_tip_path =
-  //     (~scale_x as s_x=1., ~scale_y as s_y=1., tip: tip_shape): SvgUtil.Path.t => {
+  //     (~scale_x as s_x=1., ~scale_y as s_y=1., tip: tip_shape): Svgs.Path.t => {
   //   let path =
   //     switch (tip) {
   //     | ({shape: Convex, _}, _) =>
   //       tl_br(~hemi=`North, ()) @ tr_bl(~hemi=`South, ())
   //     | ({shape: Concave(_a), _}, n) =>
-  //       open SvgUtil.Path;
+  //       open Svgs.Path;
   //       let jag = [
   //         L_({dx: jagged_edge_w, dy: jagged_edge_h}),
   //         L_({dx: -. jagged_edge_w, dy: jagged_edge_h}),

@@ -197,7 +197,7 @@ let view = (~inject, model: Model.t) => {
         // necessary to make cell focusable
         // tabindex(0),
         on_blur(_ => {
-          Util.JsUtil.get_elem_by_id("page")##focus;
+          Util.Dom.get_elem_by_id("page")##focus;
           Effect.Prevent_default;
         }),
         ...on_key(~inject, ~model),

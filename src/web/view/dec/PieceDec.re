@@ -2,7 +2,7 @@
   // open Tylr_core;
   // open Virtual_dom.Vdom;
   // open Node;
-  // open SvgUtil;
+  // open Svgs;
   // module Profile = {
   //   type style =
   //     | Root(Measured.point, Measured.point)
@@ -137,7 +137,7 @@
   //            (((_, l: Measured.measurement), (_, r: Measured.measurement))) =>
   //            (
   //              l.origin,
-  //              SvgUtil.Path.[
+  //              Svgs.Path.[
   //                shadowfudge(m(~x=0, ~y=1)),
   //                h(~x=r.last.col - l.origin.col),
   //              ],
@@ -157,7 +157,7 @@
   //          let v_delta = origin'.col == indent ? (-1) : 0;
   //          (
   //            origin,
-  //            SvgUtil.Path.[
+  //            Svgs.Path.[
   //              shadowfudge(m(~x=0, ~y=1)),
   //              h_(~dx=indent - origin.col),
   //              shadowfudge(v_(~dy=origin'.row - origin.row + v_delta)),
@@ -180,7 +180,7 @@
   //       mold: Mold.t,
   //       shards: Measured.Shards.t,
   //     ) => {
-  //   open SvgUtil.Path;
+  //   open Svgs.Path;
   //   let l_line = {
   //     let (_, m_first) = List.hd(shards);
   //     let (_, m_last_of_first) = {

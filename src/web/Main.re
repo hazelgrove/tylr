@@ -20,7 +20,7 @@ let write_to_clipboard = (_string: string) => {
 
 let observe_font_specimen = (id, update) =>
   ResizeObserver.observe(
-    ~node=Util.JsUtil.get_elem_by_id(id),
+    ~node=Util.Dom.get_elem_by_id(id),
     ~f=
       (entries, _) => {
         let specimen = Js.to_array(entries)[0];
@@ -39,7 +39,7 @@ let restart_caret_animation = () =>
   // necessary to trigger reflow
   // <https://css-tricks.com/restart-css-animation/>
   try({
-    let caret_elem = Util.JsUtil.get_elem_by_id("caret");
+    let caret_elem = Util.Dom.get_elem_by_id("caret");
     caret_elem##.classList##remove(Js.string("blink"));
     let _ = caret_elem##getBoundingClientRect;
     caret_elem##.classList##add(Js.string("blink"));

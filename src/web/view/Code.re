@@ -244,7 +244,7 @@ open Stds;
 //         ~origin={row: 0, col: 0},
 //         ~base_cls=["restructuring-genie"],
 //         ~path_cls=["restructuring-genie-path"],
-//         SvgUtil.Path.[
+//         Svgs.Path.[
 //           M({x: 0., y: 0.}),
 //           V({y: (-1.0)}),
 //           H_({dx: Float.of_int(length)}),

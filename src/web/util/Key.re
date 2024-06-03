@@ -1,4 +1,5 @@
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+open Js_of_ocaml;
 
 [@deriving (show({with_path: false}), yojson)]
 type dir =
@@ -31,7 +32,8 @@ type t = {
 };
 
 let key_of = (dir: dir, evt): key => {
-  let key = JsUtil.get_key(evt);
+  let key =
+    Js.to_string(Js.Optdef.get(evt##.key, () => failwith("Key.key_of")));
   switch (dir) {
   | KeyUp => U(key)
   | KeyDown => D(key)
@@ -43,10 +45,10 @@ let to_held: bool => held = b => b ? Down : Up;
 let mk = (dir: dir, evt): t => {
   key: key_of(dir, evt),
   sys: Os.is_mac^ ? Mac : PC,
-  shift: to_held(JsUtil.shift_held(evt)),
-  meta: to_held(JsUtil.meta_held(evt)),
-  ctrl: to_held(JsUtil.ctrl_held(evt)),
-  alt: to_held(JsUtil.alt_held(evt)),
+  shift: to_held(Js.to_bool(evt##.shiftKey)),
+  meta: to_held(Js.to_bool(evt##.metaKey)),
+  ctrl: to_held(Js.to_bool(evt##.ctrlKey)),
+  alt: to_held(Js.to_bool(evt##.altKey)),
 };
 
 let modifier_string = (h: held, m): string => h == Down ? " + " ++ m : "";

@@ -9,7 +9,7 @@
   // let path = (tip_l, tip_r, offset, s: float) => {
   //   let x_dilate = 1.5;
   //   List.concat(
-  //     SvgUtil.Path.[
+  //     Svgs.Path.[
   //       [
   //         M({x: offset +. 0.5, y: 0.5 -. s /. 2.}),
   //         H_({dx: x_dilate *. s /. 2.}),
