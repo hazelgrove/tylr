@@ -15,12 +15,6 @@ let put_cursor = (cur: Path.Cursor.t, cell: t) => {
 
 let face = (~side: Dir.t, c: t) => Option.map(Meld.face(~side), c.meld);
 
-// let has_space = (cell: t) =>
-//   switch (cell.meld) {
-//   | Some(M(_, W(([tok], [])), _)) when Token.Space.is(tok) => true
-//   | _ => false
-//   };
-
 let map_marks = (f, cell) => {...cell, marks: f(cell.marks)};
 let add_marks = marks => map_marks(Marks.union(marks));
 let clear_marks = cell => {...cell, marks: Marks.empty};
