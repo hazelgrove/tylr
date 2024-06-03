@@ -8,7 +8,7 @@ type t = Meld.Cell.t(Meld.t);
 // let empty = mk();
 let is_empty = c => Option.is_none(c.meld);
 
-let put_cursor = (cur: Cursor.t(Marks.Point.t, Marks.Selection.t), cell: t) => {
+let put_cursor = (cur: Path.Cursor.t, cell: t) => {
   ...cell,
   marks: Marks.put_cursor(cur, cell.marks),
 };

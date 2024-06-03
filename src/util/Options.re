@@ -12,6 +12,10 @@ let map2 = (f, o1, o2) =>
 let for_all = (l: list(option('a))): option(list('a)) =>
   List.fold_right(map2((x, xs) => [x, ...xs]), l, Some([]));
 
+let merge = Base.Option.merge;
+
+let bind = Base.Option.bind;
+
 module Syntax = {
   let ( let* ) = Option.bind;
   let (let+) = (o, f) => Option.map(f, o);
