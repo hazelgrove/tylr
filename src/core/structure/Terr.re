@@ -21,6 +21,11 @@ let mk' = ((toks, cells)) =>
   | exception (Invalid_argument(_)) => None
   };
 
+let unmk = ({wald: W((toks, cells)), cell}: t) => (toks, cells @ [cell]);
+
+let hd = terr => Wald.hd(terr.wald);
+let tokens = terr => Wald.tokens(terr.wald);
+
 let sort = (terr: t) => Wald.sort(terr.wald);
 let face = (terr: t) => Wald.face(terr.wald);
 let cells = (terr: t) => Wald.cells(terr.wald) @ [terr.cell];

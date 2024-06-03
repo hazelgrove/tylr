@@ -50,7 +50,7 @@ module Ictx = {
     delim: Bound.t(Token.t),
     // indentation at start of cell (before any newlines)
     left: Col.t,
-    // indentation to return to at end of cell
+    // indentation to return to at end of cell (after all newlines)
     right: Col.t,
   };
   let init = {delim: Root, left: 0, right: 0};
@@ -59,6 +59,56 @@ module Ictx = {
       ctx.delim |> Bound.map(Token.indent) |> Bound.get(~root=false);
     ctx.left + (indent && newline ? 2 : 0);
   };
+};
+
+module State = {
+  type t = {
+    ctx: Ictx.t,
+    pos: Pos.t,
+  };
+
+  let init = {ctx: Ictx.init, pos: Pos.zero};
+
+  let load_terr = (terr: Terr.R.t, ~closed=false, s: t): t => {
+    let mid =
+      Ictx.middle(~newline=Dims.of_cell(terr.cell).height > 0, s.ctx);
+    let ctx =
+      Ictx.{
+        delim: Bound.Node(Terr.hd(terr)),
+        left: mid,
+        right: closed ? mid : s.ctx.right,
+      };
+    let pos =
+      List.fold_right2(
+        (tok, cell, pos) =>
+          pos
+          |> Pos.skip(~over=Dims.of_cell(cell), ~return=mid)
+          |> Pos.skip_col(Token.length(tok)),
+        Terr.tokens(terr),
+        Terr.cells(terr),
+        s.pos,
+      );
+    {ctx, pos};
+  };
+
+  let load_closed = ((l, _): Frame.Closed.t) => load_terr(l, ~closed=true);
+
+  // hack to deal with Token.length being incorrect for split tokens
+  // let err =
+  //   switch (open_) {
+  //   | ([hd, ..._], _) when Frame.Open.zips(open_) =>
+  //     let hd = Wald.hd(hd);
+  //     Token.length(hd) - Utf8.length(hd);
+  //   | _ => 0
+  //   };
+  let load_open = ((dn, _): Frame.Open.t) =>
+    List.fold_right((terr, s) => load_terr(terr, s), dn);
+
+  let load = (~init=init): (Ctx.t => t) =>
+    Ctx.fold_root(
+      (open_, closed, s) => s |> load_closed(closed) |> load_open(open_),
+      open_ => load_open(open_, init),
+    );
 };
 
 let fold =

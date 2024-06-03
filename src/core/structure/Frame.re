@@ -17,6 +17,12 @@ module Open = {
     | L => Slope.extend(tl, dn) |> Option.map(dn => (dn, up))
     | R => Slope.extend(tl, up) |> Option.map(up => (dn, up))
     };
+  let zips =
+    fun
+    | ([hd_l, ..._], [hd_r, ..._])
+        when Option.is_some(Token.zip(Wald.hd(hd_l), Wald.hd(hd_r))) =>
+      true
+    | _ => false;
 };
 
 module Closed = {

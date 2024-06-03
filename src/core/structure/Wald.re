@@ -28,6 +28,7 @@ let unlink = (W(w)) =>
   Chain.unlink(w)
   |> Result.map(~f=((tok, cell, tl)) => (tok, cell, W(tl)));
 
+let tokens: t => list(Token.t) = get(Chain.loops);
 let cells: t => list(Cell.t) = get(Chain.links);
 
 let extend = tl => map(Chain.extend(tl));
