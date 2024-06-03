@@ -80,24 +80,54 @@ module Molded = {
     } else {
       None;
     };
-  let unzip = (n: int, tok: t): Result.t((t, t), Dir.t) =>
-    switch (tok.mtrl, Utf8.split(n, tok.text)) {
-    | (_, ("", _)) => Error(L)
-    | (Space () | Grout(_), (_, "")) => Error(R)
-    | (Space () | Grout(_), (l, r)) =>
-      Ok(({...tok, text: l}, {...tok, text: r}))
-    | (Tile((lbl, _)), (_, ""))
-        when Label.is_complete(tok.text, lbl) || n > Utf8.length(tok.text) =>
-      Error(R)
-    | (Tile(_), (txt_l, txt_r)) =>
-      let l = {...tok, text: txt_l};
-      let r = {...tok, text: txt_r};
-      Ok((l, r));
+
+  let is_complete = (tok: t) =>
+    switch (tok.mtrl) {
+    | Space ()
+    | Grout(_) => true
+    | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
     };
-  let pull = (~from: Dir.t, tok: t): option((t, t)) => {
-    let n = Dir.pick(from, (1, length(tok) - 1));
-    Result.to_option(unzip(n, tok));
-  };
+
+  // beware calling this on partial tokens
+  let unzip = (tok: t) =>
+    tok.marks
+    |> Option.map((cur: Step.Cursor.t) => {
+         let (m, n) =
+           switch (cur) {
+           | Point({path: n, _}) => (n, n)
+           | Select({range, _}) => range
+           };
+         let (l, m, r) = Utf8.split_sub(m, n, tok.text);
+         let l = Strings.is_empty(l) ? None : Some({...tok, text: l});
+         let cur =
+           switch (cur) {
+           | Point({hand, _}) => Cursor.Point(Caret.mk(hand, ()))
+           | Select(sel) =>
+             Strings.is_empty(m)
+               ? Point(Caret.focus())
+               : Select(Selection.put({...tok, text: m}, sel))
+           };
+         let r =
+           Strings.is_empty(r)
+           && (is_complete(tok) || n > Utf8.length(tok.text))
+             ? None : Some({...tok, text: r});
+         (l, cur, r);
+       });
+
+  let split_caret = (tok: t): (t, Caret.t(unit), t) =>
+    switch (unzip(tok)) {
+    | Some((Some(l), Point(hand), Some(r))) => (l, hand, r)
+    | _ => raise(Invalid_argument("Token.Molded.split_caret"))
+    };
+
+  let pull = (~from: Dir.t, tok: t): option((t, t)) =>
+    if (is_empty(tok) || length(tok) == 1) {
+      None;
+    } else {
+      let car = Caret.focus(Dir.pick(from, (1, length(tok) - 1)));
+      let (l, _, r) = split_caret({...tok, marks: Some(Point(car))});
+      Some((l, r));
+    };
 };
 include Molded;
 

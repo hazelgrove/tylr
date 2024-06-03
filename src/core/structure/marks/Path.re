@@ -76,7 +76,8 @@ module Caret = {
   let cons = n => map(Base.cons(n));
   let peel = (n: Step.t, car: t) =>
     Base.peel(n, car.path) |> Option.map(path => {...car, path});
-  let hd = (car: t) => Head.map(Fun.const(car.hand), get(Base.hd, car));
+  let hd = (car: t) =>
+    Head.map(Fun.const(Caret.mk(car.hand, ())), get(Base.hd, car));
 };
 
 module Selection = {
@@ -89,7 +90,8 @@ module Selection = {
   let cons = n => map2(Base.cons(n));
   let peel = (n, sel: t) =>
     Range.peel(n, sel.range) |> Option.map(range => {...sel, range});
-  let hd = (~len) => get(Range.hd(~len));
+  let hd = (~len, sel) =>
+    Range.hd(~len, sel.range) |> Head.map(mk(~focus=sel.focus));
   let get_focus = (sel: t) => Dir.pick(sel.focus, sel.range);
   let put_focus = (foc, sel: t) => {
     let (_foc, anc) = Dir.order(sel.focus, sel.range);

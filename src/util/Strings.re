@@ -1,3 +1,5 @@
+let is_empty = (==)("");
+
 let to_list = Base.String.to_list;
 
 let insert_nth = (n, s, t) => {

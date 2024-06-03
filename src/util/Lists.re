@@ -48,7 +48,7 @@ module Framed = {
   let sublist = (i: int, j: int, xs: list('x)): t(list('x), 'x) => {
     let (xs, r) = Base.List.split_n(xs, j);
     let (l, xs) = Base.List.split_n(xs, i);
-    (xs, (l, r));
+    (xs, (List.rev(l), r));
   };
 
   let elems = (xs: list('x)): list(t('x, 'x)) => {

@@ -206,20 +206,27 @@ let unzip_loops = (c: t('lp, 'lk)): list((Affix.t(_), 'lp, Affix.t(_))) => {
   go(c);
 };
 
-let unzip_link = (n: int, c: t('lp, 'lk)): option((t(_), 'lk, t(_))) => {
+let unzip_link = (n: int, c: t('lp, 'lk)): (t(_), 'lk, t(_)) => {
   let invalid = Invalid_argument("Chain.unzip_link");
   if (n < 1 || n mod 2 == 0) {
     raise(invalid);
   };
   let rec go = (pre, n, suf) => {
-    open Options.Syntax;
-    let* (lk, lp, suf) = Affix.unlink(suf);
-    n == 1
-      ? Some((pre, lk, cons(lp, suf))) : go(link(lp, lk, pre), n - 2, suf);
+    let (lk, lp, suf) = Options.get_exn(invalid, Affix.unlink(suf));
+    n == 1 ? (pre, lk, cons(lp, suf)) : go(link(lp, lk, pre), n - 2, suf);
   };
   let (hd, tl) = split_hd(c);
   go(unit(hd), n, tl);
 };
+
+module Elem = {
+  type t('lp, 'lk) =
+    | Loop('lp)
+    | Link('lk);
+};
+
+let unzip = (n: int, c: t('lp, 'lk)) =>
+  Elem.(n mod 2 == 0 ? Loop(unzip_loop(n, c)) : Link(unzip_link(n, c)));
 
 let pp = (pp_lp, pp_lk, out, c: t(_)) => {
   let (lp, (lks, lps)) = split_hd(c);

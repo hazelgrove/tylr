@@ -14,8 +14,8 @@ module Action = {
 // d is side of cleared focus contents the cursor should end up
 let clear_focus = (d: Dir.t, z: Zipper.t) =>
   switch (z.cur) {
-  | Point () => z.ctx
-  | Select((_, zigg)) =>
+  | Point(_) => z.ctx
+  | Select({range: zigg, _}) =>
     let onto = Dir.toggle(d);
     Melder.Ctx.push_zigg(~onto, zigg, z.ctx);
   };
@@ -39,7 +39,7 @@ let insert = (s: string, z: Zipper.t) => {
   let (cell, ctx) =
     Labeler.label(l ++ s ++ r)
     |> List.fold_left((ctx, tok) => Molder.mold(ctx, tok), ctx)
-    |> Molder.remold(~fill=Fill.unit(Cell.point()));
+    |> Molder.remold(~fill=Fill.unit(Cell.point(Focus)));
   Zipper.unzip(cell, ~ctx)
   |> Option.map(Move.move_n(- Utf8.length(r)))
   |> Option.value(~default=Zipper.mk_unroll(R, cell, ~ctx));

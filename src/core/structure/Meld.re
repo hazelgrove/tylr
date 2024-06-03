@@ -114,9 +114,8 @@ let split_subwald = (i, j, M(l, W((ts, cs)), r): t) => {
 let length = m => Chain.length(to_chain(m));
 
 let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
-let unzip_tok = (step, m) =>
-  Chain.unzip_link(step, to_chain(m))
-  |> Options.get_fail("impossible: meld has at least one token");
+let unzip_tok = (step, m) => Chain.unzip_link(step, to_chain(m));
+let unzip = (step, m) => Chain.unzip(step, to_chain(m));
 
 let link = (~cell=Cell.empty, t: Token.t, M(l, W(w), r): t) =>
   M(cell, W(Chain.link(t, l, w)), r);

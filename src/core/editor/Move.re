@@ -14,7 +14,7 @@ let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let b = Dir.toggle(d);
   let+ ctx =
     switch (z.cur) {
-    | Point () =>
+    | Point(_) =>
       let+ (tok, ctx) = Melder.Ctx.pull(~from=d, z.ctx);
       // todo: add movement granularity
       switch (Token.pull(~from=b, tok)) {
@@ -24,7 +24,7 @@ let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
         |> Melder.Ctx.push_fail(~onto=d, tok)
         |> Melder.Ctx.push_fail(~onto=b, c)
       };
-    | Select((_, zigg)) =>
+    | Select({range: zigg, _}) =>
       z.ctx
       |> Melder.Ctx.push_zigg(~onto=b, zigg)
       |> Melder.Ctx.close

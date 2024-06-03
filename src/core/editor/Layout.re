@@ -118,11 +118,11 @@ let pos_of_path = (path: Path.t, cell: Cell.t): Pos.t => {
           ~over=Dims.of_space(l),
           ~return=h_r > 0 ? mid : ctx.right,
         );
-      | _ => raise(Path.Invalid)
+      | _ => raise(Marks.Invalid)
       }
     | None =>
       let M(c_l, _, _) as m =
-        Cell.get(cell) |> Options.get_exn(Path.Invalid);
+        Cell.get(cell) |> Options.get_exn(Marks.Invalid);
       let mid = Ictx.middle(~newline=Dims.of_cell(c_l).height > 0, ctx);
       switch (path) {
       | [] => l
@@ -272,13 +272,13 @@ let max_pos = (c: Cell.t) => {
 let map_focus = (f: Pos.t => Pos.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let c = Zipper.zip(z);
-  let* init_path = Path.Marks.get_focus(c.marks);
+  let* init_path = Cell.Marks.get_focus(c.marks);
   let init_pos = pos_of_path(init_path, c);
   let goal_pos = Pos.bound(f(init_pos), ~max=max_pos(c));
   let+ goal_path =
     Pos.eq(init_pos, goal_pos) ? None : Some(path_of_pos(goal_pos, c));
   c
-  |> Cell.map_marks(Path.Marks.put_focus(goal_path))
+  |> Cell.map_marks(Cell.Marks.put_focus(goal_path))
   |> Zipper.unzip
   |> Options.get_fail("bug: failed to unzip after putting path");
 };

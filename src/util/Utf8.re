@@ -17,10 +17,10 @@ let encode = (us: list(Uchar.t)) => {
   Buffer.contents(b);
 };
 
-// let sub = (i, j, s) =>
-//   decode(s)
-//   |> Lists.sublist(i, j)
-//   |> encode;
+let split_sub = (i, j, s) => {
+  let (sub, (l, r)) = Lists.Framed.sublist(i, j, decode(s));
+  (encode(List.rev(l)), encode(sub), encode(r));
+};
 
 let split = (i, s) => {
   let (l, r) = Base.List.split_n(decode(s), i);
