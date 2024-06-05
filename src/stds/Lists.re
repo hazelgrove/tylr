@@ -1,3 +1,5 @@
+let is_empty = Base.List.is_empty;
+
 let hd = Base.List.hd;
 let hd_exn = Base.List.hd_exn;
 let ft = Base.List.last;
