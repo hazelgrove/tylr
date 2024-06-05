@@ -117,34 +117,54 @@ and unzip_select =
   mk(~cur=Select({focus: sel.focus, range: zigg}), ctx);
 };
 
-let zip_closed = ((l, r): Frame.Closed.t, zipped: Cell.t) => {
+let zip_lt = (zipped: Cell.t, r: Terr.L.t) =>
+  Cell.put(M(zipped, hd_up.wald, hd_up.cell))
+let zip_gt = (l: Terr.R.t, zipped: Cell.t) =>
+  Cell.put(M(hd_dn.cell, Wald.rev(hd_dn.wald), zipped));
+let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
   let w = Wald.zip_cell(l.wald, zipped, r.wald);
   Cell.put(Meld.mk(~l=l.cell, w, ~r=r.cell));
 };
-let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
+
+let step_zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
   switch (dn, up) {
-  | ([], []) => zipped
-  | ([], [_, ..._]) =>
-    Fill.hd(Melder.Slope.Up.roll(~fill=Fill.unit(zipped), up))
-  | ([_, ..._], []) =>
-    Fill.hd(Melder.Slope.Dn.roll(dn, ~fill=Fill.unit(zipped)))
+  | ([], []) => None
+  | ([], [hd, ...tl]) => Some((zip_lt(zipped, hd), (dn, tl)))
+  | ([hd, ...tl], []) => Some((zip_gt(hd, zipped), (tl, up)))
   | ([hd_dn, ..._], [hd_up, ...tl_up])
       when Melder.Wald.lt(hd_dn.wald, hd_up.wald) =>
-    Cell.put(Meld.mk(~l=zipped, hd_up.wald, ~r=hd_up.cell))
-    |> zip_open((dn, tl_up))
+    Some((zip_lt(zipped, hd_up), (dn, tl_up)))
   | ([hd_dn, ...tl_dn], [hd_up, ..._])
       when Melder.Wald.gt(hd_dn.wald, hd_up.wald) =>
-    Cell.put(Meld.mk(~l=hd_dn.cell, Wald.rev(hd_dn.wald), ~r=zipped))
-    |> zip_open((tl_dn, up))
+    Some((zip_gt(hd_dn, zipped), (tl_dn, up)))
   | ([l, ...dn], [r, ...up]) =>
-    let cursor = Cell.is_point(zipped);
-    switch (Wald.zip_hds(~from=L, l.wald, ~cursor?, r.wald)) {
-    | Some(w) => Cell.put(M(l.cell, w, r.cell)) |> zip_open((dn, up))
+    let caret = Cell.is_point(zipped);
+    switch (Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald)) {
+    | Some(w) => Some((Cell.put(M(l.cell, w, r.cell), (dn, up))))
     | None =>
       assert(Melder.Wald.eq(l.wald, r.wald));
-      zipped |> zip_closed((l, r)) |> zip_open((dn, up));
+      Some((zip_eq(l, zipped, r), (dn, up)));
     };
   };
+let step_zip = (ctx: Ctx.t, zipped: Cell.t) =>
+  switch (Ctx.unlink(ctx)) {
+  | Error(open_) =>
+    Option.map(Tuples.map_snd(Ctx.of_loop), step_zip_open(open_, zipped))
+  | Ok((open_, (l, r), ctx)) =>
+    switch (step_zip_open(open_, zipped)) {
+    | Some((zipped, open_)) => Some((zipped, Ctx.link(open_, closed, ctx)))
+    | None => Some((zip_eq(l, zipped, r), ctx))
+    }
+  };
+
+let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
+  switch (step_zip_open((dn, up), zipped)) {
+  | None => zipped
+  | Some((zipped, rest)) => zip_open(rest, zipped)
+  };
+let zip_closed = ((l, r): Frame.Closed.t, zipped: Cell.t) =>
+  zip_eq(l, zipped, r);
+
 let zip = (~save_cursor=false, z: t) =>
   z.ctx
   |> (
