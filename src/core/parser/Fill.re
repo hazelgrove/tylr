@@ -25,9 +25,9 @@ let is_space = (fill: t) =>
   | _ => None
   };
 
-let is_point = (fill: t) =>
+let is_caret = (fill: t) =>
   switch (Chain.unlink(fill)) {
-  | Error(cell) => Cell.is_point(cell)
+  | Error(cell) => Cell.is_caret(cell)
   | _ => None
   };
 

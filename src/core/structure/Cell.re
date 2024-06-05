@@ -81,7 +81,7 @@ let rec end_path = (~side: Dir.t, c: t) =>
 
 let point = (hand: Caret.Hand.t) =>
   mk(~marks=Marks.(mk(~cursor=Point(Caret.mk(hand, Path.empty)), ())), ());
-let is_point = (c: t): option(Caret.Hand.t) =>
+let is_caret = (c: t): option(Caret.Hand.t) =>
   if (c == point(Focus)) {
     Some(Focus);
   } else if (c == point(Anchor)) {

@@ -109,8 +109,8 @@ module Wald = {
 
     // first try zipping
     let/ () = {
-      let cursor = Fill.is_point(fill);
-      let+ zipped = W.zip_hds(~from, src, ~cursor?, dst);
+      let caret = Fill.is_caret(fill);
+      let+ zipped = W.zip_hds(~from, src, ~caret?, dst);
       // assert(Fill.is_empty(fill));
       ([], zipped);
     };

@@ -8,6 +8,7 @@ let toggle =
   | L => R
   | R => L;
 
+// order(d, order(d, (x, y))) == (x, y)
 let order: 'a. (t, ('a, 'a)) => ('a, 'a) =
   (d, (x, y)) =>
     switch (d) {

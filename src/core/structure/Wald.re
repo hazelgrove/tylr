@@ -58,10 +58,10 @@ let zip_cell = (pre: t, cell: Cell.t, suf: t) =>
        (zipped, cell, tok) => link(tok, cell, zipped),
      );
 
-let zip_hds = (~from: Dir.t, src: t, ~cursor=?, dst: t): option(t) => {
+let zip_hds = (~from: Dir.t, src: t, ~caret=?, dst: t): option(t) => {
   // cursor hack
   let (src, dst) =
-    switch (cursor) {
+    switch (caret) {
     | None => (src, dst)
     | Some(caret) =>
       let p = Step.Caret.mk(caret, 0);
