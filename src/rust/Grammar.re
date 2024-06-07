@@ -1,3 +1,13 @@
+/* Notes about deviations from the Rust grammar
+
+      * Rust defines if expressions recursively - we unfortunately cannot and had to do a combination of alts and stars
+      * Rust disallows struct expressions from the scrutinee type (all exp except struct expression) - we assume this is a parser limitation and allow generic exp
+      * Block exp - rust references block exp in other "sorts" (items) - we instead "rebuild" the block exp definition (bracket, stat, bracket) for each sort where it is used
+      * Rust comparison operators "require parentheses for associativity" - using tylr assoc=none for this
+      * Rust has optional semicolons after block exps for a statement - we are always requiring semicolons to simplify so we don't need to discriminate b/w exp with block and exp without block
+      * Rust allows for optional commas following exp_with_block in a match statement - for consistency sake we will reqire comma in match regardless of exp_with_block or exp_without_block
+   */
+
 open Util;
 
 module Sym = {
@@ -17,30 +27,134 @@ let nt = (srt: Sort.t) => Regex.atom(Sym.nt(srt));
 
 let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
 
-
-
 module Pat = {
   let sort = Sort.of_str("Pat");
   let atom = nt(sort);
-  let tbl = [];
+
+  let ident_pat =
+    seq([
+      opt(c("ref")),
+      opt(c("mut")),
+      t(Id_lower),
+      opt(seq([c("@"), atom])),
+    ]);
+
+  let path_ident_segment =
+    alt([
+      t(Id_lower),
+      c("super"),
+      c("self"),
+      c("Self"),
+      c("crate"),
+      c("$crate"),
+    ]);
+  let path_exp_segment = seq([path_ident_segment]);
+  let path_in_exp =
+    seq([
+      opt(c("::")),
+      path_exp_segment,
+      star(seq([c("::"), path_exp_segment])),
+    ]);
+
+
+  //NOTE: actual rust grammar has a star(outer_attr) then c(..) but since we don't have metaprogramming or attrs, struct_pat_et_cetera is just .. for us
+  let struct_pat_et_cetera = c("..")
+
+  let struct_pat_field =
+    alt([
+      seq([t(Int_lit), c(":"), atom]),
+      seq([t(Id_lower), c("l"), atom]),
+      seq([opt(c("ref")), opt(c("mut")), t(Id_lower)]),
+    ]);
+  let struct_pat_fields =
+    seq([struct_pat_field, star(seq([c(","), struct_pat_field]))]);
+  let struct_pat_elements =
+    alt([
+      seq([
+        struct_pat_fields,
+        opt(alt([c(","), seq([c(","), struct_pat_et_cetera])])),
+      ]),
+      struct_pat_et_cetera,
+    ]);
+  let struct_pat =
+    seq([path_in_exp, c("{"), opt(struct_pat_elements), c("}")]);
+
+
+  let tuple_struct_items = seq([atom, star(seq([c(","), atom])), opt(c(","))])
+  let tuple_struct_pat = seq([path_in_exp, c("("), opt(tuple_struct_items), c(")")])
+
+  let rest_pat = c("..")
+  let tuple_pat_items = alt([seq([atom, c(",")]), rest_pat, seq([atom, star(seq([c(","), atom, opt(c(","))]))])])
+  let tuple_pat = seq([c("("), tuple_pat_items, c(")")])
+
+
+  let group_pat = seq([c("("), atom, c(")")])
+
+  let slice_pat_items = seq([atom, star(seq([c(","), atom])), opt(c(","))])
+  let slice_pat = seq([c("["), opt(slice_pat_items), c("]")])
+
+  //TODO: ask David - do we need qualified path in exp? doesn't really seem to be necessary
+  let path_pat = path_in_exp
+
+  let operand =
+    alt([
+      c("true"),
+      c("false"),
+      //TODO: char literal, string literal
+      seq([opt(c("-")), t(Int_lit)]),
+      seq([opt(c("-")), t(Float_lit)]),
+      //Wild
+      c("_"),
+      //Rest
+      rest_pat,
+      //Reference
+      seq([alt([c("&"), c("&&")]), opt(c("mut")), atom]),
+      ident_pat,
+      struct_pat,
+      tuple_struct_pat,
+      tuple_pat,
+      group_pat,
+      slice_pat,
+      path_pat,
+    ]);
+
+  let tbl = [p(operand)];
 };
 
 module type SORT = {
-    let atom: Regex.t;
-    let sort: Sort.t;
-    let tbl: Prec.Table.t(Regex.t);
-}
+  let atom: Regex.t;
+  let sort: Sort.t;
+  let tbl: Prec.Table.t(Regex.t);
+};
 
 module rec Stat: SORT = {
   let sort = Sort.of_str("Stat");
   let atom = nt(sort);
 
-  let tbl = [p(seq([Exp.atom, c(";")]))];
+  let block_exp = seq([c("{"), Stat.atom, c("}")]);
+
+  let let_stat =
+    seq([
+      c("let"),
+      Pat.atom,
+      opt(seq([c(":"), Typ.atom])),
+      opt(seq([c("="), Exp.atom, opt(seq([c("else"), block_exp]))])),
+      c(";"),
+    ]);
+
+  let operand = alt([let_stat]);
+
+  //TODO: make item a child (submodule) of statement & put it in the statement operand
+  //TODO: the module form in item required an nt(Item) which you can't have if Item is a sub-sort of Stat
+  let tbl = [p(seq([Exp.atom, c(";")])), p(operand), p(Item.atom)];
 }
 and Typ: SORT = {
   let sort = Sort.of_str("Typ");
   let atom = nt(sort);
-  let tbl = [];
+
+  let operand = alt([]);
+
+  let tbl = [p(operand)];
 }
 and Item: SORT = {
   let sort = Sort.of_str("Item");
@@ -48,39 +162,226 @@ and Item: SORT = {
 
   [@warning "-32"]
   let comma_sep = seq([atom, Star(seq([c(","), atom]))]);
+  let block_exp = seq([c("{"), Stat.atom, c("}")]);
 
+  //Functions!
+  let func_qualifier = alt([c("const"), c("async"), c("unsafe")]);
 
-  let func_qualifier = alt([c("const"), c("async"), c("unsafe")])
-  
-  let self_param = alt([
-    //Shorthand self
-    seq([c("&"), opt(c("mut")), c("self")]),
-    //Typed self
-    seq([opt(c("mut")), c("self"), c(":"), Typ.atom])
-  ])
-  let func_param = alt([seq([t(Id_lower), c(":"), alt([Typ.atom, c("...")])]), c("...")])
-  let func_params = alt([self_param, seq([
-    opt(seq([self_param, c(",")])),
-    func_param, star(seq([c(","), func_param])),
-    opt(c(","))
-  ])])
+  let self_param =
+    alt([
+      //Shorthand self
+      seq([c("&"), opt(c("mut")), c("self")]),
+      //Typed self
+      seq([opt(c("mut")), c("self"), c(":"), Typ.atom]),
+    ]);
+  let func_param =
+    alt([
+      seq([t(Id_lower), c(":"), alt([Typ.atom, c("...")])]),
+      c("..."),
+    ]);
+  let func_params =
+    alt([
+      self_param,
+      seq([
+        opt(seq([self_param, c(",")])),
+        func_param,
+        star(seq([c(","), func_param])),
+        opt(c(",")),
+      ]),
+    ]);
+  let func_return_typ = seq([c("->"), Typ.atom]);
 
-  let func_return_typ = seq([c("->"), Typ.atom])
+  let func =
+    seq([
+      opt(func_qualifier),
+      c("fn"),
+      t(Id_lower),
+      c("("),
+      opt(func_params),
+      c(")"),
+      func_return_typ,
+      alt([block_exp, c(";")]),
+    ]);
+  //End functions
 
-  //TODO: ask David how to handle sucessive c(...); should I use padding?
-  let func = seq([opt(func_qualifier), c("fn"), t(Id_lower), c("("), opt(func_params), c(")"), func_return_typ, alt([
-    //TODO: replace this with block exp
-    Exp.atom,
-    c(";")
-  ])]);
+  //Crates
+  let extern_crate =
+    seq([
+      c("extern"),
+      c("crate"),
+      alt([t(Id_lower), c("self")]),
+      opt(seq([c("as"), alt([t(Id_lower), c("_")])])),
+      c(";"),
+    ]);
 
-  let operand = alt([
+  //Module
+  let _module =
+    alt([
+      seq([opt(c("unsafe")), c("mod"), t(Id_lower), c("l")]),
+      seq([
+        opt(c("unsafe")),
+        c("mod"),
+        t(Id_lower),
+        c("{"),
+        star(Item.atom),
+        c("}"),
+      ]),
+    ]);
+
+  let typ_alias =
+    seq([c("type"), t(Id_lower), opt(seq([c("="), Typ.atom])), c(";")]);
+
+  //Struct
+  let struct_field = seq([t(Id_lower), c(":"), Typ.atom]);
+  let struct_fields =
+    seq([struct_field, star(seq([c(","), struct_field])), opt(c(","))]);
+  let struct_struct =
+    seq([
+      c("struct"),
+      t(Id_lower),
+      alt([seq([c("{"), opt(struct_fields), c("}")]), c(";")]),
+    ]);
+
+  let tuple_field = Typ.atom;
+  let tuple_fields =
+    seq([tuple_field, star(seq([c(","), tuple_field])), opt(c(","))]);
+  let tuple_struct =
+    seq([
+      c("struct"),
+      t(Id_lower),
+      c("("),
+      opt(tuple_fields),
+      c(")"),
+      c(";"),
+    ]);
+  let _struct = alt([struct_struct, tuple_struct]);
+
+  //Enums
+  let enum_item_tuple = seq([c("("), opt(tuple_fields), c(")")]);
+  let enum_item_struct = seq([c("{"), opt(struct_fields), c("}")]);
+  let enum_item =
+    seq([
+      t(Id_lower),
+      opt(alt([enum_item_tuple, enum_item_struct])),
+      opt(seq([c("="), Exp.atom])),
+    ]);
+  let enum_items =
+    seq([enum_item, star(seq([c(","), enum_item])), opt(c(","))]);
+  let enum =
+    seq([c("enum"), t(Id_lower), c("{"), opt(enum_items), c("}")]);
+
+  //Unions
+  let union =
+    seq([c("union"), t(Id_lower), c("{"), struct_fields, c("}")]);
+
+  //Consts
+  let const =
+    seq([
+      c("const"),
+      alt([t(Id_lower), c("_")]),
+      c(":"),
+      Typ.atom,
+      opt(seq([c("="), Exp.atom])),
+      c(";"),
+    ]);
+
+  //static
+  let static_item =
+    seq([
+      c("static"),
+      opt(c("mut")),
+      t(Id_lower),
+      c(":"),
+      opt(seq([c("="), Exp.atom])),
+      c(";"),
+    ]);
+
+  //Traits
+  let associated_item = alt([typ_alias, const, func]);
+  let trait =
+    seq([
+      opt(c("unsafe")),
+      c("trait"),
+      t(Id_lower),
+      c("{"),
+      star(associated_item),
+      c("}"),
+    ]);
+
+  //Implementations
+  let inherent_impl =
+    seq([c("impl"), c("{"), star(associated_item), c("}")]);
+
+  let path_ident_segment =
+    alt([
+      t(Id_lower),
+      c("super"),
+      c("self"),
+      c("Self"),
+      c("crate"),
+      c("$crate"),
+    ]);
+
+  let typ_path_fn_inputs =
+    seq([Typ.atom, star(seq([c(","), Typ.atom])), opt(c(","))]);
+  let typ_path_fn =
+    seq([
+      c("("),
+      opt(typ_path_fn_inputs),
+      c(")"),
+      opt(seq([c("->"), Typ.atom])),
+    ]);
+  let typ_path_segment =
+    seq([path_ident_segment, opt(seq([c("::"), typ_path_fn]))]);
+  let typ_path =
+    seq([
+      opt(c("::")),
+      typ_path_segment,
+      star(seq([c("::"), typ_path_segment])),
+    ]);
+
+  let trait_impl =
+    seq([
+      opt(c("unsafe")),
+      c("impl"),
+      opt(c("!")),
+      typ_path,
+      c("for"),
+      Typ.atom,
+    ]);
+
+  let impl = alt([inherent_impl, trait_impl]);
+
+  //Externs
+  //TODO: abi should actually be a string literal but need to wait on David for that
+  let abi = t(Id_lower);
+  let extern_item = alt([static_item, func]);
+  let extern_block =
+    seq([
+      opt(c("unsafe")),
+      c("extern"),
+      opt(abi),
+      c("{"),
+      star(extern_item),
+      c("}"),
+    ]);
+
+  let operand =
+    alt([
+      impl,
+      trait,
+      static_item,
+      const,
+      union,
+      enum,
+      _struct,
+      typ_alias,
       func,
-  ])
+      extern_crate,
+      _module,
+    ]);
 
-  let tbl = [
-      p(operand)
-  ];
+  let tbl = [p(operand)];
 }
 and Exp: SORT = {
   let sort = Sort.of_str("Exp");
@@ -103,21 +404,32 @@ and Exp: SORT = {
       // opt(seq([c("else"), block_exp])),
     ]);
 
-
-  //TODO: ask David how the handle the "scrutinee" type (all exps except struct exp)
   let loop_exp = [
-      //Infinite loop
-      seq([c("loop"), block_exp]),
-      //Predicate (while) loops
-      seq([c("while"), atom, block_exp]),
-      //TODO: Predicate pattern (while let) loops - do we have support for successive terminals?
-      // seq([])
+    //Infinite loop
+    seq([c("loop"), block_exp]),
+    //Predicate (while) loops
+    seq([c("while"), atom, block_exp]),
+    //Predicate pattern (while let) loops
+    seq([c("while"), c("let"), Pat.atom, c("="), Exp.atom, block_exp]),
+    //iterator (for) loops
+    seq([c("for"), Pat.atom, c("in"), atom, block_exp]),
+  ];
 
-      //iterator (for) loops
-      seq([c("for"), Pat.atom, c("in"), atom, block_exp]),
-  ]
+  let match_arm = seq([Pat.atom, opt(seq([c("if"), atom]))]);
 
-  let exp_with_block = [if_exp, block_exp];
+  let match_arms =
+    seq([
+      star(seq([match_arm, c("=>"), atom, c(",")])),
+      match_arm,
+      c("=>"),
+      atom,
+      opt(c(",")),
+    ]);
+
+  let match_exp =
+    seq([c("match"), atom, c("{"), opt(match_arms), c("}")]);
+
+  let exp_with_block = [match_exp] @ loop_exp @ [if_exp, block_exp];
 
   let operand =
     alt(
@@ -125,7 +437,6 @@ and Exp: SORT = {
         t(Int_lit),
         t(Float_lit),
         t(Id_lower),
-        //TODO: ask David how these lone keywords should be handeled
         c("break"),
         c("continue"),
         //Function call
@@ -143,7 +454,6 @@ and Exp: SORT = {
   let mult_ops = tokc_alt(["*", "/", "%"]);
   let add_ops = tokc_alt(["+", "-"]);
 
-  //TODO: ask David; rust says these ops "require parens" for the prec; does this mean that ~a=None?
   let compare_ops = tokc_alt(["==", "!=", ">", "<", ">=", "<="]);
 
   let assignment_ops =
@@ -186,11 +496,11 @@ and Exp: SORT = {
     p(seq([c("?"), atom])),
     p(operand),
   ];
-
 };
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
-  [Typ.(sort, tbl), Pat.(sort, tbl), Exp.(sort, tbl)]
+  //NOTE: no item --- item is a child of statement
+  [Typ.(sort, tbl), Pat.(sort, tbl), Exp.(sort, tbl), Stat.(sort, tbl)]
   |> List.to_seq
   |> Sort.Map.of_seq;
