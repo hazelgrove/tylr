@@ -1,7 +1,6 @@
 open Stds;
 
-let bake_eq =
-    (~fill=Fill.empty, sort: Mtrl.NT.t): option(Rel.t(Cell.t, Cell.t)) => {
+let bake_eq = (~fill=Fill.empty, sort: Mtrl.NT.t): option(Cell.t) => {
   open Options.Syntax;
   let+ l =
     switch (Fill.face(~side=L, fill)) {
@@ -19,13 +18,11 @@ let bake_eq =
       |> Walk.Set.min_elt_opt
       |> Option.map(w => Walk.height(w) > 1)
     };
-  let cell = Fill.fill(~l, fill, sort, ~r);
-  Rel.Eq(cell);
+  Fill.fill(~l, fill, sort, ~r);
 };
 
 let bake_lt =
-    (~fill=Fill.empty, bound: Mtrl.NT.t, sort: Mtrl.NT.t)
-    : option(Rel.t(Cell.t, Cell.t)) => {
+    (~fill=Fill.empty, bound: Mtrl.NT.t, sort: Mtrl.NT.t): option(Cell.t) => {
   open Options.Syntax;
   let+ _l =
     switch (Fill.face(~side=L, fill)) {
@@ -43,13 +40,11 @@ let bake_lt =
       |> Walk.Set.min_elt_opt
       |> Option.map(w => Walk.height(w) > 1)
     };
-  let cell = Fill.fill(fill, sort, ~r);
-  Rel.Neq(cell);
+  Fill.fill(fill, sort, ~r);
 };
 
 let bake_gt =
-    (~fill=Fill.empty, sort: Mtrl.NT.t, bound: Mtrl.NT.t)
-    : option(Rel.t(Cell.t, Cell.t)) => {
+    (~fill=Fill.empty, sort: Mtrl.NT.t, bound: Mtrl.NT.t): option(Cell.t) => {
   open Options.Syntax;
   let+ l =
     switch (Fill.face(~side=L, fill)) {
@@ -67,13 +62,11 @@ let bake_gt =
       |> Walk.Set.min_elt_opt
       |> Option.map(w => Walk.height(w) > 1)
     };
-  let cell = Fill.fill(~l, fill, sort);
-  Rel.Neq(cell);
+  Fill.fill(~l, fill, sort);
 };
 
 let bake_swing =
-    (~fill=Fill.empty, ~from: Dir.t, sw: Walk.Swing.t)
-    : option(Rel.t(Cell.t, Cell.t)) => {
+    (~fill=Fill.empty, ~from: Dir.t, sw: Walk.Swing.t): option(Cell.t) => {
   let fill = Dir.pick(from, (Fun.id, Fill.rev), fill);
   switch (from) {
   | _ when Walk.Swing.height(sw) <= 1 => bake_eq(~fill, Walk.Swing.bot(sw))
@@ -102,12 +95,16 @@ let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
          List.combine(toks, strs)
          |> List.map(((tok, sw)) => {
               let+ cell = bake_swing(~from, sw);
-              (tok, cell);
+              (tok, (sw, cell));
             })
          |> Options.for_all
          |> Option.map(List.split);
        let+ cell = bake_swing(~fill, ~from, sw)
        and+ pre = bake_tl(pre)
        and+ suf = bake_tl(suf);
-       Chain.zip(~pre, cell, ~suf);
+       Chain.zip(~pre, (sw, cell), ~suf);
      });
+
+let bake_sans_fill = (~from: Dir.t, w: Walk.t) =>
+  bake(~from, w)
+  |> Options.get_fail("bug: expected bake to succeed sans fill");

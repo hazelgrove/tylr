@@ -3,6 +3,9 @@ type t('eq, 'neq) =
   | Eq('eq)
   | Neq('neq);
 
+let eq = eq => Eq(eq);
+let neq = neq => Neq(neq);
+
 let is_eq =
   fun
   | Eq(eq) => Some(eq)

@@ -162,15 +162,16 @@ module Unmolded = {
   type t = Base.t(Mtrl.t(unit, unit, list(Label.t)));
   let mk = (~id=?, ~text="", mtrl: Mtrl.t(_)): t =>
     Base.mk(~id?, ~text, mtrl);
-  let unmold = (tok: Molded.t): t => {
-    let mtrl =
-      switch (tok.mtrl) {
-      | Space () => Mtrl.Space()
-      | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
-      | Tile((lbl, _)) =>
-        Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
-      };
-    mk(~id=tok.id, ~text=tok.text, mtrl);
-  };
   let defer = (tok: t): Molded.t => Space.mk(~id=tok.id, ~text=tok.text, ());
+};
+
+let unmold = (tok: Molded.t): Unmolded.t => {
+  let mtrl =
+    switch (tok.mtrl) {
+    | Space () => Mtrl.Space()
+    | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
+    | Tile((lbl, _)) =>
+      Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
+    };
+  Unmolded.mk(~id=tok.id, ~text=tok.text, mtrl);
 };

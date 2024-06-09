@@ -18,17 +18,11 @@ let face = (~side: Dir.t, ctx: t) => {
   Terr.face(Dir.pick(side, (l, r)));
 };
 
-let extend = (~side as d: Dir.t, tl, ctx) => {
-  switch (Frame.Open.extend(~side=d, tl, hd(ctx))) {
-  | Some(hd) => Some(put_hd(hd, ctx))
-  | None =>
-    open Stds.Options.Syntax;
-    let+ (slopes, terrs, ctx) = Result.to_option(unlink(ctx));
-    let (t_d, t_b) = Dir.order(d, terrs);
-    let terrs = Dir.order(d, (Terr.extend(tl, t_d), t_b));
-    link(~slopes, terrs, ctx);
+let bound = (~side: Dir.t, ctx) =>
+  switch (unlink(ctx)) {
+  | Error(_) => Bound.Root
+  | Ok((_, closed, _)) => Node()
   };
-};
 
 let flatten =
   Chain.fold_right(
@@ -40,6 +34,7 @@ let flatten =
     Fun.id,
   );
 
+// todo: rename
 let cons = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) => {
   let l = () => Terr.mk(fst(pre), snd(pre));
   let r = () => Terr.mk(fst(suf), snd(suf));
@@ -52,68 +47,17 @@ let cons = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) => {
   };
 };
 
-let push_wald =
-    (~onto as d: Dir.t, w: Wald.t, ~fill=Fill.empty, ctx: t): option(t) => {
-  open Options.Syntax;
-  let (slopes, tl) = split_hd(ctx);
-  let (s_d, s_b) = Dir.order(d, slopes);
-  switch (Melder.Slope.push(~onto=d, w, ~fill, s_d)) {
-  | Ok(s_d) =>
-    let slopes = Dir.order(d, (s_d, s_b));
-    Some(zip(slopes, ~suf=tl));
-  | Error(fill) =>
-    switch (Affix.split_hd(tl)) {
-    | None =>
-      let+ s_d = Melder.Wald.meld_root(~from=d, ~fill, w);
-      unit(Dir.order(d, (s_d, s_b)));
-    | Some((terrs, ctx)) =>
-      let (t_d, t_b) = Dir.order(d, terrs);
-      let+ melded = Melder.Wald.meld(~from=d, t_d.wald, ~fill, w);
-      switch (melded) {
-      | (s_d, wald) when wald == t_d.wald =>
-        let slopes = Dir.order(d, (s_d, s_b));
-        link(~slopes, terrs, ctx);
-      | (s_d, wald) =>
-        let slopes =
-          Dir.order(d, (s_d @ [Terr.{...t_d, wald}], s_b @ [t_b]));
-        map_hd(Frame.Open.cat(slopes), ctx);
-      };
-    }
-  };
-};
-let push = (~onto: Dir.t, t: Token.t) => push_wald(~onto, Wald.of_tok(t));
-let push_fail = (~onto: Dir.t, tok, ctx) =>
-  push(~onto, tok, ctx) |> Options.get_fail("bug: failed push");
-
-let rec push_slope = (~onto: Dir.t, s: Slope.t, ~fill=Fill.empty, ctx: t) =>
-  switch (s) {
-  | [] => Some(ctx)
-  | [hd, ...tl] =>
-    open Options.Syntax;
-    let* ctx = push_wald(~onto, hd.wald, ~fill, ctx);
-    push_slope(~onto, tl, ~fill=Fill.unit(hd.cell), ctx);
-  };
-let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Fill.empty, ctx: t) => {
-  let get_fail = Options.get_fail("bug: failed to push zigg");
-  let (s_d, top, s_b) = Zigg.orient(d, zigg);
-  let ctx = get_fail(push_slope(~onto=d, s_d, ~fill, ctx));
-  let fill = Stds.Lists.is_empty(s_d) ? fill : Fill.empty;
-  let ctx = get_fail(push_wald(~onto=d, top, ~fill, ctx));
-  let rest = Dir.order(d, ([], s_b));
-  map_hd(Frame.Open.cat(rest), ctx);
-};
-
 let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
   open Options.Syntax;
   let order = Dir.order(d);
   switch (unlink(ctx)) {
   | Error(slopes) =>
     let (s_d, s_b) = order(slopes);
-    let+ (tok, s_d) = Melder.Slope.pull(~from=d, s_d);
+    let+ (tok, s_d) = Slope.pull(~from=d, s_d);
     (tok, unit(order((s_d, s_b))));
   | Ok((slopes, terrs, ctx)) =>
     let (s_d, s_b) = order(slopes);
-    switch (Melder.Slope.pull(~from=d, s_d)) {
+    switch (Slope.pull(~from=d, s_d)) {
     | Some((tok, s_d)) =>
       Some((tok, link(~slopes=order((s_d, s_b)), terrs, ctx)))
     | None =>
@@ -124,17 +68,88 @@ let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
   };
 };
 
+module Tl = {
+  include Chain.Affix;
+  type t = Chain.Affix.t(Frame.Closed.t, Frame.Open.t);
+  let bounds =
+    fun
+    | ([], _)
+    | (_, []) => Bound.(Root, Root)
+    | ([(l, r), ..._], _) => (Node(l), Node(r));
+  let rest =
+    fun
+    | ([], _)
+    | (_, []) => empty
+    | ([_, ...cs], os) => Chain.mk(os, cs);
+  // let tl = b => b |> Bound.map(snd) |> Bound.get(~root=empty);
+  // let hd = b => b |> Bound.map(fst) |> Bound.split;
+};
+
+// let split_bound = (ctx: t): (Frame.Open.t, Bound.t) =>
+//   switch (unlink(ctx)) {
+//   | Error(open_) => (open_, Bound.Root)
+//   | Ok((open_, closed, tl)) => (open_, Node((closed, tl)))
+//   };
+// let merge_bound = (open_: Frame.Open.t, bound: Bound.t) =>
+//   switch (bound) {
+//   | Root => unit(open_)
+//   | Node((closed, ctx)) => link(open_, closed, ctx)
+//   };
+
+let push_wald_opt =
+    (~onto as d: Dir.t, w: Wald.t, ~fill=Cell.empty, ctx: t): option(t) => {
+  open Options.Syntax;
+  let (hd, tl) = split_hd(ctx);
+  let (s_d, s_b) = Dir.order(d, hd);
+  let (b_d, b_b) = Dir.order(d, Tl.bounds(tl));
+  let+ melded = Melder.push_bounded(~onto=d, w, ~fill, s_d, ~bound=b_d);
+  switch (melded) {
+  | Neq(s_d) =>
+    let (dn, up) = Dir.order(d, (s_d, s_b));
+    cons((dn, up), tl);
+  | Eq(b_d) =>
+    let s_b = Slope.cat(s_b, Bound.to_list(b_b));
+    let open_ = Dir.order(d, ([b_d], s_b));
+    map_hd(Frame.Open.cat(open_), Tl.rest(tl));
+  };
+};
+let push_wald = (~onto: Dir.t, wald, ~fill=Cell.empty, ctx) =>
+  push_wald_opt(~onto, wald, ~fill, ctx)
+  |> Options.get_exn(Invalid_argument("Ctx.push_wald"));
+
+let push_tok_opt = (~onto: Dir.t, tok: Token.t) =>
+  push_wald_opt(~onto, Wald.of_tok(tok));
+let push_tok = (~onto: Dir.t, tok: Token.t) =>
+  push_wald(~onto, Wald.of_tok(tok));
+
+let rec push_slope = (~onto: Dir.t, s: Slope.t, ~fill=Cell.empty, ctx: t) =>
+  switch (s) {
+  | [] => ctx
+  | [hd, ...tl] =>
+    let ctx = push_wald(~onto, hd.wald, ~fill, ctx);
+    push_slope(~onto, tl, ~fill=hd.cell, ctx);
+  };
+let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
+  let (s_d, top, s_b) = Zigg.orient(d, zigg);
+  let ctx = push_slope(~onto=d, s_d, ~fill, ctx);
+  // need to propagate given fill if push_slope did not incorporate
+  let fill = Stds.Lists.is_empty(s_d) ? fill : Cell.empty;
+  let ctx = push_wald(~onto=d, top, ~fill, ctx);
+  let rest = Dir.order(d, ([], s_b));
+  map_hd(Frame.Open.cat(rest), ctx);
+};
+
 let close = (~sel=?, ctx: t) => {
   let rec go = (ctx: t) =>
     switch (hd(ctx)) {
     | ([], _)
     | (_, []) => ctx
-    | ([l, ..._] as pre, [r, ...suf]) when Melder.Wald.lt(l.wald, r.wald) =>
+    | ([l, ..._] as pre, [r, ...suf]) when Melder.lt(l.wald, r.wald) =>
       ctx |> put_hd((pre, suf)) |> go |> map_hd(Frame.Open.cons(~onto=R, r))
-    | ([l, ...pre], [r, ..._] as suf) when Melder.Wald.gt(l.wald, r.wald) =>
+    | ([l, ...pre], [r, ..._] as suf) when Melder.gt(l.wald, r.wald) =>
       ctx |> put_hd((pre, suf)) |> go |> map_hd(Frame.Open.cons(~onto=L, l))
     | ([l, ...pre], [r, ...suf]) =>
-      assert(Melder.Wald.eq(l.wald, r.wald));
+      assert(Melder.eq(l.wald, r.wald));
       ctx |> put_hd((pre, suf)) |> go |> link((l, r));
     };
   switch (sel) {
@@ -147,5 +162,105 @@ let close = (~sel=?, ctx: t) => {
     |> put_hd((pre_lt, suf_gt))
     |> go
     |> map_hd(Frame.Open.cat((pre_geq, suf_leq)));
+  };
+};
+
+let remold_terr = (~bound, dn, ~fill, terr): (Melded.t, Cell.t, Slope.Up.t) => {
+  let (hd, tl) = Wald.uncons(terr.wald);
+  let molded = Molder.mold(~bound, dn, ~fill, Token.unmold(hd));
+  if (Melded.face(molded) == hd.mtrl) {
+    (
+      // fast path for when terr hd retains original mtrl
+      Melded.extend(tl, molded),
+      Chain.unit(terr.cell),
+      Slope.empty,
+    );
+  } else {
+    let up =
+      Chain.Affix.uncons(tl)
+      |> Option.map((cell, (ts, cs)) =>
+           Slope.Up.unroll(cell) @ [{...terr, wald: Wald.mk(ts, cs)}]
+         )
+      |> Option.value(~default=Slope.empty);
+    (molded, Cell.empty, up);
+  };
+};
+
+let remold = (~fill=Cell.empty, ctx: t): (Cell.t, Tl.t) => {
+  let ((dn, up), tl) = split_hd(ctx);
+  switch (Slope.unlink(up)) {
+  | Some((tok, cell, up)) when Token.Grout.is(tok) =>
+    Effects.remove(tok);
+    let up = Slope.cat(Slope.Up.unroll(cell), up);
+    remold(~fill, cons((dn, up), tl));
+  | _ =>
+    switch (up) {
+    | [] => (Melder.complete_slope(~onto=L, dn, ~fill), tl)
+    | [hd, ...tl] =>
+      let (l, r) = Tl.bounds(tl);
+      let (molded, rest) = Molder.remold(~bound=l, dn, ~fill, hd);
+      let (fill, up) =
+        switch (rest) {
+        | Ok(cell) => (cell, tl)
+        | Error(up) => (Cell.empty, Slope.cat(up, tl))
+        };
+      let ctx =
+        switch (molded) {
+        | Neq(dn) => cons((dn, up), tl)
+        | Eq(l) =>
+          let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
+          map_hd(Frame.Open.cat((dn, up)), Tl.rest(tl));
+        };
+      remold(~fill, ctx);
+    }
+  };
+};
+
+let rec remold = (~fill=Cell.empty, ctx: t): (Cell.t, Ctx.t) => {
+  let ((dn, up), bound) = Ctx.split_bound(ctx);
+  switch (Slope.unlink(up)) {
+  | Some((tok, cell, up)) when Token.Grout.is(tok) =>
+    Effects.remove(tok);
+    let up = Slope.cat(Slope.Up.unroll(cell), up);
+    remold(~fill, merge_bound((dn, up), bound));
+  | _ =>
+    switch (up) {
+    | [] =>
+      let cell = Melder.complete_slope(~onto=L, dn, ~fill);
+      let ctx = merge_bound(Frame.Open.empty, bound);
+      (cell, ctx);
+    | [hd, ...tl] =>
+      let (closed, ctx) = Bound.split(bound);
+      let (l, r) = Bound.split(closed);
+      let (tok, rest) = Wald.split_hd(hd.wald);
+      let molded =
+        Molder.mold(~bound=l, dn, ~fill, Token.Unmolded.unmold(tok));
+      let (molded, fill, up) =
+        if (Melded.face(molded) == tok.mtrl) {
+          // fast path for when tok retains original mold
+          let extended = Melded.extend(rest, molded);
+          (extended, hd.cell, tl);
+        } else {
+          let (cell, up) =
+            switch (Chain.Affix.split_hd(rest)) {
+            | None => (hd.cell, tl)
+            | Some((cell, (ts, cs))) =>
+              let hd = {...hd, wald: Wald.mk(ts, cs)};
+              (cell, [hd, ...tl]);
+            };
+          (molded, Cell.empty, Slope.(cat(Up.unroll(cell), up)));
+        };
+      let ctx =
+        switch (molded) {
+        | Neq(dn) => merge_bound((dn, up), bound)
+        | Eq(l) =>
+          ctx
+          |> Bound.get(~root=empty)
+          |> map_hd(
+               Frame.Open.cat(([l], Slope.cat(up, Bound.to_list(r)))),
+             )
+        };
+      remold(~fill, ctx);
+    }
   };
 };

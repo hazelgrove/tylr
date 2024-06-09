@@ -23,3 +23,8 @@ let to_opt =
   fun
   | Root => None
   | Node(a) => Some(a);
+
+let split =
+  fun
+  | Root => (Root, Root)
+  | Node((l, r)) => (Node(l), Node(r));

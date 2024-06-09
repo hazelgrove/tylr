@@ -1,7 +1,7 @@
 open Stds;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = Chain.t(Rel.t(Cell.t, Cell.t), Token.t);
+type t = Chain.t((Walk.Swing.t, Cell.t), Token.t);
 
 let fold =
     (
@@ -15,8 +15,50 @@ let fold =
   f_c(c, acc);
 };
 
-let is_eq = ((rels, toks): t) =>
-  rels
-  |> List.map(Rel.is_eq)
+let is_eq = ((cells, toks): t) =>
+  cells
+  |> List.map(((swing, cell)) =>
+       Walk.Swing.height(swing) == 0 ? Some(cell) : None
+     )
   |> Options.for_all
   |> Option.map(cells => (cells, toks));
+
+// completes wald to terr in opposite orientation
+let complete_wald = (baked: t, wald: Wald.t): Terr.t =>
+  is_eq(baked)
+  |> Options.get_exn(Invalid_argument("Baked.complete_wald"))
+  |> Chain.fold_right(
+       (c, t, (cell, wald)) => (c, Wald.link(t, cell, wald)),
+       c => (c, wald),
+     )
+  |> (((cell, wald)) => Terr.{cell, wald: Wald.rev(wald)});
+
+// completes terr to meld in same orientation
+let complete_terr = (baked: t, terr: Terr.t): Meld.t =>
+  is_eq(baked)
+  |> Options.get_exn(Invalid_argument("Baked.complete_terr"))
+  |> Chain.fold_right(
+       (cell, tok) => Meld.link(~cell, tok),
+       cell => M(cell, terr.wald, terr.cell),
+     );
+
+let connect_eq = (dst: Wald.t, baked: t, src: Wald.t) =>
+  baked
+  |> Chain.map_link(Wald.of_tok)
+  |> Chain.Affix.cons(dst)
+  |> Chain.Affix.fold_out(
+       ~init=src,
+       ~f=(wald, (swing, cell)) => {
+         assert(Walk.Swing.height(swing) == 0);
+         Wald.zip_cell(wald, cell);
+       },
+     );
+let connect_neq = (dst: Wald.t, baked: t) =>
+  baked
+  |> Chain.map_link(Wald.of_tok)
+  |> Chain.Affix.cons(dst)
+  |> Chain.Affix.fold_out(~init=Slope.empty, ~f=(wald, (swing, cell)) =>
+       Walk.Swing.height(swing) == 0
+         ? Slope.extend(Wald.get(Chain.Affix.cons(cell), wald))
+         : Slope.cons(Terr.{wald: Wald.rev(wald), cell})
+     );

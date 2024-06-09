@@ -44,12 +44,19 @@ module Affix = {
     | (_, []) => None
     | ([lk, ...lks], [lp, ...lps]) => Some((lk, lp, (lks, lps)));
   let knil = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
+
+  let rev = ((lks, lps): t('lk, 'lp)): t('lp, 'lk) =
+    (List.rev(lps), List.rev(lks));
+
+  // todo: rename uncons
   let split_hd =
       ((lks, lps): t('lk, 'lp)): option(('lk, Base.t('lp, 'lk))) =>
     switch (lks) {
     | [] => None
     | [lk, ...lks] => Some((lk, (lps, lks)))
     };
+  let fold_out = (~f, ~init, (lks, lps): t(_)) =>
+    List.fold_right2(f, lks, lps, init);
 };
 
 let rec extend = (tl: Affix.t('lk, 'lp), c: t('lp, 'lk)) =>
@@ -73,6 +80,7 @@ let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
   [hd, ...lps],
   lks,
 );
+let snoc = ((lps, lks): Affix.t('lp, 'lk), lp: 'lp) => (lps @ [lp], lks);
 
 let split_ft = ((lps, lks): t(_)): (Affix.t('lk, 'lp), 'lp) => {
   assert(lps != []);

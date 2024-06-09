@@ -226,6 +226,10 @@ let eq =
 // todo: combine from and src
 let walk = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, walk_all(~from, src));
+let walk_eq = (~from: Dir.t, src: End.t, dst: End.t) =>
+  Walk.Set.filter(Walk.is_eq, walk(~from, src, dst));
+let walk_neq = (~from: Dir.t, src: End.t, dst: End.t) =>
+  Walk.Set.filter(Walk.is_neq, walk(~from, src, dst));
 
 let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
   Index.find(dst, enter_all(~from, sort));

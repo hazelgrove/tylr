@@ -35,6 +35,20 @@ let of_tok = tok => {cell: Cell.empty, wald: Wald.of_tok(tok)};
 let link = (t, c, terr: t) => {...terr, wald: Wald.link(t, c, terr.wald)};
 let extend = (tl, terr: t) => {...terr, wald: Wald.extend(tl, terr.wald)};
 
+let unlink = (terr: t) =>
+  switch (Wald.unlink(terr.wald)) {
+  | Ok((tok, cell, wald)) => (tok, cell, Some({...terr, wald}))
+  | Error(tok) => (tok, terr.cell, None)
+  };
+
+module Tl = {
+  // a terrace minus its hd token
+  type t = Chain.t(Cell.t, Token.t);
+};
+
+let uncons = (terr: t): (Token.t, Tl.t) =>
+  Wald.uncons(terr.wald) |> Tuples.map_snd(Chain.snoc(terr.cell));
+
 module L = {
   // L2R: wald cell
   [@deriving (show({with_path: false}), sexp, yojson)]

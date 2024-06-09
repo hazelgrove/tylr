@@ -9,6 +9,13 @@ let insert = tok => perform(Insert(tok));
 let remove = tok => perform(Remove(tok));
 // let merge = (l, r) => perform(Merge(l, r));
 
+let perform_if = (eff: t, opt: option(_)) => {
+  if (Option.is_some(opt)) {
+    perform(eff);
+  };
+  opt;
+};
+
 // apply f to x, record effects, and emit as values without commiting log.
 // useful for choosing between numerous effectful paths and choosing one based
 // on their results, after which caller should call commit on chosen effects.

@@ -32,9 +32,7 @@ let mk = (~cur=Cursor.point(Caret.focus), ctx) => {cur, ctx};
 
 let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
-    side == L
-      ? ([], Melder.Slope.Up.unroll(cell))
-      : (Melder.Slope.Dn.unroll(cell), []);
+    side == L ? ([], Slope.Up.unroll(cell)) : (Slope.Dn.unroll(cell), []);
   Ctx.map_hd(Frame.Open.cat(f_open), ctx);
 };
 let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
@@ -118,7 +116,7 @@ and unzip_select =
 };
 
 let zip_lt = (zipped: Cell.t, r: Terr.L.t) =>
-  Cell.put(M(zipped, hd_up.wald, hd_up.cell))
+  Cell.put(M(zipped, hd_up.wald, hd_up.cell));
 let zip_gt = (l: Terr.R.t, zipped: Cell.t) =>
   Cell.put(M(hd_dn.cell, Wald.rev(hd_dn.wald), zipped));
 let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
@@ -140,7 +138,7 @@ let step_zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
   | ([l, ...dn], [r, ...up]) =>
     let caret = Cell.is_point(zipped);
     switch (Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald)) {
-    | Some(w) => Some((Cell.put(M(l.cell, w, r.cell), (dn, up))))
+    | Some(w) => Some(Cell.put(M(l.cell, w, r.cell), (dn, up)))
     | None =>
       assert(Melder.Wald.eq(l.wald, r.wald));
       Some((zip_eq(l, zipped, r), (dn, up)));
@@ -183,4 +181,10 @@ let zip = (~save_cursor=false, z: t) =>
      );
 
 // tries zipping and unzipping to cursor
-let load_cursor = (z: t) => unzip(zip(z));
+let load_cursor = (z: t) => unzip(zip(z)) /*   */;
+
+// let focused_term = (z: t): option((Cell.t, Ctx.t)) =>
+//   switch (z.cur) {
+//   | Select(_)
+//   | Point(Anchor) => None
+//   | Point(Focus) =>
