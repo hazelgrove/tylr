@@ -1,5 +1,8 @@
 include Base.Result;
 
+let ok = ok => Ok(ok);
+let err = err => Error(err);
+
 let to_option = Stdlib.Result.to_option;
 
 let get_exn = exn =>

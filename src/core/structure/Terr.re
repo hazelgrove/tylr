@@ -30,7 +30,8 @@ let sort = (terr: t) => Wald.sort(terr.wald);
 let face = (terr: t) => Wald.face(terr.wald);
 let cells = (terr: t) => Wald.cells(terr.wald) @ [terr.cell];
 
-let of_tok = tok => {cell: Cell.empty, wald: Wald.of_tok(tok)};
+let of_wald = wald => {cell: Cell.empty, wald};
+let of_tok = tok => of_wald(Wald.of_tok(tok));
 
 let link = (t, c, terr: t) => {...terr, wald: Wald.link(t, c, terr.wald)};
 let extend = (tl, terr: t) => {...terr, wald: Wald.extend(tl, terr.wald)};
@@ -41,13 +42,13 @@ let unlink = (terr: t) =>
   | Error(tok) => (tok, terr.cell, None)
   };
 
-module Tl = {
-  // a terrace minus its hd token
-  type t = Chain.t(Cell.t, Token.t);
-};
+// module Tl = {
+//   // a terrace minus its hd token
+//   type t = Chain.t(Cell.t, Token.t);
+// };
 
-let uncons = (terr: t): (Token.t, Tl.t) =>
-  Wald.uncons(terr.wald) |> Tuples.map_snd(Chain.snoc(terr.cell));
+// let uncons = (terr: t): (Token.t, Tl.t) =>
+//   Wald.uncons(terr.wald) |> Tuples.map_snd(Chain.snoc(terr.cell));
 
 module L = {
   // L2R: wald cell

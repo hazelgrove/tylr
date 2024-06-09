@@ -34,6 +34,8 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
     },
   );
 
+module Melded = Melder.Melded;
+
 let mold =
     (
       ~bound=Bound.Root,
@@ -41,11 +43,10 @@ let mold =
       ~fill=Cell.empty,
       t: Token.Unmolded.t,
     )
-    : Rel.t(Terr.R.t, Slope.Dn.t) =>
+    : Melded.t =>
   candidates(t)
-  |> List.map(Wald.of_tok)
   |> Oblig.Delta.minimize(tok =>
-       Melder.push_bounded(tok, ~fill, slope, ~bound, ~onto=L)
+       Melder.push(tok, ~fill, slope, ~bound, ~onto=L)
      )
   |> Option.value(
        ~default=
@@ -65,49 +66,10 @@ let remold =
   } else {
     let up =
       Chain.Affix.uncons(tl)
-      |> Option.map((cell, (ts, cs)) =>
+      |> Option.map(((cell, (ts, cs))) =>
            Slope.Up.unroll(cell) @ [{...terr, wald: Wald.mk(ts, cs)}]
          )
       |> Option.value(~default=Slope.Up.unroll(terr.cell));
     (molded, Error(up));
-  };
-};
-
-let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
-  let ((dn, up), tl) = Ctx.split_hd(ctx);
-  switch (Slope.unlink(up)) {
-  | Some((tok, cell, up)) when Token.Grout.is(tok) =>
-    Effects.remove(tok);
-    let up = Slope.cat(Slope.Up.unroll(cell), up);
-    remold(~fill, Ctx.zip((dn, up), ~suf=tl));
-  | _ =>
-    switch (up) {
-    | [] =>
-      let cell = Melder.complete_slope(~onto=L, dn, ~fill);
-      let ctx = Ctx.zip(Frame.Open.empty, ~suf=tl);
-      (cell, ctx);
-    | [terr, ...up] =>
-      let ctx = Ctx.put_hd((dn, up), ctx);
-      let (hd, rest) = Wald.split_hd(terr.wald);
-      let molded = mold(ctx, ~fill, Token.Unmolded.unmold(hd));
-      switch (Ctx.face(~side=L, molded)) {
-      | Some(mtrl) when mtrl == hd.mtrl =>
-        // fast path for when face piece retains mold
-        molded
-        |> Ctx.map_hd(Frame.Open.extend(~side=L, rest))
-        |> remold(~fill=terr.cell)
-      | _ =>
-        // otherwise add rest of wald to suffix queue
-        let up =
-          switch (rest) {
-          | ([], _) => []
-          | ([cell, ...cells], toks) =>
-            let terr = {...terr, wald: Wald.mk(toks, cells)};
-            let _ = failwith("todo: make sure cell distributes paths");
-            Slope.cat(Melder.Slope.Up.unroll(cell), [terr]);
-          };
-        ctx |> Ctx.map_hd(Frame.Open.cat(([], up))) |> remold;
-      };
-    }
   };
 };

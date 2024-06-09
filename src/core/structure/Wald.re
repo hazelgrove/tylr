@@ -4,8 +4,11 @@ include Meld.Wald;
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Meld.Wald.t(Cell.t);
 
-let split_hd = (W(w)) => Chain.split_hd(w);
-let hd = w => fst(split_hd(w));
+let get = (f, W(w)) => f(w);
+let map = (f, W(w)) => W(f(w));
+
+let uncons: t => _ = get(Chain.uncons);
+let hd: t => Token.t = get(Chain.hd);
 let put_hd = (_, _) => failwith("todo Wald.put_hd");
 
 let ft = _ => failwith("todo Wald.ft");
@@ -16,9 +19,6 @@ let put_ft = (_, _) => failwith("todo Wald.put_ft");
 //   fun
 //   | Dir.L => fst
 //   | R => ft;
-
-let get = (f, W(w)) => f(w);
-let map = (f, W(w)) => W(f(w));
 
 let length: t => int = get(Chain.length);
 let rev: t => t = map(Chain.rev);
@@ -70,8 +70,8 @@ let zip_hds = (~from: Dir.t, src: t, ~caret=?, dst: t): option(t) => {
       | R => (map(Chain.map_hd(Token.add_mark(p)), src), dst)
       };
     };
-  let (hd_src, tl_src) = split_hd(src);
-  let (hd_dst, tl_dst) = split_hd(dst);
+  let (hd_src, tl_src) = uncons(src);
+  let (hd_dst, tl_dst) = uncons(dst);
   let (hd_l, hd_r) = Dir.order(from, (hd_src, hd_dst));
   let (tl_l, tl_r) = Dir.order(from, (tl_src, tl_dst));
   Token.zip(hd_l, hd_r)

@@ -39,7 +39,7 @@ module Wald = {
     let pp_hd = Token.pp;
     let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_cell, Token.pp)));
     let pp = Fmt.(pair(~sep=sp, pp_hd, pp_tl));
-    let (t, (cs, ts)) = Chain.split_hd(w);
+    let (t, (cs, ts)) = Chain.uncons(w);
     pp(out, (t, List.combine(cs, ts)));
   };
   let show = pp_cell => Fmt.to_to_string(pp(pp_cell));

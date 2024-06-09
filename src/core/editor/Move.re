@@ -15,20 +15,15 @@ let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let+ ctx =
     switch (z.cur) {
     | Point(_) =>
-      let+ (tok, ctx) = Melder.Ctx.pull(~from=d, z.ctx);
+      let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
       // todo: add movement granularity
       switch (Token.pull(~from=b, tok)) {
-      | None => Melder.Ctx.push_fail(~onto=b, tok, ctx)
+      | None => Ctx.push(~onto=b, tok, ctx)
       | Some((c, tok)) =>
-        ctx
-        |> Melder.Ctx.push_fail(~onto=d, tok)
-        |> Melder.Ctx.push_fail(~onto=b, c)
+        ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c)
       };
     | Select({range: zigg, _}) =>
-      z.ctx
-      |> Melder.Ctx.push_zigg(~onto=b, zigg)
-      |> Melder.Ctx.close
-      |> Option.some
+      z.ctx |> Ctx.push_zigg(~onto=b, zigg) |> Ctx.close |> Option.some
     };
   Zipper.mk(ctx);
 };

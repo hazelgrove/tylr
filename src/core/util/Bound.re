@@ -24,6 +24,11 @@ let to_opt =
   | Root => None
   | Node(a) => Some(a);
 
+let to_list =
+  fun
+  | Root => []
+  | Node(a) => [a];
+
 let split =
   fun
   | Root => (Root, Root)

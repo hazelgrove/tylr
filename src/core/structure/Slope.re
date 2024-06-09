@@ -9,15 +9,19 @@ let singleton = t => [t];
 let height = List.length;
 let cons = List.cons;
 
-let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
-  switch (c) {
-  | Neq(c) => [Terr.{cell: c, wald: Wald.rev(w)}, ...slope]
-  | Eq(c) =>
-    switch (slope) {
-    | [] => [Terr.{cell: c, wald: Wald.rev(w)}]
-    | [hd, ...tl] => [{...hd, wald: Wald.zip_cell(w, c, hd.wald)}, ...tl]
-    }
-  };
+// let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
+//   switch (c) {
+//   | Neq(c) => [Terr.{cell: c, wald: Wald.rev(w)}, ...slope]
+//   | Eq(c) =>
+//     switch (slope) {
+//     | [] => [Terr.{cell: c, wald: Wald.rev(w)}]
+//     | [hd, ...tl] => [{...hd, wald: Wald.zip_cell(w, c, hd.wald)}, ...tl]
+//     }
+//   };
+let link = (tok: Token.t, cell: Cell.t) =>
+  fun
+  | [] => [Terr.mk([tok], [cell])]
+  | [hd, ...tl] => [Terr.link(tok, cell, hd), ...tl];
 let unlink =
   fun
   | [] => None
@@ -40,9 +44,9 @@ let face =
 //   fun
 //   | [] => None
 //   | [hd, ...rest] => Some([Terr.extend(tl, hd), ...rest]);
-let extend = ((cs, ts) as tl: Chain.Affix.t(Cell.t, Token.t)) =>
+let extend = (tl: Chain.Affix.t(Cell.t, Token.t)) =>
   fun
-  | [] => Option.to_list(Terr.mk'((List.rev(ts), List.rev(cs))))
+  | [] => Option.to_list(Terr.mk'(Chain.Affix.rev(tl)))
   | [hd, ...rest] => [Terr.extend(tl, hd), ...rest];
 
 let fold: (('acc, Terr.t) => 'acc, 'acc, t) => 'acc = List.fold_left;
@@ -70,7 +74,7 @@ let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
   switch (slope) {
   | [] => None
   | [hd, ...tl] =>
-    let (tok, rest) = Wald.split_hd(hd.wald);
+    let (tok, rest) = Wald.uncons(hd.wald);
     let slope =
       switch (rest) {
       | ([], _) => cat(unroll(~from, hd.cell), tl)

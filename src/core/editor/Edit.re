@@ -17,12 +17,12 @@ let clear_focus = (d: Dir.t, z: Zipper.t) =>
   | Point(_) => z.ctx
   | Select({range: zigg, _}) =>
     let onto = Dir.toggle(d);
-    Melder.Ctx.push_zigg(~onto, zigg, z.ctx);
+    Ctx.push_zigg(~onto, zigg, z.ctx);
   };
 
 let pull_neighbors = ctx => {
   let pull = (from: Dir.t, ctx) =>
-    switch (Melder.Ctx.pull(~from, ctx)) {
+    switch (Ctx.pull(~from, ctx)) {
     | None => ("", ctx)
     | Some((tok, ctx)) =>
       Effects.remove(tok);
@@ -38,8 +38,8 @@ let insert = (s: string, z: Zipper.t) => {
   let ((l, r), ctx) = pull_neighbors(ctx);
   let (cell, ctx) =
     Labeler.label(l ++ s ++ r)
-    |> List.fold_left((ctx, tok) => Molder.mold(ctx, tok), ctx)
-    |> Molder.remold(~fill=Fill.unit(Cell.point(Focus)));
+    |> List.fold_left((ctx, tok) => Ctx.mold(ctx, tok), ctx)
+    |> Ctx.remold(~fill=Cell.point(Focus));
   Zipper.unzip(cell, ~ctx)
   |> Option.map(Move.move_n(- Utf8.length(r)))
   |> Option.value(~default=Zipper.mk_unroll(R, cell, ~ctx));

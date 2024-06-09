@@ -42,23 +42,20 @@ let complete_terr = (baked: t, terr: Terr.t): Meld.t =>
        cell => M(cell, terr.wald, terr.cell),
      );
 
-let connect_eq = (dst: Wald.t, baked: t, src: Wald.t) =>
+let connect_eq = (dst: Token.t, baked: t, src: Terr.t) =>
   baked
-  |> Chain.map_link(Wald.of_tok)
   |> Chain.Affix.cons(dst)
   |> Chain.Affix.fold_out(
        ~init=src,
-       ~f=(wald, (swing, cell)) => {
+       ~f=(tok, (swing, cell)) => {
          assert(Walk.Swing.height(swing) == 0);
-         Wald.zip_cell(wald, cell);
+         Terr.link(tok, cell);
        },
      );
-let connect_neq = (dst: Wald.t, baked: t) =>
+let connect_neq = (dst: Token.t, baked: t) =>
   baked
-  |> Chain.map_link(Wald.of_tok)
   |> Chain.Affix.cons(dst)
-  |> Chain.Affix.fold_out(~init=Slope.empty, ~f=(wald, (swing, cell)) =>
+  |> Chain.Affix.fold_out(~init=Slope.empty, ~f=(tok, (swing, cell)) =>
        Walk.Swing.height(swing) == 0
-         ? Slope.extend(Wald.get(Chain.Affix.cons(cell), wald))
-         : Slope.cons(Terr.{wald: Wald.rev(wald), cell})
+         ? Slope.link(tok, cell) : Slope.cons(Terr.mk([tok], [cell]))
      );

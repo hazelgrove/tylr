@@ -10,3 +10,8 @@ let is_eq =
   fun
   | Eq(eq) => Some(eq)
   | Neq(_) => None;
+
+let map = (~eq, ~neq) =>
+  fun
+  | Eq(x) => Eq(eq(x))
+  | Neq(x) => Neq(neq(x));

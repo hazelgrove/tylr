@@ -75,22 +75,39 @@ let of_up = up =>
        }
      );
 
-let push_wald =
-    (~side as d: Dir.t, w: Wald.t, ~fill=Cell.empty, zigg: t)
+let extend = (~side as d: Dir.t, tl: Chain.Affix.t(_), zigg) => {
+  let (s_d, top, s_b) = orient(d, zigg);
+  let (s_d, top) =
+    switch (s_d) {
+    | [] => (s_d, Wald.extend(tl, top))
+    | [hd, ...rest] => ([Terr.extend(tl, hd), ...rest], top)
+    };
+  unorient(d, (s_d, top, s_b));
+};
+
+let push =
+    (~side as d: Dir.t, t: Token.t, ~fill=Cell.empty, zigg: t)
     : Result.t(t, Slope.t) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
   // let stack = Melder.Stack.mk(~slope=s_d, Node(top));
-  switch (Melder.push_bounded(~onto=b, w, ~fill, s_d, ~bound=Node(top))) {
-  | Some(Eq(top)) => Ok(unorient(d, ([], top, s_b)))
+  switch (
+    Melder.push(~onto=b, t, ~fill, s_d, ~bound=Node(Terr.of_wald(top)))
+  ) {
+  | Some(Eq(top)) => Ok(unorient(d, ([], top.wald, s_b)))
   | Some(Neq(s_d)) => Ok(unorient(d, (s_d, top, s_b)))
   | None => Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)])
   };
 };
-let push = (~side: Dir.t, tok: Token.t) =>
-  push_wald(~side, Wald.of_tok(tok));
+// let push = (~side: Dir.t, tok: Token.t) =>
+//   push_wald(~side, Wald.of_tok(tok));
 let push_fail = (~side: Dir.t, tok, zigg) =>
   push(~side, tok, zigg) |> Stds.Result.get_fail("bug: failed push");
+
+let push_wald = (~side: Dir.t, w: Wald.t, ~fill=Cell.empty, zigg: t) => {
+  let (hd, tl) = Wald.uncons(w);
+  push(~side, hd, ~fill, zigg) |> Stds.Result.map(~f=extend(~side, tl));
+};
 
 let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
   let b = Dir.toggle(d);
@@ -98,7 +115,7 @@ let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
   switch (Slope.pull(~from=b, s_d)) {
   | Some((tok, s_d)) => (tok, Some(unorient(d, (s_d, top, s_b))))
   | None =>
-    let (tok, rest) = Wald.split_hd(top);
+    let (tok, rest) = Wald.uncons(top);
     switch (rest) {
     | ([], _) => (tok, Dir.pick(d, (of_up, of_dn), s_b))
     | ([c, ...cs], ts) =>

@@ -53,26 +53,26 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   | Ok(step) =>
     let m = Options.get_exn(Marks.Invalid, cell.meld);
     switch (Meld.unzip(step, m)) {
-    | Loop((pre, cell, suf)) => unzip(~ctx=Ctx.cons((pre, suf), ctx), cell)
+    | Loop((pre, cell, suf)) => unzip(~ctx=Ctx.add((pre, suf), ctx), cell)
     | Link((pre, tok, suf)) =>
       let (l, cur, r) = Options.get_exn(Marks.Invalid, Token.unzip(tok));
       let mk = mk(~cur=Cursor.map(Fun.id, Selection.map(Zigg.of_tok), cur));
       switch (l, r) {
       | (None, None) => failwith("todo")
       | (None, Some(r)) =>
-        let (cell, pre) = Chain.split_hd(pre);
+        let (cell, pre) = Chain.uncons(pre);
         let suf = Chain.Affix.cons(r, suf);
-        let ctx = Ctx.cons((pre, suf), ctx);
+        let ctx = Ctx.add((pre, suf), ctx);
         Some(mk(unroll(R, cell, ~ctx)));
       | (Some(l), None) =>
         let pre = Chain.Affix.cons(l, pre);
-        let (cell, suf) = Chain.split_hd(suf);
-        let ctx = Ctx.cons((pre, suf), ctx);
+        let (cell, suf) = Chain.uncons(suf);
+        let ctx = Ctx.add((pre, suf), ctx);
         Some(mk(unroll(L, cell, ~ctx)));
       | (Some(l), Some(r)) =>
         let pre = Chain.Affix.cons(l, pre);
         let suf = Chain.Affix.cons(r, suf);
-        Some(mk(Ctx.cons((pre, suf), ctx)));
+        Some(mk(Ctx.add((pre, suf), ctx)));
       };
     };
   };
@@ -85,7 +85,7 @@ and unzip_select =
   let ((pre_dn, pre_up), top) =
     if (l mod 2 == 0) {
       // l points to cell hd_pre
-      let (hd_pre, tl_pre) = Chain.split_hd(pre);
+      let (hd_pre, tl_pre) = Chain.uncons(pre);
       let ctx_pre = Ctx.unit((Option.to_list(Terr.mk'(tl_pre)), []));
       let z = get(unzip(hd_pre, ~ctx=ctx_pre));
       (Ctx.flatten(z.ctx), top);
@@ -99,7 +99,7 @@ and unzip_select =
   let (top, (suf_dn, suf_up)) =
     if (r mod 2 == 0) {
       // r points to cell hd_suf
-      let (hd_suf, tl_suf) = Chain.split_hd(suf);
+      let (hd_suf, tl_suf) = Chain.uncons(suf);
       let ctx_suf = Ctx.unit(([], Option.to_list(Terr.mk'(tl_suf))));
       let z = get(unzip(hd_suf, ~ctx=ctx_suf));
       (top, Ctx.flatten(z.ctx));
@@ -116,9 +116,9 @@ and unzip_select =
 };
 
 let zip_lt = (zipped: Cell.t, r: Terr.L.t) =>
-  Cell.put(M(zipped, hd_up.wald, hd_up.cell));
+  Cell.put(M(zipped, r.wald, r.cell));
 let zip_gt = (l: Terr.R.t, zipped: Cell.t) =>
-  Cell.put(M(hd_dn.cell, Wald.rev(hd_dn.wald), zipped));
+  Cell.put(M(l.cell, Wald.rev(l.wald), zipped));
 let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
   let w = Wald.zip_cell(l.wald, zipped, r.wald);
   Cell.put(Meld.mk(~l=l.cell, w, ~r=r.cell));
@@ -130,27 +130,28 @@ let step_zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
   | ([], [hd, ...tl]) => Some((zip_lt(zipped, hd), (dn, tl)))
   | ([hd, ...tl], []) => Some((zip_gt(hd, zipped), (tl, up)))
   | ([hd_dn, ..._], [hd_up, ...tl_up])
-      when Melder.Wald.lt(hd_dn.wald, hd_up.wald) =>
+      when Melder.lt(hd_dn.wald, hd_up.wald) =>
     Some((zip_lt(zipped, hd_up), (dn, tl_up)))
   | ([hd_dn, ...tl_dn], [hd_up, ..._])
-      when Melder.Wald.gt(hd_dn.wald, hd_up.wald) =>
+      when Melder.gt(hd_dn.wald, hd_up.wald) =>
     Some((zip_gt(hd_dn, zipped), (tl_dn, up)))
   | ([l, ...dn], [r, ...up]) =>
-    let caret = Cell.is_point(zipped);
+    let caret = Cell.is_caret(zipped);
     switch (Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald)) {
-    | Some(w) => Some(Cell.put(M(l.cell, w, r.cell), (dn, up)))
+    | Some(w) => Some((Cell.put(M(l.cell, w, r.cell)), (dn, up)))
     | None =>
-      assert(Melder.Wald.eq(l.wald, r.wald));
+      assert(Melder.eq(l.wald, r.wald));
       Some((zip_eq(l, zipped, r), (dn, up)));
     };
   };
 let step_zip = (ctx: Ctx.t, zipped: Cell.t) =>
   switch (Ctx.unlink(ctx)) {
   | Error(open_) =>
-    Option.map(Tuples.map_snd(Ctx.of_loop), step_zip_open(open_, zipped))
+    Option.map(Tuples.map_snd(Ctx.unit), step_zip_open(open_, zipped))
   | Ok((open_, (l, r), ctx)) =>
     switch (step_zip_open(open_, zipped)) {
-    | Some((zipped, open_)) => Some((zipped, Ctx.link(open_, closed, ctx)))
+    | Some((zipped, open_)) =>
+      Some((zipped, Ctx.link(~open_, (l, r), ctx)))
     | None => Some((zip_eq(l, zipped, r), ctx))
     }
   };
@@ -169,8 +170,8 @@ let zip = (~save_cursor=false, z: t) =>
     switch (z.cur) {
     | Point(_) => Fun.id
     | Select({focus, range: zigg}) =>
-      let fill = save_cursor ? Fill.unit(Cell.point(Anchor)) : Fill.empty;
-      Melder.Ctx.push_zigg(~onto=Dir.toggle(focus), zigg, ~fill);
+      let fill = save_cursor ? Cell.point(Anchor) : Cell.empty;
+      Ctx.push_zigg(~onto=Dir.toggle(focus), zigg, ~fill);
     }
   )
   |> Ctx.fold(

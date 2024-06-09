@@ -45,12 +45,12 @@ module Affix = {
     | ([lk, ...lks], [lp, ...lps]) => Some((lk, lp, (lks, lps)));
   let knil = ((lks, lps): t(_), lk, lp) => (lks @ [lk], lps @ [lp]);
 
-  let rev = ((lks, lps): t('lk, 'lp)): t('lp, 'lk) =
-    (List.rev(lps), List.rev(lks));
+  let rev = ((lks, lps): t('lk, 'lp)): t('lp, 'lk) => (
+    List.rev(lps),
+    List.rev(lks),
+  );
 
-  // todo: rename uncons
-  let split_hd =
-      ((lks, lps): t('lk, 'lp)): option(('lk, Base.t('lp, 'lk))) =>
+  let uncons = ((lks, lps): t('lk, 'lp)): option(('lk, Base.t('lp, 'lk))) =>
     switch (lks) {
     | [] => None
     | [lk, ...lks] => Some((lk, (lps, lks)))
@@ -65,13 +65,13 @@ let rec extend = (tl: Affix.t('lk, 'lp), c: t('lp, 'lk)) =>
   | _ => c
   };
 
-let split_hd = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
+let uncons = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
   assert(lps != []);
   (List.hd(lps), (lks, List.tl(lps)));
 };
-let hd = (c: t('lp, _)): 'lp => fst(split_hd(c));
+let hd = (c: t('lp, _)): 'lp => fst(uncons(c));
 let map_hd = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
-  let (a, (lks, lps)) = split_hd(c);
+  let (a, (lks, lps)) = uncons(c);
   ([f(a), ...lps], lks);
 };
 let put_hd = lp => map_hd(_ => lp);
@@ -194,7 +194,7 @@ let unzip_loop = (n: int, c: t('lp, 'lk)): (Affix.t(_), 'lp, Affix.t(_)) => {
   };
   let rec go = (~pre=Affix.empty, n, c) =>
     if (n == 0) {
-      let (lp, suf) = split_hd(c);
+      let (lp, suf) = uncons(c);
       (pre, lp, suf);
     } else {
       let (lp, lk, c) = unlink(c) |> Result.get_exn(invalid);
@@ -224,7 +224,7 @@ let unzip_link = (n: int, c: t('lp, 'lk)): (t(_), 'lk, t(_)) => {
     let (lk, lp, suf) = Options.get_exn(invalid, Affix.unlink(suf));
     n == 1 ? (pre, lk, cons(lp, suf)) : go(link(lp, lk, pre), n - 2, suf);
   };
-  let (hd, tl) = split_hd(c);
+  let (hd, tl) = uncons(c);
   go(unit(hd), n, tl);
 };
 
@@ -238,7 +238,7 @@ let unzip = (n: int, c: t('lp, 'lk)) =>
   Elem.(n mod 2 == 0 ? Loop(unzip_loop(n, c)) : Link(unzip_link(n, c)));
 
 let pp = (pp_lp, pp_lk, out, c: t(_)) => {
-  let (lp, (lks, lps)) = split_hd(c);
+  let (lp, (lks, lps)) = uncons(c);
   let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_lk, pp_lp)));
   Fmt.pf(out, "%a@ %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
 };

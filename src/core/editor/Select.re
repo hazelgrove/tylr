@@ -15,8 +15,8 @@ let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
   | Point(_) => z
   | Select({focus: d, range: zigg}) =>
     let onto = Dir.toggle(Option.value(toward, ~default=d));
-    let fill = save_anchor ? Fill.unit(Cell.point(Anchor)) : Fill.empty;
-    Zipper.mk(Melder.Ctx.push_zigg(~onto, zigg, ~fill, z.ctx));
+    let fill = save_anchor ? Cell.point(Anchor) : Cell.empty;
+    Zipper.mk(Ctx.push_zigg(~onto, zigg, ~fill, z.ctx));
   };
 
 let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
@@ -24,29 +24,29 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let b = Dir.toggle(d);
   switch (z.cur) {
   | Point(_) =>
-    let+ (tok, ctx) = Melder.Ctx.pull(~from=d, z.ctx);
+    let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
     let (tok, ctx) =
       switch (Token.pull(~from=b, tok)) {
       | None => (tok, ctx)
       | Some((l, r)) =>
         let (c, tok) = Dir.order(b, (l, r));
-        (c, Melder.Ctx.push_fail(~onto=d, tok, ctx));
+        (c, Ctx.push(~onto=d, tok, ctx));
       };
     Zipper.mk(~cur=Select({focus: d, range: Zigg.of_tok(tok)}), ctx);
   | Select({focus: side, range: zigg}) =>
     if (side == d) {
-      let+ (tok, ctx) = Melder.Ctx.pull(~from=d, z.ctx);
+      let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
       let (tok, ctx) =
         switch (Token.pull(~from=b, tok)) {
         | None => (tok, ctx)
         | Some((l, r)) =>
           let (c, tok) = Dir.order(b, (l, r));
-          (c, Melder.Ctx.push_fail(~onto=d, tok, ctx));
+          (c, Ctx.push(~onto=d, tok, ctx));
         };
-      let zigg = Melder.Zigg.grow(~side, tok, zigg);
+      let zigg = Zigg.grow(~side, tok, zigg);
       Zipper.mk(~cur=Select({focus: d, range: zigg}), ctx);
     } else {
-      let (tok, rest) = Melder.Zigg.pull(~side=d, zigg);
+      let (tok, rest) = Zigg.pull(~side=d, zigg);
       let (tok, cur) =
         switch (Token.pull(~from=b, tok), rest) {
         | (None, None) => (tok, Cursor.Point(Caret.focus()))
@@ -59,10 +59,10 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
           (c, Select({focus: side, range: Zigg.of_tok(tok)}));
         | (Some((l, r)), Some(zigg)) =>
           let (c, tok) = Dir.order(b, (l, r));
-          let zigg = Melder.Zigg.push_fail(~side, tok, zigg);
+          let zigg = Zigg.push_fail(~side, tok, zigg);
           (c, Select({focus: side, range: zigg}));
         };
-      let ctx = Melder.Ctx.(close(push_fail(~onto=b, tok, z.ctx)));
+      let ctx = Ctx.(close(push(~onto=b, tok, z.ctx)));
       Some(Zipper.mk(~cur, ctx));
     }
   };
