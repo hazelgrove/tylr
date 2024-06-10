@@ -550,7 +550,7 @@ let view_text =
     txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
   );
 
-let view = (~font, ~zipper: Zipper.t): Node.t => {
+let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
   let c = Zipper.zip(~save_cursor=true, zipper);
   // module Text =
   //   Text({
