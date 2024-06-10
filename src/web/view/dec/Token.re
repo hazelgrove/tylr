@@ -79,5 +79,17 @@ let mk = (prof: Profile.t) =>
   Box.mk(
     ~width=prof.len,
     ~height=1,
-    [Util.Svgs.Path.view(~attrs=[], path(prof.tips, prof.len))],
+    [
+      Util.Svgs.Path.view(
+        ~attrs=[
+          Attr.classes([
+            "tile-path",
+            "raised",
+            "indicated",
+            Sort.to_str(prof.sort),
+          ]),
+        ],
+        path(prof.tips, prof.len),
+      ),
+    ],
   );
