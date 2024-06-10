@@ -1,7 +1,7 @@
 open Virtual_dom.Vdom;
 open Node;
 
-// let logo = (~font_metrics) => {
+// let logo = (~font) => {
 //   let piece = (step, color: Sort.t, shape: PieceDec.piece_shape, s): Measured.t =>
 //     Measured.annot(Piece({color, shape, step}), Text(s));
 //   let l =
@@ -19,7 +19,7 @@ open Node;
 //   Code.view_of_layout(
 //     ~id="logo",
 //     ~text_id="logo-text",
-//     ~font_metrics,
+//     ~font,
 //     DecPaths.mk(~logo_pieces=[0, 1, 2, 3], ()),
 //     l,
 //   );
@@ -150,7 +150,7 @@ open Node;
 let editor_view = (model: Model.t) =>
   div(
     ~attrs=[Attr.id("code-container")],
-    [Code.view(~font_metrics=model.font_metrics, ~zipper=model.zipper)],
+    [Code.view(~font=model.font, ~zipper=model.zipper)],
   );
 
 // let editor_caption_view = (model: Model.t) =>

@@ -8,7 +8,7 @@
   //   };
   // };
   // let caret_position_radii =
-  //     (~font_metrics: FontMetrics.t, ~style: Profile.style) => {
+  //     (~font: Font.t, ~style: Profile.style) => {
   //   let r =
   //     switch (style) {
   //     | `Caret => 3.75
@@ -16,10 +16,10 @@
   //     | `Sibling => 2.75
   //     | `Bare => 2.0
   //     };
-  //   (r /. font_metrics.col_width, r /. font_metrics.row_height);
+  //   (r /. font.col_width, r /. font.row_height);
   // };
-  // let view = (~font_metrics, {style, sort, measurement}: Profile.t) => {
-  //   let (r_x, r_y) = caret_position_radii(~font_metrics, ~style);
+  // let view = (~font, {style, sort, measurement}: Profile.t) => {
+  //   let (r_x, r_y) = caret_position_radii(~font, ~style);
   //   let c_cls = Core.Sort.to_string(sort);
   //   let cls =
   //     switch (style) {
@@ -32,7 +32,7 @@
   //     "svg",
   //     [
   //       Attr.class_(cls),
-  //       DecUtil.abs_position(~font_metrics, measurement.origin),
+  //       DecUtil.abs_position(~font, measurement.origin),
   //       Attr.create("viewBox", Printf.sprintf("0 0 1 1")),
   //       Attr.create("preserveAspectRatio", "none"),
   //     ],

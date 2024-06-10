@@ -22,7 +22,7 @@
   //   );
   // };
   // let view =
-  //     (~font_metrics, {measurement: {origin, _}, mold}: Profile.t): Node.t => {
+  //     (~font, {measurement: {origin, _}, mold}: Profile.t): Node.t => {
   //   let sort = mold.out;
   //   let c_cls = Sort.to_string(sort);
   //   let (tip_l, tip_r): (Core.Nib.Shape.t, Core.Nib.Shape.t) =
@@ -32,7 +32,7 @@
   //     {sort, shape: tip_r},
   //   );
   //   DecUtil.code_svg(
-  //     ~font_metrics,
+  //     ~font,
   //     ~origin,
   //     ~base_cls=["empty-hole"],
   //     ~path_cls=["empty-hole-path", c_cls],

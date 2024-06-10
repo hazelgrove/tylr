@@ -9,3 +9,6 @@ type t = {
 };
 
 let init = {row_height: 10., col_width: 10.};
+
+let row = (font, row) => Float.of_int(row) *. font.col_width;
+let col = (font, col) => Float.of_int(col) *. font.row_height;

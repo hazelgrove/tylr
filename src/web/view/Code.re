@@ -110,12 +110,12 @@ open Stds;
 // module Deco =
 //        (
 //          M: {
-//            let font_metrics: FontMetrics.t;
+//            let font: Font.t;
 //            let map: Measured.t;
 //            let show_backpack_targets: bool;
 //          },
 //        ) => {
-//   let font_metrics = M.font_metrics;
+//   let font = M.font;
 
 //   let backpack_sel_view =
 //       (
@@ -176,13 +176,13 @@ open Stds;
 //     };
 //     let caret_adj_px =
 //       //TODO(andrew): figure out why we need this mystery pixel below
-//       (-1.) +. caret_adj *. font_metrics.col_width;
+//       (-1.) +. caret_adj *. font.col_width;
 //     let style =
 //       Printf.sprintf(
 //         "position: absolute; left: %fpx; top: %fpx;",
-//         Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+//         Float.of_int(origin.col) *. font.col_width +. caret_adj_px,
 //         Float.of_int(/* origin.row */ - height_head - 1)
-//         *. font_metrics.row_height,
+//         *. font.row_height,
 //       );
 //     let scale_fn = idx => float_of_int(100 - 12 * idx) /. 100.;
 //     let x_fn = idx => float_of_int(12 * idx);
@@ -190,7 +190,7 @@ open Stds;
 //     let opacity_reduction = 20.; // reduction per line
 //     let init_idx = 0;
 //     let dy_fn = (idx, base_height) =>
-//       font_metrics.row_height
+//       font.row_height
 //       *. float_of_int(base_height)
 //       *. scale_fn(idx)
 //       -. 4.;
@@ -225,9 +225,9 @@ open Stds;
 //     let joiner_style =
 //       Printf.sprintf(
 //         "position: absolute; left: %fpx; top: %fpx; height: %fpx;",
-//         Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+//         Float.of_int(origin.col) *. font.col_width +. caret_adj_px,
 //         -3.,
-//         Float.of_int(origin.row) *. font_metrics.row_height +. 3.,
+//         Float.of_int(origin.row) *. font.row_height +. 3.,
 //       );
 //     let joiner =
 //       div(
@@ -240,7 +240,7 @@ open Stds;
 //     //TODO(andrew): break out backpack decoration into its own module
 //     let genie_view =
 //       DecUtil.code_svg(
-//         ~font_metrics,
+//         ~font,
 //         ~origin={row: 0, col: 0},
 //         ~base_cls=["restructuring-genie"],
 //         ~path_cls=["restructuring-genie-path"],
@@ -255,7 +255,7 @@ open Stds;
 //     let genie_style =
 //       Printf.sprintf(
 //         "position: absolute; left: %fpx;",
-//         Float.of_int(origin.col) *. font_metrics.col_width +. caret_adj_px,
+//         Float.of_int(origin.col) *. font.col_width +. caret_adj_px,
 //       );
 //     div(
 //       [
@@ -277,7 +277,7 @@ open Stds;
 //          | Tile(t) => t.children |> List.map(holes) |> List.concat
 //          | Grout(g) => [
 //              EmptyHoleDec.view(
-//                ~font_metrics, // TODO(d) fix sort
+//                ~font, // TODO(d) fix sort
 //                {
 //                  measurement: Measured.find_g(g, M.map),
 //                  mold: Mold.of_grout(g, Any),
@@ -296,7 +296,7 @@ open Stds;
 //       | _ => Right
 //       };
 //     [
-//       CaretDec.view(~font_metrics, ~profile={side, origin, shape}),
+//       CaretDec.view(~font, ~profile={side, origin, shape}),
 //       backpack_view(~origin, z),
 //     ];
 //   };
@@ -384,7 +384,7 @@ open Stds;
 //            // adjacent piece so it lines up nice
 //            (
 //              snd(Mold.nibs(profile.mold)).shape,
-//              PieceDec.view(~font_metrics, ~rows=M.map.rows, profile),
+//              PieceDec.view(~font, ~rows=M.map.rows, profile),
 //            );
 //          },
 //          fst(Siblings.shapes(z.relatives.siblings)),
@@ -442,7 +442,7 @@ open Stds;
 //       | None => []
 //       | Some(range) =>
 //         PieceDec.view(
-//           ~font_metrics,
+//           ~font,
 //           ~rows=M.map.rows,
 //           ~segs=[],
 //           root_piece_profile(index, p, nib_shape, range),
@@ -479,7 +479,7 @@ open Stds;
 //                };
 //              let profile =
 //                CaretPosDec.Profile.{style: `Sibling, measurement, sort: Exp};
-//              [CaretPosDec.view(~font_metrics, profile)];
+//              [CaretPosDec.view(~font, profile)];
 //            };
 //          })
 //       |> List.concat;
@@ -550,7 +550,7 @@ let view_text =
     txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
   );
 
-let view = (~font_metrics as _, ~zipper: Zipper.t): Node.t => {
+let view = (~font, ~zipper: Zipper.t): Node.t => {
   let c = Zipper.zip(~save_cursor=true, zipper);
   // module Text =
   //   Text({
@@ -559,13 +559,20 @@ let view = (~font_metrics as _, ~zipper: Zipper.t): Node.t => {
   //   });
   // module Deco =
   //   Deco({
-  //     let font_metrics = font_metrics;
+  //     let font = font;
   //     let map = map;
   //     let show_backpack_targets = show_backpack_targets;
   //   });
   div(
     ~attrs=[Attr.class_("code"), Attr.id("under-the-rail")],
-    Node.[span(~attrs=[Attr.class_("code-text")], view_text(c))],
+    Node.[span(~attrs=[Attr.class_("code-text")], view_text(c))]
+    @ [
+      Dec.Token.mk(
+        ~font,
+        ~pos=Layout.Pos.zero,
+        {len: 3, sort: Sort.of_str("Exp"), tips: Tip.(Conv, Conv)},
+      ),
+    ],
     // @ Deco.all(zipper),
   );
 };

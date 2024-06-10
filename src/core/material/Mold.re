@@ -5,6 +5,8 @@ type t = {
   sort: Sort.t,
 };
 
+let mk = (~rctx=RCtx.empty, ~prec, sort) => {rctx, prec, sort};
+
 let equal = (==);
 
 let is_null = (~side: Dir.t, m: t) =>

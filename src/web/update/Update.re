@@ -13,8 +13,8 @@ type t =
   // | Load
   // | Save
   // | SwitchEditor(int)
-  | SetFontMetrics(FontMetrics.t)
-  // | SetLogoFontMetrics(FontMetrics.t)
+  | SetFont(Font.t)
+  // | SetLogoFont(Font.t)
   | PerformAction(Edit.Action.t)
   // | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
@@ -209,8 +209,8 @@ let apply =
     : Result.t(Model.t) => {
   //print_endline("apply");
   switch (update) {
-  | SetFontMetrics(font_metrics) => Ok({...model, font_metrics})
-  // | SetLogoFontMetrics(logo_font_metrics) =>
+  | SetFont(font) => Ok({...model, font})
+  // | SetLogoFont(logo_font_metrics) =>
   //   Ok({...model, logo_font_metrics})
   | PerformAction(a) =>
     switch (Edit.perform(a, model.zipper)) {

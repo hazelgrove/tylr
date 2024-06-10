@@ -4,9 +4,9 @@ open Util.Svgs;
 
 module Profile = {
   type t = {
-    pos: Layout.Pos.t,
     len: int,
-    mtrl: Mtrl.T.t,
+    sort: Sort.t,
+    tips: Tip.s,
   };
 };
 
@@ -73,4 +73,11 @@ let drop_shadow = (sort: Sort.t) =>
         [],
       ),
     ],
+  );
+
+let mk = (prof: Profile.t) =>
+  Box.mk(
+    ~width=prof.len,
+    ~height=1,
+    [Util.Svgs.Path.view(~attrs=[], path(prof.tips, prof.len))],
   );

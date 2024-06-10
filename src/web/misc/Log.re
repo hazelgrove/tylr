@@ -15,7 +15,7 @@
   //   fun
   //   | UpdateDoubleTap(_) => false
   //   | Save => false
-  //   | SetFontMetrics(_) => false
+  //   | SetFont(_) => false
   //   | _ => true;
   // let is_keystroke_logged: Key.t => bool = _ => true;
   // let mk_entry = (update, z, error): entry => {

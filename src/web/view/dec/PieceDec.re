@@ -66,7 +66,7 @@
   //   );
   // let simple_shard =
   //     (
-  //       ~font_metrics: FontMetrics.t,
+  //       ~font: Font.t,
   //       ~mold: Mold.t,
   //       ~index: int,
   //       (this_index, {origin, last}: Measured.measurement),
@@ -78,11 +78,11 @@
   //     ["tile-path", "raised", Sort.to_string(mold.out)]
   //     @ (index == this_index ? ["indicated-caret"] : ["indicated"]);
   //   let base_cls = ["tile-indicated"];
-  //   DecUtil.code_svg(~font_metrics, ~origin, ~base_cls, ~path_cls, path);
+  //   DecUtil.code_svg(~font, ~origin, ~base_cls, ~path_cls, path);
   // };
   // let simple_shard_child =
   //     (
-  //       ~font_metrics: FontMetrics.t,
+  //       ~font: Font.t,
   //       (mold: Mold.t, {origin, last}: Measured.measurement),
   //     )
   //     : t => {
@@ -90,7 +90,7 @@
   //   let path = simple_shard_path(nib_shapes, last.col - origin.col);
   //   let clss = ["indicated-child", Sort.to_string(mold.out)];
   //   DecUtil.code_svg(
-  //     ~font_metrics,
+  //     ~font,
   //     ~origin,
   //     ~path_cls=clss,
   //     ~base_cls=["child-backing"],
@@ -99,7 +99,7 @@
   // };
   // let chunky_shard =
   //     (
-  //       ~font_metrics: FontMetrics.t,
+  //       ~font: Font.t,
   //       ~rows: Measured.Rows.t,
   //       (i, j): (int, int),
   //       mold: Mold.t,
@@ -117,12 +117,12 @@
   //   let path =
   //     chunky_shard_path({origin, last}, (nib_l, nib_r), indent_col, max_col);
   //   let clss = ["tile-path", "selected", "raised", Sort.to_string(mold.out)];
-  //   DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path);
+  //   DecUtil.code_svg(~font, ~origin, ~path_cls=clss, path);
   // };
   // let shadowfudge = Path.cmdfudge(~y=DecUtil.shadow_adj);
   // let bi_lines =
   //     (
-  //       ~font_metrics: FontMetrics.t,
+  //       ~font: Font.t,
   //       ~rows: Measured.Rows.t,
   //       mold: Mold.t,
   //       shards: Measured.Shards.t,
@@ -169,12 +169,12 @@
   //   intra_lines
   //   @ inter_lines
   //   |> List.map(((origin, path)) =>
-  //        DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path)
+  //        DecUtil.code_svg(~font, ~origin, ~path_cls=clss, path)
   //      );
   // };
   // let uni_lines =
   //     (
-  //       ~font_metrics: FontMetrics.t,
+  //       ~font: Font.t,
   //       ~rows: Measured.Rows.t,
   //       (l: Measured.point, r: Measured.point),
   //       mold: Mold.t,
@@ -310,12 +310,12 @@
   //   l_line
   //   @ r_line
   //   |> List.map(((origin, path)) =>
-  //        DecUtil.code_svg(~font_metrics, ~origin, ~path_cls=clss, path)
+  //        DecUtil.code_svg(~font, ~origin, ~path_cls=clss, path)
   //      );
   // };
   // let view =
   //     (
-  //       ~font_metrics: FontMetrics.t,
+  //       ~font: Font.t,
   //       ~rows: Measured.Rows.t,
   //       ~segs: list((Mold.t, Measured.measurement))=[],
   //       {mold, shards, index, _} as profile: Profile.t,
@@ -323,11 +323,11 @@
   //     : list(Node.t) =>
   //   switch (profile.style) {
   //   | Selected(i, j) => [
-  //       chunky_shard(~font_metrics, ~rows, (i, j), mold, shards),
+  //       chunky_shard(~font, ~rows, (i, j), mold, shards),
   //     ]
   //   | Root(l, r) =>
-  //     List.map(simple_shard(~font_metrics, ~mold, ~index), shards)
-  //     @ List.map(simple_shard_child(~font_metrics), segs)
-  //     @ uni_lines(~font_metrics, ~rows, (l, r), mold, shards)
-  //     @ bi_lines(~font_metrics, ~rows, mold, shards)
+  //     List.map(simple_shard(~font, ~mold, ~index), shards)
+  //     @ List.map(simple_shard_child(~font), segs)
+  //     @ uni_lines(~font, ~rows, (l, r), mold, shards)
+  //     @ bi_lines(~font, ~rows, mold, shards)
   //   };

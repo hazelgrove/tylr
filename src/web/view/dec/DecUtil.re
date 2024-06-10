@@ -42,24 +42,24 @@ let abs_position =
       ~top_fudge=0.0,
       ~width_fudge=0.0,
       ~height_fudge=0.0,
-      ~font_metrics: FontMetrics.t,
+      ~font: Font.t,
       origin: Tylr_core.Layout.Pos.t,
     ) => {
   Attr.create(
     "style",
     Printf.sprintf(
       "position: absolute; left: %fpx; top: %fpx; width: %fpx; height: %fpx;",
-      Float.of_int(origin.col) *. font_metrics.col_width +. left_fudge,
-      Float.of_int(origin.row) *. font_metrics.row_height +. top_fudge,
-      font_metrics.col_width +. width_fudge,
-      font_metrics.row_height +. height_fudge,
+      Float.of_int(origin.col) *. font.col_width +. left_fudge,
+      Float.of_int(origin.row) *. font.row_height +. top_fudge,
+      font.col_width +. width_fudge,
+      font.row_height +. height_fudge,
     ),
   );
 };
 
 let code_svg =
     (
-      ~font_metrics: FontMetrics.t,
+      ~font: Font.t,
       ~origin: Tylr_core.Layout.Pos.t,
       ~base_cls=[],
       ~path_cls=[],
@@ -78,7 +78,7 @@ let code_svg =
       @ [
         Attr.classes(base_cls),
         abs_position(
-          ~font_metrics,
+          ~font,
           ~left_fudge,
           ~top_fudge,
           ~width_fudge,

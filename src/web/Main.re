@@ -26,7 +26,7 @@ let observe_font_specimen = (id, update) =>
         let specimen = Js.to_array(entries)[0];
         let rect = specimen##.contentRect;
         update(
-          Model.FontMetrics.{
+          Model.Font.{
             row_height: rect##.bottom -. rect##.top,
             col_width: rect##.right -. rect##.left,
           },
@@ -98,11 +98,11 @@ module App = {
   let on_startup = (~schedule_action, _) => {
     let _ =
       observe_font_specimen("font-specimen", fm =>
-        schedule_action(Update.SetFontMetrics(fm))
+        schedule_action(Update.SetFont(fm))
       );
     // let _ =
     //   observe_font_specimen("logo-font-specimen", fm =>
-    //     schedule_action(Web.Update.SetLogoFontMetrics(fm))
+    //     schedule_action(Web.Update.SetLogoFont(fm))
     //   );
     Util.Os.is_mac :=
       Dom_html.window##.navigator##.platform##toUpperCase##indexOf(

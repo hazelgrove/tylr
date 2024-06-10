@@ -16,14 +16,14 @@ open Tylr_core;
 // let settings_init = {captions: false, whitespace_icons: false};
 
 module State = State;
-module FontMetrics = FontMetrics;
+module Font = Font;
 module History = History;
 
 type t = {
   zipper: Zipper.t,
   history: History.t,
-  font_metrics: FontMetrics.t,
-  // logo_font_metrics: FontMetrics.t,
+  font: Font.t,
+  // logo_font_metrics: Font.t,
   // settings,
 };
 
@@ -49,11 +49,7 @@ let init_zipper =
     ctx: Ctx.unit(([Terr.of_tok(Token.Grout.op_(Sort.root))], [])),
   };
 
-let init = {
-  zipper: init_zipper,
-  history: History.empty,
-  font_metrics: FontMetrics.init,
-};
+let init = {zipper: init_zipper, history: History.empty, font: Font.init};
 
 // let get_zipper = (model: t): Zipper.t =>
 //   switch (model.editor_model) {
