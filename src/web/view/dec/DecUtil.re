@@ -134,7 +134,7 @@ let shadow_filter = (sort: Tylr_core.Sort.t) => {
 
 let filters =
   Nodes.svg(
-    Attr.[id("filters")],
+    ~attrs=Attr.[id("filters")],
     List.map(raised_shadow_filter, Tylr_core.Sort.all)
     @ List.map(shadow_filter, Tylr_core.Sort.all),
   );

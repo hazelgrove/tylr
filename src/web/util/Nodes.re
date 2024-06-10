@@ -1,5 +1,6 @@
 open Virtual_dom.Vdom;
 
-let svg = (attrs, children) => Node.create_svg("svg", ~attrs, children);
+let svg = Node.create_svg("svg");
+let filter = Node.create_svg("filter");
 
 // let stop = attrs => Node.create_svg("stop", ~attrs, []);
