@@ -41,17 +41,17 @@ let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
 // assumes normalized cursor
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   open Options.Syntax;
-  let len = Option.map(Meld.length, cell.meld) |> Option.value(~default=0);
-  let* hd = Path.Cursor.hd(~len, cell.marks.cursor);
+  let* hd = Option.map(Path.Cursor.hd, cell.marks.cursor);
+  let m = Cell.get(cell);
   switch (hd) {
   | Error(Point(_) as cur) =>
-    assert(Option.is_none(cell.meld));
+    assert(Option.is_none(m));
     Some(mk(~cur, ctx));
   | Error(Select(range)) =>
-    let m = Options.get_exn(Marks.Invalid, cell.meld);
+    let m = Options.get_exn(Marks.Invalid, m);
     Some(unzip_select(range, m, ~ctx));
   | Ok(step) =>
-    let m = Options.get_exn(Marks.Invalid, cell.meld);
+    let m = Options.get_exn(Marks.Invalid, m);
     switch (Meld.unzip(step, m)) {
     | Loop((pre, cell, suf)) => unzip(~ctx=Ctx.add((pre, suf), ctx), cell)
     | Link((pre, tok, suf)) =>
