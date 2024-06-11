@@ -27,6 +27,8 @@ module Selection = {
   [@deriving (show({with_path: false}), sexp, yojson, hash)]
   type t = Selection.t(Range.t);
   let map = f => Selection.map(Range.map(f));
+  let carets: t => (Caret.t, Caret.t) =
+    Selection.carets(~split_range=Fun.id);
 };
 
 module Cursor = {

@@ -4,7 +4,7 @@ open Stds;
 
 module Head = {
   type t('err) = Result.t(Step.t, 'err);
-  let map = f => Result.map_error(~f);
+  let map_err = f => Result.map_error(~f);
   let get = f =>
     fun
     | Ok(step) => step
@@ -52,14 +52,10 @@ module Range = {
   type t = (Base.t, Base.t);
   let is_empty = ((l, r): t) => Base.compare(l, r) == 0;
   let map = Tuples.map2;
-  let hd = (~len) =>
+  let hd =
     fun
     | ([hd_l, ..._], [hd_r, ..._]) when hd_l == hd_r => Ok(hd_l)
-    | (l, r) =>
-      Error((
-        Head.get(Fun.const(0), Base.hd(l)),
-        Head.get(Fun.const(len), Base.hd(r)),
-      ));
+    | range => Error(range);
   let peel = (n, (l, r): t) => {
     open Options.Syntax;
     let+ l = Base.peel(n, l)
@@ -72,12 +68,12 @@ module Caret = {
   include Caret;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Caret.t(Base.t);
-  let mk = (~path=Base.empty, hand) => mk(hand, path);
+  let mk = (~path=Base.empty, hand: Caret.Hand.t) => mk(hand, path);
   let cons = n => map(Base.cons(n));
   let peel = (n: Step.t, car: t) =>
     Base.peel(n, car.path) |> Option.map(path => {...car, path});
   let hd = (car: t) =>
-    Head.map(Fun.const(Caret.mk(car.hand, ())), get(Base.hd, car));
+    Head.map_err(Fun.const(Caret.mk(car.hand, ())), get(Base.hd, car));
 };
 
 module Selection = {
@@ -90,13 +86,14 @@ module Selection = {
   let cons = n => map2(Base.cons(n));
   let peel = (n, sel: t) =>
     Range.peel(n, sel.range) |> Option.map(range => {...sel, range});
-  let hd = (~len, sel) =>
-    Range.hd(~len, sel.range) |> Head.map(mk(~focus=sel.focus));
+  let hd = sel => Range.hd(sel.range) |> Head.map_err(mk(~focus=sel.focus));
   let get_focus = (sel: t) => Dir.pick(sel.focus, sel.range);
   let put_focus = (foc, sel: t) => {
     let (_foc, anc) = Dir.order(sel.focus, sel.range);
     {...sel, range: Dir.order(sel.focus, (foc, anc))};
   };
+  let carets: t => (Caret.t, Caret.t) =
+    Selection.carets(~split_range=Fun.id);
 };
 
 module Cursor = {
@@ -104,12 +101,10 @@ module Cursor = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Cursor.t(Caret.t, Selection.t);
 
-  let hd = (~len) =>
-    Option.map(
-      fun
-      | Point(p) => Head.map(Cursor.point, Caret.hd(p))
-      | Select(sel) => Head.map(Cursor.select, Selection.hd(~len, sel)),
-    );
+  let hd =
+    fun
+    | Point(p) => Head.map_err(Cursor.point, Caret.hd(p))
+    | Select(sel) => Head.map_err(Cursor.select, Selection.hd(sel));
   let cons = n => Cursor.map(Caret.cons(n), Selection.cons(n));
   let peel = n =>
     fun

@@ -22,6 +22,10 @@ module Base = {
   let add_mark = (p, tok) => {...tok, marks: Marks.add(p, tok.marks)};
   // let add_mark = (mark, tok) => {...tok, marks: [mark, ...tok.marks]};
   // let add_marks = (marks, tok) => {...tok, marks: marks @ tok.marks};
+  let put_cursor = (cursor: Step.Cursor.t, tok) => {
+    ...tok,
+    marks: Some(cursor),
+  };
   let put_marks = (marks, tok) => {...tok, marks};
   let clear_marks = tok => put_marks(None, tok);
   let pop_marks = tok => (tok.marks, clear_marks(tok));

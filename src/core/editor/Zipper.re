@@ -78,9 +78,11 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   };
 }
 and unzip_select =
-    (~ctx=Ctx.empty, sel: Selection.t(Step.Range.t), meld: Meld.t) => {
+    (~ctx=Ctx.empty, sel: Selection.t(Path.Range.t), meld: Meld.t) => {
   let get = Options.get_exn(Marks.Invalid);
   let (l, r) = sel.range;
+  let l = Path.hd(l) |> Path.Head.get(() => 0);
+  let r = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
   let (pre, top, suf) = Meld.split_subwald(l, r, meld);
   let ((pre_dn, pre_up), top) =
     if (l mod 2 == 0) {

@@ -44,6 +44,33 @@ module Pos = {
   };
 };
 
+module Range = {
+  type t = (Pos.t, Pos.t);
+  let empty = pos => (pos, pos);
+};
+module Caret = {
+  include Caret;
+  type t = Caret.t(Pos.t);
+};
+module Selection = {
+  include Selection;
+  type t = Selection.t(Range.t);
+  let map_focus = Selection.map_focus(~split_range=Fun.id);
+  let get_focus = Selection.get_focus(~split_range=Fun.id);
+};
+module Cursor = {
+  include Cursor;
+  type t = Cursor.t(Caret.t, Selection.t);
+  let map_focus = (f: Pos.t => Pos.t) =>
+    Cursor.map(Caret.map_focus(f), Selection.map_focus(f));
+  let get_point =
+    fun
+    | Cursor.Point(p) => p
+    | Select(_) => raise(Invalid_argument("Layout.Cursor.get_point"));
+  let get_focus =
+    Cursor.get(Caret.get_focus, s => Some(Selection.get_focus(s)));
+};
+
 module Ictx = {
   type t = {
     // left delimiter
@@ -69,6 +96,7 @@ module State = {
 
   let init = {ctx: Ictx.init, pos: Pos.zero};
 
+  // todo: unify this with load_cell_frame below
   let load_terr = (terr: Terr.R.t, ~closed=false, s: t): t => {
     let mid =
       Ictx.middle(~newline=Dims.of_cell(terr.cell).height > 0, s.ctx);
@@ -80,15 +108,42 @@ module State = {
       };
     let pos =
       List.fold_right2(
-        (tok, cell, pos) =>
+        (tok, cell, pos) => {
+          assert(!Token.Space.is(tok));
           pos
           |> Pos.skip(~over=Dims.of_cell(cell), ~return=mid)
-          |> Pos.skip_col(Token.length(tok)),
+          // note: this only works for non-space tokens
+          |> Pos.skip_col(Token.length(tok));
+        },
         Terr.tokens(terr),
         Terr.cells(terr),
         s.pos,
       );
     {ctx, pos};
+  };
+
+  let load_cell_frame = (~newline, (pre, suf), s: t): t =>
+    switch (Terr.mk'(pre)) {
+    | Some(pre) => load_terr(pre, ~closed=Option.is_some(Terr.mk'(suf)), s)
+    | None =>
+      let ctx = {...s.ctx, right: Ictx.middle(~newline, s.ctx)};
+      {...s, ctx};
+    };
+  let load_tok_frame = (~newline, (pre, _suf), s: t) => {
+    let mid = Ictx.middle(~newline, s.ctx);
+    let pos =
+      pre
+      |> Chain.fold_right(
+           (cell, tok, pos) => {
+             assert(!Token.Space.is(tok));
+             pos
+             // note: this only works for non-space tokens
+             |> Pos.skip_col(Token.length(tok))
+             |> Pos.skip(~over=Dims.of_cell(cell), ~return=mid);
+           },
+           cell => Pos.skip(~over=Dims.of_cell(cell), ~return=mid, s.pos),
+         );
+    {...s, pos};
   };
 
   let load_closed = ((l, _): Frame.Closed.t) => load_terr(l, ~closed=true);
@@ -109,6 +164,75 @@ module State = {
       (open_, closed, s) => s |> load_closed(closed) |> load_open(open_),
       open_ => load_open(open_, init),
     );
+
+  let range = (s: t, dims: Dims.t) => (
+    s.pos,
+    Pos.skip(s.pos, ~over=dims, ~return=s.ctx.right),
+  );
+};
+
+let count_newlines =
+  fun
+  | None => 0
+  | Some(tok: Token.t) => Strings.count('\n', tok.text);
+
+let rec cursor_tok = (~state: State.t, tok: Token.t): option(Cursor.t) => {
+  open Options.Syntax;
+  let+ cur = tok.marks
+  and+ (l, _, r) = Token.unzip(tok);
+  switch (cur) {
+  | Select(sel) =>
+    let (l, r) = Step.Selection.carets(sel);
+    let l =
+      Option.get(cursor_tok(~state, Token.put_cursor(Point(l), tok)));
+    let r =
+      Option.get(cursor_tok(~state, Token.put_cursor(Point(r), tok)));
+    Cursor.select(
+      Selection.mk(
+        ~focus=sel.focus,
+        Cursor.(get_point(l).path, get_point(r).path),
+      ),
+    );
+  | Point(car) =>
+    let (n_l, n_r) = (count_newlines(l), count_newlines(r));
+    let dims_l = Dims.of_tok(Option.value(l, ~default=Token.Space.empty));
+    let return =
+      n_r > 0 ? Ictx.middle(~newline=n_l > 0, state.ctx) : state.ctx.right;
+    let p = Pos.skip(state.pos, ~over=dims_l, ~return);
+    Point(Caret.mk(car.hand, p));
+  };
+};
+
+let rec cursor = (~state=State.init, cell: Cell.t): option(Cursor.t) => {
+  open Options.Syntax;
+  let* cur = cell.marks.cursor;
+  switch (Path.Cursor.hd(cur)) {
+  | Error(Point(car)) => Some(Cursor.point(Caret.mk(car.hand, state.pos)))
+  | Error(Select(sel)) =>
+    let (l, r) = Path.Selection.carets(sel);
+    let l = Option.get(cursor(~state, Cell.put_cursor(Point(l), cell)));
+    let r = Option.get(cursor(~state, Cell.put_cursor(Point(r), cell)));
+    Some(
+      Select(
+        Selection.mk(
+          ~focus=sel.focus,
+          Cursor.(get_point(l).path, get_point(r).path),
+        ),
+      ),
+    );
+  | Ok(step) =>
+    let M(l, _, _) as m = Options.get_exn(Marks.Invalid, Cell.get(cell));
+    // todo: figure out better organization of this newline calc
+    let newline = Dims.of_cell(l).height > 0;
+    switch (Meld.unzip(step, m)) {
+    | Loop((pre, cell, suf)) =>
+      let state = State.load_cell_frame(~newline, (pre, suf), state);
+      cursor(~state, cell);
+    | Link((pre, tok, suf)) =>
+      let state = State.load_tok_frame(~newline, (pre, suf), state);
+      cursor_tok(~state, tok);
+    };
+  };
 };
 
 let fold =
@@ -321,9 +445,10 @@ let max_pos = (c: Cell.t) => {
 // returns none if the resulting goal pos is same as start pos.
 let map_focus = (f: Pos.t => Pos.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
-  let c = Zipper.zip(z);
-  let* init_path = Cell.Marks.get_focus(c.marks);
-  let init_pos = pos_of_path(init_path, c);
+  let c = Zipper.zip(~save_cursor=true, z);
+  let* cursor = cursor(c);
+  // let* init_path = Cell.Marks.get_focus(c.marks);
+  let* init_pos = Cursor.get_focus(cursor);
   let goal_pos = Pos.bound(f(init_pos), ~max=max_pos(c));
   let+ goal_path =
     Pos.eq(init_pos, goal_pos) ? None : Some(path_of_pos(goal_pos, c));
