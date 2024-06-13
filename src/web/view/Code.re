@@ -552,14 +552,20 @@ let view_text =
 
 let cursor = (~font, z: Zipper.t) =>
   switch (z.cur) {
-  | Select(_) => []
+  | Select(_) =>
+    print_endline("0");
+    [];
   | Point(_) =>
     let (cell, ctx) = Zipper.zip_indicated(z);
     switch (Cell.get(cell)) {
     | Some(m) when !Cell.Space.is_space(cell) =>
       let state = Layout.State.load(ctx);
       Dec.Meld.(mk(~font, Profile.mk(~state, m)));
-    | _ => []
+    | _ =>
+      print_endline("1");
+      print_endline("cell = " ++ Cell.show(cell));
+      print_endline("ctx = " ++ Ctx.show(ctx));
+      [];
     };
   };
 

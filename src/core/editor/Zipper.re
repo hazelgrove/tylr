@@ -227,14 +227,17 @@ let zip = (~save_cursor=false, z: t) =>
 let load_cursor = (z: t) => unzip(zip(z));
 
 let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
-  let (zipped, ctx) = zip_init(~save_cursor=true, z);
-  let ( let* ) = (o, f) =>
-    Option.map(f, o) |> Option.value(~default=(zipped, ctx));
-  let* _ = Cell.is_caret(zipped);
-  let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
-  let* d = Rel.is_neq(rel);
-  let* (zipped, ctx) = zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx);
-  (zipped, ctx);
+  let (zipped, ctx) as init = zip_init(~save_cursor=true, z);
+  let zipped_past_space = {
+    open Options.Syntax;
+    let* _ = Cell.is_caret(zipped);
+    let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
+    let/ () = Cell.Space.is_space(zipped) ? Some((zipped, ctx)) : None;
+    let+ d = Rel.is_neq(rel);
+    zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx)
+    |> Option.value(~default=(zipped, ctx));
+  };
+  Option.value(zipped_past_space, ~default=init);
 };
 
 let button = (z: t): t => {
