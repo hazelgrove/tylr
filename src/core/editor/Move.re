@@ -14,6 +14,9 @@ let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let b = Dir.toggle(d);
   let+ ctx =
     switch (z.cur) {
+    // move to d end of selection
+    | Select({range: zigg, _}) =>
+      return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
     | Point(_) =>
       let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
       // todo: add movement granularity
@@ -22,10 +25,8 @@ let move = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       | Some((c, tok)) =>
         ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c)
       };
-    | Select({range: zigg, _}) =>
-      z.ctx |> Ctx.push_zigg(~onto=b, zigg) |> Ctx.close |> Option.some
     };
-  Zipper.mk(ctx);
+  Zipper.(button(mk(ctx)));
 };
 
 let rec move_n = (n: int, z: Zipper.t): Zipper.t => {

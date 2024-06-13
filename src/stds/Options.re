@@ -1,3 +1,5 @@
+let of_bool = b => b ? Some() : None;
+
 let get = (if_none, o) =>
   switch (o) {
   | None => if_none()

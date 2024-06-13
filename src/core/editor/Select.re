@@ -62,8 +62,10 @@ let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
           let zigg = Zigg.push_fail(~side, tok, zigg);
           (c, Select({focus: side, range: zigg}));
         };
-      let ctx = Ctx.(close(push(~onto=b, tok, z.ctx)));
-      Some(Zipper.mk(~cur, ctx));
+      Ctx.push(~onto=b, tok, z.ctx)
+      |> Zipper.mk(~cur)
+      |> Zipper.button
+      |> Option.some;
     }
   };
 };

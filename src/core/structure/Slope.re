@@ -67,6 +67,17 @@ let unroll = (~from: Dir.t, cell: Cell.t) => {
     };
   go(cell, []);
 };
+let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
+  switch (slope) {
+  | [] => fill
+  | [hd, ...tl] =>
+    let m =
+      switch (onto) {
+      | L => Meld.M(hd.cell, hd.wald, fill)
+      | R => M(fill, hd.wald, hd.cell)
+      };
+    roll(~onto, ~fill=Cell.put(m), tl);
+  };
 
 // here "from" indicates which side slope is relative to puller
 // eg "pull from dn slope on left"
@@ -91,12 +102,14 @@ let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
 module Dn = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Terr.R.t);
+  let roll = roll(~onto=L);
   let unroll = unroll(~from=L);
   let pull = pull(~from=L);
 };
 module Up = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Terr.L.t);
+  let roll = roll(~onto=R);
   let unroll = unroll(~from=R);
   let pull = pull(~from=R);
 };

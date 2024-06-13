@@ -9,15 +9,17 @@ module Caret = {
   let mk = hand => mk(hand, ());
   let focus = focus();
 };
-// module Selection = {
-//   include Selection;
-//   [@deriving (show({with_path: false}), sexp, yojson)]
-//   type t = Selection.t(Zigg.t);
-// };
+module Selection = {
+  include Selection;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = Selection.t(Zigg.t);
+  let split_range = Fun.const(((), ()));
+  let carets = carets(~split_range);
+};
 module Cursor = {
   include Cursor;
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Cursor.t(Caret.t, Selection.t(Zigg.t));
+  type t = Cursor.t(Caret.t, Selection.t);
 };
 
 // todo: document potential same-id token on either side of caret
@@ -77,8 +79,7 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
     };
   };
 }
-and unzip_select =
-    (~ctx=Ctx.empty, sel: Selection.t(Path.Range.t), meld: Meld.t) => {
+and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   let get = Options.get_exn(Marks.Invalid);
   let (l, r) = sel.range;
   let l = Path.hd(l) |> Path.Head.get(() => 0);
@@ -126,44 +127,84 @@ let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
   Cell.put(Meld.mk(~l=l.cell, w, ~r=r.cell));
 };
 
-let step_zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
+let zip_step_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
   switch (dn, up) {
   | ([], []) => None
-  | ([], [hd, ...tl]) => Some((zip_lt(zipped, hd), (dn, tl)))
-  | ([hd, ...tl], []) => Some((zip_gt(hd, zipped), (tl, up)))
+  | ([], [hd, ...tl]) =>
+    Some((Rel.Neq(Dir.L), zip_lt(zipped, hd), (dn, tl)))
+  | ([hd, ...tl], []) => Some((Neq(R), zip_gt(hd, zipped), (tl, up)))
   | ([hd_dn, ..._], [hd_up, ...tl_up])
       when Melder.lt(hd_dn.wald, hd_up.wald) =>
-    Some((zip_lt(zipped, hd_up), (dn, tl_up)))
+    Some((Neq(L), zip_lt(zipped, hd_up), (dn, tl_up)))
   | ([hd_dn, ...tl_dn], [hd_up, ..._])
       when Melder.gt(hd_dn.wald, hd_up.wald) =>
-    Some((zip_gt(hd_dn, zipped), (tl_dn, up)))
+    Some((Neq(R), zip_gt(hd_dn, zipped), (tl_dn, up)))
   | ([l, ...dn], [r, ...up]) =>
     let caret = Cell.is_caret(zipped);
     switch (Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald)) {
-    | Some(w) => Some((Cell.put(M(l.cell, w, r.cell)), (dn, up)))
+    | Some(w) => Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)))
     | None =>
       assert(Melder.eq(l.wald, r.wald));
-      Some((zip_eq(l, zipped, r), (dn, up)));
+      Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
     };
   };
-let step_zip = (ctx: Ctx.t, zipped: Cell.t) =>
+let zip_step =
+    (~zipped: Cell.t, ctx: Ctx.t)
+    : option((Rel.t(unit, Dir.t), Cell.t, Ctx.t)) =>
   switch (Ctx.unlink(ctx)) {
   | Error(open_) =>
-    Option.map(Tuples.map_snd(Ctx.unit), step_zip_open(open_, zipped))
+    zip_step_open(~zipped, open_)
+    |> Option.map(((rel, zipped, open_)) => (rel, zipped, Ctx.unit(open_)))
   | Ok((open_, (l, r), ctx)) =>
-    switch (step_zip_open(open_, zipped)) {
-    | Some((zipped, open_)) =>
-      Some((zipped, Ctx.link(~open_, (l, r), ctx)))
-    | None => Some((zip_eq(l, zipped, r), ctx))
+    switch (zip_step_open(~zipped, open_)) {
+    | None => Some((Eq(), zip_eq(l, zipped, r), ctx))
+    | Some((rel, zipped, open_)) =>
+      Some((rel, zipped, Ctx.link(~open_, (l, r), ctx)))
     }
   };
-
-let rec zip_open = ((dn, up): Frame.Open.t, zipped: Cell.t) =>
-  switch (step_zip_open((dn, up), zipped)) {
-  | None => zipped
-  | Some((zipped, rest)) => zip_open(rest, zipped)
+let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
+  open Options.Syntax;
+  let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
+  switch (rel) {
+  | Eq () => return((zipped, ctx))
+  | Neq(d) =>
+    d == side ? return((zipped, ctx)) : zip_neighbor(~side, ~zipped, ctx)
   };
-let zip_closed = ((l, r): Frame.Closed.t, zipped: Cell.t) =>
+};
+
+// zip up to the nearest containing cell.
+// if zip_init(z) == (cell, ctx), then
+// Cell.is_point(cell)  iff  z points between tokens
+let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
+  switch (z.cur) {
+  | Point(car) =>
+    switch (Ctx.zip_toks(~caret=?save_cursor ? Some(car.hand) : None, z.ctx)) {
+    | Some((m, ctx)) => (Cell.put(m), ctx) // within token
+    | None =>
+      // between token
+      let zipped = save_cursor ? Cell.point(car.hand) : Cell.empty;
+      (zipped, z.ctx);
+    }
+  | Select(sel) =>
+    let (l, r) =
+      save_cursor
+        ? Cell.(empty, empty)
+        : Selection.carets(sel)
+          |> Tuples.map2(car =>
+               Cell.caret(Caret.map(Fun.const(Path.empty), car))
+             );
+    let ((dn, up), tl) = Ctx.uncons(z.ctx);
+    let (zigg, dn) = Zigg.take_ineq(~side=L, sel.range, ~fill=l, dn);
+    let (zigg, up) = Zigg.take_ineq(~side=R, zigg, ~fill=r, up);
+    (Cell.put(Zigg.roll(zigg)), Ctx.cons((dn, up), tl));
+  };
+
+let rec zip_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
+  switch (zip_step_open(~zipped, (dn, up))) {
+  | None => zipped
+  | Some((_, zipped, rest)) => zip_open(~zipped, rest)
+  };
+let zip_closed = (~zipped: Cell.t, (l, r): Frame.Closed.t) =>
   zip_eq(l, zipped, r);
 
 let zip = (~save_cursor=false, z: t) =>
@@ -177,17 +218,26 @@ let zip = (~save_cursor=false, z: t) =>
     }
   )
   |> Ctx.fold(
-       open_ =>
-         zip_open(open_, save_cursor ? Cell.point(Focus) : Cell.empty),
+       zip_open(~zipped=save_cursor ? Cell.point(Focus) : Cell.empty),
        (zipped, closed, open_) =>
-         zipped |> zip_closed(closed) |> zip_open(open_),
+       zip_open(~zipped=zip_closed(~zipped, closed), open_)
      );
 
 // tries zipping and unzipping to cursor
-let load_cursor = (z: t) => unzip(zip(z)) /*   */;
+let load_cursor = (z: t) => unzip(zip(z));
 
-// let focused_term = (z: t): option((Cell.t, Ctx.t)) =>
-//   switch (z.cur) {
-//   | Select(_)
-//   | Point(Anchor) => None
-//   | Point(Focus) =>
+let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
+  let (zipped, ctx) = zip_init(~save_cursor=true, z);
+  let ( let* ) = (o, f) =>
+    Option.map(f, o) |> Option.value(~default=(zipped, ctx));
+  let* _ = Cell.is_caret(zipped);
+  let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
+  let* d = Rel.is_neq(rel);
+  let* (zipped, ctx) = zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx);
+  (zipped, ctx);
+};
+
+let button = (z: t): t => {
+  let (cell, ctx) = zip_init(~save_cursor=true, z);
+  Option.get(unzip(cell, ~ctx));
+};

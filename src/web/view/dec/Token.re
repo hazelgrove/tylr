@@ -4,9 +4,21 @@ open Util.Svgs;
 
 module Profile = {
   type t = {
+    pos: Layout.Pos.t,
     len: int,
     sort: Sort.t,
     tips: Tip.s,
+  };
+
+  let mk = (~pos: Layout.Pos.t, ~null as (l, r): (bool, bool), tok: Token.t) => {
+    let len = Token.length(tok);
+    let (sort, tips) =
+      switch (tok.mtrl) {
+      | Space () => raise(Invalid_argument("Dec.Token.Profile.mk"))
+      | Grout(g) => g
+      | Tile(t) => (Tile.T.sort(t), Tip.(l ? Conv : Conc, r ? Conv : Conc))
+      };
+    {pos, len, sort, tips};
   };
 };
 
@@ -58,6 +70,21 @@ let path = ((l, r): Tip.s, length: int): Path.t =>
     ],
   );
 
+let path_view = (prof: Profile.t) =>
+  Util.Svgs.Path.view(
+    ~attrs=[
+      Attr.classes([
+        "tile-path",
+        "raised",
+        "indicated",
+        Sort.to_str(prof.sort),
+      ]),
+    ],
+    path(prof.tips, prof.len),
+  );
+
+let mk = (prof: Profile.t) => Box.mk(~pos=prof.pos, [path_view(prof)]);
+
 let drop_shadow = (sort: Sort.t) =>
   Util.Nodes.filter(
     ~attrs=[Attr.id("raised-drop-shadow-" ++ Sort.to_str(sort))],
@@ -71,25 +98,6 @@ let drop_shadow = (sort: Sort.t) =>
           Attr.create("stdDeviation", "0"),
         ],
         [],
-      ),
-    ],
-  );
-
-let mk = (prof: Profile.t) =>
-  Box.mk(
-    ~width=prof.len,
-    ~height=1,
-    [
-      Util.Svgs.Path.view(
-        ~attrs=[
-          Attr.classes([
-            "tile-path",
-            "raised",
-            "indicated",
-            Sort.to_str(prof.sort),
-          ]),
-        ],
-        path(prof.tips, prof.len),
       ),
     ],
   );

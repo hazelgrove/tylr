@@ -75,6 +75,9 @@ let of_up = up =>
        }
      );
 
+let roll = ({up, top, dn}: t) =>
+  Meld.M(Slope.Up.roll(up), top, Slope.Dn.roll(dn));
+
 let extend = (~side as d: Dir.t, tl: Chain.Affix.t(_), zigg) => {
   let (s_d, top, s_b) = orient(d, zigg);
   let (s_d, top) =
@@ -131,25 +134,14 @@ let grow = (~side: Dir.t, tok: Token.t, zigg: t) =>
   | Error(s_b) => unorient(side, ([], Wald.of_tok(tok), s_b))
   };
 
-let rec take_leq = (zigg: t, ~fill=Cell.empty, suf: Slope.Up.t) =>
-  switch (suf) {
-  | [] => ([], suf)
+let rec take_ineq =
+        (~side: Dir.t, zigg: t, ~fill=Cell.empty, slope: Slope.t)
+        : (t, Slope.t) =>
+  switch (slope) {
+  | [] => (zigg, slope)
   | [hd, ...tl] =>
-    switch (push_wald(~side=R, hd.wald, ~fill, zigg)) {
-    | Error(_) => ([], suf)
-    | Ok(zigg) =>
-      let (leq, gt) = take_leq(zigg, ~fill=hd.cell, tl);
-      ([hd, ...leq], gt);
-    }
-  };
-let rec take_geq = (pre: Slope.Dn.t, ~fill=Cell.empty, zigg: t) =>
-  switch (pre) {
-  | [] => (pre, [])
-  | [hd, ...tl] =>
-    switch (push_wald(~side=L, hd.wald, ~fill, zigg)) {
-    | Error(_) => (pre, [])
-    | Ok(zigg) =>
-      let (lt, geq) = take_geq(tl, ~fill=hd.cell, zigg);
-      (lt, [hd, ...geq]);
+    switch (push_wald(~side, hd.wald, ~fill, zigg)) {
+    | Error(_) => (zigg, slope)
+    | Ok(zigg) => take_ineq(~side, zigg, ~fill=hd.cell, tl)
     }
   };

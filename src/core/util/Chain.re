@@ -227,6 +227,19 @@ let unzip_link = (n: int, c: t('lp, 'lk)): (t(_), 'lk, t(_)) => {
   let (hd, tl) = uncons(c);
   go(unit(hd), n, tl);
 };
+let unzip_links = (c: t('lp, 'lk)): list((t(_), 'lk, t(_))) => {
+  let rec go = (~unzipped=[], ~pre=Affix.empty, suf: Base.t(_)) => {
+    let (lp, tl) = uncons(suf);
+    switch (Affix.uncons(tl)) {
+    | None => unzipped
+    | Some((lk, suf)) =>
+      let unzipped = [(cons(lp, pre), lk, suf), ...unzipped];
+      let pre = Affix.link(lk, lp, pre);
+      go(~unzipped, ~pre, suf);
+    };
+  };
+  go(c);
+};
 
 module Elem = {
   type t('lp, 'lk) =

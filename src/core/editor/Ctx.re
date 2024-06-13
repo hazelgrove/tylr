@@ -145,32 +145,6 @@ let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
   map_hd(Frame.Open.cat(rest), ctx);
 };
 
-let close = (~sel=?, ctx: t) => {
-  let rec go = (ctx: t) =>
-    switch (hd(ctx)) {
-    | ([], _)
-    | (_, []) => ctx
-    | ([l, ..._] as pre, [r, ...suf]) when Melder.lt(l.wald, r.wald) =>
-      ctx |> put_hd((pre, suf)) |> go |> map_hd(Frame.Open.cons(~onto=R, r))
-    | ([l, ...pre], [r, ..._] as suf) when Melder.gt(l.wald, r.wald) =>
-      ctx |> put_hd((pre, suf)) |> go |> map_hd(Frame.Open.cons(~onto=L, l))
-    | ([l, ...pre], [r, ...suf]) =>
-      assert(Melder.eq(l.wald, r.wald));
-      ctx |> put_hd((pre, suf)) |> go |> link((l, r));
-    };
-  switch (sel) {
-  | None => go(ctx)
-  | Some(zigg) =>
-    let (pre, suf) = hd(ctx);
-    let (pre_lt, pre_geq) = Zigg.take_geq(pre, zigg);
-    let (suf_leq, suf_gt) = Zigg.take_leq(zigg, suf);
-    ctx
-    |> put_hd((pre_lt, suf_gt))
-    |> go
-    |> map_hd(Frame.Open.cat((pre_geq, suf_leq)));
-  };
-};
-
 let mold = (ctx: t, tok: Token.Unmolded.t): t => {
   let ((dn, up), tl) = uncons(ctx);
   let (l, r) = Tl.bounds(tl);
@@ -212,4 +186,10 @@ let rec remold = (~fill=Cell.empty, ctx: t): (Cell.t, t) => {
       remold(~fill, ctx);
     }
   };
+};
+
+let zip_toks = (~caret=?, ctx: t): option((Meld.t, t)) => {
+  let (hd, tl) = uncons(ctx);
+  Frame.Open.zip_toks(~caret?, hd)
+  |> Option.map(Tuples.map_snd(hd => cons(hd, tl)));
 };

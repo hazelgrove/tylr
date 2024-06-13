@@ -67,7 +67,8 @@ let distribute_marks = (c: t) =>
     mk(~meld=Meld.M(l, W((ts, cs)), r), ());
   };
 
-let get = c => distribute_marks(c).meld;
+let get = (~distribute=true, c) =>
+  (distribute ? distribute_marks : Fun.id)(c).meld;
 let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
 
 let rec end_path = (~side: Dir.t, c: t) =>
@@ -78,6 +79,9 @@ let rec end_path = (~side: Dir.t, c: t) =>
     let tl = end_path(~side, Dir.pick(side, (l, r)));
     Path.cons(hd, tl);
   };
+
+let caret = (car: Path.Caret.t) =>
+  mk(~marks=Marks.mk(~cursor=Point(car), ()), ());
 
 let point = (hand: Caret.Hand.t) =>
   mk(~marks=Marks.(mk(~cursor=Point(Caret.mk(hand, Path.empty)), ())), ());

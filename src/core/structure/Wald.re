@@ -59,7 +59,7 @@ let zip_cell = (pre: t, cell: Cell.t, suf: t) =>
      );
 
 let zip_hds = (~from: Dir.t, src: t, ~caret=?, dst: t): option(t) => {
-  // cursor hack
+  // add caret mark
   let (src, dst) =
     switch (caret) {
     | None => (src, dst)

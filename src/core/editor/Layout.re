@@ -86,6 +86,18 @@ module Ictx = {
       ctx.delim |> Bound.map(Token.indent) |> Bound.get(~root=false);
     ctx.left + (indent && newline ? 2 : 0);
   };
+  // let left = (~newline: bool, ctx: t): t => {
+  //   let middle = middle(~newline, ctx);
+  //   {...ctx, right: middle};
+  // };
+  // let mid = (~newline: bool, ~delim, ctx: t) => {
+  //   let middle = middle(~newline, ctx);
+  //   {delim, left: middle, right: middle};
+  // };
+  // let right = (~newline: bool, ~delim, ctx: t) => {
+  //   let middle = middle(~newline, ctx);
+  //   {...ctx, delim, left: middle};
+  // };
 };
 
 module State = {
@@ -222,7 +234,7 @@ let rec cursor = (~state=State.init, cell: Cell.t): option(Cursor.t) => {
     );
   | Ok(step) =>
     let M(l, _, _) as m = Options.get_exn(Marks.Invalid, Cell.get(cell));
-    // todo: figure out better organization of this newline calc
+    // todo: figure out better organization of this recurring newline calc
     let newline = Dims.of_cell(l).height > 0;
     switch (Meld.unzip(step, m)) {
     | Loop((pre, cell, suf)) =>
@@ -234,6 +246,13 @@ let rec cursor = (~state=State.init, cell: Cell.t): option(Cursor.t) => {
     };
   };
 };
+
+// let cursor_range = (~state=State.init, cell: Cell.t): Range.t =>
+//   switch (cursor(~state, cell)) {
+//   | None => State.range(state, Dims.of_cell(cell))
+//   | Some(Point({path: pos, _})) => (pos, pos)
+//   | Some(Select({range, _})) => range
+//   };
 
 let fold =
     (

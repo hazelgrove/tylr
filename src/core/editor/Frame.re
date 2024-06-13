@@ -21,6 +21,12 @@ module Open = {
         when Option.is_some(Token.zip(Wald.hd(hd_l), Wald.hd(hd_r))) =>
       true
     | _ => false;
+  let zip_toks = (~caret=?) =>
+    fun
+    | (([hd_l, ...tl_l], [hd_r, ...tl_r]): t) =>
+      Wald.zip_hds(~from=L, hd_l.wald, ~caret?, hd_r.wald)
+      |> Option.map(w => (Meld.M(hd_l.cell, w, hd_r.cell), (tl_l, tl_r)))
+    | _ => None;
 };
 
 module Closed = {

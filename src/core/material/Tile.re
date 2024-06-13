@@ -7,6 +7,7 @@
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Label.t, Mold.t);
+  let sort = ((_, mold): t) => mold.sort;
 };
 
 module NT = {

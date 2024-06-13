@@ -550,6 +550,19 @@ let view_text =
     txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
   );
 
+let cursor = (~font, z: Zipper.t) =>
+  switch (z.cur) {
+  | Select(_) => []
+  | Point(_) =>
+    let (cell, ctx) = Zipper.zip_indicated(z);
+    switch (Cell.get(cell)) {
+    | Some(m) when !Cell.Space.is_space(cell) =>
+      let state = Layout.State.load(ctx);
+      Dec.Meld.(mk(~font, Profile.mk(~state, m)));
+    | _ => []
+    };
+  };
+
 let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
   let c = Zipper.zip(~save_cursor=true, zipper);
   // module Text =
@@ -566,13 +579,20 @@ let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
   div(
     ~attrs=[Attr.class_("code"), Attr.id("under-the-rail")],
     Node.[span(~attrs=[Attr.class_("code-text")], view_text(c))]
-    @ [
-      Dec.Token.mk(
-        ~font,
-        ~pos=Layout.Pos.zero,
-        {len: 3, sort: Sort.of_str("Exp"), tips: Tip.(Conv, Conv)},
-      ),
-    ],
+    @ cursor(~font, zipper),
+    // @ Dec.Token.[
+    //     mk(
+    //       ~font,
+    //       Profile.mk(
+    //         ~pos=Layout.Pos.zero,
+    //         ~null=(true, true),
+    //         Token.mk(
+    //           ~text="123",
+    //           Tile((Label.Int_lit, Mold.mk(~prec=1, Sort.of_str("Exp")))),
+    //         ),
+    //       ),
+    //     ),
+    //   ],
     // @ Deco.all(zipper),
   );
 };
