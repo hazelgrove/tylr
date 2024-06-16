@@ -33,7 +33,7 @@ let shadow_adj = 0.015;
 let child_border_thickness = 0.05;
 
 let t = child_border_thickness /. 0.5;
-let short_tip_height = (1. -. t) *. 0.5;
+// let short_tip_height = (1. -. t) *. 0.5;
 let short_tip_width = (1. -. t) *. tip_width;
 
 let run: Tip.t => float =
@@ -46,29 +46,20 @@ let adj: Tip.t => float =
   | Conv => convex_adj
   | Conc => concave_adj;
 
-let l_hook = (l: Tip.t): list(Path.cmd) => [
-  H_({dx: -. adj(l)}),
-  L_({dx: -. run(l), dy: (-0.5)}),
-  L_({dx: +. run(l), dy: (-0.5)}),
-  H_({dx: +. adj(l)}),
-];
-
-let r_hook = (r: Tip.t): list(Path.cmd) => [
-  H_({dx: +. adj(r)}),
-  L_({dx: +. run(r), dy: 0.5}),
-  L_({dx: -. run(r), dy: 0.5}),
-  H_({dx: -. adj(r)}),
+let tip = (t: Tip.t): Path.t => [
+  H_({dx: +. adj(t)}),
+  L_({dx: +. run(t), dy: 0.5}),
+  L_({dx: -. run(t), dy: 0.5}),
+  H_({dx: -. adj(t)}),
 ];
 
 let path = ((l, r): Tip.s, length: int): Path.t =>
-  List.flatten(
-    Path.[
-      [m(~x=0, ~y=0), h(~x=length)],
-      r_hook(r),
-      [h(~x=0)],
-      l_hook(l),
-    ],
-  );
+  List.flatten([
+    Path.[m(~x=0, ~y=0), h(~x=length)],
+    tip(r),
+    Path.[h(~x=0)],
+    Path.scale(-1., tip(l)),
+  ]);
 
 let path_view = (prof: Profile.t) =>
   Util.Svgs.Path.view(
