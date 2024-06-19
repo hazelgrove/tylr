@@ -6,6 +6,8 @@
       * Rust comparison operators "require parentheses for associativity" - using tylr assoc=none for this
       * Rust has optional semicolons after block exps for a statement - we are always requiring semicolons to simplify so we don't need to discriminate b/w exp with block and exp without block
       * Rust allows for optional commas following exp_with_block in a match statement - for consistency sake we will reqire comma in match regardless of exp_with_block or exp_without_block
+      * Rust has a separate "type no bounds" which only allows for no bound or single bounded types. This is used only in reference types and raw pointer types. Our current guess is that this is a type system limitation so we are (for now) ignoring it and simply allowing any type where rust only allows "type no bounds"
+      * Rust defines statement as an alt one option of which is just "Item" - to allow for this in our grammar definition we are making item a submodule of statement and inlining all the forms of item into statement's operand. However, the item _module form requires "Item.atom" so we will keep Item as a tylr sort. 
    */
 
 open Util;
@@ -19,6 +21,10 @@ module Regex = {
   type t = Regex.t(Sym.t);
 };
 open Regex;
+
+//TODO: make our own regex plus
+//TODO: block exp should be plus(Stat.atom)
+//let plus = seq([])
 
 let p = (~a: option(Dir.t)=?, r: t) => (a, r);
 
@@ -99,6 +105,7 @@ module Pat = {
   let slice_pat = seq([c("["), opt(slice_pat_items), c("]")]);
 
   //TODO: ask David - do we need qualified path in exp? doesn't really seem to be necessary
+  //answer is yes - implemented it in the typs below
   let path_pat = path_in_exp;
 
   let operand =
@@ -149,7 +156,7 @@ module rec Stat: SORT = {
 
   let operand = alt([let_stat]);
 
-  //TODO: make item a child (submodule) of statement & put it in the statement operand
+  //TODO: make item a child (submodule) of statement & put it in the statement operand - can still keep the item sort
   //TODO: the module form in item required an nt(Item) which you can't have if Item is a sub-sort of Stat
   let tbl = [p(seq([Exp.atom, c(";")])), p(operand), p(Item.atom)];
 }
@@ -158,6 +165,7 @@ and Typ: SORT = {
   let atom = nt(sort);
 
   //TODO: ask David how this can be more easily shared among multiple modules
+  //answer = pull them out to the top level and create a function that takes a regex and returns the typ_path_fn_inputs for that one
   let path_ident_segment =
     alt([
       t(Id_lower),
@@ -221,11 +229,10 @@ and Typ: SORT = {
 
   let never_typ = c("!");
 
-  //TODO: typ.atom is supposed to be typ_no_bounds
   let raw_pointer_typ =
     seq([c("*"), alt([c("mut"), c("const")]), Typ.atom]);
 
-  //TODO: lifetimes, typ_no_bounds
+  //TODO: lifetimes
   let reference_typ = seq([c("&"), opt(c("mut")), Typ.atom]);
 
   let array_typ = seq([c("["), Typ.atom, c(";"), Exp.atom, c("]")]);
@@ -284,7 +291,7 @@ and Item: SORT = {
   let atom = nt(sort);
 
   [@warning "-32"]
-  let comma_sep = seq([atom, Star(seq([c(","), atom]))]);
+  let comma_sep = seq([atom, star(seq([c(","), atom]))]);
   let block_exp = seq([c("{"), Stat.atom, c("}")]);
 
   //Functions!
@@ -511,7 +518,7 @@ and Exp: SORT = {
   let atom = nt(sort);
 
   [@warning "-32"]
-  let comma_sep = seq([atom, Star(seq([c(","), atom]))]);
+  let comma_sep = seq([atom, star(seq([c(","), atom]))]);
 
   let block_exp = seq([c("{"), Stat.atom, c("}")]);
 
@@ -623,7 +630,7 @@ and Exp: SORT = {
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
-  //NOTE: no item --- item is a child of statement
+  //NOTE: we still need item even though it is a child of statement bc _module form depends on Item.atom
   [Typ.(sort, tbl), Pat.(sort, tbl), Exp.(sort, tbl), Stat.(sort, tbl)]
   |> List.to_seq
   |> Sort.Map.of_seq;
