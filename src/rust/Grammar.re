@@ -56,9 +56,8 @@ module Pat = {
       star(seq([c("::"), path_exp_segment])),
     ]);
 
-
   //NOTE: actual rust grammar has a star(outer_attr) then c(..) but since we don't have metaprogramming or attrs, struct_pat_et_cetera is just .. for us
-  let struct_pat_et_cetera = c("..")
+  let struct_pat_et_cetera = c("..");
 
   let struct_pat_field =
     alt([
@@ -79,22 +78,28 @@ module Pat = {
   let struct_pat =
     seq([path_in_exp, c("{"), opt(struct_pat_elements), c("}")]);
 
+  let tuple_struct_items =
+    seq([atom, star(seq([c(","), atom])), opt(c(","))]);
+  let tuple_struct_pat =
+    seq([path_in_exp, c("("), opt(tuple_struct_items), c(")")]);
 
-  let tuple_struct_items = seq([atom, star(seq([c(","), atom])), opt(c(","))])
-  let tuple_struct_pat = seq([path_in_exp, c("("), opt(tuple_struct_items), c(")")])
+  let rest_pat = c("..");
+  let tuple_pat_items =
+    alt([
+      seq([atom, c(",")]),
+      rest_pat,
+      seq([atom, star(seq([c(","), atom, opt(c(","))]))]),
+    ]);
+  let tuple_pat = seq([c("("), tuple_pat_items, c(")")]);
 
-  let rest_pat = c("..")
-  let tuple_pat_items = alt([seq([atom, c(",")]), rest_pat, seq([atom, star(seq([c(","), atom, opt(c(","))]))])])
-  let tuple_pat = seq([c("("), tuple_pat_items, c(")")])
+  let group_pat = seq([c("("), atom, c(")")]);
 
-
-  let group_pat = seq([c("("), atom, c(")")])
-
-  let slice_pat_items = seq([atom, star(seq([c(","), atom])), opt(c(","))])
-  let slice_pat = seq([c("["), opt(slice_pat_items), c("]")])
+  let slice_pat_items =
+    seq([atom, star(seq([c(","), atom])), opt(c(","))]);
+  let slice_pat = seq([c("["), opt(slice_pat_items), c("]")]);
 
   //TODO: ask David - do we need qualified path in exp? doesn't really seem to be necessary
-  let path_pat = path_in_exp
+  let path_pat = path_in_exp;
 
   let operand =
     alt([
@@ -152,7 +157,125 @@ and Typ: SORT = {
   let sort = Sort.of_str("Typ");
   let atom = nt(sort);
 
-  let operand = alt([]);
+  //TODO: ask David how this can be more easily shared among multiple modules
+  let path_ident_segment =
+    alt([
+      t(Id_lower),
+      c("super"),
+      c("self"),
+      c("Self"),
+      c("crate"),
+      c("$crate"),
+    ]);
+
+  let typ_path_fn_inputs =
+    seq([Typ.atom, star(seq([c(","), Typ.atom])), opt(c(","))]);
+  let typ_path_fn =
+    seq([
+      c("("),
+      opt(typ_path_fn_inputs),
+      c(")"),
+      opt(seq([c("->"), Typ.atom])),
+    ]);
+  let typ_path_segment =
+    seq([path_ident_segment, opt(seq([c("::"), typ_path_fn]))]);
+  let typ_path =
+    seq([
+      opt(c("::")),
+      typ_path_segment,
+      star(seq([c("::"), typ_path_segment])),
+    ]);
+
+  let paren_typ = seq([c("("), atom, c(")")]);
+  //TODO: ask David how to handle this - its recursively defined (things that are in typ no bounds use typ no bounds - do we just remove the one bound types?)
+  let typ_no_bounds = alt([paren_typ]);
+
+  let trait_bound = seq([opt(c("?")), typ_path]);
+  //TODO: lifetimes
+  let typ_param_bound = trait_bound; //Lifetime | TraitBound
+
+  let typ_param_bounds =
+    seq([
+      typ_param_bound,
+      star(seq([c("+"), typ_param_bound])),
+      opt(c("+")),
+    ]);
+
+  let impl_trait_typ = seq([c("impl"), typ_param_bounds]);
+  let impl_trait_typ_one_bound = seq([c("impl"), trait_bound]);
+
+  let trait_obj_typ_one_bound = seq([opt(c("dyn")), trait_bound]);
+  let trait_obj_typ = seq([opt(c("dyn")), typ_param_bounds]);
+
+  //TODO: ask David - do we have a plus in the regex? - for now using star but need to replace with plus
+  let tuple_typ =
+    alt([
+      seq([c("("), c(")")]),
+      seq([
+        c("("),
+        star(seq([Typ.atom, c(",")])),
+        opt(Typ.atom),
+        c(")"),
+      ]),
+    ]);
+
+  let never_typ = c("!");
+
+  //TODO: typ.atom is supposed to be typ_no_bounds
+  let raw_pointer_typ =
+    seq([c("*"), alt([c("mut"), c("const")]), Typ.atom]);
+
+  //TODO: lifetimes, typ_no_bounds
+  let reference_typ = seq([c("&"), opt(c("mut")), Typ.atom]);
+
+  let array_typ = seq([c("["), Typ.atom, c(";"), Exp.atom, c("]")]);
+  let slice_typ = seq([c("["), Typ.atom, c("]")]);
+
+  let inferred_typ = c("_");
+
+  let qualified_path_typ =
+    seq([c("<"), Typ.atom, opt(seq([c("as"), typ_path])), c(">")]);
+  //TODO: plus instead of star
+  let qualified_path_in_typ =
+    seq([qualified_path_typ, star(seq([c("::"), typ_path_segment]))]);
+
+  //TODO: reduce reuse across the different sorts
+  //TODO: abi should actually be a string literal but need to wait on David for that
+  let abi = t(Id_lower);
+  let fun_typ_qualifiers =
+    seq([opt(c("unsafe")), opt(seq([c("extern"), opt(abi)]))]);
+
+  let maybe_named_param =
+    seq([opt(seq([alt([t(Id_lower), c("_")]), c(":")])), Typ.atom]);
+  let maybe_named_fun_params_variadic =
+    seq([
+      star(seq([maybe_named_param, c(",")])),
+      maybe_named_param,
+      c(","),
+      c("..."),
+    ]);
+  let maybe_named_fun_params =
+    seq([
+      maybe_named_param,
+      star(seq([c(","), maybe_named_param])),
+      opt(c(",")),
+    ]);
+  let fun_params_maybe_named_variadic =
+    alt([maybe_named_fun_params, maybe_named_fun_params_variadic]);
+
+  //TODO: typ no bounds
+  let bare_fun_return_typ = seq([c("->"), Typ.atom]);
+
+  let bare_fun_typ =
+    seq([
+      fun_typ_qualifiers,
+      c("fn"),
+      c("("),
+      opt(fun_params_maybe_named_variadic),
+      opt(bare_fun_return_typ),
+    ]);
+
+  let operand = alt([impl_trait_typ, trait_obj_typ, paren_typ, impl_trait_typ_one_bound, trait_obj_typ_one_bound, typ_path, tuple_typ, never_typ, raw_pointer_typ, reference_typ, array_typ, slice_typ, inferred_typ, qualified_path_in_typ, bare_fun_typ]);
 
   let tbl = [p(operand)];
 }
