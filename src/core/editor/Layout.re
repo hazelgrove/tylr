@@ -2,75 +2,6 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
-module Int_ppx = {
-  include Int;
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = int;
-};
-module Row = Int_ppx;
-module Col = Int_ppx;
-
-module Pos = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = {
-    row: Row.t,
-    col: Col.t,
-  };
-  let zero = {row: 0, col: 0};
-
-  let compare = (l, r) => {
-    let c = Row.compare(l.row, r.row);
-    c == 0 ? Col.compare(l.col, r.col) : c;
-  };
-  let eq = (l, r) => compare(l, r) == 0;
-  let lt = (l, r) => compare(l, r) < 0;
-  let leq = (l, r) => compare(l, r) <= 0;
-
-  let min = (l, r) => lt(l, r) ? l : r;
-  let max = (l, r) => lt(r, l) ? l : r;
-
-  let bound = (~min as l=zero, ~max as r: t, pos: t) => min(max(l, pos), r);
-
-  let skip_col = (n, pos) => {...pos, col: pos.col + n};
-
-  let skip = (pos: t, ~over: Dims.t, ~return: Col.t) => {
-    {
-      // let h = Dims.Height.total(over.height);
-      // let w = Dims.Width.total(over.width);
-      row: pos.row + over.height,
-      col:
-        (over.height > 0 ? return : pos.col) + Dims.Width.total(over.width),
-    };
-  };
-};
-
-module Range = {
-  type t = (Pos.t, Pos.t);
-  let empty = pos => (pos, pos);
-};
-module Caret = {
-  include Caret;
-  type t = Caret.t(Pos.t);
-};
-module Selection = {
-  include Selection;
-  type t = Selection.t(Range.t);
-  let map_focus = Selection.map_focus(~split_range=Fun.id);
-  let get_focus = Selection.get_focus(~split_range=Fun.id);
-};
-module Cursor = {
-  include Cursor;
-  type t = Cursor.t(Caret.t, Selection.t);
-  let map_focus = (f: Pos.t => Pos.t) =>
-    Cursor.map(Caret.map_focus(f), Selection.map_focus(f));
-  let get_point =
-    fun
-    | Cursor.Point(p) => p
-    | Select(_) => raise(Invalid_argument("Layout.Cursor.get_point"));
-  let get_focus =
-    Cursor.get(Caret.get_focus, s => Some(Selection.get_focus(s)));
-};
-
 module Ictx = {
   type t = {
     // left delimiter
@@ -183,12 +114,46 @@ module State = {
   );
 };
 
+module State = {
+  type t = {
+    delim: Delim.t,
+    ind: Col.t,
+    loc: Loc.t,
+  };
+
+  let init = {
+    delim: Delim.root,
+    ind: 0,
+    loc: Loc.zero,
+  };
+
+  let map = (f, s: t) => {...s, loc: f(loc)};
+
+  let indent = (n: int, s: t) => {ind: s.ind + n, loc: Loc.shift(n, s.loc)};
+  let return = (s: t, ~ind: Col.t) => {ind, loc: Loc.return(s.loc, ~ind)};
+
+  let rec jump_block = (s: t, ~over: Dims2.Block.t) =>
+    over
+    |> Dims2.Block.fold(
+         chunk => jump_chunk(s, ~over=chunk),
+         (s, (), chunk) => return(s, ~ind=s.ind) |> jump_chunk(~over=chunk),
+       )
+  and jump_chunk = (s: t, ~over: Dims2.Chunk.t(_)) =>
+    switch (over) {
+    | Line(l) => map(Loc.shift(Line.len(l)), s)
+    | Block({indent: n, block}) => indent(n, s) |> jump_block(~over=block)
+    };
+
+  let load_cell_frame = ((pre, suf), state: t) =>
+
+};
+
 let count_newlines =
   fun
   | None => 0
   | Some(tok: Token.t) => Strings.count('\n', tok.text);
 
-let rec cursor_tok = (~state: State.t, tok: Token.t): option(Cursor.t) => {
+let rec cursor_tok = (~state: State.t, tok: Token.t): option(Loc.Cursor.t) => {
   open Options.Syntax;
   let+ cur = tok.marks
   and+ (l, _, r) = Token.unzip(tok);
@@ -199,10 +164,10 @@ let rec cursor_tok = (~state: State.t, tok: Token.t): option(Cursor.t) => {
       Option.get(cursor_tok(~state, Token.put_cursor(Point(l), tok)));
     let r =
       Option.get(cursor_tok(~state, Token.put_cursor(Point(r), tok)));
-    Cursor.select(
-      Selection.mk(
+    Loc.Cursor.select(
+      Loc.Selection.mk(
         ~focus=sel.focus,
-        Cursor.(get_point(l).path, get_point(r).path),
+        Loc.Cursor.(get_point(l).path, get_point(r).path),
       ),
     );
   | Point(car) =>
@@ -211,24 +176,25 @@ let rec cursor_tok = (~state: State.t, tok: Token.t): option(Cursor.t) => {
     let return =
       n_r > 0 ? Ictx.middle(~newline=n_l > 0, state.ctx) : state.ctx.right;
     let p = Pos.skip(state.pos, ~over=dims_l, ~return);
-    Point(Caret.mk(car.hand, p));
+    Point(Loc.Caret.mk(car.hand, p));
   };
 };
 
-let rec cursor = (~state=State.init, cell: Cell.t): option(Cursor.t) => {
+let rec cursor = (~state=State.init, cell: Cell.t): option(Loc.Cursor.t) => {
   open Options.Syntax;
   let* cur = cell.marks.cursor;
   switch (Path.Cursor.hd(cur)) {
-  | Error(Point(car)) => Some(Cursor.point(Caret.mk(car.hand, state.pos)))
+  | Error(Point(car)) =>
+    Some(Loc.Cursor.point(Caret.mk(car.hand, state.pos)))
   | Error(Select(sel)) =>
     let (l, r) = Path.Selection.carets(sel);
     let l = Option.get(cursor(~state, Cell.put_cursor(Point(l), cell)));
     let r = Option.get(cursor(~state, Cell.put_cursor(Point(r), cell)));
     Some(
       Select(
-        Selection.mk(
+        Loc.Selection.mk(
           ~focus=sel.focus,
-          Cursor.(get_point(l).path, get_point(r).path),
+          Loc.Cursor.(get_point(l).path, get_point(r).path),
         ),
       ),
     );
@@ -467,7 +433,7 @@ let map_focus = (f: Pos.t => Pos.t, z: Zipper.t): option(Zipper.t) => {
   let c = Zipper.zip(~save_cursor=true, z);
   let* cursor = cursor(c);
   // let* init_path = Cell.Marks.get_focus(c.marks);
-  let* init_pos = Cursor.get_focus(cursor);
+  let* init_pos = Loc.Cursor.get_focus(cursor);
   let goal_pos = Pos.bound(f(init_pos), ~max=max_pos(c));
   let+ goal_path =
     Pos.eq(init_pos, goal_pos) ? None : Some(path_of_pos(goal_pos, c));
