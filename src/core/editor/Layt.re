@@ -76,12 +76,12 @@ include Block;
 
 let of_tok = (tok: Token.t) =>
   switch (tok.mtrl) {
+  | Grout(_)
+  | Tile(_) => Block.line([tok])
   | Space =>
     Strings.split('\n', tok.text)
     |> List.map(text => {...tok, text})
     |> Block.line
-  | Grout(_)
-  | Tile(_) => Block.line([tok])
   };
 
 let of_cell = (~delim=Delim.root, c: Cell.t): t =>
@@ -92,26 +92,22 @@ let of_cell = (~delim=Delim.root, c: Cell.t): t =>
     let indent = Delim.indent(delim) && height(l) > 0 ? 2 : 0;
     nest_body(indent, hcats([l, w, r]));
   }
-and of_meld = (m: Meld.t): (t, t, t) => {
-  let (l, w, r) =
-    Meld.to_chain(m)
-    |> Chain.fold_left(
-         l => Chain.unit(of_cell(l)),
-         (acc, tok, cell) =>
-           Chain.link(of_cell(~delim=Node(tok)), of_tok(tok), acc),
-       )
-    |> Chain.rev
-    |> Chain.unconsnoc
-    |> Result.unwrap;
-  let w =
-    w
-    |> Chain.fold_right(
-         (b_tok, b_cell, b_acc) => hcats([b_tok, b_cell, b_acc]),
-         Fun.id,
-       )
-    |> Block.wrap;
-  (l, w, r);
-};
+and of_meld = (m: Meld.t): (t, t, t) =>
+  Meld.to_chain(m)
+  |> Chain.mapi_loop((i, cell) => (i, cell))
+  |> Chain.fold_left(
+    ((_, l)) => Chain.unit(of_cell(l)),
+    (acc, tok, (i, cell)) => {
+      let tok = of_tok(tok);
+      let cell =
+        of_cell(~delim=Node(tok), cell)
+        |> (i == Meld.length(m) - 1 ? Fun.id : Block.wrap);
+      Chain.link(cell, tok, acc);
+    },
+  )
+  |> Chain.rev
+  |> Chain.unconsnoc
+  |> Result.unwrap;
 
 module State = {
   type t = {
