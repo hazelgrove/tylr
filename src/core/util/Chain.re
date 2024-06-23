@@ -55,6 +55,10 @@ module Affix = {
     | [] => None
     | [lk, ...lks] => Some((lk, (lps, lks)))
     };
+  let unsnoc = ((lks, lps): t('lk, 'lp)): option((Base.t('lk, 'lp), 'lp)) =>
+    Lists.Framed.ft(lps)
+    |> Option.map(((lps, lp)) => (mk(List.rev(lps), lks), lp));
+
   let fold_out = (~f, ~init, (lks, lps): t(_)) =>
     List.fold_right2(f, lks, lps, init);
 };
@@ -65,22 +69,34 @@ let rec extend = (tl: Affix.t('lk, 'lp), c: t('lp, 'lk)) =>
   | _ => c
   };
 
+let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
+  [hd, ...lps],
+  lks,
+);
+let snoc = ((lps, lks): Affix.t('lp, 'lk), lp: 'lp) => (lps @ [lp], lks);
+
 let uncons = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
   assert(lps != []);
   (List.hd(lps), (lks, List.tl(lps)));
 };
+let unsnoc = ((lps, lks): t('lp, 'lk)): (Affix.t('lk, 'lp), 'lp) => {
+  let (lps, lp) = Lists.Framed.ft_exn(lps);
+  ((List.rev(lks), lps), lp);
+};
+let unconsnoc = (c: t('lp, 'lk)): Result.t(('lp, t('lk, 'lp), 'lp), 'lp) => {
+  let (hd, tl) = uncons(c);
+  switch (Affix.unsnoc(tl)) {
+  | None => Error(hd)
+  | Some((body, ft)) => Ok((hd, body, ft))
+  };
+};
+
 let hd = (c: t('lp, _)): 'lp => fst(uncons(c));
 let map_hd = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
   let (a, (lks, lps)) = uncons(c);
   ([f(a), ...lps], lks);
 };
 let put_hd = lp => map_hd(_ => lp);
-
-let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
-  [hd, ...lps],
-  lks,
-);
-let snoc = ((lps, lks): Affix.t('lp, 'lk), lp: 'lp) => (lps @ [lp], lks);
 
 let split_ft = ((lps, lks): t(_)): (Affix.t('lk, 'lp), 'lp) => {
   assert(lps != []);
