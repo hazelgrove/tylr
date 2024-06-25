@@ -1,29 +1,34 @@
+open Stds;
+
 module State = {
   // layout traversal state
   type t = {
-    ind: Col.t,
+    ind: Loc.Col.t,
     loc: Loc.t,
   };
 
   let init = {ind: 0, loc: Loc.zero};
 
-  let map = (f, s: t) => {...s, loc: f(loc)};
+  let map = (f, s: t) => {...s, loc: f(s.loc)};
 
   let indent = (n: int, s: t) => {ind: s.ind + n, loc: Loc.shift(n, s.loc)};
-  let return = (s: t, ~ind: Col.t) => {ind, loc: Loc.return(s.loc, ~ind)};
+  let return = (s: t, ~ind: Loc.Col.t) => {
+    ind,
+    loc: Loc.return(s.loc, ~ind),
+  };
 
-  let rec jump_block = (s: t, ~over: Block.t) => {
+  let rec jump_block = (s: t, ~over as B(b): Block.t) => {
     let ind = s.ind;
-    over
-    |> Chain.fold(
+    b
+    |> Chain.fold_left(
          sec => jump_sec(s, ~over=sec),
          (s, n, sec) => return(s, ~ind=ind + n) |> jump_sec(~over=sec),
        );
   }
-  and jump_sec = (s: t, ~over: Section.t(Block.t)) =>
+  and jump_sec = (s: t, ~over: Block.Section.t(_)) =>
     switch (over) {
-    | Line(l) => map(Loc.shift(Line.len(l)), s)
-    | Block(b) => jump_block(~over=b)
+    | Line(l) => map(Loc.shift(Block.Line.len(l)), s)
+    | Block(b) => jump_block(s, ~over=b)
     };
 };
 
@@ -36,23 +41,22 @@ let step_of_loc =
     (~state: State.t, ~block as B(b): Block.t, target: Loc.t)
     : Result.t(Step.t, State.t) =>
   b
-  |> Chain.mapi_loop((i, sec) => (i, Block.char_len(Block.sec(sec))))
+  |> Chain.map_loop(sec => Block.len(Block.sec(sec)))
   |> Chain.fold_left(
-       ((i, sec_len)) => {
+       sec_len => {
          let loc_eol = Loc.shift(sec_len, state.loc);
          Loc.lt(loc_eol, target)
-           ? Error((sec_len, {...state, loc: loc_eol}))
-           : Ok(target.col - state.loc.col);
+           ? Error((sec_len, loc_eol)) : Ok(target.col - state.loc.col);
        },
        (found, rel_indent, sec_len) => {
          open Result.Syntax;
-         let/ (num_chars, loc) = found;
-         let num_sol = num_chars + 1;
-         let loc_sol = Loc.return(loc, ~ind=state.indent + rel_indent);
-         let num_eol = num_sol + sec_len;
+         let/ (len, loc) = found;
+         let len_sol = len + 1;
+         let loc_sol = Loc.return(loc, ~ind=state.ind + rel_indent);
+         let len_eol = len_sol + sec_len;
          let loc_eol = Loc.shift(sec_len, loc_sol);
          Loc.lt(loc_eol, target)
-           ? Error((num_eol, loc_eol)) : Ok(num + target.col - loc_sol.col);
+           ? Error((len_eol, loc_eol)) : Ok(len + target.col - loc_sol.col);
        },
      )
   |> Result.map_error(~f=((_, loc)) => {...state, loc});
@@ -60,22 +64,22 @@ let step_of_loc =
 let loc_of_step =
     (~state: State.t, ~block as B(b): Block.t, step: Step.t): Loc.t =>
   b
-  |> Chain.map_loop(sec => Block.char_len(Block.sec(sec)))
+  |> Chain.map_loop(sec => Block.len(Block.sec(sec)))
   |> Chain.fold_left(
        sec_len =>
-         sec_len < path
+         sec_len < step
            ? Error((sec_len, Loc.shift(sec_len, state.loc)))
-           : Ok(Loc.shift(path, state.loc)),
+           : Ok(Loc.shift(step, state.loc)),
        (found, rel_indent, sec_len) => {
          open Result.Syntax;
-         let/ (num_chars, loc) = found;
-         let num_sol = num_chars + 1;
-         let loc_sol = Loc.return(loc, ~ind=state.indent + rel_indent);
-         let num_eol = num_sol + sec_len;
+         let/ (len, loc) = found;
+         let len_sol = len + 1;
+         let loc_sol = Loc.return(loc, ~ind=state.ind + rel_indent);
+         let len_eol = len_sol + sec_len;
          let loc_eol = Loc.shift(sec_len, loc_sol);
-         num_eol < path
-           ? Error((num_eol, loc_eol))
-           : Ok(Loc.shift(path - num_sol, loc_sol));
+         len_eol < step
+           ? Error((len_eol, loc_eol))
+           : Ok(Loc.shift(step - len_sol, loc_sol));
        },
      )
   |> Result.map_error(~f=snd)
@@ -92,7 +96,7 @@ let path_of_loc =
     if (Loc.lt(s_end.loc, target)) {
       Error({...s_end, ind: state.ind});
     } else if (Loc.eq(s_end.loc, target)) {
-      Ok(Cell.end_path(cell, ~side=R));
+      Ok(Tree.end_path(t, ~side=R));
     } else {
       switch (t) {
       | None => Ok([])
@@ -109,36 +113,48 @@ let path_of_loc =
          (found, b_tok, (step, t_cell)) => {
            let/ s = found;
            let/ s =
-             step_of_loc(~state=s, ~block=b_tok)
+             step_of_loc(~state=s, ~block=b_tok, target)
              |> Result.map(~f=n => [step - 1, n]);
-           go(~state=s, cell) |> Result.map(~f=Path.cons(step));
+           go(~state=s, t_cell) |> Result.map(~f=Path.cons(step));
          },
        );
   go(~state, tree);
 };
-let rec loc_of_path = (~state=State.init, ~tree: Tree.t, path: Path.t): Loc.t =>
+let rec range_of_path =
+        (~state=State.init, ~tree: Tree.t, path: Path.t): Loc.Range.t =>
   switch (path) {
-  | [] => state.loc
+  | [] =>
+    let s_end = State.jump_block(state, ~over=Tree.flatten(tree));
+    (state.loc, s_end.loc);
   | [hd, ...tl] =>
     switch (
-      t |> Options.get_exn(Marks.Invalid) |> to_chain |> Chain.unzip(step)
+      tree
+      |> Options.get_exn(Marks.Invalid)
+      |> Tree.to_chain
+      |> Chain.unzip(hd)
     ) {
     | Loop((pre, t_cell, _)) =>
-      let state = State.jump_block(state, ~over=Affix.flatten(pre));
-      loc_of_path(~state, tl, t_cell);
+      let state =
+        State.jump_block(state, ~over=Tree.flatten_affix(~side=L, pre));
+      range_of_path(~state, ~tree=t_cell, tl);
     | Link((pre, b_tok, _)) =>
-      let state = State.jump_block(state, ~over=Chain.flatten(pre));
-      let step =
-        Lists.hd(tl)
-        |> Option.value(
-             ~default=Dir.pick(default, (0, Block.max_step(b_tok))),
-           );
-      loc_of_step(~state, ~block=b_tok, step);
+      let state = State.jump_block(state, ~over=Tree.flatten_chain(pre));
+      switch (tl) {
+      | [] =>
+        let s_end = State.jump_block(state, ~over=b_tok);
+        (state.loc, s_end.loc);
+      | [hd, ..._] =>
+        let loc = loc_of_step(~state, ~block=b_tok, hd);
+        (loc, loc);
+      };
     }
   };
+let loc_of_path =
+    (~side=Dir.L, ~state=State.init, ~tree: Tree.t, path: Path.t) =>
+  Dir.pick(side, (fst, snd), range_of_path(~state, ~tree, path));
 
 let map = (~tree: Tree.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
   switch (path_of_loc(~tree, f(loc_of_path(~tree, path)))) {
   | Ok(path) => path
-  | Error(_) => Tree.max_path(tree)
+  | Error(_) => Tree.end_path(tree, ~side=R)
   };

@@ -57,7 +57,7 @@ module Affix = {
     };
   let unsnoc = ((lks, lps): t('lk, 'lp)): option((Base.t('lk, 'lp), 'lp)) =>
     Lists.Framed.ft(lps)
-    |> Option.map(((lps, lp)) => (mk(List.rev(lps), lks), lp));
+    |> Option.map(((lps, lp)) => (mk(lks, List.rev(lps)), lp));
 
   let fold_out = (~f, ~init, (lks, lps): t(_)) =>
     List.fold_right2(f, lks, lps, init);
@@ -74,6 +74,10 @@ let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
   lks,
 );
 let snoc = ((lps, lks): Affix.t('lp, 'lk), lp: 'lp) => (lps @ [lp], lks);
+let consnoc = (hd: 'lp, (lks, lps): t('lk, 'lp), ft: 'lp) => (
+  [hd, ...lps] @ [ft],
+  lks,
+);
 
 let uncons = ((lps, lks): t('lp, 'lk)): ('lp, Affix.t('lk, 'lp)) => {
   assert(lps != []);
@@ -171,10 +175,7 @@ let fold_left_map =
     : ('acc, t('lp2, 'lk2)) =>
   c
   |> fold_left(
-       lp1 => {
-         let (acc, lp2) = f_lp(lp1);
-         (acc, unit(lp2));
-       },
+       lp1 => f_lp(lp1) |> Tuples.map_snd(unit),
        ((acc, mapped), lk1, lp1) => {
          let (acc, lk2, lp2) = f_lk(acc, lk1, lp1);
          (acc, link(lp2, lk2, mapped));
@@ -183,10 +184,25 @@ let fold_left_map =
   |> Tuples.map_snd(rev);
 
 let fold_right =
-    (f2: ('lp, 'lk, 'acc) => 'acc, f1: 'lp => 'acc, c: t('lp, 'lk)) => {
+    (f_lk: ('lp, 'lk, 'acc) => 'acc, f_lp: 'lp => 'acc, c: t('lp, 'lk)) => {
   let ((lks, lps), lp) = split_ft(c);
-  List.fold_left2((acc, lk, lp) => f2(lp, lk, acc), f1(lp), lks, lps);
+  List.fold_left2((acc, lk, lp) => f_lk(lp, lk, acc), f_lp(lp), lks, lps);
 };
+let fold_right_map =
+    (
+      f_lk: ('lp1, 'lk1, 'acc) => ('lp2, 'lk2, 'acc),
+      f_lp: 'lp1 => ('lp1, 'acc),
+      c1: t('lp1, 'lk1),
+    )
+    : (t('lp2, 'lk2), 'acc) =>
+  c1
+  |> fold_right(
+       (lp1, lk1, (c2, acc)) => {
+         let (lp2, lk2, acc) = f_lk(lp1, lk1, acc);
+         (link(lp2, lk2, c2), acc);
+       },
+       lp1 => f_lp(lp1) |> Tuples.map_fst(unit),
+     );
 
 let cat =
     (cat: ('lp, 'lp) => 'lp, l: t('lp, 'lk), r: t('lp, 'lk)): t('lp, 'lk) =>

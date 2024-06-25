@@ -1,6 +1,5 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
-open Stds;
 
 module Int_ppx = {
   include Int;
@@ -31,18 +30,19 @@ module Base = {
 
   let bound = (~min as l=zero, ~max as r: t, pos: t) => min(max(l, pos), r);
 
-  let skip_col = (n, pos) => {...pos, col: pos.col + n};
+  let shift = (n, loc: t) => {...loc, col: loc.col + n};
 
-  let skip = (pos: t, ~over: Dims.t, ~return: Col.t) => {
-    {
-      // let h = Dims.Height.total(over.height);
-      // let w = Dims.Width.total(over.width);
-      row: pos.row + over.height,
-      col:
-        (over.height > 0 ? return : pos.col) + Dims.Width.total(over.width),
-    };
-    p;
-  };
+  let return = (loc: t, ~ind: Col.t) => {row: loc.row + 1, col: ind};
+  // let skip = (pos: t, ~over: Dims.t, ~return: Col.t) => {
+  //   {
+  //     // let h = Dims.Height.total(over.height);
+  //     // let w = Dims.Width.total(over.width);
+  //     row: pos.row + over.height,
+  //     col:
+  //       (over.height > 0 ? return : pos.col) + Dims.Width.total(over.width),
+  //   };
+  //   p;
+  // };
 };
 include Base;
 
@@ -58,8 +58,8 @@ module Caret = {
 module Selection = {
   include Selection;
   type t = Selection.t(Range.t);
-  let map_focus = Selection.map_focus(~split_range=Fun.id);
-  let get_focus = Selection.get_focus(~split_range=Fun.id);
+  let map_focus: (_, t) => t = Selection.map_focus(~split_range=Fun.id);
+  let get_focus: t => Base.t = Selection.get_focus(~split_range=Fun.id);
 };
 module Cursor = {
   include Cursor;
