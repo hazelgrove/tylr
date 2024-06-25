@@ -1,9 +1,3 @@
-// module type LINE = {
-//   type t;
-//   let nil: t;
-//   let cat: (t, t) => t;
-// };
-
 module Line = {
   type t = list(Token.t);
   let nil = [];
@@ -54,7 +48,8 @@ module Block = {
          | Block(b) => cat_ft(line, b),
        );
 
-  let rec hcat = (l: t, r: t) => Chain.cat(hcat_block = hcat, l, r);
+  let rec hcat = (l: t, r: t) =>
+    Chain.cat(Section.hcat(~hcat_block=hcat), l, r);
   let hcats = (bs: list(t)) => List.fold_right(hcat, bs, empty);
   let vcat = (l: t, ~indent=0, r: t) => Chain.append(l, indent, r);
 
@@ -80,41 +75,6 @@ module Block = {
       |> hcats
     };
 };
-
-// module Chain = {
-//   include Chain;
-//   type t = Chain.t(Block.t, Block.t);
-//   let flatten = (bs: Chain.t(t, t)) =>
-//     bs
-//     |> Chain.fold_right(
-//          (b_lp, b_lk, acc) => hcats([b_lp, b_lk, acc]),
-//          Fun.id,
-//        );
-//   let nest_body = (n: int, bs: t): t =>
-//     bs
-//     |> Chain.map(Block.nest_tl(n), Block.nest_tl(n))
-//     |> Chain.fold_right_map(
-//          (b_cell, b_tok, should_unnest) => {
-//             let _ = failwith("todo: should_unnest -> done");
-//            let (b_tok, should_unnest) =
-//              (should_unnest ? Block.unnest_ft(n) : Fun.id)(b_tok);
-//            let (b_cell, should_unnest) =
-//              (should_unnest ? Block.unnest_ft(n) : Fun.id)(b_cell);
-//            (b_cell, b_tok, should_unnest);
-//          },
-//          b_cell => Block.unnest_ft(n, b_cell),
-//        )
-//     |> fst;
-// };
-
-// module Affix = {
-//   type t = Chain.Affix.t(Block.t, Block.t);
-//   let flatten = (~side: Dir.t, aff: t) =>
-//     aff
-//     |> List.concat_map(((lk, lp)) => [lk, lp])
-//     |> Dir.pick(side, (List.rev, Fun.id))
-//     |> Block.hcats;
-// };
 
 module Tree = {
   // todo: unify with existing structure by polymorphizing
@@ -210,53 +170,7 @@ module Tree = {
         },
       )
     |> snd;
-
-  // let rec hcat = (T(t): t) =>
-  //   t
-  //   |> Chain.map(
-  //     t => Option.map(hcat, t) |> Option.value(~default=Block.nil),
-  //     Fun.id,
-  //   )
-  //   |> Chain.fold_right(
-  //     (b_cell, b_tok, acc) => hcats([b_cell, b_tok, acc]),
-  //     Fun.id,
-  //   );
-
-  // let rec nest_tl = (n: int, T(t): t) =>
-  //   switch (Chain.unconsnoc(t)) {
-  //   | Error(t) => Chain.unit(Option.map(nest_tl(n), t))
-  //   | Ok(())
-  //   }
-
-  // let nest_body = (n: int, T(t): t) =>
-  //   t
-  //   |> Chain.map()
 };
-
-// let rec of_cell = (~delim=Delim.root, c: Cell.t): t =>
-//   switch (Cell.get(c)) {
-//   | None => nil
-//   | Some(m) => Chain.hcat(of_meld(~delim, m))
-//   }
-// and of_meld = (~delim: Delim.t, m: Meld.t): Chain.t =>
-//   Meld.to_chain(m)
-//   |> Chain.mapi_loop((i, cell) => (i, cell))
-//   |> Chain.fold_left_map(
-//        ((_, l)) => {
-//          let b = of_cell(l);
-//          (Block.height(b), b);
-//        },
-//        (h, tok, (i, cell)) => {
-//          let b_tok = of_tok(tok);
-//          let b_cell =
-//            of_cell(~delim=Node(tok), cell)
-//            |> (i == Meld.length(m) - 1 ? Fun.id : Block.wrap);
-//          (h, b_tok, b_cell);
-//        },
-//      )
-//   |> (
-//     ((h, bs)) => Chain.nest_body(Delim.indent(delim) && h > 0 ? 2 : 0, bs)
-//   );
 
 module Chain = {
   include Chain;
@@ -380,43 +294,6 @@ let mk =
       }
     };
   }
-};
-
-let rec cursor =
-        (~state=State.init, ~delim=Delim.root, cell: Cell.t)
-        : option(Loc.Cursor.t) => {
-  open Options.Syntax;
-  let* cur = cell.marks.cursor;
-  switch (Path.Cursor.hd(cur)) {
-  | Error(Point(car)) =>
-    Some(Loc.Cursor.point(Caret.mk(car.hand, state.pos)))
-  | Error(Select(sel)) =>
-    let (l, r) = Path.Selection.carets(sel);
-    let l = Option.get(cursor(~state, Cell.put_cursor(Point(l), cell)));
-    let r = Option.get(cursor(~state, Cell.put_cursor(Point(r), cell)));
-    Some(
-      Select(
-        Loc.Selection.mk(
-          ~focus=sel.focus,
-          Loc.Cursor.(get_point(l).path, get_point(r).path),
-        ),
-      ),
-    );
-  | Ok(step) =>
-    switch (
-      Cell.get(cell)
-      |> Options.get_exn(Marks.Invalid)
-      |> of_meld(~delim)
-      |> Chain.unzip(step)
-    ) {
-    | Loop((pre, cell, _)) =>
-      let state = State.jump_block(state, ~over=Affix.hcat(pre));
-      cursor(~state, cell);
-    | Link((pre, tok, _)) =>
-      let state = State.jump_block(state, ~over=Chain.hcat(pre));
-      cursor_tok(~state, tok);
-    }
-  };
 };
 
 // returns a valid path into c whose loc is nearest the given target,
