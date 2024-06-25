@@ -244,3 +244,14 @@ let button = (z: t): t => {
   let (cell, ctx) = zip_init(~save_cursor=true, z);
   Option.get(unzip(cell, ~ctx));
 };
+
+// bounds goal pos to within start/end pos of program.
+// returns none if the resulting goal pos is same as start pos.
+let map_focus = (f: Loc.t => Loc.t, z: t): option(t) => {
+  open Options.Syntax;
+  let c = zip(~save_cursor=true, z);
+  let* init = Options.bind(c.marks.cursor, ~f=Path.Cursor.get_focus);
+  let goal = Layout.map(~tree=Tree.of_cell(c), f, init_focus);
+  Path.eq(goal, init)
+    ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> unzip;
+};

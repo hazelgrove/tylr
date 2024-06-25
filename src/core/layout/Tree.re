@@ -92,7 +92,6 @@ and of_meld = (M(l, w, r): Meld.t): meld =>
     )
   |> snd;
 
-
 module Chain = {
   include Chain;
   type t = Chain.t(Tree.t, Block.t);

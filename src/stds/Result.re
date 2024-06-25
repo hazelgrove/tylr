@@ -14,6 +14,11 @@ let get_fail = msg =>
   | Error(_) => failwith(msg)
   | Ok(ok) => ok;
 
+let either =
+  fun
+  | Error(x)
+  | Ok(x) => x;
+
 module Syntax = {
   let ( let* ) = (result, f) => bind(~f, result);
   let (let+) = (result, f) => map(~f, result);
