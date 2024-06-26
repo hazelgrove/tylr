@@ -79,9 +79,9 @@ let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>
   | Move(a) =>
     switch (a) {
     | Step(H(d)) => select(d, z)
-    | Step(V(d)) => Layout.vstep_focus(d, z)
-    | Skip(d2) => Layout.skip_focus(d2, z)
-    | Jump(pos) => Layout.jump_focus(pos, z)
+    | Step(V(d)) => Zipper.vstep_focus(d, z)
+    | Skip(d2) => Zipper.skip_focus(d2, z)
+    | Jump(pos) => Zipper.jump_focus(pos, z)
     | Hole(_) => failwith("unimplemented")
     }
   };

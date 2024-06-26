@@ -250,8 +250,20 @@ let button = (z: t): t => {
 let map_focus = (f: Loc.t => Loc.t, z: t): option(t) => {
   open Options.Syntax;
   let c = zip(~save_cursor=true, z);
-  let* init = Options.bind(c.marks.cursor, ~f=Path.Cursor.get_focus);
-  let goal = Layout.map(~tree=Tree.of_cell(c), f, init_focus);
-  Path.eq(goal, init)
+  let* init = Option.bind(c.marks.cursor, Path.Cursor.get_focus);
+  let goal = Layout.map(~tree=Tree.of_cell(c), f, init);
+  goal == init
     ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> unzip;
 };
+let vstep_focus = (d: Dir.t) =>
+  map_focus(loc => {...loc, row: loc.row + Dir.pick(d, ((-1), 1))});
+let skip_focus = (d2: Dir2.t) =>
+  map_focus(loc =>
+    switch (d2) {
+    | H(L) => {...loc, col: 0}
+    | H(R) => {...loc, col: Int.max_int}
+    | V(L) => Loc.zero
+    | V(R) => Loc.maximum
+    }
+  );
+let jump_focus = loc => map_focus(_ => loc);

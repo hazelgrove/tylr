@@ -5,7 +5,7 @@ module Action = {
   type t =
     | Step(Dir2.t)
     | Skip(Dir2.t)
-    | Jump(Layout.Pos.t)
+    | Jump(Loc.t)
     | Hole(Dir.t);
 };
 
@@ -40,11 +40,11 @@ let rec move_n = (n: int, z: Zipper.t): Zipper.t => {
 };
 
 // todo: need to return none in some more cases when no visible movement occurs
-let perform = (a: Action.t, z: Zipper.t) =>
+let perform = (a: Action.t) =>
   switch (a) {
-  | Step(H(d)) => move(d, z)
-  | Step(V(d)) => Layout.vstep_focus(d, z)
-  | Skip(d2) => Layout.skip_focus(d2, z)
-  | Jump(pos) => Layout.jump_focus(pos, z)
+  | Step(H(d)) => move(d)
+  | Step(V(d)) => Zipper.vstep_focus(d)
+  | Skip(d2) => Zipper.skip_focus(d2)
+  | Jump(loc) => Zipper.jump_focus(loc)
   | Hole(_) => failwith("todo: move to hole")
   };

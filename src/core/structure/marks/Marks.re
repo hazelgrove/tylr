@@ -49,7 +49,8 @@ module Cell = {
     };
   let show = Fmt.to_to_string(pp);
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
-  let get_focus = (marks: t) => Path.Cursor.get_focus(marks.cursor);
+  let get_focus = (marks: t) =>
+    Option.bind(marks.cursor, Path.Cursor.get_focus);
   let put_focus = (path: Path.t, marks: t) => {
     ...marks,
     cursor: Path.Cursor.put_focus(path, marks.cursor),

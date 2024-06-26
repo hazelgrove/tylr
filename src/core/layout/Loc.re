@@ -10,12 +10,14 @@ module Row = Int_ppx;
 module Col = Int_ppx;
 
 module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
     row: Row.t,
     col: Col.t,
   };
 
   let zero = {row: 0, col: 0};
+  let maximum = {row: Int.max_int, col: Int.max_int};
 
   let compare = (l, r) => {
     let c = Row.compare(l.row, r.row);

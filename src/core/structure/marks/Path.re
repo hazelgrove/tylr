@@ -117,17 +117,14 @@ module Cursor = {
     | (Point({path: l, hand}), Point({path: r, _})) =>
       Select({focus: hand == Focus ? L : R, range: (l, r)})
     };
-  let get_focus = cur =>
-    Option.bind(
-      cur,
-      fun
-      | Select(sel) => Some(Selection.get_focus(sel))
-      | Point(car: Caret.t) =>
-        switch (car.hand) {
-        | Anchor => None
-        | Focus => Some(car.path)
-        },
-    );
+  let get_focus =
+    fun
+    | Select(sel) => Some(Selection.get_focus(sel))
+    | Point(car: Caret.t) =>
+      switch (car.hand) {
+      | Anchor => None
+      | Focus => Some(car.path)
+      };
   let put_focus = path =>
     fun
     | None
