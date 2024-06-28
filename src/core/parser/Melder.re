@@ -73,6 +73,17 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
 let complete_slope = (~onto: Dir.t, ~fill=Cell.empty) =>
   Slope.fold(fill => complete_terr(~onto, ~fill), fill);
 
+let complete_bounded =
+    (~bounds as (l, r), ~onto: Dir.t, ~fill=Cell.empty, slope) => {
+  // todo: fix weird
+  let fill = complete_slope(~onto, ~fill, slope);
+  Walker.walk_eq(~from=L, Bound.map(Terr.face, l), Bound.map(Terr.face, r))
+  |> Walk.Set.elements
+  |> Oblig.Delta.minimize(Baker.bake(~fill=Fill.unit(fill), ~from=onto))
+  |> Option.map(baked => snd(Chain.hd(baked)))
+  |> Options.get_fail("hmmm");
+};
+
 module Connection = {
   type t = Rel.t(Wald.t, (Dir.t, Slope.t));
   let eq = wald => Rel.Eq(wald);

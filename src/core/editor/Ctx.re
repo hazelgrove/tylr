@@ -164,12 +164,12 @@ let rec remold = (~fill=Cell.empty, ctx: t): (Cell.t, t) => {
     let up = Slope.cat(Slope.Up.unroll(cell), up);
     remold(~fill, cons((dn, up), tl));
   | _ =>
+    let (l, r) = Tl.bounds(tl);
     switch (up) {
     | [] =>
       let ctx = cons(Frame.Open.empty, tl);
-      (Melder.complete_slope(~onto=L, dn, ~fill), ctx);
+      (Melder.complete_bounded(~bounds=(l, r), ~onto=L, dn, ~fill), ctx);
     | [hd, ...up_tl] =>
-      let (l, r) = Tl.bounds(tl);
       let (molded, rest) = Molder.remold(~bound=l, dn, ~fill, hd);
       let (fill, up) =
         switch (rest) {
@@ -184,7 +184,7 @@ let rec remold = (~fill=Cell.empty, ctx: t): (Cell.t, t) => {
           map_hd(Frame.Open.cat((dn, up)), Tl.rest(tl));
         };
       remold(~fill, ctx);
-    }
+    };
   };
 };
 
