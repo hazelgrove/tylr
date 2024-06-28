@@ -38,13 +38,8 @@ let insert = (s: string, z: Zipper.t) => {
 
 let delete = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
-  print_endline("--- Edit.delete ---");
-  print_endline("z = " ++ Zipper.show(z));
   let+ z = Cursor.is_point(z.cur) ? Select.select(d, z) : return(z);
-  print_endline("selected = " ++ Zipper.show(z));
-  let r = insert("", z);
-  print_endline("inserted = " ++ Zipper.show(r));
-  r;
+  insert("", z);
 };
 
 let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>
