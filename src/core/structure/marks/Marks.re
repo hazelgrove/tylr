@@ -12,10 +12,12 @@ module Token = {
     | None => Some(Point(p))
     | Some(Point(q)) =>
       let (l, r) = Step.compare(p.path, q.path) <= 0 ? (p, q) : (q, p);
-      Some(
-        Select({focus: l.hand == Focus ? L : R, range: (l.path, r.path)}),
-      );
-    | Some(Select(_)) => failwith("todo: Marks.Token.add")
+      let focus = Dir.(l.hand == Focus ? L : R);
+      Some(Select({focus, range: (l.path, r.path)}));
+    | Some(Select({focus, range})) =>
+      let (foc, anc) = Dir.order(focus, range);
+      let (foc, anc) = p.hand == Focus ? (p.path, anc) : (foc, p.path);
+      Some(Select({focus, range: Dir.order(focus, (foc, anc))}));
     };
   let shift = n => Option.map(Step.Cursor.map(Step.shift(n)));
   let union = Options.merge(~f=Step.Cursor.union);
