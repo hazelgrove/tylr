@@ -79,6 +79,15 @@ let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
 
 let fold = (f_hd, f_tl, m: t) => Chain.fold_left(f_hd, f_tl, to_chain(m));
 
+let rec flatten = (m: t): list(Token.t) =>
+  to_chain(m)
+  |> Chain.to_list(
+       (c: Cell.t(t)) =>
+         c.meld |> Option.map(flatten) |> Option.to_list |> List.flatten,
+       Lists.single,
+     )
+  |> List.flatten;
+
 module Affix = {
   include Chain.Affix;
   type t = Chain.Affix.t(Token.t, Cell.t(Base.t));

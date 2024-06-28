@@ -42,9 +42,10 @@ module Molded = {
     | Grout((_, tips)) =>
       let (l, r) = Tip.display(tips);
       Fmt.pf(out, "%s%s", l, r);
-    | Tile((lbl, mold)) =>
+    | Tile((_lbl, mold)) =>
       let (l, r) = Mold.display(mold);
-      Fmt.pf(out, "%s%a%s", l, Label.pp, lbl, r);
+      // Fmt.pf(out, "%s%a%s", l, Label.pp, lbl, r);
+      Fmt.pf(out, "%s%s%s", l, tok.text, r);
     };
   let show = Fmt.to_to_string(pp);
 

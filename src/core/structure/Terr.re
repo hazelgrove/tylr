@@ -56,9 +56,13 @@ module L = {
   // L2R: wald cell
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t;
+  let flatten = ({wald, cell}: t) =>
+    Wald.flatten(wald) @ Cell.flatten(cell);
 };
 module R = {
   // L2R: cell wald
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t;
+  let flatten = ({cell, wald}: t) =>
+    Cell.flatten(cell) @ Wald.flatten(Wald.rev(wald));
 };

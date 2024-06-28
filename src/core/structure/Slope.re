@@ -102,6 +102,7 @@ let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
 module Dn = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Terr.R.t);
+  let flatten = List.concat_map(Terr.R.flatten);
   let roll = roll(~onto=L);
   let unroll = unroll(~from=L);
   let pull = pull(~from=L);
@@ -109,6 +110,7 @@ module Dn = {
 module Up = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Terr.L.t);
+  let flatten = List.concat_map(Terr.L.flatten);
   let roll = roll(~onto=R);
   let unroll = unroll(~from=R);
   let pull = pull(~from=R);

@@ -37,6 +37,9 @@ let sort = w => Token.sort(hd(w));
 
 let fold = (f, g, W(w)) => Chain.fold_left(f, g, w);
 
+let flatten = (W(w): t) =>
+  w |> Chain.to_list(Lists.single, Cell.flatten) |> List.concat;
+
 module Affix = {
   include Chain.Affix;
   type t = Chain.Affix.t(Cell.t, Token.t);

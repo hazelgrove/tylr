@@ -11,15 +11,6 @@ module Action = {
     | Insert(string);
 };
 
-// d is side of cleared focus contents the cursor should end up
-let clear_focus = (d: Dir.t, z: Zipper.t) =>
-  switch (z.cur) {
-  | Point(_) => z.ctx
-  | Select({range: zigg, _}) =>
-    let onto = Dir.toggle(d);
-    Ctx.push_zigg(~onto, zigg, z.ctx);
-  };
-
 let pull_neighbors = ctx => {
   let pull = (from: Dir.t, ctx) =>
     switch (Ctx.pull(~from, ctx)) {
@@ -34,8 +25,8 @@ let pull_neighbors = ctx => {
 };
 
 let insert = (s: string, z: Zipper.t) => {
-  let ctx = clear_focus(L, z);
-  let ((l, r), ctx) = pull_neighbors(ctx);
+  List.iter(Effects.remove, Zipper.Cursor.flatten(z.cur));
+  let ((l, r), ctx) = pull_neighbors(z.ctx);
   let (cell, ctx) =
     Labeler.label(l ++ s ++ r)
     |> List.fold_left((ctx, tok) => Ctx.mold(ctx, tok), ctx)
@@ -47,8 +38,13 @@ let insert = (s: string, z: Zipper.t) => {
 
 let delete = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
+  print_endline("--- Edit.delete ---");
+  print_endline("z = " ++ Zipper.show(z));
   let+ z = Cursor.is_point(z.cur) ? Select.select(d, z) : return(z);
-  insert("", z);
+  print_endline("selected = " ++ Zipper.show(z));
+  let r = insert("", z);
+  print_endline("inserted = " ++ Zipper.show(r));
+  r;
 };
 
 let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>

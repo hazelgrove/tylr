@@ -20,6 +20,13 @@ let unorient = (d: Dir.t, (s_d, top, s_b)) => {
   mk(~up, top, ~dn);
 };
 
+let flatten = ({up, top, dn}: t) =>
+  List.concat([
+    Slope.Up.flatten(up),
+    Wald.flatten(top),
+    Slope.Dn.flatten(dn),
+  ]);
+
 // let x = (1 + [a + b ? c / d : e * f] + 3) + 4 * 5 in x + 1
 
 // stepwell

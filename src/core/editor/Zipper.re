@@ -20,6 +20,10 @@ module Cursor = {
   include Cursor;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Cursor.t(Caret.t, Selection.t);
+  let flatten: t => _ =
+    fun
+    | Point(_) => []
+    | Select({range, _}) => Zigg.flatten(range);
 };
 
 // todo: document potential same-id token on either side of caret
