@@ -198,6 +198,19 @@ let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
     let (zigg, up) = Zigg.take_ineq(~side=R, zigg, ~fill=r, up);
     (Cell.put(Zigg.roll(zigg)), Ctx.cons((dn, up), tl));
   };
+let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
+  let (zipped, ctx) as init = zip_init(~save_cursor=true, z);
+  let zipped_past_space = {
+    open Options.Syntax;
+    let* _ = Cell.is_caret(zipped);
+    let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
+    let/ () = Cell.Space.is_space(zipped) ? Some((zipped, ctx)) : None;
+    let+ d = Rel.is_neq(rel);
+    zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx)
+    |> Option.value(~default=(zipped, ctx));
+  };
+  Option.value(zipped_past_space, ~default=init);
+};
 
 let rec zip_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
   switch (zip_step_open(~zipped, (dn, up))) {
@@ -206,7 +219,6 @@ let rec zip_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
   };
 let zip_closed = (~zipped: Cell.t, (l, r): Frame.Closed.t) =>
   zip_eq(l, zipped, r);
-
 let zip = (~save_cursor=false, z: t) =>
   z.ctx
   |> (
@@ -223,22 +235,15 @@ let zip = (~save_cursor=false, z: t) =>
        zip_open(~zipped=zip_closed(~zipped, closed), open_)
      );
 
+let path_of_ctx = (ctx: Ctx.t) => {
+  let c = zip(~save_cursor=true, mk(ctx));
+  let cur = Option.get(c.marks.cursor);
+  let car = Option.get(Cursor.get_point(cur));
+  car.path;
+};
+
 // tries zipping and unzipping to cursor
 let load_cursor = (z: t) => unzip(zip(z));
-
-let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
-  let (zipped, ctx) as init = zip_init(~save_cursor=true, z);
-  let zipped_past_space = {
-    open Options.Syntax;
-    let* _ = Cell.is_caret(zipped);
-    let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
-    let/ () = Cell.Space.is_space(zipped) ? Some((zipped, ctx)) : None;
-    let+ d = Rel.is_neq(rel);
-    zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx)
-    |> Option.value(~default=(zipped, ctx));
-  };
-  Option.value(zipped_past_space, ~default=init);
-};
 
 let button = (z: t): t => {
   let (cell, ctx) = zip_init(~save_cursor=true, z);

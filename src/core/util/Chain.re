@@ -32,6 +32,11 @@ let unlink =
   | [b, ...lks] => Ok((List.hd(lps), b, (List.tl(lps), lks)))
   };
 
+let combine = ((lps_l, lks_l), (lps_r, lks_r)) => (
+  List.combine(lps_l, lps_r),
+  List.combine(lks_l, lks_r),
+);
+
 module Affix = {
   type t('link, 'loop) = (list('link), list('loop));
   let empty = ([], []);

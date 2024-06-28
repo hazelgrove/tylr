@@ -5,6 +5,8 @@ let hd_exn = Base.List.hd_exn;
 let ft = Base.List.last;
 let ft_exn = Base.List.last_exn;
 
+let single = x => [x];
+
 module Frame = {
   // head elements are sequentially nearest neighbors of subject
   type t('x) = (list('x), list('x));

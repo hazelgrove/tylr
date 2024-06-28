@@ -2,7 +2,7 @@ open Virtual_dom.Vdom;
 
 let px = f => Printf.sprintf("%fpx", f);
 
-let mk = (~font, ~pos: Tylr_core.Layout.Pos.t) => {
+let mk = (~font, ~loc: Tylr_core.Loc.t) => {
   let (row, col) = Model.Font.(row(font), col(font));
   Util.Nodes.svg(
     ~attrs=
@@ -12,8 +12,8 @@ let mk = (~font, ~pos: Tylr_core.Layout.Pos.t) => {
         create("width", col(1) |> px),
         create("height", row(1) |> px),
         Util.Attrs.style([
-          ("left", col(pos.col) |> px),
-          ("top", row(pos.row) |> px),
+          ("left", col(loc.col) |> px),
+          ("top", row(loc.row) |> px),
         ]),
       ],
   );

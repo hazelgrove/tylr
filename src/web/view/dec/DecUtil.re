@@ -43,7 +43,7 @@ let abs_position =
       ~width_fudge=0.0,
       ~height_fudge=0.0,
       ~font: Font.t,
-      origin: Tylr_core.Layout.Pos.t,
+      origin: Tylr_core.Loc.t,
     ) => {
   Attr.create(
     "style",
@@ -60,7 +60,7 @@ let abs_position =
 let code_svg =
     (
       ~font: Font.t,
-      ~origin: Tylr_core.Layout.Pos.t,
+      ~origin: Tylr_core.Loc.t,
       ~base_cls=[],
       ~path_cls=[],
       ~left_fudge=0.0,

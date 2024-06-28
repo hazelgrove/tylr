@@ -2,26 +2,35 @@ open Virtual_dom.Vdom;
 open Tylr_core;
 open Util.Svgs;
 
-module Profile = {
+module Style = {
   type t = {
-    pos: Layout.Pos.t,
-    len: int,
     sort: Sort.t,
-    tips: Tip.s,
+    shape: Tip.s,
   };
-
-  let mk = (~pos: Layout.Pos.t, ~null as (l, r): (bool, bool), tok: Token.t) => {
-    let len = Token.length(tok);
-    let (sort, tips) =
-      switch (tok.mtrl) {
-      | Space () => raise(Invalid_argument("Dec.Token.Profile.mk"))
-      | Grout(g) => g
-      | Tile(t) => (Tile.T.sort(t), Tip.(l ? Conv : Conc, r ? Conv : Conc))
-      };
-    {pos, len, sort, tips};
-  };
+  let mk = (~null as (l, r), mtrl: Mtrl.T.t): option(t) =>
+    switch (mtrl) {
+    | Space () => None
+    | Grout((sort, shape)) => Some({sort, shape})
+    | Tile(t) =>
+      let sort = Tile.T.sort(t);
+      let shape = Tip.(l ? Conv : Conc, r ? Conv : Conc);
+      Some({sort, shape});
+    };
 };
 
+module Profile = {
+  type t = {
+    loc: Loc.t,
+    len: int,
+    style: option(Style.t),
+  };
+
+  let mk = (~loc: Loc.t, ~null: (bool, bool), tok: Token.t) => {
+    loc,
+    len: Token.length(tok),
+    style: Style.mk(~null, tok.mtrl),
+  };
+};
 let tip_width = 0.32;
 let concave_adj = 0.25;
 let convex_adj = (-0.13);
@@ -61,20 +70,19 @@ let path = ((l, r): Tip.s, length: int): Path.t =>
     Path.scale(-1., tip(l)),
   ]);
 
-let path_view = (prof: Profile.t) =>
-  Util.Svgs.Path.view(
-    ~attrs=[
-      Attr.classes([
-        "tile-path",
-        "raised",
-        "indicated",
-        Sort.to_str(prof.sort),
-      ]),
-    ],
-    path(prof.tips, prof.len),
-  );
-
-let mk = (prof: Profile.t) => Box.mk(~pos=prof.pos, [path_view(prof)]);
+let mk = (prof: Profile.t) =>
+  prof.style
+  |> Option.map((Style.{sort, shape}) =>
+       Util.Svgs.Path.view(path(shape, prof.len))
+       |> Util.Nodes.add_classes([
+            "tile-path",
+            "raised",
+            "indicated",
+            Sort.to_str(sort),
+          ])
+     )
+  |> Option.to_list
+  |> Box.mk(~loc=prof.loc);
 
 let drop_shadow = (sort: Sort.t) =>
   Util.Nodes.filter(

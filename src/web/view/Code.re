@@ -527,28 +527,34 @@ let view_str =
 let view_indent =
   Stds.Memo.general(n => view_str(Strings.repeat(n, Util.Unicode.nbsp)));
 
-let view_text =
-  Layout.fold(
-    [],
-    (ctx, _pos, tok: Token.t) =>
-      switch (tok.mtrl) {
-      | Space () =>
-        let (hd, tl) =
-          Lists.Framed.hd_exn(Strings.split(~on='\n', tok.text));
-        tl
-        |> List.mapi((i, line) => (i, line))
-        |> List.concat_map(((i, line)) =>
-             view_indent(
-               i < List.length(tl) - 1 ? Layout.Ictx.middle(ctx) : ctx.right,
-             )
-             @ view_str(line)
-           )
-        |> (@)(view_str(hd));
-      | Grout(_) => view_str("•")
-      | Tile(_) => view_str(tok.text)
-      },
-    txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
-  );
+// let view_text =
+//   Layout.fold(
+//     [],
+//     (ctx, _pos, tok: Token.t) =>
+//       switch (tok.mtrl) {
+//       | Space () =>
+//         let (hd, tl) =
+//           Lists.Framed.hd_exn(Strings.split(~on='\n', tok.text));
+//         tl
+//         |> List.mapi((i, line) => (i, line))
+//         |> List.concat_map(((i, line)) =>
+//              view_indent(
+//                i < List.length(tl) - 1 ? Layout.Ictx.middle(ctx) : ctx.right,
+//              )
+//              @ view_str(line)
+//            )
+//         |> (@)(view_str(hd));
+//       | Grout(_) => view_str("•")
+//       | Tile(_) => view_str(tok.text)
+//       },
+//     txts => Node.[span(List.concat(Chain.to_list(Fun.id, Fun.id, txts)))],
+//   );
+let view_text = (c: Cell.t) =>
+  Layout.Tree.of_cell(c)
+  |> Layout.Tree.flatten
+  |> Text.view_block
+  |> Lists.single
+  |> Node.span(~attrs=[Attr.class_("code-text")]);
 
 let cursor = (~font, z: Zipper.t) =>
   switch (z.cur) {
@@ -559,13 +565,14 @@ let cursor = (~font, z: Zipper.t) =>
     let (cell, ctx) = Zipper.zip_indicated(z);
     switch (Cell.get(cell)) {
     | Some(m) when !Cell.Space.is_space(cell) =>
-      let state = Layout.State.load(ctx);
-      Dec.Meld.(mk(~font, Profile.mk(~state, m)));
-    | _ =>
-      print_endline("1");
-      print_endline("cell = " ++ Cell.show(cell));
-      print_endline("ctx = " ++ Ctx.show(ctx));
-      [];
+      let lyt = Layout.Tree.of_meld(m);
+      let state =
+        Layout.state_of_path(
+          ~tree=Layout.Tree.of_cell(Zipper.zip(~save_cursor=true, z)),
+          Zipper.path_of_ctx(ctx),
+        );
+      Dec.Meld.(mk(~font, Profile.mk(~state, lyt, m)));
+    | _ => []
     };
   };
 
@@ -584,13 +591,12 @@ let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
   //   });
   div(
     ~attrs=[Attr.class_("code"), Attr.id("under-the-rail")],
-    Node.[span(~attrs=[Attr.class_("code-text")], view_text(c))]
-    @ cursor(~font, zipper),
+    [view_text(c), ...cursor(~font, zipper)],
     // @ Dec.Token.[
     //     mk(
     //       ~font,
     //       Profile.mk(
-    //         ~pos=Layout.Pos.zero,
+    //         ~pos=Loc.zero,
     //         ~null=(true, true),
     //         Token.mk(
     //           ~text="123",

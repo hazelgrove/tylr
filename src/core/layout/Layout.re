@@ -1,5 +1,8 @@
 open Stds;
 
+module Block = Block;
+module Tree = Tree;
+
 module State = {
   // layout traversal state
   type t = {
@@ -120,12 +123,13 @@ let path_of_loc =
        );
   go(~state, tree);
 };
-let rec range_of_path =
-        (~state=State.init, ~tree: Tree.t, path: Path.t): Loc.Range.t =>
+// todo: reorg this as unzipping layout zipper
+let rec state_of_path =
+        (~state=State.init, ~tree: Tree.t, path: Path.t): State.t =>
   switch (path) {
-  | [] =>
-    let s_end = State.jump_block(state, ~over=Tree.flatten(tree));
-    (state.loc, s_end.loc);
+  | [] => state
+  // let s_end = State.jump_block(state, ~over=Tree.flatten(tree));
+  // (state.ind, (state.loc, s_end.loc));
   | [hd, ...tl] =>
     switch (
       tree
@@ -136,25 +140,37 @@ let rec range_of_path =
     | Loop((pre, t_cell, _)) =>
       let state =
         State.jump_block(state, ~over=Tree.flatten_affix(~side=L, pre));
-      range_of_path(~state, ~tree=t_cell, tl);
+      state_of_path(~state, ~tree=t_cell, tl);
     | Link((pre, b_tok, _)) =>
       let state = State.jump_block(state, ~over=Tree.flatten_chain(pre));
       switch (tl) {
-      | [] =>
-        let s_end = State.jump_block(state, ~over=b_tok);
-        (state.loc, s_end.loc);
+      | [] => state
+      // let s_end = State.jump_block(state, ~over=b_tok);
+      // (state.ind, (state.loc, s_end.loc));
       | [hd, ..._] =>
         let loc = loc_of_step(~state, ~block=b_tok, hd);
-        (loc, loc);
+        // (state.ind, (loc, loc));
+        {...state, loc};
       };
     }
   };
-let loc_of_path =
-    (~side=Dir.L, ~state=State.init, ~tree: Tree.t, path: Path.t) =>
-  Dir.pick(side, (fst, snd), range_of_path(~state, ~tree, path));
+// let loc_of_path =
+//     (~side=Dir.L, ~state=State.init, ~tree: Tree.t, path: Path.t) =>
+//   Dir.pick(side, (fst, snd), snd(range_of_path(~state, ~tree, path)));
 
 let map = (~tree: Tree.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
-  switch (path_of_loc(~tree, f(loc_of_path(~tree, path)))) {
+  switch (path_of_loc(~tree, f(state_of_path(~tree, path).loc))) {
   | Ok(path) => path
   | Error(_) => Tree.end_path(tree, ~side=R)
   };
+
+let states = (~init: State.t, m: Tree.meld) =>
+  Tree.to_chain(m)
+  |> Chain.fold_left_map(
+       t_cell => (State.jump_block(init, ~over=Tree.flatten(t_cell)), init),
+       (state, b_tok, t_cell) => {
+         let s_mid = State.jump_block(state, ~over=b_tok);
+         let s_end = State.jump_block(state, ~over=Tree.flatten(t_cell));
+         (s_end, state, s_mid);
+       },
+     );
