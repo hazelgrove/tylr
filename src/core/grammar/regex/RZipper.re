@@ -3,7 +3,7 @@ open Stds;
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t('focus, 'atom) = ('focus, RCtx.t('atom));
 
-// Root in output means one of the alternatives of r is null
+// Root in output means r is nullable
 let rec enter =
         (~ctx=RCtx.empty, ~from: Dir.t, r: Regex.t('a))
         : list(Bound.t(t('a, 'a))) => {
@@ -17,7 +17,8 @@ let rec enter =
          go(~ctx=[Alt_(ls, rs), ...ctx], r)
        )
   | Seq(s) =>
-    switch (from == L ? s : List.rev(s)) {
+    let orient = Dir.pick(from, (Fun.id, List.rev));
+    switch (orient(s)) {
     | [] => [Root]
     | [hd, ...tl] =>
       hd
@@ -25,9 +26,10 @@ let rec enter =
       |> List.concat_map(
            fun
            | Bound.Node(_) as n => [n]
-           | Root => go(~ctx=RCtx.push(~onto=from, hd, ctx), Seq(tl)),
+           | Root =>
+             Seq(orient(tl)) |> go(~ctx=RCtx.push(~onto=from, hd, ctx)),
          )
-    }
+    };
   };
 };
 
