@@ -21,9 +21,4 @@ open:
 	open "$(HTML_FILE)"
 
 watch:
-	dune build @src/fmt --auto-promote src --profile dev
-	# dunno why dune stopped doing this...
-	cp src/web/www/index.html $(HTML_DIR)/index.html
-	cp src/web/www/style.css $(HTML_DIR)/style.css
-	cp -r src/web/www/fonts $(HTML_DIR)/fonts
 	dune build @src/fmt --auto-promote src --profile dev --watch

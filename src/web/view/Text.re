@@ -29,11 +29,12 @@ let view_line = (l: Layout.Block.Line.t) =>
 
 let rec view_block = (B(b): Layout.Block.t) =>
   b
-  |> Chain.fold_left(
-       sec => [view_sec(sec)],
-       (nodes, indent, sec) => [view_sec(~indent, sec), ...nodes],
+  |> Chain.fold_left_map(
+       sec => ((), view_sec(sec)),
+       ((), indent, sec) => ((), Node.br(), view_sec(~indent, sec)),
      )
-  |> List.rev
+  |> snd
+  |> Chain.to_list(Fun.id, Fun.id)
   |> Node.div(~attrs=Attr.[classes(["block"])])
 and view_sec = (~indent=0, sec: Layout.Block.Section.t(_)) => {
   let text =
