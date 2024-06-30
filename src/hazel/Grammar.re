@@ -28,7 +28,8 @@ let ch =
       s,
     ) =>
   t(Label.const(~padding=p, s));
-let cr =     (
+let cr =
+    (
       ~p=Padding.mk(
            ~h_l=false,
            ~h_r=true,
@@ -92,7 +93,7 @@ module Pat = {
 
   let tbl = [
     //Typeann
-    p(~a=L,seq([pat, c(":"), nt(Typ.sort)])), 
+    p(~a=L, seq([pat, c(":"), nt(Typ.sort)])),
     //Cons
     p(~a=R, seq([pat, c("::"), pat])),
     //ap
