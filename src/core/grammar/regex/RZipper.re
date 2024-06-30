@@ -46,7 +46,7 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
       | (L, Seq_([], rs)) => go(Seq([r, ...rs]), fs)
       | (R, Seq_(ls, [])) => go(Seq(List.rev([r, ...ls])), fs)
       | (L, Seq_([hd, ...tl], rs)) =>
-        let ctx = [RFrame.Seq_(tl, [r, ...rs]), ...fs];
+        let ctx = [RFrame.Seq_(tl, rs), ...fs] |> RCtx.push(~onto=R, r);
         enter(hd, ~ctx)
         |> List.concat_map(
              fun
@@ -54,7 +54,7 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
              | Node(_) as z => [z],
            );
       | (R, Seq_(ls, [hd, ...tl])) =>
-        let ctx = [RFrame.Seq_([r, ...ls], tl), ...fs];
+        let ctx = [RFrame.Seq_(ls, tl), ...fs] |> RCtx.push(~onto=L, r);
         enter(hd, ~ctx)
         |> List.concat_map(
              fun

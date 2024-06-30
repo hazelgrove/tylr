@@ -21,20 +21,20 @@ let show = pp_a => Fmt.to_to_string(pp(pp_a));
 let pp_s = (pp_a, out) => Fmt.(pf(out, "[%a]", list(~sep=semi, pp(pp_a))));
 let show_s = pp_a => Fmt.to_to_string(pp(pp_a));
 
+let rec flatten =
+  fun
+  | Seq(rs) => List.concat_map(flatten, rs)
+  | r => [r];
+
 let atom = a => Atom(a);
 let star = r => Star(r);
-let seq = rs => Seq(rs);
+let seq = rs => Seq(List.concat_map(flatten, rs));
 let alt = rs => Alt(rs);
 
 let eps = Seq([]);
 let opt = r => Alt([eps, r]);
 
 let aseq = atoms => seq(List.map(atom, atoms));
-
-let rec flatten =
-  fun
-  | Seq(rs) => List.concat_map(flatten, rs)
-  | r => [r];
 
 let push = (~from: Dir.t, r) =>
   fun
