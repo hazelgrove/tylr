@@ -8,7 +8,7 @@ let fill_ = (~l=false, ~r=false, fill: Fill.t, nt: Mtrl.NT.t): option(Cell.t) =>
   let invalid = Invalid_argument("Baker.fill");
   switch (nt) {
   | Grout(_) => failwith("todo: fill grout")
-  | Space(false) => Fill.is_empty(fill) ? Some(Cell.empty) : None
+  | Space(false) => Fill.is_empty(fill) ? Some(Fill.hd(fill)) : None
   | Space(true) =>
     let spc = Options.get_exn(invalid, Fill.is_space(fill));
     Fill.default(nt)
