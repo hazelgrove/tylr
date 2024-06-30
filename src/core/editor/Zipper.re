@@ -178,7 +178,7 @@ let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
 
 // zip up to the nearest containing cell.
 // if zip_init(z) == (cell, ctx), then
-// Cell.is_point(cell)  iff  z points between tokens
+//   Cell.is_point(cell)  iff  z points between tokens
 let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
   switch (z.cur) {
   | Point(car) =>
@@ -208,7 +208,7 @@ let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
     open Options.Syntax;
     let* _ = Cell.is_caret(zipped);
     let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
-    let/ () = Cell.Space.is_space(zipped) ? Some((zipped, ctx)) : None;
+    let/ () = Cell.Space.is_space(zipped) ? None : Some((zipped, ctx));
     let+ d = Rel.is_neq(rel);
     zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx)
     |> Option.value(~default=(zipped, ctx));
