@@ -1,6 +1,9 @@
 open Stds;
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
 module Line = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Token.t);
   let nil = [];
   let cat = (@);
@@ -9,6 +12,7 @@ module Line = {
 };
 
 module Section = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t('block) =
     | Line(Line.t)
     | Block('block);
@@ -19,6 +23,7 @@ module Section = {
     | Block(b) => Block(block(b));
 };
 
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | B(Chain.t(Section.t(t), int));
 
@@ -57,6 +62,11 @@ and hcat_sec = (l: Section.t(t), r: Section.t(t)) =>
 let hcats = (bs: list(t)) => List.fold_right(hcat, bs, nil);
 
 let vcat = (B(l): t, ~indent=0, B(r): t) => B(Chain.append(l, indent, r));
+let vcats = bs =>
+  switch (Lists.Framed.ft(bs)) {
+  | None => raise(Invalid_argument("Block.vcats"))
+  | Some((pre, ft)) => List.fold_left((r, l) => vcat(l, r), ft, pre)
+  };
 
 let rec is_space = (B(b): t) => List.for_all(is_space_sec, Chain.loops(b))
 and is_space_sec =
@@ -82,5 +92,5 @@ let of_tok = (tok: Token.t) =>
   | Space () =>
     Strings.split(~on='\n', tok.text)
     |> List.map(text => line([{...tok, text}]))
-    |> hcats
+    |> vcats
   };

@@ -1,6 +1,9 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
 // todo: unify with existing structure by polymorphizing
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t = option(meld)
 and meld =
   | M(t, wald, t)
