@@ -6,7 +6,10 @@ open Stds;
 type t = Chain.t(Cell.t, unit);
 
 let empty = Chain.unit(Cell.empty);
-let is_empty: t => bool = (==)(empty);
+let is_empty =
+  fun
+  | ([c], []) => Cell.is_empty(c)
+  | _ => false;
 let unit = Chain.unit;
 let hd = Chain.hd;
 let to_list = Chain.loops;
@@ -31,6 +34,8 @@ let is_caret = (fill: t) =>
   | _ => None
   };
 
+// returns none if spc is not space
+// todo: make this less weird
 let rec pad = (~side: Dir.t, ~spc: Cell.t, c: Cell.t): option(Cell.t) => {
   open Options.Syntax;
   let/ () = {
@@ -71,47 +76,9 @@ let squash = (fill: t) => {
   go(fill);
 };
 
-let fill_default =
+let default =
   fun
   | Mtrl.Space(_) => Cell.empty
   // grout case isn't quite right... but shouldn't arise
   | Grout(s)
   | Tile((s, _)) => Cell.put(Meld.Grout.op_(s));
-
-// assumes precedence-correctness already checked
-// and that fill has been oriented
-let fill = (~l=false, ~r=false, fill: t, nt: Mtrl.NT.t): Cell.t => {
-  let fill = squash(fill);
-  let invalid = Invalid_argument("Fill.fill");
-  switch (nt) {
-  | Grout(_)
-  | Space(false) => raise(invalid)
-  | Space(true) =>
-    let spc = Options.get_exn(invalid, is_space(fill));
-    fill_default(nt)
-    |> pad(~side=L, ~spc)
-    |> Options.get_fail("todo: shouldn't be possible");
-  | Tile((s, _)) =>
-    switch (is_space(fill)) {
-    | Some(spc) =>
-      fill_default(nt)
-      |> pad(~side=L, ~spc)
-      |> Options.get_fail("todo: shouldn't be possible")
-    | None =>
-      let cells =
-        [l ? [Cell.empty] : [], to_list(fill), r ? [Cell.empty] : []]
-        |> List.concat;
-      let toks =
-        Token.Grout.[
-          l ? [pre(s)] : [],
-          List.init(length(fill) - 1, _ => in_(s)),
-          r ? [pos(s)] : [],
-        ]
-        |> List.concat;
-      switch (toks) {
-      | [] => List.hd(cells)
-      | [_, ..._] => Cell.put(Meld.of_chain(Chain.mk(cells, toks)))
-      };
-    }
-  };
-};
