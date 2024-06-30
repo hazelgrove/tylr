@@ -124,6 +124,10 @@
   --error-message-z: 17;
 }
 
+.token.space {
+  white-space: pre;
+}
+
 #page {
   overflow-x: auto;
   overflow-y: auto;
@@ -265,6 +269,7 @@
 .code-text {
   position: absolute;
   z-index: var(--code-text-z);
+  white-space: pre;
 }
 
 /* TODO(andrew): refactor to make this unnecessary */

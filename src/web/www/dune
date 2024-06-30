@@ -1,2 +1,12 @@
 (rule
  (copy ../main.bc.js tiles.js))
+
+; I'd just keep these files in current directory and omit these rules
+; but for some reason dune isn't copying them over to _build, and
+; explicit copy rule requires copying from a different directory
+
+(rule
+ (copy ../index.html index.html))
+
+(rule
+ (copy ../style.css style.css))
