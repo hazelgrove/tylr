@@ -12,7 +12,7 @@ let mk = (~font, ~loc: Tylr_core.Loc.t) => {
         create("width", col(1) |> px),
         create("height", row(1) |> px),
         Util.Attrs.style([
-          ("position", "relative"),
+          ("position", "absolute"),
           ("left", col(loc.col) |> px),
           ("top", row(loc.row) |> px),
         ]),
