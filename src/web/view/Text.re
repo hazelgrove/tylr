@@ -11,15 +11,36 @@ let nest = (n: int) =>
         ),
       );
 
+let view_space = spc =>
+  String.to_seq(spc)
+  |> Seq.map(
+       fun
+       | ' ' => Util.Unicode.nbsp
+       | c => String.init(1, Fun.const(c)),
+     )
+  |> List.of_seq
+  |> String.concat("");
+
+let view_tile = (lbl: Label.t, text: string) => {
+  let oblig = Label.oblig(text, lbl);
+  let ghost =
+    Base.String.is_empty(oblig)
+      ? []
+      : [Node.span(~attrs=Attr.[class_("ghost")], [Node.text(oblig)])];
+  Node.span(~attrs=Attr.[class_("tile")], [Node.text(text), ...ghost]);
+};
+
 let view_tok = (tok: Token.t) =>
   (
     switch (tok.mtrl) {
     | Space () =>
-      Node.span(~attrs=Attr.[class_("space")], [Node.text(tok.text)])
+      Node.span(
+        ~attrs=Attr.[class_("space")],
+        [Node.text(view_space(tok.text))],
+      )
     | Grout(_) =>
       Node.span(~attrs=Attr.[class_("grout")], [Node.text("•")])
-    | Tile(_) =>
-      Node.span(~attrs=Attr.[class_("tile")], [Node.text(tok.text)])
+    | Tile((lbl, _)) => view_tile(lbl, tok.text)
     }
   )
   |> Util.Nodes.add_class("token");

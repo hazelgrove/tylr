@@ -130,6 +130,9 @@
 .block, .section, .line {
   display: inline-block;
 }
+.tile .ghost {
+  opacity: 40%;
+}
 
 #page {
   overflow-x: auto;

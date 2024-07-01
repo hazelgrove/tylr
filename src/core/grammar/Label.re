@@ -53,3 +53,13 @@ let is_complete = text =>
     // assuming text is consistent with lbl
     true
   | Const(_, c) => String.equal(c, text);
+
+let oblig = text =>
+  fun
+  | Id_lower
+  | Id_upper
+  | Int_lit
+  | Float_lit =>
+    // assuming text is consistent with lbl
+    ""
+  | Const(_, c) => Base.String.chop_prefix_exn(~prefix=text, c);
