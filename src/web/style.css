@@ -127,6 +127,9 @@
 .token.space {
   white-space: pre;
 }
+.block, .section, .line {
+  display: inline-block;
+}
 
 #page {
   overflow-x: auto;
