@@ -45,10 +45,10 @@ and len_sec =
   | Line(l) => Line.len(l)
   | Block(b) => len(b);
 
-let rec cat_line = (~side: Dir.t, ~line: Line.t): (t => t) => {
+let rec cat_line = (~side: Dir.t, ~line: Line.t, b: t): t => {
   let map_end = f => map(Dir.pick(side, Chain.(map_hd, map_ft), f));
   let cat = l => Dir.pick(side, Line.(cat(line, l), cat(l, line)));
-  map_end(Section.map(~line=cat, ~block=cat_line(~side, ~line)));
+  map_end(Section.map(~line=cat, ~block=cat_line(~side, ~line)), b);
 };
 
 let rec hcat = (B(l): t, B(r): t) => B(Chain.cat(hcat_sec, l, r))
