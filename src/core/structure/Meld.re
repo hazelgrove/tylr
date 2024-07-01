@@ -13,16 +13,13 @@ module Cell = {
   let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
   let pp = (pp_meld, out, {marks, meld}: t(_)) =>
-    Marks.is_empty(marks) && Option.is_none(meld)
-      ? Fmt.pf(out, "{}")
-      : Fmt.pf(
-          out,
-          "{%a@ |@ %a}",
-          Marks.pp,
-          marks,
-          Fmt.option(pp_meld),
-          meld,
-        );
+    if (Marks.is_empty(marks) && Option.is_none(meld)) {
+      Fmt.pf(out, "{}");
+    } else if (Marks.is_empty(marks)) {
+      Fmt.pf(out, "{%a}", Fmt.option(pp_meld), meld);
+    } else {
+      Fmt.pf(out, "{%a@ |@ %a}", Marks.pp, marks, Fmt.option(pp_meld), meld);
+    };
   let show = pp_meld => Fmt.to_to_string(pp(pp_meld));
 };
 

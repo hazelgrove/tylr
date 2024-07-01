@@ -38,7 +38,17 @@ module Molded = {
 
   let pp = (out, tok: t) =>
     switch (tok.mtrl) {
-    | Space () => Fmt.pf(out, "|%s|", tok.text)
+    | Space () =>
+      String.to_seq(tok.text)
+      |> Seq.map(
+           fun
+           | ' ' => "_"
+           | '\n' => "\\n"
+           | c => String.init(1, Fun.const(c)),
+         )
+      |> List.of_seq
+      |> String.concat("")
+      |> Fmt.pf(out, "\"%s\"")
     | Grout((_, tips)) =>
       let (l, r) = Tip.display(tips);
       Fmt.pf(out, "%s%s", l, r);
