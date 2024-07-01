@@ -39,7 +39,7 @@ let nil = line(Line.nil);
 let cons = (sec: Section.t(t), ~indent=0) => Chain.link(sec, indent);
 
 let rec len = (B(b): t) =>
-  Chain.loops(b) |> List.map(len_sec) |> List.fold_left((+), 0)
+  b |> Chain.to_list(len_sec, Fun.const(1)) |> List.fold_left((+), 0)
 and len_sec =
   fun
   | Line(l) => Line.len(l)
