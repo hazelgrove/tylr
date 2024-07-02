@@ -86,7 +86,7 @@ module Exp = {
   let exp = nt(sort);
 
   [@warning "-32"]
-  let comma_sep = seq([exp, Star(seq([c(","), exp]))]);
+  let comma_sep = seq([exp, Star(seq([op(~l=false, ","), exp]))]);
 
   let rul = seq([op("|"), nt(Pat.sort), op("=>"), exp]);
   let bool_lit = alt([c("true"), c("false")]);
@@ -97,8 +97,8 @@ module Exp = {
       t(Float_lit),
       t(Id_lower),
       bool_lit,
-      seq([c("("), comma_sep, c(")")]),
-      seq([c("["), comma_sep, c("]")]),
+      seq([brc(L, "("), comma_sep, brc(R, ")")]),
+      seq([brc(L, "["), comma_sep, brc(R, "]")]),
     ]);
 
   let op_alt = ss => alt(List.map(op, ss));
