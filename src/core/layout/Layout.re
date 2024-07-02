@@ -172,7 +172,7 @@ let states = (~init: State.t, m: Tree.meld) =>
        t_cell => (State.jump_block(init, ~over=Tree.flatten(t_cell)), init),
        (state, b_tok, t_cell) => {
          let s_mid = State.jump_block(state, ~over=b_tok);
-         let s_end = State.jump_block(state, ~over=Tree.flatten(t_cell));
+         let s_end = State.jump_block(s_mid, ~over=Tree.flatten(t_cell));
          (s_end, state, s_mid);
        },
      );
