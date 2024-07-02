@@ -84,7 +84,10 @@ let nest_body_meld = (n: int, m: meld) =>
 
 let rec height = (t: t) =>
   t |> Option.map(height_meld) |> Option.value(~default=0)
-and height_meld = (M(l, _, r)) => height(l) + height(r);
+and height_meld = (M(l, W((toks, _)), r)) =>
+  toks
+  |> List.map(Block.height)
+  |> List.fold_left((+), height(l) + (+ height(r)));
 
 let rec of_cell = (~delim=Delim.root, c: Cell.t): t =>
   Cell.get(c)

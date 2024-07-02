@@ -38,6 +38,8 @@ let wrap = (b: t) => sec(Block(b));
 let nil = line(Line.nil);
 let cons = (sec: Section.t(t), ~indent=0) => Chain.link(sec, indent);
 
+let height = (B((_, newlines)): t) => List.length(newlines);
+
 let rec len = (B(b): t) =>
   b |> Chain.to_list(len_sec, Fun.const(1)) |> List.fold_left((+), 0)
 and len_sec =
