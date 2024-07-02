@@ -5,6 +5,7 @@ module Tree = Tree;
 
 module State = {
   // layout traversal state
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
     ind: Loc.Col.t,
     loc: Loc.t,
