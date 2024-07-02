@@ -3,12 +3,11 @@ type t =
   | Exp
   | Pat
   | Stat
-   | Item
+  | Item
   | Typ;
 
 let root = Item;
 let all = [Exp, Pat, Typ, Item, Stat];
-
 
 let to_str =
   fun

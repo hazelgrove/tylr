@@ -35,7 +35,7 @@ let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
 let abi = t(Id_lower);
 
 //Path exps
-let typ_atom = nt(Sort.of_str("Typ"))
+let typ_atom = nt(Sort.of_str("Typ"));
 
 let path_ident_segment =
   alt([
