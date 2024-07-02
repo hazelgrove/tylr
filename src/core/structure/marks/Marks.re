@@ -40,14 +40,7 @@ module Cell = {
     } else if (Path.Map.is_empty(marks.ghosts)) {
       Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
     } else {
-      Fmt.pf(
-        out,
-        "cursor: %a,@ ghosts: %a",
-        Path.Cursor.pp,
-        Option.get(marks.cursor),
-        Path.Map.pp(Tile.T.pp),
-        marks.ghosts,
-      );
+      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
     };
   let show = Fmt.to_to_string(pp);
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
