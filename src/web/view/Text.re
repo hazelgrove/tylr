@@ -52,19 +52,22 @@ let rec view_block = (B(b): Layout.Block.t) =>
   b
   |> Chain.fold_left_map(
        sec => ((), view_sec(sec)),
-       ((), indent, sec) => ((), Node.br(), view_sec(~indent, sec)),
+       ((), indent, sec) => ((), [Node.br()], view_sec(~indent, sec)),
      )
   |> snd
   |> Chain.to_list(Fun.id, Fun.id)
+  |> List.concat
   |> Node.div(~attrs=Attr.[classes(["block"])])
-and view_sec = (~indent=0, sec: Layout.Block.Section.t(_)) => {
-  let text =
-    switch (sec) {
-    | Line(l) => view_line(l)
-    | Block(b) => view_block(b)
-    };
-  Node.div(~attrs=Attr.[classes(["section"])], nest(indent, [text]));
-};
+and view_sec = (~indent=0, sec: Layout.Block.Section.t(_)) =>
+  nest(
+    indent,
+    [
+      switch (sec) {
+      | Line(l) => view_line(l)
+      | Block(b) => view_block(b)
+      },
+    ],
+  );
 
 // module Chunk = {
 //   type t('block) =
