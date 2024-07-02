@@ -10,7 +10,7 @@ let fold =
       init: 'acc,
       baked: t,
     ) => {
-  let ((ts, cs), c) = Chain.split_ft(baked);
+  let ((ts, cs), c) = Chain.unsnoc(baked);
   let acc = List.fold_right2(f_tc, ts, cs, init);
   f_c(c, acc);
 };

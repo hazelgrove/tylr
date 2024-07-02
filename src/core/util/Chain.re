@@ -100,6 +100,13 @@ let unconsnoc = (c: t('lp, 'lk)): Result.t(('lp, t('lk, 'lp), 'lp), 'lp) => {
   };
 };
 
+let rev =
+    (~rev_loop=Fun.id, ~rev_link=Fun.id, (lps, lks): t('lp, 'lk))
+    : t('lp, 'lk) => (
+  List.rev_map(rev_loop, lps),
+  List.rev_map(rev_link, lks),
+);
+
 let hd = (c: t('lp, _)): 'lp => fst(uncons(c));
 let map_hd = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
   let (a, (lks, lps)) = uncons(c);
@@ -107,27 +114,15 @@ let map_hd = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
 };
 let put_hd = lp => map_hd(_ => lp);
 
-let split_ft = ((lps, lks): t(_)): (Affix.t('lk, 'lp), 'lp) => {
-  assert(lps != []);
-  let (lps, lp) = Lists.Framed.ft_exn(lps);
-  ((lks, lps), lp);
-};
 let ft = ((lps, _): t('lp, _)): 'lp => {
   assert(lps != []);
   Lists.ft_exn(lps);
 };
 let map_ft = (f: 'lp => 'lp, c: t('lp, 'lk)): t('lp, 'lk) => {
-  let ((lks, lps), lp) = split_ft(c);
-  (lps @ [f(lp)], lks);
+  let ((lks, lps), lp) = unsnoc(c);
+  rev(([f(lp), ...lps], lks));
 };
 let put_ft = lp => map_ft(_ => lp);
-
-let rev =
-    (~rev_loop=Fun.id, ~rev_link=Fun.id, (lps, lks): t('lp, 'lk))
-    : t('lp, 'lk) => (
-  List.rev_map(rev_loop, lps),
-  List.rev_map(rev_link, lks),
-);
 
 let map_loop = (f_lp: 'lp1 => 'lp2, (lps, lks): t('lp1, 'lk)): t('lp2, 'lk) => (
   List.map(f_lp, lps),
@@ -190,7 +185,7 @@ let fold_left_map =
 
 let fold_right =
     (f_lk: ('lp, 'lk, 'acc) => 'acc, f_lp: 'lp => 'acc, c: t('lp, 'lk)) => {
-  let ((lks, lps), lp) = split_ft(c);
+  let ((lks, lps), lp) = unsnoc(c);
   List.fold_left2((acc, lk, lp) => f_lk(lp, lk, acc), f_lp(lp), lks, lps);
 };
 let fold_right_map =
