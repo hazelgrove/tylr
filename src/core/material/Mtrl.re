@@ -1,6 +1,3 @@
-open Sexplib.Std;
-open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
-
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t('s, 'g, 't) =
@@ -36,7 +33,7 @@ module Sorted = {
 
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
-  type t = Base.t(unit, Grout.T.t, Tile.T.t);
+  type t = Base.t(Space.T.t, Grout.T.t, Tile.T.t);
   module Map =
     Map.Make({
       type nonrec t = t;
@@ -50,7 +47,7 @@ module T = {
 };
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Base.t(bool, Grout.NT.t, Tile.NT.t);
+  type t = Base.t(Space.NT.t, Grout.NT.t, Tile.NT.t);
   let compare = (l: t, r: t) =>
     switch (l, r) {
     | _ when l == r => 0
