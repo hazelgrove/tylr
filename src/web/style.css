@@ -127,7 +127,7 @@
 /* .token.space {
   white-space: pre;
 } */
-.block, .section, .line {
+.block, .section, .line, .indent {
   display: inline-block;
 }
 .tile .ghost {
