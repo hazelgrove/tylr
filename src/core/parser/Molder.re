@@ -46,7 +46,7 @@ let mold =
     : Melded.t =>
   candidates(t)
   |> Oblig.Delta.minimize(tok =>
-       Melder.push(tok, ~fill, slope, ~bound, ~onto=L)
+       Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
      )
   |> Option.value(
        ~default=

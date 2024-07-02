@@ -102,11 +102,17 @@ module Melded = {
 };
 
 let connect_eq =
-    (~onto as d: Dir.t, onto: Terr.t, ~fill=Cell.empty, t: Token.t)
+    (
+      ~repair=false,
+      ~onto as d: Dir.t,
+      onto: Terr.t,
+      ~fill=Cell.empty,
+      t: Token.t,
+    )
     : option(Terr.t) => {
   open Options.Syntax;
   let rec go = (onto: Terr.t, fill) => {
-    let/ () = rm_ghost_and_go(onto, fill);
+    let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     Walker.walk_eq(~from=d, Node(Terr.face(onto)), Node(t.mtrl))
     |> Walk.Set.elements
     |> Oblig.Delta.minimize(Baker.bake(~fill, ~from=d))
@@ -122,67 +128,95 @@ let connect_eq =
   go(onto, Fill.unit(fill));
 };
 let connect_neq =
-    (~onto as d: Dir.t, onto: Bound.t(Terr.t), ~fill=Cell.empty, t: Token.t)
+    (
+      ~repair=false,
+      ~onto as d: Dir.t,
+      onto: Bound.t(Terr.t),
+      ~fill=Cell.empty,
+      t: Token.t,
+    )
     : option(Slope.t) =>
   Walker.walk_neq(~from=d, Bound.map(Terr.face, onto), Node(t.mtrl))
   |> Walk.Set.elements
-  |> Oblig.Delta.minimize(Baker.bake(~fill=Fill.unit(fill), ~from=d))
+  |> Oblig.Delta.minimize(
+       ~to_zero=!repair,
+       Baker.bake(~fill=Fill.unit(fill), ~from=d),
+     )
   |> Option.map(Baked.connect_neq(t));
 let connect_lt = connect_neq(~onto=L);
 let connect_gt = connect_neq(~onto=R);
 
 let connect_ineq =
-    (~onto as d: Dir.t, onto: Bound.t(Terr.t), ~fill=Cell.empty, t: Token.t)
+    (
+      ~repair=false,
+      ~onto as d: Dir.t,
+      onto: Bound.t(Terr.t),
+      ~fill=Cell.empty,
+      t: Token.t,
+    )
     : option(Melded.t) => {
   let eq = () =>
     Bound.to_opt(onto)
-    |> Options.bind(~f=onto => connect_eq(~onto=d, onto, ~fill, t))
+    |> Options.bind(~f=onto => connect_eq(~repair, ~onto=d, onto, ~fill, t))
     |> Option.map(Rel.eq);
   let neq = () =>
-    connect_neq(~onto=d, onto, ~fill, t) |> Option.map(Rel.neq);
-  Oblig.Delta.minimize(f => f(), [eq, neq]);
+    connect_neq(~repair, ~onto=d, onto, ~fill, t) |> Option.map(Rel.neq);
+  Oblig.Delta.minimize(~to_zero=!repair, f => f(), [eq, neq]);
 };
 
 let connect =
-    (~onto as d: Dir.t, onto: Terr.t, ~fill=Cell.empty, t: Token.t)
+    (
+      ~repair=false,
+      ~onto as d: Dir.t,
+      onto: Terr.t,
+      ~fill=Cell.empty,
+      t: Token.t,
+    )
     : Result.t(Melded.t, Cell.t) => {
   let b = Dir.toggle(d);
   let eq = () =>
-    connect_eq(~onto=d, onto, ~fill, t)
+    connect_eq(~repair, ~onto=d, onto, ~fill, t)
     |> Option.map(Melded.eq)
     |> Option.map(Result.ok);
   let neq_d = () =>
-    connect_neq(~onto=d, Node(onto), ~fill, t)
+    connect_neq(~repair, ~onto=d, Node(onto), ~fill, t)
     |> Option.map(Melded.neq)
     |> Option.map(Result.ok);
   let neq_b = () => {
     let (hd, tl) = Wald.uncons(onto.wald);
-    connect_neq(~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
+    connect_neq(~repair, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
     |> Option.map(Slope.extend(tl))
     |> Option.map(complete_slope(~onto=b, ~fill=onto.cell))
     |> Option.map(Result.err);
   };
   // ensure consistent ordering
   let neqs = Dir.pick(d, ([neq_d, neq_b], [neq_b, neq_d]));
-  Oblig.Delta.minimize(f => f(), [eq, ...neqs])
+  [eq, ...neqs]
+  |> Oblig.Delta.minimize(~to_zero=!repair, f => f())
   |> Option.value(~default=Error(complete_terr(~onto=d, ~fill, onto)));
 };
 
 let rec push_neq =
-        (~onto: Dir.t, t: Token.t, ~fill=Cell.empty, slope: Slope.t)
+        (
+          ~repair=false,
+          ~onto: Dir.t,
+          t: Token.t,
+          ~fill=Cell.empty,
+          slope: Slope.t,
+        )
         : Result.t(Slope.t, Cell.t) =>
   // let roll = Terr.roll(~onto);
   switch (Slope.unlink(slope)) {
-  | Some((tok, cell, slope)) when Token.Grout.is(tok) =>
+  | Some((tok, cell, slope)) when repair && Token.Grout.is(tok) =>
     Effects.remove(tok);
     let slope = Slope.cat(Slope.unroll(~from=onto, cell), slope);
-    push_neq(~onto, t, ~fill, slope);
+    push_neq(~repair, ~onto, t, ~fill, slope);
   | _ =>
     switch (slope) {
     | [] => Error(fill)
     | [hd, ...tl] =>
-      switch (connect(~onto, hd, ~fill, t)) {
-      | Error(fill) => push_neq(~onto, t, ~fill, tl)
+      switch (connect(~repair, ~onto, hd, ~fill, t)) {
+      | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
       | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
       | Ok(Eq(hd)) => Ok([hd, ...tl])
       }
@@ -190,10 +224,11 @@ let rec push_neq =
   };
 
 let push =
-    (t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto): option(Melded.t) =>
-  switch (push_neq(t, ~fill, slope, ~onto)) {
+    (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
+    : option(Melded.t) =>
+  switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
   | Ok(slope) => Some(Neq(slope))
-  | Error(fill) => connect_ineq(~onto, bound, ~fill, t)
+  | Error(fill) => connect_ineq(~repair, ~onto, bound, ~fill, t)
   };
 
 let push_space = (spc: Token.t, slope: Slope.t, ~onto: Dir.t) => {
