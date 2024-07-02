@@ -15,38 +15,17 @@ let t = (lbl: Label.t) => Regex.atom(Sym.t(lbl));
 let nt = (srt: Sort.t) => Regex.atom(Sym.nt(srt));
 
 let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
-let ch =
-    (
-      ~p=Padding.mk(
-           ~h_l=true,
-           ~h_r=true,
-           ~v_l=false,
-           ~v_r=false,
-           ~indent=false,
-           (),
-         ),
-      s,
-    ) =>
-  t(Label.const(~padding=p, s));
-let cr =
-    (
-      ~p=Padding.mk(
-           ~h_l=false,
-           ~h_r=true,
-           ~v_l=false,
-           ~v_r=false,
-           ~indent=false,
-           (),
-         ),
-      s,
-    ) =>
-  t(Label.const(~padding=p, s));
+let kw = (~l=true, ~r=true, ~indent=true) =>
+  c(~p=Padding.kw(~l, ~r, ~indent, ()));
+let op = (~l=true, ~r=true, ~indent=true) =>
+  c(~p=Padding.op(~l, ~r, ~indent, ()));
+let brc = (side: Dir.t) => c(~p=Padding.brc(side));
 
 module Typ = {
   let sort = Sort.of_str("Typ");
   let typ = nt(sort);
 
-  let comma_sep = seq([typ, Star(seq([c(","), typ]))]);
+  let comma_sep = seq([typ, Star(seq([op(~l=false, ","), typ]))]);
 
   let operand =
     alt([
@@ -55,17 +34,17 @@ module Typ = {
       c("Bool"),
       c("String"),
       //List type
-      seq([c("list"), c("("), typ, c(")")]),
+      seq([c("list"), brc(L, "("), typ, brc(R, ")")]),
       //Tuple type
-      seq([c("("), comma_sep, c(")")]),
+      seq([brc(L, "("), comma_sep, brc(R, ")")]),
     ]);
 
   let tbl = [
     //Arrow
     //TODO: should the below be "ch" or c? (padding with horizontal spaces or none?)
-    p(seq([typ, ch("->"), typ])),
+    p(seq([typ, op("->"), typ])),
     //Ap
-    p(seq([typ, c("("), typ, c(")")])),
+    p(seq([typ, brc(L, "("), typ, brc(R, ")")])),
     p(operand),
   ];
 };
@@ -74,7 +53,7 @@ module Pat = {
   let sort = Sort.of_str("Pat");
   let pat = nt(sort);
 
-  let comma_sep = seq([pat, Star(seq([c(","), pat]))]);
+  let comma_sep = seq([pat, Star(seq([op(~l=false, ","), pat]))]);
 
   let bool_lit = alt([c("true"), c("false")]);
   let operand =
@@ -85,8 +64,8 @@ module Pat = {
       bool_lit,
       //Constructor
       t(Id_upper),
-      seq([c("("), comma_sep, c(")")]),
-      seq([c("["), comma_sep, c("]")]),
+      seq([brc(L, "("), comma_sep, brc(R, ")")]),
+      seq([brc(L, "["), comma_sep, brc(R, "]")]),
       //Wild
       c("_"),
     ]);
@@ -97,7 +76,7 @@ module Pat = {
     //Cons
     p(~a=R, seq([pat, c("::"), pat])),
     //ap
-    p(seq([pat, c("("), pat, c(")")])),
+    p(seq([pat, brc(L, "("), pat, brc(R, ")")])),
     p(operand),
   ];
 };
@@ -109,7 +88,7 @@ module Exp = {
   [@warning "-32"]
   let comma_sep = seq([exp, Star(seq([c(","), exp]))]);
 
-  let rul = seq([c("|"), nt(Pat.sort), c("=>"), exp]);
+  let rul = seq([op("|"), nt(Pat.sort), op("=>"), exp]);
   let bool_lit = alt([c("true"), c("false")]);
 
   let operand =
@@ -122,10 +101,10 @@ module Exp = {
       seq([c("["), comma_sep, c("]")]),
     ]);
 
-  let tokc_alt = ss => alt(List.map(c, ss));
-  let add_op = tokc_alt(["+", "+.", "-", "-.", "@", "++"]);
-  let mult_op = tokc_alt(["*", "*.", "/", "/."]);
-  let neg_op = tokc_alt(["-", "-."]);
+  let op_alt = ss => alt(List.map(op, ss));
+  let add_op = op_alt(["+", "+.", "-", "-.", "@", "++"]);
+  let mult_op = op_alt(["*", "*.", "/", "/."]);
+  let neg_op = op_alt(["-", "-."]);
 
   let tbl = [
     //Math operations
@@ -133,15 +112,24 @@ module Exp = {
     p(~a=L, seq([exp, mult_op, exp])),
     p(seq([neg_op, exp])),
     //case
-    p(seq([c("case"), exp, rul, star(rul)])),
+    p(seq([kw(~l=false, "case"), exp, rul, star(rul)])),
     //let
-    p(seq([cr("let"), nt(Pat.sort), c("="), exp, c("in"), exp])),
+    p(
+      seq([
+        kw(~l=false, "let"),
+        nt(Pat.sort),
+        op("="),
+        exp,
+        kw("in", ~indent=false),
+        exp,
+      ]),
+    ),
     //fun
-    p(seq([c("fun"), nt(Pat.sort), c("->"), exp])),
+    p(seq([kw(~l=false, "fun"), nt(Pat.sort), op("->"), exp])),
     //if
-    p(seq([c("if"), exp, c("then"), exp, c("else"), exp])),
+    p(seq([kw(~l=false, "if"), exp, kw("then"), exp, kw("else"), exp])),
     //ap
-    p(seq([exp, c("("), exp, c(")")])),
+    p(seq([exp, brc(L, "("), exp, brc(R, ")")])),
     p(operand),
   ];
 };

@@ -5,6 +5,10 @@ module T = {
   let pre = s => (s, Tip.(Conv, Conc));
   let pos = s => (s, Tip.(Conc, Conv));
   let in_ = s => (s, Tip.(Conc, Conc));
+  let padding = ((_, (l, r)): t) => {
+    let (l, r) = Tip.(is_conc(l), is_conc(r));
+    Padding.op(~l, ~r, ~indent=r, ());
+  };
 };
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]

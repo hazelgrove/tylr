@@ -42,7 +42,7 @@ module T = {
   let padding =
     fun
     | Space(_) => Padding.none
-    | Grout(_) => Padding.mk()
+    | Grout(g) => Grout.T.padding(g)
     | Tile((lbl, _)) => Label.padding(lbl);
 };
 module NT = {

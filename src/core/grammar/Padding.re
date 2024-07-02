@@ -13,15 +13,20 @@ type t = {
   indent: bool,
 };
 
-let mk = (~h_l=true, ~h_r=true, ~v_l=true, ~v_r=true, ~indent=true, ()) => {
-  h: (h_l, h_r),
-  v: (v_l, v_r),
-  indent,
-};
-
 let none = {h: (false, false), v: (false, false), indent: false};
 
-// padding for space cells
-// let empty = mk(~space=false, ~indent=false, ());
-
-// let root = mk(~space=false, ~indent=false, ());
+let kw = (~l=true, ~r=true, ~indent=true, ()) => {
+  h: (l, r),
+  v: (l, r),
+  indent,
+};
+let op = (~l=true, ~r=true, ~indent=true, ()) => {
+  h: (l, r),
+  v: (l, r),
+  indent,
+};
+let brc = (side: Dir.t) => {
+  h: (false, false),
+  v: Dir.pick(side, ((false, true), (true, false))),
+  indent: Dir.pick(side, (true, false)),
+};
