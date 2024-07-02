@@ -126,9 +126,10 @@ let path_of_loc =
 };
 // todo: reorg this as unzipping layout zipper
 let rec state_of_path =
-        (~state=State.init, ~tree: Tree.t, path: Path.t): State.t =>
+        (~state=State.init, ~tree: Tree.t, path: Path.t)
+        : (State.t, option(Tree.t)) =>
   switch (path) {
-  | [] => state
+  | [] => (state, Some(tree))
   // let s_end = State.jump_block(state, ~over=Tree.flatten(tree));
   // (state.ind, (state.loc, s_end.loc));
   | [hd, ...tl] =>
@@ -145,13 +146,13 @@ let rec state_of_path =
     | Link((pre, b_tok, _)) =>
       let state = State.jump_block(state, ~over=Tree.flatten_chain(pre));
       switch (tl) {
-      | [] => state
+      | [] => (state, None)
       // let s_end = State.jump_block(state, ~over=b_tok);
       // (state.ind, (state.loc, s_end.loc));
       | [hd, ..._] =>
         let loc = loc_of_step(~state, ~block=b_tok, hd);
         // (state.ind, (loc, loc));
-        {...state, loc};
+        ({...state, loc}, None);
       };
     }
   };
@@ -160,7 +161,7 @@ let rec state_of_path =
 //   Dir.pick(side, (fst, snd), snd(range_of_path(~state, ~tree, path)));
 
 let map = (~tree: Tree.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
-  switch (path_of_loc(~tree, f(state_of_path(~tree, path).loc))) {
+  switch (path_of_loc(~tree, f(fst(state_of_path(~tree, path)).loc))) {
   | Ok(path) => path
   | Error(_) => Tree.end_path(tree, ~side=R)
   };
