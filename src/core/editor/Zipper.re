@@ -137,20 +137,18 @@ let zip_step_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
   | ([], [hd, ...tl]) =>
     Some((Rel.Neq(Dir.L), zip_lt(zipped, hd), (dn, tl)))
   | ([hd, ...tl], []) => Some((Neq(R), zip_gt(hd, zipped), (tl, up)))
-  | ([hd_dn, ..._], [hd_up, ...tl_up])
-      when Melder.lt(hd_dn.wald, hd_up.wald) =>
-    Some((Neq(L), zip_lt(zipped, hd_up), (dn, tl_up)))
-  | ([hd_dn, ...tl_dn], [hd_up, ..._])
-      when Melder.gt(hd_dn.wald, hd_up.wald) =>
-    Some((Neq(R), zip_gt(hd_dn, zipped), (tl_dn, up)))
-  | ([l, ...dn], [r, ...up]) =>
+  | ([l, ...dn], [r, ...up])
+      when Option.is_some(Token.zip(Terr.hd(l), Terr.hd(r))) =>
     let caret = Cell.is_caret(zipped);
-    switch (Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald)) {
-    | Some(w) => Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)))
-    | None =>
-      assert(Melder.eq(l.wald, r.wald));
-      Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
-    };
+    let w = Option.get(Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald));
+    Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)));
+  | ([l, ..._], [r, ...up]) when Melder.lt(l.wald, r.wald) =>
+    Some((Neq(L), zip_lt(zipped, r), (dn, up)))
+  | ([l, ...dn], [r, ..._]) when Melder.gt(l.wald, r.wald) =>
+    Some((Neq(R), zip_gt(l, zipped), (dn, up)))
+  | ([l, ...dn], [r, ...up]) =>
+    assert(Melder.eq(l.wald, r.wald));
+    Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
   };
 let zip_step =
     (~zipped: Cell.t, ctx: Ctx.t)
