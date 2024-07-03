@@ -7,16 +7,16 @@ module Shape = {
     | Straight
     // Dir arg is side of token the caret is on
     | Bent(Dir.t, Tip.t);
-  let mk = (ctx: Ctx.t) => {
+  let rec mk = (~side=?, ctx: Ctx.t) => {
     let (zipped, ctx) = Zipper.zip_init(Zipper.mk(ctx));
     switch (Zipper.zip_step(~zipped, ctx)) {
     | _ when !Cell.is_empty(zipped) => Straight
     | None
     | Some((Eq (), _, _)) => Straight
-    | Some((Neq(L), zipped, _)) =>
-      Bent(Cell.Space.is_space(zipped) ? R : L, Conv)
-    | Some((Neq(R), zipped, _)) =>
-      Bent(Cell.Space.is_space(zipped) ? L : R, Conv)
+    | Some((Neq(side), zipped, ctx)) when Cell.Space.is_space(zipped) =>
+      mk(~side, ctx)
+    | Some((Neq(d), _, _)) =>
+      side == Some(d) ? Bent(Dir.toggle(d), Conc) : Bent(d, Conv)
     };
   };
   // what direction the bent caret points
