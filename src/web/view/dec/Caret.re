@@ -1,18 +1,76 @@
+module T = Token;
 open Tylr_core;
+open Util;
 
 module Shape = {
-  // None means within token
-  // Some((d, tip)) means on d side of token
   type t =
-    | Inner
-    | Outer(Dir.t, Tip.t);
+    | Straight
+    // Dir arg is side of token the caret is on
+    | Bent(Dir.t, Tip.t);
+  let mk = (ctx: Ctx.t) => {
+    let (zipped, ctx) = Zipper.zip_init(Zipper.mk(ctx));
+    switch (Zipper.zip_step(~zipped, ctx)) {
+    | _ when !Cell.is_empty(zipped) => Straight
+    | None
+    | Some((Eq (), _, _)) => Straight
+    | Some((Neq(L), zipped, _)) =>
+      Bent(Cell.Space.is_space(zipped) ? R : L, Conv)
+    | Some((Neq(R), zipped, _)) =>
+      Bent(Cell.Space.is_space(zipped) ? L : R, Conv)
+    };
+  };
+  // what direction the bent caret points
+  let dir =
+    fun
+    | Straight => None
+    | Bent(L, Conv)
+    | Bent(R, Conc) => Some(Dir.L)
+    | Bent(L, Conc)
+    | Bent(R, Conv) => Some(R);
 };
 module Profile = {
   type t = {
-    pos: Loc.t,
+    loc: Loc.t,
     hand: Caret.Hand.t,
     shape: Shape.t,
   };
-  // let mk = (~state: Layout.State.t, cell: Cell.t) => {
-  // }
+  let mk = (~loc: Loc.t, hand: Caret.Hand.t, ctx: Ctx.t) => {
+    loc,
+    hand,
+    shape: Shape.mk(ctx),
+  };
 };
+
+let adj =
+  fun
+  | Shape.Straight => 0.
+  | Bent(side, Conv) => Dir.pick(side, ((-1.), 1.)) *. T.convex_adj
+  | Bent(side, Conc) => Dir.pick(side, ((-1.), 1.)) *. T.concave_adj;
+
+let path = (shape: Shape.t) => {
+  open Svgs.Path;
+  let width = 0.1;
+  let run =
+    switch (Shape.dir(shape)) {
+    | None => 0.
+    | Some(L) => -. T.tip_width
+    | Some(R) => T.tip_width
+    };
+  let tip = [L_({dx: run, dy: 0.5}), L_({dx: -. run, dy: 0.5})];
+  List.concat([
+    [m(~x=0, ~y=0), H({x: width})],
+    tip,
+    [H({x: -. width})],
+    reverse(tip),
+    [Z],
+  ])
+  |> transpose({dx: adj(shape), dy: 0.});
+};
+
+let mk = (p: Profile.t) =>
+  path(p.shape)
+  |> Svgs.Path.view(
+       ~attrs=[Attrs.style([("stroke", "none"), ("fill", "red")])],
+     )
+  |> Stds.Lists.single
+  |> Box.mk(~loc=p.loc);

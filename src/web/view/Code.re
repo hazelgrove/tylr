@@ -10,6 +10,21 @@ let view_text = (c: Cell.t) =>
   |> Lists.single
   |> Node.span(~attrs=[Attr.class_("code-text")]);
 
+let rec carets = (~font, c: Cell.t) => {
+  switch (c.marks.cursor) {
+  | None => []
+  | Some(Point({hand, path})) =>
+    let tree = Layout.Tree.of_cell(c);
+    let (state, _) = Layout.state_of_path(~tree, path);
+    let z = Option.get(Zipper.unzip(c));
+    [Dec.Caret.(mk(~font, Profile.mk(~loc=state.loc, hand, z.ctx)))];
+  | Some(Select(sel)) =>
+    let (l, r) = Path.Selection.carets(sel);
+    let (l, r) = Cell.(put_cursor(Point(l), c), put_cursor(Point(r), c));
+    carets(~font, l) @ carets(~font, r);
+  };
+};
+
 let cursor = (~font, z: Zipper.t) =>
   switch (z.cur) {
   | Select(_) =>
@@ -33,6 +48,6 @@ let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
   let c = Zipper.zip(~save_cursor=true, zipper);
   div(
     ~attrs=[Attr.class_("code"), Attr.id("under-the-rail")],
-    [view_text(c), ...cursor(~font, zipper)],
+    [view_text(c), ...cursor(~font, zipper)] @ carets(~font, c),
   );
 };
