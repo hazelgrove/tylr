@@ -3,6 +3,7 @@ type t =
   | Remove(Token.t);
 
 let log = ref([]);
+let reset = () => log := [];
 
 let perform = (eff: t) => log := [eff, ...log^];
 let insert = tok => perform(Insert(tok));

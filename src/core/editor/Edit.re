@@ -42,10 +42,12 @@ let delete = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   insert("", z);
 };
 
-let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>
+let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) => {
+  Effects.reset();
   switch (a) {
   | Move(a) => Move.perform(a, z)
   | Select(a) => Select.perform(a, z)
   | Delete(d) => delete(d, z)
   | Insert(s) => Some(insert(s, z))
   };
+};
