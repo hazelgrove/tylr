@@ -107,6 +107,7 @@ module Molded = {
   let unzip = (tok: t) =>
     tok.marks
     |> Option.map((cur: Step.Cursor.t) => {
+         let tok = clear_marks(tok);
          let (m, n) =
            switch (cur) {
            | Point({path: n, _}) => (n, n)
