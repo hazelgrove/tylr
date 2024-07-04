@@ -27,9 +27,7 @@ let rec carets = (~font, c: Cell.t) => {
 
 let cursor = (~font, z: Zipper.t) =>
   switch (z.cur) {
-  | Select(_) =>
-    print_endline("0");
-    [];
+  | Select(_) => []
   | Point(_) =>
     let tree = Layout.Tree.of_cell(Zipper.zip(~save_cursor=true, z));
     let (cell, ctx) = Zipper.zip_indicated(z);
