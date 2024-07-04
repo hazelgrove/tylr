@@ -19,7 +19,7 @@ let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
     Zipper.mk(Ctx.push_zigg(~onto, zigg, ~fill, z.ctx));
   };
 
-let select = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
+let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let b = Dir.toggle(d);
   switch (z.cur) {
@@ -78,10 +78,10 @@ let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>
   | Meld => failwith("todo Select.perform")
   | Move(a) =>
     switch (a) {
-    | Step(H(d)) => select(d, z)
-    | Step(V(d)) => Zipper.vstep_focus(d, z)
-    | Skip(d2) => Zipper.skip_focus(d2, z)
-    | Jump(pos) => Zipper.jump_focus(pos, z)
+    | Step(H(d)) => hstep(d, z)
+    | Step(V(d)) => Move.vstep(d, z)
+    | Skip(d2) => Move.skip(d2, z)
+    | Jump(pos) => Move.jump(pos, z)
     | Hole(_) => failwith("unimplemented")
     }
   };

@@ -62,6 +62,6 @@ let perform = (s: string, z: Zipper.t) => {
     |> List.fold_left((ctx, tok) => mold(ctx, tok), ctx)
     |> remold(~fill=Cell.point(Focus));
   Zipper.unzip(cell, ~ctx)
-  |> Option.map(Move.move_n(- Stds.Utf8.length(r)))
+  |> Option.map(Move.hstep_n(- Stds.Utf8.length(r)))
   |> Option.value(~default=Zipper.mk_unroll(R, cell, ~ctx));
 };

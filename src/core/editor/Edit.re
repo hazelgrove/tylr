@@ -19,7 +19,7 @@ let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) => {
   | Insert(s) => Some(Insert.perform(s, z))
   | Delete(d) =>
     open Options.Syntax;
-    let+ z = Cursor.is_point(z.cur) ? Select.select(d, z) : return(z);
+    let+ z = Cursor.is_point(z.cur) ? Select.hstep(d, z) : return(z);
     Insert.perform("", z);
   };
 };

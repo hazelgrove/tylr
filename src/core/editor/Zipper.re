@@ -197,26 +197,3 @@ let button = (z: t): t => {
   let (cell, ctx) = zip_init(~save_cursor=true, z);
   Option.get(unzip(cell, ~ctx));
 };
-
-// bounds goal pos to within start/end pos of program.
-// returns none if the resulting goal pos is same as start pos.
-let map_focus = (f: Loc.t => Loc.t, z: t): option(t) => {
-  open Options.Syntax;
-  let c = zip(~save_cursor=true, z);
-  let* init = Option.bind(c.marks.cursor, Path.Cursor.get_focus);
-  let goal = Layout.map(~tree=Tree.of_cell(c), f, init);
-  goal == init
-    ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> unzip;
-};
-let vstep_focus = (d: Dir.t) =>
-  map_focus(loc => {...loc, row: loc.row + Dir.pick(d, ((-1), 1))});
-let skip_focus = (d2: Dir2.t) =>
-  map_focus(loc =>
-    switch (d2) {
-    | H(L) => {...loc, col: 0}
-    | H(R) => {...loc, col: Int.max_int}
-    | V(L) => Loc.zero
-    | V(R) => Loc.maximum
-    }
-  );
-let jump_focus = loc => map_focus(_ => loc);
