@@ -22,8 +22,9 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       // todo: add movement granularity
       switch (Token.pull(~from=b, tok)) {
       | None => Ctx.push(~onto=b, tok, ctx)
-      | Some((c, tok)) =>
-        ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c)
+      | Some((l, r)) =>
+        let (c, tok) = Dir.order(b, (l, r));
+        ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c);
       };
     };
   Zipper.(button(mk(ctx)));
