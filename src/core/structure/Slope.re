@@ -18,6 +18,9 @@ let cons = List.cons;
 //     | [hd, ...tl] => [{...hd, wald: Wald.zip_cell(w, c, hd.wald)}, ...tl]
 //     }
 //   };
+
+// todo: need to clean up or rm use of these two functions,
+// as they do not act as the inverses their names suggest
 let link = (tok: Token.t, cell: Cell.t) =>
   fun
   | [] => [Terr.mk([tok], [cell])]

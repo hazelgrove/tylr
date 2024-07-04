@@ -26,6 +26,7 @@ let unmk = ({wald: W((toks, cells)), cell}: t) => (toks, cells @ [cell]);
 let length = (terr: t) => Wald.length(terr.wald) + 1;
 
 let hd = terr => Wald.hd(terr.wald);
+let put_hd = (hd, terr) => {...terr, wald: Wald.put_hd(hd, terr.wald)};
 let tokens = terr => Wald.tokens(terr.wald);
 
 let sort = (terr: t) => Wald.sort(terr.wald);

@@ -139,9 +139,10 @@ let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
   switch (z.cur) {
   | Point(car) =>
     switch (Ctx.zip_toks(~caret=?save_cursor ? Some(car.hand) : None, z.ctx)) {
-    | Some((m, ctx)) => (Cell.put(m), ctx) // within token
+    // within token
+    | Some((m, ctx)) => (Cell.put(m), ctx)
     | None =>
-      // between token
+      // between tokens
       let zipped = save_cursor ? Cell.point(car.hand) : Cell.empty;
       (zipped, z.ctx);
     }

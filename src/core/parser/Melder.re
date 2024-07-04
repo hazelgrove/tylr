@@ -206,10 +206,6 @@ let rec push_neq =
         )
         : Result.t(Slope.t, Cell.t) =>
   switch (Slope.unlink(slope)) {
-  | Some((tok, cell, slope)) when Id.eq(tok.id, t.id) =>
-    let (l, r) = Dir.order(onto, (tok, t));
-    let tok = Option.get(Token.zip(l, r));
-    Ok(Slope.link(tok, cell, slope));
   | Some((tok, cell, slope)) when repair && Token.Grout.is(tok) =>
     Effects.remove(tok);
     let slope = Slope.cat(Slope.unroll(~from=onto, cell), slope);
@@ -218,11 +214,16 @@ let rec push_neq =
     switch (slope) {
     | [] => Error(fill)
     | [hd, ...tl] =>
-      switch (connect(~repair, ~onto, hd, ~fill, t)) {
-      | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
-      | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
-      | Ok(Eq(hd)) => Ok([hd, ...tl])
-      }
+      let (l, r) = Dir.order(onto, (Terr.hd(hd), t));
+      switch (Token.zip(l, r)) {
+      | Some(tok) => Ok([Terr.put_hd(tok, hd), ...tl])
+      | None =>
+        switch (connect(~repair, ~onto, hd, ~fill, t)) {
+        | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
+        | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
+        | Ok(Eq(hd)) => Ok([hd, ...tl])
+        }
+      };
     }
   };
 
