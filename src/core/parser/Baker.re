@@ -1,13 +1,10 @@
 open Stds;
 
-// let fill_space = (fill: Fill.t, fillable: Space.NT.t)({});
-
 // assumes precedence-correctness already checked
 // and that fill has been oriented
 let fill_ = (~l=false, ~r=false, fill: Fill.t, nt: Mtrl.NT.t): option(Cell.t) => {
   let invalid = Invalid_argument("Baker.fill");
   switch (nt) {
-  | Grout(_) => failwith("todo: fill grout")
   | Space(false) => Fill.is_empty(fill) ? Some(Fill.hd(fill)) : None
   | Space(true) =>
     let spc = Options.get_exn(invalid, Fill.is_space(fill));
@@ -15,6 +12,7 @@ let fill_ = (~l=false, ~r=false, fill: Fill.t, nt: Mtrl.NT.t): option(Cell.t) =>
     |> Fill.pad(~side=L, ~spc)
     |> Options.get_fail("todo: shouldn't be possible")
     |> Option.some;
+  | Grout(s)
   | Tile((s, _)) =>
     switch (Fill.is_space(fill)) {
     | Some(spc) =>
