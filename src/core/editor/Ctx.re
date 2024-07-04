@@ -145,49 +145,6 @@ let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
   map_hd(Frame.Open.cat(rest), ctx);
 };
 
-let mold = (ctx: t, tok: Token.Unmolded.t): t => {
-  let ((dn, up), tl) = uncons(ctx);
-  let (l, r) = Tl.bounds(tl);
-  switch (Molder.mold(~bound=l, dn, tok)) {
-  | Neq(dn) => cons((dn, up), tl)
-  | Eq(l) =>
-    let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
-    map_hd(Frame.Open.cat((dn, up)), Tl.rest(tl));
-  };
-};
-
-let rec remold = (~fill=Cell.empty, ctx: t): (Cell.t, t) => {
-  let ((dn, up), tl) = uncons(ctx);
-  switch (Slope.unlink(up)) {
-  | Some((tok, cell, up)) when Token.Grout.is(tok) =>
-    Effects.remove(tok);
-    let up = Slope.cat(Slope.Up.unroll(cell), up);
-    remold(~fill, cons((dn, up), tl));
-  | _ =>
-    let (l, r) = Tl.bounds(tl);
-    switch (up) {
-    | [] =>
-      let ctx = cons(Frame.Open.empty, tl);
-      (Melder.complete_bounded(~bounds=(l, r), ~onto=L, dn, ~fill), ctx);
-    | [hd, ...up_tl] =>
-      let (molded, rest) = Molder.remold(~bound=l, dn, ~fill, hd);
-      let (fill, up) =
-        switch (rest) {
-        | Ok(cell) => (cell, up_tl)
-        | Error(up) => (Cell.empty, Slope.cat(up, up_tl))
-        };
-      let ctx =
-        switch (molded) {
-        | Neq(dn) => cons((dn, up), tl)
-        | Eq(l) =>
-          let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
-          map_hd(Frame.Open.cat((dn, up)), Tl.rest(tl));
-        };
-      remold(~fill, ctx);
-    };
-  };
-};
-
 let zip_toks = (~caret=?, ctx: t): option((Meld.t, t)) => {
   let (hd, tl) = uncons(ctx);
   Frame.Open.zip_toks(~caret?, hd)
