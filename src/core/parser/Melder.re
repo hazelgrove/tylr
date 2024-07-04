@@ -205,8 +205,11 @@ let rec push_neq =
           slope: Slope.t,
         )
         : Result.t(Slope.t, Cell.t) =>
-  // let roll = Terr.roll(~onto);
   switch (Slope.unlink(slope)) {
+  | Some((tok, cell, slope)) when Id.eq(tok.id, t.id) =>
+    let (l, r) = Dir.order(onto, (tok, t));
+    let tok = Option.get(Token.zip(l, r));
+    Ok(Slope.link(tok, cell, slope));
   | Some((tok, cell, slope)) when repair && Token.Grout.is(tok) =>
     Effects.remove(tok);
     let slope = Slope.cat(Slope.unroll(~from=onto, cell), slope);
