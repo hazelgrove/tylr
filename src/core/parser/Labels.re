@@ -10,6 +10,13 @@ let all =
   |> Label.Set.of_list;
 
 let const = Label.Set.(elements(filter(Label.is_const, all)));
+let is_const = text =>
+  const
+  |> List.exists(
+       fun
+       | Label.Const(_, t) => String.equal(t, text)
+       | _ => false,
+     );
 
 let completions = (prefix: string) =>
   const

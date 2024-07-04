@@ -40,9 +40,11 @@ let lexeme = Sedlexing.Latin1.lexeme;
 let pop = buf => {
   let mk = (text: string, lbl: Label.t) => {
     let lbls =
-      Labels.completions(text)
-      // avoid dup
-      |> (Label.is_const(lbl) ? Fun.id : List.cons(lbl));
+      switch (Labels.completions(text)) {
+      | [] => [lbl]
+      // drop labels like id_lower for exact keyword matches
+      | [_, ..._] as lbls => Labels.is_const(text) ? lbls : [lbl, ...lbls]
+      };
     Some(Token.Unmolded.mk(~text, Mtrl.Tile(lbls)));
   };
   // I'm guessing buf state is altered by this switch expression?
