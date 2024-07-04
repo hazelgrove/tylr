@@ -35,17 +35,17 @@ let flatten =
   );
 
 // todo: rename
-let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) => {
-  let l = () => Terr.mk(fst(pre), snd(pre));
-  let r = () => Terr.mk(fst(suf), snd(suf));
-  if (Meld.Affix.is_empty(pre)) {
-    map_hd(((dn, up)) => (dn, [r(), ...up]));
-  } else if (Meld.Affix.is_empty(suf)) {
-    map_hd(((dn, up)) => ([l(), ...dn], up));
-  } else {
-    link((l(), r()));
+let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) =>
+  switch (Terr.mk'(pre), Terr.mk'(suf)) {
+  | (None, None) => Fun.id
+  | (None, Some(r)) => map_hd(Frame.Open.cons(~onto=R, r))
+  | (Some(l), None) => map_hd(Frame.Open.cons(~onto=L, l))
+  | (Some(l), Some(r)) =>
+    switch (Token.zip(Terr.hd(l), Terr.hd(r))) {
+    | Some(_) => map_hd(((dn, up)) => ([l, ...dn], [r, ...up]))
+    | None => link((l, r))
+    }
   };
-};
 
 let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
   open Options.Syntax;
