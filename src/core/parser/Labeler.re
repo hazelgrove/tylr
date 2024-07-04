@@ -30,15 +30,10 @@ let square = [%sedlex.regexp? '[' | ']'];
 let curly = [%sedlex.regexp? '{' | '}'];
 let brack = [%sedlex.regexp? round | square | curly];
 
-let op_char = [%sedlex.regexp? Sub(ascii, alpha_num | brack)];
+let op_char = [%sedlex.regexp? Sub(ascii, alpha_num | brack | white_space)];
 let operator = [%sedlex.regexp? Plus(op_char)];
 
 let keyword = [%sedlex.regexp? Plus(alpha_lower)];
-// let labeled = [%sedlex.regexp?
-//   const | id_lower | id_upper | int_lit | float_lit
-// ];
-
-// let default_tips = _ => failwith("todo");
 
 let lexeme = Sedlexing.Latin1.lexeme;
 
