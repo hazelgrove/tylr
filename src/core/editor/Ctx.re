@@ -150,3 +150,21 @@ let zip_toks = (~caret=?, ctx: t): option((Meld.t, t)) => {
   Frame.Open.zip_toks(~caret?, hd)
   |> Option.map(Tuples.map_snd(hd => cons(hd, tl)));
 };
+
+let zip = (~zipped: Cell.t) =>
+  fold(Frame.Open.zip(~zipped), (zipped, closed, open_) =>
+    Frame.Open.zip(open_, ~zipped=Frame.Closed.zip(closed, ~zipped))
+  );
+let zip_step =
+    (~zipped: Cell.t, ctx: t): option((Rel.t(unit, Dir.t), Cell.t, t)) =>
+  switch (unlink(ctx)) {
+  | Error(open_) =>
+    Frame.Open.zip_step(~zipped, open_)
+    |> Option.map(((rel, zipped, open_)) => (rel, zipped, unit(open_)))
+  | Ok((open_, (l, r), ctx)) =>
+    switch (Frame.Open.zip_step(~zipped, open_)) {
+    | None => Some((Eq(), Frame.zip_eq(l, zipped, r), ctx))
+    | Some((rel, zipped, open_)) =>
+      Some((rel, zipped, link(~open_, (l, r), ctx)))
+    }
+  };

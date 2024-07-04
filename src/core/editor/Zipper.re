@@ -122,51 +122,9 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   mk(~cur=Select({focus: sel.focus, range: zigg}), ctx);
 };
 
-let zip_lt = (zipped: Cell.t, r: Terr.L.t) =>
-  Cell.put(M(zipped, r.wald, r.cell));
-let zip_gt = (l: Terr.R.t, zipped: Cell.t) =>
-  Cell.put(M(l.cell, Wald.rev(l.wald), zipped));
-let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
-  let w = Wald.zip_cell(l.wald, zipped, r.wald);
-  Cell.put(Meld.mk(~l=l.cell, w, ~r=r.cell));
-};
-
-let zip_step_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
-  switch (dn, up) {
-  | ([], []) => None
-  | ([], [hd, ...tl]) =>
-    Some((Rel.Neq(Dir.L), zip_lt(zipped, hd), (dn, tl)))
-  | ([hd, ...tl], []) => Some((Neq(R), zip_gt(hd, zipped), (tl, up)))
-  | ([l, ...dn], [r, ...up])
-      when Option.is_some(Token.zip(Terr.hd(l), Terr.hd(r))) =>
-    let caret = Cell.is_caret(zipped);
-    let w = Option.get(Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald));
-    Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)));
-  | ([l, ..._], [r, ...up]) when Melder.lt(l.wald, r.wald) =>
-    Some((Neq(L), zip_lt(zipped, r), (dn, up)))
-  | ([l, ...dn], [r, ..._]) when Melder.gt(l.wald, r.wald) =>
-    Some((Neq(R), zip_gt(l, zipped), (dn, up)))
-  | ([l, ...dn], [r, ...up]) =>
-    assert(Melder.eq(l.wald, r.wald));
-    Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
-  };
-let zip_step =
-    (~zipped: Cell.t, ctx: Ctx.t)
-    : option((Rel.t(unit, Dir.t), Cell.t, Ctx.t)) =>
-  switch (Ctx.unlink(ctx)) {
-  | Error(open_) =>
-    zip_step_open(~zipped, open_)
-    |> Option.map(((rel, zipped, open_)) => (rel, zipped, Ctx.unit(open_)))
-  | Ok((open_, (l, r), ctx)) =>
-    switch (zip_step_open(~zipped, open_)) {
-    | None => Some((Eq(), zip_eq(l, zipped, r), ctx))
-    | Some((rel, zipped, open_)) =>
-      Some((rel, zipped, Ctx.link(~open_, (l, r), ctx)))
-    }
-  };
 let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
   open Options.Syntax;
-  let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
+  let* (rel, zipped, ctx) = Ctx.zip_step(~zipped, ctx);
   switch (rel) {
   | Eq () => return((zipped, ctx))
   | Neq(d) =>
@@ -205,7 +163,7 @@ let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
   let zipped_past_space = {
     open Options.Syntax;
     let* _ = Cell.is_caret(zipped);
-    let* (rel, zipped, ctx) = zip_step(~zipped, ctx);
+    let* (rel, zipped, ctx) = Ctx.zip_step(~zipped, ctx);
     let/ () = Cell.Space.is_space(zipped) ? None : Some((zipped, ctx));
     let+ d = Rel.is_neq(rel);
     zip_neighbor(~side=Dir.toggle(d), ~zipped, ctx)
@@ -214,28 +172,16 @@ let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
   Option.value(zipped_past_space, ~default=init);
 };
 
-let rec zip_open = (~zipped: Cell.t, (dn, up): Frame.Open.t) =>
-  switch (zip_step_open(~zipped, (dn, up))) {
-  | None => zipped
-  | Some((_, zipped, rest)) => zip_open(~zipped, rest)
-  };
-let zip_closed = (~zipped: Cell.t, (l, r): Frame.Closed.t) =>
-  zip_eq(l, zipped, r);
-let zip = (~save_cursor=false, z: t) =>
-  z.ctx
-  |> (
+let zip = (~save_cursor=false, z: t) => {
+  let ctx =
     switch (z.cur) {
-    | Point(_) => Fun.id
+    | Point(_) => z.ctx
     | Select({focus, range: zigg}) =>
       let fill = save_cursor ? Cell.point(Anchor) : Cell.empty;
-      Ctx.push_zigg(~onto=Dir.toggle(focus), zigg, ~fill);
-    }
-  )
-  |> Ctx.fold(
-       zip_open(~zipped=save_cursor ? Cell.point(Focus) : Cell.empty),
-       (zipped, closed, open_) =>
-       zip_open(~zipped=zip_closed(~zipped, closed), open_)
-     );
+      Ctx.push_zigg(~onto=Dir.toggle(focus), zigg, ~fill, z.ctx);
+    };
+  Ctx.zip(ctx, ~zipped=save_cursor ? Cell.point(Focus) : Cell.empty);
+};
 
 let path_of_ctx = (ctx: Ctx.t) => {
   let c = zip(~save_cursor=true, mk(ctx));

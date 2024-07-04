@@ -9,7 +9,7 @@ module Shape = {
     | Bent(Dir.t, Tip.t);
   let rec mk = (~side=?, ctx: Ctx.t) => {
     let (zipped, ctx) = Zipper.zip_init(Zipper.mk(ctx));
-    switch (Zipper.zip_step(~zipped, ctx)) {
+    switch (Ctx.zip_step(~zipped, ctx)) {
     | _ when !Cell.is_empty(zipped) => Straight
     | None
     | Some((Eq (), _, _)) => Straight
