@@ -44,10 +44,10 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
 let pull_neighbors = ctx => {
   let pull = (from: Dir.t, ctx) =>
     switch (Ctx.pull(~from, ctx)) {
-    | None => ("", ctx)
-    | Some((tok, ctx)) =>
+    | Some((tok, ctx)) when !Mtrl.is_grout(tok.mtrl) =>
       Effects.remove(tok);
       (tok.text, ctx);
+    | _ => ("", ctx)
     };
   let (l, ctx) = pull(L, ctx);
   let (r, ctx) = pull(R, ctx);
