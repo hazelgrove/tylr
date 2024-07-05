@@ -44,7 +44,7 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
 let pull_neighbors = ctx => {
   let pull = (from: Dir.t, ctx) =>
     switch (Ctx.pull(~from, ctx)) {
-    | Some((tok, ctx)) when !Mtrl.is_grout(tok.mtrl) =>
+    | Some((tok, ctx)) when tok.text != "" =>
       Effects.remove(tok);
       (tok.text, ctx);
     | _ => ("", ctx)
