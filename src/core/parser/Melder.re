@@ -228,9 +228,14 @@ let push =
   switch (Slope.zip_hd(t, slope, ~onto)) {
   | Some(slope) => Some(Neq(slope))
   | None =>
-    switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
-    | Ok(slope) => Some(Neq(slope))
-    | Error(fill) => connect_ineq(~repair, ~onto, bound, ~fill, t)
+    switch (t.mtrl) {
+    | Space () => Some(Neq([Terr.of_tok(t), ...slope]))
+    | Grout(_)
+    | Tile(_) =>
+      switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
+      | Ok(slope) => Some(Neq(slope))
+      | Error(fill) => connect_ineq(~repair, ~onto, bound, ~fill, t)
+      }
     }
   };
 
