@@ -54,6 +54,7 @@ let is_complete = text =>
     true
   | Const(_, c) => String.equal(c, text);
 
+// beware calling this with the text of partial tokens
 let oblig = text =>
   fun
   | Id_lower

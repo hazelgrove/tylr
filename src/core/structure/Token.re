@@ -56,6 +56,7 @@ module Molded = {
       let (l, r) = Mold.display(mold);
       let text =
         switch (Label.oblig(tok.text, lbl)) {
+        | exception (Invalid_argument(_)) => tok.text
         | "" => tok.text
         | s => tok.text ++ "_" ++ s ++ "_"
         };
