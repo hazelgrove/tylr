@@ -10,6 +10,7 @@ module Token = {
   let add = (p: Step.Caret.t, marks: t): t =>
     switch (marks) {
     | None => Some(Point(p))
+    | Some(Point(q)) when q.hand == p.hand => Some(Point(p))
     | Some(Point(q)) =>
       let (l, r) = Step.compare(p.path, q.path) <= 0 ? (p, q) : (q, p);
       let focus = Dir.(l.hand == Focus ? L : R);

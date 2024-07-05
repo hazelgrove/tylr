@@ -84,14 +84,24 @@ module Molded = {
     | Space () => Utf8.length(tok.text)
     };
 
-  let merge = (l: t, r: t) => {
-    let marks = Marks.(union(l.marks, shift(Utf8.length(l.text), r.marks)));
+  let merge = (l: t, ~caret=?, r: t) => {
+    let n = Utf8.length(l.text);
+    let marks =
+      r.marks
+      |> Marks.shift(n)
+      |> Marks.union(l.marks)
+      |> (
+        switch (caret) {
+        | None => Fun.id
+        | Some(hand) => Marks.add(Step.Caret.mk(hand, n))
+        }
+      );
     {...l, marks, text: l.text ++ r.text};
   };
-  let zip = (l: t, r: t) =>
-    if (Id.eq(l.id, r.id)) {
-      assert(Mold.equal(l.mtrl, r.mtrl));
-      Some(merge(l, r));
+  let zip = (l: t, ~caret=?, r: t) =>
+    if (Id.eq(l.id, r.id) || l.mtrl == Space() && r.mtrl == Space()) {
+      assert(l.mtrl == r.mtrl);
+      Some(merge(l, ~caret?, r));
     } else {
       None;
     };

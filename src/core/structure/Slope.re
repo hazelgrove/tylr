@@ -99,6 +99,13 @@ let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
     Some((tok, slope));
   };
 
+let zip_hd = (~onto: Dir.t, t: Token.t, slope: t): option(t) =>
+  switch (slope) {
+  | [] => None
+  | [hd, ...tl] =>
+    Terr.zip_hd(~onto, t, hd) |> Option.map(hd => [hd, ...tl])
+  };
+
 // Dn and Up slopes named based on left-to-right order of terraces
 // as displayed on screen, but terraces are always maintained
 // in list order low-to-high

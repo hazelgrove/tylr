@@ -214,25 +214,24 @@ let rec push_neq =
     switch (slope) {
     | [] => Error(fill)
     | [hd, ...tl] =>
-      let (l, r) = Dir.order(onto, (Terr.hd(hd), t));
-      switch (Token.zip(l, r)) {
-      | Some(tok) => Ok([Terr.put_hd(tok, hd), ...tl])
-      | None =>
-        switch (connect(~repair, ~onto, hd, ~fill, t)) {
-        | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
-        | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
-        | Ok(Eq(hd)) => Ok([hd, ...tl])
-        }
-      };
+      switch (connect(~repair, ~onto, hd, ~fill, t)) {
+      | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
+      | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
+      | Ok(Eq(hd)) => Ok([hd, ...tl])
+      }
     }
   };
 
 let push =
     (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
     : option(Melded.t) =>
-  switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
-  | Ok(slope) => Some(Neq(slope))
-  | Error(fill) => connect_ineq(~repair, ~onto, bound, ~fill, t)
+  switch (Slope.zip_hd(t, slope, ~onto)) {
+  | Some(slope) => Some(Neq(slope))
+  | None =>
+    switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
+    | Ok(slope) => Some(Neq(slope))
+    | Error(fill) => connect_ineq(~repair, ~onto, bound, ~fill, t)
+    }
   };
 
 let push_space = (spc: Token.t, slope: Slope.t, ~onto: Dir.t) => {
