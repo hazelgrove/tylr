@@ -89,6 +89,13 @@ module Molded = {
     | Space () => Utf8.length(tok.text)
     };
 
+  let is_complete = (tok: t) =>
+    switch (tok.mtrl) {
+    | Space ()
+    | Grout(_) => true
+    | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
+    };
+
   let merge = (l: t, ~caret=?, r: t) => {
     let n = Utf8.length(l.text);
     let marks =
@@ -109,13 +116,6 @@ module Molded = {
       Some(merge(l, ~caret?, r));
     } else {
       None;
-    };
-
-  let is_complete = (tok: t) =>
-    switch (tok.mtrl) {
-    | Space ()
-    | Grout(_) => true
-    | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
     };
 
   // beware calling this on partial tokens
@@ -151,6 +151,7 @@ module Molded = {
     | _ => raise(Invalid_argument("Token.Molded.split_caret"))
     };
 
+  // beware calling this on partial tokens
   let pull = (~from: Dir.t, tok: t): option((t, t)) =>
     if (is_empty(tok) || length(tok) == 1) {
       None;

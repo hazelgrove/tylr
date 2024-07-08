@@ -50,6 +50,8 @@ module Map = {
 module Range = {
   [@deriving (show({with_path: false}), sexp, yojson, hash)]
   type t = (Base.t, Base.t);
+  let mk = (p1: Base.t, p2: Base.t) =>
+    Base.compare(p1, p2) <= 0 ? (p1, p2) : (p2, p1);
   let is_empty = ((l, r): t) => Base.compare(l, r) == 0;
   let map = Tuples.map2;
   let hd =
@@ -94,6 +96,10 @@ module Selection = {
   };
   let carets: t => (Caret.t, Caret.t) =
     Selection.carets(~split_range=Fun.id);
+  let of_carets = (c1: Caret.t, c2: Caret.t) =>
+    Base.compare(c1.path, c2.path) <= 0
+      ? mk(~focus=c1.hand == Focus ? L : R, (c1.path, c2.path))
+      : mk(~focus=c2.hand == Focus ? L : R, (c2.path, c1.path));
 };
 
 module Cursor = {
@@ -143,4 +149,8 @@ module Cursor = {
         )
       ),
     );
+
+  let mk = (c1: Caret.t, c2: Caret.t) =>
+    Base.compare(c1.path, c2.path) == 0
+      ? Point(Caret.focus(c1.path)) : Select(Selection.of_carets(c1, c2));
 };

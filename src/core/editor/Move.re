@@ -9,6 +9,29 @@ module Action = {
     | Hole(Dir.t);
 };
 
+// enters unmarked token or moves cursor in marked token.
+// returns Some(_) if caret remains strictly within token,
+// otherwise returns None if caret reaches token edge.
+let hstep_tok = (d: Dir.t, tok: Token.t): option(Token.t) => {
+  let (m, n) = (Token.length(tok), Utf8.length(tok.text));
+  let (l, r) = (1, Token.is_complete(tok) ? m - 1 : n);
+  switch (tok.marks) {
+  | _ when m <= 1 => None
+  | None =>
+    let car = Caret.focus(Dir.pick(d, (r, l)));
+    Some(Token.put_cursor(Point(car), tok));
+  | Some(Point(car)) when Dir.pick(d, (car.path <= l, car.path >= r)) =>
+    None
+  | Some(Point(car)) =>
+    let car = Step.Caret.shift(Dir.pick(d, ((-1), 1)), car);
+    Some(Token.put_cursor(Point(car), tok));
+  | Some(Select(sel)) =>
+    let (l, r) = Step.Selection.carets(sel);
+    let car = Caret.focus(Dir.pick(d, (l, r)).path);
+    Some(Token.put_cursor(Point(car), tok));
+  };
+};
+
 let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let b = Dir.toggle(d);
@@ -19,16 +42,42 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
     | Point(_) =>
       let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
-      // todo: add movement granularity
-      switch (Token.pull(~from=b, tok)) {
-      | None => Ctx.push(~onto=b, tok, ctx)
-      | Some((l, r)) =>
-        let (c, tok) = Dir.order(b, (l, r));
-        ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c);
+      switch (hstep_tok(d, tok)) {
+      | None => ctx |> Ctx.push(~onto=b, Token.clear_marks(tok))
+      | Some(tok) =>
+        // more efficient to push onto z.ctx instead of ctx
+        z.ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, tok)
       };
     };
   Zipper.(button(mk(ctx)));
 };
+
+// let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
+//   open Options.Syntax;
+//   let b = Dir.toggle(d);
+//   // print_endline("--- Move.hstep ---");
+//   // print_endline("z = " ++ Zipper.show(z));
+//   let+ ctx =
+//     switch (z.cur) {
+//     // move to d end of selection
+//     | Select({range: zigg, _}) =>
+//       return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
+//     | Point(_) =>
+//       let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
+//       // todo: add movement granularity
+//       switch (Token.pull(~from=b, tok)) {
+//       | None => Ctx.push(~onto=b, tok, ctx)
+//       | Some((l, r)) =>
+//         // print_endline("l = " ++ Token.show(l));
+//         // print_endline("r = " ++ Token.show(r));
+//         let (c, tok) = Dir.order(b, (l, r));
+//         ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c);
+//       };
+//     };
+//   // print_endline("ctx = " ++ Ctx.show(ctx));
+//   // print_endline("buttoned = " ++ Zipper.(show(button(mk(ctx)))));
+//   Zipper.(button(mk(ctx)));
+// };
 
 let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
   let move = (d, z) =>
