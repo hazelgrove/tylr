@@ -67,12 +67,6 @@ let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
     };
   };
 };
-let try_pull = (~from, ctx) =>
-  switch (pull(~from, ctx)) {
-  | None => (None, ctx)
-  | Some((tok, ctx)) => (Some(tok), ctx)
-  };
-
 module Tl = {
   include Chain.Affix;
   type t = Chain.Affix.t(Frame.Closed.t, Frame.Open.t);

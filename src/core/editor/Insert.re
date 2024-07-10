@@ -41,13 +41,17 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   };
 };
 
+let pull_text = (~from, ctx) =>
+  switch (Ctx.pull(~from, ctx)) {
+  | Some((tok, ctx)) when tok.text != "" => (
+      Token.affix(~side=from, tok),
+      ctx,
+    )
+  | _ => ("", ctx)
+  };
 let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
-  let (l, ctx) = Ctx.try_pull(~from=L, ctx);
-  let (r, ctx) = Ctx.try_pull(~from=R, ctx);
-  let l =
-    l |> Option.map(Token.affix(~side=L)) |> Option.value(~default="");
-  let r =
-    r |> Option.map(Token.affix(~side=R)) |> Option.value(~default="");
+  let (l, ctx) = pull_text(~from=L, ctx);
+  let (r, ctx) = pull_text(~from=R, ctx);
   (Labeler.label(l ++ s ++ r), Stds.Utf8.length(r), ctx);
 };
 
