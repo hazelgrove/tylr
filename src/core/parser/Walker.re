@@ -56,7 +56,7 @@ let swing_over = (w: Walk.t, ~from: Dir.t) =>
   | Space(_) => Index.empty // handled elsewhere
   | Grout(s) =>
     Index.single(Root, w)
-    |> Index.add(Node(Grout((s, Tip.(Conc, Conv)))), w)
+    |> Index.add(Node(Grout((s, Dir.order(from, Tip.(Conc, Conv))))), w)
     |> Index.add(Node(Grout((s, Tip.(Conc, Conc)))), w)
   | Tile((_, Root)) => Index.single(Root, w)
   | Tile((s, Node(mold))) =>
