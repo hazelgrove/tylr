@@ -15,7 +15,7 @@ let deps = (s: Sort.t): Sort.Set.t => {
     Sort.Set.diff(kids, deps)
     |> Sort.Set.elements
     |> List.map(new_kid => go(deps', new_kid))
-    |> List.fold_left(Sort.Set.union, Sort.Set.empty);
+    |> List.fold_left(Sort.Set.union, deps');
   };
   go(Sort.Set.empty, s);
 };
