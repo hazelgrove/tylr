@@ -96,70 +96,103 @@ module Molded = {
     | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
     };
 
-  let merge = (l: t, ~caret=?, r: t) => {
+  let merge = (l: t, r: t) => {
     let n = Utf8.length(l.text);
-    let marks =
-      r.marks
-      |> Marks.shift(n)
-      |> Marks.union(l.marks)
-      |> (
-        switch (caret) {
-        | None => Fun.id
-        | Some(hand) => Marks.add(Step.Caret.mk(hand, n))
-        }
-      );
+    let marks = r.marks |> Marks.shift(n) |> Marks.union(l.marks);
     {...l, marks, text: l.text ++ r.text};
   };
-  let zip = (l: t, ~caret=?, r: t) =>
-    if (Id.eq(l.id, r.id) || l.mtrl == Space() && r.mtrl == Space()) {
-      assert(l.mtrl == r.mtrl);
-      Some(merge(l, ~caret?, r));
+  let zip = (~save_cursor=?, l: t, r: t) =>
+    if (l.id == r.id) {
+      switch (save_cursor) {
+      | None => Some(clear_marks(l))
+      | Some(d) => Some(Dir.pick(d, (l, r)))
+      };
     } else {
       None;
     };
 
-  // beware calling this on partial tokens
-  let unzip = (tok: t) =>
+  let is_end = (n: int, tok: t): option(Dir.t) =>
+    if (n <= 0) {
+      Some(L);
+    } else if (n >= length(tok)
+               || !is_complete(tok)
+               && n > Utf8.length(tok.text)) {
+      Some(R);
+    } else {
+      None;
+    };
+
+  let rec pop_end_carets = (tok: t): (option(Caret.t(unit)) as 'c, t, 'c) =>
+    switch (tok.marks) {
+    | None => (None, tok, None)
+    | Some(Point(car)) =>
+      switch (is_end(car.path, tok)) {
+      | None => (None, tok, None)
+      | Some(L) => (
+          Some(Caret.map(Fun.const(), car)),
+          clear_marks(tok),
+          None,
+        )
+      | Some(R) => (
+          None,
+          clear_marks(tok),
+          Some(Caret.map(Fun.const(), car)),
+        )
+      }
+    | Some(Select(sel)) =>
+      let (l, r) = Step.Selection.carets(sel);
+      let (l_l, tok_l, r_l) = pop_end_carets(put_cursor(Point(l), tok));
+      let (l_r, tok_r, r_r) = pop_end_carets(put_cursor(Point(r), tok));
+      let l = Options.merge(l_l, l_r, ~f=(l, _) => l);
+      let r = Options.merge(r_l, r_r, ~f=(_, r) => r);
+      let tok = {...tok, marks: Marks.union(tok_l.marks, tok_r.marks)};
+      (l, tok, r);
+    };
+
+  let unzip =
+      (~default=Caret.focus(Dir.L), tok: t)
+      : (option(t), Cursor.t(Caret.t(unit), Selection.t(t)), option(t)) => {
+    let (l, popped, r) = pop_end_carets(tok);
+    let cur =
+      tok.marks
+      |> Option.map(
+           Cursor.map(Caret.map(Fun.const()), Selection.put(popped)),
+         )
+      |> Option.value(
+           ~default=Cursor.Point(Caret.map(Fun.const(), default)),
+         );
+    let l =
+      switch (l) {
+      | Some(_) => None
+      | None => Some(popped)
+      };
+    let r =
+      switch (r) {
+      | Some(_) => None
+      | None => Some(popped)
+      };
+    (l, cur, r);
+  };
+  let split_caret = (tok: t): (t, Caret.t(unit), t) =>
+    switch (unzip(tok)) {
+    | (Some(l), Point(hand), Some(r)) => (l, hand, r)
+    | _ => raise(Invalid_argument("Token.Molded.split_caret"))
+    };
+
+  let split_text = (tok: t) =>
     tok.marks
     |> Option.map((cur: Step.Cursor.t) => {
-         let tok = clear_marks(tok);
          let (m, n) =
            switch (cur) {
            | Point({path: n, _}) => (n, n)
            | Select({range, _}) => range
            };
-         let (l, m, r) = Utf8.split_sub(m, n, tok.text);
-         let l = Strings.is_empty(l) ? None : Some({...tok, text: l});
-         let cur =
-           switch (cur) {
-           | Point({hand, _}) => Cursor.Point(Caret.mk(hand, ()))
-           | Select(sel) =>
-             Strings.is_empty(m)
-               ? Point(Caret.focus())
-               : Select(Selection.put({...tok, text: m}, sel))
-           };
-         let r =
-           Strings.is_empty(r)
-           && (is_complete(tok) || n > Utf8.length(tok.text))
-             ? None : Some({...tok, text: r});
-         (l, cur, r);
+         Utf8.split_sub(m, n, tok.text);
        });
-
-  let split_caret = (tok: t): (t, Caret.t(unit), t) =>
-    switch (unzip(tok)) {
-    | Some((Some(l), Point(hand), Some(r))) => (l, hand, r)
-    | _ => raise(Invalid_argument("Token.Molded.split_caret"))
-    };
-
-  // beware calling this on partial tokens
-  let pull = (~from: Dir.t, tok: t): option((t, t)) =>
-    if (is_empty(tok) || length(tok) == 1) {
-      None;
-    } else {
-      let car = Caret.focus(Dir.pick(from, (1, length(tok) - 1)));
-      let (l, _, r) = split_caret({...tok, marks: Some(Point(car))});
-      Some((l, r));
-    };
+  let affix = (~side: Dir.t, tok: t) =>
+    split_text(tok)
+    |> Option.map(Dir.pick(side, (((l, _, _)) => l, ((_, _, r)) => r)))
+    |> Option.value(~default=tok.text);
 };
 include Molded;
 

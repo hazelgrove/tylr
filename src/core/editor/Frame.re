@@ -30,14 +30,14 @@ module Open = {
         when Option.is_some(Token.zip(Wald.hd(hd_l), Wald.hd(hd_r))) =>
       true
     | _ => false;
-  let zip_toks = (~caret=?) =>
+  let zip_toks = (~save_cursor=false) =>
     fun
     | (([hd_l, ...tl_l], [hd_r, ...tl_r]): t) =>
-      Wald.zip_hds(~from=L, hd_l.wald, ~caret?, hd_r.wald)
+      Wald.zip_hds(~save_cursor, ~from=L, hd_l.wald, hd_r.wald)
       |> Option.map(w => (Meld.M(hd_l.cell, w, hd_r.cell), (tl_l, tl_r)))
     | _ => None;
 
-  let zip_step = (~zipped: Cell.t, (dn, up): t) =>
+  let zip_step = (~save_cursor, ~zipped: Cell.t, (dn, up): t) =>
     switch (dn, up) {
     | ([], []) => None
     | ([], [hd, ...tl]) =>
@@ -45,8 +45,8 @@ module Open = {
     | ([hd, ...tl], []) => Some((Neq(R), zip_gt(hd, zipped), (tl, up)))
     | ([l, ...dn], [r, ...up])
         when Option.is_some(Token.zip(Terr.hd(l), Terr.hd(r))) =>
-      let caret = Cell.is_caret(zipped);
-      let w = Option.get(Wald.zip_hds(~from=L, l.wald, ~caret?, r.wald));
+      let w =
+        Option.get(Wald.zip_hds(~save_cursor, ~from=L, l.wald, r.wald));
       Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)));
     | ([l, ..._], [r, ...up]) when Melder.lt(l.wald, r.wald) =>
       Some((Neq(L), zip_lt(zipped, r), (dn, up)))
@@ -57,8 +57,8 @@ module Open = {
       Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
     };
 
-  let rec zip = (~zipped: Cell.t, (dn, up): t) =>
-    switch (zip_step(~zipped, (dn, up))) {
+  let rec zip = (~save_cursor=false, ~zipped: Cell.t, (dn, up): t) =>
+    switch (zip_step(~save_cursor, ~zipped, (dn, up))) {
     | None => zipped
     | Some((_, zipped, rest)) => zip(~zipped, rest)
     };

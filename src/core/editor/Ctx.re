@@ -67,6 +67,11 @@ let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
     };
   };
 };
+let try_pull = (~from, ctx) =>
+  switch (pull(~from, ctx)) {
+  | None => (None, ctx)
+  | Some((tok, ctx)) => (Some(tok), ctx)
+  };
 
 module Tl = {
   include Chain.Affix;
@@ -145,24 +150,25 @@ let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
   map_hd(Frame.Open.cat(rest), ctx);
 };
 
-let zip_toks = (~caret=?, ctx: t): option((Meld.t, t)) => {
+let zip_toks = (~save_cursor=false, ctx: t): option((Meld.t, t)) => {
   let (hd, tl) = uncons(ctx);
-  Frame.Open.zip_toks(~caret?, hd)
+  Frame.Open.zip_toks(~save_cursor, hd)
   |> Option.map(Tuples.map_snd(hd => cons(hd, tl)));
 };
 
-let zip = (~zipped: Cell.t) =>
-  fold(Frame.Open.zip(~zipped), (zipped, closed, open_) =>
+let zip = (~save_cursor, ~zipped: Cell.t) =>
+  fold(Frame.Open.zip(~zipped, ~save_cursor), (zipped, closed, open_) =>
     Frame.Open.zip(open_, ~zipped=Frame.Closed.zip(closed, ~zipped))
   );
 let zip_step =
     (~zipped: Cell.t, ctx: t): option((Rel.t(unit, Dir.t), Cell.t, t)) =>
   switch (unlink(ctx)) {
   | Error(open_) =>
-    Frame.Open.zip_step(~zipped, open_)
+    // todo: review these save_cursor flags
+    Frame.Open.zip_step(~save_cursor=true, ~zipped, open_)
     |> Option.map(((rel, zipped, open_)) => (rel, zipped, unit(open_)))
   | Ok((open_, (l, r), ctx)) =>
-    switch (Frame.Open.zip_step(~zipped, open_)) {
+    switch (Frame.Open.zip_step(~save_cursor=true, ~zipped, open_)) {
     | None => Some((Eq(), Frame.zip_eq(l, zipped, r), ctx))
     | Some((rel, zipped, open_)) =>
       Some((rel, zipped, link(~open_, (l, r), ctx)))

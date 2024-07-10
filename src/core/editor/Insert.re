@@ -41,27 +41,24 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   };
 };
 
-let pull_neighbors = ctx => {
-  let pull = (from: Dir.t, ctx) =>
-    switch (Ctx.pull(~from, ctx)) {
-    | Some((tok, ctx)) when tok.text != "" =>
-      Effects.remove(tok);
-      (tok.text, ctx);
-    | _ => ("", ctx)
-    };
-  let (l, ctx) = pull(L, ctx);
-  let (r, ctx) = pull(R, ctx);
-  ((l, r), ctx);
+let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
+  let (l, ctx) = Ctx.try_pull(~from=L, ctx);
+  let (r, ctx) = Ctx.try_pull(~from=R, ctx);
+  let l =
+    l |> Option.map(Token.affix(~side=L)) |> Option.value(~default="");
+  let r =
+    r |> Option.map(Token.affix(~side=R)) |> Option.value(~default="");
+  (Labeler.label(l ++ s ++ r), Stds.Utf8.length(r), ctx);
 };
 
 let perform = (s: string, z: Zipper.t) => {
   List.iter(Effects.remove, Zipper.Cursor.flatten(z.cur));
-  let ((l, r), ctx) = pull_neighbors(z.ctx);
+  let (toks, r, ctx) = relabel(s, z.ctx);
   let (cell, ctx) =
-    Labeler.label(l ++ s ++ r)
+    toks
     |> List.fold_left((ctx, tok) => mold(ctx, tok), ctx)
     |> remold(~fill=Cell.point(Focus));
   Zipper.unzip(cell, ~ctx)
-  |> Option.map(Move.hstep_n(- Stds.Utf8.length(r)))
+  |> Option.map(Move.hstep_n(- r))
   |> Option.value(~default=Zipper.mk_unroll(R, cell, ~ctx));
 };

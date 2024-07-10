@@ -48,10 +48,9 @@ let unlink = (terr: t) =>
 let zip_hd = (~onto: Dir.t, t: Token.t, terr: t) => {
   open Options.Syntax;
   let (l, r) = Dir.order(onto, (hd(terr), t));
-  let+ zipped = Token.zip(l, r);
+  let+ zipped = Token.zip(~save_cursor=Dir.toggle(onto), l, r);
   put_hd(zipped, terr);
 };
-
 // module Tl = {
 //   // a terrace minus its hd token
 //   type t = Chain.t(Cell.t, Token.t);

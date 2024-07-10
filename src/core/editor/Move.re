@@ -44,40 +44,11 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
       switch (hstep_tok(d, tok)) {
       | None => ctx |> Ctx.push(~onto=b, Token.clear_marks(tok))
-      | Some(tok) =>
-        // more efficient to push onto z.ctx instead of ctx
-        z.ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, tok)
+      | Some(tok) => ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, tok)
       };
     };
   Zipper.(button(mk(ctx)));
 };
-
-// let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
-//   open Options.Syntax;
-//   let b = Dir.toggle(d);
-//   // print_endline("--- Move.hstep ---");
-//   // print_endline("z = " ++ Zipper.show(z));
-//   let+ ctx =
-//     switch (z.cur) {
-//     // move to d end of selection
-//     | Select({range: zigg, _}) =>
-//       return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
-//     | Point(_) =>
-//       let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
-//       // todo: add movement granularity
-//       switch (Token.pull(~from=b, tok)) {
-//       | None => Ctx.push(~onto=b, tok, ctx)
-//       | Some((l, r)) =>
-//         // print_endline("l = " ++ Token.show(l));
-//         // print_endline("r = " ++ Token.show(r));
-//         let (c, tok) = Dir.order(b, (l, r));
-//         ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, c);
-//       };
-//     };
-//   // print_endline("ctx = " ++ Ctx.show(ctx));
-//   // print_endline("buttoned = " ++ Zipper.(show(button(mk(ctx)))));
-//   Zipper.(button(mk(ctx)));
-// };
 
 let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
   let move = (d, z) =>
