@@ -3,8 +3,8 @@ open Stds;
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    cell: Cell.t,
     wald: Wald.t,
+    cell: Cell.t,
   };
 };
 include Base;
