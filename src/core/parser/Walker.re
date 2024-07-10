@@ -75,13 +75,17 @@ let arrive = (sym: Mtrl.Sym.t, w: Walk.t, ~from: Dir.t) =>
   | NT(nt) => swing_over(Walk.cons(nt, w), ~from)
   | T(t) =>
     // extra logic encapsulated here to deal with space and grout NTs
-    // not having enough contextual info to swing over
+    // not having enough contextual info to swing over, as well as to
+    // generate placeholder space NT cells to separate adjacent tile Ts
     let over: Mtrl.NT.t =
       switch (t) {
       | Space () => Space(false)
-      | Grout((s, (Conc, _))) => Grout(s)
-      | Grout((_, (Conv, _)))
       | Tile(_) => Space(true)
+      | Grout((s, tips)) =>
+        switch (Dir.pick(from, tips)) {
+        | Conc => Grout(s)
+        | Conv => Space(true)
+        }
       };
     Index.single(Node(t), Walk.cons(over, w));
   };
