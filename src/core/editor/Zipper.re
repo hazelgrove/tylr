@@ -197,5 +197,8 @@ let load_cursor = (z: t) => unzip(zip(z));
 
 let button = (z: t): t => {
   let (cell, ctx) = zip_init(~save_cursor=true, z);
+  let (hd, tl) = Ctx.uncons(ctx);
+  let cell = Frame.Open.zip(hd, ~zipped=cell);
+  let ctx = Ctx.cons(Frame.Open.empty, tl);
   Option.get(unzip(cell, ~ctx));
 };
