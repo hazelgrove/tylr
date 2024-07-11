@@ -107,10 +107,6 @@ module Exp = {
   let neg_op = op_alt(["-", "-."]);
 
   let tbl = [
-    //Math operations
-    p(~a=L, seq([exp, add_op, exp])),
-    p(~a=L, seq([exp, mult_op, exp])),
-    p(seq([neg_op, exp])),
     //case
     p(seq([kw(~l=false, "case"), exp, rul, star(rul)])),
     //let
@@ -128,6 +124,10 @@ module Exp = {
     p(seq([kw(~l=false, "fun"), nt(Pat.sort), op("->"), exp])),
     //if
     p(seq([kw(~l=false, "if"), exp, kw("then"), exp, kw("else"), exp])),
+    //Math operations
+    p(~a=L, seq([exp, add_op, exp])),
+    p(~a=L, seq([exp, mult_op, exp])),
+    p(seq([neg_op, exp])),
     //ap
     p(seq([exp, brc(L, "("), exp, brc(R, ")")])),
     p(operand),
