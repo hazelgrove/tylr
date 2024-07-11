@@ -151,12 +151,20 @@ let step_all =
     // but this behavior is encoded in token zipping/merging instead of walks.
     | Node(Space ()) => Index.single(Root, Walk.empty)
     | Node(Grout((s, tips))) =>
-      let index =
-        switch (Dir.pick(Dir.toggle(from), tips)) {
-        | Conc => swing_all(Grout(s), ~from)
-        | Conv => Index.single(Root, Walk.space)
-        };
-      Index.union(index, swing_into(Walk.space, ~from));
+      switch (Dir.pick(Dir.toggle(from), tips)) {
+      | Conc =>
+        let w = Walk.unit(Walk.Swing.unit(Grout(s)));
+        let un = Mtrl.Grout((s, Dir.order(from, Tip.(Conc, Conv))));
+        let bin = Mtrl.Grout((s, Tip.(Conc, Conc)));
+        swing_all(Grout(s), ~from)
+        |> Index.add(Root, w)
+        |> Index.add(Node(un), w)
+        |> Index.add(Node(bin), w)
+        |> Index.union(swing_into(Walk.space, ~from));
+      | Conv =>
+        Index.single(Root, Walk.space)
+        |> Index.union(swing_into(Walk.space, ~from))
+      }
     | Node(Tile((lbl, mold))) =>
       (Sym.T(lbl), mold.rctx)
       |> RZipper.step(Dir.toggle(from))
