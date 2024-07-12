@@ -33,7 +33,8 @@ module Swing = {
   let bot = Chain.hd;
   let compare = (l: t, r: t) => {
     let c = Int.compare(height(l), height(r));
-    c == 0 ? Mtrl.NT.compare(bot(l), bot(r)) : c;
+    c == 0
+      ? List.compare(Mtrl.NT.compare, Chain.loops(l), Chain.loops(r)) : c;
   };
   let bounds = (sw: t, ~from: Dir.t) => {
     let (l_bot, r_bot) = Mtrl.NT.bounds(bot(sw));
@@ -58,11 +59,16 @@ let empty: t = Chain.unit(Swing.empty);
 let is_empty = (==)(empty);
 
 let space: t = Chain.unit(Swing.space);
+let root: t = Chain.unit(Swing.root);
 
-let strides = Chain.loops;
-let height = w => List.length(List.filter(Swing.is_neq, strides(w)));
+let stances = Chain.links;
+let swings = Chain.loops;
+let height = w => List.length(List.filter(Swing.is_neq, swings(w)));
 
 // let has_sort = w => List.exists(Swing.has_sort, strides(w));
+
+let has_stance = (st: Stance.t, w: t) =>
+  List.exists((==)(st), Chain.links(w));
 
 let hd = Chain.hd;
 let ft = Chain.ft;
@@ -70,7 +76,12 @@ let ft = Chain.ft;
 
 let compare = (l: t, r: t) => {
   let c = Int.compare(height(l), height(r));
-  c == 0 ? Swing.compare(hd(l), hd(r)) : c;
+  c == 0
+    ? {
+      let c = Int.compare(Chain.length(l), Chain.length(r));
+      c == 0 ? Chain.compare(Swing.compare, Stance.compare, l, r) : c;
+    }
+    : c;
 };
 
 let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));

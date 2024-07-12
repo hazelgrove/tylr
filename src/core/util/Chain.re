@@ -4,7 +4,7 @@ open Stds;
 
 module Base = {
   // invariant: List.length(loops) == List.length(links) + 1
-  [@deriving (sexp, yojson, ord)]
+  [@deriving (sexp, yojson)]
   type t('loop, 'link) = (list('loop), list('link));
 };
 include Base;
@@ -272,6 +272,20 @@ let unzip_links = (c: t('lp, 'lk)): list((t(_), 'lk, t(_))) => {
   };
   go(c);
 };
+
+let compare = (c_lp, c_lk, l, r) =>
+  combine(l, r)
+  |> fold_left(
+       ((lp_l, lp_r)) => c_lp(lp_l, lp_r),
+       (c, (lk_l, lk_r), (lp_l, lp_r)) => {
+         c == 0
+           ? {
+             let c = c_lk(lk_l, lk_r);
+             c == 0 ? c_lp(lp_l, lp_r) : c;
+           }
+           : c
+       },
+     );
 
 module Elem = {
   type t('lp, 'lk) =
