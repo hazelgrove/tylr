@@ -29,16 +29,29 @@ let map = (~space, ~grout, ~tile) =>
 
 module Sorted = {
   type t = Base.t(unit, Sort.t, Sort.t);
+  let compare = (l: t, r: t) =>
+    switch (l, r) {
+    | (Tile(l), Tile(r)) => Sort.compare(l, r)
+    | (Tile(_), _) => (-1)
+    | (_, Tile(_)) => 1
+    | (Grout(l), Grout(r)) => Sort.compare(l, r)
+    | (Grout(_), _) => (-1)
+    | (_, Grout(_)) => 1
+    | (Space (), Space ()) => 0
+    };
 };
 
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Base.t(Space.T.t, Grout.T.t, Tile.T.t);
+  // let compare = (l: t, r: t) =>
   module Map =
     Map.Make({
       type nonrec t = t;
       let compare = compare;
     });
+  let sort: t => Sorted.t =
+    map(~space=Fun.const(), ~grout=Grout.T.sort, ~tile=Tile.T.sort);
   let padding =
     fun
     | Space(_) => Padding.none

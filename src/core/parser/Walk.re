@@ -21,6 +21,7 @@ module Swing = {
   let unit: Mtrl.NT.t => t = Chain.unit;
   let empty: t = unit(Space(false));
   let space: t = unit(Space(true));
+  let root: t = unit(Tile(Tile.NT.root));
   let mk = (nts: list(Mtrl.NT.t)) => {
     let n = List.length(nts);
     Chain.mk(nts, List.init(n - 1, _ => ()));
@@ -75,14 +76,21 @@ module T = {
   let ft = Chain.ft;
   // let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
 
+  let mid_stances = (w: t): list(Mtrl.Sorted.t) =>
+    // currently returns prec levels in top-down order
+    w
+    |> Chain.fold_left(Fun.const([]), (mtrls, st, sw) =>
+         Swing.is_neq(sw) ? mtrls : [Mtrl.T.sort(st), ...mtrls]
+       );
+
   let compare = (l: t, r: t) => {
-    let c = Int.compare(height(l), height(r));
-    c == 0
-      ? {
-        let c = Int.compare(Chain.length(l), Chain.length(r));
-        c == 0 ? Chain.compare(Swing.compare, Stance.compare, l, r) : c;
-      }
-      : c;
+    open Stds.Compare.Syntax;
+    let/ () = Int.compare(height(l), height(r));
+    // top-down lexicographic comparison
+    let/ () =
+      List.compare(Mtrl.Sorted.compare, mid_stances(l), mid_stances(r));
+    let/ () = Int.compare(Chain.length(l), Chain.length(r));
+    Chain.compare(Swing.compare, Stance.compare, l, r);
   };
 
   let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
@@ -141,6 +149,7 @@ module Index = {
     to_list(map)
     |> List.map(((_, ws)) => List.length(ws))
     |> List.fold_left((+), 0);
+  let sort = End.Map.map(List.stable_sort(T.compare));
   module Syntax = {
     let return = single;
     let ( let* ) = (ind, f) =>

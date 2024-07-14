@@ -1,6 +1,7 @@
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Sort.t, Tip.s);
+  let sort: t => Sort.t = fst;
   let op = s => (s, Tip.(Conv, Conv));
   let pre = s => (s, Tip.(Conv, Conc));
   let pos = s => (s, Tip.(Conc, Conv));
