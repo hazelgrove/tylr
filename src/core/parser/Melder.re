@@ -29,11 +29,11 @@ open Stds;
 // };
 
 let lt = (l: Wald.t, r: Wald.t) =>
-  !Walk.Set.is_empty(Walker.lt(Node(Wald.face(l)), Node(Wald.face(r))));
+  !Lists.is_empty(Walker.lt(Node(Wald.face(l)), Node(Wald.face(r))));
 let gt = (l: Wald.t, r: Wald.t) =>
-  !Walk.Set.is_empty(Walker.gt(Node(Wald.face(l)), Node(Wald.face(r))));
+  !Lists.is_empty(Walker.gt(Node(Wald.face(l)), Node(Wald.face(r))));
 let eq = (l: Wald.t, r: Wald.t) =>
-  !Walk.Set.is_empty(Walker.eq(Node(Wald.face(l)), Node(Wald.face(r))));
+  !Lists.is_empty(Walker.eq(Node(Wald.face(l)), Node(Wald.face(r))));
 
 // assumes w is already oriented toward side.
 // used to complete zigg top when it takes precedence over pushed wald.
@@ -42,15 +42,15 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
   let from = Dir.toggle(side);
   let exited = Walker.exit(~from=Dir.toggle(side), Node(Wald.face(w)));
   let baked =
-    Walk.Set.elements(exited)
-    |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
+    exited |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
   switch (baked) {
   | Some(baked) => Baked.complete_wald(baked, w)
   | None =>
     if (!Cell.is_empty(fill)) {
       print_endline("warning: dropping fill " ++ Cell.show(fill));
     };
-    let exited = Walk.Set.min_elt(exited);
+    // walker bug if no exits
+    let exited = List.hd(exited);
     let baked = Baker.bake_sans_fill(~from, exited);
     Baked.complete_wald(baked, w);
   };
@@ -60,12 +60,13 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr)));
   let baked =
-    Walk.Set.elements(exited)
+    exited
     |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
   switch (baked) {
   | Some(baked) => Cell.put(orient(Baked.complete_terr(baked, terr)))
   | None =>
-    let exited = Walk.Set.min_elt(exited);
+    // walker bug if no exits
+    let exited = List.hd(exited);
     let baked = Baker.bake_sans_fill(~from=onto, exited);
     Cell.put(orient(Baked.complete_terr(baked, terr)));
   };
@@ -78,7 +79,6 @@ let complete_bounded =
   // todo: fix weird
   let fill = complete_slope(~onto, ~fill, slope);
   Walker.walk_eq(~from=L, Bound.map(Terr.face, l), Bound.map(Terr.face, r))
-  |> Walk.Set.elements
   |> Oblig.Delta.minimize(Baker.bake(~fill=Fill.unit(fill), ~from=onto))
   |> Option.map(baked => snd(Chain.hd(baked)))
   |> Options.get_fail("hmmm");
@@ -114,7 +114,6 @@ let connect_eq =
   let rec go = (onto: Terr.t, fill) => {
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     Walker.walk_eq(~from=d, Node(Terr.face(onto)), Node(t.mtrl))
-    |> Walk.Set.elements
     |> Oblig.Delta.minimize(Baker.bake(~fill, ~from=d))
     |> Option.map(baked => Baked.connect_eq(t, baked, onto));
   }
@@ -137,7 +136,6 @@ let connect_neq =
     )
     : option(Slope.t) =>
   Walker.walk_neq(~from=d, Bound.map(Terr.face, onto), Node(t.mtrl))
-  |> Walk.Set.elements
   |> Oblig.Delta.minimize(
        ~to_zero=!repair,
        Baker.bake(~fill=Fill.unit(fill), ~from=d),

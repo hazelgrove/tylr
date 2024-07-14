@@ -224,17 +224,17 @@ let step = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, step_all(~from, src));
 let lt =
   Memo.general(((l: End.t, r: End.t)) =>
-    Set.filter(Walk.is_neq, step(~from=L, l, r))
+    List.filter(Walk.is_neq, step(~from=L, l, r))
   )
   |> Funs.curry;
 let gt =
   Memo.general(((l: End.t, r: End.t)) =>
-    Set.filter(Walk.is_neq, step(~from=R, r, l))
+    List.filter(Walk.is_neq, step(~from=R, r, l))
   )
   |> Funs.curry;
 let eq =
   Memo.general(((l: End.t, r: End.t)) =>
-    Set.filter(Walk.is_eq, step(~from=L, l, r))
+    List.filter(Walk.is_eq, step(~from=L, l, r))
   )
   |> Funs.curry;
 
@@ -242,12 +242,12 @@ let eq =
 let walk = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, walk_all(~from, src));
 let walk_eq = (~from: Dir.t, src: End.t, dst: End.t) =>
-  Walk.Set.filter(Walk.is_eq, walk(~from, src, dst));
+  List.filter(Walk.is_eq, walk(~from, src, dst));
 let walk_neq = (~from: Dir.t, src: End.t, dst: End.t) =>
-  Walk.Set.filter(Walk.is_neq, walk(~from, src, dst));
+  List.filter(Walk.is_neq, walk(~from, src, dst));
 
 let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
   Index.find(dst, enter_all(~from, sort));
 
 let exit = (~from: Dir.t, src: End.t) =>
-  Set.filter(Walk.is_eq, walk(~from, src, Root));
+  List.filter(Walk.is_eq, walk(~from, src, Root));

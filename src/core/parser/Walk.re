@@ -52,48 +52,51 @@ module Swing = {
   //      );
 };
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t = Chain.t(Swing.t, Stance.t);
+module T = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = Chain.t(Swing.t, Stance.t);
 
-let empty: t = Chain.unit(Swing.empty);
-let is_empty = (==)(empty);
+  let empty: t = Chain.unit(Swing.empty);
+  let is_empty = (==)(empty);
 
-let space: t = Chain.unit(Swing.space);
-let root: t = Chain.unit(Swing.root);
+  let space: t = Chain.unit(Swing.space);
+  let root: t = Chain.unit(Swing.root);
 
-let stances = Chain.links;
-let swings = Chain.loops;
-let height = w => List.length(List.filter(Swing.is_neq, swings(w)));
+  let stances = Chain.links;
+  let swings = Chain.loops;
+  let height = w => List.length(List.filter(Swing.is_neq, swings(w)));
 
-// let has_sort = w => List.exists(Swing.has_sort, strides(w));
+  // let has_sort = w => List.exists(Swing.has_sort, strides(w));
 
-let has_stance = (st: Stance.t, w: t) =>
-  List.exists((==)(st), Chain.links(w));
+  let has_stance = (st: Stance.t, w: t) =>
+    List.exists((==)(st), Chain.links(w));
 
-let hd = Chain.hd;
-let ft = Chain.ft;
-// let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
+  let hd = Chain.hd;
+  let ft = Chain.ft;
+  // let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
 
-let compare = (l: t, r: t) => {
-  let c = Int.compare(height(l), height(r));
-  c == 0
-    ? {
-      let c = Int.compare(Chain.length(l), Chain.length(r));
-      c == 0 ? Chain.compare(Swing.compare, Stance.compare, l, r) : c;
-    }
-    : c;
+  let compare = (l: t, r: t) => {
+    let c = Int.compare(height(l), height(r));
+    c == 0
+      ? {
+        let c = Int.compare(Chain.length(l), Chain.length(r));
+        c == 0 ? Chain.compare(Swing.compare, Stance.compare, l, r) : c;
+      }
+      : c;
+  };
+
+  let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
+  // note: stricter than !is_eq
+  let is_neq = (w: t) => Swing.is_neq(hd(w)) && Swing.is_neq(ft(w));
+
+  let unit: _ => t = Chain.unit;
+
+  let append = Chain.append;
+  let cons = (bound: Mtrl.NT.t, w) =>
+    is_empty(w)
+      ? unit(Swing.unit(bound)) : Chain.map_hd(Chain.link(bound, ()), w);
 };
-
-let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
-// note: stricter than !is_eq
-let is_neq = (w: t) => Swing.is_neq(hd(w)) && Swing.is_neq(ft(w));
-
-let unit: _ => t = Chain.unit;
-
-let append = Chain.append;
-let cons = (bound: Mtrl.NT.t, w) =>
-  is_empty(w)
-    ? unit(Swing.unit(bound)) : Chain.map_hd(Chain.link(bound, ()), w);
+include T;
 
 module End = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -105,41 +108,45 @@ module End = {
     });
 };
 
-module Set =
-  Set.Make({
-    type nonrec t = t;
-    let compare = compare;
-  });
+// module Set =
+//   Set.Make({
+//     type nonrec t = t;
+//     let compare = compare;
+//   });
 
 module Index = {
   include End.Map;
-  type t = End.Map.t(Set.t);
-  let single = (dst, walk) => singleton(dst, Set.singleton(walk));
+  type t = End.Map.t(list(T.t));
+  let single = (dst, walk) => singleton(dst, [walk]);
   let find = (end_: End.t, map: t) =>
     switch (find_opt(end_, map)) {
-    | None => Set.empty
+    | None => []
     | Some(ws) => ws
     };
   let add = (dst, w) =>
     update(
       dst,
       fun
-      | None => Some(Set.singleton(w))
-      | Some(ws) => Some(Set.add(w, ws)),
+      | None => Some([w])
+      | Some(ws) => Some([w, ...ws]),
     );
-  let filter = f => map(Set.filter(f));
-  let map = f => map(Set.map(f));
-  let iter = f => iter((dst, ws) => Set.iter(f(dst), ws));
-  let union: (t, t) => t = union((_, l, r) => Some(Set.union(l, r)));
+  let filter = f => map(List.filter(f));
+  let map = f => map(List.map(f));
+  let iter = f => iter((dst, ws) => List.iter(f(dst), ws));
+  let union: (t, t) => t = union((_, l, r) => Some(l @ r));
   let union_all: list(t) => t = List.fold_left(union, empty);
   let to_list = bindings;
   let of_list = bs => of_seq(List.to_seq(bs));
+  let size = map =>
+    to_list(map)
+    |> List.map(((_, ws)) => List.length(ws))
+    |> List.fold_left((+), 0);
   module Syntax = {
     let return = single;
     let ( let* ) = (ind, f) =>
       to_list(ind)
       |> List.concat_map(((dst, walks)) =>
-           Set.elements(walks) |> List.map(w => (dst, w))
+           walks |> List.map(w => (dst, w))
          )
       |> List.map(f)
       |> union_all;

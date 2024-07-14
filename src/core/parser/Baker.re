@@ -47,7 +47,7 @@ let is_bounded = (l: Mtrl.NT.t, fill: Fill.t, r: Mtrl.NT.t) => {
     | None => Some(false)
     | Some(f_l) =>
       Walker.enter(~from=L, l, Node(f_l))
-      |> Walk.Set.min_elt_opt
+      |> Lists.hd
       |> Option.map(has_intermediate)
     }
   and+ r_has_intermediate =
@@ -55,7 +55,7 @@ let is_bounded = (l: Mtrl.NT.t, fill: Fill.t, r: Mtrl.NT.t) => {
     | None => Some(false)
     | Some(f_r) =>
       Walker.enter(~from=R, r, Node(f_r))
-      |> Walk.Set.min_elt_opt
+      |> Lists.hd
       |> Option.map(has_intermediate)
     };
   (l_has_intermediate, r_has_intermediate);
