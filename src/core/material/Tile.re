@@ -32,6 +32,15 @@ module Sym = {
     | NT(s) => NT((s, Node(mold)))
     };
   };
+  let all =
+    Stds.Memo.general((s: Sort.t) =>
+      Grammar.v
+      |> Sort.Map.find(s)
+      |> Prec.Table.mapi(((p, _), rgx) =>
+           RZipper.all(rgx) |> List.map(mk(s, p))
+         )
+      |> List.concat
+    );
 };
 
 // open Stds;

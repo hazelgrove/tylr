@@ -100,7 +100,7 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
     // otherwise, potential soundness issues where a tile T can step to
     // any descendant sort T.
     Swing.height(swing) == 0
-      ? Sort.Set.elements(Sorts.deps(s))
+      ? Sorts.deps(s)
         |> List.concat_map(mtrlize(~from))
         |> List.map(sym => arrive(sym, w, ~from))
         |> Index.union_all

@@ -65,3 +65,14 @@ let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
     };
   go(Atom(a), ctx);
 };
+
+let all = (r: Regex.t('a)): list(t('a, 'a) as 'z) => {
+  let seen = Hashtbl.create(32);
+  let rec go = (z: 'z) =>
+    if (!Hashtbl.mem(seen, z)) {
+      Hashtbl.add(seen, z, ());
+      step(R, z) |> List.filter_map(Bound.to_opt) |> List.iter(go);
+    };
+  enter(~from=L, r) |> List.filter_map(Bound.to_opt) |> List.iter(go);
+  Hashtbl.to_seq(seen) |> Seq.map(fst) |> List.of_seq;
+};
