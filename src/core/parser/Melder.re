@@ -40,18 +40,20 @@ let eq = (l: Wald.t, r: Wald.t) =>
 let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
   let _ = failwith("todo: review side arg in callers");
   let from = Dir.toggle(side);
-  let exited = Walker.exit(~from=Dir.toggle(side), Node(Wald.face(w)));
-  let baked =
-    exited |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
+  let exited = Walker.exit(~from, Node(Wald.face(w)));
+  let baked = Baker.pick_and_bake(~from, ~fill=Fill.unit(fill), exited);
+  // exited |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
   switch (baked) {
   | Some(baked) => Baked.complete_wald(baked, w)
   | None =>
-    if (!Cell.is_empty(fill)) {
-      print_endline("warning: dropping fill " ++ Cell.show(fill));
-    };
+    assert(!Cell.is_empty(fill));
+    print_endline("warning: dropping fill " ++ Cell.show(fill));
+    let baked =
+      Baker.pick_and_bake(~from, exited)
+      |> Options.get_fail("bug: expected bake to succeed sans fill");
     // walker bug if no exits
-    let exited = List.hd(exited);
-    let baked = Baker.bake_sans_fill(~from, exited);
+    // let exited = List.hd(exited);
+    // let baked = Baker.bake_sans_fill(~from, exited);
     Baked.complete_wald(baked, w);
   };
 };
@@ -60,14 +62,24 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr)));
   let baked =
-    exited
-    |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
+    Baker.pick_and_bake(
+      ~repair=true,
+      ~from=onto,
+      ~fill=Fill.unit(fill),
+      exited,
+    );
+  // exited
+  // |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
   switch (baked) {
   | Some(baked) => Cell.put(orient(Baked.complete_terr(baked, terr)))
   | None =>
+    assert(!Cell.is_empty(fill));
+    print_endline("warning: dropping fill " ++ Cell.show(fill));
     // walker bug if no exits
-    let exited = List.hd(exited);
-    let baked = Baker.bake_sans_fill(~from=onto, exited);
+    // let exited = List.hd(exited);
+    let baked =
+      Baker.pick_and_bake(~repair=true, ~from=onto, exited)
+      |> Options.get_fail("bug: expected bake to succeed sans fill");
     Cell.put(orient(Baked.complete_terr(baked, terr)));
   };
 };
@@ -79,7 +91,9 @@ let complete_bounded =
   // todo: fix weird
   let fill = complete_slope(~onto, ~fill, slope);
   Walker.walk_eq(~from=L, Bound.map(Terr.face, l), Bound.map(Terr.face, r))
-  |> Oblig.Delta.minimize(Baker.bake(~fill=Fill.unit(fill), ~from=onto))
+  |> Baker.pick_and_bake(~repair=true, ~fill=Fill.unit(fill), ~from=onto)
+  // |> List.filter_map(Baker.bake(~fill=Fill.unit(fill), ~from=onto))
+  // |> Stds.Lists.hd
   |> Option.map(baked => snd(Chain.hd(baked)))
   |> Options.get_fail("hmmm");
 };
@@ -114,7 +128,12 @@ let connect_eq =
   let rec go = (onto: Terr.t, fill) => {
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     Walker.walk_eq(~from=d, Node(Terr.face(onto)), Node(t.mtrl))
-    |> Oblig.Delta.minimize(Baker.bake(~fill, ~from=d))
+    |> Oblig.Delta.minimize(
+         ~to_zero=!repair,
+         Baker.bake_swings(~from=d, ~fill),
+       )
+    |> Option.to_list
+    |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake_stances)
     |> Option.map(baked => Baked.connect_eq(t, baked, onto));
   }
   and rm_ghost_and_go = (onto, fill) =>
@@ -136,10 +155,11 @@ let connect_neq =
     )
     : option(Slope.t) =>
   Walker.walk_neq(~from=d, Bound.map(Terr.face, onto), Node(t.mtrl))
-  |> Oblig.Delta.minimize(
-       ~to_zero=!repair,
-       Baker.bake(~fill=Fill.unit(fill), ~from=d),
-     )
+  |> Baker.pick_and_bake(~repair, ~from=d, ~fill=Fill.unit(fill))
+  // |> Oblig.Delta.minimize(
+  //      ~to_zero=!repair,
+  //      Baker.bake(~fill=Fill.unit(fill), ~from=d),
+  //    )
   |> Option.map(Baked.connect_neq(t));
 let connect_lt = connect_neq(~onto=L);
 let connect_gt = connect_neq(~onto=R);

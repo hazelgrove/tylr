@@ -72,15 +72,14 @@ let bake_swing =
   fill_(~l, fill, bot, ~r);
 };
 
-let mk_token = (t: Mtrl.T.t) => {
+let bake_stance = (t: Walk.Stance.t) => {
   let tok = Token.mk(t);
   Effects.perform(Insert(tok));
   tok;
 };
 
-let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
+let bake_swings = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t) =>
   w
-  |> Chain.map_link(mk_token)
   |> Chain.unzip_loops
   // choose swing to fill that minimizes obligations.
   // currently simply chooses a single swing to fill even when there are
@@ -102,6 +101,16 @@ let bake = (~from: Dir.t, ~fill=Fill.empty, w: Walk.t): option(Baked.t) =>
        Chain.zip(~pre, (sw, cell), ~suf);
      });
 
-let bake_sans_fill = (~from: Dir.t, w: Walk.t) =>
-  bake(~from, w)
-  |> Options.get_fail("bug: expected bake to succeed sans fill");
+let bake_stances = c => c |> Chain.map_link(bake_stance) |> Option.some;
+
+let pick_and_bake =
+    (~repair=false, ~from, ~fill=Fill.empty, ws: list(Walk.t)) => {
+  ws
+  |> Oblig.Delta.minimize(~to_zero=!repair, bake_swings(~from, ~fill))
+  |> Option.to_list
+  |> Oblig.Delta.minimize(~to_zero=!repair, bake_stances);
+};
+
+// let bake_sans_fill = (~from: Dir.t, w: Walk.t) =>
+//   bake(~from, w)
+//   |> Options.get_fail("bug: expected bake to succeed sans fill");
