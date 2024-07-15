@@ -29,15 +29,17 @@ let map = (~space, ~grout, ~tile) =>
 
 module Sorted = {
   type t = Base.t(unit, Sort.t, Sort.t);
+  // currently used specifically for walk comparison based on
+  // stance sorted mtrl at each prec level
   let compare = (l: t, r: t) =>
     switch (l, r) {
-    | (Tile(l), Tile(r)) => Sort.compare(l, r)
-    | (Tile(_), _) => (-1)
-    | (_, Tile(_)) => 1
+    | (Space (), Space ()) => 0
+    | (Space (), _) => (-1)
+    | (_, Space ()) => 1
     | (Grout(l), Grout(r)) => Sort.compare(l, r)
     | (Grout(_), _) => (-1)
     | (_, Grout(_)) => 1
-    | (Space (), Space ()) => 0
+    | (Tile(l), Tile(r)) => Sort.compare(l, r)
     };
 };
 
