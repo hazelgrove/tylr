@@ -3,6 +3,8 @@ type t('a) =
   | Root
   | Node('a);
 
+let node = a => Node(a);
+
 let pp = (pp_a, out) =>
   fun
   | Root => Fmt.pf(out, "ROOT")

@@ -30,7 +30,7 @@ let flatten_affix = (~side: Dir.t, (bs, ts): Chain.Affix.t(Block.t, t)) =>
   |> Dir.pick(side, (List.rev, Fun.id))
   |> Block.hcats;
 
-let to_chain = (M(l, W(w), r): meld) => Chain.consnoc(l, w, r);
+let to_chain = (M(l, W(w), r): meld) => Chain.consnoc(~hd=l, w, ~ft=r);
 let of_chain = (c: Chain.t(t, Block.t)) => {
   let (l, w, r) = Result.get_exn(Invalid_argument(""), Chain.unconsnoc(c));
   M(l, W(w), r);

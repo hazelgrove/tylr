@@ -71,7 +71,8 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   // exited
   // |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
   switch (baked) {
-  | Some(baked) => Cell.put(orient(Baked.complete_terr(baked, terr)))
+  | Some(baked) =>
+    Cell.put(orient(Baked.complete_terr(baked, terr, ~onto)))
   | None =>
     assert(!Cell.is_empty(fill));
     print_endline("warning: dropping fill " ++ Cell.show(fill));
@@ -80,7 +81,7 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
     let baked =
       Baker.pick_and_bake(~repair=true, ~from=onto, exited)
       |> Options.get_fail("bug: expected bake to succeed sans fill");
-    Cell.put(orient(Baked.complete_terr(baked, terr)));
+    Cell.put(orient(Baked.complete_terr(baked, terr, ~onto)));
   };
 };
 let complete_slope = (~onto: Dir.t, ~fill=Cell.empty) =>
@@ -134,7 +135,7 @@ let connect_eq =
        )
     |> Option.to_list
     |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake_stances)
-    |> Option.map(baked => Baked.connect_eq(t, baked, onto));
+    |> Option.map(baked => Baked.connect_eq(t, baked, onto, ~onto=d));
   }
   and rm_ghost_and_go = (onto, fill) =>
     switch (Terr.unlink(onto)) {
@@ -153,14 +154,11 @@ let connect_neq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Slope.t) =>
+    : option(Slope.t) => {
   Walker.walk_neq(~from=d, Bound.map(Terr.face, onto), Node(t.mtrl))
   |> Baker.pick_and_bake(~repair, ~from=d, ~fill=Fill.unit(fill))
-  // |> Oblig.Delta.minimize(
-  //      ~to_zero=!repair,
-  //      Baker.bake(~fill=Fill.unit(fill), ~from=d),
-  //    )
-  |> Option.map(Baked.connect_neq(t));
+  |> Option.map(baked => Baked.connect_neq(t, baked, onto, ~onto=d));
+};
 let connect_lt = connect_neq(~onto=L);
 let connect_gt = connect_neq(~onto=R);
 

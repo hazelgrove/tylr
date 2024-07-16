@@ -79,7 +79,7 @@ let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
   lks,
 );
 let snoc = ((lps, lks): Affix.t('lp, 'lk), lp: 'lp) => (lps @ [lp], lks);
-let consnoc = (hd: 'lp, (lks, lps): t('lk, 'lp), ft: 'lp) => (
+let consnoc = (~hd: 'lp, (lks, lps): t('lk, 'lp), ~ft: 'lp) => (
   [hd, ...lps] @ [ft],
   lks,
 );
@@ -99,6 +99,8 @@ let unconsnoc = (c: t('lp, 'lk)): Result.t(('lp, t('lk, 'lp), 'lp), 'lp) => {
   | Some((body, ft)) => Ok((hd, body, ft))
   };
 };
+let unconsnoc_exn = c =>
+  unconsnoc(c) |> Result.get_exn(Invalid_argument("Chain.unconsnoc_exn"));
 
 let rev =
     (~rev_loop=Fun.id, ~rev_link=Fun.id, (lps, lks): t('lp, 'lk))
@@ -203,6 +205,10 @@ let fold_right_map =
        },
        lp1 => f_lp(lp1) |> Tuples.map_fst(unit),
      );
+
+let map_linked =
+    (f: ('lp, 'lk1, 'lp) => 'lk2, c: t('lp, 'lk1)): t('lp, 'lk2) =>
+  c |> fold_right((lp, lk, c) => link(lp, f(lp, lk, hd(c)), c), unit);
 
 let cat =
     (cat: ('lp, 'lp) => 'lp, l: t('lp, 'lk), r: t('lp, 'lk)): t('lp, 'lk) =>

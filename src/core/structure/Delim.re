@@ -5,3 +5,7 @@ let indent =
   fun
   | Bound.Root => false
   | Node(tok) => Token.indent(tok);
+let padding =
+  fun
+  | Bound.Root => Padding.none
+  | Node(tok: Token.t) => Mtrl.T.padding(tok.mtrl);

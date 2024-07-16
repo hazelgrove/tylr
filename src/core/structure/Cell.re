@@ -1,6 +1,7 @@
 open Stds;
 
 module Marks = Marks.Cell;
+module Wald = Meld.Wald;
 
 include Meld.Cell;
 [@deriving (show({with_path: false}), sexp, yojson)]
@@ -73,6 +74,31 @@ let distribute_marks = (c: t) =>
 let get = (~distribute=true, c) =>
   (distribute ? distribute_marks : Fun.id)(c).meld;
 let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
+
+let rec pad = (~l=false, ~r=false, c: t) => {
+  switch (get(c)) {
+  | _ when !l && !r => c
+  | None =>
+    let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space()));
+    let m = Meld.mk(w, ~r=c);
+    put(m);
+  // | Some(M(c_l, W(([spc], [])), c_r))
+  //     when Token.Space.is(spc) && Token.is_empty(spc) =>
+  //   if (l) {
+  //     let caret =
+  //       c_l.marks.cursor
+  //       |> Stds.Options.bind(~f=Cursor.get_point)
+  //       |> Option.map(Caret.map(Fun.const()));
+  //     x;
+  //   } else {
+  //     x;
+  //   }
+  | Some(M(c_l, w, c_r)) =>
+    let c_l = pad(~l, c_l);
+    let c_r = pad(c_r, ~r);
+    put(M(c_l, w, c_r));
+  };
+};
 
 let rec end_path = (~side: Dir.t, c: t) =>
   switch (get(c)) {
