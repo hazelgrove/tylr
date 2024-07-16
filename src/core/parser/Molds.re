@@ -21,5 +21,5 @@ let index: Label.Map.t(list(Mold.t)) =
 let with_label = lbl =>
   switch (Label.Map.find_opt(lbl, index)) {
   | None => []
-  | Some(ms) => ms
+  | Some(ms) => List.rev(ms)
   };
