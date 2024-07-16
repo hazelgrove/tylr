@@ -62,7 +62,7 @@ let deps = (s: Sort.t): list(Sort.t) => {
     Deps.bindings(kids)
     |> List.filter_map(((s, _)) => Deps.mem(s, deps) ? None : Some(s))
     |> List.map(go(~depth=depth + 1, ~deps=deps'))
-    |> List.fold_left(Deps.union, Deps.empty);
+    |> List.fold_left(Deps.union, deps');
   };
   Deps.ordered(go(s));
 };
