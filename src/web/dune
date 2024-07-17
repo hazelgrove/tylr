@@ -18,7 +18,7 @@
 (executable
  (name main)
  (modules Main)
- (libraries tylr_web tylr_hazel)
+ (libraries tylr_web tylr_ts)
  (modes js)
  (js_of_ocaml
   (flags
