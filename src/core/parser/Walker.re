@@ -251,3 +251,21 @@ let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
 
 let exit = (~from: Dir.t, src: End.t) =>
   List.filter(Walk.is_eq, walk(~from, src, Root));
+
+let warmup = () => {
+  // initialize caches
+  let (ts, nts) =
+    Mtrl.Sym.all |> List.partition_map(Sym.get(Either.left, Either.right));
+  ignore(walk_all(~from=L, Root));
+  ignore(walk_all(~from=R, Root));
+  ts
+  |> List.iter(t => {
+       ignore(walk_all(~from=L, Node(t)));
+       ignore(walk_all(~from=R, Node(t)));
+     });
+  nts
+  |> List.iter(nt => {
+       ignore(enter_all(~from=L, nt));
+       ignore(enter_all(~from=R, nt));
+     });
+};

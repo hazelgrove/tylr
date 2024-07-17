@@ -7,6 +7,7 @@ module Base = {
 };
 include Base;
 
+let space = s => Space(s);
 let grout = g => Grout(g);
 let tile = t => Tile(t);
 
@@ -96,6 +97,16 @@ module Sym = {
   type t = Sym.t(T.t, NT.t);
   let of_tile: Tile.Sym.t => t = Sym.map(tile, tile);
   let of_grout: Grout.Sym.t => t = Sym.map(grout, grout);
+  let all =
+    List.concat([
+      Space.Sym.all |> List.map(Sym.map(space, space)),
+      Sort.all
+      |> List.concat_map(Grout.Sym.all)
+      |> List.map(Sym.map(grout, grout)),
+      Sort.all
+      |> List.concat_map(Tile.Sym.all)
+      |> List.map(Sym.map(tile, tile)),
+    ]);
 };
 
 // module T = Molded;

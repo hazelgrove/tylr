@@ -23,3 +23,8 @@ let map = (f_t, f_nt) =>
   fun
   | T(t) => T(f_t(t))
   | NT(nt) => NT(f_nt(nt));
+
+let get = (f_t, f_nt) =>
+  fun
+  | T(t) => f_t(t)
+  | NT(nt) => f_nt(nt);

@@ -13,6 +13,7 @@ module T = {
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Sort.t, Bound.t(Mold.t));
+  let mk = (~mold=Bound.Root, s) => (s, mold);
   let root = (Sort.root, Bound.Root);
   let sort = fst;
   let bounds =
@@ -24,6 +25,7 @@ module NT = {
 
 module Sym = {
   include Sym;
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Sym.t(T.t, NT.t);
   let mk = (sort, prec, (sym, rctx): RZipper.t(_)): t => {
     let mold = Mold.{sort, prec, rctx};

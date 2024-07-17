@@ -10,6 +10,7 @@ module T = {
     let (l, r) = Tip.(is_conc(l), is_conc(r));
     Padding.op(~l, ~r, ~indent=r, ());
   };
+  let all = s => [op(s), pre(s), pos(s), in_(s)];
 };
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -20,6 +21,7 @@ module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Sym.t(T.t, NT.t);
+  let all = s => [Sym.nt(s), ...List.map(Sym.t, T.all(s))];
 };
 
 // open Mtrl;
