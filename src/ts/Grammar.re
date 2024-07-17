@@ -35,6 +35,9 @@ let op = (~l=true, ~r=true, ~indent=true) =>
   c(~p=Padding.op(~l, ~r, ~indent, ()));
 let brc = (side: Dir.t) => c(~p=Padding.brc(side));
 
+let tokc_alt = ss => alt(List.map(c, ss));
+let tokop_alt = ss => alt(List.map(op, ss));
+
 module type SORT = {
   let atom: unit => Regex.t;
   let sort: unit => Sort.t;
@@ -202,7 +205,14 @@ and Exp: SORT = {
       alt([private_property_ident, t(Id_lower)]),
     ]);
 
-  let subscript_exp = seq([alt([atom(), primary_exp]), opt(optional_chain), brc(L, "["), atom(), brc(R, "]")]);
+  let subscript_exp =
+    seq([
+      alt([atom(), primary_exp]),
+      opt(optional_chain),
+      brc(L, "["),
+      atom(),
+      brc(R, "]"),
+    ]);
 
   let primary_exp_list =
     alt([
@@ -225,9 +235,67 @@ and Exp: SORT = {
       member_exp,
     ]);
 
+  //End of "primary" expressions
+  let assignment_exp = seq([alt([paren_exp, lhs_exp]), op("="), atom()]);
+  let await_exp = seq([kw("await"), atom()]);
+  let unary_exp =
+    seq([
+      alt([
+        kw("delete"),
+        kw("void"),
+        kw("typeof"),
+        kw("+"),
+        kw("-"),
+        kw("~"),
+        kw("!"),
+      ]),
+      atom(),
+    ]);
+  let update_exp =
+    alt([
+      seq([atom(), alt([c("++"), c("--")])]),
+      seq([alt([c("++"), c("--")]), atom()]),
+    ]);
+
+  let logical_ops = tokop_alt(["||", "&&"]);
+  let binary_shift_ops = tokop_alt([">>", ">>>", "<<"]);
+  let bitwise_ops = tokop_alt(["&", "|", "^"]);
+  let binary_add_ops = tokop_alt(["+", "-"]);
+  let binary_times_ops = tokop_alt(["*", "/", "%"]);
+  let compare_ops = tokop_alt(["<", ">", "<=", ">=", "instanceof", "in"]);
+  let equality_ops = tokop_alt(["==", "!=", "===", "!=="]);
+
   let operand = alt([primary_exp_list]);
 
-  let tbl = () => [p(operand)];
+  let binary_exp = [
+    p(seq([atom(), logical_ops, atom()])),
+    p(seq([atom(), binary_shift_ops, atom()])),
+    p(seq([atom(), bitwise_ops, atom()])),
+    p(seq([atom(), binary_add_ops, atom()])),
+    p(seq([atom(), binary_times_ops, atom()])),
+    p(seq([atom(), compare_ops, atom()])),
+    p(seq([atom(), equality_ops, atom()])),
+    p(seq([atom(), op("??"), atom()])),
+  ];
+
+  let ternary_exp = seq([atom(), c("?"), atom(), c(":"), atom()]);
+
+  let new_exp = seq([kw("new"), primary_exp, opt(arguments)]);
+  let yield_exp =
+    seq([kw("yield"), alt([seq([c("*"), atom()]), opt(atom())])]);
+
+  let tbl = () =>
+    [p(operand)]
+    @ binary_exp
+    @ [
+      p(ternary_exp),
+      p(assignment_exp),
+      p(await_exp),
+      p(unary_exp),
+      p(update_exp),
+      p(new_exp),
+      p(yield_exp),
+    ];
 }
 and Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
