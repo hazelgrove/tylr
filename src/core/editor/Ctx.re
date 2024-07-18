@@ -69,6 +69,7 @@ let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
 };
 module Tl = {
   include Chain.Affix;
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Chain.Affix.t(Frame.Closed.t, Frame.Open.t);
   let bounds =
     fun

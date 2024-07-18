@@ -238,6 +238,17 @@ let rec push_neq =
     }
   };
 
+let push_bound = (~repair=false, t: Token.t, ~fill=Cell.empty, bound, ~onto) => {
+  let ineq = () => connect_ineq(~repair, ~onto, bound, ~fill, t);
+  switch (bound) {
+  | Bound.Root => ineq()
+  | Node(terr) =>
+    switch (Terr.zip_hd(t, terr, ~onto)) {
+    | None => ineq()
+    | Some(terr) => Some(Eq(terr))
+    }
+  };
+};
 let push =
     (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
     : option(Melded.t) =>
@@ -250,7 +261,7 @@ let push =
     | Tile(_) =>
       switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
       | Ok(slope) => Some(Neq(slope))
-      | Error(fill) => connect_ineq(~repair, ~onto, bound, ~fill, t)
+      | Error(fill) => push_bound(~repair, t, ~fill, bound, ~onto)
       }
     }
   };
