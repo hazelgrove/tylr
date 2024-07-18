@@ -106,6 +106,7 @@ module Connection = {
 };
 
 module Melded = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Rel.t(Terr.t, Slope.t);
   let eq = terr => Rel.Eq(terr);
   let neq = slope => Rel.Neq(slope);

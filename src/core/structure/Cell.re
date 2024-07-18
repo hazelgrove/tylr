@@ -80,19 +80,10 @@ let rec pad = (~l=false, ~r=false, c: t) => {
   | _ when !l && !r => c
   | None =>
     let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space()));
-    let m = Meld.mk(w, ~r=c);
+    let m = Meld.mk(~l=c, w);
     put(m);
-  // | Some(M(c_l, W(([spc], [])), c_r))
-  //     when Token.Space.is(spc) && Token.is_empty(spc) =>
-  //   if (l) {
-  //     let caret =
-  //       c_l.marks.cursor
-  //       |> Stds.Options.bind(~f=Cursor.get_point)
-  //       |> Option.map(Caret.map(Fun.const()));
-  //     x;
-  //   } else {
-  //     x;
-  //   }
+  | Some(M(_, W(([spc], [])), _))
+      when Token.Space.is(spc) && !Token.is_empty(spc) => c
   | Some(M(c_l, w, c_r)) =>
     let c_l = pad(~l, c_l);
     let c_r = pad(c_r, ~r);
