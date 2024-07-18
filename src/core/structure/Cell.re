@@ -126,7 +126,7 @@ module Space = {
     open Options.Syntax;
     let+ l_spc = get(l)
     and+ r_spc = get(r);
-    let spc = Token.merge(l_spc, r_spc);
+    let spc = Token.cat(l_spc, r_spc);
     if (Token.is_empty(spc)) {
       {meld: None, marks: Marks.union(l.marks, r.marks)};
     } else {

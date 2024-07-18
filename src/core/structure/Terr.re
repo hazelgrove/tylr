@@ -45,10 +45,10 @@ let unlink = (terr: t) =>
   | Error(tok) => (tok, terr.cell, None)
   };
 
-let zip_hd = (~onto: Dir.t, t: Token.t, terr: t) => {
+let merge_hd = (~onto: Dir.t, t: Token.t, ~caret=?, terr: t) => {
   open Options.Syntax;
   let (l, r) = Dir.order(onto, (hd(terr), t));
-  let+ zipped = Token.zip(~save_cursor=Dir.toggle(onto), l, r);
+  let+ zipped = Token.merge(~save_cursor=Dir.toggle(onto), l, ~caret?, r);
   put_hd(zipped, terr);
 };
 // module Tl = {

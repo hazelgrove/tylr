@@ -244,7 +244,7 @@ let push_bound = (~repair=false, t: Token.t, ~fill=Cell.empty, bound, ~onto) => 
   switch (bound) {
   | Bound.Root => ineq()
   | Node(terr) =>
-    switch (Terr.zip_hd(t, terr, ~onto)) {
+    switch (Terr.merge_hd(t, terr, ~onto)) {
     | None => ineq()
     | Some(terr) => Some(Eq(terr))
     }
@@ -253,7 +253,7 @@ let push_bound = (~repair=false, t: Token.t, ~fill=Cell.empty, bound, ~onto) => 
 let push =
     (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
     : option(Melded.t) =>
-  switch (Slope.zip_hd(t, slope, ~onto)) {
+  switch (Slope.merge_hd(t, ~caret=?Cell.is_caret(fill), slope, ~onto)) {
   | Some(slope) => Some(Neq(slope))
   | None =>
     switch (t.mtrl) {
@@ -266,13 +266,3 @@ let push =
       }
     }
   };
-
-let push_space = (spc: Token.t, slope: Slope.t, ~onto: Dir.t) => {
-  assert(Token.Space.is(spc));
-  switch (slope) {
-  | [{wald: W(([spc'], [])), _} as hd, ...tl] =>
-    let (l, r) = Dir.order(onto, (spc', spc));
-    [{...hd, wald: W(([Token.merge(l, r)], []))}, ...tl];
-  | _ => [Terr.of_tok(spc), ...slope]
-  };
-};

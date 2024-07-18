@@ -96,17 +96,32 @@ module Molded = {
     | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
     };
 
-  let merge = (l: t, r: t) => {
+  let cat = (l: t, ~caret=?, r: t) => {
     let n = Utf8.length(l.text);
     let marks = r.marks |> Marks.shift(n) |> Marks.union(l.marks);
-    {...l, marks, text: l.text ++ r.text};
+    {...l, marks, text: l.text ++ r.text}
+    |> (
+      switch (caret) {
+      | None => Fun.id
+      | Some(hand) => add_mark(Caret.mk(hand, n))
+      }
+    );
   };
-  let zip = (~save_cursor=?, l: t, r: t) =>
+
+  let merge = (~save_cursor=?, l: t, ~caret=?, r: t) =>
     if (l.id == r.id) {
       switch (save_cursor) {
       | None => Some(clear_marks(l))
       | Some(d) => Some(Dir.pick(d, (l, r)))
       };
+    } else if (l.mtrl == Space() && r.mtrl == Space()) {
+      let (l, r) =
+        switch (save_cursor) {
+        | None => (clear_marks(l), clear_marks(r))
+        | Some(L) => (l, clear_marks(r))
+        | Some(R) => (clear_marks(l), r)
+        };
+      Some(cat(l, ~caret?, r));
     } else {
       None;
     };

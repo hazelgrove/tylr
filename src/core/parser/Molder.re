@@ -44,16 +44,17 @@ let mold =
       t: Token.Unmolded.t,
     )
     : Melded.t =>
-  candidates(t)
-  |> Oblig.Delta.minimize(tok =>
-       Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
-     )
-  |> Option.value(
-       ~default=
-         Rel.Neq(
-           Melder.push_space(Token.Unmolded.defer(t), slope, ~onto=L),
-         ),
-     );
+  switch (
+    candidates(t)
+    |> Oblig.Delta.minimize(tok =>
+         Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
+       )
+  ) {
+  | Some(m) => m
+  | None =>
+    Melder.push(Token.Unmolded.defer(t), ~fill, slope, ~bound, ~onto=L)
+    |> Options.get_fail("bug: failed to push space")
+  };
 
 let remold =
     (~bound=Bound.Root, slope: Slope.Dn.t, ~fill=Cell.empty, terr: Terr.L.t)

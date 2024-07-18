@@ -61,12 +61,12 @@ let zip_cell = (pre: t, cell: Cell.t, suf: t) =>
        (zipped, cell, tok) => link(tok, cell, zipped),
      );
 
-let zip_hds = (~save_cursor=false, ~from: Dir.t, src: t, dst: t): option(t) => {
+let merge_hds = (~save_cursor=false, ~from: Dir.t, src: t, dst: t): option(t) => {
   let (hd_src, tl_src) = uncons(src);
   let (hd_dst, tl_dst) = uncons(dst);
   let (hd_l, hd_r) = Dir.order(from, (hd_src, hd_dst));
   let (tl_l, tl_r) = Dir.order(from, (tl_src, tl_dst));
   let save_cursor = save_cursor ? Some(Dir.toggle(from)) : None;
-  Token.zip(~save_cursor?, hd_l, hd_r)
+  Token.merge(~save_cursor?, hd_l, hd_r)
   |> Option.map(tok => W(Chain.zip(~pre=tl_l, tok, ~suf=tl_r)));
 };

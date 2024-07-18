@@ -27,13 +27,13 @@ module Open = {
   let zips =
     fun
     | ([hd_l, ..._], [hd_r, ..._])
-        when Option.is_some(Token.zip(Wald.hd(hd_l), Wald.hd(hd_r))) =>
+        when Option.is_some(Token.merge(Wald.hd(hd_l), Wald.hd(hd_r))) =>
       true
     | _ => false;
   let zip_toks = (~save_cursor=false) =>
     fun
     | (([hd_l, ...tl_l], [hd_r, ...tl_r]): t) =>
-      Wald.zip_hds(~save_cursor, ~from=L, hd_l.wald, hd_r.wald)
+      Wald.merge_hds(~save_cursor, ~from=L, hd_l.wald, hd_r.wald)
       |> Option.map(w => (Meld.M(hd_l.cell, w, hd_r.cell), (tl_l, tl_r)))
     | _ => None;
 
@@ -44,9 +44,9 @@ module Open = {
       Some((Rel.Neq(Dir.L), zip_lt(zipped, hd), (dn, tl)))
     | ([hd, ...tl], []) => Some((Neq(R), zip_gt(hd, zipped), (tl, up)))
     | ([l, ...dn], [r, ...up])
-        when Option.is_some(Token.zip(Terr.hd(l), Terr.hd(r))) =>
+        when Option.is_some(Token.merge(Terr.hd(l), Terr.hd(r))) =>
       let w =
-        Option.get(Wald.zip_hds(~save_cursor, ~from=L, l.wald, r.wald));
+        Option.get(Wald.merge_hds(~save_cursor, ~from=L, l.wald, r.wald));
       Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)));
     | ([l, ..._], [r, ...up]) when Melder.lt(l.wald, r.wald) =>
       Some((Neq(L), zip_lt(zipped, r), (dn, up)))
