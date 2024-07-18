@@ -38,6 +38,7 @@ let combine = ((lps_l, lks_l), (lps_r, lks_r)) => (
 );
 
 module Affix = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t('link, 'loop) = (list('link), list('loop));
   let empty = ([], []);
   let is_empty = ((lks, lps)) => lks == [] && lps == [];

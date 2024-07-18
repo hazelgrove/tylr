@@ -9,9 +9,9 @@ module Base = {
   type t('mtrl) = {
     [@hash.ignore]
     id: Id.t,
-    mtrl: 'mtrl,
-    marks: Marks.t,
     text: string,
+    marks: Marks.t,
+    mtrl: 'mtrl,
   };
   let mk = (~id=?, ~text="", ~marks=?, mtrl) => {
     let id = Id.Gen.value(id);
