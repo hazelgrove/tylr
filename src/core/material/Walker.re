@@ -2,34 +2,37 @@ open Stds;
 open Walk;
 
 let mtrlize_tile =
-    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Tile.Sym.t) =>
-  Grammar.v
-  |> Sort.Map.find(s)
-  |> Prec.Table.mapi(((p, a), rgx) => {
-       let is_bounded =
-         Bound.(
-           l |> map(l => Prec.lt(~a, l, p)) |> get(~root=true),
-           r |> map(r => Prec.gt(~a, p, r)) |> get(~root=true),
-         );
-       // need to check for legal bounded entry from both sides
-       let enter_from = (from: Dir.t) =>
-         // currently filtering without assuming single operator form
-         // for each prec level. this may need to change.
-         RZipper.enter(~from, rgx)
-         |> List.filter_map(
-              fun
-              | Bound.Root => None
-              | Node((sym, _) as z) =>
-                Dir.pick(from, is_bounded) || Sym.is_t(sym)
-                  ? Some(Tile.Sym.mk(s, p, z)) : None,
-            );
-       switch (enter_from(L), enter_from(R)) {
-       | ([], _)
-       | (_, []) => []
-       | ([_, ..._] as l, [_, ..._] as r) => Dir.pick(from, (l, r))
-       };
-     })
-  |> List.concat;
+  Memo.general(((l, r, s, from)) =>
+    Grammar.v
+    |> Sort.Map.find(s)
+    |> Prec.Table.mapi(((p, a), rgx) => {
+         let is_bounded =
+           Bound.(
+             l |> map(l => Prec.lt(~a, l, p)) |> get(~root=true),
+             r |> map(r => Prec.gt(~a, p, r)) |> get(~root=true),
+           );
+         // need to check for legal bounded entry from both sides
+         let enter_from = (from: Dir.t) =>
+           // currently filtering without assuming single operator form
+           // for each prec level. this may need to change.
+           RZipper.enter(~from, rgx)
+           |> List.filter_map(
+                fun
+                | Bound.Root => None
+                | Node((sym, _) as z) =>
+                  Dir.pick(from, is_bounded) || Sym.is_t(sym)
+                    ? Some(Tile.Sym.mk(s, p, z)) : None,
+              );
+         switch (enter_from(L), enter_from(R)) {
+         | ([], _)
+         | (_, []) => []
+         | ([_, ..._] as l, [_, ..._] as r) => Dir.pick(from, (l, r))
+         };
+       })
+    |> List.concat
+  );
+let mtrlize_tile = (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t) =>
+  mtrlize_tile((l, r, s, from));
 
 let mtrlize_grout =
     (~l=Bound.Root, ~r=Bound.Root, s: Sort.t): list(Grout.Sym.t) =>
@@ -48,8 +51,8 @@ let mtrlize_grout =
 
 let mtrlize =
     (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Mtrl.Sym.t) =>
-  List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from))
-  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r));
+  List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r))
+  @ List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from));
 
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
   switch (Swing.bot(Walk.hd(w))) {
