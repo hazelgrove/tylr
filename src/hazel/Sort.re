@@ -6,6 +6,14 @@ type t =
 
 let root = Exp;
 let all = [Exp, Pat, Typ];
+
+let compare = (l: t, r: t) => {
+  // bug if these Option.get calls fail
+  let l = Option.get(Stds.Lists.find_index((==)(l), all));
+  let r = Option.get(Stds.Lists.find_index((==)(r), all));
+  Int.compare(l, r);
+};
+
 // let to_int =
 //   fun
 //   | Exp => 0
