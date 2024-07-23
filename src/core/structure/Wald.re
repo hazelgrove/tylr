@@ -31,6 +31,9 @@ let unlink = (W(w)) =>
 let tokens: t => list(Token.t) = get(Chain.loops);
 let cells: t => list(Cell.t) = get(Chain.links);
 
+let is_grout = (w: t): option(list(Token.Grout.t)) =>
+  tokens(w) |> List.map(Token.Grout.is_) |> Options.for_all;
+
 let extend = tl => map(Chain.extend(tl));
 
 let sort = w => Token.sort(hd(w));

@@ -5,7 +5,17 @@ let hd_exn = Base.List.hd_exn;
 let ft = Base.List.last;
 let ft_exn = Base.List.last_exn;
 
+let map_hd = f =>
+  fun
+  | [hd, ...tl] => [f(hd), ...tl]
+  | xs => xs;
+let map_ft = (f, xs) => List.rev(xs) |> map_hd(f) |> List.rev;
+
 let single = x => [x];
+
+let range = Base.List.range;
+
+let snoc = (x, xs) => xs @ [x];
 
 module Frame = {
   // head elements are sequentially nearest neighbors of subject
@@ -79,6 +89,7 @@ module Syntax = {
   let (let+) = (xs, f) => List.map(f, xs);
   let (and+) = Base.List.cartesian_product;
   let ( let* ) = (xs, f) => List.concat(List.map(f, xs));
+  let return = single;
 };
 
 // use stdlib once we're on 5.1
@@ -99,3 +110,5 @@ let min = compare =>
       },
     None,
   );
+
+let split_n = Base.List.split_n;

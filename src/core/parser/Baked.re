@@ -41,7 +41,7 @@ let pad = (dst: Delim.t, baked: t, src: Delim.t, ~onto: Dir.t) =>
        let (l, r) = Dir.order(onto, (b, d));
        let (_, l) = Delim.padding(l).h;
        let (r, _) = Delim.padding(r).h;
-       (sw, Cell.pad(~l, cell, ~r));
+       (sw, Cell.repad(~l, cell, ~r));
      })
   |> Chain.unconsnoc_exn
   |> (((_, c, _)) => c)

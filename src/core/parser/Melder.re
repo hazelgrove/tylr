@@ -41,7 +41,7 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
   let _ = failwith("todo: review side arg in callers");
   let from = Dir.toggle(side);
   let exited = Walker.exit(~from, Node(Wald.face(w)));
-  let baked = Baker.pick_and_bake(~from, ~fill=Fill.unit(fill), exited);
+  let baked = Grouter.pick_regrout(~from, [fill], exited);
   // exited |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
   switch (baked) {
   | Some(baked) => Baked.complete_wald(baked, w)
@@ -62,12 +62,7 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr)));
   let baked =
-    Baker.pick_and_bake(
-      ~repair=true,
-      ~from=onto,
-      ~fill=Fill.unit(fill),
-      exited,
-    );
+    Grouter.pick_regrout(~to_zero=false, ~from=onto, [fill], exited);
   // exited
   // |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
   switch (baked) {
@@ -79,7 +74,7 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
     // walker bug if no exits
     // let exited = List.hd(exited);
     let baked =
-      Baker.pick_and_bake(~repair=true, ~from=onto, exited)
+      Grouter.pick_regrout(~to_zero=false, ~from=onto, [], exited)
       |> Options.get_fail("bug: expected bake to succeed sans fill");
     Cell.put(orient(Baked.complete_terr(baked, terr, ~onto)));
   };
@@ -92,7 +87,7 @@ let complete_bounded =
   // todo: fix weird
   let fill = complete_slope(~onto, ~fill, slope);
   Walker.walk_eq(~from=L, Bound.map(Terr.face, l), Bound.map(Terr.face, r))
-  |> Baker.pick_and_bake(~repair=true, ~fill=Fill.unit(fill), ~from=onto)
+  |> Grouter.pick_regrout(~to_zero=false, [fill], ~from=onto)
   // |> List.filter_map(Baker.bake(~fill=Fill.unit(fill), ~from=onto))
   // |> Stds.Lists.hd
   |> Option.map(baked => snd(Chain.hd(baked)))
@@ -157,7 +152,7 @@ let connect_neq =
     )
     : option(Slope.t) => {
   Walker.walk_neq(~from=d, Bound.map(Terr.face, onto), Node(t.mtrl))
-  |> Baker.pick_and_bake(~repair, ~from=d, ~fill=Fill.unit(fill))
+  |> Grouter.pick_regrout(~to_zero=!repair, ~from=d, [fill])
   |> Option.map(baked => Baked.connect_neq(t, baked, onto, ~onto=d));
 };
 let connect_lt = connect_neq(~onto=L);

@@ -17,6 +17,7 @@ module Base = {
     let id = Id.Gen.value(id);
     {id, mtrl, marks, text};
   };
+  let map = (f, tok) => {...tok, mtrl: f(tok.mtrl)};
   let id = (tok: t(_)) => tok.id;
   let is_empty = (tok: t(_)) => String.equal(tok.text, "");
   let add_mark = (p, tok) => {...tok, marks: Marks.add(p, tok.marks)};
@@ -66,6 +67,9 @@ module Molded = {
 
   let mk = (~id=?, ~text="", ~marks=?, mtrl: Mtrl.T.t) =>
     Base.mk(~id?, ~text, ~marks?, mtrl);
+
+  let empty = () => mk(Space());
+  let space = () => mk(~text=" ", Space());
 
   let is_empty = (tok: t) =>
     switch (tok.mtrl) {
@@ -219,6 +223,13 @@ module Space = {
   // let cursor = failwith("todo Token.Space");
 };
 module Grout = {
+  type t = Base.t(Grout.T.t);
+  let is_ = (tok: Molded.t): option(t) =>
+    switch (tok.mtrl) {
+    | Grout(g) => Some(Base.map(Fun.const(g), tok))
+    | Space ()
+    | Tile(_) => None
+    };
   let is = (tok: Molded.t) => Mtrl.is_grout(tok.mtrl);
   let mk = (~id=?, tips: Tip.s, s) =>
     Molded.mk(~id?, Mtrl.Grout((s, tips)));
