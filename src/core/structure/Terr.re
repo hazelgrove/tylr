@@ -45,11 +45,11 @@ let unlink = (terr: t) =>
   | Error(tok) => (tok, terr.cell, None)
   };
 
-let merge_hd = (~onto: Dir.t, t: Token.t, ~caret=?, terr: t) => {
+let merge_hd = (~onto: Dir.t, t: Token.t, terr: t) => {
   open Options.Syntax;
   let (l, r) = Dir.order(onto, (hd(terr), t));
-  let+ zipped = Token.merge(~save_cursor=Dir.toggle(onto), l, ~caret?, r);
-  put_hd(zipped, terr);
+  let+ merged = Token.merge(~save_cursor=Dir.toggle(onto), l, r);
+  put_hd(merged, terr);
 };
 // module Tl = {
 //   // a terrace minus its hd token

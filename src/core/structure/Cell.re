@@ -83,7 +83,7 @@ let get_spc = (c: t) =>
   };
 // raises Invalid_argument if inputs are not space cells
 let merge_spc = (l: t, r: t) => {
-  let get = Options.get_exn(Invalid_argument("Cell.merge"));
+  let get = Options.get_exn(Invalid_argument("Cell.merge_spc"));
   let spc_l = get(get_spc(l));
   let spc_r = get(get_spc(r));
   let marks_l =

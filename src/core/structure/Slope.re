@@ -99,11 +99,11 @@ let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
     Some((tok, slope));
   };
 
-let merge_hd = (~onto: Dir.t, t: Token.t, ~caret=?, slope: t): option(t) =>
+let merge_hd = (~onto: Dir.t, t: Token.t, slope: t): option(t) =>
   switch (slope) {
   | [] => None
   | [hd, ...tl] =>
-    Terr.merge_hd(~onto, t, ~caret?, hd) |> Option.map(hd => [hd, ...tl])
+    Terr.merge_hd(~onto, t, hd) |> Option.map(hd => [hd, ...tl])
   };
 
 // Dn and Up slopes named based on left-to-right order of terraces

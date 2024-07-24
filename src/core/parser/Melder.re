@@ -228,7 +228,7 @@ let push_bound = (~repair=false, t: Token.t, ~fill=Cell.empty, bound, ~onto) => 
 let push =
     (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
     : option(Melded.t) =>
-  switch (Slope.merge_hd(t, ~caret=?Cell.is_caret(fill), slope, ~onto)) {
+  switch (Slope.merge_hd(t, slope, ~onto)) {
   | Some(slope) => Some(Neq(slope))
   | None =>
     switch (t.mtrl) {
