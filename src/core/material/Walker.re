@@ -150,9 +150,9 @@ let step_all =
   Memo.general(((src: End.t, from: Dir.t)) =>
     switch (src) {
     | Root => swing_all(Tile(Tile.NT.root), ~from)
-    // space takes prec over everything. could make it so that space eq space
-    // but this behavior is encoded in token zipping/merging instead of walks.
-    | Node(Space ()) => Index.single(Root, Walk.empty)
+    | Node(Space ()) =>
+      // space takes prec over everything and matches itself
+      Index.single(Root, Walk.empty) |> Index.add(Node(Space()), Walk.empty)
     | Node(Grout((s, tips))) =>
       switch (Dir.pick(Dir.toggle(from), tips)) {
       | Conc =>
