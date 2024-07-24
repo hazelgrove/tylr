@@ -49,7 +49,7 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
     assert(!Cell.is_empty(fill));
     print_endline("warning: dropping fill " ++ Cell.show(fill));
     let baked =
-      Baker.pick_and_bake(~from, exited)
+      Grouter.pick(~repair=true, ~from, [], exited)
       |> Options.get_fail("bug: expected bake to succeed sans fill");
     // walker bug if no exits
     // let exited = List.hd(exited);
@@ -124,22 +124,16 @@ let connect_eq =
   let rec go = (onto: Terr.t, fill) => {
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     Walker.walk_eq(~from=d, Node(Terr.face(onto)), Node(t.mtrl))
-    |> Oblig.Delta.minimize(
-         ~to_zero=!repair,
-         Baker.bake_swings(~from=d, ~fill),
-       )
-    |> Option.to_list
-    |> Oblig.Delta.minimize(~to_zero=!repair, Baker.bake_stances)
+    |> Grouter.pick(~repair, ~from=d, fill)
     |> Option.map(baked => Baked.connect_eq(t, baked, onto, ~onto=d));
   }
   and rm_ghost_and_go = (onto, fill) =>
     switch (Terr.unlink(onto)) {
     | (hd, cell, Some(tl)) when Option.is_some(Token.Tile.is_ghost(hd)) =>
-      let fill = Chain.link(cell, (), fill);
-      go(tl, fill) |> Effects.perform_if(Remove(hd));
+      go(tl, [cell, ...fill]) |> Effects.perform_if(Remove(hd))
     | _ => None
     };
-  go(onto, Fill.unit(fill));
+  go(onto, [fill]);
 };
 let connect_neq =
     (
