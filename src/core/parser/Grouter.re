@@ -1,73 +1,35 @@
 open Stds;
 
-let split_bins = (num_bins, xs) => {
-  open Lists.Syntax;
-  let return = bins => return(List.rev(bins));
-  let rec go = (~bins=[], num_bins, xs) =>
-    switch (xs) {
-    | _ when num_bins <= 0 => []
-    | _ when num_bins == 1 => return([xs, ...bins])
-    | [] => return(List.init(num_bins, Fun.const([])) @ bins)
-    | [_, ..._] =>
-      let* bin_size =
-        Lists.range(~start=`inclusive, ~stop=`inclusive, 0, List.length(xs));
-      let (bin, rest) = Lists.split_n(xs, bin_size);
-      go(~bins=[bin, ...bins], num_bins - 1, rest);
-    };
-  go(num_bins, xs);
-};
-
 module Cells = {
-  type t = Chain.t(Cell.t, unit);
-  // let mk = (~l=?, ~r=?, cells) => {padding: (l, r), cells};
-  let unit: _ => t = Chain.unit;
-  let empty = unit(Cell.empty);
-  let rev = Chain.rev(~rev_loop=Fun.id, ~rev_link=Fun.id);
-  let is_unit =
-    fun
-    | ([c], []) => Some(c)
-    | _ => None;
-  let hd = Chain.hd;
-  let cat = (l: t, r: t) => Chain.append(l, (), r);
-  let concat = (css: list(t)) =>
-    switch (Lists.Framed.ft(css)) {
-    | None => empty
-    | Some((pre, ft)) => List.fold_left(Fun.flip(cat), ft, pre)
+  type t = list(Cell.t);
+
+  let face = (~side: Dir.t, cs: t) =>
+    switch (Dir.pick(side, (Fun.id, List.rev), cs)) {
+    | [] => None
+    | [c, next, ..._] when Cell.Space.is_space(c) => Cell.face(~side, next)
+    | [c, ..._] => Cell.face(~side, c)
     };
+
   // combine adjacent space cells except for those on the ends
-  let squash = (~save_padding=false, cs: t) => {
-    cs
-    |> Chain.mapi_loop((i, c) => (i, c))
-    |> Chain.fold_right(
-         ((i, c), (), acc) =>
-           switch (acc) {
-           | _ when !save_padding && Cell.Space.is_space(c) =>
-             Chain.map_hd(Cell.pad(~l=c), acc)
-           | (_, [_, ..._]) when i != 0 && Cell.Space.is_space(c) =>
-             Chain.map_hd(Cell.pad(~l=c), acc)
-           | _ => Chain.link(c, (), acc)
-           },
-         ((_, c)) => unit(c),
-       );
-  };
-
-  let face = (~side: Dir.t, cs: t) => {
-    let cs = Dir.pick(side, (Fun.id, rev), cs);
-    switch (Chain.unlink(cs)) {
-    | Ok((c, (), cs)) when Cell.Space.is_space(c) =>
-      let c = Chain.hd(cs);
-      Cell.face(~side, c);
-    | Ok((c, _, _))
-    | Error(c) => Cell.face(~side, c)
+  let squash = (~save_padding=false, cs: t) =>
+    switch (cs |> List.mapi((i, c) => (i, c)) |> Lists.Framed.ft) {
+    | None => []
+    | Some((pre, (_, ft))) =>
+      pre
+      |> List.fold_left(
+           (acc, (i, c)) =>
+             switch (acc) {
+             | _ when !save_padding && Cell.Space.is_space(c) =>
+               Lists.map_hd(Cell.pad(~l=c), acc)
+             | [_, _, ..._] when i != 0 && Cell.Space.is_space(c) =>
+               Lists.map_hd(Cell.pad(~l=c), acc)
+             | _ => [c, ...acc]
+             },
+           [ft],
+         )
     };
-  };
 
-  let is_space = (cs: t) =>
-    List.for_all(Cell.Space.is_space, Chain.loops(cs));
-  let is_empty = (cs: t) => List.for_all(Cell.is_empty, Chain.loops(cs));
-
-  let split_padding = (cs: t) => {
-    let cs = Chain.loops(cs);
+  let split_padding = (cs: list(Cell.t)) => {
     let (l, cs) =
       switch (cs) {
       | [c, ...cs] when Cell.Space.is_space(c) => (c, cs)
@@ -81,17 +43,15 @@ module Cells = {
     (l, cs, r);
   };
 
-  // todo: just use lists
-  let to_list = cs =>
-    switch (Chain.unlink(cs)) {
-    | Error(c) when Cell.is_empty(~require_unmarked=true, c) => []
-    | _ => Chain.loops(cs)
+  // output Some(b) if bounded, where b indicates whether pre/post grout needed
+  let are_bounded = (cs: t, nt: Mtrl.NT.t, ~from: Dir.t): option(bool) =>
+    switch (face(~side=from, cs)) {
+    | None => Some(false)
+    | Some(f) =>
+      Walker.enter(~from=L, nt, Node(f))
+      |> Lists.hd
+      |> Option.map(w => Walk.height(w) > 1)
     };
-  let of_list =
-    fun
-    | [] => empty
-    | [_, ..._] as cs =>
-      Chain.mk(cs, List.init(List.length(cs) - 1, Fun.const()));
 };
 
 let rec degrout = (c: Cell.t): Cells.t =>
@@ -99,23 +59,12 @@ let rec degrout = (c: Cell.t): Cells.t =>
   | Some(M(_, w, _) as m) when Option.is_some(Wald.is_grout(w)) =>
     Meld.to_chain(m)
     |> Chain.loops
-    |> List.map(degrout)
-    |> Cells.concat
+    |> List.concat_map(degrout)
     |> Cells.squash(~save_padding=true)
-  | _ => Chain.unit(c)
+  | _ => [c]
   };
 
-// output Some(b) if bounded, where b indicates whether pre/post grout needed
-let is_bounded = (cs: Cells.t, nt: Mtrl.NT.t, ~from: Dir.t): option(bool) =>
-  switch (Cells.face(~side=from, cs)) {
-  | None => Some(false)
-  | Some(f) =>
-    Walker.enter(~from=L, nt, Node(f))
-    |> Lists.hd
-    |> Option.map(w => Walk.height(w) > 1)
-  };
-
-let default =
+let default_cell =
   fun
   | Mtrl.Space(_) => Cell.empty
   // grout case isn't quite right... but shouldn't arise
@@ -128,17 +77,22 @@ let regrout_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   switch (bot) {
   | Space(fillable) =>
     let squashed = Cells.squash(cs);
-    (fillable ? Cells.is_space : Cells.is_empty)(squashed)
-      ? Some(Cells.hd(squashed)) : None;
+    let valid =
+      fillable ? Cell.Space.is_space : Cell.is_empty(~require_unmarked=false);
+    List.for_all(valid, squashed)
+      ? Lists.hd(squashed)
+        |> Option.value(~default=Cell.empty)
+        |> Option.some
+      : None;
   | Grout(s)
   | Tile((s, _)) =>
     open Options.Syntax;
     let (nt_l, nt_r) =
       Walk.Swing.is_eq(sw) ? (bot, bot) : Dir.order(from, (top, bot));
-    let+ has_pre = is_bounded(cs, nt_l, ~from=L)
-    and+ has_pos = is_bounded(cs, nt_r, ~from=R);
+    let+ has_pre = Cells.are_bounded(cs, nt_l, ~from=L)
+    and+ has_pos = Cells.are_bounded(cs, nt_r, ~from=R);
     switch (Cells.split_padding(cs)) {
-    | (l, [], r) => Cell.pad(~l, default(bot), ~r)
+    | (l, [], r) => Cell.pad(~l, default_cell(bot), ~r)
     | (l, [_, ..._] as cs, r) =>
       let cells =
         cs
@@ -169,14 +123,13 @@ let regrout_swings =
     ) =>
   cells
   |> List.map(degrout)
-  |> Cells.concat
-  |> Cells.to_list
-  |> split_bins(List.length(swings))
+  |> List.concat
+  |> Lists.split_bins(List.length(swings))
   |> Oblig.Delta.minimize(~to_zero, c_bins =>
        List.combine(c_bins, swings)
        |> List.map(((c_bin, sw)) => {
             open Options.Syntax;
-            let+ c = regrout_swing(Cells.of_list(c_bin), sw, ~from);
+            let+ c = regrout_swing(c_bin, sw, ~from);
             (sw, c);
           })
        |> Options.for_all

@@ -112,3 +112,20 @@ let min = compare =>
   );
 
 let split_n = Base.List.split_n;
+
+let split_bins = (num_bins, xs) => {
+  open Syntax;
+  let return = bins => return(List.rev(bins));
+  let rec go = (~bins=[], num_bins, xs) =>
+    switch (xs) {
+    | _ when num_bins <= 0 => []
+    | _ when num_bins == 1 => return([xs, ...bins])
+    | [] => return(List.init(num_bins, Fun.const([])) @ bins)
+    | [_, ..._] =>
+      let* bin_size =
+        range(~start=`inclusive, ~stop=`inclusive, 0, List.length(xs));
+      let (bin, rest) = split_n(xs, bin_size);
+      go(~bins=[bin, ...bins], num_bins - 1, rest);
+    };
+  go(num_bins, xs);
+};
