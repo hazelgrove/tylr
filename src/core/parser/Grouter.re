@@ -54,6 +54,13 @@ module Cells = {
     };
 };
 
+let mk_stance = (st: Walk.Stance.t) => {
+  let tok = Token.mk(st);
+  Effects.perform(Insert(tok));
+  tok;
+};
+let mk_stances = stances => stances |> List.map(mk_stance) |> Option.some;
+
 let rec degrout = (c: Cell.t): Cells.t =>
   switch (Cell.get(c)) {
   | Some(M(_, w, _) as m) when Option.is_some(Wald.is_grout(w)) =>
@@ -116,16 +123,15 @@ let regrout_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
 
 let regrout_swings =
     (
-      ~to_zero=true,
+      ~repair=false,
       ~from: Dir.t,
       cells: list(Cell.t),
       swings: list(Walk.Swing.t),
     ) =>
   cells
-  |> List.map(degrout)
-  |> List.concat
+  |> (repair ? List.concat_map(degrout) : Fun.id)
   |> Lists.split_bins(List.length(swings))
-  |> Oblig.Delta.minimize(~to_zero, c_bins =>
+  |> Oblig.Delta.minimize(~to_zero=!repair, c_bins =>
        List.combine(c_bins, swings)
        |> List.map(((c_bin, sw)) => {
             open Options.Syntax;
@@ -135,20 +141,12 @@ let regrout_swings =
        |> Options.for_all
      );
 
-let mk_stance = (st: Walk.Stance.t) => {
-  let tok = Token.mk(st);
-  Effects.perform(Insert(tok));
-  tok;
-};
-let mk_stances = stances => stances |> List.map(mk_stance) |> Option.some;
-
-let regrout = (~to_zero, ~from, cs, (swings, stances): Walk.t) => {
+let regrout = (~repair, ~from, cs, (swings, stances): Walk.t) => {
   open Options.Syntax;
-  let* cs = regrout_swings(~to_zero, ~from, cs, swings);
-  let+ toks = Oblig.Delta.minimize(~to_zero, mk_stances, [stances]);
+  let* cs = regrout_swings(~repair, ~from, cs, swings);
+  let+ toks = Oblig.Delta.minimize(~to_zero=!repair, mk_stances, [stances]);
   Chain.mk(cs, toks);
 };
 
-let pick_regrout =
-    (~to_zero=true, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) =>
-  Oblig.Delta.minimize(~to_zero, regrout(~to_zero, ~from, cs), ws);
+let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) =>
+  Oblig.Delta.minimize(~to_zero=!repair, regrout(~repair, ~from, cs), ws);
