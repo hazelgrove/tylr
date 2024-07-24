@@ -68,6 +68,13 @@ let rec degrout = (c: Cell.t): Cells.t =>
     |> Chain.loops
     |> List.concat_map(degrout)
     |> Cells.squash(~save_padding=true)
+  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
+    Meld.to_chain(m)
+    |> Chain.mapi_loop((i, c) => (i, c))
+    |> Chain.map_linked(((i, l), spc, (_, r)) =>
+         Cell.put(M(i == 0 ? l : Cell.empty, Wald.of_tok(spc), r))
+       )
+    |> Chain.links
   | _ => [c]
   };
 
@@ -141,6 +148,7 @@ let regrout_swings =
        |> Options.for_all
      );
 
+// todo: rename allocate or something
 let regrout = (~repair, ~from, cs, (swings, stances): Walk.t) => {
   open Options.Syntax;
   let* cs = regrout_swings(~repair, ~from, cs, swings);
