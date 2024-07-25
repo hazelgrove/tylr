@@ -11,6 +11,7 @@ module Cells = {
     };
 
   // combine adjacent space cells except for those on the ends
+  // if save_padding=true
   let squash = (~save_padding=false, cs: t) =>
     switch (cs |> List.mapi((i, c) => (i, c)) |> Lists.Framed.ft) {
     | None => []
@@ -54,12 +55,12 @@ module Cells = {
     };
 };
 
-let mk_stance = (st: Walk.Stance.t) => {
+let bake_stance = (st: Walk.Stance.t) => {
   let tok = Token.mk(st);
   Effects.perform(Insert(tok));
   tok;
 };
-let mk_stances = stances => stances |> List.map(mk_stance) |> Option.some;
+let bake_stances = stances => stances |> List.map(bake_stance) |> Option.some;
 
 let rec degrout = (c: Cell.t): Cells.t =>
   switch (Cell.get(c)) {
@@ -78,7 +79,7 @@ let rec degrout = (c: Cell.t): Cells.t =>
   | _ => [c]
   };
 
-let default_cell =
+let fill_default =
   fun
   | Mtrl.Space(_) => Cell.empty
   // grout case isn't quite right... but shouldn't arise
@@ -86,7 +87,7 @@ let default_cell =
   | Tile((s, _)) => Cell.put(Meld.Grout.op_(s));
 
 // assumes cs already squashed sans padding
-let regrout_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
+let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
   | Space(fillable) =>
@@ -106,7 +107,7 @@ let regrout_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     let+ has_pre = Cells.are_bounded(cs, nt_l, ~from=L)
     and+ has_pos = Cells.are_bounded(cs, nt_r, ~from=R);
     switch (Cells.split_padding(cs)) {
-    | (l, [], r) => Cell.pad(~l, default_cell(bot), ~r)
+    | (l, [], r) => Cell.pad(~l, fill_default(bot), ~r)
     | (l, [_, ..._] as cs, r) =>
       let cells =
         cs
@@ -128,13 +129,8 @@ let regrout_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   };
 };
 
-let regrout_swings =
-    (
-      ~repair=false,
-      ~from: Dir.t,
-      cells: list(Cell.t),
-      swings: list(Walk.Swing.t),
-    ) =>
+let fill_swings =
+    (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) =>
   cells
   |> (repair ? List.concat_map(degrout) : Fun.id)
   |> Lists.split_bins(List.length(swings))
@@ -142,19 +138,19 @@ let regrout_swings =
        List.combine(c_bins, swings)
        |> List.map(((c_bin, sw)) => {
             open Options.Syntax;
-            let+ c = regrout_swing(c_bin, sw, ~from);
+            let+ c = fill_swing(c_bin, sw, ~from);
             (sw, c);
           })
        |> Options.for_all
      );
 
-// todo: rename allocate or something
-let regrout = (~repair, ~from, cs, (swings, stances): Walk.t) => {
+let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
   open Options.Syntax;
-  let* cs = regrout_swings(~repair, ~from, cs, swings);
-  let+ toks = Oblig.Delta.minimize(~to_zero=!repair, mk_stances, [stances]);
+  let* cs = fill_swings(~repair, ~from, cs, swings);
+  let+ toks =
+    Oblig.Delta.minimize(~to_zero=!repair, bake_stances, [stances]);
   Chain.mk(cs, toks);
 };
 
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) =>
-  Oblig.Delta.minimize(~to_zero=!repair, regrout(~repair, ~from, cs), ws);
+  Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);
