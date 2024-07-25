@@ -134,7 +134,15 @@ module Space = {
     };
     let marks =
       r.marks
-      |> Marks.map_paths(Lists.map_hd((+)(2)))
+      |> (
+        switch (l.meld) {
+        | None => Fun.id
+        | Some(m) =>
+          Marks.map_paths(
+            Lists.map_hd((+)(2 * List.length(Meld.tokens(m)))),
+          )
+        }
+      )
       |> Marks.union(l.marks);
     let meld =
       Options.merge(
