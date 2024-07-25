@@ -76,6 +76,7 @@ module NT = {
     | (_, Grout(_)) => 1
     | (Tile(l), Tile(r)) => Tile.NT.compare(l, r)
     };
+  let fillable: t => bool = (!=)(Space(false));
   let root = Tile(Tile.NT.root);
   let sort: t => Sorted.t = map(~space=Fun.const(), ~grout=Fun.id, ~tile=fst);
   let bounds: t => _ =

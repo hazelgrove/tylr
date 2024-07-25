@@ -32,6 +32,7 @@ module Swing = {
   let is_neq = s => !is_eq(s);
   let top = Chain.ft;
   let bot = Chain.hd;
+  let fillable = (sw: t) => Mtrl.NT.fillable(bot(sw));
   let compare = (l: t, r: t) => {
     let c = Int.compare(height(l), height(r));
     c == 0
