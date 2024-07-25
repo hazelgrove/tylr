@@ -1,5 +1,6 @@
 [@deriving (show({with_path: false}), sexp, yojson, hash)]
 type t('point, 'select) =
+  // todo: rename Caret
   | Point('point)
   | Select('select);
 

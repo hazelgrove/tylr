@@ -40,6 +40,7 @@ module Wald = {
     pp(out, (t, List.combine(cs, ts)));
   };
   let show = pp_cell => Fmt.to_to_string(pp(pp_cell));
+  let append = (W(l): t(_), m, W(r): t(_)) => W(Chain.append(l, m, r));
 };
 
 module Base = {

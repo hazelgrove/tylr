@@ -213,6 +213,22 @@ module Space = {
     Molded.mk(~id?, ~text, ~marks?, Space());
   let empty = mk();
   // let cursor = failwith("todo Token.Space");
+  let squash = (l: Molded.t, ~caret=?, r: Molded.t) => {
+    ...l,
+    text: l.text ++ r.text,
+    marks: {
+      let n = Molded.length(l);
+      r.marks
+      |> Marks.shift(n)
+      |> Marks.union(l.marks)
+      |> (
+        switch (caret) {
+        | None => Fun.id
+        | Some(hand) => Marks.add(Caret.mk(hand, n))
+        }
+      );
+    },
+  };
 };
 module Grout = {
   type t = Base.t(Grout.T.t);

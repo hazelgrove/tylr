@@ -76,95 +76,6 @@ let get = (~distribute=true, c) =>
   (distribute ? distribute_marks : Fun.id)(c).meld;
 let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
 
-let get_spc = (c: t) =>
-  switch (get(c)) {
-  | None => Some(Token.empty())
-  | Some(m) => Meld.Space.get(m)
-  };
-// raises Invalid_argument if inputs are not space cells
-let merge_spc = (l: t, r: t) => {
-  let get = Options.get_exn(Invalid_argument("Cell.merge_spc"));
-  let spc_l = get(get_spc(l));
-  let spc_r = get(get_spc(r));
-  let marks_l =
-    l.marks
-    |> Marks.map_paths(
-         fun
-         | [2, ..._] when !Token.is_empty(spc_r) => [
-             1,
-             Token.length(spc_l),
-           ]
-         | path => path,
-       );
-  let marks_r =
-    r.marks
-    |> Marks.map_paths(
-         fun
-         | []
-         | [0, ..._] => [1, Token.length(spc_l)]
-         | [1] => [1, Token.length(spc_l)]
-         | [1, j, ..._] => [1, Token.length(spc_l) + j]
-         | path => path,
-       );
-  let spc = Token.cat(spc_l, spc_r);
-  let meld = Token.is_empty(spc) ? None : Some(Meld.of_tok(spc));
-  let marks = Marks.union(marks_l, marks_r);
-  {meld, marks};
-};
-
-let rec pad = (~l=empty, ~r=empty, c: t) =>
-  switch (get(c)) {
-  | _ when l == empty && r == empty => c
-  | None => merge_spc(l, merge_spc(c, r))
-  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
-    merge_spc(l, merge_spc(c, r))
-  | Some(M(c_l, w, c_r)) =>
-    let c_l = pad(~l, c_l);
-    let c_r = pad(c_r, ~r);
-    put(M(c_l, w, c_r));
-  };
-
-// let rec pad = (~l=?, ~r=?, c: t) => {
-//   switch (get(c)) {
-//   | _ when Option.(is_none(l) && is_none(r)) => c
-//   | None =>
-//     let caret =
-//       Option.bind(
-//         c.marks.cursor,
-//         fun
-//         | Point(car) => Some(car.hand)
-//         | Select(_) => Some(Focus),
-//       );
-//     let l = Option.value(l, ~default=Token.empty());
-//     let r = Option.value(r, ~default=Token.empty());
-//     let t = Token.cat(l, ~caret?, r);
-//     let w = Wald.of_tok(t);
-//     let m = Meld.mk(~l=c, w);
-//     put(m);
-//   | Some(m) when Option.is_some(Meld.Space.get(m)) => c
-//   // when Token.Space.is(spc) && !Token.is_empty(spc) => c
-//   | Some(M(c_l, w, c_r)) =>
-//     let c_l = pad(~l?, c_l);
-//     let c_r = pad(c_r, ~r?);
-//     put(M(c_l, w, c_r));
-//   };
-// };
-
-let repad = (~l=false, ~r=false, c: t) =>
-  switch (get(c)) {
-  | _ when !l && !r => c
-  | None =>
-    let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space()));
-    let m = Meld.mk(~l=c, w);
-    put(m);
-  | Some(M(_, W(([spc], [])), _))
-      when Token.Space.is(spc) && !Token.is_empty(spc) => c
-  | Some(M(_)) =>
-    let l = l ? put(Meld.of_tok(Token.space())) : empty;
-    let r = r ? put(Meld.of_tok(Token.space())) : empty;
-    pad(~l, c, ~r);
-  };
-
 let rec end_path = (~side: Dir.t, c: t) =>
   switch (get(c)) {
   | None => Path.empty
@@ -189,6 +100,27 @@ let is_caret = (c: t): option(Caret.Hand.t) =>
   };
 
 module Space = {
+  let squash = (c: t) =>
+    switch (get(c)) {
+    | Some(M(l, W((toks, _) as w), r))
+        when List.for_all(Token.Space.is, toks) =>
+      w
+      |> Chain.fold_right(
+           (spc, c, acc) => {
+             let caret =
+               c.marks.cursor
+               |> Options.bind(~f=Cursor.get_point)
+               |> Option.map(Caret.hand);
+             Token.Space.squash(spc, ~caret?, acc);
+           },
+           Fun.id,
+         )
+      |> Wald.of_tok
+      |> Meld.mk(~l, ~r)
+      |> put
+    | _ => c
+    };
+
   let get = (c: t) =>
     switch (get(c)) {
     | None => Some(Token.Space.empty)
@@ -197,29 +129,51 @@ module Space = {
   let is_space = c => Option.is_some(get(c));
 
   let merge = (l: t, r: t) => {
-    open Options.Syntax;
-    let+ l_spc = get(l)
-    and+ r_spc = get(r);
-    let spc = Token.cat(l_spc, r_spc);
-    if (Token.is_empty(spc)) {
-      {meld: None, marks: Marks.union(l.marks, r.marks)};
-    } else {
-      {
-        meld: Some(Meld.of_tok(spc)),
-        marks:
-          Marks.union(
-            l.marks,
-            r.marks
-            |> Marks.map_paths(
-                 fun
-                 | []
-                 | [0, ..._] => [1, Token.length(l_spc)]
-                 | [1] => [1, Token.length(l_spc)]
-                 | [1, j, ..._] => [1, Token.length(l_spc) + j]
-                 | path => path,
-               ),
-          ),
-      };
+    if (!is_space(l) || !is_space(r)) {
+      raise(Invalid_argument("Cell.Space.merge"));
     };
+    let marks =
+      r.marks
+      |> Marks.map_paths(Lists.map_hd((+)(2)))
+      |> Marks.union(l.marks);
+    let meld =
+      Options.merge(
+        l.meld, r.meld, ~f=(Meld.M(l, w_l, m), Meld.M(_, w_r, r)) =>
+        Meld.M(l, Wald.append(w_l, m, w_r), r)
+      );
+    {marks, meld};
   };
 };
+
+let get_spc = (c: t) =>
+  switch (get(c)) {
+  | None => Some(Token.empty())
+  | Some(m) => Meld.Space.get(m)
+  };
+
+let rec pad = (~l=empty, ~r=empty, c: t) =>
+  switch (get(c)) {
+  | _ when l == empty && r == empty => c
+  | None => Space.merge(l, Space.merge(c, r)) |> Space.squash
+  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
+    Space.merge(l, Space.merge(c, r)) |> Space.squash
+  | Some(M(c_l, w, c_r)) =>
+    let c_l = pad(~l, c_l);
+    let c_r = pad(c_r, ~r);
+    put(M(c_l, w, c_r));
+  };
+
+let rec repad = (~l=false, ~r=false, c: t) =>
+  switch (get(c)) {
+  | _ when !l && !r => c
+  | None =>
+    let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space()));
+    let m = Meld.mk(~l=c, w);
+    put(m);
+  // avoid adding padding if there is some already
+  | Some(m) when Option.is_some(Meld.Space.get(m)) => c
+  | Some(M(c_l, w, c_r)) =>
+    let c_l = repad(~l, c_l);
+    let c_r = repad(c_r, ~r);
+    put(M(c_l, w, c_r));
+  };
