@@ -231,13 +231,8 @@ let push =
   switch (Slope.merge_hd(t, slope, ~onto)) {
   | Some(slope) => Some(Neq(slope))
   | None =>
-    switch (t.mtrl) {
-    | Space () => Some(Neq([Terr.of_tok(t), ...slope]))
-    | Grout(_)
-    | Tile(_) =>
-      switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
-      | Ok(slope) => Some(Neq(slope))
-      | Error(fill) => push_bound(~repair, t, ~fill, bound, ~onto)
-      }
+    switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
+    | Ok(slope) => Some(Neq(slope))
+    | Error(fill) => push_bound(~repair, t, ~fill, bound, ~onto)
     }
   };
