@@ -2,8 +2,9 @@ let mold = (ctx: Ctx.t, tok: Token.Unmolded.t): Ctx.t => {
   let ((dn, up), tl) = Ctx.uncons(ctx);
   let (l, r) = Ctx.Tl.bounds(tl);
   switch (Molder.mold(~bound=l, dn, tok)) {
-  | Neq(dn) => Ctx.cons((dn, up), tl)
-  | Eq(l) =>
+  | None => ctx
+  | Some(Neq(dn)) => Ctx.cons((dn, up), tl)
+  | Some(Eq(l)) =>
     let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
     Ctx.map_hd(Frame.Open.cat((dn, up)), Ctx.Tl.rest(tl));
   };
@@ -31,8 +32,9 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
         };
       let ctx =
         switch (molded) {
-        | Neq(dn) => Ctx.cons((dn, up), tl)
-        | Eq(l) =>
+        | None => Ctx.cons((dn, up), tl)
+        | Some(Neq(dn)) => Ctx.cons((dn, up), tl)
+        | Some(Eq(l)) =>
           let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
           Ctx.map_hd(Frame.Open.cat((dn, up)), Ctx.Tl.rest(tl));
         };

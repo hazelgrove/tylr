@@ -43,28 +43,34 @@ let mold =
       ~fill=Cell.empty,
       t: Token.Unmolded.t,
     )
-    : Melded.t =>
+    : option(Melded.t) =>
   switch (
     candidates(t)
     |> Oblig.Delta.minimize(tok =>
          Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
        )
   ) {
-  | Some(m) => m
+  | Some(_) as m => m
   | None =>
-    Melder.push(Token.Unmolded.defer(t), ~fill, slope, ~bound, ~onto=L)
-    |> Options.get_fail("bug: failed to push space")
+    let deferred = Token.Unmolded.defer(t);
+    Token.is_empty(deferred)
+      ? None : Melder.push(deferred, ~fill, slope, ~bound, ~onto=L);
+  // |> Options.get_fail("bug: failed to push space")
   };
 
+// returns the result of remolding and melding the terr face onto bounded slope.
+// if the terr face retains its original mold, then the rest of the terr is tacked
+// on and snd elem of returned pair is Ok(terr.cell). otherwise, the rest of the
+// terr is disassembled to an up slope that requires subsequent remolding.
 let remold =
     (~bound=Bound.Root, slope: Slope.Dn.t, ~fill=Cell.empty, terr: Terr.L.t)
-    : (Melded.t, Result.t(Cell.t, Slope.Up.t)) => {
+    : (option(Melded.t), Result.t(Cell.t, Slope.Up.t)) => {
   let (hd, tl) = Wald.uncons(terr.wald);
-  let molded = mold(~bound, slope, ~fill, Token.unmold(hd));
-  // fast path for when hd retains original mold
-  if (Melded.face(molded) == hd.mtrl) {
-    (Melded.extend(tl, molded), Ok(terr.cell));
-  } else {
+  switch (mold(~bound, slope, ~fill, Token.unmold(hd))) {
+  | Some(molded) when Melded.face(molded) == hd.mtrl =>
+    // fast path for when hd retains original mold
+    (Some(Melded.extend(tl, molded)), Ok(terr.cell))
+  | molded =>
     let up =
       Chain.Affix.uncons(tl)
       |> Option.map(((cell, (ts, cs))) =>
