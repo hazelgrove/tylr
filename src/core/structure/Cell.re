@@ -123,7 +123,7 @@ module Space = {
 
   let get = (c: t) =>
     switch (get(c)) {
-    | None => Some(Token.Space.empty)
+    | None => Some([])
     | Some(m) => Meld.Space.get(m)
     };
   let is_space = c => Option.is_some(get(c));
@@ -155,7 +155,7 @@ module Space = {
 
 let get_spc = (c: t) =>
   switch (get(c)) {
-  | None => Some(Token.empty())
+  | None => Some([])
   | Some(m) => Meld.Space.get(m)
   };
 

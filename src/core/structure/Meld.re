@@ -98,7 +98,8 @@ module Space = {
   };
   let get =
     fun
-    | M(_, W(([tok], [])), _) when Token.Space.is(tok) => Some(tok)
+    | M(_, W((toks, _)), _) when List.for_all(Token.Space.is, toks) =>
+      Some(toks)
     | _ => None;
 };
 module Grout = {
