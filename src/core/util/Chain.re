@@ -304,8 +304,15 @@ let unzip = (n: int, c: t('lp, 'lk)) =>
   Elem.(n mod 2 == 0 ? Loop(unzip_loop(n, c)) : Link(unzip_link(n, c)));
 
 let pp = (pp_lp, pp_lk, out, c: t(_)) => {
-  let (lp, (lks, lps)) = uncons(c);
-  let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_lk, pp_lp)));
-  Fmt.pf(out, "%a@ %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
+  // let pp_lp = (out, lp) => Fmt.pf(out, "@[%a@,@]", pp_lp, lp);
+  switch (uncons(c)) {
+  | (lp, ([], [])) => Fmt.pf(out, "%a", pp_lp, lp)
+  | (lp, (lks, lps)) =>
+    let pp_tl =
+      Fmt.(
+        list(~sep=sp, pair(~sep=(out, _) => pf(out, " "), pp_lk, pp_lp))
+      );
+    Fmt.pf(out, "%a %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
+  };
 };
 let show = (pp_lp, pp_lk) => Fmt.to_to_string(pp(pp_lp, pp_lk));

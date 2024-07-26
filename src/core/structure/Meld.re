@@ -16,9 +16,16 @@ module Cell = {
     if (Marks.is_empty(marks) && Option.is_none(meld)) {
       Fmt.pf(out, "{}");
     } else if (Marks.is_empty(marks)) {
-      Fmt.pf(out, "{%a}", Fmt.option(pp_meld), meld);
+      Fmt.pf(out, "{@[<hov 2>%a@]}", Fmt.option(pp_meld), meld);
     } else {
-      Fmt.pf(out, "{%a@ |@ %a}", Marks.pp, marks, Fmt.option(pp_meld), meld);
+      Fmt.pf(
+        out,
+        "{@[<hov 2>@[%a@] |@ @[%a@]@]}",
+        Marks.pp,
+        marks,
+        Fmt.option(pp_meld),
+        meld,
+      );
     };
   let show = pp_meld => Fmt.to_to_string(pp(pp_meld));
 };
@@ -32,13 +39,8 @@ module Wald = {
   let of_tok = tok => W(Chain.unit(tok));
   let face = (~side=Dir.L, W(w): t(_)) =>
     Dir.pick(side, (Chain.hd, Chain.ft), w).mtrl;
-  let pp = (pp_cell, out, W(w): t(_)) => {
-    let pp_hd = Token.pp;
-    let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_cell, Token.pp)));
-    let pp = Fmt.(pair(~sep=sp, pp_hd, pp_tl));
-    let (t, (cs, ts)) = Chain.uncons(w);
-    pp(out, (t, List.combine(cs, ts)));
-  };
+  let pp = (pp_cell, out, W(w): t(_)) =>
+    Chain.pp(Token.pp, pp_cell, out, w);
   let show = pp_cell => Fmt.to_to_string(pp(pp_cell));
   let append = (W(l): t(_), m, W(r): t(_)) => W(Chain.append(l, m, r));
 };
@@ -47,16 +49,21 @@ module Base = {
   [@deriving (sexp, yojson)]
   type t =
     | M(Cell.t(t), Wald.t(Cell.t(t)), Cell.t(t));
-  let rec pp = (out, M(l, w, r): t) => {
-    let pp_cell = Cell.pp(pp);
-    let pp_wald = Wald.pp(pp_cell);
-    Fmt.pf(out, "%a@ %a@ %a", pp_cell, l, pp_wald, w, pp_cell, r);
+  let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
+  let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
+  let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
+    let get = Options.get_exn(Invalid_argument("Meld.of_chain"));
+    // cs reversed twice
+    let (cs, r) = get(Lists.Framed.ft(cs));
+    let (cs, l) = get(Lists.Framed.ft(cs));
+    mk(~l, W((ts, cs)), ~r);
   };
+  let rec pp = (out, m: t) =>
+    Chain.pp(Cell.pp(pp), Token.pp, out, to_chain(m));
   let show = Fmt.to_to_string(pp);
 };
 include Base;
 
-let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
 let of_tok = (~l=Cell.empty, ~r=Cell.empty, tok) =>
   mk(~l, Wald.of_tok(tok), ~r);
 
@@ -66,14 +73,7 @@ let is_empty =
     Token.is_empty(tok)
   | _ => false;
 
-let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
-let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
-  let get = Options.get_exn(Invalid_argument("Meld.of_chain"));
-  // cs reversed twice
-  let (cs, r) = get(Lists.Framed.ft(cs));
-  let (cs, l) = get(Lists.Framed.ft(cs));
-  mk(~l, W((ts, cs)), ~r);
-};
+let tokens = (M(_, W((toks, _)), _): t) => toks;
 
 let fold = (f_hd, f_tl, m: t) => Chain.fold_left(f_hd, f_tl, to_chain(m));
 
