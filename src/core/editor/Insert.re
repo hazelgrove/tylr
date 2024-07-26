@@ -28,7 +28,9 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
       let (fill, up) =
         switch (rest) {
         | Ok(cell) => (cell, up_tl)
-        | Error(up) => (Cell.empty, Slope.cat(up, up_tl))
+        | Error(up) =>
+          let cell = Option.is_none(molded) ? fill : Cell.empty;
+          (cell, Slope.cat(up, up_tl));
         };
       let ctx =
         switch (molded) {
