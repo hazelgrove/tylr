@@ -130,7 +130,8 @@
 .block, .section, .line, .indent {
   display: inline-block;
 }
-.tile .ghost {
+.tile .ghost,
+.grout {
   opacity: 40%;
 }
 
@@ -436,7 +437,7 @@
 
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
-  filter: url(#drop-shadow-Exp);
+  /* filter: url(#drop-shadow-Exp); */
 }
 
 .tile-path.Any.indicated {
@@ -476,7 +477,7 @@
 
 .tile-path.Pat {
   /*stroke: var(--pat-shadow-color);*/
-  filter: url(#drop-shadow-Pat);
+  /* filter: url(#drop-shadow-Pat); */
 }
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
@@ -488,7 +489,7 @@
   fill: #e4f1fa;
 }
 .tile-path.Pat.raised {
-  filter: url(#raised-drop-shadow-Pat);
+  /* filter: url(#raised-drop-shadow-Pat); */
 }
 #drop-shadow-Pat .tile-drop-shadow,
 #raised-drop-shadow-Pat .tile-drop-shadow {
