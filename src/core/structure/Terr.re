@@ -25,12 +25,15 @@ let unmk = ({wald: W((toks, cells)), cell}: t) => (toks, cells @ [cell]);
 
 let length = (terr: t) => Wald.length(terr.wald) + 1;
 
+// todo: clean up, subsumed by face
 let hd = terr => Wald.hd(terr.wald);
 let put_hd = (hd, terr) => {...terr, wald: Wald.put_hd(hd, terr.wald)};
 let tokens = terr => Wald.tokens(terr.wald);
 
+let face = (terr: t) => Wald.hd(terr.wald);
+let map_face = (f, terr) => {...terr, wald: Wald.map_hd(f, terr.wald)};
+
 let sort = (terr: t) => Wald.sort(terr.wald);
-let face = (terr: t) => Wald.face(terr.wald);
 let cells = (terr: t) => Wald.cells(terr.wald) @ [terr.cell];
 
 let of_wald = wald => {cell: Cell.empty, wald};

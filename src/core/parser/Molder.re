@@ -67,7 +67,7 @@ let remold =
     : (option(Melded.t), Result.t(Cell.t, Slope.Up.t)) => {
   let (hd, tl) = Wald.uncons(terr.wald);
   switch (mold(~bound, slope, ~fill, Token.unmold(hd))) {
-  | Some(molded) when Melded.face(molded) == hd.mtrl =>
+  | Some(molded) when Melded.face(molded).mtrl == hd.mtrl =>
     // fast path for when hd retains original mold
     (Some(Melded.extend(tl, molded)), Ok(terr.cell))
   | molded =>

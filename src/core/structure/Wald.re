@@ -9,6 +9,7 @@ let map = (f, W(w)) => W(f(w));
 
 let uncons: t => _ = get(Chain.uncons);
 let hd: t => Token.t = get(Chain.hd);
+let map_hd = f => map(Chain.map_hd(f));
 let put_hd = hd => map(Chain.put_hd(hd));
 
 let ft = _ => failwith("todo Wald.ft");

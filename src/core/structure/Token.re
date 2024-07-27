@@ -262,6 +262,12 @@ module Unmolded = {
   let mk = (~id=?, ~text="", mtrl: Mtrl.t(_)): t =>
     Base.mk(~id?, ~text, mtrl);
   let defer = (tok: t): Molded.t => Space.mk(~id=tok.id, ~text=tok.text, ());
+  let has_lbl = (lbl: Label.t, tok: t) =>
+    switch (tok.mtrl) {
+    | Space ()
+    | Grout () => false
+    | Tile(lbls) => List.mem(lbl, lbls)
+    };
 };
 
 let unmold = (tok: Molded.t): Unmolded.t => {

@@ -19,6 +19,11 @@ module Open = {
   let cat = ((dn', up'), (dn, up)) => Slope.(cat(dn', dn), cat(up', up));
   let face = (~side: Dir.t, (dn, up): t) =>
     Slope.face(Dir.pick(side, (dn, up)));
+  let map_face = (~side: Dir.t, f, (dn, up): t) =>
+    switch (side) {
+    | L => Slope.map_face(f, dn) |> Option.map(dn => (dn, up))
+    | R => Slope.map_face(f, up) |> Option.map(up => (dn, up))
+    };
   let extend = (~side: Dir.t, tl, (dn, up): t) =>
     switch (side) {
     | L => (Slope.extend(tl, dn), up)
@@ -68,4 +73,9 @@ module Closed = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = (Terr.R.t, Terr.L.t);
   let zip = (~zipped: Cell.t, (l, r): t) => zip_eq(l, zipped, r);
+  let map_face = (~side: Dir.t, f, (l, r): t) =>
+    switch (side) {
+    | L => Terr.map_face(f, l) |> (l => (l, r))
+    | R => Terr.map_face(f, r) |> (r => (l, r))
+    };
 };

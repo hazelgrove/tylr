@@ -42,6 +42,10 @@ let face =
   fun
   | [] => None
   | [hd, ..._] => Some(Terr.face(hd));
+let map_face = f =>
+  fun
+  | [] => None
+  | [hd, ...tl] => Some([Terr.map_face(f, hd), ...tl]);
 
 // let extend = tl =>
 //   fun

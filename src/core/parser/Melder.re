@@ -60,7 +60,7 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
 // onto confusing here when considered alone, same onto piped from push(~onto)
 let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
-  let exited = Walker.exit(~from=onto, Node(Terr.face(terr)));
+  let exited = Walker.exit(~from=onto, Node(Terr.face(terr).mtrl));
   let baked = Grouter.pick(~repair=true, ~from=onto, [fill], exited);
   // exited
   // |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
@@ -85,7 +85,9 @@ let complete_bounded =
     (~bounds as (l, r), ~onto: Dir.t, ~fill=Cell.empty, slope) => {
   // todo: fix weird
   let fill = complete_slope(~onto, ~fill, slope);
-  Walker.walk_eq(~from=L, Bound.map(Terr.face, l), Bound.map(Terr.face, r))
+  let l = l |> Bound.map(t => Terr.face(t).mtrl);
+  let r = r |> Bound.map(t => Terr.face(t).mtrl);
+  Walker.walk_eq(~from=L, l, r)
   |> Grouter.pick(~repair=true, [fill], ~from=onto)
   // |> List.filter_map(Baker.bake(~fill=Fill.unit(fill), ~from=onto))
   // |> Stds.Lists.hd
@@ -117,7 +119,8 @@ let connect_eq =
   open Options.Syntax;
   let rec go = (onto: Terr.t, fill) => {
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
-    Walker.walk_eq(~from=d, Node(Terr.face(onto)), Node(t.mtrl))
+    let face = Terr.face(onto).mtrl;
+    Walker.walk_eq(~from=d, Node(face), Node(t.mtrl))
     |> Grouter.pick(~repair, ~from=d, fill)
     |> Option.map(baked => Grouted.connect_eq(t, baked, onto, ~onto=d));
   }
@@ -138,7 +141,8 @@ let connect_neq =
       t: Token.t,
     )
     : option(Slope.t) => {
-  Walker.walk_neq(~from=d, Bound.map(Terr.face, onto), Node(t.mtrl))
+  let face = onto |> Bound.map(t => Terr.face(t).mtrl);
+  Walker.walk_neq(~from=d, face, Node(t.mtrl))
   |> Grouter.pick(~repair, ~from=d, [fill])
   |> Option.map(baked => Grouted.connect_neq(t, baked, onto, ~onto=d));
 };
