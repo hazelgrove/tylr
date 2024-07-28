@@ -71,13 +71,15 @@ let extend_tok = (~side=Dir.R, s: string, tok: Token.t) =>
            ~default=Dir.pick(side, (("", tok.text), (tok.text, ""))),
          );
     let text = l ++ s ++ r;
-    Labeler.label(text) |> List.exists(Token.Unmolded.has_lbl(lbl))
-      ? Some({
-          ...tok,
-          text,
-          marks: Some(Point(Caret.focus(Utf8.length(l ++ s)))),
-        })
-      : None;
+    switch (Labeler.label(text)) {
+    | [t] when Token.Unmolded.has_lbl(lbl, t) =>
+      Some({
+        ...tok,
+        text,
+        marks: Some(Point(Caret.focus(Utf8.length(l ++ s)))),
+      })
+    | _ => None
+    };
   | Grout(_)
   | Space () => None
   };
