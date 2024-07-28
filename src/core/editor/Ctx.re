@@ -80,6 +80,12 @@ let rec pull = (~from as d: Dir.t, ctx: t): option((Token.t, t)) => {
     };
   };
 };
+let pull_opt = (~from, ctx) =>
+  switch (pull(~from, ctx)) {
+  | None => (None, ctx)
+  | Some((tok, ctx)) => (Some(tok), ctx)
+  };
+
 module Tl = {
   include Chain.Affix;
   [@deriving (show({with_path: false}), sexp, yojson)]

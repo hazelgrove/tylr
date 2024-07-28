@@ -84,23 +84,29 @@ let extend_tok = (~side=Dir.R, s: string, tok: Token.t) =>
 
 let try_extend_tok = (s: string, ctx: Ctx.t): option(Ctx.t) => {
   open Options.Syntax;
-  let l = Ctx.face(~side=L, ctx);
-  let r = Ctx.face(~side=R, ctx);
-  switch (l, r) {
-  | (Some(l), Some(r)) when Option.is_some(Token.merge(l, r)) =>
-    let tok = Option.get(Token.merge(~save_cursor=L, l, r));
-    let+ tok = extend_tok(s, tok);
-    ctx
-    |> Ctx.map_face(~side=L, Fun.const(tok))
-    |> Ctx.map_face(~side=R, Fun.const(tok));
-  | _ =>
-    let extend = (side: Dir.t, face) => {
-      let* face = face;
-      let+ tok = extend_tok(~side=Dir.toggle(side), s, face);
-      ctx |> Ctx.map_face(~side, Fun.const(tok));
+  let* () = Options.of_bool(!Strings.is_empty(s));
+  let/ () = {
+    let (l, ctx) = Ctx.pull_opt(~from=L, ctx);
+    let* tok = l;
+    let+ tok = extend_tok(~side=R, s, tok);
+    let (l, _, r) = Token.unzip(tok);
+    // expecting extend to leave nonempty prefix before caret
+    let tok = Option.get(l);
+    switch (r) {
+    | None => Ctx.push(~onto=L, tok, ctx)
+    | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
     };
-    let/ () = extend(L, l);
-    extend(R, r);
+  };
+
+  let (r, ctx) = Ctx.pull_opt(~from=R, ctx);
+  let* tok = r;
+  let+ tok = extend_tok(~side=L, s, tok);
+  let (l, _, r) = Token.unzip(tok);
+  // expecting extend to leave nonempty prefix before caret
+  let tok = Option.get(l);
+  switch (r) {
+  | None => Ctx.push(~onto=L, tok, ctx)
+  | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
   };
 };
 
