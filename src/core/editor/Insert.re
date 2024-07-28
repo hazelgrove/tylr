@@ -85,8 +85,9 @@ let extend_tok = (~side=Dir.R, s: string, tok: Token.t) =>
 let try_extend_tok = (s: string, ctx: Ctx.t): option(Ctx.t) => {
   open Options.Syntax;
   let* () = Options.of_bool(!Strings.is_empty(s));
+  let (l, ctx) = Ctx.pull_opt(~from=L, ctx);
+  let (r, ctx) = Ctx.pull_opt(~from=R, ctx);
   let/ () = {
-    let (l, ctx) = Ctx.pull_opt(~from=L, ctx);
     let* tok = l;
     let+ tok = extend_tok(~side=R, s, tok);
     let (l, _, r) = Token.unzip(tok);
@@ -97,8 +98,6 @@ let try_extend_tok = (s: string, ctx: Ctx.t): option(Ctx.t) => {
     | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
     };
   };
-
-  let (r, ctx) = Ctx.pull_opt(~from=R, ctx);
   let* tok = r;
   let+ tok = extend_tok(~side=L, s, tok);
   let (l, _, r) = Token.unzip(tok);
