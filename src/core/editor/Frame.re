@@ -7,6 +7,23 @@ let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
   Cell.put(Meld.mk(~l=l.cell, w, ~r=r.cell));
 };
 
+module Faces = {
+  type t =
+    | Within(Token.t)
+    | Between(Delim.t, Delim.t);
+};
+
+module Face = {
+  type t =
+    | In(Token.t)
+    | Out(Delim.t);
+  let to_token =
+    fun
+    | Out(Root) => None
+    | Out(Node(tok))
+    | In(tok) => Some(tok);
+};
+
 module Open = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = (Slope.Dn.t, Slope.Up.t);
@@ -17,13 +34,31 @@ module Open = {
     | R => (dn, [terr, ...up])
     };
   let cat = ((dn', up'), (dn, up)) => Slope.(cat(dn', dn), cat(up', up));
-  let face = (~side: Dir.t, (dn, up): t) =>
-    Slope.face(Dir.pick(side, (dn, up)));
-  let map_face = (~side: Dir.t, f, (dn, up): t) =>
-    switch (side) {
-    | L => Slope.map_face(f, dn) |> Option.map(dn => (dn, up))
-    | R => Slope.map_face(f, up) |> Option.map(up => (dn, up))
+  let pull = (~from: Dir.t, (dn, up): t): (Face.t, t) => {
+    let (l, dn') = Slope.pull(~from=L, dn);
+    let (r, up') = Slope.pull(~from=R, up);
+    switch (l, r) {
+    | (Node(l), Node(r)) when Token.merges(l, r) => (In(l), (dn', up'))
+    | _ =>
+      let delim = Dir.pick(from, (l, r));
+      let rest = Dir.pick(from, ((dn', up), (dn, up')));
+      (Out(delim), rest);
     };
+  };
+  let pull_faces = ((dn, up): t): (Faces.t, t) => {
+    let (l, dn) = Slope.pull(~from=L, dn);
+    let (r, up) = Slope.pull(~from=R, up);
+    switch (l, r) {
+    | (Node(l), Node(r)) when Token.merges(l, r) => (Within(l), (dn, up))
+    | _ => (Between(l, r), (dn, up))
+    };
+  };
+  let faces = o => fst(pull_faces(o));
+  // let map_face = (~side: Dir.t, f, (dn, up): t) =>
+  //   switch (side) {
+  //   | L => Slope.map_face(f, dn) |> Option.map(dn => (dn, up))
+  //   | R => Slope.map_face(f, up) |> Option.map(up => (dn, up))
+  //   };
   let extend = (~side: Dir.t, tl, (dn, up): t) =>
     switch (side) {
     | L => (Slope.extend(tl, dn), up)
@@ -78,4 +113,18 @@ module Closed = {
     | L => Terr.map_face(f, l) |> (l => (l, r))
     | R => Terr.map_face(f, r) |> (r => (l, r))
     };
+  let pull = (~from: Dir.t, (l, r): t): (Token.t, Open.t) =>
+    switch (from) {
+    | L =>
+      let (l, dn) = Slope.pull_terr(~from=L, l);
+      (l, (dn, [r]));
+    | R =>
+      let (r, up) = Slope.pull_terr(~from=R, r);
+      (r, ([l], up));
+    };
+  let pull_faces = ((l, r): t): ((Token.t, Token.t), Open.t) => {
+    let (l, dn) = Slope.pull_terr(~from=L, l);
+    let (r, up) = Slope.pull_terr(~from=R, r);
+    ((l, r), (dn, up));
+  };
 };

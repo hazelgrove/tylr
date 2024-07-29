@@ -1,3 +1,9 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t('a) = option('a);
+
 let of_bool = b => b ? Some() : None;
 
 let get = (if_none, o) =>
@@ -26,6 +32,11 @@ module Syntax = {
   let (let/) = (o, f) =>
     switch (o) {
     | Some(_) => o
+    | None => f()
+    };
+  let (let-) = (o, f) =>
+    switch (o) {
+    | Some(a) => a
     | None => f()
     };
 };

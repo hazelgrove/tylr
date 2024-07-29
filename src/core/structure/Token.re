@@ -121,6 +121,7 @@ module Molded = {
     } else {
       None;
     };
+  let merges = (l, r) => Option.is_some(merge(l, r));
 
   let is_end = (n: int, tok: t): option(Dir.t) =>
     if (n <= 0) {
@@ -160,6 +161,7 @@ module Molded = {
       (l, tok, r);
     };
 
+  // call this on a marked token to determine how to update the ctx
   let unzip =
       (~default=Caret.focus(Dir.L), tok: t)
       : (option(t), Cursor.t(Caret.t(unit), Selection.t(t)), option(t)) => {

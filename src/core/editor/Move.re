@@ -41,10 +41,17 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     | Select({range: zigg, _}) =>
       return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
     | Point(_) =>
-      let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
-      switch (hstep_tok(d, tok)) {
-      | None => ctx |> Ctx.push(~onto=b, Token.clear_marks(tok))
-      | Some(tok) => ctx |> Ctx.push(~onto=d, tok) |> Ctx.push(~onto=b, tok)
+      let (face, ctx) = Ctx.pull_face(~from=d, z.ctx);
+      switch (face) {
+      | Out(Root) => None
+      | Out(Node(tok))
+      | In(tok) =>
+        switch (hstep_tok(d, tok)) {
+        | Some(tok) => ctx |> Ctx.push_face(~onto=d, In(tok)) |> Option.some
+        | None =>
+          let tok = Token.clear_marks(tok);
+          ctx |> Ctx.push(~onto=b, tok) |> Option.some;
+        }
       };
     };
   Zipper.(button(mk(ctx)));

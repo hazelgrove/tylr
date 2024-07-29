@@ -49,7 +49,7 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
 
 let pull_text = (~from, ctx) =>
   switch (Ctx.pull(~from, ctx)) {
-  | Some((tok, ctx)) when tok.text != "" => (
+  | (Node(tok), ctx) when tok.text != "" => (
       Token.affix(~side=from, tok),
       ctx,
     )
@@ -84,53 +84,75 @@ let extend_tok = (~side=Dir.R, s: string, tok: Token.t) =>
   | Space () => None
   };
 
-let try_extend_tok = (s: string, ctx: Ctx.t): option(Ctx.t) => {
+let try_extend = (~side: Dir.t, s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
+  let* _ = Cursor.get_point(z.cur);
   let* () = Options.of_bool(!Strings.is_empty(s));
-  let (l, ctx) = Ctx.pull_opt(~from=L, ctx);
-  let (r, ctx) = Ctx.pull_opt(~from=R, ctx);
-  let/ () = {
-    let* tok = l;
-    let+ tok = extend_tok(~side=R, s, tok);
-    let (l, _, r) = Token.unzip(tok);
-    // expecting extend to leave nonempty prefix before caret
-    let tok = Option.get(l);
+  let (face, ctx) = Ctx.pull_face(~from=side, z.ctx);
+  let* tok = Frame.Face.to_token(face);
+  let+ tok = extend_tok(~side=Dir.toggle(side), s, tok);
+  let (l, _, r) = Token.unzip(tok);
+  // expecting extend to leave nonempty prefix before caret
+  let tok = Option.get(l);
+  let ctx =
     switch (r) {
     | None => Ctx.push(~onto=L, tok, ctx)
     | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
     };
-  };
-  let* tok = r;
-  let+ tok = extend_tok(~side=L, s, tok);
-  let (l, _, r) = Token.unzip(tok);
-  // expecting extend to leave nonempty prefix before caret
-  let tok = Option.get(l);
-  switch (r) {
-  | None => Ctx.push(~onto=L, tok, ctx)
-  | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
-  };
+  Zipper.mk(ctx);
 };
 
+// let try_extend_tok = (s: string, ctx: Ctx.t): option(Ctx.t) => {
+//   open Options.Syntax;
+//   let* () = Options.of_bool(!Strings.is_empty(s));
+//   let (l, ctx) = Ctx.pull_opt(~from=L, ctx);
+//   let (r, ctx) = Ctx.pull_opt(~from=R, ctx);
+//   let/ () = {
+//     let* tok = l;
+//     let+ tok = extend_tok(~side=R, s, tok);
+//     let (l, _, r) = Token.unzip(tok);
+//     // expecting extend to leave nonempty prefix before caret
+//     let tok = Option.get(l);
+//     switch (r) {
+//     | None => Ctx.push(~onto=L, tok, ctx)
+//     | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
+//     };
+//   };
+//   let* tok = r;
+//   let+ tok = extend_tok(~side=L, s, tok);
+//   let (l, _, r) = Token.unzip(tok);
+//   // expecting extend to leave nonempty prefix before caret
+//   let tok = Option.get(l);
+//   switch (r) {
+//   | None => Ctx.push(~onto=L, tok, ctx)
+//   | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
+//   };
+// };
+
+// let try_expand_tok = (ctx: Ctx.t): option(Ctx.t) => {
+//   // get
+// };
+
 let perform = (s: string, z: Zipper.t) => {
-  switch (z.cur, try_extend_tok(s, z.ctx)) {
-  | (Point(_), Some(ctx)) => Zipper.mk(ctx)
-  | _ =>
-    List.iter(Effects.remove, Zipper.Cursor.flatten(z.cur));
-    let (toks, r, ctx) = relabel(s, z.ctx);
-    let (cell, ctx) =
-      toks
-      |> List.fold_left(
-           (ctx, tok) => {
-             P.log("-- molding --");
-             P.show("ctx", Ctx.show(ctx));
-             P.show("tok", Token.Unmolded.show(tok));
-             mold(ctx, tok);
-           },
-           ctx,
-         )
-      |> remold(~fill=Cell.point(Focus));
-    Zipper.unzip(cell, ~ctx)
-    |> Option.map(Move.hstep_n(- r))
-    |> Option.value(~default=Zipper.mk_unroll(R, cell, ~ctx));
-  };
+  open Options.Syntax;
+  let- () = try_extend(~side=L, s, z);
+  let- () = try_extend(~side=R, s, z);
+
+  List.iter(Effects.remove, Zipper.Cursor.flatten(z.cur));
+  let (toks, r, ctx) = relabel(s, z.ctx);
+  let (cell, ctx) =
+    toks
+    |> List.fold_left(
+         (ctx, tok) => {
+           P.log("-- molding --");
+           P.show("ctx", Ctx.show(ctx));
+           P.show("tok", Token.Unmolded.show(tok));
+           mold(ctx, tok);
+         },
+         ctx,
+       )
+    |> remold(~fill=Cell.point(Focus));
+  Zipper.unzip(cell, ~ctx)
+  |> Option.map(Move.hstep_n(- r))
+  |> Option.value(~default=Zipper.mk_unroll(R, cell, ~ctx));
 };

@@ -122,9 +122,10 @@ let push_wald = (~side: Dir.t, w: Wald.t, ~fill=Cell.empty, zigg: t) => {
 let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
-  switch (Slope.pull(~from=b, s_d)) {
-  | Some((tok, s_d)) => (tok, Some(unorient(d, (s_d, top, s_b))))
-  | None =>
+  let (pulled, s_d) = Slope.pull(~from=b, s_d);
+  switch (pulled) {
+  | Node(tok) => (tok, Some(unorient(d, (s_d, top, s_b))))
+  | Root =>
     let (tok, rest) = Wald.uncons(top);
     switch (rest) {
     | ([], _) => (tok, Dir.pick(d, (of_up, of_dn), s_b))

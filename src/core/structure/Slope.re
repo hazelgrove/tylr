@@ -86,21 +86,26 @@ let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
     roll(~onto, ~fill=Cell.put(m), tl);
   };
 
+let pull_terr = (~from: Dir.t, terr: Terr.t): (Token.t, t) => {
+  let (tok, rest) = Wald.uncons(terr.wald);
+  let slope =
+    switch (rest) {
+    | ([], _) => unroll(~from, terr.cell)
+    | ([cell, ...cells], toks) =>
+      let terr = {...terr, wald: Wald.mk(toks, cells)};
+      cat(unroll(~from, cell), [terr]);
+    };
+  (tok, slope);
+};
+
 // here "from" indicates which side slope is relative to puller
 // eg "pull from dn slope on left"
-let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
+let pull = (~from: Dir.t, slope: t): (Delim.t, t) =>
   switch (slope) {
-  | [] => None
+  | [] => (Delim.root, slope)
   | [hd, ...tl] =>
-    let (tok, rest) = Wald.uncons(hd.wald);
-    let slope =
-      switch (rest) {
-      | ([], _) => cat(unroll(~from, hd.cell), tl)
-      | ([cell, ...cells], toks) =>
-        let hd = {...hd, wald: Wald.mk(toks, cells)};
-        cat(unroll(~from, cell), [hd, ...tl]);
-      };
-    Some((tok, slope));
+    let (tok, slope) = pull_terr(~from, hd);
+    (Delim.token(tok), cat(slope, tl));
   };
 
 let merge_hd = (~onto: Dir.t, t: Token.t, slope: t): option(t) =>
