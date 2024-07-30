@@ -161,9 +161,42 @@ module Molded = {
       (l, tok, r);
     };
 
+  // splits token according to internal cursor.
+  // carets at the ends of the token are pruned in output.
+  // - (None, None, None) means there was no cursor.
+  // - (Some(_), _, _) means leftmost caret strictly within token.
+  // - (_, Some(_), _) means part of token is selected
+  // - (_, _, Some(_)) means rightmost caret is strictly within token.
+  let split = (tok: t): (option(t) as 'o, 'o, 'o) =>
+    switch (tok.marks) {
+    | None => (None, None, None)
+    | Some(Point({path, _})) =>
+      let _ = failwith("probably get rid of mark clearing here");
+      if (path <= 0) {
+        (None, None, Some(clear_marks(tok)));
+      } else if (path >= length(tok)) {
+        (Some(clear_marks(tok)), None, None);
+      } else {
+        (Some(tok), None, Some(tok));
+      };
+    | Some(Select(sel)) =>
+      let (l, r) = Step.Selection.carets(sel);
+      if (l.path <= 0 && r.path >= length(tok)) {
+        (None, Some(clear_marks(tok)), None);
+      } else if (l.path <= 0) {
+        let tok = put_cursor(Point(r), tok);
+        (None, Some(tok), Some(tok));
+      } else if (r.path >= length(tok)) {
+        let tok = put_cursor(Point(l), tok);
+        (Some(tok), Some(tok), None);
+      } else {
+        (Some(tok), Some(tok), Some(tok));
+      };
+    };
+
   // call this on a marked token to determine how to update the ctx
   let unzip =
-      (~default=Caret.focus(Dir.L), tok: t)
+      (~default=Caret.focus(), tok: t)
       : (option(t), Cursor.t(Caret.t(unit), Selection.t(t)), option(t)) => {
     let (l, popped, r) = pop_end_carets(tok);
     let cur =
@@ -171,9 +204,7 @@ module Molded = {
       |> Option.map(
            Cursor.map(Caret.map(Fun.const()), Selection.put(popped)),
          )
-      |> Option.value(
-           ~default=Cursor.Point(Caret.map(Fun.const(), default)),
-         );
+      |> Option.value(~default=Cursor.Point(default));
     let l =
       switch (l) {
       | Some(_) => None
@@ -186,6 +217,13 @@ module Molded = {
       };
     (l, cur, r);
   };
+
+  let splits = (tok: t) =>
+    switch (unzip(tok)) {
+    | (Some(_), _, Some(_)) => true
+    | _ => false
+    };
+
   let split_caret = (tok: t): (t, Caret.t(unit), t) =>
     switch (unzip(tok)) {
     | (Some(l), Point(hand), Some(r)) => (l, hand, r)

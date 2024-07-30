@@ -1,7 +1,8 @@
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Bound.t(Token.t);
 let root: t = Bound.Root;
-let token = t => Bound.Node(t);
+let tok = t => Bound.Node(t);
+let is_tok: t => _ = Bound.to_opt;
 let indent =
   fun
   | Bound.Root => false

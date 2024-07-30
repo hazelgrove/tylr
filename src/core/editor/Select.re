@@ -55,7 +55,9 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let b = Dir.toggle(d);
   switch (z.cur) {
   | Point(_) =>
-    let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
+    let (delim, ctx) = Ctx.pull(~from=d, z.ctx);
+    let+ tok = Delim.is_tok(delim);
+    // let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
     let (tok, ctx) =
       switch (hstep_tok(d, tok)) {
       | Error(tok) => (tok, ctx)
@@ -64,7 +66,9 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     Zipper.mk(~cur=Select({focus: d, range: Zigg.of_tok(tok)}), ctx);
   | Select({focus: side, range: zigg}) =>
     if (side == d) {
-      let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
+      let (delim, ctx) = Ctx.pull(~from=d, z.ctx);
+      let+ tok = Delim.is_tok(delim);
+      // let+ (tok, ctx) = Ctx.pull(~from=d, z.ctx);
       let (tok, ctx) =
         switch (hstep_tok(d, tok)) {
         | Error(tok) => (tok, ctx)

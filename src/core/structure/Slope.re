@@ -105,7 +105,7 @@ let pull = (~from: Dir.t, slope: t): (Delim.t, t) =>
   | [] => (Delim.root, slope)
   | [hd, ...tl] =>
     let (tok, slope) = pull_terr(~from, hd);
-    (Delim.token(tok), cat(slope, tl));
+    (Delim.tok(tok), cat(slope, tl));
   };
 
 let merge_hd = (~onto: Dir.t, t: Token.t, slope: t): option(t) =>

@@ -60,57 +60,56 @@ let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) =>
     }
   };
 
-let pull_face = (~from: Dir.t, ctx: t): (Frame.Face.t, t) => {
+let pull_face = (~from: Dir.t, ctx: t): (Delim.t, t) => {
   let (hd, tl) = uncons(ctx);
   let (face, hd') = Frame.Open.pull(~from, hd);
   switch (face) {
-  | In(_)
-  | Out(Node(_)) => (face, cons(hd', tl))
-  | Out(Root) =>
+  | Node(_) => (face, cons(hd', tl))
+  | Root =>
     switch (tl) {
     | ([], _empty) => (face, cons(hd', tl))
     | ([c, ...cs], os) =>
       let (t, rest) = Frame.Closed.pull(~from, c);
       let ctx = map_hd(Frame.Open.cat(rest), mk(os, cs));
-      (Out(Node(t)), ctx);
+      (Node(t), ctx);
     }
   };
 };
 
-let pull_faces = (ctx: t): (Frame.Faces.t, t) => {
-  let (hd, tl) = uncons(ctx);
-  let (faces, hd') = Frame.Open.pull_faces(hd);
-  switch (faces) {
-  | Within(_)
-  | Between(Node(_), Node(_)) => (faces, cons(hd', tl))
-  | Between(l, r) =>
-    switch (tl) {
-    | ([], _empty) => (faces, cons(hd', tl))
-    | ([closed, ...cs], os) =>
-      let rest = Chain.mk(os, cs);
-      let ((face_l, face_r), (rest_l, rest_r)) =
-        Frame.Closed.pull_faces(closed);
-      switch (l, r) {
-      | (Root, Root) =>
-        let face = Frame.Faces.Between(Node(face_l), Node(face_r));
-        let rest = Chain.map_hd(Frame.Open.cat((rest_l, rest_r)), rest);
-        (face, rest);
-      | (Node(_), _root) =>
-        let face = Frame.Faces.Between(l, Node(face_r));
-        let rest =
-          Chain.map_hd(Frame.Open.cat(([fst(closed)], rest_r)), rest);
-        (face, rest);
-      | (_root, Node(_)) =>
-        let face = Frame.Faces.Between(Node(face_l), r);
-        let rest =
-          Chain.map_hd(Frame.Open.cat((rest_l, [snd(closed)])), rest);
-        (face, rest);
-      };
-    }
-  };
-};
+// let pull_faces = (ctx: t): (Frame.Faces.t, t) => {
+//   let (hd, tl) = uncons(ctx);
+//   let (faces, hd') = Frame.Open.pull_faces(hd);
+//   switch (faces) {
+//   | Within(_)
+//   | Between(Node(_), Node(_)) => (faces, cons(hd', tl))
+//   | Between(l, r) =>
+//     switch (tl) {
+//     | ([], _empty) => (faces, cons(hd', tl))
+//     | ([closed, ...cs], os) =>
+//       let rest = Chain.mk(os, cs);
+//       let ((face_l, face_r), (rest_l, rest_r)) =
+//         Frame.Closed.pull_faces(closed);
+//       switch (l, r) {
+//       | (Root, Root) =>
+//         let face = Frame.Faces.Between(Node(face_l), Node(face_r));
+//         let rest = Chain.map_hd(Frame.Open.cat((rest_l, rest_r)), rest);
+//         (face, rest);
+//       | (Node(_), _root) =>
+//         let face = Frame.Faces.Between(l, Node(face_r));
+//         let rest =
+//           Chain.map_hd(Frame.Open.cat(([fst(closed)], rest_r)), rest);
+//         (face, rest);
+//       | (_root, Node(_)) =>
+//         let face = Frame.Faces.Between(Node(face_l), r);
+//         let rest =
+//           Chain.map_hd(Frame.Open.cat((rest_l, [snd(closed)])), rest);
+//         (face, rest);
+//       };
+//     }
+//   };
+// };
 
-let faces = (ctx: t) => fst(pull_faces(ctx));
+// let faces = (ctx: t) => fst(pull_faces(ctx));
 // let face = (~side: Dir.t, ctx: t) => {
 //   open Options.Syntax;
 //   let/ () = Frame.Open.face(~side, hd(ctx));
@@ -205,16 +204,27 @@ let push_opt =
     map_hd(Frame.Open.cat(open_), Tl.rest(tl));
   };
 };
-let push = (~onto: Dir.t, tok, ~fill=Cell.empty, ctx) =>
-  push_opt(~onto, tok, ~fill, ctx)
-  |> Options.get_exn(Invalid_argument("Ctx.push"));
 
-let push_face = (~onto: Dir.t, face: Frame.Face.t, ctx: t) =>
-  switch (face) {
-  | Out(Root) => ctx
-  | Out(Node(tok)) => ctx |> push(~onto, tok)
-  | In(tok) => ctx |> push(~onto=L, tok) |> push(~onto=R, tok)
+let push = (~onto: Dir.t, tok: Token.t, ~fill=Cell.empty, ctx) => {
+  let get = Options.get_exn(Invalid_argument("Ctx.push"));
+  let pushed = get(push_opt(~onto, tok, ~fill, ctx));
+  let (l, _, r) = Token.split(tok);
+  switch (Dir.pick(onto, (r, l))) {
+  | None => pushed
+  | Some(_) => get(push_opt(~onto=Dir.toggle(onto), tok, pushed))
   };
+};
+
+// let push = (~onto: Dir.t, tok, ~fill=Cell.empty, ctx) =>
+//   push_opt(~onto, tok, ~fill, ctx)
+//   |> Options.get_exn(Invalid_argument("Ctx.push"));
+
+// let push_face = (~onto: Dir.t, face: Frame.Face.t, ctx: t) =>
+//   switch (face) {
+//   | Out(Root) => ctx
+//   | Out(Node(tok)) => ctx |> push(~onto, tok)
+//   | In(tok) => ctx |> push(~onto=L, tok) |> push(~onto=R, tok)
+//   };
 
 let push_wald_opt = (~onto: Dir.t, w: Wald.t, ~fill=Cell.empty, ctx) => {
   let (hd, tl) = Wald.uncons(w);

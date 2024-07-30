@@ -63,6 +63,8 @@ let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
 
 let extend_tok = (~side=Dir.R, s: string, tok: Token.t) =>
   switch (tok.mtrl) {
+  | Space ()
+  | Grout(_) => None
   | Tile((lbl, _)) =>
     let (l, r) =
       Token.split_text(tok)
@@ -73,15 +75,14 @@ let extend_tok = (~side=Dir.R, s: string, tok: Token.t) =>
     let text = l ++ s ++ r;
     switch (Labeler.label(text)) {
     | [t] when Token.Unmolded.has_lbl(lbl, t) =>
+      let _ = failwith("todo: only add cursor if within token");
       Some({
         ...tok,
         text,
         marks: Some(Point(Caret.focus(Utf8.length(l ++ s)))),
-      })
+      });
     | _ => None
     };
-  | Grout(_)
-  | Space () => None
   };
 
 let try_extend = (~side: Dir.t, s: string, z: Zipper.t): option(Zipper.t) => {
@@ -89,17 +90,18 @@ let try_extend = (~side: Dir.t, s: string, z: Zipper.t): option(Zipper.t) => {
   let* _ = Cursor.get_point(z.cur);
   let* () = Options.of_bool(!Strings.is_empty(s));
   let (face, ctx) = Ctx.pull_face(~from=side, z.ctx);
-  let* tok = Frame.Face.to_token(face);
+  let* tok = Delim.is_tok(face);
   let+ tok = extend_tok(~side=Dir.toggle(side), s, tok);
-  let (l, _, r) = Token.unzip(tok);
-  // expecting extend to leave nonempty prefix before caret
-  let tok = Option.get(l);
-  let ctx =
-    switch (r) {
-    | None => Ctx.push(~onto=L, tok, ctx)
-    | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
-    };
-  Zipper.mk(ctx);
+  // let (l, _, r) = Token.unzip(tok);
+  // // expecting extend to leave nonempty prefix before caret
+  // let tok = Option.get(l);
+  // let ctx =
+  //   switch (r) {
+  //   | None => Ctx.push(~onto=L, tok, ctx)
+  //   | Some(_) => ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok)
+  //   };
+  // Zipper.mk(ctx);
+  ctx |> Ctx.push(~onto=L, tok) |> Zipper.mk;
 };
 
 // let try_extend_tok = (s: string, ctx: Ctx.t): option(Ctx.t) => {
