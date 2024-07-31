@@ -11,26 +11,6 @@ let link = (~open_=Frame.Open.empty) => link(open_);
 let fold = Chain.fold_left;
 let fold_root = Chain.fold_right;
 
-let face = (~side: Dir.t, ctx: t) => {
-  open Options.Syntax;
-  let/ () = Frame.Open.face(~side, hd(ctx));
-  let+ (_, (l, r), _) = Result.to_option(unlink(ctx));
-  Terr.face(Dir.pick(side, (l, r)));
-};
-let map_face = (~side: Dir.t, f: Token.t => Token.t, ctx: t) => {
-  let (hd, tl) = Chain.uncons(ctx);
-  switch (Frame.Open.map_face(~side, f, hd)) {
-  | Some(hd) => Chain.cons(hd, tl)
-  | None =>
-    switch (unlink(ctx)) {
-    | Error(_) => ctx
-    | Ok((open_, closed, rest)) =>
-      let closed = Frame.Closed.map_face(~side, f, closed);
-      Chain.link(open_, closed, rest);
-    }
-  };
-};
-
 // let bound = (~side: Dir.t, ctx) =>
 //   switch (unlink(ctx)) {
 //   | Error(_) => Bound.Root
