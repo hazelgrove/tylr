@@ -36,6 +36,15 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
 
 module Melded = Melder.Melded;
 
+module Molded = {
+  type t =
+    | Molded(Melded.t)
+    | Deferred(Melded.t)
+    // removed redundant empty ghost
+    | Removed;
+};
+
+// returns None if input token is empty
 let mold =
     (
       ~bound=Bound.Root,
@@ -43,33 +52,39 @@ let mold =
       ~fill=Cell.empty,
       t: Token.Unmolded.t,
     )
-    : option(Melded.t) =>
+    : Molded.t =>
   switch (
     candidates(t)
     |> Oblig.Delta.minimize(tok =>
          Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
        )
   ) {
-  | Some(_) as m => m
+  | Some(m) => Molded(m)
   | None =>
     let deferred = Token.Unmolded.defer(t);
     Token.is_empty(deferred)
-      ? None : Melder.push(deferred, ~fill, slope, ~bound, ~onto=L);
-  // |> Options.get_fail("bug: failed to push space")
+      ? Removed
+      : Deferred(
+          Melder.push(deferred, ~fill, slope, ~bound, ~onto=L)
+          |> Options.get_fail("bug: failed to push space"),
+        );
+  //
   };
 
 // returns the result of remolding and melding the terr face onto bounded slope.
 // if the terr face retains its original mold, then the rest of the terr is tacked
 // on and snd elem of returned pair is Ok(terr.cell). otherwise, the rest of the
 // terr is disassembled to an up slope that requires subsequent remolding.
+// note: if returns (o, Ok(cell)), then o must be Some
+// todo: clean this up
 let remold =
     (~bound=Bound.Root, slope: Slope.Dn.t, ~fill=Cell.empty, terr: Terr.L.t)
-    : (option(Melded.t), Result.t(Cell.t, Slope.Up.t)) => {
+    : (Molded.t, Result.t(Cell.t, Slope.Up.t)) => {
   let (hd, tl) = Wald.uncons(terr.wald);
   switch (mold(~bound, slope, ~fill, Token.unmold(hd))) {
-  | Some(molded) when Melded.face(molded).mtrl == hd.mtrl =>
+  | Molded(m) when Melded.face(m).mtrl == hd.mtrl =>
     // fast path for when hd retains original mold
-    (Some(Melded.extend(tl, molded)), Ok(terr.cell))
+    (Molded(Melded.extend(tl, m)), Ok(terr.cell))
   | molded =>
     let up =
       Chain.Affix.uncons(tl)

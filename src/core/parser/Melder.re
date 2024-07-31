@@ -1,5 +1,7 @@
 open Stds;
 
+exception Bug__failed_to_push_space;
+
 // module Stack = {
 //   type t = {
 //     slope: Slope.t,
