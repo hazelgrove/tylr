@@ -331,7 +331,11 @@ module Unmolded = {
 let unmold = (tok: Molded.t): Unmolded.t => {
   let mtrl =
     switch (tok.mtrl) {
-    | Space () => Mtrl.Space()
+    | Space () =>
+      switch (Labels.completions(tok.text)) {
+      | [] => Mtrl.Space()
+      | [_, ..._] as lbls => Tile(lbls)
+      }
     | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
     | Tile((lbl, _)) =>
       Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
