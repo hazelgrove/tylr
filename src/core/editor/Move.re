@@ -16,7 +16,7 @@ let hstep_tok = (d: Dir.t, tok: Token.t): option(Token.t) => {
   let (m, n) = (Token.length(tok), Utf8.length(tok.text));
   let (l, r) = (1, Token.is_complete(tok) ? m - 1 : n);
   switch (tok.marks) {
-  | _ when m <= 1 => None
+  | _ when m <= 1 || n <= 0 => None
   | None =>
     let car = Caret.focus(Dir.pick(d, (r, l)));
     Some(Token.put_cursor(Point(car), tok));
