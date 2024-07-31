@@ -308,6 +308,24 @@ module Unmolded = {
     | Grout () => false
     | Tile(lbls) => List.mem(lbl, lbls)
     };
+  let expands = (tok: t) =>
+    switch (tok.mtrl) {
+    | Space ()
+    | Grout () => None
+    | Tile(lbls) =>
+      let expanding_lbls =
+        lbls
+        |> List.filter(
+             fun
+             // todo: add expands flag to label
+             | Label.Const(_, text) when text == tok.text => true
+             | _ => false,
+           );
+      switch (expanding_lbls) {
+      | [] => None
+      | [_, ..._] => Some({...tok, mtrl: Mtrl.Tile(expanding_lbls)})
+      };
+    };
 };
 
 let unmold = (tok: Molded.t): Unmolded.t => {
