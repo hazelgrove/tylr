@@ -90,10 +90,11 @@ let fill_default =
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
-  | Space(fillable) =>
+  | Space(nt) =>
     let squashed = Cells.squash(cs);
     let valid =
-      fillable ? Cell.Space.is_space : Cell.is_empty(~require_unmarked=false);
+      nt == Open
+        ? Cell.Space.is_space : Cell.is_empty(~require_unmarked=false);
     List.for_all(valid, squashed)
       ? Lists.hd(squashed)
         |> Option.value(~default=Cell.empty)

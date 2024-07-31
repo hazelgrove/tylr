@@ -57,7 +57,7 @@ let pop = buf => {
   switch%sedlex (buf) {
   | space =>
     let text = lexeme(buf);
-    Some(Token.Unmolded.mk(~text, Mtrl.Space()));
+    Some(Token.Unmolded.mk(~text, Mtrl.Space(White)));
   | int_lit => mk(lexeme(buf), Int_lit)
   | float_lit => mk(lexeme(buf), Float_lit)
   | id_lower => mk(lexeme(buf), Id_lower)

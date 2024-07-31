@@ -39,7 +39,7 @@ module Molded = {
 
   let pp = (out, tok: t) =>
     switch (tok.mtrl) {
-    | Space () =>
+    | Space(_) =>
       String.to_seq(tok.text)
       |> Seq.map(
            fun
@@ -68,8 +68,8 @@ module Molded = {
   let mk = (~id=?, ~text="", ~marks=?, mtrl: Mtrl.T.t) =>
     Base.mk(~id?, ~text, ~marks?, mtrl);
 
-  let empty = () => mk(Space());
-  let space = () => mk(~text=" ", Space());
+  let empty = () => mk(Space(White));
+  let space = () => mk(~text=" ", Space(White));
 
   let is_empty = (tok: t) =>
     switch (tok.mtrl) {
@@ -90,12 +90,12 @@ module Molded = {
     | Grout(_) => 1
     | Tile((Const(_, c), _)) => Utf8.length(c)
     | Tile(_)
-    | Space () => Utf8.length(tok.text)
+    | Space(_) => Utf8.length(tok.text)
     };
 
   let is_complete = (tok: t) =>
     switch (tok.mtrl) {
-    | Space ()
+    | Space(_)
     | Grout(_) => true
     | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
     };
@@ -247,11 +247,61 @@ module Molded = {
 };
 include Molded;
 
+module Unmolded = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = Base.t(Mtrl.t(Space.T.t, unit, list(Label.t)));
+  let mk = (~id=?, ~text="", mtrl: Mtrl.t(_)): t =>
+    Base.mk(~id?, ~text, mtrl);
+  let defer = (tok: t): Molded.t =>
+    Molded.mk(~id=tok.id, ~text=tok.text, Space(Unmolded));
+  let has_lbl = (lbl: Label.t, tok: t) =>
+    switch (tok.mtrl) {
+    | Space(_)
+    | Grout () => false
+    | Tile(lbls) => List.mem(lbl, lbls)
+    };
+  let expands = (tok: t) =>
+    switch (tok.mtrl) {
+    // todo: maybe Space(Unmolded) should be expandable?
+    | Space(_)
+    | Grout () => None
+    | Tile(lbls) =>
+      let expanding_lbls =
+        lbls
+        |> List.filter(
+             fun
+             // todo: add expands flag to label
+             | Label.Const(_, text) when text == tok.text => true
+             | _ => false,
+           );
+      switch (expanding_lbls) {
+      | [] => None
+      | [_, ..._] => Some({...tok, mtrl: Mtrl.Tile(expanding_lbls)})
+      };
+    };
+};
+
+let unmold = (tok: Molded.t): Unmolded.t => {
+  let mtrl =
+    switch (tok.mtrl) {
+    | Space(White) => Mtrl.Space(Space.T.White)
+    | Space(Unmolded) =>
+      switch (Labels.completions(tok.text)) {
+      | [] => Space(Unmolded)
+      | [_, ..._] as lbls => Tile(lbls)
+      }
+    | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
+    | Tile((lbl, _)) =>
+      Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
+    };
+  Unmolded.mk(~id=tok.id, ~text=tok.text, mtrl);
+};
+
 module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
-  let mk = (~id=?, ~text="", ~marks=?, ()) =>
-    Molded.mk(~id?, ~text, ~marks?, Space());
-  let empty = mk();
+  let mk = (~id=?, ~text="", ~marks=?, t: Space.T.t) =>
+    Molded.mk(~id?, ~text, ~marks?, Space(t));
+  let empty = mk(White);
   // let cursor = failwith("todo Token.Space");
   let squash = (l: Molded.t, ~caret=?, r: Molded.t) => {
     ...l,
@@ -275,7 +325,7 @@ module Grout = {
   let is_ = (tok: Molded.t): option(t) =>
     switch (tok.mtrl) {
     | Grout(g) => Some(Base.map(Fun.const(g), tok))
-    | Space ()
+    | Space(_)
     | Tile(_) => None
     };
   let is = (tok: Molded.t) => Mtrl.is_grout(tok.mtrl);
@@ -289,56 +339,9 @@ module Grout = {
 module Tile = {
   let is_ghost = (tok: t) =>
     switch (tok.mtrl) {
-    | Space ()
+    | Space(_)
     | Grout(_) => None
     | Tile((lbl, _) as t) =>
       Label.is_complete(tok.text, lbl) ? None : Some(t)
     };
-};
-
-module Unmolded = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Base.t(Mtrl.t(unit, unit, list(Label.t)));
-  let mk = (~id=?, ~text="", mtrl: Mtrl.t(_)): t =>
-    Base.mk(~id?, ~text, mtrl);
-  let defer = (tok: t): Molded.t => Space.mk(~id=tok.id, ~text=tok.text, ());
-  let has_lbl = (lbl: Label.t, tok: t) =>
-    switch (tok.mtrl) {
-    | Space ()
-    | Grout () => false
-    | Tile(lbls) => List.mem(lbl, lbls)
-    };
-  let expands = (tok: t) =>
-    switch (tok.mtrl) {
-    | Space ()
-    | Grout () => None
-    | Tile(lbls) =>
-      let expanding_lbls =
-        lbls
-        |> List.filter(
-             fun
-             // todo: add expands flag to label
-             | Label.Const(_, text) when text == tok.text => true
-             | _ => false,
-           );
-      switch (expanding_lbls) {
-      | [] => None
-      | [_, ..._] => Some({...tok, mtrl: Mtrl.Tile(expanding_lbls)})
-      };
-    };
-};
-
-let unmold = (tok: Molded.t): Unmolded.t => {
-  let mtrl =
-    switch (tok.mtrl) {
-    | Space () =>
-      switch (Labels.completions(tok.text)) {
-      | [] => Mtrl.Space()
-      | [_, ..._] as lbls => Tile(lbls)
-      }
-    | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
-    | Tile((lbl, _)) =>
-      Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
-    };
-  Unmolded.mk(~id=tok.id, ~text=tok.text, mtrl);
 };

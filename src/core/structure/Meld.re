@@ -134,11 +134,6 @@ let rev = (M(l, W(w), r): t) => M(r, W(Chain.rev(w)), l);
 
 let face = (~side: Dir.t, M(_, w, _)) => Wald.face(~side, w);
 
-let is_space =
-  fun
-  | M(_, W(([{mtrl: Space (), _} as tok], [])), _) => Some(tok)
-  | _ => None;
-
 let map_cells = (f, M(l, W((toks, cells)), r)) => {
   let (l, r) = (f(l), f(r));
   let cells = List.map(f, cells);

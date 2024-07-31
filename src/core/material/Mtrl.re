@@ -67,16 +67,15 @@ module NT = {
   let compare = (l: t, r: t) =>
     switch (l, r) {
     | _ when l == r => 0
-    | (Space(false), _) => (-1)
-    | (_, Space(false)) => 1
-    | (Space(true), _) => (-1)
-    | (_, Space(true)) => 1
+    | (Space(l), Space(r)) => Space.NT.compare(l, r)
+    | (Space(_), _) => (-1)
+    | (_, Space(_)) => 1
     | (Grout(l), Grout(r)) => Grout.NT.compare(l, r)
     | (Grout(_), _) => (-1)
     | (_, Grout(_)) => 1
     | (Tile(l), Tile(r)) => Tile.NT.compare(l, r)
     };
-  let fillable: t => bool = (!=)(Space(false));
+  let is_open: t => bool = (!=)(Space(Space.NT.Closed));
   let root = Tile(Tile.NT.root);
   let sort: t => Sorted.t = map(~space=Fun.const(), ~grout=Fun.id, ~tile=fst);
   let bounds: t => _ =

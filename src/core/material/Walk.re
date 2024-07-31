@@ -19,8 +19,8 @@ module Swing = {
   };
   let show = Fmt.to_to_string(pp);
   let unit: Mtrl.NT.t => t = Chain.unit;
-  let empty: t = unit(Space(false));
-  let space: t = unit(Space(true));
+  let empty: t = unit(Space(Closed));
+  let space: t = unit(Space(Open));
   let root: t = unit(Tile(Tile.NT.root));
   let mk = (nts: list(Mtrl.NT.t)) => {
     let n = List.length(nts);
@@ -32,7 +32,7 @@ module Swing = {
   let is_neq = s => !is_eq(s);
   let top = Chain.ft;
   let bot = Chain.hd;
-  let fillable = (sw: t) => Mtrl.NT.fillable(bot(sw));
+  let is_open = (sw: t) => Mtrl.NT.is_open(bot(sw));
   let compare = (l: t, r: t) => {
     let c = Int.compare(height(l), height(r));
     c == 0

@@ -9,7 +9,7 @@ module Style = {
   };
   let mk = (~null as (l, r), mtrl: Mtrl.T.t): option(t) =>
     switch (mtrl) {
-    | Space () => None
+    | Space(_) => None
     | Grout((sort, shape)) => Some({sort, shape})
     | Tile(t) =>
       let sort = Tile.T.sort(t);

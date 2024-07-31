@@ -5,15 +5,19 @@ type t =
   | Missing_meld // convex grout
   | Missing_tile // ghost tile
   | Incon_meld // pre/postfix grout
-  | Extra_meld; // infix grout
+  | Extra_meld // infix grout
+  | Unmolded_tok;
 
 // low to high severity
-let all = [Missing_meld, Missing_tile, Incon_meld, Extra_meld];
+// (unmolded tile severity doesn't matter in that it is always last resort
+// after using other oblig severities to compare available mold options)
+let all = [Missing_meld, Missing_tile, Incon_meld, Extra_meld, Unmolded_tok];
 let severity = o => Option.get(Lists.find_index((==)(o), all));
 
 let of_token = (tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space () => None
+  | Space(White) => None
+  | Space(Unmolded) => Some(Unmolded_tok)
   | Grout((_, (Conv, Conv))) => Some(Missing_meld)
   | Grout((_, (Conv, Conc) | (Conc, Conv))) => Some(Incon_meld)
   | Grout((_, (Conc, Conc))) => Some(Extra_meld)

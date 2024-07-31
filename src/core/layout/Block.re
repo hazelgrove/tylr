@@ -91,7 +91,7 @@ let of_tok = (tok: Token.t) =>
   switch (tok.mtrl) {
   | Grout(_)
   | Tile(_) => line([tok])
-  | Space () =>
+  | Space(_) =>
     Strings.split(~on='\n', tok.text)
     |> List.map(text => line([{...tok, text}]))
     |> vcats

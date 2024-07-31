@@ -33,7 +33,8 @@ let view_tile = (lbl: Label.t, text: string) => {
 let view_tok = (tok: Token.t) =>
   (
     switch (tok.mtrl) {
-    | Space () =>
+    | Space(_) =>
+      // todo: distinguish whitespace from unmolded styling
       Node.span(
         ~attrs=Attr.[class_("space")],
         [Node.text(view_space(tok.text))],

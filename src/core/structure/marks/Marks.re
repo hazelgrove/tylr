@@ -28,17 +28,18 @@ module Cell = {
   [@deriving (sexp, yojson)]
   type t = {
     cursor: option(Path.Cursor.t),
-    ghosts: Path.Map.t(Tile.T.t),
+    // todo: unify this with Oblig module
+    obligs: Path.Map.t(Mtrl.T.t),
   };
-  let mk = (~cursor=?, ~ghosts=Path.Map.empty, ()) => {cursor, ghosts};
+  let mk = (~cursor=?, ~obligs=Path.Map.empty, ()) => {cursor, obligs};
   let empty = mk();
   let is_empty = (==)(empty);
   let pp = (out, marks) =>
     if (is_empty(marks)) {
       Fmt.nop(out, marks);
     } else if (Option.is_none(marks.cursor)) {
-      Fmt.pf(out, "ghosts: %a", Path.Map.pp(Tile.T.pp), marks.ghosts);
-    } else if (Path.Map.is_empty(marks.ghosts)) {
+      Fmt.pf(out, "obligs: %a", Path.Map.pp(Mtrl.T.pp), marks.obligs);
+    } else if (Path.Map.is_empty(marks.obligs)) {
       Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
     } else {
       Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
@@ -51,13 +52,13 @@ module Cell = {
     ...marks,
     cursor: Path.Cursor.put_focus(path, marks.cursor),
   };
-  let add_ghost = (~path=Path.empty, t: Tile.T.t, marks: t) => {
+  let add_oblig = (~path=Path.empty, t: Mtrl.T.t, marks: t) => {
     ...marks,
-    ghosts: Path.Map.add(path, t, marks.ghosts),
+    obligs: Path.Map.add(path, t, marks.obligs),
   };
-  let map = (f_cursor, f_ghosts, {cursor, ghosts}) => {
+  let map = (f_cursor, f_obligs, {cursor, obligs}) => {
     cursor: f_cursor(cursor),
-    ghosts: f_ghosts(ghosts),
+    obligs: f_obligs(obligs),
   };
   let cons = n => map(Option.map(Path.Cursor.cons(n)), Path.Map.cons(n));
   let peel = n =>
@@ -66,7 +67,7 @@ module Cell = {
     map(Option.map(Path.Cursor.map_paths(f)), Path.Map.map_paths(f));
   let union = (l: t, r: t) => {
     cursor: Options.merge(~f=Path.Cursor.union, l.cursor, r.cursor),
-    ghosts: Path.Map.union((_, t, _) => Some(t), l.ghosts, r.ghosts),
+    obligs: Path.Map.union((_, t, _) => Some(t), l.obligs, r.obligs),
   };
   let union_all = List.fold_left(union, empty);
 

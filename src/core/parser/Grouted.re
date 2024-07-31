@@ -41,7 +41,7 @@ let repad = (dst: Delim.t, baked: t, src: Delim.t, ~onto: Dir.t) =>
        let (l, r) = Dir.order(onto, (b, d));
        let (_, l) = Delim.padding(l).h;
        let (r, _) = Delim.padding(r).h;
-       let c = Walk.Swing.fillable(sw) ? Cell.repad(~l, cell, ~r) : cell;
+       let c = Walk.Swing.is_open(sw) ? Cell.repad(~l, cell, ~r) : cell;
        (sw, c);
      })
   |> Chain.unconsnoc_exn

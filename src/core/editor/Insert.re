@@ -69,7 +69,7 @@ let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
 
 let extend = (~side=Dir.R, s: string, tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space ()
+  | Space(_)
   | Grout(_) => None
   | Tile((lbl, _)) =>
     let (l, r) =
@@ -115,9 +115,10 @@ let try_extend = (~side: Dir.t, s: string, z: Zipper.t): option(Zipper.t) => {
 // maybe rename expandable
 let expand = (tok: Token.t) =>
   switch (tok.mtrl) {
+  | Space(White)
   | Grout(_)
   | Tile((Const(_), _)) => None
-  | Space ()
+  | Space(Unmolded)
   | Tile(_) =>
     open Options.Syntax;
     let* labeled = Labeler.single(tok.text);

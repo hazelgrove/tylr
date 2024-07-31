@@ -82,12 +82,12 @@ let arrive = (sym: Mtrl.Sym.t, w: Walk.t, ~from: Dir.t) =>
     // generate placeholder space NT cells to separate adjacent tile Ts
     let over: Mtrl.NT.t =
       switch (t) {
-      | Space () => Space(false)
-      | Tile(_) => Space(true)
+      | Space(_) => Space(Closed)
+      | Tile(_) => Space(Open)
       | Grout((s, tips)) =>
         switch (Dir.pick(from, tips)) {
         | Conc => Grout(s)
-        | Conv => Space(true)
+        | Conv => Space(Open)
         }
       };
     Index.single(Node(t), Walk.cons(over, w));
@@ -96,8 +96,10 @@ let arrive = (sym: Mtrl.Sym.t, w: Walk.t, ~from: Dir.t) =>
 let swing_into = (w: Walk.t, ~from: Dir.t) => {
   let swing = Chain.hd(w);
   switch (Swing.bot(swing)) {
-  | Space(false) => Index.empty
-  | Space(true) => Index.single(Node(Space()), Walk.cons(Space(false), w))
+  | Space(Closed) => Index.empty
+  | Space(Open) =>
+    Index.single(Node(Space(White)), Walk.cons(Space(Closed), w))
+    |> Index.add(Node(Space(Unmolded)), Walk.cons(Space(Closed), w))
   | Grout(s) =>
     // grout NTs can only be entered from directly preceding grout T.
     // otherwise, potential soundness issues where a tile T can step to
@@ -150,9 +152,11 @@ let step_all =
   Memo.general(((src: End.t, from: Dir.t)) =>
     switch (src) {
     | Root => swing_all(Tile(Tile.NT.root), ~from)
-    | Node(Space ()) =>
+    | Node(Space(_)) =>
       // space takes prec over everything and matches itself
-      Index.single(Root, Walk.empty) |> Index.add(Node(Space()), Walk.empty)
+      Index.single(Root, Walk.empty)
+      |> Index.add(Node(Space(White)), Walk.empty)
+      |> Index.add(Node(Space(Unmolded)), Walk.empty)
     | Node(Grout((s, tips))) =>
       switch (Dir.pick(Dir.toggle(from), tips)) {
       | Conc =>

@@ -29,10 +29,8 @@ let lift_tok_marks = (tok: Token.t): (Marks.t, Token.t) =>
   Token.pop_marks(tok)
   |> Tuples.map_fst(Marks.of_token)
   |> Tuples.map_fst(
-       switch (Token.Tile.is_ghost(tok)) {
-       | Some(t) => Marks.add_ghost(t)
-       | None => Fun.id
-       },
+       Option.is_some(Oblig.of_token(tok))
+         ? Marks.add_oblig(tok.mtrl) : Fun.id,
      );
 let lower_tok_marks = (marks: Marks.t, tok: Token.t): Token.t =>
   Token.put_marks(Marks.to_token(~len=Token.length(tok), marks), tok);
@@ -175,7 +173,7 @@ let rec repad = (~l=false, ~r=false, c: t) =>
   switch (get(c)) {
   | _ when !l && !r => c
   | None =>
-    let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space()));
+    let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White)));
     let m = Meld.mk(~l=c, w);
     put(m);
   // avoid adding padding if there is some already
