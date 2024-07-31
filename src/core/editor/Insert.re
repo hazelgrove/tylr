@@ -87,7 +87,7 @@ let extend = (~side=Dir.R, s: string, tok: Token.t) =>
       extended
       |> (
         n >= Token.length(extended)
-          ? Fun.id : Token.put_cursor(Point(Caret.focus(n)))
+          ? Token.clear_marks : Token.put_cursor(Point(Caret.focus(n)))
       )
       |> Option.some;
     | _ => None
