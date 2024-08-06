@@ -4,6 +4,8 @@
      Wherever TS defines an opt(automatic_semicolon) we are requiring a semicolon
  */
 
+//TODO: Look into writing an extension to the tylr grammar to do more of a ts precedence with a table of named values and each individual form associated with a particular named value - also with the nested arrays for separate precedence levels by form/sort?
+
 module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -35,8 +37,45 @@ let op = (~l=true, ~r=true, ~indent=true) =>
   c(~p=Padding.op(~l, ~r, ~indent, ()));
 let brc = (side: Dir.t) => c(~p=Padding.brc(side));
 
-let tokc_alt = ss => alt(List.map(c, ss));
+//let tokc_alt = ss => alt(List.map(c, ss));
 let tokop_alt = ss => alt(List.map(op, ss));
+
+let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
+
+//TODO: turn pat into its own sort (with the above definition) and raise any specific forms that are referenced in other sorts to the top level
+
+let private_property_ident = seq([c("#"), t(Id_lower)]);
+let import = kw("import");
+
+let optional_chain = c("?.");
+
+let member_exp = atom =>
+  seq([
+    alt([atom(), import]),
+    alt([c("."), optional_chain]),
+    alt([private_property_ident, t(Id_lower)]),
+  ]);
+
+let subscript_exp = atom =>
+  seq([
+    alt([atom()]),
+    opt(optional_chain),
+    brc(L, "["),
+    atom(),
+    brc(R, "]"),
+  ]);
+
+let lhs_exp = atom =>
+  alt([t(Id_lower), member_exp(atom), subscript_exp(atom)]);
+
+// let assignment_pat =
+/*let array_pat = atom =>
+  seq([
+    brc(L, "["),
+    comma_sep(opt(alt([pat(atom), assignment_pat]))),
+    brc(R, "]"),
+  ]);
+  */
 
 module type SORT = {
   let atom: unit => Regex.t;
@@ -52,6 +91,14 @@ module rec Typ: SORT = {
 
   let tbl = () => [p(operand)];
 }
+and Pat: SORT = {
+  let sort = () => Sort.of_str("Pat");
+  let atom = () => nt(sort());
+
+  let pat = alt([lhs_exp(Exp.atom), kw("...")]);
+
+  let tbl = () => [p(pat)];
+}
 and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
   let atom = () => nt(sort());
@@ -61,9 +108,7 @@ and Exp: SORT = {
 
   let num = alt([t(Int_lit), t(Float_lit)]);
 
-  let lhs_exp = alt([]);
-  let pat = alt([lhs_exp, kw("...")]);
-
+  //NOTE: for now we are making the primary same as exp atom - doing this to test our grammar designs on the assumption that treesitter separates them for precedence but our "global" exp precedence will work
   let primary_exp = atom();
 
   let pair = seq([t(Id_lower), c(":"), atom()]);
@@ -77,8 +122,12 @@ and Exp: SORT = {
       brc(R, ")"),
     ]);
 
+  let lhs_exp = lhs_exp(atom);
+  let member_exp = member_exp(atom);
+
   //TODO:assignment_pat
-  let param = alt([pat]);
+
+  let param = alt([Pat.atom() /*, assignnment_pat*/]);
   let params =
     seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
@@ -97,7 +146,7 @@ and Exp: SORT = {
       stat_block,
     ]);
 
-  let obj_elements = alt([pair, spread_element, method_def]);
+  let obj_elements = alt([pair, spread_element /*method_def*/]);
 
   let obj =
     seq([
@@ -184,10 +233,7 @@ and Exp: SORT = {
 
   //TODO: template strings
   let template_string = alt([]);
-  let import = kw("import");
-  let optional_chain = c("?.");
 
-  //TODO: how do we want to handle atoms vs primary exp? for now just using atom
   let call_exp =
     alt([
       seq([alt([atom(), import]), alt([arguments, template_string])]),
@@ -195,24 +241,6 @@ and Exp: SORT = {
     ]);
 
   let paren_exp = seq([brc(L, "("), atom(), brc(R, ")")]);
-
-  let private_property_ident = seq([c("#"), t(Id_lower)]);
-
-  let member_exp =
-    seq([
-      alt([atom(), primary_exp, import]),
-      alt([c("."), optional_chain]),
-      alt([private_property_ident, t(Id_lower)]),
-    ]);
-
-  let subscript_exp =
-    seq([
-      alt([atom(), primary_exp]),
-      opt(optional_chain),
-      brc(L, "["),
-      atom(),
-      brc(R, "]"),
-    ]);
 
   let primary_exp_list =
     alt([
@@ -227,7 +255,8 @@ and Exp: SORT = {
       obj,
       arr,
       func_exp,
-      arrow_function,
+      //NOTE: removed the arrow exp from the primary exp list bc they are not bi-delimited and seem
+      // arrow_function,
       generator_function,
       _class,
       call_exp,
@@ -284,8 +313,9 @@ and Exp: SORT = {
   let yield_exp =
     seq([kw("yield"), alt([seq([c("*"), atom()]), opt(atom())])]);
 
+  //Low -> high prec
   let tbl = () =>
-    [p(operand)]
+    [p(arrow_function)]
     @ binary_exp
     @ [
       p(ternary_exp),
@@ -295,15 +325,231 @@ and Exp: SORT = {
       p(update_exp),
       p(new_exp),
       p(yield_exp),
-    ];
+    ]
+    @ [p(operand)];
 }
 and Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
   let atom = () => nt(sort());
 
-  let operand = alt([]);
+  let empty_statement = c(";");
+  let paren_exp = seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
-  let tbl = () => [p(operand)];
+  let stat_block =
+    seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
+
+  let param = alt([Pat.atom() /*, assignment_pat*/]);
+  let params =
+    seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
+  let method_def =
+    seq([
+      opt(kw(~l=false, ~indent=false, "static")),
+      opt(kw(~l=false, ~indent=false, "async")),
+      opt(
+        alt([
+          kw(~l=false, ~indent=false, "get"),
+          kw(~l=false, ~indent=false, "set"),
+          kw(~l=false, ~indent=false, "*"),
+        ]),
+      ),
+      t(Id_lower),
+      params,
+      stat_block,
+    ]);
+  let call_signature = params;
+
+  let module_export_name = alt([t(Id_lower) /* , t(String_lit) */]);
+  let export_specifier =
+    seq([module_export_name, opt(seq([kw("as"), module_export_name]))]);
+  let export_clause =
+    seq([
+      brc(L, "{"),
+      export_specifier,
+      star(seq([c(","), export_specifier])),
+      opt(c(",")),
+      brc(R, "}"),
+    ]);
+
+  //TODO:
+  // let from_clause =seq([kw("from"), t(String_lit)])
+  let from_clause = seq([kw("from"), t(Id_lower)]);
+  let namespace_export = seq([c("*"), kw("as"), module_export_name]);
+
+  let export_statement =
+    alt([
+      seq([
+        kw("export"),
+        alt([
+          seq([c("*"), from_clause]),
+          seq([namespace_export, from_clause]),
+          seq([export_clause, from_clause]),
+          export_clause,
+        ]),
+        c(";"),
+      ]),
+      seq([kw("export"), atom()]),
+    ]);
+
+  let namespace_import = seq([c("*"), kw("as"), t(Id_lower)]);
+  let import_specifier =
+    alt([t(Id_lower), seq([module_export_name, kw("as"), t(Id_lower)])]);
+  let named_imports =
+    seq([
+      brc(L, "{"),
+      import_specifier,
+      star(seq([c(","), import_specifier])),
+      brc(R, "}"),
+    ]);
+  let import_clause =
+    alt([
+      namespace_import,
+      named_imports,
+      seq([
+        t(Id_lower),
+        opt(seq([c(","), alt([namespace_import, named_imports])])),
+      ]),
+    ]);
+  let import_statement =
+    seq([
+      kw("import"),
+      alt([seq([import_clause, from_clause]) /* , t(String) */]),
+      c(";"),
+    ]);
+
+  let exp_statement = seq([Exp.atom(), c(";")]);
+
+  let func_declaration =
+    seq([
+      opt(kw(~l=false, ~indent=false, "async")),
+      kw(~l=false, "function"),
+      opt(t(Id_lower)),
+      //TODO: raise call_signature and stat block to the top level
+      call_signature,
+      stat_block,
+      opt(c(";")),
+    ]);
+
+  let property_name = alt([t(Id_lower)]);
+  let _initializer = seq([op("="), Exp.atom()]);
+  let field_def =
+    seq([opt(kw(~l=false, "static")), property_name, opt(_initializer)]);
+
+  let class_static_block = seq([kw("static"), c(";"), stat_block]);
+  let class_heritage = seq([kw("extends"), Exp.atom()]);
+  let class_body =
+    seq([
+      brc(L, "{"),
+      star(
+        alt([
+          seq([method_def, c(";")]),
+          seq([field_def, c(";")]),
+          class_static_block,
+          c(";"),
+        ]),
+      ),
+      brc(R, "}"),
+    ]);
+
+  let class_declaration =
+    seq([
+      kw(~l=false, "class"),
+      opt(t(Id_lower)),
+      opt(class_heritage),
+      class_body,
+    ]);
+
+  let init = seq([op("="), Exp.atom()]);
+  let var_declarator = seq([t(Id_lower), opt(init)]);
+
+  let lexical_declaration =
+    seq([
+      alt([kw("let"), kw("const")]),
+      comma_sep(var_declarator),
+      c(";"),
+    ]);
+
+  let var_declaration =
+    seq([kw("var"), comma_sep(var_declarator), c(";")]);
+
+  //TODO: generator func decl
+  let declaration =
+    alt([
+      func_declaration,
+      class_declaration,
+      lexical_declaration,
+      var_declaration,
+    ]);
+
+  let statement_block =
+    seq([brc(L, "{"), star(atom()), brc(R, "}"), opt(c(";"))]);
+
+  let switch_case =
+    seq([kw("case"), Exp.atom(), c(":"), star(Stat.atom())]);
+  let switch_default = seq([kw("default"), c(":"), star(Stat.atom())]);
+  let switch_body =
+    seq([
+      brc(L, "{"),
+      star(alt([switch_case, switch_default])),
+      brc(R, "}"),
+    ]);
+  let switch_statement = seq([kw("switch"), paren_exp, switch_body]);
+
+  let operand =
+    alt([
+      export_statement,
+      import_statement,
+      declaration,
+      statement_block,
+      switch_statement,
+    ]);
+
+  let for_statement =
+    seq([
+      kw("for"),
+      brc(L, "("),
+      alt([
+        lexical_declaration,
+        var_declaration,
+        exp_statement,
+        empty_statement,
+      ]),
+      alt([exp_statement, empty_statement]),
+      opt(Exp.atom()),
+      brc(R, ")"),
+      Stat.atom(),
+    ]);
+  /*
+   let for_header =
+     seq([
+       brc(L, "("),
+       alt([
+         alt([lhs_exp(Exp.atom), paren_exp]),
+         seq([kw("var"), alt([t(Id_lower), destruct_pattern]), opt(init)]),
+         seq([
+           alt([kw("let"), kw("const")]),
+           alt([t(Id_lower), destruct_pattern]),
+         ]),
+       ]),
+       alt([kw("in"), kw("of")]),
+       Exp.atom(),
+       brc(R, ")"),
+     ]);
+     */
+  /*
+   let for_in_statement =
+     seq([kw("for"), opt(kw("await")), for_header, Stat.atom()]);
+     */
+
+  let else_clause = seq([kw("else"), Stat.atom()]);
+  let if_statement =
+    seq([kw("if"), paren_exp, Stat.atom(), opt(else_clause)]);
+
+  let tbl = () => [
+    p(exp_statement),
+    p(if_statement),
+    p(for_statement),
+    p(operand),
+  ];
 }
 and Module: SORT = {
   let sort = () => Sort.of_str("Module");

@@ -1,0 +1,21 @@
+
+member_exp = ...
+lhs_exp = atom => member_exp, ...
+pat = atom => lhs_exp, ...
+destructuring_pat => atom = ...
+
+
+
+/*
+Pat = {
+    destructuring_pat = alt([object_pat, array_pat, lhs_exp])
+}
+*/
+
+Stat = {
+
+    for_header = {
+        ...
+        destructuring_pat
+    }
+}
