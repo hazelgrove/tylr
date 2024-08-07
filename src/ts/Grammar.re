@@ -47,16 +47,14 @@ let tokop_alt = ss => alt(List.map(op, ss));
 let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
 
 let pat = atom => seq([opt(c("...")), atom()]);
+let rest_pat = atom => seq([c("..."), atom()]);
 
 let private_property_ident = seq([c("#"), t(Id_lower)]);
 let import = kw("import");
 
 //TODO
 let property_name = alt([t(Id_lower)]);
-
 let optional_chain = c("?.");
-
-let rest_pat = atom => seq([c("..."), atom()]);
 
 let member_exp = exp =>
   seq([
@@ -74,8 +72,6 @@ let subscript_exp = exp =>
     brc(R, "]"),
   ]);
 
-//NOTE: when passing pat in to this you must reference the top level "pat" and give it a Pat.atom() as its argument
-
 let assignment_pat =
     (
       exp: unit => Tylr_core.Regex.t(Sym.t),
@@ -89,40 +85,13 @@ let array_pat = (exp, pat) =>
     brc(R, "]"),
   ]);
 
-let pair_pat =
-    (
-      exp: unit => Tylr_core.Regex.t(Sym.t),
-      pat: unit => Tylr_core.Regex.t(Sym.t),
-    ) =>
-  seq([property_name, c(":"), alt([pat(), assignment_pat(exp, pat)])]);
-
-let obj_assignmnet_pat = (exp, _) =>
-  //NOTE: the below alt should also take in a destruct_pat but I am not dealing with that recursion. This is the best we are going to get
-  seq([alt([t(Id_lower)]), c("="), exp()]);
-
-let obj_pat =
-    (
-      exp: unit => Tylr_core.Regex.t(Sym.t),
-      pat: unit => Tylr_core.Regex.t(Sym.t),
-    ) =>
-  seq([
-    brc(L, "{"),
-    comma_sep(
-      alt([
-        pair_pat(exp, pat),
-        rest_pat(pat),
-        obj_assignmnet_pat(exp, pat),
-      ]),
-    ),
-    brc(R, "}"),
-  ]);
-
 let destruct_pat =
     (
       exp: unit => Tylr_core.Regex.t(Sym.t),
       pat: unit => Tylr_core.Regex.t(Sym.t),
+      obj_pat: unit => Tylr_core.Regex.t(Sym.t),
     ) =>
-  alt([obj_pat(exp, pat), array_pat(exp, pat)]);
+  alt([obj_pat(), array_pat(exp, pat)]);
 
 module type SORT = {
   let atom: unit => Regex.t;
@@ -130,15 +99,34 @@ module type SORT = {
   let tbl: unit => Prec.Table.t(Regex.t);
 };
 
-module rec Typ: SORT = {
-  let sort = () => Sort.of_str("Typ");
+module rec ObjectPat: SORT = {
+  let sort = () => Sort.of_str("ObjectPat");
   let atom = () => nt(sort());
 
-  let operand = alt([]);
+  let pair_pat = 
+    seq([property_name, c(":"), alt([pat(LHSExp.atom), assignment_pat(Exp.atom, () => pat(LHSExp.atom))])]);
+
+  let obj_assignmnet_pat =
+    seq([alt([t(Id_lower)]), c("="), Exp.atom(), destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom))]);
+
+  let obj_pat =
+    seq([
+      brc(L, "{"),
+      comma_sep(
+        alt([
+          pair_pat,
+          rest_pat(() => pat(LHSExp.atom)),
+          obj_assignmnet_pat,
+        ]),
+      ),
+      brc(R, "}"),
+    ]);
+
+  let operand = alt([obj_pat]);
 
   let tbl = () => [p(operand)];
 }
-and Pat: SORT = {
+and LHSExp: SORT = {
   let sort = () => Sort.of_str("Pat");
   let atom = () => nt(sort());
 
@@ -147,7 +135,7 @@ and Pat: SORT = {
       t(Id_lower),
       member_exp(Exp.atom),
       subscript_exp(Exp.atom),
-      destruct_pat(Exp.atom, atom),
+      destruct_pat(Exp.atom, ObjectPat.atom, LHSExp.atom),
     ]);
 
   let pat = lhs_exp;
@@ -181,7 +169,7 @@ and Exp: SORT = {
 
   //TODO:assignment_pat
 
-  let param = alt([Pat.atom() /*, assignnment_pat*/]);
+  let param = alt([pat(LHSExp.atom) /*, assignnment_pat*/]);
   let params =
     seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
@@ -316,7 +304,8 @@ and Exp: SORT = {
     ]);
 
   //End of "primary" expressions
-  let assignment_exp = seq([alt([paren_exp, Pat.atom()]), op("="), atom()]);
+  let assignment_exp =
+    seq([alt([paren_exp, LHSExp.atom()]), op("="), atom()]);
   let await_exp = seq([kw("await"), atom()]);
   let unary_exp =
     seq([
@@ -389,7 +378,7 @@ and Stat: SORT = {
   let stat_block =
     seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
 
-  let param = alt([Pat.atom() /*, assignment_pat*/]);
+  let param = alt([pat(LHSExp.atom) /*, assignment_pat*/]);
   let params =
     seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
@@ -579,15 +568,21 @@ and Stat: SORT = {
     seq([
       brc(L, "("),
       alt([
-        alt([Pat.atom(), paren_exp]),
+        alt([LHSExp.atom(), paren_exp]),
         seq([
           kw("var"),
-          alt([t(Id_lower), destruct_pat(Exp.atom, Pat.atom)]),
+          alt([
+            t(Id_lower),
+            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
+          ]),
           opt(init),
         ]),
         seq([
           alt([kw("let"), kw("const")]),
-          alt([t(Id_lower), destruct_pat(Exp.atom, Pat.atom)]),
+          alt([
+            t(Id_lower),
+            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
+          ]),
         ]),
       ]),
       alt([kw("in"), kw("of")]),
@@ -613,7 +608,10 @@ and Stat: SORT = {
       opt(
         seq([
           brc(L, "("),
-          alt([t(Id_lower), destruct_pat(Exp.atom, Pat.atom)]),
+          alt([
+            t(Id_lower),
+            destruct_pat(Exp.atom, () => pat(LHSExp.atom)),
+          ]),
           brc(R, ")"),
         ]),
       ),
@@ -633,7 +631,7 @@ and Stat: SORT = {
   let return_statement = seq([kw("return"), opt(Exp.atom()), c(";")]);
 
   let throw_statement = seq([kw("throw"), Exp.atom(), c(";")]);
-  
+
   let label_statement = seq([t(Id_lower), c(":"), Stat.atom()]);
 
   let tbl = () => [
@@ -664,7 +662,8 @@ and Module: SORT = {
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
   [
-    Typ.(sort(), tbl()),
+    ObjectPat.(sort(), tbl()),
+    LHSExp.(sort(), tbl()),
     Stat.(sort(), tbl()),
     Exp.(sort(), tbl()),
     Module.(sort(), tbl()),
