@@ -4,6 +4,8 @@
      Wherever TS defines an opt(automatic_semicolon) we are requiring a semicolon
 
      The pat sort is just an lhs_exp. To get a true pat you must use the top level pat and pass in a Pat.atom() as the argument. This was done due to recursion conflicts within pat/lhs_exp
+
+     "statement_identifier" never seems to be defined in the TreeSitter grammar so we are just ignoring it and assuming it is a normal ident
  */
 
 //TODO: Look into writing an extension to the tylr grammar to do more of a ts precedence with a table of named values and each individual form associated with a particular named value - also with the nested arrays for separate precedence levels by form/sort?
@@ -543,8 +545,13 @@ and Stat: SORT = {
     ]);
   let switch_statement = seq([kw("switch"), paren_exp, switch_body]);
 
+  let debugger_statement = seq([kw("debugger"), c(";")]);
+
+  let empty_statement = c(";");
+
   let operand =
     alt([
+      debugger_statement,
       export_statement,
       import_statement,
       declaration,
@@ -595,11 +602,53 @@ and Stat: SORT = {
   let if_statement =
     seq([kw("if"), paren_exp, Stat.atom(), opt(else_clause)]);
 
+  let while_statement = seq([kw("while"), paren_exp, Stat.atom()]);
+
+  let do_statement =
+    seq([kw("do"), Stat.atom(), kw("while"), paren_exp, c(";")]);
+
+  let catch_clause =
+    seq([
+      kw("catch"),
+      opt(
+        seq([
+          brc(L, "("),
+          alt([t(Id_lower), destruct_pat(Exp.atom, Pat.atom)]),
+          brc(R, ")"),
+        ]),
+      ),
+      stat_block,
+    ]);
+  let finally_clause = seq([kw("finally"), stat_block]);
+  let try_statement =
+    seq([kw("try"), stat_block, opt(catch_clause), opt(finally_clause)]);
+
+  let with_statement = seq([kw("with"), paren_exp, Stat.atom()]);
+
+  let break_statement = seq([kw("break"), opt(t(Id_lower)), c(";")]);
+
+  let continue_statement =
+    seq([kw("continue"), opt(t(Id_lower)), c(";")]);
+
+  let return_statement = seq([kw("return"), opt(Exp.atom()), c(";")]);
+
+  let throw_statement = seq([kw("throw"), Exp.atom(), c(";")]);
+  
+  let label_statement = seq([t(Id_lower), c(":"), Stat.atom()]);
+
   let tbl = () => [
     p(exp_statement),
     p(if_statement),
     p(for_statement),
     p(for_in_statement),
+    p(while_statement),
+    p(do_statement),
+    p(try_statement),
+    p(with_statement),
+    p(break_statement),
+    p(continue_statement),
+    p(return_statement),
+    p(throw_statement),
     p(operand),
   ];
 }
