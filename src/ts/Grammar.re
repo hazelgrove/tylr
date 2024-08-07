@@ -72,11 +72,7 @@ let subscript_exp = exp =>
     brc(R, "]"),
   ]);
 
-let assignment_pat =
-    (
-      exp: unit => Tylr_core.Regex.t(Sym.t),
-      pat: unit => Tylr_core.Regex.t(Sym.t),
-    ) =>
+let assignment_pat = (exp: unit => Regex.t, pat: unit => Regex.t) =>
   seq([pat(), op("="), exp()]);
 let array_pat = (exp, pat) =>
   seq([
@@ -86,11 +82,7 @@ let array_pat = (exp, pat) =>
   ]);
 
 let destruct_pat =
-    (
-      exp: unit => Tylr_core.Regex.t(Sym.t),
-      pat: unit => Tylr_core.Regex.t(Sym.t),
-      obj_pat: unit => Tylr_core.Regex.t(Sym.t),
-    ) =>
+    (exp: unit => Regex.t, pat: unit => Regex.t, obj_pat: unit => Regex.t) =>
   alt([obj_pat(), array_pat(exp, pat)]);
 
 module type SORT = {
@@ -103,11 +95,23 @@ module rec ObjectPat: SORT = {
   let sort = () => Sort.of_str("ObjectPat");
   let atom = () => nt(sort());
 
-  let pair_pat = 
-    seq([property_name, c(":"), alt([pat(LHSExp.atom), assignment_pat(Exp.atom, () => pat(LHSExp.atom))])]);
+  let pair_pat =
+    seq([
+      property_name,
+      c(":"),
+      alt([
+        pat(LHSExp.atom),
+        assignment_pat(Exp.atom, () => pat(LHSExp.atom)),
+      ]),
+    ]);
 
   let obj_assignmnet_pat =
-    seq([alt([t(Id_lower)]), c("="), Exp.atom(), destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom))]);
+    seq([
+      alt([t(Id_lower)]),
+      c("="),
+      Exp.atom(),
+      destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
+    ]);
 
   let obj_pat =
     seq([
@@ -372,7 +376,6 @@ and Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
   let atom = () => nt(sort());
 
-  let empty_statement = c(";");
   let paren_exp = seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
   let stat_block =
@@ -540,6 +543,7 @@ and Stat: SORT = {
 
   let operand =
     alt([
+      empty_statement,
       debugger_statement,
       export_statement,
       import_statement,
@@ -610,7 +614,7 @@ and Stat: SORT = {
           brc(L, "("),
           alt([
             t(Id_lower),
-            destruct_pat(Exp.atom, () => pat(LHSExp.atom)),
+            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
           ]),
           brc(R, ")"),
         ]),
@@ -647,6 +651,7 @@ and Stat: SORT = {
     p(continue_statement),
     p(return_statement),
     p(throw_statement),
+    p(label_statement),
     p(operand),
   ];
 }
