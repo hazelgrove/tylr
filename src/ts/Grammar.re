@@ -2,6 +2,8 @@
      Notes about the typescript grammar
 
      Wherever TS defines an opt(automatic_semicolon) we are requiring a semicolon
+
+     The pat sort is just an lhs_exp. To get a true pat you must use the top level pat and pass in a Pat.atom() as the argument. This was done due to recursion conflicts within pat/lhs_exp
  */
 
 //TODO: Look into writing an extension to the tylr grammar to do more of a ts precedence with a table of named values and each individual form associated with a particular named value - also with the nested arrays for separate precedence levels by form/sort?
@@ -42,40 +44,83 @@ let tokop_alt = ss => alt(List.map(op, ss));
 
 let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
 
-//TODO: turn pat into its own sort (with the above definition) and raise any specific forms that are referenced in other sorts to the top level
+let pat = atom => seq([opt(c("...")), atom()]);
 
 let private_property_ident = seq([c("#"), t(Id_lower)]);
 let import = kw("import");
 
+//TODO
+let property_name = alt([t(Id_lower)]);
+
 let optional_chain = c("?.");
 
-let member_exp = atom =>
+let rest_pat = atom => seq([c("..."), atom()]);
+
+let member_exp = exp =>
   seq([
-    alt([atom(), import]),
+    alt([exp(), import]),
     alt([c("."), optional_chain]),
     alt([private_property_ident, t(Id_lower)]),
   ]);
 
-let subscript_exp = atom =>
+let subscript_exp = exp =>
   seq([
-    alt([atom()]),
+    alt([exp()]),
     opt(optional_chain),
     brc(L, "["),
-    atom(),
+    exp(),
     brc(R, "]"),
   ]);
 
-let lhs_exp = atom =>
-  alt([t(Id_lower), member_exp(atom), subscript_exp(atom)]);
+//NOTE: when passing pat in to this you must reference the top level "pat" and give it a Pat.atom() as its argument
 
-// let assignment_pat =
-/*let array_pat = atom =>
+let assignment_pat =
+    (
+      exp: unit => Tylr_core.Regex.t(Sym.t),
+      pat: unit => Tylr_core.Regex.t(Sym.t),
+    ) =>
+  seq([pat(), op("="), exp()]);
+let array_pat = (exp, pat) =>
   seq([
     brc(L, "["),
-    comma_sep(opt(alt([pat(atom), assignment_pat]))),
+    comma_sep(opt(alt([pat(), assignment_pat(pat, exp)]))),
     brc(R, "]"),
   ]);
-  */
+
+let pair_pat =
+    (
+      exp: unit => Tylr_core.Regex.t(Sym.t),
+      pat: unit => Tylr_core.Regex.t(Sym.t),
+    ) =>
+  seq([property_name, c(":"), alt([pat(), assignment_pat(exp, pat)])]);
+
+let obj_assignmnet_pat = (exp, _) =>
+  //NOTE: the below alt should also take in a destruct_pat but I am not dealing with that recursion. This is the best we are going to get
+  seq([alt([t(Id_lower)]), c("="), exp()]);
+
+let obj_pat =
+    (
+      exp: unit => Tylr_core.Regex.t(Sym.t),
+      pat: unit => Tylr_core.Regex.t(Sym.t),
+    ) =>
+  seq([
+    brc(L, "{"),
+    comma_sep(
+      alt([
+        pair_pat(exp, pat),
+        rest_pat(pat),
+        obj_assignmnet_pat(exp, pat),
+      ]),
+    ),
+    brc(R, "}"),
+  ]);
+
+let destruct_pat =
+    (
+      exp: unit => Tylr_core.Regex.t(Sym.t),
+      pat: unit => Tylr_core.Regex.t(Sym.t),
+    ) =>
+  alt([obj_pat(exp, pat), array_pat(exp, pat)]);
 
 module type SORT = {
   let atom: unit => Regex.t;
@@ -95,7 +140,15 @@ and Pat: SORT = {
   let sort = () => Sort.of_str("Pat");
   let atom = () => nt(sort());
 
-  let pat = alt([lhs_exp(Exp.atom), kw("...")]);
+  let lhs_exp =
+    alt([
+      t(Id_lower),
+      member_exp(Exp.atom),
+      subscript_exp(Exp.atom),
+      destruct_pat(Exp.atom, atom),
+    ]);
+
+  let pat = lhs_exp;
 
   let tbl = () => [p(pat)];
 }
@@ -122,7 +175,6 @@ and Exp: SORT = {
       brc(R, ")"),
     ]);
 
-  let lhs_exp = lhs_exp(atom);
   let member_exp = member_exp(atom);
 
   //TODO:assignment_pat
@@ -198,9 +250,6 @@ and Exp: SORT = {
       stat_block,
     ]);
 
-  //TODO
-  let property_name = alt([t(Id_lower)]);
-
   let _initializer = seq([op("="), atom()]);
 
   let field_def =
@@ -265,7 +314,7 @@ and Exp: SORT = {
     ]);
 
   //End of "primary" expressions
-  let assignment_exp = seq([alt([paren_exp, lhs_exp]), op("="), atom()]);
+  let assignment_exp = seq([alt([paren_exp, Pat.atom()]), op("="), atom()]);
   let await_exp = seq([kw("await"), atom()]);
   let unary_exp =
     seq([
@@ -518,27 +567,29 @@ and Stat: SORT = {
       brc(R, ")"),
       Stat.atom(),
     ]);
-  /*
-   let for_header =
-     seq([
-       brc(L, "("),
-       alt([
-         alt([lhs_exp(Exp.atom), paren_exp]),
-         seq([kw("var"), alt([t(Id_lower), destruct_pattern]), opt(init)]),
-         seq([
-           alt([kw("let"), kw("const")]),
-           alt([t(Id_lower), destruct_pattern]),
-         ]),
-       ]),
-       alt([kw("in"), kw("of")]),
-       Exp.atom(),
-       brc(R, ")"),
-     ]);
-     */
-  /*
-   let for_in_statement =
-     seq([kw("for"), opt(kw("await")), for_header, Stat.atom()]);
-     */
+
+  let for_header =
+    seq([
+      brc(L, "("),
+      alt([
+        alt([Pat.atom(), paren_exp]),
+        seq([
+          kw("var"),
+          alt([t(Id_lower), destruct_pat(Exp.atom, Pat.atom)]),
+          opt(init),
+        ]),
+        seq([
+          alt([kw("let"), kw("const")]),
+          alt([t(Id_lower), destruct_pat(Exp.atom, Pat.atom)]),
+        ]),
+      ]),
+      alt([kw("in"), kw("of")]),
+      Exp.atom(),
+      brc(R, ")"),
+    ]);
+
+  let for_in_statement =
+    seq([kw("for"), opt(kw("await")), for_header, Stat.atom()]);
 
   let else_clause = seq([kw("else"), Stat.atom()]);
   let if_statement =
@@ -548,6 +599,7 @@ and Stat: SORT = {
     p(exp_statement),
     p(if_statement),
     p(for_statement),
+    p(for_in_statement),
     p(operand),
   ];
 }
