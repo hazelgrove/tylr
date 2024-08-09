@@ -24,3 +24,8 @@ let get_point =
   fun
   | Point(p) => Some(p)
   | Select(_) => None;
+
+let get_select =
+  fun
+  | Select(s) => Some(s)
+  | Point(_) => None;

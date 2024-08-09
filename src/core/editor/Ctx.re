@@ -134,6 +134,12 @@ let rec pull = (~from as d: Dir.t, ctx: t): (Delim.t, t) =>
 //   | Some((tok, ctx)) => (Some(tok), ctx)
 //   };
 
+let peel = (~from: Dir.t, tok: Token.t, ctx: t) =>
+  switch (pull(~from, ctx)) {
+  | (Node(t), rest) when t.id == tok.id => rest
+  | _ => ctx
+  };
+
 module Tl = {
   include Chain.Affix;
   [@deriving (show({with_path: false}), sexp, yojson)]

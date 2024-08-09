@@ -122,6 +122,9 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   mk(~cur=Select({focus: sel.focus, range: zigg}), ctx);
 };
 
+let unzip_exn = (~ctx=Ctx.empty, c: Cell.t) =>
+  unzip(~ctx, c) |> Options.get_exn(Invalid_argument("Zipper.unzip_exn"));
+
 let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
   open Options.Syntax;
   let* (rel, zipped, ctx) = Ctx.zip_step(~zipped, ctx);

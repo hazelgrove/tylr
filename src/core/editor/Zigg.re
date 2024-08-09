@@ -20,6 +20,13 @@ let unorient = (d: Dir.t, (s_d, top, s_b)) => {
   mk(~up, top, ~dn);
 };
 
+let tokens = ({up, top, dn}: t) =>
+  List.concat([
+    Slope.tokens(up),
+    Wald.tokens(top),
+    List.rev(Slope.tokens(dn)),
+  ]);
+
 let flatten = ({up, top, dn}: t) =>
   List.concat([
     Slope.Up.flatten(up),

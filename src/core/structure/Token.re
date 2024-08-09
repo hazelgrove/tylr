@@ -240,7 +240,7 @@ module Molded = {
   let affix = (~side: Dir.t, tok: t) =>
     split_text(tok)
     |> Option.map(Dir.pick(side, (((l, _, _)) => l, ((_, _, r)) => r)))
-    |> Option.value(~default=tok.text);
+    |> Option.value(~default="");
 };
 include Molded;
 

@@ -11,3 +11,8 @@ let padding =
   fun
   | Bound.Root => Padding.none
   | Node(tok: Token.t) => Mtrl.T.padding(tok.mtrl);
+let merges = (l: t, r: t) =>
+  switch (l, r) {
+  | (Node(l), Node(r)) => Token.merges(l, r)
+  | _ => false
+  };

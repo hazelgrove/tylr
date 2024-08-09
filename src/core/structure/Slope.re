@@ -9,6 +9,7 @@ let singleton = t => [t];
 let height = List.length;
 let cons = List.cons;
 
+let tokens = List.concat_map(Terr.tokens);
 // let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
 //   switch (c) {
 //   | Neq(c) => [Terr.{cell: c, wald: Wald.rev(w)}, ...slope]
