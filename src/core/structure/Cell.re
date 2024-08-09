@@ -25,6 +25,15 @@ let add_marks = marks => map_marks(Marks.union(marks));
 let clear_marks = cell => {...cell, marks: Marks.empty};
 let pop_marks = cell => (cell.marks, clear_marks(cell));
 
+let rec end_path = (~side: Dir.t, c: t) =>
+  switch (c.meld) {
+  | None => Path.empty
+  | Some(M(l, _, r) as m) =>
+    let hd = Dir.pick(side, (0, Meld.length(m) - 1));
+    let tl = end_path(~side, Dir.pick(side, (l, r)));
+    Path.cons(hd, tl);
+  };
+
 let lift_tok_marks = (tok: Token.t): (Marks.t, Token.t) =>
   Token.pop_marks(tok)
   |> Tuples.map_fst(Marks.of_token)
@@ -38,23 +47,37 @@ let lower_tok_marks = (marks: Marks.t, tok: Token.t): Token.t =>
 let aggregate_marks = (c: t) =>
   switch (c.meld) {
   | None => c
-  | Some(M(l, W((ts, cs)), r) as m) =>
-    let map_cons = n => Tuples.map_fst(Marks.cons(n));
-    let (l_marks, l) = map_cons(0, pop_marks(l));
-    let (ts_marks, ts) =
-      ts
-      |> List.mapi((i, t) => map_cons(1 + 2 * i, lift_tok_marks(t)))
-      |> List.split;
+  | Some(m) =>
+    let (ics, its) =
+      Meld.to_chain(m) |> Chain.mapi((i, c) => (i, c), (i, t) => (i, t));
     let (cs_marks, cs) =
-      cs
-      |> List.mapi((i, c) => map_cons(2 * (1 + i), pop_marks(c)))
+      ics
+      |> List.map(((i, c)) =>
+           Tuples.map_fst(Marks.cons(i), pop_marks(c))
+         )
       |> List.split;
-    let (r_marks, r) = map_cons(Meld.length(m) - 1, pop_marks(r));
-    let marks =
-      Marks.union_all(
-        List.concat([[l_marks], ts_marks, cs_marks, [r_marks]]),
-      );
-    {marks, meld: Some(M(l, W((ts, cs)), r))};
+    let (ts_marks, ts) =
+      Chain.linked_loops((ics, its))
+      |> List.map((((_, l), (i, t), (_, r))) =>
+           lift_tok_marks(t)
+           |> Tuples.map_fst(
+                Marks.map_paths(
+                  fun
+                  // normalize cursors at ends of tokens to ends of cells
+                  | [n] when n <= 0 => [i - 1, ...end_path(l, ~side=R)]
+                  | [n] when n >= Token.length(t) => [
+                      i + 1,
+                      ...end_path(~side=L, r),
+                    ]
+                  | p => [i, ...p],
+                ),
+              )
+         )
+      |> List.split;
+    {
+      marks: Marks.union_all(cs_marks @ ts_marks),
+      meld: Some(Meld.of_chain((cs, ts))),
+    };
   };
 
 let distribute_marks = (c: t) =>
@@ -73,15 +96,6 @@ let distribute_marks = (c: t) =>
 let get = (~distribute=true, c) =>
   (distribute ? distribute_marks : Fun.id)(c).meld;
 let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
-
-let rec end_path = (~side: Dir.t, c: t) =>
-  switch (get(c)) {
-  | None => Path.empty
-  | Some(M(l, _, r) as m) =>
-    let hd = Dir.pick(side, (0, Meld.length(m) - 1));
-    let tl = end_path(~side, Dir.pick(side, (l, r)));
-    Path.cons(hd, tl);
-  };
 
 let caret = (car: Path.Caret.t) =>
   mk(~marks=Marks.mk(~cursor=Point(car), ()), ());

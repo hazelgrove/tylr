@@ -19,6 +19,7 @@ let mk = (lps: list('lp), lks: list('lk)): t('lp, 'lk) => {
 let unit = (lp: 'lp): t('lp, _) => ([lp], []);
 let loops: t('lp, _) => list('lp) = fst;
 let links: t(_, 'lk) => list('lk) = snd;
+
 let length = ((lps, _): t(_)) => List.length(lps) * 2 - 1;
 
 let link = (a: 'lp, b: 'lk, (lps, lks): t('lp, 'lk)): t('lp, 'lk) => (
@@ -206,6 +207,14 @@ let fold_right_map =
        },
        lp1 => f_lp(lp1) |> Tuples.map_fst(unit),
      );
+
+let linked_loops = (c: t('lp, 'lk)): list(('lp, 'lk, 'lp)) =>
+  c
+  |> fold_right(
+       (lp, lk, (hd, lkd_lps)) => (lp, [(lp, lk, hd), ...lkd_lps]),
+       lp => (lp, []),
+     )
+  |> snd;
 
 let map_linked =
     (f: ('lp, 'lk1, 'lp) => 'lk2, c: t('lp, 'lk1)): t('lp, 'lk2) =>

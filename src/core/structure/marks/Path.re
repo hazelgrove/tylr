@@ -15,6 +15,8 @@ module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, hash)]
   type t = list(Step.t);
   let compare = List.compare(Step.compare);
+  let lt = (l, r) => compare(l, r) < 0;
+  let gt = (l, r) => compare(l, r) > 0;
   let empty = [];
   let of_step = n => [n];
   let cons = List.cons;

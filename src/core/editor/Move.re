@@ -86,14 +86,28 @@ let skip = (d2: Dir2.t) =>
     | V(R) => Loc.maximum
     }
   );
+
 let jump = loc => map_focus(Fun.const(loc));
 
+let hole = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
+  open Options.Syntax;
+  let c = Zipper.zip(~save_cursor=true, z);
+  switch (Options.get_exn(Zipper.Bug__lost_cursor, c.marks.cursor)) {
+  | Select(_) => hstep(d, z)
+  | Point({path, _}) =>
+    let+ (path, _) =
+      c.marks.obligs
+      |> Path.Map.filter((_, mtrl: Mtrl.T.t) => mtrl != Space(Unmolded))
+      |> Path.Map.find_first_opt(p => Dir.pick(d, Path.(lt, gt), p, path));
+    c |> Cell.put_cursor(Point(Caret.focus(path))) |> Zipper.unzip_exn;
+  };
+};
+
 // todo: need to return none in some more cases when no visible movement occurs
-let perform = (a: Action.t) =>
-  switch (a) {
+let perform =
+  fun
   | Step(H(d)) => hstep(d)
   | Step(V(d)) => vstep(d)
   | Skip(d2) => skip(d2)
   | Jump(loc) => jump(loc)
-  | Hole(_) => failwith("todo: move to hole")
-  };
+  | Hole(d) => hole(d);
