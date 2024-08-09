@@ -8,7 +8,7 @@ open Tylr_core;
 //   // to trigger view redraw? review blame
 //   last_attempt: option(float),
 // };
-type t = (Chain.Affix.t(Edit.Action.t, Zipper.t) as 'affix, 'affix);
+type t = (Chain.Affix.t(Edit.t, Zipper.t) as 'affix, 'affix);
 
 // let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 let empty = Chain.Affix.(empty, empty);
@@ -44,7 +44,7 @@ let can_undo = ((_, after): t) => Chain.Affix.is_empty(after);
 //     last_attempt: Some(JsUtil.timestamp()),
 //   };
 // };
-let do_ = (a: Edit.Action.t, z: Zipper.t, (pre, _): t) =>
+let do_ = (a: Edit.t, z: Zipper.t, (pre, _): t) =>
   Chain.Affix.(link(a, z, pre), empty);
 
 // let escaped = (history: t) => {

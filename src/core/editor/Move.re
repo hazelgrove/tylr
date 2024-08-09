@@ -1,12 +1,26 @@
 open Stds;
 
-module Action = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t =
-    | Step(Dir2.t)
-    | Skip(Dir2.t)
-    | Jump(Loc.t)
-    | Hole(Dir.t);
+// todo: add options for skipping walds/melds and use in selection
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t =
+  // single step
+  | Step(Dir2.t)
+  // skip to end
+  | Skip(Dir2.t)
+  // jump to absolute loc
+  | Jump(Loc.t)
+  // jump to next hole
+  | Hole(Dir.t);
+
+// bounds goal pos to within start/end pos of program.
+// returns none if the resulting goal pos is same as start pos.
+let map_focus = (f: Loc.t => Loc.t, z: Zipper.t): option(Zipper.t) => {
+  open Options.Syntax;
+  let c = Zipper.zip(~save_cursor=true, z);
+  let* init = Option.bind(c.marks.cursor, Path.Cursor.get_focus);
+  let goal = Layout.map(~tree=Tree.of_cell(c), f, init);
+  goal == init
+    ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> Zipper.unzip;
 };
 
 // enters unmarked token or moves cursor in marked token.
@@ -37,8 +51,8 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let b = Dir.toggle(d);
   let+ ctx =
     switch (z.cur) {
-    // move to d end of selection
     | Select({range: zigg, _}) =>
+      // move to d end of selection
       return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
     | Point(_) =>
       let (face, ctx) = Ctx.pull_face(~from=d, z.ctx);
@@ -50,30 +64,19 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     };
   Zipper.(button(mk(ctx)));
 };
-
 let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
-  let move = (d, z) =>
-    hstep(d, z) |> Options.get_exn(Invalid_argument("Move.move_n"));
+  let step = (d, z) =>
+    hstep(d, z) |> Options.get_exn(Invalid_argument("Move.hstep_n"));
   switch (n) {
-  | _ when n < 0 => z |> move(L) |> hstep_n(n + 1)
-  | _ when n > 0 => z |> move(R) |> hstep_n(n - 1)
+  | _ when n < 0 => z |> step(L) |> hstep_n(n + 1)
+  | _ when n > 0 => z |> step(R) |> hstep_n(n - 1)
   | _zero => z
   };
 };
 
-// bounds goal pos to within start/end pos of program.
-// returns none if the resulting goal pos is same as start pos.
-let map_focus = (f: Loc.t => Loc.t, z: Zipper.t): option(Zipper.t) => {
-  open Options.Syntax;
-  let c = Zipper.zip(~save_cursor=true, z);
-  let* init = Option.bind(c.marks.cursor, Path.Cursor.get_focus);
-  let goal = Layout.map(~tree=Tree.of_cell(c), f, init);
-  goal == init
-    ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> Zipper.unzip;
-};
-
 let vstep = (d: Dir.t) =>
   map_focus(loc => {...loc, row: loc.row + Dir.pick(d, ((-1), 1))});
+
 let skip = (d2: Dir2.t) =>
   map_focus(loc =>
     switch (d2) {

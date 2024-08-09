@@ -1,14 +1,12 @@
 open Stds;
 
-module Action = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t =
-    | Un(Dir.t)
-    | All
-    | Wald
-    | Meld
-    | Move(Move.Action.t);
-};
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t =
+  | Un(Dir.t)
+  | All
+  | Wald
+  | Meld
+  | Move(Move.t);
 
 let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
   switch (z.cur) {
@@ -102,7 +100,7 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   };
 };
 
-let perform = (a: Action.t, z: Zipper.t): option(Zipper.t) =>
+let perform = (a: t, z: Zipper.t): option(Zipper.t) =>
   switch (a) {
   | Un(d) => Some(unselect(~toward=d, z))
   | All

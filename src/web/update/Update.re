@@ -15,7 +15,7 @@ type t =
   // | SwitchEditor(int)
   | SetFont(Font.t)
   // | SetLogoFont(Font.t)
-  | PerformAction(Edit.Action.t)
+  | PerformAction(Edit.t)
   // | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
   | Redo;
