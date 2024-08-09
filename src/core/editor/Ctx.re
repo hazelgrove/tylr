@@ -34,12 +34,11 @@ let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) =>
   | (None, Some(r)) => map_hd(Frame.Open.cons(~onto=R, r))
   | (Some(l), None) => map_hd(Frame.Open.cons(~onto=L, l))
   | (Some(l), Some(r)) =>
-    switch (Token.merge(Terr.hd(l), Terr.hd(r))) {
-    | Some(_) => map_hd(((dn, up)) => ([l, ...dn], [r, ...up]))
-    | None => link((l, r))
-    }
+    Token.merges(Terr.hd(l), Terr.hd(r))
+      ? map_hd(((dn, up)) => ([l, ...dn], [r, ...up])) : link((l, r))
   };
 
+// todo: naming wrt other pull
 let pull_face = (~from: Dir.t, ctx: t): (Delim.t, t) => {
   let (hd, tl) = uncons(ctx);
   let (face, hd') = Frame.Open.pull(~from, hd);

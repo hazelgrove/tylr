@@ -59,12 +59,7 @@ module Open = {
     | L => (Slope.extend(tl, dn), up)
     | R => (dn, Slope.extend(tl, up))
     };
-  let zips =
-    fun
-    | ([hd_l, ..._], [hd_r, ..._])
-        when Option.is_some(Token.merge(Wald.hd(hd_l), Wald.hd(hd_r))) =>
-      true
-    | _ => false;
+  // todo: rename this to merge_faces
   let zip_toks = (~save_cursor=false) =>
     fun
     | (([hd_l, ...tl_l], [hd_r, ...tl_r]): t) =>
