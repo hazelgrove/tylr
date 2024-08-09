@@ -171,23 +171,20 @@ module Molded = {
     switch (tok.marks) {
     | None => (None, None, None)
     | Some(Point({path, _})) =>
-      // let _ = failwith("probably get rid of mark clearing here");
       if (path <= 0) {
-        (None, None, Some(clear_marks(tok)));
+        (None, None, Some(tok));
       } else if (path >= length(tok)) {
-        (Some(clear_marks(tok)), None, None);
+        (Some(tok), None, None);
       } else {
         (Some(tok), None, Some(tok));
       }
     | Some(Select(sel)) =>
       let (l, r) = Step.Selection.carets(sel);
       if (l.path <= 0 && r.path >= length(tok)) {
-        (None, Some(clear_marks(tok)), None);
+        (None, Some(tok), None);
       } else if (l.path <= 0) {
-        let tok = put_cursor(Point(r), tok);
         (None, Some(tok), Some(tok));
       } else if (r.path >= length(tok)) {
-        let tok = put_cursor(Point(l), tok);
         (Some(tok), Some(tok), None);
       } else {
         (Some(tok), Some(tok), Some(tok));
