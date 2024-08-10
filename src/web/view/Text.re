@@ -21,30 +21,37 @@ let view_space = spc =>
   |> List.of_seq
   |> String.concat("");
 
-let view_tile = (lbl: Label.t, text: string) => {
-  let oblig = Label.oblig(text, lbl);
-  let ghost =
-    Base.String.is_empty(oblig)
-      ? []
-      : [Node.span(~attrs=Attr.[class_("ghost")], [Node.text(oblig)])];
-  Node.span(~attrs=Attr.[class_("tile")], [Node.text(text), ...ghost]);
-};
-
-let view_tok = (tok: Token.t) =>
-  (
+let view_tok = (tok: Token.t) => {
+  let mtrl_cls =
     switch (tok.mtrl) {
-    | Space(_) =>
-      // todo: distinguish whitespace from unmolded styling
-      Node.span(
-        ~attrs=Attr.[class_("space")],
-        [Node.text(view_space(tok.text))],
-      )
-    | Grout(_) =>
-      Node.span(~attrs=Attr.[class_("grout")], [Node.text("•")])
-    | Tile((lbl, _)) => view_tile(lbl, tok.text)
-    }
-  )
-  |> Util.Nodes.add_class("token");
+    // todo: distinguish whitespace from unmolded styling
+    | Space(_) => "space"
+    | Grout(_) => "grout"
+    | Tile(_) => "tile"
+    };
+  let attrs =
+    Attr.[
+      classes(["token", mtrl_cls]),
+      title(Sexplib.Sexp.to_string_hum(Token.sexp_of_t(tok))),
+    ];
+  let nodes =
+    switch (tok.mtrl) {
+    // todo: distinguish whitespace from unmolded styling
+    | Space(_) => [Node.text(view_space(tok.text))]
+    | Grout(_) => [Node.text("•")]
+    | Tile((lbl, _)) =>
+      let text = Node.text(tok.text);
+      let oblig = Label.oblig(tok.text, lbl);
+      if (Base.String.is_empty(oblig)) {
+        [Node.text(tok.text)];
+      } else {
+        let ghost =
+          Node.span(~attrs=Attr.[class_("ghost")], [Node.text(oblig)]);
+        [text, ghost];
+      };
+    };
+  Node.span(~attrs, nodes);
+};
 
 let view_line = (l: Layout.Block.Line.t) =>
   l |> List.map(view_tok) |> Node.span(~attrs=[Attr.class_("line")]);
