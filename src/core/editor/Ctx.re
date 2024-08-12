@@ -193,15 +193,21 @@ let push_opt =
   };
 };
 
-let push = (~onto: Dir.t, tok: Token.t, ~fill=Cell.empty, ctx) => {
-  let get = Options.get_exn(Invalid_argument("Ctx.push"));
-  let pushed = get(push_opt(~onto, tok, ~fill, ctx));
-  let (l, _, r) = Token.split(tok);
-  switch (Dir.pick(onto, (r, l))) {
-  | None => pushed
-  | Some(_) => get(push_opt(~onto=Dir.toggle(onto), tok, pushed))
+let push = (~onto: Dir.t, tok: Token.t, ctx) =>
+  switch (push_opt(~onto, tok, ctx)) {
+  | Some(ctx) => ctx
+  | None => raise(Invalid_argument("Ctx.push"))
   };
-};
+
+// smart push fn when zipper cursor is point
+// let push_face = (~onto: Dir.t, tok: Token.t, ~fill=Cell.empty, ctx) => {
+//   let pushed = push(~onto, tok, ~fill, ctx);
+//   let (l, _, r) = Token.split(tok);
+//   switch (Dir.pick(onto, (r, l))) {
+//   | None => pushed
+//   | Some(_) => push(~onto=Dir.toggle(onto), tok, pushed)
+//   };
+// };
 
 // let push = (~onto: Dir.t, tok, ~fill=Cell.empty, ctx) =>
 //   push_opt(~onto, tok, ~fill, ctx)

@@ -34,6 +34,14 @@ let flatten = ({up, top, dn}: t) =>
     Slope.Dn.flatten(dn),
   ]);
 
+let face = (~side: Dir.t, zigg: t) => {
+  let (s_d, top, _) = orient(side, zigg);
+  switch (Slope.face(s_d)) {
+  | Some(tok) => tok
+  | None => Wald.hd(top)
+  };
+};
+
 // let x = (1 + [a + b ? c / d : e * f] + 3) + 4 * 5 in x + 1
 
 // stepwell

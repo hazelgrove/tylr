@@ -43,7 +43,14 @@ let cursor = (~font, z: Zipper.t) =>
   };
 
 let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
+  print_endline("--- Code.view ---");
+  print_endline("z = " ++ Zipper.show(zipper));
   let c = Zipper.zip(~save_cursor=true, zipper);
+  print_endline("c = " ++ Cell.show(c));
+  let t = Layout.Tree.of_cell(c);
+  print_endline("t = " ++ Layout.Tree.show(t));
+  let b = Layout.Tree.flatten(t);
+  print_endline("b = " ++ Layout.Block.show(b));
   div(
     ~attrs=[Attr.class_("code"), Attr.id("under-the-rail")],
     [view_text(c), ...cursor(~font, zipper)] @ carets(~font, c),

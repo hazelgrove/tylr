@@ -23,32 +23,41 @@ let map_focus = (f: Loc.t => Loc.t, z: Zipper.t): option(Zipper.t) => {
     ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> Zipper.unzip;
 };
 
-// enters unmarked token or moves cursor in marked token.
-// returns Some(_) if caret remains strictly within token,
-// otherwise returns None if caret reaches token edge.
-let hstep_tok = (d: Dir.t, tok: Token.t): option(Token.t) => {
+// returns token with updated cursor after moving in direction d.
+// carets at the token edges are pruned. returns a flag indicating
+// whether the moved caret reached the token edge.
+let hstep_tok = (d: Dir.t, tok: Token.t): (Token.t, bool) => {
   let (m, n) = (Token.length(tok), Utf8.length(tok.text));
+  // 1-step-shy-of-tok-end caret positions
   let (l, r) = (1, Token.is_complete(tok) ? m - 1 : n);
   switch (tok.marks) {
-  | _ when m <= 1 || n <= 0 => None
+  // exit token
+  | _ when m <= 1 || n <= 0 => (Token.clear_marks(tok), true)
+  | Some(Point(car)) when Dir.pick(d, (car.path <= l, car.path >= r)) => (
+      Token.clear_marks(tok),
+      true,
+    )
+  // enter token
   | None =>
     let car = Caret.focus(Dir.pick(d, (r, l)));
-    Some(Token.put_cursor(Point(car), tok));
-  | Some(Point(car)) when Dir.pick(d, (car.path <= l, car.path >= r)) =>
-    None
+    (Token.put_cursor(Point(car), tok), false);
+  // move within token
   | Some(Point(car)) =>
     let car = Step.Caret.shift(Dir.pick(d, ((-1), 1)), car);
-    Some(Token.put_cursor(Point(car), tok));
+    (Token.put_cursor(Point(car), tok), false);
+  // move to end of selection
   | Some(Select(sel)) =>
     let (l, r) = Step.Selection.carets(sel);
     let car = Caret.focus(Dir.pick(d, (l, r)).path);
-    Some(Token.put_cursor(Point(car), tok));
+    (Token.put_cursor(Point(car), tok), false);
   };
 };
 
 let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let b = Dir.toggle(d);
+  P.log("--- Move.insert ---");
+  P.show("z", Zipper.show(z));
   let+ ctx =
     switch (z.cur) {
     | Select({range: zigg, _}) =>
@@ -57,10 +66,10 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     | Point(_) =>
       let (face, ctx) = Ctx.pull_face(~from=d, z.ctx);
       let+ tok = Bound.to_opt(face);
-      switch (hstep_tok(d, tok)) {
-      | Some(stepped) => Ctx.push(~onto=b, stepped, ctx)
-      | None => Ctx.push(~onto=b, Token.clear_marks(tok), ctx)
-      };
+      let (stepped, exited) = hstep_tok(d, tok);
+      ctx
+      |> Ctx.push(~onto=b, stepped)
+      |> (exited ? Fun.id : Ctx.push(~onto=d, stepped));
     };
   Zipper.(button(mk(ctx)));
 };

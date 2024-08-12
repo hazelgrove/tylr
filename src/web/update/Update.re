@@ -13,6 +13,7 @@ type t =
   // | Load
   // | Save
   // | SwitchEditor(int)
+  | Warmup
   | SetFont(Font.t)
   // | SetLogoFont(Font.t)
   | PerformAction(Edit.t)
@@ -209,6 +210,9 @@ let apply =
     : Result.t(Model.t) => {
   //print_endline("apply");
   switch (update) {
+  | Warmup =>
+    Tylr_core.Walker.warmup();
+    Ok(model);
   | SetFont(font) => Ok({...model, font})
   // | SetLogoFont(logo_font_metrics) =>
   //   Ok({...model, logo_font_metrics})

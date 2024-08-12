@@ -2,6 +2,8 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
+exception Bug__lost_cursor;
+
 module Caret = {
   include Caret;
   [@deriving (show({with_path: false}), sexp, yojson)]
@@ -16,14 +18,25 @@ module Selection = {
   let split_range = Fun.const(((), ()));
   let carets = carets(~split_range);
 };
+module Cur = Cursor;
 module Cursor = {
-  include Cursor;
+  include Cur;
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Cursor.t(Caret.t, Selection.t);
+  type t = Cur.t(Caret.t, Selection.t);
   let flatten: t => _ =
     fun
     | Point(_) => []
     | Select({range, _}) => Zigg.flatten(range);
+};
+
+module Site = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t =
+    | Between
+    | Within(Token.t);
+  module Cursor = {
+    type nonrec t = Cur.t(t, (t, t));
+  };
 };
 
 // todo: document potential same-id token on either side of caret
@@ -43,6 +56,42 @@ let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
 };
 let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
   mk(unroll(side, cell, ~ctx));
+
+let cursor_site = (z: t): (Site.Cursor.t, Ctx.t) =>
+  switch (z.cur) {
+  | Point(_) =>
+    let (l, ctx) = Ctx.pull_face(~from=L, z.ctx);
+    let (r, ctx) = Ctx.pull_face(~from=R, ctx);
+    switch (l, r) {
+    | (Node(l), Node(r)) when Token.merges(l, r) => (
+        Cur.Point(Site.Within(l)),
+        ctx,
+      )
+    | _ => (Cur.Point(Between), z.ctx)
+    };
+  | Select(sel) =>
+    let (l, ctx) = {
+      let face = Zigg.face(~side=L, sel.range);
+      switch (Ctx.pull_face(~from=L, z.ctx)) {
+      | (Node(l), rest) when Token.merges(l, face) => (
+          Site.Within(face),
+          rest,
+        )
+      | _ => (Between, z.ctx)
+      };
+    };
+    let (r, ctx) = {
+      let face = Zigg.face(sel.range, ~side=R);
+      switch (Ctx.pull_face(~from=R, ctx)) {
+      | (Node(r), rest) when Token.merges(face, r) => (
+          Site.Within(face),
+          rest,
+        )
+      | _ => (Between, ctx)
+      };
+    };
+    (Cur.Select((l, r)), ctx);
+  };
 
 // assumes normalized cursor
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
@@ -64,7 +113,7 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
       let map = Cursor.map(Fun.id, Selection.map(Zigg.of_tok));
       switch (Token.unzip(tok)) {
       // | (_, None, _) => go_l(Point(Caret.focus), tok)
-      | (None, _, None) => failwith("todo")
+      | (None, _, None) => failwith("todo: handle token paths")
       | (None, cur, Some(r)) =>
         let (cell, pre) = Chain.uncons(pre);
         let suf = Chain.Affix.cons(r, suf);
@@ -88,7 +137,13 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   let (l, r) = sel.range;
   let l = Path.hd(l) |> Path.Head.get(() => 0);
   let r = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
-  let (pre, top, suf) = Meld.split_subwald(l, r, meld);
+  let (pre, top, suf) =
+    try(Meld.split_subwald(l, r, meld)) {
+    | _ =>
+      P.show("paths", Path.Selection.show(sel));
+      P.show("meld", Meld.show(meld));
+      failwith("failed split subwald");
+    };
   let ((pre_dn, pre_up), top) =
     if (l mod 2 == 0) {
       // l points to cell hd_pre

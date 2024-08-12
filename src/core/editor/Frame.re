@@ -21,7 +21,9 @@ module Open = {
     let (l, dn') = Slope.pull(~from=L, dn);
     let (r, up') = Slope.pull(~from=R, up);
     switch (l, r) {
-    | (Node(l), Node(r)) when Token.merges(l, r) => (Node(l), (dn', up'))
+    | (Node(l), Node(r)) when Token.merges(l, r) =>
+      let _ = failwith("todo: no more smart pulls");
+      (Node(l), (dn', up'));
     | _ =>
       let delim = Dir.pick(from, (l, r));
       let rest = Dir.pick(from, ((dn', up), (dn, up')));
