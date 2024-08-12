@@ -11,8 +11,8 @@ let meld_or_bust = (ctx: Ctx.t, tok: Token.t): Ctx.t => {
 };
 
 let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
-  let (l, rest) = Ctx.pull_face(~from=L, ctx);
-  let (r, rest) = Ctx.pull_face(~from=R, rest);
+  let (l, rest) = Ctx.pull(~from=L, ctx);
+  let (r, rest) = Ctx.pull(~from=R, rest);
   let merges = Delim.merges(l, r);
   let s_l =
     Delim.is_tok(l)
@@ -101,20 +101,6 @@ let finalize = (~adjust=0, ~fill=Cell.point(Focus), ctx: Ctx.t) => {
   Zipper.unzip_exn(cell, ~ctx) |> Move.hstep_n(adjust);
 };
 
-// let pull_text = (~from, ctx) =>
-//   switch (Ctx.pull(~from, ctx)) {
-//   | (Node(tok), ctx) when tok.text != "" => (
-//       Token.affix(~side=from, tok),
-//       ctx,
-//     )
-//   | _ => ("", ctx)
-//   };
-// let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
-//   let (l, ctx) = pull_text(~from=L, ctx);
-//   let (r, ctx) = pull_text(~from=R, ctx);
-//   (Labeler.label(l ++ s ++ r), Stds.Utf8.length(r), ctx);
-// };
-
 let extend = (~side=Dir.R, s: string, tok: Token.t) =>
   switch (tok.mtrl) {
   | Space(_)
@@ -147,7 +133,7 @@ let try_extend = (~side: Dir.t, s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let* _ = Cursor.get_point(z.cur);
   let* () = Options.of_bool(!Strings.is_empty(s));
-  let (face, ctx) = Ctx.pull_face(~from=side, z.ctx);
+  let (face, ctx) = Ctx.pull(~from=side, z.ctx);
   let* tok = Delim.is_tok(face);
   let+ extended = extend(~side=Dir.toggle(side), s, tok);
   ctx
@@ -171,7 +157,7 @@ let expand = (tok: Token.t) =>
 let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let* () = Options.of_bool(String.starts_with(~prefix=" ", s));
-  let (face, rest) = Ctx.pull_face(~from=L, z.ctx);
+  let (face, rest) = Ctx.pull(~from=L, z.ctx);
   let* tok = Delim.is_tok(face);
   let* expanded = expand(tok);
   let ((dn, up), tl) = Ctx.uncons(rest);
@@ -218,9 +204,7 @@ let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
       // tok partially selected
       | Some(_cur) =>
         let (l, r) =
-          switch (
-            Ctx.(pull_face(~from=L, z.ctx), pull_face(~from=R, z.ctx))
-          ) {
+          switch (Ctx.(pull(~from=L, z.ctx), pull(~from=R, z.ctx))) {
           | ((Node(l), _), (Node(r), _))
               when Token.(merges(tok, l) && merges(tok, r)) =>
             Token.(affix(~side=L, tok), affix(tok, ~side=R))

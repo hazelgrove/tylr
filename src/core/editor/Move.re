@@ -64,7 +64,7 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       // move to d end of selection
       return(Ctx.push_zigg(~onto=b, zigg, z.ctx))
     | Point(_) =>
-      let (face, ctx) = Ctx.pull_face(~from=d, z.ctx);
+      let (face, ctx) = Ctx.pull(~from=d, z.ctx);
       let+ tok = Bound.to_opt(face);
       let (stepped, exited) = hstep_tok(d, tok);
       ctx

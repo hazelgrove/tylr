@@ -60,8 +60,8 @@ let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
 let cursor_site = (z: t): (Site.Cursor.t, Ctx.t) =>
   switch (z.cur) {
   | Point(_) =>
-    let (l, ctx) = Ctx.pull_face(~from=L, z.ctx);
-    let (r, ctx) = Ctx.pull_face(~from=R, ctx);
+    let (l, ctx) = Ctx.pull(~from=L, z.ctx);
+    let (r, ctx) = Ctx.pull(~from=R, ctx);
     switch (l, r) {
     | (Node(l), Node(r)) when Token.merges(l, r) => (
         Cur.Point(Site.Within(l)),
@@ -72,7 +72,7 @@ let cursor_site = (z: t): (Site.Cursor.t, Ctx.t) =>
   | Select(sel) =>
     let (l, ctx) = {
       let face = Zigg.face(~side=L, sel.range);
-      switch (Ctx.pull_face(~from=L, z.ctx)) {
+      switch (Ctx.pull(~from=L, z.ctx)) {
       | (Node(l), rest) when Token.merges(l, face) => (
           Site.Within(face),
           rest,
@@ -82,7 +82,7 @@ let cursor_site = (z: t): (Site.Cursor.t, Ctx.t) =>
     };
     let (r, ctx) = {
       let face = Zigg.face(sel.range, ~side=R);
-      switch (Ctx.pull_face(~from=R, ctx)) {
+      switch (Ctx.pull(~from=R, ctx)) {
       | (Node(r), rest) when Token.merges(face, r) => (
           Site.Within(face),
           rest,
