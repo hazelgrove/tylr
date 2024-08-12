@@ -49,7 +49,10 @@ let pull_face = (~from: Dir.t, ctx: t): (Delim.t, t) => {
     | ([], _empty) => (face, cons(hd', tl))
     | ([c, ...cs], os) =>
       let (t, rest) = Frame.Closed.pull(~from, c);
-      let ctx = map_hd(Frame.Open.cat(rest), mk(os, cs));
+      let ctx =
+        mk(os, cs)
+        |> map_hd(Frame.Open.cat(rest))
+        |> map_hd(Frame.Open.cat(hd'));
       (Node(t), ctx);
     }
   };
