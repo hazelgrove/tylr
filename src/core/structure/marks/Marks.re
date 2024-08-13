@@ -42,7 +42,14 @@ module Cell = {
     } else if (Path.Map.is_empty(marks.obligs)) {
       Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
     } else {
-      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
+      Fmt.pf(
+        out,
+        "cursor: %a,@ obligs: %a",
+        Path.Cursor.pp,
+        Option.get(marks.cursor),
+        Path.Map.pp(Mtrl.T.pp),
+        marks.obligs,
+      );
     };
   let show = Fmt.to_to_string(pp);
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};

@@ -122,8 +122,7 @@ module Cursor = {
     switch (l, r) {
     | (Select(_), _) => l
     | (_, Select(_)) => r
-    | (Point({path: l, hand}), Point({path: r, _})) =>
-      Select({focus: hand == Focus ? L : R, range: (l, r)})
+    | (Point(p), Point(q)) => Select(Selection.of_carets(p, q))
     };
   let get_focus =
     fun
