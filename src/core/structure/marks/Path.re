@@ -60,12 +60,12 @@ module Range = {
     fun
     | ([hd_l, ..._], [hd_r, ..._]) when hd_l == hd_r => Ok(hd_l)
     | range => Error(range);
-  let peel = (n, (l, r): t) => {
-    open Options.Syntax;
-    let+ l = Base.peel(n, l)
-    and+ r = Base.peel(n, r);
-    (l, r);
-  };
+  // let peel = (n, (l, r): t) => {
+  //   open Options.Syntax;
+  //   let+ l = Base.peel(n, l)
+  //   and+ r = Base.peel(n, r);
+  //   (l, r);
+  // };
 };
 
 module Caret = {
@@ -88,8 +88,8 @@ module Selection = {
   let is_empty = get(Range.is_empty);
   let map2 = f => Selection.map(Range.map(f));
   let cons = n => map2(Base.cons(n));
-  let peel = (n, sel: t) =>
-    Range.peel(n, sel.range) |> Option.map(range => {...sel, range});
+  // let peel = (n, sel: t) =>
+  //   Range.peel(n, sel.range) |> Option.map(range => {...sel, range});
   let hd = sel => Range.hd(sel.range) |> Head.map_err(mk(~focus=sel.focus));
   let get_focus = (sel: t) => Dir.pick(sel.focus, sel.range);
   let put_focus = (foc, sel: t) => {
@@ -117,7 +117,15 @@ module Cursor = {
   let peel = n =>
     fun
     | Point(p) => Option.map(point, Caret.peel(n, p))
-    | Select(sel) => Option.map(select, Selection.peel(n, sel));
+    | Select(sel) => {
+        let (l, r) = Selection.carets(sel);
+        switch (Caret.(peel(n, l), peel(n, r))) {
+        | (None, None) => None
+        | (Some(p), None)
+        | (None, Some(p)) => Some(point(p))
+        | (Some(l), Some(r)) => Some(select(Selection.of_carets(l, r)))
+        };
+      };
   let union = (l: t, r: t) =>
     switch (l, r) {
     | (Select(_), _) => l
