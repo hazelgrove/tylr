@@ -263,11 +263,6 @@ let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
   };
 };
 
-// insert and delete_sel are mutually recursive because insert calls delete_sel to
-// remove selection before inserting text, while delete_sel calls insert to
-// reprocess the selection-external suffix of the rightmost selected token. the
-// decreasing argument is the zipper's selection (nonempty to empty), with
-// delete_sel doing nothing in the base case of an empty selection.
 let insert = (s: string, z: Zipper.t) => {
   // TODO: need to make sure to remold if delete_sel does something and extension or
   // expansion works, which don't follow up with remolding rn
