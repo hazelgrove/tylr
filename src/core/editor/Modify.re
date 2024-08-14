@@ -197,14 +197,14 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
 };
 
 // delete_sel clears the textual content of the current selection (doing nothing if
-// the selection is empty). specifically, this entails dropping all of the zigg's
-// cells and remelding the zigg's tokens as empty ghosts onto (the left side of) the
-// ctx. in the case of tokens at the ends of the selection that are split by the
-// selection boundaries, the selection-external affixes of those tokens are
-// preserved. more specifically, a boundary-split token on the left will retain its
-// mold and its left textual affix, while the right affix of a boundary-split token
-// on the right end of the selection is returned to the caller for subsequent
-// processing.
+// the selection is empty). this entails dropping all of the zigg's cells and
+// remelding the zigg's tokens as empty ghosts onto (the left side of) the ctx. in
+// the case of tokens at the ends of the selection that are split by the selection
+// boundaries, the selection-external affixes of those tokens are preserved: a
+// boundary-split token on the left will retain its mold and its left textual affix,
+// while the right affix of a boundary-split token on the right end of the selection
+// is returned to the caller for subsequent processing.
+// todo: unify impl with cursor site approach in Select.re
 let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
   // List.iter(Effects.remove, Zipper.Cursor.flatten(z.cur));
   switch (z.cur) {
@@ -229,16 +229,6 @@ let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
             Token.("", affix(~side=R, tok))
           | _ => assert(false)
           };
-        P.log("--- delete_sel ---");
-        P.show("z.ctx", Ctx.show(z.ctx));
-        P.show("l", l);
-        P.show("r", r);
-        // let l =
-        //   Cursor.is_point(cur) && sel.focus == L
-        //     ? "" : Token.affix(~side=L, tok);
-        // let r =
-        //   Cursor.is_point(cur) && sel.focus == R
-        //     ? "" : Token.affix(~side=R, tok);
         let tok = {...tok, text: l};
         let tok = {
           ...tok,
@@ -278,6 +268,8 @@ let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
 // decreasing argument is the zipper's selection (nonempty to empty), with
 // delete_sel doing nothing in the base case of an empty selection.
 let insert = (s: string, z: Zipper.t) => {
+  // TODO: need to make sure to remold if delete_sel does something and extension or
+  // expansion works, which don't follow up with remolding rn
   let (ctx, s') = delete_sel(z);
   let s = s ++ s';
   let z = Zipper.mk(ctx);
