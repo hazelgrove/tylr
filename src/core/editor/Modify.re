@@ -240,7 +240,8 @@ let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
           z.ctx
           |> Ctx.peel(~from=L, tok)
           |> Ctx.peel(~from=R, tok)
-          |> Ctx.push(~onto=L, tok);
+          |> Ctx.push(~onto=L, tok)
+          |> (Token.is_complete(tok) ? Fun.id : Ctx.push(~onto=R, tok));
         (ctx, r);
       }
     | [_, _, ..._] as toks =>
