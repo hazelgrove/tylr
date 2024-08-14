@@ -85,13 +85,213 @@ let destruct_pat =
     (exp: unit => Regex.t, pat: unit => Regex.t, obj_pat: unit => Regex.t) =>
   alt([obj_pat(), array_pat(exp, pat)]);
 
+//Export statement used both in statement and in the typ object typ
+let module_export_name = alt([t(Id_lower) /* , t(String_lit) */]);
+let export_specifier =
+  seq([module_export_name, opt(seq([kw("as"), module_export_name]))]);
+let export_clause =
+  seq([
+    brc(L, "{"),
+    export_specifier,
+    star(seq([c(","), export_specifier])),
+    opt(c(",")),
+    brc(R, "}"),
+  ]);
+
+//TODO:
+// let from_clause =seq([kw("from"), t(String_lit)])
+let from_clause = seq([kw("from"), t(Id_lower)]);
+let namespace_export = seq([c("*"), kw("as"), module_export_name]);
+
+let export_statement = stat =>
+  alt([
+    seq([
+      kw("export"),
+      alt([
+        seq([c("*"), from_clause]),
+        seq([namespace_export, from_clause]),
+        seq([export_clause, from_clause]),
+        export_clause,
+      ]),
+      c(";"),
+    ]),
+    seq([kw("export"), stat()]),
+  ]);
+
+//Used in exp and typ
+let param = lhs_exp => alt([pat(lhs_exp) /*, assignnment_pat*/]);
+let params = lhs_exp =>
+  seq([
+    brc(L, "("),
+    param(lhs_exp),
+    star(seq([c(","), param(lhs_exp)])),
+    brc(R, ")"),
+  ]);
+
 module type SORT = {
   let atom: unit => Regex.t;
   let sort: unit => Sort.t;
   let tbl: unit => Prec.Table.t(Regex.t);
 };
 
-module rec ObjectPat: SORT = {
+module rec Typ: SORT = {
+  let sort = () => Sort.of_str("Typ");
+  let atom = () => nt(sort());
+
+
+  let tbl = () => [];
+}
+and PrimaryTyp: SORT = {
+let sort = () => Sort.of_str("Typ");
+  let atom = () => nt(sort());
+
+  let paren_type = seq([brc(L, "("), Typ.atom(), brc(R, ")")]);
+  let predefined_type =
+    alt([
+      kw("any"),
+      kw("number"),
+      kw("boolean"),
+      kw("string"),
+      kw("symbol"),
+      kw("void"),
+      kw("unknown"),
+      kw("null"),
+      kw("never"),
+      kw("object"),
+    ]);
+  let typ_ident = t(Id_lower);
+
+  let nested_ident =
+    seq([
+      star(seq([member_exp(Exp.atom), c("."), t(Id_lower)])),
+      c("."),
+      t(Id_lower),
+    ]);
+  let nested_typ_ident =
+    seq([alt([t(Id_lower), nested_ident]), c("."), typ_ident]);
+
+  let typ_arguments = seq([brc(L, "<"), comma_sep(Typ.atom()), brc(R, ">")]);
+  let generic_typ = seq([alt([typ_ident, nested_typ_ident]), typ_arguments]);
+
+  let typ_annotation = seq([c(":"), Typ.atom()]);
+  let omitting_typ_annotation = seq([c("-?:"), Typ.atom()]);
+  let adding_typ_annotation = seq([c("+?:"), Typ.atom()]);
+  let opting_typ_annotation = seq([c("?:"), Typ.atom()]);
+
+  let accessibility_modifier =
+    alt([kw("public"), kw("protected"), kw("private")]);
+  let override_modifier = kw("override");
+  let property_signature =
+    seq([
+      opt(accessibility_modifier),
+      opt(kw("static")),
+      opt(override_modifier),
+      opt(kw("readonly")),
+      property_name,
+      opt(c("?")),
+      opt(typ_annotation),
+    ]);
+
+  let _constraint = seq([alt([kw("extends"), c(":")]), Typ.atom()]);
+  let default_typ = seq([op("="), Typ.atom()]);
+  let typ_parameter =
+    seq([
+      opt(kw("const")),
+      typ_ident,
+      opt(_constraint),
+      opt(default_typ),
+    ]);
+  let typ_params =
+    seq([brc(L, "<"), comma_sep(typ_parameter), brc(R, ">")]);
+
+  let this = kw("this");
+  let typ_predicate =
+    seq([alt([t(Id_lower), this]), kw("is"), Typ.atom()]);
+  let typ_predicate_annotation = seq([c(":"), typ_predicate]);
+
+  let asserts_annotation =
+    seq([c(":"), kw("asserts"), alt([typ_predicate, t(Id_lower), this])]);
+  let call_signature =
+    seq([
+      opt(typ_params),
+      params(LHSExp.atom),
+      opt(
+        alt([typ_annotation, asserts_annotation, typ_predicate_annotation]),
+      ),
+    ]);
+
+  let construct_signature =
+    seq([
+      opt(kw("abstract")),
+      kw("new"),
+      opt(typ_params),
+      params(LHSExp.atom),
+      opt(typ_annotation),
+    ]);
+  let index_signature =
+    seq([
+      opt(seq([opt(alt([c("-"), c("+")])), kw("readonly")])),
+      brc(L, "["),
+      alt([seq([t(Id_lower), c(":"), Typ.atom()])]),
+      brc(R, "]"),
+      alt([
+        typ_annotation,
+        omitting_typ_annotation,
+        adding_typ_annotation,
+        opting_typ_annotation,
+      ]),
+    ]);
+
+  let method_signature =
+    seq([
+      opt(accessibility_modifier),
+      opt(kw("static")),
+      opt(override_modifier),
+      opt(kw("readonly")),
+      opt(kw("async")),
+      opt(alt([kw("get"), kw("set"), c("*")])),
+      property_name,
+      opt(c("?")),
+      call_signature,
+    ]);
+
+  let obj_typ =
+    seq([
+      alt([brc(L, "{"), brc(L, "{|")]),
+      opt(
+        seq([
+          c(","),
+          comma_sep(
+            alt([
+              export_statement(Stat.atom),
+              property_signature,
+              call_signature,
+              construct_signature,
+              index_signature,
+              method_signature,
+            ]),
+          ),
+          c(","),
+        ]),
+      ),
+      alt([brc(R, "}"), brc(R, "|}")]),
+    ]);
+
+  let arr_typ = seq([])
+
+  let operand =
+    alt([
+      paren_type,
+      predefined_type,
+      typ_ident,
+      nested_typ_ident,
+      generic_typ,
+      obj_typ
+    ]);
+
+  let tbl = () => [p(operand)];
+}
+and ObjectPat: SORT = {
   let sort = () => Sort.of_str("ObjectPat");
   let atom = () => nt(sort());
 
@@ -173,9 +373,6 @@ and Exp: SORT = {
 
   //TODO:assignment_pat
 
-  let param = alt([pat(LHSExp.atom) /*, assignnment_pat*/]);
-  let params =
-    seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
     seq([
       opt(kw(~l=false, ~indent=false, "static")),
@@ -401,38 +598,6 @@ and Stat: SORT = {
     ]);
   let call_signature = params;
 
-  let module_export_name = alt([t(Id_lower) /* , t(String_lit) */]);
-  let export_specifier =
-    seq([module_export_name, opt(seq([kw("as"), module_export_name]))]);
-  let export_clause =
-    seq([
-      brc(L, "{"),
-      export_specifier,
-      star(seq([c(","), export_specifier])),
-      opt(c(",")),
-      brc(R, "}"),
-    ]);
-
-  //TODO:
-  // let from_clause =seq([kw("from"), t(String_lit)])
-  let from_clause = seq([kw("from"), t(Id_lower)]);
-  let namespace_export = seq([c("*"), kw("as"), module_export_name]);
-
-  let export_statement =
-    alt([
-      seq([
-        kw("export"),
-        alt([
-          seq([c("*"), from_clause]),
-          seq([namespace_export, from_clause]),
-          seq([export_clause, from_clause]),
-          export_clause,
-        ]),
-        c(";"),
-      ]),
-      seq([kw("export"), atom()]),
-    ]);
-
   let namespace_import = seq([c("*"), kw("as"), t(Id_lower)]);
   let import_specifier =
     alt([t(Id_lower), seq([module_export_name, kw("as"), t(Id_lower)])]);
@@ -545,7 +710,7 @@ and Stat: SORT = {
     alt([
       empty_statement,
       debugger_statement,
-      export_statement,
+      export_statement(Stat.atom),
       import_statement,
       declaration,
       statement_block,
