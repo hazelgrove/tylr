@@ -129,13 +129,28 @@ let extend = (~side=Dir.R, s: string, tok: Token.t) =>
     | _ => None
     };
   };
-let try_extend = (~side: Dir.t, s: string, z: Zipper.t): option(Zipper.t) => {
+let try_extend = (s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
-  let* _ = Cursor.get_point(z.cur);
   let* () = Options.of_bool(!Strings.is_empty(s));
-  let (face, ctx) = Ctx.pull(~from=side, z.ctx);
-  let* tok = Delim.is_tok(face);
-  let+ extended = extend(~side=Dir.toggle(side), s, tok);
+  let (sites, ctx) = Zipper.cursor_site(z);
+  let* site = Cursor.get_point(sites);
+  let+ (extended, ctx) =
+    switch (site) {
+    | Within(tok) =>
+      let+ extended = extend(~side=R, s, tok);
+      (extended, ctx);
+    | Between =>
+      let/ () = {
+        let (face, ctx) = Ctx.pull(~from=L, ctx);
+        let* tok = Delim.is_tok(face);
+        let+ extended = extend(~side=R, s, tok);
+        (extended, ctx);
+      };
+      let (face, ctx) = Ctx.pull(~from=R, ctx);
+      let* tok = Delim.is_tok(face);
+      let+ extended = extend(~side=L, s, tok);
+      (extended, ctx);
+    };
   ctx
   |> Ctx.push(~onto=L, extended)
   |> (Option.is_some(extended.marks) ? Ctx.push(~onto=R, extended) : Fun.id)
@@ -267,13 +282,8 @@ let insert = (s: string, z: Zipper.t) => {
   let s = s ++ s';
   let z = Zipper.mk(ctx);
   open Options.Syntax;
-  P.log("0");
-  let- () = try_extend(~side=L, s, z);
-  P.log("1");
-  let- () = try_extend(~side=R, s, z);
-  P.log("2");
+  let- () = try_extend(s, z);
   let- () = try_expand(s, z);
-  P.log("3");
 
   let (toks, r, ctx) = relabel(s, z.ctx);
   let (cell, ctx) =
