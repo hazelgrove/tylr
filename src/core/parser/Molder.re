@@ -22,7 +22,7 @@ open Stds;
 
 let candidates = (t: Token.Unmolded.t): list(Token.t) =>
   List.map(
-    Token.mk(~id=t.id, ~text=t.text),
+    Token.mk(~id=t.id, ~marks=?t.marks, ~text=t.text),
     switch (t.mtrl) {
     | Space(t) => [Mtrl.Space(t)]
     | Grout(_) => failwith("bug: attempted to mold grout")

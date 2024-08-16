@@ -134,6 +134,7 @@ module Molded = {
       None;
     };
 
+  // decreasing argument is tok marks, from select to point or none
   let rec pop_end_carets = (tok: t): (option(Caret.t(unit)) as 'c, t, 'c) =>
     switch (tok.marks) {
     | None => (None, tok, None)
@@ -247,8 +248,8 @@ include Molded;
 module Unmolded = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(Mtrl.t(Space.T.t, unit, list(Label.t)));
-  let mk = (~id=?, ~text="", mtrl: Mtrl.t(_)): t =>
-    Base.mk(~id?, ~text, mtrl);
+  let mk = (~id=?, ~text="", ~marks=?, mtrl: Mtrl.t(_)): t =>
+    Base.mk(~id?, ~text, ~marks?, mtrl);
   let defer = (tok: t): Molded.t =>
     Molded.mk(~id=tok.id, ~text=tok.text, Space(Unmolded));
   let has_lbl = (lbl: Label.t, tok: t) =>
@@ -291,7 +292,9 @@ let unmold = (tok: Molded.t): Unmolded.t => {
     | Tile((lbl, _)) =>
       Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
     };
-  Unmolded.mk(~id=tok.id, ~text=tok.text, mtrl);
+  // todo: may need to fix token marks if marks happen to have caret at right end
+  // of incomplete tile
+  Unmolded.mk(~id=tok.id, ~marks=?tok.marks, ~text=tok.text, mtrl);
 };
 
 module Space = {

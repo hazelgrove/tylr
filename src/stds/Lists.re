@@ -129,3 +129,8 @@ let split_bins = (num_bins, xs) => {
     };
   go(num_bins, xs);
 };
+
+let fold_left = Base.List.fold_left;
+let fold_right = Base.List.fold_right;
+
+let fold_map = Base.List.fold_map;

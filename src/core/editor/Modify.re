@@ -10,7 +10,8 @@ let meld_or_bust = (ctx: Ctx.t, tok: Token.t): Ctx.t => {
   };
 };
 
-let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
+let relabel =
+    (s: string, ctx: Ctx.t): (Chain.t(Cell.t, Token.Unmolded.t), Ctx.t) => {
   let (l, rest) = Ctx.pull(~from=L, ctx);
   let (r, rest) = Ctx.pull(~from=R, rest);
   let merges = Delim.merges(l, r);
@@ -22,9 +23,10 @@ let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
     Delim.is_tok(r)
     |> Option.map(Token.affix(~side=R))
     |> Option.value(~default="");
+  let labeled = Labeler.label(s_l ++ s ++ s_r);
   // push left face back if its labeling remains unchanged
   let (labeled, rest) =
-    switch (Labeler.label(s_l ++ s ++ s_r)) {
+    switch (labeled) {
     | [hd, ...tl] when hd.text == s_l && s_l != "" =>
       let ctx =
         Delim.is_tok(l)
@@ -34,21 +36,58 @@ let relabel = (s: string, ctx: Ctx.t): (list(Token.Unmolded.t), int, Ctx.t) => {
     | labeled => (labeled, rest)
     };
   // push right face back if its labeling remains unchanged
-  switch (Lists.Framed.ft(labeled)) {
-  | Some((pre, ft)) when ft.text == s_r && s_r != "" && !merges =>
-    let ctx =
-      Delim.is_tok(r)
-      |> Option.map(t => Ctx.push(~onto=R, t, rest))
-      |> Option.value(~default=rest);
-    (List.rev(pre), 0, ctx);
-  | _ => (labeled, Utf8.length(s_r), rest)
-  };
+  let (labeled, rest) =
+    switch (Lists.Framed.ft(labeled)) {
+    | Some((pre, ft)) when ft.text == s_r && s_r != "" && !merges =>
+      let ctx =
+        Delim.is_tok(r)
+        |> Option.map(t => Ctx.push(~onto=R, t, rest))
+        |> Option.value(~default=rest);
+      // (List.rev(pre), 0, ctx);
+      (List.rev(pre), ctx);
+    | _ =>
+      // (labeled, Utf8.length(s_r), rest)
+      (labeled, rest)
+    };
+
+  // restore caret position
+  let n = Utf8.length(s_l ++ s);
+  let toks =
+    labeled
+    |> Lists.fold_map(
+         ~init=0,
+         ~f=(num_chars, tok: Token.Unmolded.t) => {
+           let m = num_chars + Utf8.length(tok.text);
+           let tok =
+             m >= n
+               ? Token.put_cursor(Point(Caret.focus(n - num_chars)), tok)
+               : tok;
+           (m, tok);
+         },
+       )
+    |> snd
+    // normalize the cursors by popping off any carets at the token edges
+    // and storing them instead in neighboring cells, the final result being a
+    // chain of cell-loops (either empty or with a caret) and token-links
+    |> Lists.fold_right(
+         ~init=Chain.unit(Cell.empty), ~f=(tok: Token.Unmolded.t, c) =>
+         switch (tok.marks) {
+         | Some(Point({path: 0, _})) =>
+           Chain.link(Cell.point(Focus), Token.clear_marks(tok), c)
+         | Some(Point({path: n, _})) when n == Utf8.length(tok.text) =>
+           c
+           |> Chain.map_hd(Fun.const(Cell.point(Focus)))
+           |> Chain.link(Cell.empty, Token.clear_marks(tok))
+         | _ => Chain.link(Cell.empty, tok, c)
+         }
+       );
+  (toks, rest);
 };
 
-let mold = (ctx: Ctx.t, tok: Token.Unmolded.t): Ctx.t => {
+let mold = (ctx: Ctx.t, ~fill=Cell.empty, tok: Token.Unmolded.t): Ctx.t => {
   let ((dn, up), tl) = Ctx.uncons(ctx);
   let (l, r) = Ctx.Tl.bounds(tl);
-  switch (Molder.mold(~bound=l, dn, tok)) {
+  switch (Molder.mold(~bound=l, dn, ~fill, tok)) {
   | Removed => ctx
   | Molded(Neq(dn))
   | Deferred(Neq(dn)) => Ctx.cons((dn, up), tl)
@@ -94,11 +133,6 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
       remold(~fill, ctx);
     };
   };
-};
-
-let finalize = (~adjust=0, ~fill=Cell.point(Focus), ctx: Ctx.t) => {
-  let (cell, ctx) = remold(~fill, ctx);
-  Zipper.unzip_exn(cell, ~ctx) |> Move.hstep_n(adjust);
 };
 
 let extend = (~side=Dir.R, s: string, tok: Token.t) =>
@@ -196,100 +230,102 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   };
 };
 
+let put_edge = (side: Dir.t, tok: Token.t) =>
+  switch (side) {
+  | L => Token.put_cursor(Point(Caret.focus(0)), tok)
+  | R => Token.put_cursor(Point(Caret.focus(Token.length(tok))), tok)
+  };
+
+let delete_toks =
+    (d: Dir.t, toks: list(Token.t)): Chain.t(Cell.t, Token.Unmolded.t) => {
+  let n = List.length(toks);
+  toks
+  // first, clear text of selected tokens within selection bounds and mark
+  // either the first or last token with the final cursor position
+  |> List.mapi((i, tok) =>
+       if (i == 0 && i == n - 1) {
+         // single-token selection
+         // note: affixes empty if token completely selected
+         let (l, r) = Token.(affix(~side=L, tok), affix(~side=R, tok));
+         {...tok, text: l ++ r}
+         |> Token.put_cursor(Point(Step.Caret.focus(Utf8.length(l))));
+       } else if (i == 0) {
+         let l = Token.affix(~side=L, tok);
+         let car = Step.Caret.focus(Utf8.length(l));
+         {...tok, text: l}
+         |> Token.(d == L ? put_cursor(Point(car)) : clear_marks);
+       } else if (i == n - 1) {
+         let r = Token.affix(~side=R, tok);
+         {...tok, text: r}
+         |> (d == R ? put_edge(r == "" ? R : L) : Token.clear_marks);
+       } else {
+         Token.clear_marks({...tok, text: ""});
+       }
+     )
+  // next, normalize the cursors by popping off any carets at the token edges
+  // and storing them instead in neighboring cells, the final result being a
+  // chain of cell-loops (either empty or with a caret) and token-links
+  |> Lists.fold_right(
+       ~init=Chain.unit(Cell.empty),
+       ~f=(tok, c) => {
+         let (l, tok, r) = Token.pop_end_carets(tok);
+         c
+         |> Chain.map_hd(r == None ? Fun.id : Fun.const(Cell.point(Focus)))
+         |> Chain.link(l == None ? Cell.empty : Cell.point(Focus), tok);
+       },
+     )
+  // finally, unmold the tokens
+  |> Chain.map_link(Token.unmold);
+};
+
 // delete_sel clears the textual content of the current selection (doing nothing if
 // the selection is empty). this entails dropping all of the zigg's cells and
 // remelding the zigg's tokens as empty ghosts onto (the left side of) the ctx. in
 // the case of tokens at the ends of the selection that are split by the selection
-// boundaries, the selection-external affixes of those tokens are preserved: a
-// boundary-split token on the left will retain its mold and its left textual affix,
-// while the right affix of a boundary-split token on the right end of the selection
-// is returned to the caller for subsequent processing.
-// todo: unify impl with cursor site approach in Select.re
-let delete_sel = (z: Zipper.t): (Ctx.t, string) => {
-  // List.iter(Effects.remove, Zipper.Cursor.flatten(z.cur));
+// boundaries, the selection-external affixes of those tokens are preserved.
+let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
   switch (z.cur) {
-  | Point(_) => (z.ctx, "")
+  | Point(_) => z
   | Select(sel) =>
-    switch (Zigg.tokens(sel.range)) {
-    | [] => assert(false)
-    | [tok] =>
-      switch (tok.marks) {
-      // tok completely selected
-      | None => (Ctx.push(~onto=L, {...tok, text: ""}, z.ctx), "")
-      // tok partially selected
-      | Some(_cur) =>
-        let (l, r) =
-          switch (Ctx.(pull(~from=L, z.ctx), pull(~from=R, z.ctx))) {
-          | ((Node(l), _), (Node(r), _))
-              when Token.(merges(tok, l) && merges(tok, r)) =>
-            Token.(affix(~side=L, tok), affix(tok, ~side=R))
-          | ((Node(l), _), _) when Token.merges(l, tok) =>
-            Token.(affix(~side=L, tok), "")
-          | (_, (Node(r), _)) when Token.merges(tok, r) =>
-            Token.("", affix(~side=R, tok))
-          | _ => assert(false)
-          };
-        let tok = {...tok, text: l};
-        let tok = {
-          ...tok,
-          marks:
-            Token.is_complete(tok)
-              ? None : Some(Point(Step.Caret.focus(Utf8.length(l)))),
-        };
-        let ctx =
-          z.ctx
-          |> Ctx.peel(~from=L, tok)
-          |> Ctx.peel(~from=R, tok)
-          |> Ctx.push(~onto=L, tok)
-          |> (Token.is_complete(tok) ? Fun.id : Ctx.push(~onto=R, tok));
-        (ctx, r);
-      }
-    | [_, _, ..._] as toks =>
-      let (pre, ft) = Lists.Framed.ft_exn(toks);
-      let (mid, hd) = Lists.Framed.ft_exn(pre);
-      let ctx =
-        z.ctx
-        |> Ctx.peel(~from=L, hd)
-        |> Ctx.peel(~from=R, ft)
-        |> Ctx.push(~onto=L, {...hd, text: Token.affix(~side=L, hd)});
-      let ctx =
-        mid
-        |> List.fold_left(
-             (ctx, tok) => Ctx.push(~onto=L, {...tok, text: ""}, ctx),
-             ctx,
-           );
-      (ctx, Token.affix(~side=R, ft));
-    }
+    // prune ctx of any duplicated tokens
+    let (_, ctx) = Zipper.cursor_site(z);
+    let (molded, fill) =
+      Zigg.tokens(sel.range)
+      |> delete_toks(d)
+      // remold each token against the ctx, using each preceding cell as its fill,
+      // and return the total ctx and the final remaining fill to be used when
+      // subsequently remolding
+      |> Chain.fold_left(
+           fill => (ctx, fill),
+           ((ctx, fill), tok, next_fill) =>
+             (mold(ctx, ~fill, tok), next_fill),
+         );
+    let (remolded, ctx) = remold(molded, ~fill);
+    Zipper.unzip_exn(remolded, ~ctx);
   };
-};
-
-let insert = (s: string, z: Zipper.t) => {
-  // TODO: need to make sure to remold if delete_sel does something and extension or
-  // expansion works, which don't follow up with remolding rn
-  let (ctx, s') = delete_sel(z);
-  let s = s ++ s';
-  let z = Zipper.mk(ctx);
-  open Options.Syntax;
-  let- () = try_extend(s, z);
-  let- () = try_expand(s, z);
-
-  let (toks, r, ctx) = relabel(s, z.ctx);
-  let (cell, ctx) =
-    toks |> List.fold_left(mold, ctx) |> remold(~fill=Cell.point(Focus));
-  Zipper.unzip_exn(cell, ~ctx) |> Move.hstep_n(- (Utf8.length(s') + r));
 };
 
 let delete = (d: Dir.t, z: Zipper.t) => {
   open Options.Syntax;
-  P.log("--- delete ---");
-  P.show("z", Zipper.show(z));
   let+ z = Cursor.is_point(z.cur) ? Select.hstep(d, z) : return(z);
-  P.show("selected", Zipper.show(z));
-  P.sexp("selected cursor", Zipper.Cursor.sexp_of_t(z.cur));
-  let (ctx, s) = delete_sel(z);
-  P.show("ctx", Ctx.show(ctx));
-  P.show("s", s);
-  let r = Zipper.mk(ctx) |> insert(s) |> Move.hstep_n(- Utf8.length(s));
-  P.show("r", Zipper.show(r));
-  r;
+  delete_sel(d, z);
+};
+
+let insert = (s: string, z: Zipper.t) => {
+  open Options.Syntax;
+  let z = delete_sel(L, z);
+
+  let- () = try_extend(s, z);
+  let- () = try_expand(s, z);
+
+  let (toks, ctx) = relabel(s, z.ctx);
+  let (molded, fill) =
+    toks
+    |> Chain.fold_left(
+         fill => (ctx, fill),
+         ((ctx, fill), tok, next_fill) =>
+           (mold(ctx, ~fill, tok), next_fill),
+       );
+  let (remolded, ctx) = remold(~fill, molded);
+  Zipper.unzip_exn(remolded, ~ctx);
 };
