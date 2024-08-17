@@ -279,7 +279,7 @@ module Unmolded = {
     };
 };
 
-let unmold = (tok: Molded.t): Unmolded.t => {
+let unmold = (~relabel=true, tok: Molded.t): Unmolded.t => {
   let mtrl =
     switch (tok.mtrl) {
     | Space(White) => Mtrl.Space(Space.T.White)
@@ -290,7 +290,9 @@ let unmold = (tok: Molded.t): Unmolded.t => {
       }
     | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
     | Tile((lbl, _)) =>
-      Tile(is_empty(tok) ? [lbl] : Labels.completions(tok.text))
+      Tile(
+        is_empty(tok) || !relabel ? [lbl] : Labels.completions(tok.text),
+      )
     };
   // todo: may need to fix token marks if marks happen to have caret at right end
   // of incomplete tile

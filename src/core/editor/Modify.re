@@ -230,10 +230,15 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   };
 };
 
-let put_edge = (side: Dir.t, tok: Token.t) =>
+let put_edge = (~hand=Caret.Hand.Focus, side: Dir.t, tok: Token.t) =>
   switch (side) {
-  | L => Token.put_cursor(Point(Caret.focus(0)), tok)
-  | R => Token.put_cursor(Point(Caret.focus(Token.length(tok))), tok)
+  | L => Token.put_cursor(Point(Caret.mk(hand, 0)), tok)
+  | R => Token.put_cursor(Point(Caret.mk(hand, Token.length(tok))), tok)
+  };
+let add_edge = (~hand=Caret.Hand.Focus, side: Dir.t, tok: Token.t) =>
+  switch (side) {
+  | L => Token.add_mark(Caret.mk(hand, 0), tok)
+  | R => Token.add_mark(Caret.mk(hand, Token.length(tok)), tok)
   };
 
 let delete_toks =
@@ -246,6 +251,7 @@ let delete_toks =
        if (i == 0 && i == n - 1) {
          // single-token selection
          // note: affixes empty if token completely selected
+         // (assuming edge carets have been temporarily non-normally placed on toks)
          let (l, r) = Token.(affix(~side=L, tok), affix(~side=R, tok));
          {...tok, text: l ++ r}
          |> Token.put_cursor(Point(Step.Caret.focus(Utf8.length(l))));
@@ -274,8 +280,8 @@ let delete_toks =
          |> Chain.link(l == None ? Cell.empty : Cell.point(Focus), tok);
        },
      )
-  // finally, unmold the tokens
-  |> Chain.map_link(Token.unmold);
+  // finally, unmold the tokens (only relabeling the last token)
+  |> Chain.mapi_link(i => Token.unmold(~relabel=i - 1 / 2 == n - 1));
 };
 
 // delete_sel clears the textual content of the current selection (doing nothing if
@@ -288,9 +294,20 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
   | Point(_) => z
   | Select(sel) =>
     // prune ctx of any duplicated tokens
-    let (_, ctx) = Zipper.cursor_site(z);
+    let (sites, ctx) = Zipper.cursor_site(z);
+    let (l, r) = Option.get(Cursor.get_select(sites));
     let (molded, fill) =
       Zigg.tokens(sel.range)
+      |> (
+        l == Between
+          ? Lists.map_hd(add_edge(~hand=sel.focus == L ? Focus : Anchor, L))
+          : Fun.id
+      )
+      |> (
+        r == Between
+          ? Lists.map_ft(add_edge(~hand=sel.focus == R ? Focus : Anchor, R))
+          : Fun.id
+      )
       |> delete_toks(d)
       // remold each token against the ctx, using each preceding cell as its fill,
       // and return the total ctx and the final remaining fill to be used when
