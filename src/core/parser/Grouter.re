@@ -62,13 +62,16 @@ let bake_stance = (st: Walk.Stance.t) => {
 };
 let bake_stances = stances => stances |> List.map(bake_stance) |> Option.some;
 
+// split apart any cells joined together by non-convex grout
 let rec degrout = (c: Cell.t): Cells.t =>
   switch (Cell.get(c)) {
+  | Some(M(_, W(([{mtrl: Grout((_, (Conv, Conv))), _}], [])), _)) => [
+      c,
+    ]
   | Some(M(_, w, _) as m) when Option.is_some(Wald.is_grout(w)) =>
-    Meld.to_chain(m)
-    |> Chain.loops
-    |> List.concat_map(degrout)
-    |> Cells.squash(~save_padding=true)
+    let (cells, toks) = Meld.to_chain(m);
+    List.iter(Effects.remove, toks);
+    cells |> List.concat_map(degrout) |> Cells.squash(~save_padding=true);
   | Some(m) when Option.is_some(Meld.Space.get(m)) =>
     Meld.to_chain(m)
     |> Chain.mapi_loop((i, c) => (i, c))
@@ -84,7 +87,8 @@ let fill_default =
   | Mtrl.Space(_) => Cell.empty
   // grout case isn't quite right... but shouldn't arise
   | Grout(s)
-  | Tile((s, _)) => Cell.put(Meld.Grout.op_(s));
+  | Tile((s, _)) =>
+    Cell.put(Meld.of_tok(Effects.insert(Token.Grout.op_(s))));
 
 // assumes cs already squashed sans padding
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
@@ -110,15 +114,17 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     switch (Cells.split_padding(cs)) {
     | (l, [], r) => Cell.pad(~l, fill_default(bot), ~r)
     | (l, [_, ..._] as cs, r) =>
+      // todo: need to do some degrouting here now that degrout pass no longer
+      // handles convex grout
       let cells =
         cs
         |> (has_pre ? List.cons(l) : Lists.map_hd(Cell.pad(~l)))
         |> (has_pos ? Lists.snoc(r) : Lists.map_ft(Cell.pad(~r)));
       let toks =
         Token.Grout.[
-          has_pre ? [pre(s)] : [],
-          List.init(List.length(cs) - 1, _ => in_(s)),
-          has_pos ? [pos(s)] : [],
+          has_pre ? [Effects.insert(pre(s))] : [],
+          List.init(List.length(cs) - 1, _ => Effects.insert(in_(s))),
+          has_pos ? [Effects.insert(pos(s))] : [],
         ]
         |> List.concat;
       let chain = Chain.mk(cells, toks);
