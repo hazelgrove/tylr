@@ -1,3 +1,4 @@
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | Insert(Token.t)
   | Remove(Token.t);

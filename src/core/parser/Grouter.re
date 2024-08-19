@@ -92,6 +92,7 @@ let fill_default =
 
 // assumes cs already squashed sans padding
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
+  let cs = Dir.pick(from, (List.rev, Fun.id), cs);
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
   | Space(nt) =>
@@ -159,5 +160,8 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
   Chain.mk(cs, toks);
 };
 
+// pick a walk from ws that best accommodates the cells in cs, ie minimizes
+// obligation delta. the given cells are expected to be oriented the same way as the
+// given walks according to from.
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) =>
   Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);

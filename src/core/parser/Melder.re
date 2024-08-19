@@ -123,7 +123,7 @@ let connect_eq =
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     let face = Terr.face(onto).mtrl;
     Walker.walk_eq(~from=d, Node(face), Node(t.mtrl))
-    |> Grouter.pick(~repair, ~from=d, fill)
+    |> Grouter.pick(~repair, ~from=d, List.rev(fill))
     |> Option.map(baked => Grouted.connect_eq(t, baked, onto, ~onto=d));
   }
   and rm_ghost_and_go = (onto, fill) =>
