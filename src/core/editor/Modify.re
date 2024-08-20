@@ -17,11 +17,11 @@ let relabel =
   let merges = Delim.merges(l, r);
   let s_l =
     Delim.is_tok(l)
-    |> Option.map(Token.affix(~side=L))
+    |> Option.map(Token.affix(~side=L, ~default_all=true))
     |> Option.value(~default="");
   let s_r =
     Delim.is_tok(r)
-    |> Option.map(Token.affix(~side=R))
+    |> Option.map(Token.affix(~side=R, ~default_all=true))
     |> Option.value(~default="");
   let labeled = Labeler.label(s_l ++ s ++ s_r);
   // push left face back if its labeling remains unchanged

@@ -238,10 +238,10 @@ module Molded = {
            };
          Utf8.split_sub(m, n, tok.text);
        });
-  let affix = (~side: Dir.t, tok: t) =>
+  let affix = (~default_all=false, ~side: Dir.t, tok: t) =>
     split_text(tok)
     |> Option.map(Dir.pick(side, (((l, _, _)) => l, ((_, _, r)) => r)))
-    |> Option.value(~default="");
+    |> Option.value(~default=default_all ? tok.text : "");
 };
 include Molded;
 
