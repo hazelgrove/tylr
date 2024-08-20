@@ -128,6 +128,11 @@ let params = lhs_exp =>
     brc(R, ")"),
   ]);
 
+//This is an example of something that should be of the exp sort but is duplicated
+let _initializer = exp => seq([op("="), exp()]);
+
+let number = alt([t(Int_lit), t(Float_lit)]);
+
 module type SORT = {
   let atom: unit => Regex.t;
   let sort: unit => Sort.t;
@@ -138,11 +143,10 @@ module rec Typ: SORT = {
   let sort = () => Sort.of_str("Typ");
   let atom = () => nt(sort());
 
-
   let tbl = () => [];
 }
 and PrimaryTyp: SORT = {
-let sort = () => Sort.of_str("Typ");
+  let sort = () => Sort.of_str("Typ");
   let atom = () => nt(sort());
 
   let paren_type = seq([brc(L, "("), Typ.atom(), brc(R, ")")]);
@@ -170,7 +174,8 @@ let sort = () => Sort.of_str("Typ");
   let nested_typ_ident =
     seq([alt([t(Id_lower), nested_ident]), c("."), typ_ident]);
 
-  let typ_arguments = seq([brc(L, "<"), comma_sep(Typ.atom()), brc(R, ">")]);
+  let typ_arguments =
+    seq([brc(L, "<"), comma_sep(Typ.atom()), brc(R, ">")]);
   let generic_typ = seq([alt([typ_ident, nested_typ_ident]), typ_arguments]);
 
   let typ_annotation = seq([c(":"), Typ.atom()]);
@@ -277,7 +282,60 @@ let sort = () => Sort.of_str("Typ");
       alt([brc(R, "}"), brc(R, "|}")]),
     ]);
 
-  let arr_typ = seq([])
+  let arr_typ = seq([PrimaryTyp.atom(), c("[]")]);
+
+  let param_name =
+    seq([
+      opt(accessibility_modifier),
+      opt(override_modifier),
+      opt(kw("readonly")),
+      alt([pat(LHSExp.atom), this]),
+    ]);
+  let required_param =
+    seq([param_name, opt(typ_annotation), opt(_initializer(Exp.atom))]);
+  let optional_param =
+    seq([
+      param_name,
+      c("?"),
+      opt(typ_annotation),
+      opt(_initializer(Exp.atom)),
+    ]);
+  let optional_typ = seq([Typ.atom(), c("?")]);
+  let rest_typ = seq([c("..."), Typ.atom()]);
+
+  let tuple_typ_member =
+    alt([required_param, optional_param, optional_typ, rest_typ, Typ.atom()]);
+  let tuple_typ =
+    seq([brc(L, "("), comma_sep(tuple_typ_member), brc(R, ")")]);
+
+  let flow_maybe_typ = seq([c("?"), PrimaryTyp.atom()]);
+
+  //NOTE: the treesitter grammar for this is weirdly restrictive and (extremely) self-recursive. Due to this, I'm just allowing any exp to go here (as that makes more sense?)
+  let typ_query = seq([kw("typeof"), Exp.atom()]);
+
+  let index_typ_query = seq([kw("keyof"), PrimaryTyp.atom()]);
+
+  let existential_typ = kw("*");
+
+  let literal_typ = alt([
+    number,
+    //TODO:
+    // t(String_lit),
+    kw("true"),
+    kw("false"),
+    kw("null"),
+    kw("undefined"),
+  ])
+
+  let const = kw("const")
+  
+   // let template_chars = t(Template_chars);
+  //NOTE: template chars are: ` | \0 | ${} | \\
+   let template_chars = alt([c("`"), c("\\0"), c("${}"), c("\\\\")]);
+   let infer_typ = seq([kw("infer"), typ_ident, opt(seq([kw("extends"), Typ.atom()]))]);
+   let template_typ = seq([c("${"), alt([PrimaryTyp.atom(), infer_typ]), c("}")]);
+  //TODO: ask david - should this be brc?
+  let template_literal_typ = seq([brc(L, "`"), star(alt([template_chars, template_typ])), brc(R, "`")])
 
   let operand =
     alt([
@@ -286,10 +344,31 @@ let sort = () => Sort.of_str("Typ");
       typ_ident,
       nested_typ_ident,
       generic_typ,
-      obj_typ
+      obj_typ,
+      arr_typ,
+      tuple_typ,
+      this,
+      existential_typ,
+      literal_typ,
+      template_literal_typ,
+      const,
     ]);
 
-  let tbl = () => [p(operand)];
+  let lookup_typ = seq([PrimaryTyp.atom(), brc(L, "["), Typ.atom(), brc(R, "]")]);
+  let conditional_typ = seq([Typ.atom(), kw("extends"), Typ.atom(), c("?"), Typ.atom(), c(":"), Typ.atom()]);
+  let intersection_typ = seq([opt(Typ.atom()), c("&"), Typ.atom()]);
+  let union_typ = seq([opt(Typ.atom()), c("|"), Typ.atom()]);
+
+  let tbl = () => [
+    p(flow_maybe_typ),
+    p(typ_query),
+    p(index_typ_query),
+    p(lookup_typ),
+    p(conditional_typ),
+    p(intersection_typ),
+    p(union_typ),
+    p(operand),
+  ];
 }
 and ObjectPat: SORT = {
   let sort = () => Sort.of_str("ObjectPat");
@@ -385,7 +464,7 @@ and Exp: SORT = {
         ]),
       ),
       t(Id_lower),
-      params,
+      params(LHSExp.atom),
       stat_block,
     ]);
 
@@ -417,14 +496,14 @@ and Exp: SORT = {
       opt(kw(~l=false, ~indent=false, "async")),
       kw(~l=false, "function"),
       opt(t(Id_lower)),
-      call_signature,
+      call_signature(LHSExp.atom),
       stat_block,
     ]);
 
   let arrow_function =
     seq([
       opt(kw(~l=false, ~indent=false, "async")),
-      alt([t(Id_lower), call_signature]),
+      alt([t(Id_lower), call_signature(LHSExp.atom)]),
       op("=>"),
       alt([atom(), stat_block]),
     ]);
@@ -437,14 +516,16 @@ and Exp: SORT = {
       c("function"),
       kw(~l=false, "*"),
       opt(t(Id_lower)),
-      call_signature,
+      call_signature(LHSExp.atom),
       stat_block,
     ]);
 
-  let _initializer = seq([op("="), atom()]);
-
   let field_def =
-    seq([opt(kw(~l=false, "static")), property_name, opt(_initializer)]);
+    seq([
+      opt(kw(~l=false, "static")),
+      property_name,
+      opt(_initializer(Exp.atom)),
+    ]);
 
   let class_static_block = seq([kw("static"), c(";"), stat_block]);
 
