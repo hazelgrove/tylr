@@ -50,8 +50,8 @@ let repad = (dst: Delim.t, baked: t, src: Delim.t, ~onto: Dir.t) =>
   |> Chain.map_link(Option.get);
 
 // completes terr to meld in same orientation
-let complete_terr = (baked: t, terr: Terr.t, ~onto): Meld.t =>
-  repad(Root, baked, Node(Terr.hd(terr)), ~onto)
+let complete_terr = (baked: t, terr: Terr.t, ~onto, ~bound): Meld.t =>
+  repad(bound, baked, Node(Terr.hd(terr)), ~onto)
   |> is_eq
   // is_eq(baked)
   |> Options.get_exn(Invalid_argument("Grouted.complete_terr"))

@@ -30,6 +30,12 @@ let hd = terr => Wald.hd(terr.wald);
 let put_hd = (hd, terr) => {...terr, wald: Wald.put_hd(hd, terr.wald)};
 let tokens = terr => Wald.tokens(terr.wald);
 
+let hd_cell = terr =>
+  switch (Wald.unlink(terr.wald)) {
+  | Ok((_, cell, _)) => cell
+  | Error(_) => terr.cell
+  };
+
 let face = (terr: t) => Wald.hd(terr.wald);
 let map_face = (f, terr) => {...terr, wald: Wald.map_hd(f, terr.wald)};
 
