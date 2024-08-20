@@ -21,6 +21,11 @@ let is_grout =
   | Grout(_) => true
   | Space(_)
   | Tile(_) => false;
+let is_tile =
+  fun
+  | Tile(_) => true
+  | Space(_)
+  | Grout(_) => false;
 
 let map = (~space, ~grout, ~tile) =>
   fun

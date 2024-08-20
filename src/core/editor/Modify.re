@@ -85,17 +85,19 @@ let relabel =
   (normalized, rest);
 };
 
-let mold = (ctx: Ctx.t, ~fill=Cell.empty, tok: Token.Unmolded.t): Ctx.t => {
+// returned flag indicates whether the token was removed
+let mold =
+    (ctx: Ctx.t, ~fill=Cell.empty, tok: Token.Unmolded.t): (Ctx.t, bool) => {
   let ((dn, up), tl) = Ctx.uncons(ctx);
   let (l, r) = Ctx.Tl.bounds(tl);
   switch (Molder.mold(~bound=l, dn, ~fill, tok)) {
-  | Removed => ctx
+  | Removed => (ctx, true)
   | Molded(Neq(dn))
-  | Deferred(Neq(dn)) => Ctx.cons((dn, up), tl)
+  | Deferred(Neq(dn)) => (Ctx.cons((dn, up), tl), false)
   | Molded(Eq(l))
   | Deferred(Eq(l)) =>
     let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
-    Ctx.map_hd(Frame.Open.cat((dn, up)), Ctx.Tl.rest(tl));
+    (Ctx.map_hd(Frame.Open.cat((dn, up)), Ctx.Tl.rest(tl)), false);
   };
 };
 
@@ -304,7 +306,7 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
     // prune ctx of any duplicated tokens
     let (sites, ctx) = Zipper.cursor_site(z);
     let (l, r) = Option.get(Cursor.get_select(sites));
-    let (molded, fill) =
+    let deleted_toks =
       Zigg.tokens(sel.range)
       |> (
         l == Between
@@ -316,14 +318,23 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
           ? Lists.map_ft(add_edge(~hand=sel.focus == R ? Focus : Anchor, R))
           : Fun.id
       )
-      |> delete_toks(d)
+      |> delete_toks(d);
+    let (molded, fill) =
+      deleted_toks
       // remold each token against the ctx, using each preceding cell as its fill,
       // and return the total ctx and the final remaining fill to be used when
       // subsequently remolding
       |> Chain.fold_left(
            fill => (ctx, fill),
-           ((ctx, fill), tok, next_fill) =>
-             (mold(ctx, ~fill, tok), next_fill),
+           ((ctx, fill), tok, next_fill) => {
+             let (molded, removed) = mold(ctx, ~fill, tok);
+             let next_fill =
+               switch (fill.marks.cursor) {
+               | Some(_) when removed => fill
+               | _ => next_fill
+               };
+             (molded, next_fill);
+           },
          );
     let (remolded, ctx) = remold(molded, ~fill);
     Zipper.unzip_exn(remolded, ~ctx);
@@ -348,8 +359,15 @@ let insert = (s: string, z: Zipper.t) => {
     toks
     |> Chain.fold_left(
          fill => (ctx, fill),
-         ((ctx, fill), tok, next_fill) =>
-           (mold(ctx, ~fill, tok), next_fill),
+         ((ctx, fill), tok, next_fill) => {
+           let (molded, removed) = mold(ctx, ~fill, tok);
+           let next_fill =
+             switch (fill.marks.cursor) {
+             | Some(_) when removed => fill
+             | _ => next_fill
+             };
+           (molded, next_fill);
+         },
        );
   let (remolded, ctx) = remold(~fill, molded);
   Zipper.unzip_exn(remolded, ~ctx);

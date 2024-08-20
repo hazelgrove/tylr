@@ -59,6 +59,11 @@ let mold =
          Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
        )
   ) {
+  // pushed token was empty ghost connected via neq-relation
+  // (note: Neq constructor name misleading here, indicates neq/eq wrt slope bound)
+  | Some(Neq([{wald: W(([face], [])), _}, ..._]))
+      when Mtrl.is_tile(face.mtrl) && face.text == "" =>
+    Removed
   | Some(m) => Molded(m)
   | None =>
     let deferred = Token.Unmolded.defer(t);
