@@ -277,7 +277,14 @@ let delete_toks =
          let (l, tok, r) = Token.pop_end_carets(tok);
          c
          |> Chain.map_hd(r == None ? Fun.id : Fun.const(Cell.point(Focus)))
-         |> Chain.link(l == None ? Cell.empty : Cell.point(Focus), tok);
+         |> (
+           switch (tok.mtrl) {
+           | Space(_)
+           | Grout(_) when tok.text == "" =>
+             Chain.map_hd(l == None ? Fun.id : Fun.const(Cell.point(Focus)))
+           | _ => Chain.link(l == None ? Cell.empty : Cell.point(Focus), tok)
+           }
+         );
        },
      )
   // finally, unmold the tokens (only relabeling the last token)
