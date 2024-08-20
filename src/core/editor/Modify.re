@@ -25,15 +25,15 @@ let relabel =
     |> Option.value(~default="");
   let labeled = Labeler.label(s_l ++ s ++ s_r);
   // push left face back if its labeling remains unchanged
-  let (labeled, rest) =
+  let (labeled, rest, pushed_back_left) =
     switch (labeled) {
     | [hd, ...tl] when hd.text == s_l && s_l != "" =>
       let ctx =
         Delim.is_tok(l)
         |> Option.map(t => Ctx.push(~onto=L, t, rest))
         |> Option.value(~default=rest);
-      (tl, ctx);
-    | labeled => (labeled, rest)
+      (tl, ctx, true);
+    | labeled => (labeled, rest, false)
     };
   // push right face back if its labeling remains unchanged
   let (labeled, rest) =
@@ -51,8 +51,8 @@ let relabel =
     };
 
   // restore caret position
-  let n = Utf8.length(s_l ++ s);
-  let toks =
+  let n = Utf8.length((pushed_back_left ? "" : s_l) ++ s);
+  let (_, marked) =
     labeled
     |> Lists.fold_map(
          ~init=0,
@@ -64,11 +64,12 @@ let relabel =
                : tok;
            (m, tok);
          },
-       )
-    |> snd
-    // normalize the cursors by popping off any carets at the token edges
-    // and storing them instead in neighboring cells, the final result being a
-    // chain of cell-loops (either empty or with a caret) and token-links
+       );
+  // normalize the cursors by popping off any carets at the token edges
+  // and storing them instead in neighboring cells, the final result being a
+  // chain of cell-loops (either empty or with a caret) and token-links
+  let normalized =
+    marked
     |> Lists.fold_right(
          ~init=Chain.unit(Cell.empty), ~f=(tok: Token.Unmolded.t, c) =>
          switch (tok.marks) {
@@ -81,7 +82,7 @@ let relabel =
          | _ => Chain.link(Cell.empty, tok, c)
          }
        );
-  (toks, rest);
+  (normalized, rest);
 };
 
 let mold = (ctx: Ctx.t, ~fill=Cell.empty, tok: Token.Unmolded.t): Ctx.t => {
