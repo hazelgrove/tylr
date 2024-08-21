@@ -17,8 +17,7 @@ module Profile = {
       ) => {
     let (null_l, null_r) = Cell.Space.(is_space(l), is_space(r));
     let (s_end, states) = Layout.states(~init=state, lyt);
-    let s_l =
-      null_l ? L.State.jump_block(state, ~over=Tree.flatten(t_l)) : state;
+    let s_l = null_l ? L.State.jump_cell(state, ~over=t_l) : state;
     let s_r = null_r ? Chain.ft(states) : s_end;
     {
       indent: state.ind,

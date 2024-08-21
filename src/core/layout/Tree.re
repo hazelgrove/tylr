@@ -17,6 +17,8 @@ let rec flatten = (t: t): Block.t =>
 and flatten_meld = (M(l, w, r): meld): Block.t =>
   Block.hcats([flatten(l), flatten_wald(w), flatten(r)])
 and flatten_wald = (W(w): wald) =>
+  // hcatting each block-wrapped cells with interleaved single-line tokens
+  // will lead to a single block-wrapped element for whole wald
   w |> Chain.to_list(Fun.id, t => Block.wrap(flatten(t))) |> Block.hcats;
 let flatten_chain = (c: Chain.t(t, Block.t)) =>
   c

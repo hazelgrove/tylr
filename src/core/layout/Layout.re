@@ -34,6 +34,13 @@ module State = {
     | Line(l) => map(Loc.shift(Block.Line.len(l)), s)
     | Block(b) => jump_block(s, ~over=b)
     };
+
+  let jump_cell = (s: t, ~over: Tree.t) => {
+    let ind = s.ind;
+    let jumped = jump_block(s, ~over=Tree.flatten(over));
+    {...jumped, ind};
+  };
+  let jump_tok = jump_block;
 };
 
 let max_path = _ => failwith("todo");
@@ -130,8 +137,6 @@ let rec state_of_path =
         : (State.t, option(Tree.t)) =>
   switch (path) {
   | [] => (state, Some(tree))
-  // let s_end = State.jump_block(state, ~over=Tree.flatten(tree));
-  // (state.ind, (state.loc, s_end.loc));
   | [hd, ...tl] =>
     switch (
       tree
@@ -141,10 +146,23 @@ let rec state_of_path =
     ) {
     | Loop((pre, t_cell, _)) =>
       let state =
-        State.jump_block(state, ~over=Tree.flatten_affix(~side=L, pre));
+        pre
+        |> Chain.Affix.fold_out(~init=state, ~f=(b_tok, t_cell, state) =>
+             state
+             |> State.jump_cell(~over=t_cell)
+             |> State.jump_tok(~over=b_tok)
+           );
       state_of_path(~state, ~tree=t_cell, tl);
     | Link((pre, b_tok, _)) =>
-      let state = State.jump_block(state, ~over=Tree.flatten_chain(pre));
+      let state =
+        pre
+        |> Chain.fold_right(
+             (t_cell, b_tok, state) =>
+               state
+               |> State.jump_tok(~over=b_tok)
+               |> State.jump_cell(~over=t_cell),
+             t_cell => State.jump_cell(state, ~over=t_cell),
+           );
       switch (tl) {
       | [] => (state, None)
       // let s_end = State.jump_block(state, ~over=b_tok);
@@ -169,10 +187,10 @@ let map = (~tree: Tree.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
 let states = (~init: State.t, m: Tree.meld) =>
   Tree.to_chain(m)
   |> Chain.fold_left_map(
-       t_cell => (State.jump_block(init, ~over=Tree.flatten(t_cell)), init),
+       t_cell => (State.jump_cell(init, ~over=t_cell), init),
        (state, b_tok, t_cell) => {
-         let s_mid = State.jump_block(state, ~over=b_tok);
-         let s_end = State.jump_block(s_mid, ~over=Tree.flatten(t_cell));
+         let s_mid = State.jump_tok(state, ~over=b_tok);
+         let s_end = State.jump_cell(s_mid, ~over=t_cell);
          (s_end, state, s_mid);
        },
      );

@@ -23,6 +23,12 @@ module Section = {
     | Block(b) => Block(block(b));
 };
 
+// newline-separated sections, where each newline specifies the indentation of the
+// next section relative to the block container. eg [A] 0 [B] 2 [C] 2 [D] looks like
+// A
+// B
+//   C
+//   D
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | B(Chain.t(Section.t(t), int));
