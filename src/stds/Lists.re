@@ -42,6 +42,7 @@ module Framed = {
   };
   let ft_exn = xs =>
     Options.get_exn(Invalid_argument("Lists.Framed.ft_exn"), ft(xs));
+  let put_ft = (pre: list('x), ft: 'x) => List.rev([ft, ...pre]);
 
   let nth = (n: int, xs: list('x)): option(t('x, 'x)) => {
     let (l, r) = Base.List.split_n(xs, n);

@@ -1,5 +1,35 @@
 open Stds;
 
+let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
+  switch (Cell.get(c)) {
+  | None => Cell.(empty, c, empty)
+  | Some(M(l, w, r) as m) when Option.is_some(Meld.Space.get(m)) =>
+    switch (side) {
+    | L =>
+      switch (Wald.unlink(w)) {
+      | Error(_) => Cell.(c, empty, empty)
+      | Ok((spc, c, rest)) =>
+        Cell.(put(Meld.of_tok(~l, spc)), put(M(c, rest, r)), empty)
+      }
+    | R =>
+      switch (Wald.unlink(Wald.rev(w))) {
+      | Error(_) => Cell.(empty, empty, c)
+      | Ok((spc, c, rest)) =>
+        let rest = Wald.rev(rest);
+        Cell.(empty, put(M(l, rest, c)), put(Meld.of_tok(spc, ~r)));
+      }
+    }
+  | Some(M(l, w, r)) =>
+    switch (side) {
+    | L =>
+      let (p_l, l, _) = split_cell_padding(~side=L, l);
+      Cell.(p_l, put(M(l, w, r)), empty);
+    | R =>
+      let (_, r, p_r) = split_cell_padding(r, ~side=R);
+      Cell.(empty, put(M(l, w, r)), p_r);
+    }
+  };
+
 module Cells = {
   type t = list(Cell.t);
 
@@ -34,11 +64,17 @@ module Cells = {
     let (l, cs) =
       switch (cs) {
       | [c, ...cs] when Cell.Space.is_space(c) => (c, cs)
+      | [c, ...cs] =>
+        let (l, c, _) = split_cell_padding(~side=L, c);
+        (l, [c, ...cs]);
       | _ => (Cell.empty, cs)
       };
     let (cs, r) =
       switch (Lists.Framed.ft(cs)) {
       | Some((cs, c)) when Cell.Space.is_space(c) => (List.rev(cs), c)
+      | Some((cs, c)) =>
+        let (_, c, r) = split_cell_padding(c, ~side=R);
+        (List.rev([c, ...cs]), r);
       | _ => (cs, Cell.empty)
       };
     (l, cs, r);
@@ -62,23 +98,26 @@ let bake_stance = (st: Walk.Stance.t) => {
 };
 let bake_stances = stances => stances |> List.map(bake_stance) |> Option.some;
 
-// split apart any cells joined together by non-convex grout
 let rec degrout = (c: Cell.t): Cells.t =>
   switch (Cell.get(c)) {
-  | Some(M(_, W(([{mtrl: Grout((_, (Conv, Conv))), _}], [])), _)) => [
-      c,
-    ]
-  | Some(M(_, w, _) as m) when Option.is_some(Wald.is_grout(w)) =>
-    let (cells, toks) = Meld.to_chain(m);
+  | Some(M(l, w, r)) when Option.is_some(Wald.is_grout(w)) =>
+    let W((toks, cells)) = w;
     List.iter(Effects.remove, toks);
-    cells |> List.concat_map(degrout) |> Cells.squash(~save_padding=true);
-  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
-    Meld.to_chain(m)
-    |> Chain.mapi_loop((i, c) => (i, c))
-    |> Chain.map_linked(((i, l), spc, (_, r)) =>
-         Cell.put(M(i == 0 ? l : Cell.empty, Wald.of_tok(spc), r))
-       )
-    |> Chain.links
+    let cells_l =
+      switch (cells) {
+      | [hd, ...tl] when Cell.Space.is_space(l) => [
+          Cell.pad(~squash=false, ~l, hd),
+          ...tl,
+        ]
+      | _ => [l, ...cells]
+      };
+    let cells_lr =
+      switch (Lists.Framed.ft(cells_l)) {
+      | Some((pre, ft)) when Cell.Space.is_space(r) =>
+        Lists.Framed.put_ft(pre, Cell.pad(~squash=false, ft, ~r))
+      | _ => cells_l @ [r]
+      };
+    List.concat_map(degrout, cells_lr);
   | _ => [c]
   };
 

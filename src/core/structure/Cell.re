@@ -140,7 +140,7 @@ module Space = {
     };
   let is_space = c => Option.is_some(get(c));
 
-  let merge = (l: t, r: t) => {
+  let merge = (l: t, ~fill=empty, r: t) => {
     if (!is_space(l) || !is_space(r)) {
       raise(Invalid_argument("Cell.Space.merge"));
     };
@@ -158,8 +158,15 @@ module Space = {
       |> Marks.union(l.marks);
     let meld =
       Options.merge(
-        l.meld, r.meld, ~f=(Meld.M(l, w_l, m), Meld.M(_, w_r, r)) =>
-        Meld.M(l, Wald.append(w_l, m, w_r), r)
+        l.meld,
+        r.meld,
+        ~f=(Meld.M(l, w_l, m_l), Meld.M(m_r, w_r, r)) => {
+          let m = {
+            ...fill,
+            marks: Marks.union_all([m_l.marks, fill.marks, m_r.marks]),
+          };
+          Meld.M(l, Wald.append(w_l, m, w_r), r);
+        },
       );
     {marks, meld};
   };
@@ -171,12 +178,12 @@ let get_spc = (c: t) =>
   | Some(m) => Meld.Space.get(m)
   };
 
-let rec pad = (~l=empty, ~r=empty, c: t) =>
+let rec pad = (~squash=true, ~l=empty, ~r=empty, c: t) =>
   switch (get(c)) {
   | _ when l == empty && r == empty => c
-  | None => Space.merge(l, Space.merge(c, r)) |> Space.squash
+  | None => Space.merge(l, ~fill=c, r) |> (squash ? Space.squash : Fun.id)
   | Some(m) when Option.is_some(Meld.Space.get(m)) =>
-    Space.merge(l, Space.merge(c, r)) |> Space.squash
+    Space.merge(l, Space.merge(c, r)) |> (squash ? Space.squash : Fun.id)
   | Some(M(c_l, w, c_r)) =>
     let c_l = pad(~l, c_l);
     let c_r = pad(c_r, ~r);
