@@ -140,7 +140,9 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
 let fill_swings =
     (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) =>
   cells
+  |> Dir.pick(from, (List.rev, Fun.id))
   |> (repair ? List.concat_map(degrout) : Fun.id)
+  |> Dir.pick(from, (List.rev, Fun.id))
   |> Lists.split_bins(List.length(swings))
   |> Oblig.Delta.minimize(~to_zero=!repair, c_bins =>
        List.combine(c_bins, swings)
