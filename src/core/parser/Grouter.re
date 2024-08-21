@@ -33,6 +33,9 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
 module Cells = {
   type t = list(Cell.t);
 
+  let cons = (c: Cell.t, cs: t) =>
+    Cell.is_empty(~require_unmarked=true, c) ? cs : [c, ...cs];
+
   let face = (~side: Dir.t, cs: t) =>
     switch (Dir.pick(side, (Fun.id, List.rev), cs)) {
     | [] => None
@@ -63,18 +66,16 @@ module Cells = {
   let split_padding = (cs: list(Cell.t)) => {
     let (l, cs) =
       switch (cs) {
-      | [c, ...cs] when Cell.Space.is_space(c) => (c, cs)
       | [c, ...cs] =>
         let (l, c, _) = split_cell_padding(~side=L, c);
-        (l, [c, ...cs]);
+        (l, cons(c, cs));
       | _ => (Cell.empty, cs)
       };
     let (cs, r) =
       switch (Lists.Framed.ft(cs)) {
-      | Some((cs, c)) when Cell.Space.is_space(c) => (List.rev(cs), c)
       | Some((cs, c)) =>
         let (_, c, r) = split_cell_padding(c, ~side=R);
-        (List.rev([c, ...cs]), r);
+        (List.rev(cons(c, cs)), r);
       | _ => (cs, Cell.empty)
       };
     (l, cs, r);
