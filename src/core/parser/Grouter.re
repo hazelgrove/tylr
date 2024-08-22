@@ -153,8 +153,10 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     let+ has_pre = Cells.are_bounded(cs, nt_l, ~from=L)
     and+ has_pos = Cells.are_bounded(cs, nt_r, ~from=R);
     switch (Cells.split_padding(cs)) {
-    | (l, [], r) => Cell.pad(~l, fill_default(bot), ~r)
-    | (l, [_, ..._] as cs, r) =>
+    | (l, cs, r) when List.for_all(Cell.Space.is_space, cs) =>
+      let r = List.hd(Cells.squash(cs @ [r]));
+      Cell.pad(~l, fill_default(bot), ~r);
+    | (l, cs, r) =>
       // todo: need to do some degrouting here now that degrout pass no longer
       // handles convex grout
       let cells =
