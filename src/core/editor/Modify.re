@@ -151,6 +151,13 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   };
 };
 
+let finalize = (~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
+  let (remolded, ctx) = remold(~fill, ctx);
+  let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
+  let repadded = Cell.repad(~l, remolded, ~r);
+  Zipper.unzip_exn(repadded, ~ctx);
+};
+
 let extend = (~side=Dir.R, s: string, tok: Token.t) =>
   switch (tok.mtrl) {
   | Space(_)
@@ -234,11 +241,8 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
     let ctx = z.ctx |> Ctx.push(~onto=L, Token.space());
     return(Zipper.mk(ctx));
   | Molded(Neq(dn)) =>
-    let (cell, ctx) =
-      Ctx.cons((dn, up), tl)
-      |> Ctx.push(~onto=L, Token.space())
-      |> remold(~fill=Cell.point(~dirty=true, Focus));
-    return(Zipper.unzip_exn(cell, ~ctx));
+    let ctx = Ctx.cons((dn, up), tl) |> Ctx.push(~onto=L, Token.space());
+    return(finalize(~fill=Cell.point(~dirty=true, Focus), ctx));
   | Molded(Eq(l)) =>
     let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
     let ctx = Ctx.Tl.rest(tl) |> Ctx.map_hd(Frame.Open.cat((dn, up)));
@@ -314,13 +318,6 @@ let delete_toks =
      )
   // finally, unmold the tokens (only relabeling the last token)
   |> Chain.mapi_link(i => Token.unmold(~relabel=i - 1 / 2 == n - 1));
-};
-
-let finalize = (~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
-  let (remolded, ctx) = remold(~fill, ctx);
-  let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
-  let repadded = Cell.repad(~l, remolded, ~r);
-  Zipper.unzip_exn(repadded, ~ctx);
 };
 
 // delete_sel clears the textual content of the current selection (doing nothing if
