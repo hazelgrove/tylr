@@ -12,6 +12,7 @@ module Cell = {
   };
   let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
+  let dirty = mk(~marks=Marks.dirty, ());
   let pp = (pp_meld, out, {marks, meld}: t(_)) =>
     if (Marks.is_empty(marks) && Option.is_none(meld)) {
       Fmt.pf(out, "{}");
@@ -101,6 +102,7 @@ module Space = {
     | M(_, W((toks, _)), _) when List.for_all(Token.Space.is, toks) =>
       Some(toks)
     | _ => None;
+  let is = m => Option.is_some(get(m));
 };
 module Grout = {
   let op_ = (s: Sort.t) => mk(Wald.of_tok(Token.Grout.op_(s)));

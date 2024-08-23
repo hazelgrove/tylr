@@ -100,8 +100,12 @@ let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
 let caret = (car: Path.Caret.t) =>
   mk(~marks=Marks.mk(~cursor=Point(car), ()), ());
 
-let point = (hand: Caret.Hand.t) =>
-  mk(~marks=Marks.(mk(~cursor=Point(Caret.mk(hand, Path.empty)), ())), ());
+// todo: clean up point/caret terminology
+let point = (~dirty=false, hand: Caret.Hand.t) => {
+  let dirty = Path.Map.(dirty ? singleton(Path.empty, ()) : empty);
+  let cursor = Cursor.Point(Caret.mk(hand, Path.empty));
+  mk(~marks=Marks.mk(~cursor, ~dirty, ()), ());
+};
 let is_caret = (c: t): option(Caret.Hand.t) =>
   if (c == point(Focus)) {
     Some(Focus);
@@ -190,17 +194,69 @@ let rec pad = (~squash=true, ~l=empty, ~r=empty, c: t) =>
     put(M(c_l, w, c_r));
   };
 
-let rec repad = (~l=false, ~r=false, c: t) =>
+let prune_sys = (c: t) =>
   switch (get(c)) {
-  | _ when !l && !r => c
-  | None =>
-    let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White)));
-    let m = Meld.mk(~l=c, w);
-    put(m);
-  // avoid adding padding if there is some already
-  | Some(m) when Option.is_some(Meld.Space.get(m)) => c
-  | Some(M(c_l, w, c_r)) =>
-    let c_l = repad(~l, c_l);
-    let c_r = repad(c_r, ~r);
-    put(M(c_l, w, c_r));
+  | None => c
+  | Some(m) =>
+    let pruned =
+      Meld.to_chain(m)
+      |> Chain.fold_right(
+           (c, tok: Token.t) =>
+             switch (tok.mtrl) {
+             | Space(White(Sys)) =>
+               // drop tok
+               Chain.map_hd(Space.merge(c, ~fill=empty))
+             | _ => Chain.link(c, tok)
+             },
+           Chain.unit,
+         );
+    switch (Chain.unlink(pruned)) {
+    | Error(c) => c
+    | Ok(_) => put(Meld.of_chain(pruned))
+    };
   };
+
+let is_clean = (c: t) => Path.Map.is_empty(c.marks.dirty);
+let mark_clean = (c: t) => {...c, marks: Marks.mark_clean(c.marks)};
+
+let rec repad = (~l=Delim.root, ~r=Delim.root, c: t) => {
+  switch (Space.get(c)) {
+  | Some(_) when Option.is_some(c.marks.cursor) => mark_clean(c)
+  | Some(toks) =>
+    let pruned =
+      toks
+      |> List.filter((tok: Token.t) =>
+           switch (tok.mtrl) {
+           | Space(White(Sys)) => false
+           | _ => true
+           }
+         );
+    let (_, pad_l) = Delim.padding(l).h;
+    let (pad_r, _) = Delim.padding(r).h;
+    let padded =
+      switch (pruned) {
+      | [] when pad_l || pad_r => [
+          Token.mk(~text=" ", Mtrl.Space(White(Sys))),
+        ]
+      | _ => pruned
+      };
+    switch (padded) {
+    | [] => empty
+    | [_, ..._] =>
+      let w =
+        Wald.mk(padded, List.(init(length(padded) - 1, Fun.const(empty))));
+      put(Meld.mk(w));
+    };
+  | None =>
+    let m = Option.get(get(c));
+    Meld.to_chain(m)
+    |> Chain.map_link(Bound.node)
+    |> Chain.consnoc(~hd=l, ~ft=r)
+    |> Chain.map_linked((l, c, r) => repad(~l, c, ~r))
+    |> Chain.unconsnoc_exn
+    |> (((_, c, _)) => c)
+    |> Chain.map_link(Bound.get_exn)
+    |> Meld.of_chain
+    |> put;
+  };
+};

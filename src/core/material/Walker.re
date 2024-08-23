@@ -56,7 +56,7 @@ let mtrlize =
 
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
   switch (Swing.bot(Walk.hd(w))) {
-  | Space(_) => Index.empty // handled elsewhere
+  | Space(_) => Index.empty // handled in arrive
   | Grout(s) =>
     Index.single(Root, w)
     |> Index.add(Node(Grout((s, Dir.order(from, Tip.(Conc, Conv))))), w)
@@ -98,8 +98,12 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
   switch (Swing.bot(swing)) {
   | Space(Closed) => Index.empty
   | Space(Open) =>
-    Index.single(Node(Space(White)), Walk.cons(Space(Closed), w))
-    |> Index.add(Node(Space(Unmolded)), Walk.cons(Space(Closed), w))
+    Space.T.all
+    |> List.fold_left(
+         (idx, t) =>
+           Index.add(Node(Space(t)), Walk.cons(Space(Closed), w), idx),
+         Index.empty,
+       )
   | Grout(s) =>
     // grout NTs can only be entered from directly preceding grout T.
     // otherwise, potential soundness issues where a tile T can step to
@@ -154,9 +158,11 @@ let step_all =
     | Root => swing_all(Tile(Tile.NT.root), ~from)
     | Node(Space(_)) =>
       // space takes prec over everything and matches itself
-      Index.single(Root, Walk.empty)
-      |> Index.add(Node(Space(White)), Walk.empty)
-      |> Index.add(Node(Space(Unmolded)), Walk.empty)
+      Space.T.all
+      |> List.fold_left(
+           (idx, t) => Index.add(Node(Space(t)), Walk.empty, idx),
+           Index.single(Root, Walk.empty),
+         )
     | Node(Grout((s, tips))) =>
       switch (Dir.pick(Dir.toggle(from), tips)) {
       | Conc =>

@@ -12,8 +12,17 @@ let meld_or_bust = (ctx: Ctx.t, tok: Token.t): Ctx.t => {
 
 let relabel =
     (s: string, ctx: Ctx.t): (Chain.t(Cell.t, Token.Unmolded.t), Ctx.t) => {
-  let (l, rest) = Ctx.pull(~from=L, ctx);
-  let (r, rest) = Ctx.pull(~from=R, rest);
+  let (l, rest) =
+    switch (Ctx.pull(~from=L, ctx)) {
+    // hack to avoid merging usr/sys space tokens
+    | (Node(tok), _) when Token.Space.is(tok) => (Delim.root, ctx)
+    | (l, rest) => (l, rest)
+    };
+  let (r, rest) =
+    switch (Ctx.pull(~from=R, rest)) {
+    | (Node(tok), _) when Token.Space.is(tok) => (Delim.root, rest)
+    | (r, rest) => (r, rest)
+    };
   let merges = Delim.merges(l, r);
   let s_l =
     Delim.is_tok(l)
@@ -74,12 +83,16 @@ let relabel =
          ~init=Chain.unit(Cell.empty), ~f=(tok: Token.Unmolded.t, c) =>
          switch (tok.marks) {
          | Some(Point({path: 0, _})) =>
-           Chain.link(Cell.point(Focus), Token.clear_marks(tok), c)
+           Chain.link(
+             Cell.point(~dirty=true, Focus),
+             Token.clear_marks(tok),
+             c,
+           )
          | Some(Point({path: n, _})) when n == Utf8.length(tok.text) =>
            c
-           |> Chain.map_hd(Fun.const(Cell.point(Focus)))
-           |> Chain.link(Cell.empty, Token.clear_marks(tok))
-         | _ => Chain.link(Cell.empty, tok, c)
+           |> Chain.map_hd(Fun.const(Cell.point(~dirty=true, Focus)))
+           |> Chain.link(Cell.dirty, Token.clear_marks(tok))
+         | _ => Chain.link(Cell.dirty, tok, c)
          }
        );
   (normalized, rest);
@@ -101,7 +114,7 @@ let mold =
   };
 };
 
-let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   let ((dn, up), tl) = Ctx.uncons(ctx);
   switch (Slope.unlink(up)) {
   | Some((tok, cell, up)) when Token.Grout.is(tok) =>
@@ -120,7 +133,7 @@ let rec remold = (~fill=Cell.empty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
         switch (rest) {
         | Ok(cell) => (cell, up_tl)
         | Error(up) =>
-          let cell = molded == Removed ? fill : Cell.empty;
+          let cell = molded == Removed ? fill : Cell.dirty;
           (cell, Slope.cat(up, up_tl));
         };
       let ctx =
@@ -197,7 +210,7 @@ let try_extend = (s: string, z: Zipper.t): option(Zipper.t) => {
 // maybe rename expandable
 let expand = (tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space(White)
+  | Space(White(_))
   | Grout(_) => None
   // | Tile((Const(_), _)) => None
   | Space(Unmolded)
@@ -224,7 +237,7 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
     let (cell, ctx) =
       Ctx.cons((dn, up), tl)
       |> Ctx.push(~onto=L, Token.space())
-      |> remold(~fill=Cell.point(Focus));
+      |> remold(~fill=Cell.point(~dirty=true, Focus));
     return(Zipper.unzip_exn(cell, ~ctx));
   | Molded(Eq(l)) =>
     let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
@@ -275,23 +288,39 @@ let delete_toks =
   // and storing them instead in neighboring cells, the final result being a
   // chain of cell-loops (either empty or with a caret) and token-links
   |> Lists.fold_right(
-       ~init=Chain.unit(Cell.empty),
+       ~init=Chain.unit(Cell.dirty),
        ~f=(tok, c) => {
          let (l, tok, r) = Token.pop_end_carets(tok);
          c
-         |> Chain.map_hd(r == None ? Fun.id : Fun.const(Cell.point(Focus)))
+         |> Chain.map_hd(
+              r == None ? Fun.id : Fun.const(Cell.point(~dirty=true, Focus)),
+            )
          |> (
            switch (tok.mtrl) {
            | Space(_)
            | Grout(_) when tok.text == "" =>
-             Chain.map_hd(l == None ? Fun.id : Fun.const(Cell.point(Focus)))
-           | _ => Chain.link(l == None ? Cell.empty : Cell.point(Focus), tok)
+             Chain.map_hd(
+               l == None
+                 ? Fun.id : Fun.const(Cell.point(~dirty=true, Focus)),
+             )
+           | _ =>
+             Chain.link(
+               l == None ? Cell.dirty : Cell.point(~dirty=true, Focus),
+               tok,
+             )
            }
          );
        },
      )
   // finally, unmold the tokens (only relabeling the last token)
   |> Chain.mapi_link(i => Token.unmold(~relabel=i - 1 / 2 == n - 1));
+};
+
+let finalize = (~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
+  let (remolded, ctx) = remold(~fill, ctx);
+  let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
+  let repadded = Cell.repad(~l, remolded, ~r);
+  Zipper.unzip_exn(repadded, ~ctx);
 };
 
 // delete_sel clears the textual content of the current selection (doing nothing if
@@ -336,8 +365,7 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
              (molded, next_fill);
            },
          );
-    let (remolded, ctx) = remold(molded, ~fill);
-    Zipper.unzip_exn(remolded, ~ctx);
+    finalize(~fill, molded);
   };
 };
 
@@ -369,6 +397,5 @@ let insert = (s: string, z: Zipper.t) => {
            (molded, next_fill);
          },
        );
-  let (remolded, ctx) = remold(~fill, molded);
-  Zipper.unzip_exn(remolded, ~ctx);
+  finalize(~fill, molded);
 };

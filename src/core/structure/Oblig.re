@@ -30,7 +30,7 @@ module Map = Maps.Make(Ord);
 
 let of_token = (tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space(White) => None
+  | Space(White(_)) => None
   | Space(Unmolded) => Some(Unmolded_tok)
   | Grout((_, (Conv, Conv))) => Some(Missing_meld)
   | Grout((_, (Conv, Conc) | (Conc, Conv))) => Some(Incon_meld)

@@ -41,8 +41,8 @@ let unlink =
 
 let face =
   fun
-  | [] => None
-  | [hd, ..._] => Some(Terr.face(hd));
+  | [] => Delim.root
+  | [hd, ..._] => Delim.tok(Terr.face(hd));
 let map_face = f =>
   fun
   | [] => None

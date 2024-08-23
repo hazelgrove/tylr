@@ -15,6 +15,10 @@ let get = (~root) =>
   fun
   | Root => root
   | Node(a) => a;
+let get_exn =
+  fun
+  | Root => raise(Invalid_argument("Bound.get_exn"))
+  | Node(a) => a;
 
 let map = f =>
   fun

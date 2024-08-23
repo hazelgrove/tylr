@@ -68,8 +68,8 @@ module Molded = {
   let mk = (~id=?, ~text="", ~marks=?, mtrl: Mtrl.T.t) =>
     Base.mk(~id?, ~text, ~marks?, mtrl);
 
-  let empty = () => mk(Space(White));
-  let space = () => mk(~text=" ", Space(White));
+  // let empty = () => mk(Space(White));
+  let space = () => mk(~text=" ", Space(White(Sys)));
 
   let is_empty = (tok: t) =>
     switch (tok.mtrl) {
@@ -282,7 +282,7 @@ module Unmolded = {
 let unmold = (~relabel=true, tok: Molded.t): Unmolded.t => {
   let mtrl =
     switch (tok.mtrl) {
-    | Space(White) => Mtrl.Space(Space.T.White)
+    | Space(White(a)) => Mtrl.Space(Space.T.White(a))
     | Space(Unmolded) =>
       switch (Labels.completions(tok.text)) {
       | [] => Space(Unmolded)
@@ -303,7 +303,7 @@ module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
   let mk = (~id=?, ~text="", ~marks=?, t: Space.T.t) =>
     Molded.mk(~id?, ~text, ~marks?, Space(t));
-  let empty = mk(White);
+  // let empty = mk(White);
   // let cursor = failwith("todo Token.Space");
   let squash = (l: Molded.t, ~caret=?, r: Molded.t) => {
     ...l,

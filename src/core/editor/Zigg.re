@@ -37,8 +37,8 @@ let flatten = ({up, top, dn}: t) =>
 let face = (~side: Dir.t, zigg: t) => {
   let (s_d, top, _) = orient(side, zigg);
   switch (Slope.face(s_d)) {
-  | Some(tok) => tok
-  | None => Wald.hd(top)
+  | Node(tok) => tok
+  | Root => Wald.hd(top)
   };
 };
 

@@ -1,9 +1,16 @@
+module Author = {
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
+  type t =
+    | Usr
+    | Sys;
+};
+
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t =
-    | White
+    | White(Author.t)
     | Unmolded;
-  let all = [White, Unmolded];
+  let all = [White(Sys), White(Usr), Unmolded];
 };
 module NT = {
   // two kinds of space NTs: fillable and unfillable.

@@ -60,16 +60,14 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
   };
 };
 // onto confusing here when considered alone, same onto piped from push(~onto)
-let complete_terr =
-    (~onto: Dir.t, ~fill=Cell.empty, ~bound, terr: Terr.t): Cell.t => {
+let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr).mtrl));
   let baked = Grouter.pick(~repair=true, ~from=onto, [fill], exited);
   // exited
   // |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
   switch (baked) {
-  | Some(baked) =>
-    Cell.put(orient(Grouted.complete_terr(baked, terr, ~onto, ~bound)))
+  | Some(baked) => Cell.put(orient(Grouted.complete_terr(baked, terr)))
   | None =>
     assert(!Cell.is_empty(fill));
     print_endline("warning: dropping fill " ++ Cell.show(fill));
@@ -78,18 +76,17 @@ let complete_terr =
     let baked =
       Grouter.pick(~repair=true, ~from=onto, [], exited)
       |> Options.get_fail("bug: expected bake to succeed sans fill");
-    Cell.put(orient(Grouted.complete_terr(baked, terr, ~onto, ~bound)));
+    Cell.put(orient(Grouted.complete_terr(baked, terr)));
   };
 };
-let complete_slope = (~onto: Dir.t, ~fill=Cell.empty, ~bound) =>
-  Slope.fold(fill => complete_terr(~onto, ~fill, ~bound), fill);
+let complete_slope = (~onto: Dir.t, ~fill=Cell.empty) =>
+  Slope.fold(fill => complete_terr(~onto, ~fill), fill);
 
 let complete_bounded =
     (~bounds as (l, r), ~onto: Dir.t, ~fill=Cell.empty, slope) => {
   // from/onto terminology here very confusing...
   let (bd_onto, bd_from) = Dir.order(onto, (l, r));
-  let fill =
-    complete_slope(~onto, ~fill, slope, ~bound=Bound.map(Terr.hd, bd_from));
+  let fill = complete_slope(~onto, ~fill, slope);
   let fc_onto = bd_onto |> Bound.map(t => Terr.face(t).mtrl);
   let fc_from = bd_from |> Bound.map(t => Terr.face(t).mtrl);
   Walker.walk_eq(~from=onto, fc_onto, fc_from)
@@ -98,8 +95,7 @@ let complete_bounded =
        switch (bd_from, bd_onto) {
        | (Node(t_from), Node(t_onto)) =>
          // call connect_eq if possible in order to repad
-         Grouted.connect_eq(Terr.hd(t_from), grouted, t_onto, ~onto)
-         |> Terr.hd_cell
+         Grouted.connect_eq(Terr.hd(t_from), grouted, t_onto) |> Terr.hd_cell
        | _ => snd(Chain.hd(grouted))
        }
      )
@@ -114,7 +110,7 @@ module Melded = {
   let face =
     fun
     | Rel.Eq(terr) => Terr.face(terr)
-    | Neq(slope) => Option.get(Slope.face(slope));
+    | Neq(slope) => Delim.unwrap(Slope.face(slope));
   let extend = tl => Rel.map(~eq=Terr.extend(tl), ~neq=Slope.extend(tl));
 };
 
@@ -133,7 +129,7 @@ let connect_eq =
     let face = Terr.face(onto).mtrl;
     Walker.walk_eq(~from=d, Node(face), Node(t.mtrl))
     |> Grouter.pick(~repair, ~from=d, List.rev(fill))
-    |> Option.map(baked => Grouted.connect_eq(t, baked, onto, ~onto=d));
+    |> Option.map(baked => Grouted.connect_eq(t, baked, onto));
   }
   and rm_ghost_and_go = (onto, fill) =>
     switch (Terr.unlink(onto)) {
@@ -155,7 +151,7 @@ let connect_neq =
   let face = onto |> Bound.map(t => Terr.face(t).mtrl);
   Walker.walk_neq(~from=d, face, Node(t.mtrl))
   |> Grouter.pick(~repair, ~from=d, [fill])
-  |> Option.map(baked => Grouted.connect_neq(t, baked, onto, ~onto=d));
+  |> Option.map(baked => Grouted.connect_neq(t, baked));
 };
 let connect_lt = connect_neq(~onto=L);
 let connect_gt = connect_neq(~onto=R);
@@ -200,16 +196,14 @@ let connect =
     let (hd, tl) = Wald.uncons(onto.wald);
     connect_neq(~repair, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
     |> Option.map(Slope.extend(tl))
-    |> Option.map(complete_slope(~onto=b, ~fill=onto.cell, ~bound=Node(t)))
+    |> Option.map(complete_slope(~onto=b, ~fill=onto.cell))
     |> Option.map(Result.err);
   };
   // ensure consistent ordering
   let neqs = Dir.pick(d, ([neq_d, neq_b], [neq_b, neq_d]));
   [eq, ...neqs]
   |> Oblig.Delta.minimize(~to_zero=!repair, f => f())
-  |> Option.value(
-       ~default=Error(complete_terr(~onto=d, ~fill, onto, ~bound=Node(t))),
-     );
+  |> Option.value(~default=Error(complete_terr(~onto=d, ~fill, onto)));
 };
 
 let rec push_neq =

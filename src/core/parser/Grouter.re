@@ -124,11 +124,17 @@ let rec degrout = (c: Cell.t): Cells.t =>
 
 let fill_default =
   fun
-  | Mtrl.Space(_) => Cell.empty
+  | Mtrl.Space(_) => Cell.dirty
   // grout case isn't quite right... but shouldn't arise
   | Grout(s)
   | Tile((s, _)) =>
-    Cell.put(Meld.of_tok(Effects.insert(Token.Grout.op_(s))));
+    Cell.put(
+      Meld.of_tok(
+        ~l=Cell.dirty,
+        Effects.insert(Token.Grout.op_(s)),
+        ~r=Cell.dirty,
+      ),
+    );
 
 // assumes cs already squashed sans padding
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
@@ -142,7 +148,7 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
         ? Cell.Space.is_space : Cell.is_empty(~require_unmarked=false);
     List.for_all(valid, squashed)
       ? Lists.hd(squashed)
-        |> Option.value(~default=Cell.empty)
+        |> Option.value(~default=Cell.dirty)
         |> Option.some
       : None;
   | Grout(s)

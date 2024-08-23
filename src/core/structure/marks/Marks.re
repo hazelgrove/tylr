@@ -30,8 +30,13 @@ module Cell = {
     cursor: option(Path.Cursor.t),
     // todo: unify this with Oblig module
     obligs: Path.Map.t(Mtrl.T.t),
+    dirty: Path.Map.t(unit),
   };
-  let mk = (~cursor=?, ~obligs=Path.Map.empty, ()) => {cursor, obligs};
+  let mk = (~cursor=?, ~obligs=Path.Map.empty, ~dirty=Path.Map.empty, ()) => {
+    cursor,
+    obligs,
+    dirty,
+  };
   let empty = mk();
   let is_empty = (==)(empty);
   let pp = (out, marks) =>
@@ -52,6 +57,7 @@ module Cell = {
       );
     };
   let show = Fmt.to_to_string(pp);
+
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
   let get_focus = (marks: t) =>
     Option.bind(marks.cursor, Path.Cursor.get_focus);
@@ -59,22 +65,42 @@ module Cell = {
     ...marks,
     cursor: Path.Cursor.put_focus(path, marks.cursor),
   };
+
   let add_oblig = (~path=Path.empty, t: Mtrl.T.t, marks: t) => {
     ...marks,
     obligs: Path.Map.add(path, t, marks.obligs),
   };
-  let map = (f_cursor, f_obligs, {cursor, obligs}) => {
+
+  let dirty = mk(~dirty=Path.Map.singleton(Path.empty, ()), ());
+  let mark_clean = marks => {...marks, dirty: Path.Map.empty};
+
+  let map = (f_cursor, f_obligs, f_dirty, {cursor, obligs, dirty}) => {
     cursor: f_cursor(cursor),
     obligs: f_obligs(obligs),
+    dirty: f_dirty(dirty),
   };
-  let cons = n => map(Option.map(Path.Cursor.cons(n)), Path.Map.cons(n));
+  let cons = n =>
+    map(
+      Option.map(Path.Cursor.cons(n)),
+      Path.Map.cons(n),
+      Path.Map.cons(n),
+    );
   let peel = n =>
-    map(Options.bind(~f=Path.Cursor.peel(n)), Path.Map.peel(n));
+    map(
+      Options.bind(~f=Path.Cursor.peel(n)),
+      Path.Map.peel(n),
+      Path.Map.peel(n),
+    );
   let map_paths = f =>
-    map(Option.map(Path.Cursor.map_paths(f)), Path.Map.map_paths(f));
+    map(
+      Option.map(Path.Cursor.map_paths(f)),
+      Path.Map.map_paths(f),
+      Path.Map.map_paths(f),
+    );
   let union = (l: t, r: t) => {
     cursor: Options.merge(~f=Path.Cursor.union, l.cursor, r.cursor),
     obligs: Path.Map.union((_, t, _) => Some(t), l.obligs, r.obligs),
+    dirty: Path.Map.union((_, (), ()) => Some(), l.dirty, r.dirty),
   };
   let union_all = List.fold_left(union, empty);
 
