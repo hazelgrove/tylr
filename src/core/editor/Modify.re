@@ -80,7 +80,7 @@ let relabel =
   let normalized =
     marked
     |> Lists.fold_right(
-         ~init=Chain.unit(Cell.empty), ~f=(tok: Token.Unmolded.t, c) =>
+         ~init=Chain.unit(Cell.dirty), ~f=(tok: Token.Unmolded.t, c) =>
          switch (tok.marks) {
          | Some(Point({path: 0, _})) =>
            Chain.link(
@@ -100,7 +100,7 @@ let relabel =
 
 // returned flag indicates whether the token was removed
 let mold =
-    (ctx: Ctx.t, ~fill=Cell.empty, tok: Token.Unmolded.t): (Ctx.t, bool) => {
+    (ctx: Ctx.t, ~fill=Cell.dirty, tok: Token.Unmolded.t): (Ctx.t, bool) => {
   let ((dn, up), tl) = Ctx.uncons(ctx);
   let (l, r) = Ctx.Tl.bounds(tl);
   switch (Molder.mold(~bound=l, dn, ~fill, tok)) {
