@@ -297,22 +297,13 @@ let delete_toks =
        ~f=(tok, c) => {
          let (l, tok, r) = Token.pop_end_carets(tok);
          c
-         |> Chain.map_hd(
-              r == None ? Fun.id : Fun.const(Cell.point(~dirty=true, Focus)),
-            )
+         |> Chain.map_hd(r == None ? Fun.id : Fun.const(Cell.point(Focus)))
          |> (
            switch (tok.mtrl) {
            | Space(_)
            | Grout(_) when tok.text == "" =>
-             Chain.map_hd(
-               l == None
-                 ? Fun.id : Fun.const(Cell.point(~dirty=true, Focus)),
-             )
-           | _ =>
-             Chain.link(
-               l == None ? Cell.dirty : Cell.point(~dirty=true, Focus),
-               tok,
-             )
+             Chain.map_hd(l == None ? Fun.id : Fun.const(Cell.point(Focus)))
+           | _ => Chain.link(l == None ? Cell.dirty : Cell.point(Focus), tok)
            }
          );
        },
@@ -357,7 +348,7 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
              let (molded, removed) = mold(ctx, ~fill, tok);
              let next_fill =
                switch (fill.marks.cursor) {
-               | Some(_) when removed => fill
+               | Some(_) when removed => Cell.mark_ends_dirty(fill)
                | _ => next_fill
                };
              (molded, next_fill);
