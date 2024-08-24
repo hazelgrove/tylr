@@ -39,21 +39,23 @@ module Cell = {
   };
   let empty = mk();
   let is_empty = (==)(empty);
-  let pp = (out, marks) =>
+  let pp = (out, {cursor, obligs, dirty} as marks) =>
     if (is_empty(marks)) {
       Fmt.nop(out, marks);
-    } else if (Option.is_none(marks.cursor)) {
-      Fmt.pf(out, "obligs: %a", Path.Map.pp(Mtrl.T.pp), marks.obligs);
-    } else if (Path.Map.is_empty(marks.obligs)) {
-      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
+    } else if (Option.is_none(cursor) && Path.Map.is_empty(dirty)) {
+      Fmt.pf(out, "obligs: %a", Path.Map.pp(Mtrl.T.pp), obligs);
+    } else if (Path.Map.is_empty(obligs) && Path.Map.is_empty(dirty)) {
+      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(cursor));
     } else {
       Fmt.pf(
         out,
-        "cursor: %a,@ obligs: %a",
-        Path.Cursor.pp,
-        Option.get(marks.cursor),
+        "cursor: %a,@ obligs: %a,@ dirty: %a",
+        Fmt.option(Path.Cursor.pp),
+        cursor,
         Path.Map.pp(Mtrl.T.pp),
-        marks.obligs,
+        obligs,
+        Path.Map.pp(Fmt.sp),
+        dirty,
       );
     };
   let show = Fmt.to_to_string(pp);

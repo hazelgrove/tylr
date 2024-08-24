@@ -11,6 +11,10 @@ module T = {
     | White(Author.t)
     | Unmolded;
   let all = [White(Sys), White(Usr), Unmolded];
+  let is_sys =
+    fun
+    | White(Sys) => true
+    | _ => false;
 };
 module NT = {
   // two kinds of space NTs: fillable and unfillable.

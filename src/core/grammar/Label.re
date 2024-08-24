@@ -5,7 +5,7 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 // todo: add operator class
 [@deriving (sexp, yojson, ord)]
 type t =
-  | Const(Padding.t, string)
+  | Const([@sexp.opaque] Padding.t, string)
   | Id_lower
   | Id_upper
   | Int_lit

@@ -218,6 +218,12 @@ let prune_sys = (c: t) =>
 
 let is_clean = (c: t) => Path.Map.is_empty(c.marks.dirty);
 let mark_clean = (c: t) => {...c, marks: Marks.mark_clean(c.marks)};
+let mark_ends_dirty = (c: t) => {
+  let (l, r) = (end_path(~side=L, c), end_path(~side=R, c));
+  let dirty = c.marks.dirty |> Path.Map.add(l, ()) |> Path.Map.add(r, ());
+  let marks = {...c.marks, dirty};
+  {...c, marks};
+};
 
 let rec repad = (~l=Delim.root, ~r=Delim.root, c: t) => {
   switch (Space.get(c)) {
@@ -252,7 +258,7 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: t) => {
     Meld.to_chain(m)
     |> Chain.map_link(Bound.node)
     |> Chain.consnoc(~hd=l, ~ft=r)
-    |> Chain.map_linked((l, c, r) => repad(~l, c, ~r))
+    |> Chain.map_linked((l, c, r) => is_clean(c) ? c : repad(~l, c, ~r))
     |> Chain.unconsnoc_exn
     |> (((_, c, _)) => c)
     |> Chain.map_link(Bound.get_exn)

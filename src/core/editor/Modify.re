@@ -133,7 +133,8 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
         switch (rest) {
         | Ok(cell) => (cell, up_tl)
         | Error(up) =>
-          let cell = molded == Removed ? fill : Cell.dirty;
+          let cell =
+            molded == Removed ? Cell.mark_ends_dirty(fill) : Cell.dirty;
           (cell, Slope.cat(up, up_tl));
         };
       let ctx =

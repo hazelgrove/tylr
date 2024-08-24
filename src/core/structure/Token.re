@@ -39,7 +39,7 @@ module Molded = {
 
   let pp = (out, tok: t) =>
     switch (tok.mtrl) {
-    | Space(_) =>
+    | Space(t) =>
       String.to_seq(tok.text)
       |> Seq.map(
            fun
@@ -49,7 +49,10 @@ module Molded = {
          )
       |> List.of_seq
       |> String.concat("")
-      |> Fmt.pf(out, "\"%s\"")
+      |> (
+        Space.T.is_sys(t)
+          ? Fmt.pf(out, "\"\"%s\"\"") : Fmt.pf(out, "\"%s\"")
+      )
     | Grout((_, tips)) =>
       let (l, r) = Tip.display(tips);
       Fmt.pf(out, "%s%s", l, r);
