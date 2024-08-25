@@ -9,14 +9,19 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
       switch (Wald.unlink(w)) {
       | Error(_) => Cell.(c, empty, empty)
       | Ok((spc, c, rest)) =>
-        Cell.(put(Meld.of_tok(~l, spc)), put(M(c, rest, r)), empty)
+        // pull off c with padding in case it has caret to simplify subsequent
+        // decision making about where to insert grout relative to caret
+        let pad_l = Cell.put(Meld.of_tok(~l, spc, ~r=c));
+        let rest = Cell.put(Meld.mk(rest, ~r));
+        (pad_l, rest, Cell.empty);
       }
     | R =>
       switch (Wald.unlink(Wald.rev(w))) {
       | Error(_) => Cell.(empty, empty, c)
       | Ok((spc, c, rest)) =>
-        let rest = Wald.rev(rest);
-        Cell.(empty, put(M(l, rest, c)), put(Meld.of_tok(spc, ~r)));
+        let rest = Cell.put(Meld.mk(~l, Wald.rev(rest)));
+        let pad_r = Cell.put(Meld.of_tok(~l=c, spc, ~r));
+        (Cell.empty, rest, pad_r);
       }
     }
   | Some(M(l, w, r)) =>
@@ -63,7 +68,12 @@ module Cells = {
          )
     };
 
+  // this gets called when preparing cells to fill a chosen swing.
   let split_padding = (cs: list(Cell.t)) => {
+    // note: splitting padding from left before right means eg when cs == [c]
+    // where c holds the meld {} " " {|} " " {}, the caret | will be pulled
+    // left side of any grout inserted between the spaces, which is afaict always
+    // what we want after any modification (except maybe forward delete)
     let (l, cs) =
       switch (cs) {
       | [c, ...cs] =>
@@ -104,6 +114,10 @@ let rec degrout = (c: Cell.t): Cells.t =>
   | Some(M(l, w, r)) when Option.is_some(Wald.is_grout(w)) =>
     let W((toks, cells)) = w;
     List.iter(Effects.remove, toks);
+    // if there is leftover padding at the ends, pad it onto the inner cells
+    // (or, in the case of convex grout, merge the padding into a single cell)
+    // and pull off this padding later if grout is reinserted, the goal being
+    // to maximally stabilize grout positioning
     let cells_l =
       switch (cells) {
       | [hd, ...tl] when Cell.Space.is_space(l) => [
