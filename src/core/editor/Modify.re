@@ -159,6 +159,13 @@ let finalize = (~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
   Zipper.unzip_exn(repadded, ~ctx);
 };
 
+let try_move = (s: string, z: Zipper.t) =>
+  switch (s, Ctx.face(~side=R, z.ctx)) {
+  | (" ", Node(tok)) when String.starts_with(~prefix=" ", tok.text) =>
+    Move.perform(Step(H(R)), z)
+  | _ => None
+  };
+
 let extend = (~side=Dir.R, s: string, tok: Token.t) =>
   switch (tok.mtrl) {
   | Space(_)
@@ -360,6 +367,19 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
 
 let delete = (d: Dir.t, z: Zipper.t) => {
   open Options.Syntax;
+  let/ () =
+    // first try moving over space tokens.
+    // need to refine this re: usr vs sys.
+    switch (Ctx.face(~side=d, z.ctx)) {
+    | Node(tok)
+        when
+          Cursor.is_point(z.cur)
+          && tok.text
+          |> Dir.pick(d, (Strings.rev, Fun.id))
+          |> String.starts_with(~prefix=" ") =>
+      Move.perform(Step(H(d)), z)
+    | _ => None
+    };
   let+ z = Cursor.is_point(z.cur) ? Select.hstep(d, z) : return(z);
   delete_sel(d, z);
 };
@@ -368,6 +388,7 @@ let insert = (s: string, z: Zipper.t) => {
   open Options.Syntax;
   let z = delete_sel(L, z);
 
+  let- () = try_move(s, z);
   let- () = try_extend(s, z);
   let- () = try_expand(s, z);
 
