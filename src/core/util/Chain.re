@@ -319,9 +319,9 @@ let pp = (pp_lp, pp_lk, out, c: t(_)) => {
   | (lp, (lks, lps)) =>
     let pp_tl =
       Fmt.(
-        list(~sep=sp, pair(~sep=(out, _) => pf(out, " "), pp_lk, pp_lp))
+        list(~sep=sp, pair(~sep=(out, _) => pf(out, "@ "), pp_lk, pp_lp))
       );
-    Fmt.pf(out, "%a %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
+    Fmt.pf(out, "%a@ %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
   };
 };
 let show = (pp_lp, pp_lk) => Fmt.to_to_string(pp(pp_lp, pp_lk));
