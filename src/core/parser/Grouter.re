@@ -174,7 +174,10 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     and+ has_pos = Cells.are_bounded(cs, nt_r, ~from=R);
     switch (Cells.split_padding(cs)) {
     | (l, cs, r) when List.for_all(Cell.Space.is_space, cs) =>
-      let r = List.hd(Cells.squash(cs @ [r]));
+      // prioritize getting any carets in cs over to the left for now.
+      // todo: parametrize this based on parsing mode
+      let l = List.hd(Cells.squash([l, ...cs]));
+      // let r = List.hd(Cells.squash(cs @ [r]));
       Cell.pad(~l, fill_default(bot), ~r);
     | (l, cs, r) =>
       // todo: need to do some degrouting here now that degrout pass no longer
