@@ -114,6 +114,7 @@ let min = compare =>
 
 let split_n = Base.List.split_n;
 
+// todo: order bin partitions so that even distribution prioritized
 let split_bins = (num_bins, xs) => {
   open Syntax;
   let return = bins => return(List.rev(bins));
