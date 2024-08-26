@@ -56,8 +56,6 @@ let hstep_tok = (d: Dir.t, tok: Token.t): (Token.t, bool) => {
 let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let b = Dir.toggle(d);
-  P.log("--- Move.insert ---");
-  P.show("z", Zipper.show(z));
   let+ ctx =
     switch (z.cur) {
     | Select({range: zigg, _}) =>
