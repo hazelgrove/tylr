@@ -93,7 +93,6 @@ let cursor_site = (z: t): (Site.Cursor.t, Ctx.t) =>
     (Cur.Select((l, r)), ctx);
   };
 
-// assumes normalized cursor
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   open Options.Syntax;
   let* hd = Option.map(Path.Cursor.hd, cell.marks.cursor);
@@ -132,6 +131,7 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
     };
   };
 }
+// assumes normalized cursor
 and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   let get = Options.get_exn(Marks.Invalid);
   let (l, r) = sel.range;
@@ -259,4 +259,15 @@ let button = (z: t): t => {
   let cell = Frame.Open.zip(hd, ~zipped=cell);
   let ctx = Ctx.cons(Frame.Open.empty, tl);
   Option.get(unzip(cell, ~ctx));
+};
+
+let normalize = (~cell: Cell.t, path: Path.t): Path.t => {
+  let cell = Cell.put_cursor(Point(Caret.focus(path)), cell);
+  let zipped =
+    unzip(cell)
+    |> Options.get_exn(Invalid_argument("Cell.normalize"))
+    |> zip(~save_cursor=true);
+  let cur = Option.get(zipped.marks.cursor);
+  let car = Option.get(Cursor.get_point(cur));
+  car.path;
 };

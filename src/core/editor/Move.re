@@ -99,13 +99,20 @@ let jump = loc => map_focus(Fun.const(loc));
 let hole = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let c = Zipper.zip(~save_cursor=true, z);
+  let normal = Zipper.normalize(~cell=c);
   switch (Options.get_exn(Zipper.Bug__lost_cursor, c.marks.cursor)) {
   | Select(_) => hstep(d, z)
   | Point({path, _}) =>
     let+ (path, _) =
       c.marks.obligs
       |> Path.Map.filter((_, mtrl: Mtrl.T.t) => mtrl != Space(Unmolded))
-      |> Path.Map.find_first_opt(p => Dir.pick(d, Path.(lt, gt), p, path));
+      |> Dir.pick(
+           d,
+           (
+             Path.Map.find_last_opt(p => Path.lt(normal(p), path)),
+             Path.Map.find_first_opt(p => Path.gt(normal(p), path)),
+           ),
+         );
     c |> Cell.put_cursor(Point(Caret.focus(path))) |> Zipper.unzip_exn;
   };
 };

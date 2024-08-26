@@ -66,7 +66,9 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
     | (Up, "Backspace") => now_save(Delete(L))
     | (Up, "Delete") => now_save(Delete(R))
     | (Up, "Escape") => now(Select(Un(L)))
+    | (Up, "Tab") => now(Move(Hole(R)))
     // | (Up, "Tab") => now_save(Put_down) //TODO: if empty, move to next hole
+    | (Down, "Tab") => now(Move(Hole(L)))
     | (Down, "ArrowLeft") => now(Select(Move(Step(H(L)))))
     | (Down, "ArrowRight") => now(Select(Move(Step(H(R)))))
     | (Down, "ArrowUp") => now(Select(Move(Step(V(L)))))

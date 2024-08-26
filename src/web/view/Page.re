@@ -172,20 +172,22 @@ let on_key = (~inject, ~model) =>
   Attr.[
     on_keypress(_ => Effect.Prevent_default),
     on_keyup(evt =>
-      Effect.Many(
-        List.map(
-          inject,
-          Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
-        ),
-      )
+      Effect.Many([
+        Effect.Prevent_default,
+        ...List.map(
+             inject,
+             Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
+           ),
+      ])
     ),
     on_keydown(evt =>
-      Effect.Many(
-        List.map(
-          inject,
-          Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
-        ),
-      )
+      Effect.Many([
+        Effect.Prevent_default,
+        ...List.map(
+             inject,
+             Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
+           ),
+      ])
     ),
   ];
 
