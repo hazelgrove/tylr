@@ -241,19 +241,27 @@ let to_chain = (c: t) =>
 
 let rec repad = (~l=Delim.root, ~r=Delim.root, c: t) => {
   switch (Space.get(c)) {
+  | None =>
+    let m = Option.get(get(c));
+    Meld.to_chain(m)
+    |> Chain.map_link(Bound.node)
+    |> Chain.consnoc(~hd=l, ~ft=r)
+    |> Chain.map_linked((l, c, r) => is_clean(c) ? c : repad(~l, c, ~r))
+    |> Chain.unconsnoc_exn
+    |> (((_, c, _)) => c)
+    |> Chain.map_link(Bound.get_exn)
+    |> Meld.of_chain
+    |> put;
   | Some(_) when has_clean_cursor(c) => mark_clean(c)
   | Some(_) =>
     let (_, pad_l) = Delim.padding(l).h;
     let (pad_r, _) = Delim.padding(r).h;
     switch (get(c)) {
+    | None when !pad_l && !pad_r => c
     | None =>
-      if (pad_l || pad_r) {
-        let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White(Sys))));
-        let m = pad_r ? Meld.mk(~l=c, w) : Meld.mk(w, ~r=c);
-        put(m);
-      } else {
-        c;
-      }
+      let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White(Sys))));
+      let m = pad_r ? Meld.mk(~l=c, w) : Meld.mk(w, ~r=c);
+      put(m);
     | Some(m) =>
       let pruned =
         Meld.to_chain(m)
@@ -268,51 +276,12 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: t) => {
            );
       switch (Chain.unlink(pruned)) {
       | Ok(_) => put(Meld.of_chain(pruned))
+      | Error(c) when !pad_l && !pad_r => c
       | Error(c) =>
-        if (pad_l || pad_r) {
-          let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White(Sys))));
-          let m = pad_r ? Meld.mk(~l=c, w) : Meld.mk(w, ~r=c);
-          put(m);
-        } else {
-          c;
-        }
+        let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White(Sys))));
+        let m = pad_r ? Meld.mk(~l=c, w) : Meld.mk(w, ~r=c);
+        put(m);
       };
     };
-  // | Some(toks) =>
-  //   let pruned =
-  //     toks
-  //     |> List.filter((tok: Token.t) =>
-  //          switch (tok.mtrl) {
-  //          | Space(White(Sys)) => false
-  //          | _ => true
-  //          }
-  //        );
-  //   let (_, pad_l) = Delim.padding(l).h;
-  //   let (pad_r, _) = Delim.padding(r).h;
-  //   let padded =
-  //     switch (pruned) {
-  //     | [] when pad_l || pad_r => [
-  //         Token.mk(~text=" ", Mtrl.Space(White(Sys))),
-  //       ]
-  //     | _ => pruned
-  //     };
-  //   switch (padded) {
-  //   | [] => empty
-  //   | [_, ..._] =>
-  //     let w =
-  //       Wald.mk(padded, List.(init(length(padded) - 1, Fun.const(empty))));
-  //     put(Meld.mk(w));
-  //   };
-  | None =>
-    let m = Option.get(get(c));
-    Meld.to_chain(m)
-    |> Chain.map_link(Bound.node)
-    |> Chain.consnoc(~hd=l, ~ft=r)
-    |> Chain.map_linked((l, c, r) => is_clean(c) ? c : repad(~l, c, ~r))
-    |> Chain.unconsnoc_exn
-    |> (((_, c, _)) => c)
-    |> Chain.map_link(Bound.get_exn)
-    |> Meld.of_chain
-    |> put;
   };
 };
