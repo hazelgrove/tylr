@@ -168,28 +168,31 @@ let editor_view = (model: Model.t) =>
 //       : [],
 //   );
 
-let on_key = (~inject, ~model) =>
-  Attr.[
-    on_keypress(_ => Effect.Prevent_default),
-    on_keyup(evt =>
-      Effect.Many([
-        Effect.Prevent_default,
-        ...List.map(
-             inject,
-             Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
-           ),
-      ])
+let on_key = (~inject, ~model) => {
+  let prevent_default_tab = evt =>
+    Util.Key.key_tag(evt) == "Tab" ? [Effect.Prevent_default] : [];
+  [
+    Attr.on_keypress(_ => Effect.Prevent_default),
+    Attr.on_keyup(evt =>
+      Effect.Many(
+        prevent_default_tab(evt)
+        @ List.map(
+            inject,
+            Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
+          ),
+      )
     ),
-    on_keydown(evt =>
-      Effect.Many([
-        Effect.Prevent_default,
-        ...List.map(
-             inject,
-             Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
-           ),
-      ])
+    Attr.on_keydown(evt =>
+      Effect.Many(
+        prevent_default_tab(evt)
+        @ List.map(
+            inject,
+            Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
+          ),
+      )
     ),
   ];
+};
 
 let view = (~inject, model: Model.t) => {
   div(
