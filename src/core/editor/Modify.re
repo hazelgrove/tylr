@@ -152,10 +152,12 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   };
 };
 
-let finalize = (~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
+let finalize = (~mode=Mode.Navigating, ~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
+  Mode.set(mode);
   let (remolded, ctx) = remold(~fill, ctx);
   let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
-  let repadded = Cell.repad(~l, remolded, ~r);
+  let repadded = Linter.repad(~l, remolded, ~r);
+  Mode.reset();
   Zipper.unzip_exn(repadded, ~ctx);
 };
 
@@ -250,7 +252,13 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
     return(Zipper.mk(ctx));
   | Molded(Neq(dn)) =>
     let ctx = Ctx.cons((dn, up), tl) |> Ctx.push(~onto=L, Token.space());
-    return(finalize(~fill=Cell.point(~dirty=true, Focus), ctx));
+    return(
+      finalize(
+        ~mode=Inserting(" "),
+        ~fill=Cell.point(~dirty=true, Focus),
+        ctx,
+      ),
+    );
   | Molded(Eq(l)) =>
     let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
     let ctx = Ctx.Tl.rest(tl) |> Ctx.map_hd(Frame.Open.cat((dn, up)));
@@ -361,7 +369,8 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
              (molded, next_fill);
            },
          );
-    finalize(~fill, molded);
+    // Mode.set(Deleting(d));
+    finalize(~mode=Deleting(d), ~fill, molded);
   };
 };
 
@@ -407,5 +416,5 @@ let insert = (s: string, z: Zipper.t) => {
            (molded, next_fill);
          },
        );
-  finalize(~fill, molded);
+  finalize(~mode=Inserting(s), ~fill, molded);
 };
