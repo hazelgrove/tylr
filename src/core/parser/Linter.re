@@ -42,12 +42,14 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
       let pruned =
         Meld.to_chain(m)
         |> Chain.fold_right(
-             (c, tok: Token.t) =>
+             (c, tok: Token.t, acc) => {
+               let found_space = Result.is_ok(Chain.unlink(acc));
                switch (tok.mtrl) {
-               | Space(White(Sys)) =>
-                 Chain.map_hd(Cell.Space.merge(c, ~fill=Cell.empty))
-               | _ => Chain.link(c, tok)
-               },
+               | Space(White(Sys)) when found_space || !pad_l && !pad_r =>
+                 Chain.map_hd(Cell.Space.merge(c, ~fill=Cell.empty), acc)
+               | _ => Chain.link(c, tok, acc)
+               };
+             },
              Chain.unit,
            );
       switch (Chain.unlink(pruned)) {
