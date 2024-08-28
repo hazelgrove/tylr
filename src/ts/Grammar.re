@@ -44,7 +44,6 @@ let tokop_alt = ss => alt(List.map(op, ss));
 let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
 
 //Top level generic forms
-
 let assignment_pat = (exp: unit => Regex.t, pat: unit => Regex.t) =>
   seq([pat(), op("="), exp()]);
 
@@ -88,27 +87,12 @@ module rec Pat: SORT = {
       brc(R, "]"),
     ]);
 
-  let pair_pat =
+  let _pair_pat =
     seq([
       property_name,
       c(":"),
       alt([Pat.atom(), assignment_pat(Exp.atom, Pat.atom)]),
     ]);
-
-  let destruct_pat = alt([ObjPat.atom(), array_pat]);
-
-  let lhs_exp =
-    alt([
-      t(Id_lower),
-      Exp.atom(~filter=["member_exp", "subscript_exp"], ()),
-      destruct_pat,
-    ]);
-
-  let tbl = () => [p(alt([lhs_exp, rest_pat]))];
-}
-and ObjPat: SORT = {
-  let sort = () => Sort.of_str("ObjPat");
-  let atom = (~filter as _=[], ()) => nt(sort());
 
   let obj_assignmnet_pat =
     seq([
@@ -130,7 +114,16 @@ and ObjPat: SORT = {
       brc(R, "}"),
     ]);
 
-  let tbl = () => [p(obj_pat)];
+  let destruct_pat = alt([Pat.atom(~filter=["obj_pat"], ()), array_pat]);
+
+  let lhs_exp =
+    alt([
+      t(Id_lower),
+      Exp.atom(~filter=["member_exp", "subscript_exp"], ()),
+      destruct_pat,
+    ]);
+
+  let tbl = () => [p(alt([lhs_exp, rest_pat]))];
 }
 and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
@@ -643,7 +636,6 @@ and Stat: SORT = {
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
   [
-    ObjPat.(sort(), tbl()),
     Pat.(sort(), tbl()),
     Stat.(sort(), tbl()),
     Exp.(sort(), tbl()),
