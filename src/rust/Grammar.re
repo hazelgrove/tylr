@@ -35,8 +35,6 @@ let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
 let abi = t(Id_lower);
 
 //Path exps
-let typ_atom = nt(Sort.of_str("Typ"));
-
 let path_ident_segment =
   alt([
     t(Id_lower),
@@ -47,53 +45,21 @@ let path_ident_segment =
     c("$crate"),
   ]);
 
-let typ_path_fn_inputs =
-  seq([typ_atom, star(seq([c(","), typ_atom])), opt(c(","))]);
-let typ_path_fn =
-  seq([
-    c("("),
-    opt(typ_path_fn_inputs),
-    c(")"),
-    opt(seq([c("->"), typ_atom])),
-  ]);
-let typ_path_segment =
-  seq([path_ident_segment, opt(seq([c("::"), typ_path_fn]))]);
-let typ_path =
-  seq([
-    opt(c("::")),
-    typ_path_segment,
-    star(seq([c("::"), typ_path_segment])),
-  ]);
-
-let path_exp_segment = seq([path_ident_segment]);
-let path_in_exp =
-  seq([
-    opt(c("::")),
-    path_exp_segment,
-    star(seq([c("::"), path_exp_segment])),
-  ]);
-
-let qualified_path_typ =
-  seq([
-    c("<"),
-    nt(Sort.of_str("Typ")),
-    opt(seq([c("as"), typ_path])),
-    c(">"),
-  ]);
-
-let qualified_path_in_exp =
-  seq([qualified_path_typ, plus(seq([c("::"), path_exp_segment]))]);
-let path_exp = alt([path_in_exp, qualified_path_in_exp]);
+module Filter = {
+  //Whitelisted strings
+  type t = list(string);
+};
 
 module type SORT = {
-  let atom: unit => Regex.t;
+  let atom: (~filter: Filter.t=?, unit) => Regex.t;
+
   let sort: unit => Sort.t;
   let tbl: unit => Prec.Table.t(Regex.t);
 };
 
 module rec Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
-  let atom = () => nt(sort());
+  let atom = (~filter as _: Filter.t=[], ()) => nt(sort());
 
   let block_exp = seq([c("{"), plus(atom()), c("}")]);
 
@@ -111,7 +77,7 @@ module rec Stat: SORT = {
 }
 and Item: SORT = {
   let sort = () => Sort.of_str("Item");
-  let atom = () => nt(sort());
+  let atom = (~filter as _: Filter.t=[], ()) => nt(sort());
 
   [@warning "-32"]
   let comma_sep = seq([atom(), star(seq([c(","), atom()]))]);
@@ -275,7 +241,7 @@ and Item: SORT = {
       opt(c("unsafe")),
       c("impl"),
       opt(c("!")),
-      typ_path,
+      Typ.atom(~filter=["typ_path"], ()),
       c("for"),
       Typ.atom(),
     ]);
@@ -314,7 +280,7 @@ and Item: SORT = {
 }
 and Typ: SORT = {
   let sort = () => Sort.of_str("Typ");
-  let atom = () => nt(sort());
+  let atom = (~filter as _: Filter.t=[], ()) => nt(sort());
 
   let typ_path_fn_inputs =
     seq([atom(), star(seq([c(","), atom()])), opt(c(","))]);
@@ -432,7 +398,7 @@ and Typ: SORT = {
 }
 and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
-  let atom = () => nt(sort());
+  let atom = (~filter as _: Filter.t=[], ()) => nt(sort());
 
   [@warning "-32"]
   let comma_sep = seq([atom(), star(seq([c(","), atom()]))]);
@@ -546,7 +512,7 @@ and Exp: SORT = {
 }
 and Pat: SORT = {
   let sort = () => Sort.of_str("Pat");
-  let atom = () => nt(sort());
+  let atom = (~filter as _: Filter.t=[], ()) => nt(sort());
 
   let ident_pat =
     seq([
@@ -575,6 +541,15 @@ and Pat: SORT = {
       ]),
       struct_pat_et_cetera,
     ]);
+
+  let path_exp_segment = seq([path_ident_segment]);
+  let path_in_exp =
+    seq([
+      opt(c("::")),
+      path_exp_segment,
+      star(seq([c("::"), path_exp_segment])),
+    ]);
+
   let struct_pat =
     seq([path_in_exp, c("{"), opt(struct_pat_elements), c("}")]);
 
@@ -598,6 +573,13 @@ and Pat: SORT = {
     seq([atom(), star(seq([c(","), atom()])), opt(c(","))]);
   let slice_pat = seq([c("["), opt(slice_pat_items), c("]")]);
 
+  let qualified_path_in_exp =
+    seq([
+      Typ.atom(~filter=["qualified_path_typ"], ()),
+      plus(seq([c("::"), path_exp_segment])),
+    ]);
+
+  let path_exp = alt([path_in_exp, qualified_path_in_exp]);
   let path_pat = path_exp;
 
   let operand =
