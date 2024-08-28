@@ -3,8 +3,6 @@
 
      Wherever TS defines an opt(automatic_semicolon) we are requiring a semicolon
 
-     The pat sort is just an lhs_exp. To get a true pat you must use the top level pat and pass in a Pat.atom() as the argument. This was done due to recursion conflicts within pat/lhs_exp
-
      "statement_identifier" never seems to be defined in the TreeSitter grammar so we are just ignoring it and assuming it is a normal ident
  */
 
@@ -41,76 +39,83 @@ let op = (~l=true, ~r=true, ~indent=true) =>
   c(~p=Padding.op(~l, ~r, ~indent, ()));
 let brc = (side: Dir.t) => c(~p=Padding.brc(side));
 
-//let tokc_alt = ss => alt(List.map(c, ss));
 let tokop_alt = ss => alt(List.map(op, ss));
 
 let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
 
-let pat = atom => seq([opt(c("...")), atom()]);
-let rest_pat = atom => seq([c("..."), atom()]);
+//Top level generic forms
+
+let assignment_pat = (exp: unit => Regex.t, pat: unit => Regex.t) =>
+  seq([pat(), op("="), exp()]);
 
 let private_property_ident = seq([c("#"), t(Id_lower)]);
 let import = kw("import");
+let param = (exp, pat) => alt([pat(), assignment_pat(exp, pat)]);
+let params = (exp, pat) =>
+  seq([
+    brc(L, "("),
+    param(exp, pat),
+    star(seq([c(","), param(exp, pat)])),
+    brc(R, ")"),
+  ]);
 
 //TODO
 let property_name = alt([t(Id_lower)]);
 let optional_chain = c("?.");
 
-let member_exp = exp =>
-  seq([
-    alt([exp(), import]),
-    alt([c("."), optional_chain]),
-    alt([private_property_ident, t(Id_lower)]),
-  ]);
-
-let subscript_exp = exp =>
-  seq([
-    alt([exp()]),
-    opt(optional_chain),
-    brc(L, "["),
-    exp(),
-    brc(R, "]"),
-  ]);
-
-let assignment_pat = (exp: unit => Regex.t, pat: unit => Regex.t) =>
-  seq([pat(), op("="), exp()]);
-let array_pat = (exp, pat) =>
-  seq([
-    brc(L, "["),
-    comma_sep(opt(alt([pat(), assignment_pat(pat, exp)]))),
-    brc(R, "]"),
-  ]);
-
-let destruct_pat =
-    (exp: unit => Regex.t, pat: unit => Regex.t, obj_pat: unit => Regex.t) =>
-  alt([obj_pat(), array_pat(exp, pat)]);
+module Filter = {
+  type t = list(string);
+};
 
 module type SORT = {
-  let atom: unit => Regex.t;
+  let atom: (~filter: Filter.t=?, unit) => Regex.t;
   let sort: unit => Sort.t;
   let tbl: unit => Prec.Table.t(Regex.t);
 };
 
-module rec ObjectPat: SORT = {
-  let sort = () => Sort.of_str("ObjectPat");
-  let atom = () => nt(sort());
+module rec Pat: SORT = {
+  let sort = () => Sort.of_str("Pat");
+  let atom = (~filter as _=[], ()) => nt(sort());
+
+  let rest_pat = seq([c("..."), Pat.atom()]);
+
+  let array_pat =
+    seq([
+      brc(L, "["),
+      comma_sep(
+        opt(alt([Pat.atom(), assignment_pat(Pat.atom, Exp.atom)])),
+      ),
+      brc(R, "]"),
+    ]);
 
   let pair_pat =
     seq([
       property_name,
       c(":"),
-      alt([
-        pat(LHSExp.atom),
-        assignment_pat(Exp.atom, () => pat(LHSExp.atom)),
-      ]),
+      alt([Pat.atom(), assignment_pat(Exp.atom, Pat.atom)]),
     ]);
+
+  let destruct_pat = alt([ObjPat.atom(), array_pat]);
+
+  let lhs_exp =
+    alt([
+      t(Id_lower),
+      Exp.atom(~filter=["member_exp", "subscript_exp"], ()),
+      destruct_pat,
+    ]);
+
+  let tbl = () => [p(alt([lhs_exp, rest_pat]))];
+}
+and ObjPat: SORT = {
+  let sort = () => Sort.of_str("ObjPat");
+  let atom = (~filter as _=[], ()) => nt(sort());
 
   let obj_assignmnet_pat =
     seq([
       alt([t(Id_lower)]),
       c("="),
       Exp.atom(),
-      destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
+      Pat.atom(~filter=["destruct_pat"], ()),
     ]);
 
   let obj_pat =
@@ -118,42 +123,31 @@ module rec ObjectPat: SORT = {
       brc(L, "{"),
       comma_sep(
         alt([
-          pair_pat,
-          rest_pat(() => pat(LHSExp.atom)),
+          Pat.atom(~filter=["pair_pat", "rest_pat"], ()),
           obj_assignmnet_pat,
         ]),
       ),
       brc(R, "}"),
     ]);
 
-  let operand = alt([obj_pat]);
-
-  let tbl = () => [p(operand)];
-}
-and LHSExp: SORT = {
-  let sort = () => Sort.of_str("Pat");
-  let atom = () => nt(sort());
-
-  let lhs_exp =
-    alt([
-      t(Id_lower),
-      member_exp(Exp.atom),
-      subscript_exp(Exp.atom),
-      destruct_pat(Exp.atom, ObjectPat.atom, LHSExp.atom),
-    ]);
-
-  let pat = lhs_exp;
-
-  let tbl = () => [p(pat)];
+  let tbl = () => [p(obj_pat)];
 }
 and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
-  let atom = () => nt(sort());
-
+  let atom = (~filter as _=[], ()) => nt(sort());
   let stat_block =
     seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
 
   let num = alt([t(Int_lit), t(Float_lit)]);
+
+  let subscript_exp =
+    seq([
+      alt([Exp.atom()]),
+      opt(optional_chain),
+      brc(L, "["),
+      Exp.atom(),
+      brc(R, "]"),
+    ]);
 
   //NOTE: for now we are making the primary same as exp atom - doing this to test our grammar designs on the assumption that treesitter separates them for precedence but our "global" exp precedence will work
   let primary_exp = atom();
@@ -169,13 +163,6 @@ and Exp: SORT = {
       brc(R, ")"),
     ]);
 
-  let member_exp = member_exp(atom);
-
-  //TODO:assignment_pat
-
-  let param = alt([pat(LHSExp.atom) /*, assignnment_pat*/]);
-  let params =
-    seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
     seq([
       opt(kw(~l=false, ~indent=false, "static")),
@@ -188,7 +175,7 @@ and Exp: SORT = {
         ]),
       ),
       t(Id_lower),
-      params,
+      params(Exp.atom, Pat.atom),
       stat_block,
     ]);
 
@@ -214,7 +201,7 @@ and Exp: SORT = {
       brc(R, "]"),
     ]);
 
-  let call_signature = params;
+  let call_signature = params(Exp.atom, Pat.atom);
   let func_exp =
     seq([
       opt(kw(~l=false, ~indent=false, "async")),
@@ -304,12 +291,22 @@ and Exp: SORT = {
       _class,
       call_exp,
       paren_exp,
-      member_exp,
+      subscript_exp,
     ]);
 
-  //End of "primary" expressions
+  let member_exp =
+    seq([
+      alt([Exp.atom(), import]),
+      alt([c("."), optional_chain]),
+      alt([private_property_ident, t(Id_lower)]),
+    ]);
+
   let assignment_exp =
-    seq([alt([paren_exp, LHSExp.atom()]), op("="), atom()]);
+    seq([
+      alt([paren_exp, Pat.atom(~filter=["lhs_exp"], ())]),
+      op("="),
+      atom(),
+    ]);
   let await_exp = seq([kw("await"), atom()]);
   let unary_exp =
     seq([
@@ -369,21 +366,19 @@ and Exp: SORT = {
       p(update_exp),
       p(new_exp),
       p(yield_exp),
+      p(member_exp),
     ]
     @ [p(operand)];
 }
 and Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
-  let atom = () => nt(sort());
+  let atom = (~filter as _=[], ()) => nt(sort());
 
   let paren_exp = seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
   let stat_block =
     seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
 
-  let param = alt([pat(LHSExp.atom) /*, assignment_pat*/]);
-  let params =
-    seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
     seq([
       opt(kw(~l=false, ~indent=false, "static")),
@@ -396,10 +391,10 @@ and Stat: SORT = {
         ]),
       ),
       t(Id_lower),
-      params,
+      params(Exp.atom, Pat.atom),
       stat_block,
     ]);
-  let call_signature = params;
+  let call_signature = params(Exp.atom, Pat.atom);
 
   let module_export_name = alt([t(Id_lower) /* , t(String_lit) */]);
   let export_specifier =
@@ -466,7 +461,6 @@ and Stat: SORT = {
       opt(kw(~l=false, ~indent=false, "async")),
       kw(~l=false, "function"),
       opt(t(Id_lower)),
-      //TODO: raise call_signature and stat block to the top level
       call_signature,
       stat_block,
       opt(c(";")),
@@ -514,7 +508,6 @@ and Stat: SORT = {
   let var_declaration =
     seq([kw("var"), comma_sep(var_declarator), c(";")]);
 
-  //TODO: generator func decl
   let declaration =
     alt([
       func_declaration,
@@ -572,21 +565,15 @@ and Stat: SORT = {
     seq([
       brc(L, "("),
       alt([
-        alt([LHSExp.atom(), paren_exp]),
+        alt([Pat.atom(~filter=["lhs_exp"], ()), paren_exp]),
         seq([
           kw("var"),
-          alt([
-            t(Id_lower),
-            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
-          ]),
+          alt([t(Id_lower), Pat.atom(~filter=["destruct_pat"], ())]),
           opt(init),
         ]),
         seq([
           alt([kw("let"), kw("const")]),
-          alt([
-            t(Id_lower),
-            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
-          ]),
+          alt([t(Id_lower), Pat.atom(~filter=["destruct_pat"], ())]),
         ]),
       ]),
       alt([kw("in"), kw("of")]),
@@ -612,10 +599,7 @@ and Stat: SORT = {
       opt(
         seq([
           brc(L, "("),
-          alt([
-            t(Id_lower),
-            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
-          ]),
+          alt([t(Id_lower), Pat.atom(~filter=["destruct_pat"], ())]),
           brc(R, ")"),
         ]),
       ),
@@ -654,24 +638,15 @@ and Stat: SORT = {
     p(label_statement),
     p(operand),
   ];
-}
-and Module: SORT = {
-  let sort = () => Sort.of_str("Module");
-  let atom = () => nt(sort());
-
-  let operand = alt([]);
-
-  let tbl = () => [p(operand)];
 };
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
   [
-    ObjectPat.(sort(), tbl()),
-    LHSExp.(sort(), tbl()),
+    ObjPat.(sort(), tbl()),
+    Pat.(sort(), tbl()),
     Stat.(sort(), tbl()),
     Exp.(sort(), tbl()),
-    Module.(sort(), tbl()),
   ]
   |> List.to_seq
   |> Sort.Map.of_seq;
