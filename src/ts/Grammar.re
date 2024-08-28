@@ -133,20 +133,51 @@ let _initializer = exp => seq([op("="), exp()]);
 
 let number = alt([t(Int_lit), t(Float_lit)]);
 
+let typ_ident = t(Id_lower);
+let _constraint = typ => seq([alt([kw("extends"), c(":")]), typ()]);
+let default_typ = typ => seq([op("="), typ()]);
+let typ_parameter = typ =>
+  seq([
+    opt(kw("const")),
+    typ_ident,
+    opt(_constraint(typ)),
+    opt(default_typ(typ)),
+  ]);
+let typ_params = typ =>
+  seq([brc(L, "<"), comma_sep(typ_parameter(typ)), brc(R, ">")]);
+
+
+module Filter = {
+    //Whitelisted strings
+    type t = list(string);
+}
+
 module type SORT = {
+  // let atom: (~filter: Filter.t = ?, unit) => Regex.t;
   let atom: unit => Regex.t;
   let sort: unit => Sort.t;
   let tbl: unit => Prec.Table.t(Regex.t);
+
+  //Define the form whitelist & blacklisting functions here that construct a filter
+  // let whitelist: ()
 };
 
 module rec Typ: SORT = {
   let sort = () => Sort.of_str("Typ");
   let atom = () => nt(sort());
 
-  let tbl = () => [];
+  let function_typ = seq([typ_params(Typ.atom)]);
+
+  let tbl = () => [
+    p(PrimaryTyp.atom()),
+    p(function_typ),
+    // p(readonly_typ),
+    // p(constructor_typ),
+    // p(infer_typ),
+  ];
 }
 and PrimaryTyp: SORT = {
-  let sort = () => Sort.of_str("Typ");
+  let sort = () => Sort.of_str("PrimaryTyp");
   let atom = () => nt(sort());
 
   let paren_type = seq([brc(L, "("), Typ.atom(), brc(R, ")")]);
@@ -163,7 +194,6 @@ and PrimaryTyp: SORT = {
       kw("never"),
       kw("object"),
     ]);
-  let typ_ident = t(Id_lower);
 
   let nested_ident =
     seq([
@@ -197,18 +227,6 @@ and PrimaryTyp: SORT = {
       opt(typ_annotation),
     ]);
 
-  let _constraint = seq([alt([kw("extends"), c(":")]), Typ.atom()]);
-  let default_typ = seq([op("="), Typ.atom()]);
-  let typ_parameter =
-    seq([
-      opt(kw("const")),
-      typ_ident,
-      opt(_constraint),
-      opt(default_typ),
-    ]);
-  let typ_params =
-    seq([brc(L, "<"), comma_sep(typ_parameter), brc(R, ">")]);
-
   let this = kw("this");
   let typ_predicate =
     seq([alt([t(Id_lower), this]), kw("is"), Typ.atom()]);
@@ -218,7 +236,7 @@ and PrimaryTyp: SORT = {
     seq([c(":"), kw("asserts"), alt([typ_predicate, t(Id_lower), this])]);
   let call_signature =
     seq([
-      opt(typ_params),
+      opt(typ_params(Typ.atom)),
       params(LHSExp.atom),
       opt(
         alt([typ_annotation, asserts_annotation, typ_predicate_annotation]),
@@ -229,7 +247,7 @@ and PrimaryTyp: SORT = {
     seq([
       opt(kw("abstract")),
       kw("new"),
-      opt(typ_params),
+      opt(typ_params(Typ.atom)),
       params(LHSExp.atom),
       opt(typ_annotation),
     ]);
@@ -317,25 +335,33 @@ and PrimaryTyp: SORT = {
 
   let existential_typ = kw("*");
 
-  let literal_typ = alt([
-    number,
-    //TODO:
-    // t(String_lit),
-    kw("true"),
-    kw("false"),
-    kw("null"),
-    kw("undefined"),
-  ])
+  let literal_typ =
+    alt([
+      number,
+      //TODO:
+      // t(String_lit),
+      kw("true"),
+      kw("false"),
+      kw("null"),
+      kw("undefined"),
+    ]);
 
-  let const = kw("const")
-  
-   // let template_chars = t(Template_chars);
+  let const = kw("const");
+
+  // let template_chars = t(Template_chars);
   //NOTE: template chars are: ` | \0 | ${} | \\
-   let template_chars = alt([c("`"), c("\\0"), c("${}"), c("\\\\")]);
-   let infer_typ = seq([kw("infer"), typ_ident, opt(seq([kw("extends"), Typ.atom()]))]);
-   let template_typ = seq([c("${"), alt([PrimaryTyp.atom(), infer_typ]), c("}")]);
+  let template_chars = alt([c("`"), c("\\0"), c("${}"), c("\\\\")]);
+  let infer_typ =
+    seq([kw("infer"), typ_ident, opt(seq([kw("extends"), Typ.atom()]))]);
+  let template_typ =
+    seq([c("${"), alt([PrimaryTyp.atom(), infer_typ]), c("}")]);
   //TODO: ask david - should this be brc?
-  let template_literal_typ = seq([brc(L, "`"), star(alt([template_chars, template_typ])), brc(R, "`")])
+  let template_literal_typ =
+    seq([
+      brc(L, "`"),
+      star(alt([template_chars, template_typ])),
+      brc(R, "`"),
+    ]);
 
   let operand =
     alt([
@@ -354,8 +380,18 @@ and PrimaryTyp: SORT = {
       const,
     ]);
 
-  let lookup_typ = seq([PrimaryTyp.atom(), brc(L, "["), Typ.atom(), brc(R, "]")]);
-  let conditional_typ = seq([Typ.atom(), kw("extends"), Typ.atom(), c("?"), Typ.atom(), c(":"), Typ.atom()]);
+  let lookup_typ =
+    seq([PrimaryTyp.atom(), brc(L, "["), Typ.atom(), brc(R, "]")]);
+  let conditional_typ =
+    seq([
+      Typ.atom(),
+      kw("extends"),
+      Typ.atom(),
+      c("?"),
+      Typ.atom(),
+      c(":"),
+      Typ.atom(),
+    ]);
   let intersection_typ = seq([opt(Typ.atom()), c("&"), Typ.atom()]);
   let union_typ = seq([opt(Typ.atom()), c("|"), Typ.atom()]);
 

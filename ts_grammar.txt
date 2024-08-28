@@ -837,6 +837,8 @@ module.exports = function defineGrammar(dialect) {
         seq(':', $.type_predicate),
       ),
 
+      //a.b
+
       // Type query expressions are more restrictive than regular expressions
       _type_query_member_expression: $ => seq(
         field('object', choice(

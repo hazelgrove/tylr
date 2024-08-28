@@ -6,8 +6,27 @@ type t('a) =
   | Atom('a)
   | Star(t('a))
   | Seq(s('a))
+  // | Alt(list((string, t('a))))
   | Alt(s('a))
 and s('a) = list(t('a));
+
+/*
+//Constructor func that wraps a regex in an alt with its name
+let f = (name: string, r: Regex.t) => alt([(name, r)])
+
+let args = seq([])
+let func = seq([args, ...])
+
+
+let operands = alt([
+    ("int", t(Int_lit)),
+])
+
+let tbl = [
+    p(f("func", func))
+]
+
+*/
 
 let rec pp = (pp_a, out) =>
   fun
