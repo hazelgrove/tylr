@@ -215,11 +215,17 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
   index^;
 };
 
+let is_minimal = (w: Walk.t) =>
+  !(Walk.is_neq(w) && List.exists(Mtrl.is_tile, Chain.links(w)));
+
 let walk_all =
   Memo.general(((from: Dir.t, src: End.t)) => {
     let q = Queue.create();
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
-    bfs(~from, q) |> Index.filter(Walk.is_valid) |> Index.sort;
+    bfs(~from, q)
+    |> Index.filter(Walk.is_valid)
+    |> Index.filter(is_minimal)
+    |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t) => walk_all((from, src));
 
@@ -229,7 +235,10 @@ let enter_all =
     swing_all(~from, nt)
     |> Index.filter(is_neq)
     |> Index.iter((dst, w) => Queue.push((dst, w), q));
-    bfs(~from, q) |> Index.filter(Walk.is_valid) |> Index.sort;
+    bfs(~from, q)
+    |> Index.filter(Walk.is_valid)
+    |> Index.filter(is_minimal)
+    |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
