@@ -1,3 +1,5 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
 let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
@@ -36,6 +38,7 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
   };
 
 module Cells = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Cell.t);
 
   let cons = (c: Cell.t, cs: t) =>
@@ -96,7 +99,7 @@ module Cells = {
     switch (face(~side=from, cs)) {
     | None => Some(false)
     | Some(f) =>
-      Walker.enter(~from=L, nt, Node(f))
+      Walker.enter(~from, nt, Node(f))
       |> Lists.hd
       |> Option.map(w => Walk.height(w) > 1)
     };
