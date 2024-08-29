@@ -58,52 +58,54 @@ module T = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Chain.t(Swing.t, Stance.t);
 
-  let empty: t = Chain.unit(Swing.empty);
+  let unit: _ => t = Chain.unit;
+  let empty = unit(Swing.empty);
   let is_empty = (==)(empty);
 
-  let space: t = Chain.unit(Swing.space);
-  let root: t = Chain.unit(Swing.root);
+  let hd = Chain.hd;
+  let ft = Chain.ft;
+  // let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
+
+  let space = unit(Swing.space);
+  let root = unit(Swing.root);
 
   let stances = Chain.links;
   let swings = Chain.loops;
   let height = w => List.length(List.filter(Swing.is_neq, swings(w)));
+
+  let append = Chain.append;
+  let cons = (bound: Mtrl.NT.t, w) =>
+    is_empty(w)
+      ? unit(Swing.unit(bound)) : Chain.map_hd(Chain.link(bound, ()), w);
+
+  let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
+  // note: stricter than !is_eq
+  let is_neq = (w: t) => Swing.is_neq(hd(w)) && Swing.is_neq(ft(w));
+  let is_valid = w => is_eq(w) || is_neq(w);
 
   // let has_sort = w => List.exists(Swing.has_sort, strides(w));
 
   let has_stance = (st: Stance.t, w: t) =>
     List.exists((==)(st), Chain.links(w));
 
-  let hd = Chain.hd;
-  let ft = Chain.ft;
-  // let rev = w => Chain.rev(~rev_loop=Swing.rev, w);
-
-  let mid_stances = (w: t): list(Mtrl.Sorted.t) =>
-    // currently returns prec levels in top-down order
+  // a list of sorted mtrls, each describing the stances of each prec level in
+  // top-down order
+  let stance_sorts = (w: t): list(Mtrl.Sorted.t) =>
     w
     |> Chain.fold_left(Fun.const([]), (mtrls, st, sw) =>
          Swing.is_neq(sw) ? mtrls : [Mtrl.T.sort(st), ...mtrls]
        );
 
   let compare = (l: t, r: t) => {
+    assert(is_valid(l) && is_valid(r));
     open Stds.Compare.Syntax;
     let/ () = Int.compare(height(l), height(r));
     // top-down lexicographic comparison
     let/ () =
-      List.compare(Mtrl.Sorted.compare, mid_stances(l), mid_stances(r));
+      List.compare(Mtrl.Sorted.compare, stance_sorts(l), stance_sorts(r));
     let/ () = Int.compare(Chain.length(l), Chain.length(r));
     Chain.compare(Swing.compare, Stance.compare, l, r);
   };
-
-  let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
-  // note: stricter than !is_eq
-  let is_neq = (w: t) => Swing.is_neq(hd(w)) && Swing.is_neq(ft(w));
-
-  let unit: _ => t = Chain.unit;
-
-  let append = Chain.append;
-  let cons = (bound: Mtrl.NT.t, w) =>
-    is_empty(w)
-      ? unit(Swing.unit(bound)) : Chain.map_hd(Chain.link(bound, ()), w);
 };
 include T;
 

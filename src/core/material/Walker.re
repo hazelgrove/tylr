@@ -219,7 +219,7 @@ let walk_all =
   Memo.general(((from: Dir.t, src: End.t)) => {
     let q = Queue.create();
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
-    Index.sort(bfs(~from, q));
+    bfs(~from, q) |> Index.filter(Walk.is_valid) |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t) => walk_all((from, src));
 
@@ -229,7 +229,7 @@ let enter_all =
     swing_all(~from, nt)
     |> Index.filter(is_neq)
     |> Index.iter((dst, w) => Queue.push((dst, w), q));
-    Index.sort(bfs(~from, q));
+    bfs(~from, q) |> Index.filter(Walk.is_valid) |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
