@@ -102,7 +102,7 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
         ctx_sans_site
         |> Ctx.push(~onto=sel.focus, stepped)
         |> push_site(~onto=Dir.toggle(sel.focus), site_anc);
-      return(Zipper.mk(~cur, ctx));
+      return(Zipper.mk(~cur, Ctx.button(ctx)));
     | None =>
       // sel was a single token, need to consider anchor side more carefully
       switch (stepped.marks, site_anc) {
@@ -111,12 +111,12 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
         assert(site_anc == Between);
         let cur = Cursor.Point(Caret.focus());
         let ctx = Ctx.push(~onto=sel.focus, stepped, ctx_sans_site);
-        return(Zipper.mk(~cur, ctx));
+        return(Zipper.mk(~cur, Ctx.button(ctx)));
       | (Some(Point(car)), Between) =>
         assert(car.hand == Focus);
         let cur = Cursor.Select({...sel, range: Zigg.of_tok(stepped)});
         let ctx = Ctx.push(~onto=sel.focus, stepped, ctx_sans_site);
-        return(Zipper.mk(~cur, ctx));
+        return(Zipper.mk(~cur, Ctx.button(ctx)));
       | (Some(Point(car)), Within(_)) =>
         assert(car.hand == Focus);
         let cur = Cursor.Point(Caret.focus());
@@ -125,14 +125,14 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
           ctx_sans_site
           |> Ctx.push(~onto=sel.focus, stepped)
           |> Ctx.push(~onto=Dir.toggle(sel.focus), stepped);
-        return(Zipper.mk(~cur, ctx));
+        return(Zipper.mk(~cur, Ctx.button(ctx)));
       | (Some(Select(_)), _) =>
         let cur = Cursor.Select({...sel, range: Zigg.of_tok(stepped)});
         let ctx =
           ctx_sans_site
           |> Ctx.push(~onto=sel.focus, stepped)
           |> Ctx.push(~onto=Dir.toggle(sel.focus), stepped);
-        return(Zipper.mk(~cur, ctx));
+        return(Zipper.mk(~cur, Ctx.button(ctx)));
       }
     };
   };
