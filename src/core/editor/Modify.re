@@ -16,11 +16,13 @@ let relabel =
     switch (Ctx.pull(~from=L, ctx)) {
     // hack to avoid merging usr/sys space tokens
     | (Node(tok), _) when Token.Space.is(tok) => (Delim.root, ctx)
+    | (Node(tok), _) when tok.text == "" => (Delim.root, ctx)
     | (l, rest) => (l, rest)
     };
   let (r, rest) =
     switch (Ctx.pull(~from=R, rest)) {
     | (Node(tok), _) when Token.Space.is(tok) => (Delim.root, rest)
+    | (Node(tok), _) when tok.text == "" => (Delim.root, rest)
     | (r, rest) => (r, rest)
     };
   let merges = Delim.merges(l, r);
@@ -95,7 +97,7 @@ let relabel =
          | _ => Chain.link(Cell.dirty, tok, c)
          }
        );
-  (normalized, rest);
+  (normalized, Ctx.button(rest));
 };
 
 // returned flag indicates whether the token was removed

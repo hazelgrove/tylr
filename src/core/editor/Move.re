@@ -69,7 +69,7 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       |> Ctx.push(~onto=b, stepped)
       |> (exited ? Fun.id : Ctx.push(~onto=d, stepped));
     };
-  Zipper.(button(mk(ctx)));
+  Zipper.mk(Ctx.button(ctx));
 };
 let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
   let step = (d, z) =>

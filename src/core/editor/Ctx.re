@@ -169,3 +169,42 @@ let zip_step =
       Some((rel, zipped, link(~open_, (l, r), ctx)))
     }
   };
+
+// processes open hd of ctx to explicate any latent closed frames. unlike zip,
+// button goes top-down and does not require a syntactically complete cell to start.
+let button = (ctx: t): t => {
+  let ((dn, up), tl) = uncons(ctx);
+  let rec go = (~ctx, (rev_dn, rev_up)) =>
+    switch (rev_dn, rev_up) {
+    | ([], []) => ctx
+    | ([], [hd, ...tl]) =>
+      let ctx = map_hd(Frame.Open.cons(~onto=R, hd), ctx);
+      go(~ctx, (rev_dn, tl));
+    | ([hd, ...tl], []) =>
+      let ctx = map_hd(Frame.Open.cons(~onto=L, hd), ctx);
+      go(~ctx, (tl, rev_up));
+    | ([l, ...tl], [r, ..._]) when Melder.lt(l.wald, r.wald) =>
+      let ctx = map_hd(Frame.Open.cons(~onto=L, l), ctx);
+      go(~ctx, (tl, rev_up));
+    | ([l, ..._], [r, ...tl]) when Melder.gt(l.wald, r.wald) =>
+      let ctx = map_hd(Frame.Open.cons(~onto=R, r), ctx);
+      go(~ctx, (rev_dn, tl));
+    | ([l, ...tl_l], [r, ...tl_r])
+        when
+          Token.merges(Terr.face(l), Terr.face(r))
+          || Mtrl.(
+               is_space(Terr.face(l).mtrl) && is_space(Terr.face(r).mtrl)
+             )
+          || !Melder.eq(l.wald, r.wald) =>
+      let ctx =
+        ctx
+        |> map_hd(Frame.Open.cons(~onto=L, l))
+        |> map_hd(Frame.Open.cons(~onto=R, r));
+      go(~ctx, (tl_l, tl_r));
+    | ([l, ...tl_l], [r, ...tl_r]) =>
+      assert(Melder.eq(l.wald, r.wald));
+      let ctx = link((l, r), ctx);
+      go(~ctx, (tl_l, tl_r));
+    };
+  go(~ctx=cons(Frame.Open.empty, tl), (List.rev(dn), List.rev(up)));
+};

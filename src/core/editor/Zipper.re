@@ -253,14 +253,6 @@ let path_of_ctx = (ctx: Ctx.t) => {
 // tries zipping and unzipping to cursor
 let load_cursor = (z: t) => unzip(zip(z));
 
-let button = (z: t): t => {
-  let (cell, ctx) = zip_init(~save_cursor=true, z);
-  let (hd, tl) = Ctx.uncons(ctx);
-  let cell = Frame.Open.zip(hd, ~zipped=cell);
-  let ctx = Ctx.cons(Frame.Open.empty, tl);
-  Option.get(unzip(cell, ~ctx));
-};
-
 let normalize = (~cell: Cell.t, path: Path.t): Path.t => {
   let cell = Cell.put_cursor(Point(Caret.focus(path)), cell);
   let zipped =
