@@ -91,14 +91,7 @@ let complete_bounded =
   let fc_from = bd_from |> Bound.map(t => Terr.face(t).mtrl);
   Walker.walk_eq(~from=onto, fc_onto, fc_from)
   |> Grouter.pick(~repair=true, [fill], ~from=onto)
-  |> Option.map(grouted =>
-       switch (bd_from, bd_onto) {
-       | (Node(t_from), Node(t_onto)) =>
-         // call connect_eq if possible in order to repad
-         Grouted.connect_eq(Terr.hd(t_from), grouted, t_onto) |> Terr.hd_cell
-       | _ => snd(Chain.hd(grouted))
-       }
-     )
+  |> Option.map(grouted => snd(Chain.hd(grouted)))
   |> Options.get_fail("hmmm");
 };
 
