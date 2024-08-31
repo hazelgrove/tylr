@@ -103,7 +103,7 @@ let path_of_loc =
     : Result.t(Path.t, State.t) => {
   open Result.Syntax;
   let rec go = (~state, t: Tree.t) => {
-    let s_end = State.jump_block(state, ~over=Tree.flatten(tree));
+    let s_end = State.jump_block(state, ~over=Tree.flatten(t));
     if (Loc.lt(s_end.loc, target)) {
       Error({...s_end, ind: state.ind});
     } else if (Loc.eq(s_end.loc, target)) {
