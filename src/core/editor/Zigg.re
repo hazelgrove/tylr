@@ -143,7 +143,7 @@ let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
   | Root =>
     let (tok, rest) = Wald.uncons(top);
     switch (rest) {
-    | ([], _) => (tok, Dir.pick(d, (of_up, of_dn), s_b))
+    | ([], _) => (tok, Dir.pick(b, (of_up, of_dn), s_b))
     | ([c, ...cs], ts) =>
       let s_d = Slope.unroll(~from=b, c);
       (tok, Some(unorient(d, (s_d, Wald.mk(ts, cs), s_b))));
