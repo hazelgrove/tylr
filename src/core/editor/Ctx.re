@@ -128,18 +128,17 @@ let push_wald = (~onto: Dir.t, w: Wald.t, ~fill=Cell.empty, ctx) =>
   push_wald_opt(~onto, w, ~fill, ctx)
   |> Options.get_exn(Invalid_argument("Ctx.push_wald"));
 
-let rec push_slope = (~onto: Dir.t, s: Slope.t, ~fill=Cell.empty, ctx: t) =>
+let rec push_slope =
+        (~onto: Dir.t, s: Slope.t, ~fill=Cell.empty, ctx: t): (Cell.t, t) =>
   switch (s) {
-  | [] => ctx
+  | [] => (fill, ctx)
   | [hd, ...tl] =>
     let ctx = push_wald(~onto, hd.wald, ~fill, ctx);
     push_slope(~onto, tl, ~fill=hd.cell, ctx);
   };
 let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
   let (s_d, top, s_b) = Zigg.orient(d, zigg);
-  let ctx = push_slope(~onto=d, s_d, ~fill, ctx);
-  // need to propagate given fill if push_slope did not incorporate
-  let fill = Stds.Lists.is_empty(s_d) ? fill : Cell.empty;
+  let (fill, ctx) = push_slope(~onto=d, s_d, ~fill, ctx);
   let ctx = push_wald(~onto=d, top, ~fill, ctx);
   let rest = Dir.order(d, (s_b, []));
   map_hd(Frame.Open.cat(rest), ctx);
