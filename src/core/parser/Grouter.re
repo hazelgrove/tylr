@@ -183,8 +183,6 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
       // let r = List.hd(Cells.squash(cs @ [r]));
       Cell.pad(~l, fill_default(bot), ~r);
     | (l, cs, r) =>
-      // todo: need to do some degrouting here now that degrout pass no longer
-      // handles convex grout
       let cells =
         cs
         |> (has_pre ? List.cons(l) : Lists.map_hd(Cell.pad(~l)))

@@ -154,9 +154,18 @@ module Space = {
         switch (l.meld) {
         | None => Fun.id
         | Some(m) =>
+          // Marks.map_paths(
+          //   Lists.map_hd((+)(2 * List.length(Meld.tokens(m)))),
+          // )
+          let shift = 2 * List.length(Meld.tokens(m));
           Marks.map_paths(
-            Lists.map_hd((+)(2 * List.length(Meld.tokens(m)))),
-          )
+            fun
+            | [] => {
+                assert(r.meld == None);
+                [shift];
+              }
+            | [hd, ...tl] => [hd + shift, ...tl],
+          );
         }
       )
       |> Marks.union(l.marks);
