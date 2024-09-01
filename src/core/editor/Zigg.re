@@ -115,13 +115,14 @@ let push =
     : Result.t(t, Slope.t) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
-  // let stack = Melder.Stack.mk(~slope=s_d, Node(top));
   switch (
     Melder.push(~onto=b, t, ~fill, s_d, ~bound=Node(Terr.of_wald(top)))
   ) {
   | Some(Eq(top)) => Ok(unorient(d, ([], top.wald, s_b)))
   | Some(Neq(s_d)) => Ok(unorient(d, (s_d, top, s_b)))
-  | None => Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)])
+  | None =>
+    let fill = Slope.roll(~onto=b, ~fill, s_d);
+    Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)]);
   };
 };
 // let push = (~side: Dir.t, tok: Token.t) =>
