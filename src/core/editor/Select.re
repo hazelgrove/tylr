@@ -79,7 +79,12 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       };
     let+ tok = Delim.is_tok(delim);
     let (stepped, exited) = hstep_tok(d, tok);
-    let sel = Selection.{focus: d, range: Zigg.of_tok(stepped)};
+    let zigg =
+      switch (z.cur) {
+      | Point(_) => Zigg.of_tok(stepped)
+      | Select(sel) => Zigg.grow(~side=sel.focus, stepped, sel.range)
+      };
+    let sel = Selection.{focus: d, range: zigg};
     let ctx =
       exited ? ctx_sans_delim : Ctx.push(~onto=d, stepped, ctx_sans_delim);
     Zipper.mk(~cur=Select(sel), ctx);
