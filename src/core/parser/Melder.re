@@ -40,7 +40,6 @@ let eq = (l: Wald.t, r: Wald.t) =>
 // assumes w is already oriented toward side.
 // used to complete zigg top when it takes precedence over pushed wald.
 let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
-  let _ = failwith("todo: review side arg in callers");
   let from = Dir.toggle(side);
   let exited = Walker.exit(~from, Node(Wald.face(w)));
   let baked = Grouter.pick(~repair=true, ~from, [fill], exited);
