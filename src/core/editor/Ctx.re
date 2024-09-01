@@ -141,7 +141,7 @@ let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
   // need to propagate given fill if push_slope did not incorporate
   let fill = Stds.Lists.is_empty(s_d) ? fill : Cell.empty;
   let ctx = push_wald(~onto=d, top, ~fill, ctx);
-  let rest = Dir.order(d, ([], s_b));
+  let rest = Dir.order(d, (s_b, []));
   map_hd(Frame.Open.cat(rest), ctx);
 };
 
