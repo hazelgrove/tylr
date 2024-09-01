@@ -34,9 +34,8 @@ module Site = {
   type t =
     | Between
     | Within(Token.t);
-  module Cursor = {
-    type nonrec t = Cur.t(t, (t, t));
-  };
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type cursor = Cur.t(t, (t, t));
 };
 
 // todo: document potential same-id token on either side of caret
@@ -57,7 +56,7 @@ let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
 let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
   mk(unroll(side, cell, ~ctx));
 
-let cursor_site = (z: t): (Site.Cursor.t, Ctx.t) =>
+let cursor_site = (z: t): (Site.cursor, Ctx.t) =>
   switch (z.cur) {
   | Point(_) =>
     let (l, ctx) = Ctx.pull(~from=L, z.ctx);
