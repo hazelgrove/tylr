@@ -163,12 +163,43 @@ let finalize = (~mode=Mode.Navigating, ~fill=Cell.dirty, ctx: Ctx.t): Zipper.t =
   Zipper.unzip_exn(repadded, ~ctx);
 };
 
-let try_move = (s: string, z: Zipper.t) =>
-  switch (s, Ctx.face(~side=R, z.ctx)) {
-  | (" ", Node(tok)) when String.starts_with(~prefix=" ", tok.text) =>
-    Move.perform(Step(H(R)), z)
-  | _ => None
+let try_space = (s: string, z: Zipper.t) => {
+  open Options.Syntax;
+  let* () = Options.of_bool(Labeler.is_space(s));
+  // first try moving over space to right
+  let/ () =
+    switch (s, Ctx.face(~side=R, z.ctx)) {
+    | (" ", Node(tok)) when String.starts_with(~prefix=" ", tok.text) =>
+      Move.perform(Step(H(R)), z)
+    | _ => None
+    };
+  // otherwise fast path for inserting space between toks or within space tok
+  let (sites, ctx) = Zipper.cursor_site(z);
+  let* site = Cursor.get_point(sites);
+  switch (site) {
+  | Between =>
+    let tok = Token.mk(Space(White(Usr)), ~text=s);
+    let ctx = Ctx.push(~onto=L, tok, ctx);
+    return(Zipper.mk(ctx));
+  | Within(tok) =>
+    switch (tok.mtrl) {
+    | Tile(_)
+    | Grout(_)
+    | Space(Unmolded) => None
+    | Space(White(Usr)) =>
+      let (l, _, r) = Option.get(Token.split_text(tok));
+      let n = Utf8.length(l ++ s);
+      let tok = {
+        ...tok,
+        text: l ++ s ++ r,
+        marks: Some(Point(Caret.focus(n))),
+      };
+      let ctx = ctx |> Ctx.push(~onto=L, tok) |> Ctx.push(~onto=R, tok);
+      return(Zipper.mk(ctx));
+    | Space(White(Sys)) => failwith("todo: multi-char sys space")
+    }
   };
+};
 
 let extend = (~side=Dir.R, s: string, tok: Token.t) =>
   switch (tok.mtrl) {
@@ -399,7 +430,7 @@ let insert = (s: string, z: Zipper.t) => {
   open Options.Syntax;
   let z = delete_sel(L, z);
 
-  let- () = try_move(s, z);
+  let- () = try_space(s, z);
   let- () = try_extend(s, z);
   let- () = try_expand(s, z);
 
