@@ -93,9 +93,3 @@ let single = (s: string): option(Token.Unmolded.t) =>
   | [tok] => Some(tok)
   | _ => None
   };
-
-let is_space = (s: string): bool =>
-  switch (label(s)) {
-  | [{mtrl: Space(White(Usr)), _}] => true
-  | _ => false
-  };
