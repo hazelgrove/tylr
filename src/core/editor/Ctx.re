@@ -35,6 +35,8 @@ let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) =>
   | (Some(l), None) => map_hd(Frame.Open.cons(~onto=L, l))
   | (Some(l), Some(r)) =>
     Token.merges(Terr.hd(l), Terr.hd(r))
+    || Mtrl.is_space(Terr.hd(l).mtrl)
+    && Mtrl.is_space(Terr.hd(r).mtrl)
       ? map_hd(((dn, up)) => ([l, ...dn], [r, ...up])) : link((l, r))
   };
 
