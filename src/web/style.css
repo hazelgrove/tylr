@@ -99,6 +99,10 @@
   opacity: 40%;
 }
 
+.tile.match {
+  font-weight: bold;
+}
+
 #page {
   overflow-x: auto;
   overflow-y: auto;

@@ -22,16 +22,18 @@ let view_space = spc =>
   |> String.concat("");
 
 let view_tok = (tok: Token.t) => {
-  let mtrl_cls =
+  let mtrl_clss =
     switch (tok.mtrl) {
     // todo: distinguish whitespace from unmolded styling
-    | Space(_) => "space"
-    | Grout(_) => "grout"
-    | Tile(_) => "tile"
+    | Space(_) => ["space"]
+    | Grout(_) => ["grout"]
+    | Tile((_, mold)) =>
+      Mold.(t_nullable(~side=L, mold) && t_nullable(~side=R, mold))
+        ? ["tile"] : ["tile", "match"]
     };
   let attrs =
     Attr.[
-      classes(["token", mtrl_cls]),
+      classes(["token", ...mtrl_clss]),
       title(Sexplib.Sexp.to_string_hum(Token.sexp_of_t(tok))),
     ];
   let nodes =
