@@ -342,10 +342,12 @@
   vector-effect: non-scaling-stroke;
 }
 .child-line.Exp {
-  stroke: var(--exp-shadow-color);
+  /* stroke: var(--exp-shadow-color); */
+  stroke: var(--exp-bg-color);
 }
 .child-line.Pat {
-  stroke: var(--pat-shadow-color);
+  /* stroke: var(--pat-shadow-color); */
+  stroke: var(--pat-bg-color);
 }
 
 
