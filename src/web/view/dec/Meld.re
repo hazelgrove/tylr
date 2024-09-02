@@ -52,7 +52,7 @@ let mk_lines = (~font, prof: Profile.t) =>
       |> Base.List.group(~break=(l: T.Profile.t, r: T.Profile.t) =>
            l.loc.row != r.loc.row
          );
-    let intra_row_lines =
+    let h_lines =
       tok_rows
       |> List.map(Stds.Lists.neighbors)
       |> List.concat_map(
@@ -68,7 +68,28 @@ let mk_lines = (~font, prof: Profile.t) =>
              |> Box.mk(~font, ~loc={...l.loc, col: l.loc.col + l.len})
            ),
          );
-    intra_row_lines;
+    let v_lines =
+      Stds.Lists.neighbors(tok_rows)
+      |> List.map(((l: list(T.Profile.t), r: list(T.Profile.t))) => {
+           assert(l != [] && r != []);
+           let l_start = List.hd(l).loc;
+           let r_start = List.hd(r).loc;
+           // should this line extend to top or bottom of row r?
+           let v_delta = r_start.col == prof.indent ? (-1) : 0;
+           // if the line extends to bottom, adjust to account for concave tip
+           let h_delta = r_start.col == prof.indent ? 0. : -. T.concave_adj;
+           Util.Svgs.Path.[
+             m(~x=0, ~y=1),
+             h_(~dx=prof.indent - l_start.col),
+             v_(~dy=r_start.row - l_start.row + v_delta),
+             H_({dx: Float.of_int(r_start.col - prof.indent) +. h_delta}),
+           ]
+           |> Util.Svgs.Path.view
+           |> Util.Nodes.add_classes(["child-line", Sort.to_str(s)])
+           |> Stds.Lists.single
+           |> Box.mk(~font, ~loc=l_start);
+         });
+    h_lines @ v_lines;
   };
 
 let mk = (~font, prof: Profile.t) =>
