@@ -9,6 +9,12 @@ module Profile = {
     tokens: list(T.Profile.t),
   };
 
+  let sort = (p: t) =>
+    switch (p.tokens) {
+    | [] => failwith("meld profile with no tokens")
+    | [hd, ..._] => hd.style |> Option.map((style: T.Style.t) => style.sort)
+    };
+
   let mk =
       (
         ~state: L.State.t,
@@ -37,4 +43,33 @@ module Profile = {
   };
 };
 
-let mk = (~font, prof: Profile.t) => List.map(T.mk(~font), prof.tokens);
+let mk_lines = (~font, prof: Profile.t) =>
+  switch (Profile.sort(prof)) {
+  | None => []
+  | Some(s) =>
+    let tok_rows =
+      prof.tokens
+      |> Base.List.group(~break=(l: T.Profile.t, r: T.Profile.t) =>
+           l.loc.row != r.loc.row
+         );
+    let intra_row_lines =
+      tok_rows
+      |> List.map(Stds.Lists.neighbors)
+      |> List.concat_map(
+           List.map(((l: T.Profile.t, r: T.Profile.t)) =>
+             Util.Svgs.Path.[
+               m(~x=0, ~y=1) |> cmdfudge(~x=T.concave_adj),
+               h(~x=r.loc.col - (l.loc.col + l.len))
+               |> cmdfudge(~x=-. T.concave_adj),
+             ]
+             |> Util.Svgs.Path.view
+             |> Util.Nodes.add_classes(["child-line", Sort.to_str(s)])
+             |> Stds.Lists.single
+             |> Box.mk(~font, ~loc={...l.loc, col: l.loc.col + l.len})
+           ),
+         );
+    intra_row_lines;
+  };
+
+let mk = (~font, prof: Profile.t) =>
+  List.map(T.mk(~font), prof.tokens) @ mk_lines(~font, prof);

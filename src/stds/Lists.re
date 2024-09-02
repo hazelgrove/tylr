@@ -136,3 +136,10 @@ let fold_left = Base.List.fold_left;
 let fold_right = Base.List.fold_right;
 
 let fold_map = Base.List.fold_map;
+
+let rec neighbors = (xs: list('x)): list(('x, 'x)) =>
+  switch (xs) {
+  | []
+  | [_] => []
+  | [x1, x2, ...xs] => [(x1, x2), ...neighbors([x2, ...xs])]
+  };
