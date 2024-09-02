@@ -31,15 +31,25 @@ module Cell = {
     // todo: unify this with Oblig module
     obligs: Path.Map.t(Mtrl.T.t),
     dirty: Path.Map.t(unit),
+    // TODO: add degrouted field
+    degrouted: bool,
   };
-  let mk = (~cursor=?, ~obligs=Path.Map.empty, ~dirty=Path.Map.empty, ()) => {
+  let mk =
+      (
+        ~cursor=?,
+        ~obligs=Path.Map.empty,
+        ~dirty=Path.Map.empty,
+        ~degrouted=false,
+        (),
+      ) => {
     cursor,
     obligs,
     dirty,
+    degrouted,
   };
   let empty = mk();
   let is_empty = (==)(empty);
-  let pp = (out, {cursor, obligs, dirty} as marks) =>
+  let pp = (out, {cursor, obligs, dirty, degrouted} as marks) =>
     if (is_empty(marks)) {
       Fmt.nop(out, marks);
     } else if (Option.is_none(cursor) && Path.Map.is_empty(dirty)) {
@@ -49,13 +59,14 @@ module Cell = {
     } else {
       Fmt.pf(
         out,
-        "cursor: %a,@ obligs: %a,@ dirty: %a",
+        "cursor: %a,@ obligs: %a,@ dirty: %a,@ degrouted: %b",
         Fmt.option(Path.Cursor.pp),
         cursor,
         Path.Map.pp(Mtrl.T.pp),
         obligs,
         Path.Map.pp(Fmt.sp),
         dirty,
+        degrouted,
       );
     };
   let show = Fmt.to_to_string(pp);
@@ -76,10 +87,11 @@ module Cell = {
   let dirty = mk(~dirty=Path.Map.singleton(Path.empty, ()), ());
   let mark_clean = marks => {...marks, dirty: Path.Map.empty};
 
-  let map = (f_cursor, f_obligs, f_dirty, {cursor, obligs, dirty}) => {
+  let map = (f_cursor, f_obligs, f_dirty, {cursor, obligs, dirty, degrouted}) => {
     cursor: f_cursor(cursor),
     obligs: f_obligs(obligs),
     dirty: f_dirty(dirty),
+    degrouted,
   };
   let cons = n =>
     map(
@@ -103,6 +115,7 @@ module Cell = {
     cursor: Options.merge(~f=Path.Cursor.union, l.cursor, r.cursor),
     obligs: Path.Map.union((_, t, _) => Some(t), l.obligs, r.obligs),
     dirty: Path.Map.union((_, (), ()) => Some(), l.dirty, r.dirty),
+    degrouted: l.degrouted || r.degrouted,
   };
   let union_all = List.fold_left(union, empty);
 

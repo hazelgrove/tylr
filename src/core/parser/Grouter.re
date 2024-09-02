@@ -5,25 +5,17 @@ open Stds;
 let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
   switch (Cell.get(c)) {
   | None => Cell.(empty, c, empty)
-  | Some(M(l, w, r) as m) when Option.is_some(Meld.Space.get(m)) =>
+  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
     switch (side) {
     | L =>
-      switch (Wald.unlink(w)) {
-      | Error(_) => Cell.(c, empty, empty)
-      | Ok((spc, c, rest)) =>
-        // pull off c with padding in case it has caret to simplify subsequent
-        // decision making about where to insert grout relative to caret
-        let pad_l = Cell.put(Meld.of_tok(~l, spc, ~r=c));
-        let rest = Cell.put(Meld.mk(rest, ~r));
-        (pad_l, rest, Cell.empty);
+      switch (Cell.Space.split(c)) {
+      | None => Cell.(c, empty, empty)
+      | Some((l, r)) => (l, r, Cell.empty)
       }
     | R =>
-      switch (Wald.unlink(Wald.rev(w))) {
-      | Error(_) => Cell.(empty, empty, c)
-      | Ok((spc, c, rest)) =>
-        let rest = Cell.put(Meld.mk(~l, Wald.rev(rest)));
-        let pad_r = Cell.put(Meld.of_tok(~l=c, spc, ~r));
-        (Cell.empty, rest, pad_r);
+      switch (Cell.Space.split(c)) {
+      | None => Cell.(empty, empty, c)
+      | Some((l, r)) => (Cell.empty, l, r)
       }
     }
   | Some(M(l, w, r)) =>
@@ -82,14 +74,14 @@ module Cells = {
       | [c, ...cs] =>
         let (l, c, _) = split_cell_padding(~side=L, c);
         (l, cons(c, cs));
-      | _ => (Cell.empty, cs)
+      | [] => (Cell.empty, cs)
       };
     let (cs, r) =
       switch (Lists.Framed.ft(cs)) {
       | Some((cs, c)) =>
         let (_, c, r) = split_cell_padding(c, ~side=R);
         (List.rev(cons(c, cs)), r);
-      | _ => (cs, Cell.empty)
+      | None => (cs, Cell.empty)
       };
     (l, cs, r);
   };
@@ -117,22 +109,25 @@ let rec degrout = (c: Cell.t): Cells.t =>
   | Some(M(l, w, r)) when Option.is_some(Wald.is_grout(w)) =>
     let W((toks, cells)) = w;
     List.iter(Effects.remove, toks);
-    // if there is leftover padding at the ends, pad it onto the inner cells
-    // (or, in the case of convex grout, merge the padding into a single cell)
-    // and pull off this padding later if grout is reinserted, the goal being
-    // to maximally stabilize grout positioning
+    // we wish to maximally stabilize grout positioning, ie grout that is removed
+    // in this pass, if reinserted, should be reinserted in the same position.
+    // we know that any cells within the wald w are not space, while the cells
+    // l and r may be space. if either is space, pad them onto the inner cells (or
+    // if no such inner cells, then merge l and r into a single space cell).
+    // apply this padding with ~squash=false so that they can be pulled off later
+    // when determining grout position.
     let cells_l =
       switch (cells) {
-      | [hd, ...tl] when Cell.Space.is_space(l) => [
-          Cell.pad(~squash=false, ~l, hd),
-          ...tl,
-        ]
+      | [hd, ...tl] when Cell.Space.is_space(l) =>
+        let l = Cell.mark_degrouted(l, ~side=R);
+        [Cell.pad(~squash=false, ~l, hd), ...tl];
       | _ => [l, ...cells]
       };
     let cells_lr =
       switch (Lists.Framed.ft(cells_l)) {
       | Some((pre, ft)) when Cell.Space.is_space(r) =>
-        Lists.Framed.put_ft(pre, Cell.pad(~squash=false, ft, ~r))
+        let r = Cell.mark_degrouted(~side=L, r);
+        Lists.Framed.put_ft(pre, Cell.pad(~squash=false, ft, ~r));
       | _ => cells_l @ [r]
       };
     List.concat_map(degrout, cells_lr);
@@ -231,5 +226,6 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
 // pick a walk from ws that best accommodates the cells in cs, ie minimizes
 // obligation delta. the given cells are expected to be oriented the same way as the
 // given walks according to from.
-let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) =>
+let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) => {
   Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);
+};

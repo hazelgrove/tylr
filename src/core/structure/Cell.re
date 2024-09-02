@@ -25,6 +25,22 @@ let add_marks = marks => map_marks(Marks.union(marks));
 let clear_marks = cell => {...cell, marks: Marks.empty};
 let pop_marks = cell => (cell.marks, clear_marks(cell));
 
+let rec mark_degrouted = (~side: Dir.t, c: t) =>
+  switch (c.meld) {
+  | None =>
+    let marks = {...c.marks, degrouted: true};
+    {...c, marks};
+  | Some(M(l, w, r)) =>
+    switch (side) {
+    | L =>
+      let l = mark_degrouted(~side, l);
+      {...c, meld: Some(M(l, w, r))};
+    | R =>
+      let r = mark_degrouted(~side, r);
+      {...c, meld: Some(M(l, w, r))};
+    }
+  };
+
 let rec end_path = (~side: Dir.t, c: t) =>
   switch (c.meld) {
   | None => Path.empty
@@ -137,12 +153,44 @@ module Space = {
     | _ => c
     };
 
+  let g = get;
   let get = (c: t) =>
     switch (get(c)) {
     | None => Some([])
     | Some(m) => Meld.Space.get(m)
     };
   let is_space = c => Option.is_some(get(c));
+
+  let unmark_degrouted = (c: t) => {
+    let marks = {...c.marks, degrouted: false};
+    {...c, marks};
+  };
+
+  let mk = (cs: list(t), ts: list(Token.t)) =>
+    switch (cs, ts) {
+    | ([c], []) => c
+    | _ => put(Meld.of_chain((cs, ts)))
+    };
+
+  let split = (c: t) => {
+    open Options.Syntax;
+    assert(is_space(c));
+    let* m = g(c);
+    let (cs, ts) = Meld.to_chain(m);
+    let (cs_l, cs_r) =
+      cs |> Base.List.split_while(~f=(c: t) => !c.marks.degrouted);
+    switch (cs_l, cs_r) {
+    | ([], _) =>
+      let cs = List.map(unmark_degrouted, cs);
+      Some((empty, put(Meld.of_chain((cs, ts)))));
+    | (_, []) => None
+    | ([_, ..._], [_, ..._]) =>
+      let (ts_l, ts_r) = Base.List.split_n(ts, List.length(cs_l));
+      let cs_l = List.map(unmark_degrouted, cs_l) @ [empty];
+      let cs_r = List.map(unmark_degrouted, cs_r);
+      Some((mk(cs_l, ts_l), mk(cs_r, ts_r)));
+    };
+  };
 
   let merge = (l: t, ~fill=empty, r: t) => {
     if (!is_space(l) || !is_space(r)) {
