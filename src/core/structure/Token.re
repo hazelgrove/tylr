@@ -294,7 +294,8 @@ let unmold = (~relabel=true, tok: Molded.t): Unmolded.t => {
     | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
     | Tile((lbl, _)) =>
       Tile(
-        is_empty(tok) || !relabel ? [lbl] : Labels.completions(tok.text),
+        is_empty(tok) || !relabel
+          ? [lbl] : [lbl, ...Labels.completions(tok.text)],
       )
     };
   // todo: may need to fix token marks if marks happen to have caret at right end

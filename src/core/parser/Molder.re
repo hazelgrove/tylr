@@ -37,6 +37,7 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
 module Melded = Melder.Melded;
 
 module Molded = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
     | Molded(Melded.t)
     | Deferred(Melded.t)
