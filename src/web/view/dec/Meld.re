@@ -52,15 +52,16 @@ let mk_lines = (~font, prof: Profile.t) =>
       |> Base.List.group(~break=(l: T.Profile.t, r: T.Profile.t) =>
            l.loc.row != r.loc.row
          );
+    let h_trunc = 0.15;
     let h_lines =
       tok_rows
       |> List.map(Stds.Lists.neighbors)
       |> List.concat_map(
            List.map(((l: T.Profile.t, r: T.Profile.t)) =>
              Util.Svgs.Path.[
-               m(~x=0, ~y=1) |> cmdfudge(~x=T.concave_adj),
+               m(~x=0, ~y=1) |> cmdfudge(~x=T.concave_adj +. h_trunc),
                h(~x=r.loc.col - (l.loc.col + l.len))
-               |> cmdfudge(~x=-. T.concave_adj),
+               |> cmdfudge(~x=-. T.concave_adj -. h_trunc),
              ]
              |> Util.Svgs.Path.view
              |> Util.Nodes.add_classes(["child-line", Sort.to_str(s)])
@@ -68,20 +69,21 @@ let mk_lines = (~font, prof: Profile.t) =>
              |> Box.mk(~font, ~loc={...l.loc, col: l.loc.col + l.len})
            ),
          );
+    let v_trunc = 0.05;
     let v_lines =
       Stds.Lists.neighbors(tok_rows)
       |> List.map(((l: list(T.Profile.t), r: list(T.Profile.t))) => {
            assert(l != [] && r != []);
            let l_start = List.hd(l).loc;
            let r_start = List.hd(r).loc;
-           // should this line extend to top or bottom of row r?
-           let v_delta = r_start.col == prof.indent ? (-1) : 0;
+           // should this line extend to top or bottom (respectively) of row r?
+           let v_delta =
+             r_start.col == prof.indent ? -. (1. +. 2. *. v_trunc) : 0.;
            // if the line extends to bottom, adjust to account for concave tip
            let h_delta = r_start.col == prof.indent ? 0. : -. T.concave_adj;
            Util.Svgs.Path.[
-             m(~x=0, ~y=1),
-             h_(~dx=prof.indent - l_start.col),
-             v_(~dy=r_start.row - l_start.row + v_delta),
+             m(~x=0, ~y=1) |> cmdfudge(~y=v_trunc),
+             V_({dy: Float.of_int(r_start.row - l_start.row) +. v_delta}),
              H_({dx: Float.of_int(r_start.col - prof.indent) +. h_delta}),
            ]
            |> Util.Svgs.Path.view

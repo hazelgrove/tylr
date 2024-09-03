@@ -337,17 +337,17 @@
 }
 
 .child-line {
-  stroke-width: 1;
+  stroke-width: 3;
   fill: none;
   vector-effect: non-scaling-stroke;
 }
 .child-line.Exp {
-  /* stroke: var(--exp-shadow-color); */
-  stroke: var(--exp-bg-color);
+  stroke: var(--exp-shadow-color);
+  /* stroke: var(--exp-bg-color); */
 }
 .child-line.Pat {
-  /* stroke: var(--pat-shadow-color); */
-  stroke: var(--pat-bg-color);
+  stroke: var(--pat-shadow-color);
+  /* stroke: var(--pat-bg-color); */
 }
 
 
