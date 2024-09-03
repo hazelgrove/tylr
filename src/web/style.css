@@ -349,6 +349,9 @@
   stroke: var(--pat-shadow-color);
   /* stroke: var(--pat-bg-color); */
 }
+.child-line.Space {
+  display: none;
+}
 
 
 /*TODO(andrew): clean up text classes*/

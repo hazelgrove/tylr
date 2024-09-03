@@ -37,7 +37,9 @@ let is_grout = (w: t): option(list(Token.Grout.t)) =>
 
 let extend = tl => map(Chain.extend(tl));
 
-let sort = w => Token.sort(hd(w));
+let sort = w =>
+  Token.sort(hd(w))
+  |> Mtrl.map(~space=Fun.const(), ~grout=Fun.id, ~tile=Fun.id);
 
 let fold = (f, g, W(w)) => Chain.fold_left(f, g, w);
 
