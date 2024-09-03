@@ -337,7 +337,7 @@
 }
 
 .child-line {
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-linecap: round;
   fill: none;
   vector-effect: non-scaling-stroke;
@@ -410,7 +410,7 @@
 }
 
 .tok-bar {
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }

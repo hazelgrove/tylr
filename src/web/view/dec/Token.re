@@ -97,7 +97,7 @@ let top_bar = (style: Style.t, length: int): Node.t => {
 let mk = (prof: Profile.t) =>
   prof.style
   |> Option.map(style =>
-       [top_bar(style, prof.len), hexagon(style, prof.len)]
+       [hexagon(style, prof.len), top_bar(style, prof.len)]
      )
   |> Option.to_list
   |> List.concat
