@@ -27,11 +27,14 @@ module Path = {
     | V({y: float})
     | V_({dy: float})
     | A_({
+        // x-axis rotation
+        rotation: float,
+        // large or small arc
+        large_arc: bool,
+        // clockwise (true) or counterclockwise (false)
+        sweep: bool,
         rx: float,
         ry: float,
-        x_axis_rotation: float,
-        large_arc_flag: bool,
-        sweep_flag: bool,
         dx: float,
         dy: float,
       });
@@ -93,14 +96,14 @@ module Path = {
     | H_({dx}) => Printf.sprintf("h %f", dx)
     | V({y}) => Printf.sprintf("V %f", y)
     | V_({dy}) => Printf.sprintf("v %f", dy)
-    | A_({rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, dx, dy}) =>
+    | A_({rx, ry, rotation, large_arc, sweep, dx, dy}) =>
       Printf.sprintf(
         "a %f %f %f %s %s %f %f",
         rx,
         ry,
-        x_axis_rotation,
-        string_of_flag(large_arc_flag),
-        string_of_flag(sweep_flag),
+        rotation,
+        string_of_flag(large_arc),
+        string_of_flag(sweep),
         dx,
         dy,
       );

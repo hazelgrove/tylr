@@ -409,9 +409,18 @@
   filter: url(#raised-drop-shadow-Nul) !important;
 }
 
+.tok-bar {
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
-  filter: url(#raised-drop-shadow-Exp);
+  /* filter: url(#raised-drop-shadow-Exp); */
+}
+.tok-bar.Exp {
+  stroke: var(--exp-shadow-color);
 }
 
 .tile-path.Any.indicated {
@@ -451,7 +460,10 @@
 
 .tile-path.Pat {
   /*stroke: var(--pat-shadow-color);*/
-  filter: url(#raised-drop-shadow-Pat);
+  /* filter: url(#raised-drop-shadow-Pat); */
+}
+.tok-bar.Pat {
+  stroke: var(--pat-shadow-color);
 }
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);

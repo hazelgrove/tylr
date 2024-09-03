@@ -60,26 +60,47 @@ let tip = (t: Tip.t): Path.t => [
   H_({dx: -. adj(t)}),
 ];
 
-let path = ((l, r): Tip.s, length: int): Path.t =>
+let hexagon = (style: Style.t, length: int): Node.t =>
   List.flatten([
     Path.[m(~x=0, ~y=0), h(~x=length)],
-    tip(r),
+    tip(snd(style.shape)),
     Path.[h(~x=0)],
-    Path.scale(-1., tip(l)),
-  ]);
+    Path.scale(-1., tip(fst(style.shape))),
+  ])
+  |> Util.Svgs.Path.view
+  |> Util.Nodes.add_classes([
+       "tile-path",
+       "raised",
+       "indicated",
+       Sort.to_str(style.sort),
+     ]);
+let top_bar = (style: Style.t, length: int): Node.t => {
+  // we draw this bar with rounded linecaps so need to truncate length
+  // to get rounded ends to align with the hexagon vertices
+  let roundcap_trunc = 0.15;
+  Util.Svgs.Path.view(
+    Path.[
+      M({y: 0., x: -. adj(fst(style.shape)) +. roundcap_trunc}),
+      H_({
+        dx:
+          Float.of_int(length)
+          +. adj(fst(style.shape))
+          +. adj(snd(style.shape))
+          -. 2.
+          *. roundcap_trunc,
+      }),
+    ],
+  )
+  |> Util.Nodes.add_classes(["tok-bar", Sort.to_str(style.sort)]);
+};
 
 let mk = (prof: Profile.t) =>
   prof.style
-  |> Option.map((Style.{sort, shape}) =>
-       Util.Svgs.Path.view(path(shape, prof.len))
-       |> Util.Nodes.add_classes([
-            "tile-path",
-            "raised",
-            "indicated",
-            Sort.to_str(sort),
-          ])
+  |> Option.map(style =>
+       [top_bar(style, prof.len), hexagon(style, prof.len)]
      )
   |> Option.to_list
+  |> List.concat
   |> Box.mk(~loc=prof.loc);
 
 let drop_shadow = (sort: Sort.t) =>
