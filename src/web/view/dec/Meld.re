@@ -65,7 +65,7 @@ let mk_lines = (~font, p: Profile.t) =>
       |> Base.List.group(~break=((_, l: T.Profile.t), (_, r: T.Profile.t)) =>
            l.loc.row != r.loc.row
          );
-    let h_trunc = 0.15;
+    let h_trunc = 0.3;
     let h_lines =
       tok_rows
       |> List.map(Stds.Lists.neighbors)
@@ -85,7 +85,7 @@ let mk_lines = (~font, p: Profile.t) =>
              |> Box.mk(~font, ~loc={...l.loc, col: l.loc.col + l.len})
            ),
          );
-    let v_trunc = 0.05;
+    let v_trunc = 0.125;
     let v_lines =
       Stds.Lists.neighbors(tok_rows)
       |> List.map(

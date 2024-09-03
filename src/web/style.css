@@ -338,6 +338,7 @@
 
 .child-line {
   stroke-width: 3;
+  stroke-linecap: round;
   fill: none;
   vector-effect: non-scaling-stroke;
 }
