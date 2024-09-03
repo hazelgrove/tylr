@@ -1,3 +1,5 @@
+open Virtual_dom.Vdom;
+
 module T = Token;
 open Tylr_core;
 open Util;
@@ -65,8 +67,10 @@ let path = (shape: Shape.t) => {
   |> transpose({dx: adj(shape), dy: 0.});
 };
 
-let mk = (p: Profile.t) =>
+let mk = (~font, p: Profile.t) =>
   Svgs.Path.view(path(p.shape))
   |> Nodes.add_classes(["caret"])
   |> Stds.Lists.single
-  |> Box.mk(~loc=p.loc);
+  |> Box.mk(~font, ~loc=p.loc)
+  |> Stds.Lists.single
+  |> Node.div(~attrs=[Attr.class_("caret-container")]);

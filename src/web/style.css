@@ -973,6 +973,11 @@ svg {
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
+.caret-container {
+  position: relative;
+  z-index: var(--caret-z);
+}
+
 @keyframes blink {
   from, to {
     opacity: 100%;
