@@ -210,7 +210,7 @@ let view = (~inject, model: Model.t) => {
     [
       FontSpecimen.view("font-specimen"),
       // FontSpecimen.view("logo-font-specimen"),
-      Dec.DecUtil.filters,
+      Dec.Filters.all,
       // top_bar_view(~inject, model),
       // editor_caption_view(model),
       editor_view(model),

@@ -92,7 +92,7 @@ let drop_shadow = (sort: Sort.t) =>
         "feDropShadow",
         ~attrs=[
           Attr.classes(["tile-drop-shadow"]),
-          Attr.create("dx", shadow_dx),
+          Attr.create("dx", "0"),
           Attr.create("dy", shadow_dy),
           Attr.create("stdDeviation", "0"),
         ],
