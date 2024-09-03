@@ -35,8 +35,6 @@ let tip_width = 0.32;
 let concave_adj = 0.25;
 let convex_adj = (-0.13);
 
-let shadow_dx = "0.1";
-let shadow_dy = "0.037";
 let shadow_adj = 0.015;
 
 let child_border_thickness = 0.05;
@@ -93,8 +91,8 @@ let drop_shadow = (sort: Sort.t) =>
         ~attrs=[
           Attr.classes(["tile-drop-shadow"]),
           Attr.create("dx", "0"),
-          Attr.create("dy", shadow_dy),
-          Attr.create("stdDeviation", "0"),
+          Attr.create("dy", "-0.06"),
+          Attr.create("stdDeviation", "0.015"),
         ],
         [],
       ),

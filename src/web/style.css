@@ -411,7 +411,7 @@
 
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
-  /* filter: url(#drop-shadow-Exp); */
+  filter: url(#raised-drop-shadow-Exp);
 }
 
 .tile-path.Any.indicated {
@@ -451,7 +451,7 @@
 
 .tile-path.Pat {
   /*stroke: var(--pat-shadow-color);*/
-  /* filter: url(#drop-shadow-Pat); */
+  filter: url(#raised-drop-shadow-Pat);
 }
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
@@ -472,7 +472,7 @@
 
 .tile-path.Typ {
   /*stroke: var(--typ-shadow-color);*/
-  filter: url(#drop-shadow-Typ);
+  filter: url(#raised-drop-shadow-Typ);
 }
 .tile-path.Typ.indicated {
   fill: var(--typ-bg-color);
