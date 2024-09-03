@@ -82,7 +82,7 @@ let mk_lines = (~font, prof: Profile.t) =>
            // if the line extends to bottom, adjust to account for concave tip
            let h_delta = r_start.col == prof.indent ? 0. : -. T.concave_adj;
            Util.Svgs.Path.[
-             m(~x=0, ~y=1) |> cmdfudge(~y=v_trunc),
+             m(~x=0, ~y=1) |> cmdfudge(~x=-. T.concave_adj, ~y=v_trunc),
              V_({dy: Float.of_int(r_start.row - l_start.row) +. v_delta}),
              H_({dx: Float.of_int(r_start.col - prof.indent) +. h_delta}),
            ]
