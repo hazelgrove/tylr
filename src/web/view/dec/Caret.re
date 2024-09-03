@@ -49,28 +49,24 @@ let adj =
 
 let path = (shape: Shape.t) => {
   open Svgs.Path;
-  let width = 0.1;
+  // let width = 0.1;
   let run =
     switch (Shape.dir(shape)) {
     | None => 0.
     | Some(L) => -. T.tip_width
     | Some(R) => T.tip_width
     };
-  let tip = [L_({dx: run, dy: 0.5}), L_({dx: -. run, dy: 0.5})];
   List.concat([
-    [m(~x=0, ~y=0), H({x: width})],
-    tip,
-    [H({x: -. width})],
-    reverse(tip),
-    [Z],
+    [M({x: run, y: 0.5})],
+    // adjust scale of caret to account for rounded linecap/join
+    [L_({dx: -. run, dy: (-0.5)}), L_({dx: run, dy: 0.5})] |> scale(0.925),
+    [L_({dx: -. run, dy: 0.5}), L_({dx: run, dy: (-0.5)})] |> scale(0.925),
   ])
   |> transpose({dx: adj(shape), dy: 0.});
 };
 
 let mk = (p: Profile.t) =>
-  path(p.shape)
-  |> Svgs.Path.view(
-       ~attrs=[Attrs.style([("stroke", "none"), ("fill", "red")])],
-     )
+  Svgs.Path.view(path(p.shape))
+  |> Nodes.add_classes(["caret"])
   |> Stds.Lists.single
   |> Box.mk(~loc=p.loc);
