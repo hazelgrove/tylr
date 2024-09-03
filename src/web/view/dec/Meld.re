@@ -95,7 +95,7 @@ let mk_lines = (~font, p: Profile.t) =>
            let r_start = snd(List.hd(r)).loc;
            // should this line extend to top or bottom (respectively) of row r?
            let v_delta =
-             r_start.col == p.indent ? -. (1. +. 2. *. v_trunc) : 0.;
+             r_start.col == p.indent ? -. (1. +. 2. *. v_trunc) : -. v_trunc;
            // if the line extends to bottom, adjust to account for concave tip
            let h_delta = r_start.col == p.indent ? 0. : -. T.concave_adj;
            Util.Svgs.Path.[
