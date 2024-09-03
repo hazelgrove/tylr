@@ -98,11 +98,16 @@ let mk_lines = (~font, p: Profile.t) =>
              r_start.col == p.indent ? -. (1. +. 2. *. v_trunc) : -. v_trunc;
            // if the line extends to bottom, adjust to account for concave tip
            let h_delta = r_start.col == p.indent ? 0. : -. T.concave_adj;
-           Util.Svgs.Path.[
-             m(~x=0, ~y=1) |> cmdfudge(~x=-. T.concave_adj, ~y=v_trunc),
-             V_({dy: Float.of_int(r_start.row - l_start.row) +. v_delta}),
-             H_({dx: Float.of_int(r_start.col - p.indent) +. h_delta}),
-           ]
+           let dy = Float.of_int(r_start.row - l_start.row) +. v_delta;
+           let path =
+             dy < 0.5
+               ? []
+               : Util.Svgs.Path.[
+                   m(~x=0, ~y=1) |> cmdfudge(~x=-. T.concave_adj, ~y=v_trunc),
+                   V_({dy: dy}),
+                   H_({dx: Float.of_int(r_start.col - p.indent) +. h_delta}),
+                 ];
+           path
            |> Util.Svgs.Path.view
            |> Util.Nodes.add_classes([
                 "child-line",
