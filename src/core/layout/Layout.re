@@ -38,7 +38,7 @@ module State = {
   let jump_cell = (s: t, ~over: Tree.t) => {
     let ind = s.ind;
     let jumped = jump_block(s, ~over=Tree.flatten(over));
-    {...jumped, ind};
+    Tree.is_space(over) ? jumped : {...jumped, ind};
   };
   let jump_tok = jump_block;
 };

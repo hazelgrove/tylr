@@ -38,6 +38,11 @@ let of_chain = (c: Chain.t(t, Block.t)) => {
   M(l, W(w), r);
 };
 
+let is_space =
+  fun
+  | None => true
+  | Some(M(_, W(w), _)) => List.for_all(Block.is_space, Chain.loops(w));
+
 let rec end_path = (~side: Dir.t) =>
   fun
   | None => []
