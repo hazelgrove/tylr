@@ -26,7 +26,8 @@ module Profile = {
       ) => {
     let (null_l, null_r) = Cell.Space.(is_space(l), is_space(r));
     let (s_end, states) = Layout.states(~init=state, lyt);
-    let s_l = null_l ? L.State.jump_cell(state, ~over=t_l) : state;
+    let s_tok = L.State.jump_cell(state, ~over=t_l);
+    let s_l = null_l ? s_tok : state;
     let s_r = null_r ? Chain.ft(states) : s_end;
     let chain =
       Chain.combine(states, Meld.to_chain(m))
@@ -43,7 +44,7 @@ module Profile = {
            );
            T.Profile.mk(~loc=state.loc, ~null, tok);
          });
-    {indent: state.ind, range: (s_l.loc, s_r.loc), chain};
+    {indent: s_tok.ind, range: (s_l.loc, s_r.loc), chain};
   };
 };
 
