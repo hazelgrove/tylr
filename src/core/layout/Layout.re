@@ -137,6 +137,32 @@ let rec state_of_path =
         : (State.t, option(Tree.t)) =>
   switch (path) {
   | [] => (state, Some(tree))
+  // need to handle space separately because indentation is updated differently
+  | [hd, ...tl] when Tree.is_space(tree) =>
+    switch (
+      tree
+      |> Options.get_exn(Marks.Invalid)
+      |> Tree.to_chain
+      |> Chain.unzip(hd)
+    ) {
+    | Loop(((b_toks, _), t_cell, _)) =>
+      let state =
+        State.jump_block(state, ~over=Block.hcats(List.rev(b_toks)));
+      (state, Some(t_cell));
+    | Link(((_, b_toks), b_tok, _)) =>
+      switch (tl) {
+      | [] =>
+        let b = Block.hcats(List.rev(b_toks));
+        let s = State.jump_block(state, ~over=b);
+        (s, None);
+      | [hd, ..._] =>
+        let ind = state.ind;
+        let b = Block.hcats(List.rev(b_toks));
+        let s = State.jump_block(state, ~over=b);
+        let loc = loc_of_step(~state={...s, ind}, ~block=b_tok, hd);
+        ({...state, loc}, None);
+      }
+    }
   | [hd, ...tl] =>
     switch (
       tree
