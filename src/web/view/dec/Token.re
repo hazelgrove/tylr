@@ -77,7 +77,7 @@ let hexagon = (style: Style.t, length: int): Node.t =>
 let top_bar = (style: Style.t, length: int): Node.t => {
   // we draw this bar with rounded linecaps so need to truncate length
   // to get rounded ends to align with the hexagon vertices
-  let roundcap_trunc = 0.15;
+  let roundcap_trunc = 0.1;
   Util.Svgs.Path.view(
     Path.[
       M({y: 0., x: -. adj(fst(style.shape)) +. roundcap_trunc}),
