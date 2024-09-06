@@ -1,8 +1,12 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+
 open Virtual_dom.Vdom;
 open Tylr_core;
 open Util.Svgs;
 
 module Style = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
     sort: Sort.t,
     shape: Tip.s,
@@ -19,6 +23,7 @@ module Style = {
 };
 
 module Profile = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
     loc: Loc.t,
     len: int,

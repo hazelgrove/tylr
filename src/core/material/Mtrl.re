@@ -1,3 +1,6 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t('s, 'g, 't) =
@@ -34,6 +37,7 @@ let map = (~space, ~grout, ~tile) =>
   | Tile(t) => Tile(tile(t));
 
 module Sorted = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(unit, Sort.t, Sort.t);
   // currently used specifically for walk comparison based on
   // stance sorted mtrl at each prec level

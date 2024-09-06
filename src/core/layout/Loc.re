@@ -35,16 +35,6 @@ module Base = {
   let shift = (n, loc: t) => {...loc, col: loc.col + n};
 
   let return = (loc: t, ~ind: Col.t) => {row: loc.row + 1, col: ind};
-  // let skip = (pos: t, ~over: Dims.t, ~return: Col.t) => {
-  //   {
-  //     // let h = Dims.Height.total(over.height);
-  //     // let w = Dims.Width.total(over.width);
-  //     row: pos.row + over.height,
-  //     col:
-  //       (over.height > 0 ? return : pos.col) + Dims.Width.total(over.width),
-  //   };
-  //   p;
-  // };
 };
 include Base;
 
