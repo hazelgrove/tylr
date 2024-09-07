@@ -1,8 +1,11 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
+// to keep a reference to token dec
 module T = Token;
 open Tylr_core;
+
+// just for convenience
 module L = Layout;
 
 let sort_clss = (s: Mtrl.Sorted.t) =>
@@ -101,12 +104,9 @@ module Profile = {
     | [hd, ..._] => hd.style |> Option.map((style: T.Style.t) => style.sort)
     };
 
-  let mk =
-      (
-        ~state: L.State.t,
-        M(t_l, _, _) as lyt: L.Tree.meld,
-        M(l, _, r) as m: Meld.t,
-      ) => {
+  let mk = (~tree: L.Tree.t, ~path: Path.t, M(l, _, r) as m: Meld.t) => {
+    let (state, _) = L.state_of_path(~tree, path);
+    let M(t_l, _, _) as lyt = L.Tree.of_meld(m);
     let (null_l, null_r) = Cell.Space.(is_space(l), is_space(r));
     let (_, states) = Layout.states(~init=state, lyt);
     let s_tok = L.State.jump_cell(state, ~over=t_l);
