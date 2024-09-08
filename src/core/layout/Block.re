@@ -102,3 +102,24 @@ let of_tok = (tok: Token.t) =>
     |> List.map(text => line([{...tok, text}]))
     |> vcats
   };
+
+let rec flatten = (B(b): t) =>
+  b
+  |> Chain.map_loop(flatten_sec)
+  |> Chain.fold_left(Fun.id, (acc, ind, b) =>
+       vcat(acc, ~indent=ind, nest_tl(ind, b))
+     )
+and flatten_sec =
+  fun
+  | Section.Line(l) => sec(Line(l))
+  | Block(b) => flatten(b);
+
+let nth_line = (b: t, r: Loc.Row.t) => {
+  let B((secs, inds)) = flatten(b);
+  switch (List.nth(secs, r)) {
+  | Section.Block(_) => failwith("bug in flatten")
+  | Line(l) =>
+    let ind = r == 0 ? 0 : List.nth(inds, r - 1);
+    (ind, l);
+  };
+};

@@ -221,16 +221,18 @@ let states = (~init: State.t, m: Tree.meld) =>
        },
      );
 
-let row_ends = (~tree: Tree.t, row: Loc.Row.t): (Loc.Col.t, Loc.Col.t) => {
-  let (l, _) =
-    Loc.{row, col: 0}
-    |> path_of_loc(~tree)
-    |> Stds.Result.get_fail("unexpected")
-    |> state_of_path(~tree);
-  let (r, _) =
-    Loc.{row, col: Int.max_int}
-    |> path_of_loc(~tree)
-    |> Stds.Result.value(~default=Fun.const(Tree.end_path(tree, ~side=R)))
-    |> state_of_path(~tree);
-  (l.loc.col, r.loc.col);
-};
+// let row_ends = (~tree: Tree.t, row: Loc.Row.t): (Loc.Col.t, Loc.Col.t) => {
+//   let (l, _) =
+//     Loc.{row, col: 0}
+//     |> path_of_loc(~tree)
+//     |> Stds.Result.get_fail("unexpected")
+//     |> state_of_path(~tree);
+//   let (r, _) =
+//     Loc.{row, col: Int.max_int}
+//     |> path_of_loc(~tree)
+//     |> Stds.Result.value(~default=Fun.const(Tree.end_path(tree, ~side=R)))
+//     |> state_of_path(~tree);
+//   (l.loc.col, r.loc.col);
+// };
+let nth_line = (tree: Tree.t, r: Loc.Row.t) =>
+  Block.nth_line(Tree.flatten(tree), r);
