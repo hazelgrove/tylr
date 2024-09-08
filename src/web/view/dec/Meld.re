@@ -1,5 +1,6 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+open Stds;
 
 // to keep a reference to token dec
 module T = Token;
@@ -104,13 +105,24 @@ module Profile = {
     | [hd, ..._] => hd.style |> Option.map((style: T.Style.t) => style.sort)
     };
 
-  let mk = (~tree: L.Tree.t, ~path: Path.t, M(l, _, r) as m: Meld.t) => {
-    let (state, _) = L.state_of_path(~tree, path);
-    let M(t_l, _, _) as lyt = L.Tree.of_meld(m);
+  let mk = (~tree: L.Tree.t, ~path: Path.t, m: Meld.t) => {
+    let M(l, _, r) = m;
     let (null_l, null_r) = Cell.Space.(is_space(l), is_space(r));
-    let (_, states) = Layout.states(~init=state, lyt);
-    let s_tok = L.State.jump_cell(state, ~over=t_l);
     let n = Meld.length(m);
+
+    let invalid = Invalid_argument("Meld.Profile.mk");
+    let (state, t) = L.state_of_path(~tree, path);
+
+    let M(t_l, w, t_r) =
+      t |> Options.get_exn(invalid) |> Options.get_exn(invalid);
+    let (p_l, t_l) = L.Tree.depad(~side=L, t_l);
+    let (_, t_r) = L.Tree.depad(~side=R, t_r);
+    let lyt = L.Tree.M(t_l, w, t_r);
+
+    let state = state |> L.State.jump_cell(~over=p_l);
+    let s_tok = L.State.jump_cell(state, ~over=t_l);
+    let (_, states) = Layout.states(~init=state, lyt);
+
     Chain.combine(L.Tree.to_chain(lyt), Meld.to_chain(m))
     |> Chain.combine(states)
     |> Chain.mapi_loop((step, (s: L.State.t, (t_cell, cell))) => {

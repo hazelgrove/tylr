@@ -10,6 +10,8 @@ and meld =
 and wald =
   | W(Chain.t(Block.t, t));
 
+let empty = None;
+
 let map: (_, t) => t = Option.map;
 
 let rec flatten = (t: t): Block.t =>
@@ -115,3 +117,21 @@ and of_meld = (m: Meld.t): meld =>
      )
   |> snd
   |> of_chain;
+
+let rec depad = (~side: Dir.t, t: t) =>
+  switch (t) {
+  | None => (t, empty)
+  | Some(M(_, W((bs, _)), _)) when List.for_all(Block.is_space, bs) => (
+      t,
+      empty,
+    )
+  | Some(M(l, w, r)) =>
+    switch (side) {
+    | L =>
+      let (p_l, l) = depad(~side, l);
+      (p_l, Some(M(l, w, r)));
+    | R =>
+      let (p_r, r) = depad(~side, r);
+      (p_r, Some(M(l, w, r)));
+    }
+  };

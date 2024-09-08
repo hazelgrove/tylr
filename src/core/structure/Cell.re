@@ -243,7 +243,7 @@ let rec pad = (~squash=false, ~l=empty, ~r=empty, c: t) =>
   switch (get(c)) {
   | _ when l == empty && r == empty => c
   | None => Space.merge(l, ~fill=c, r) |> (squash ? Space.squash : Fun.id)
-  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
+  | Some(m) when Meld.Space.is(m) =>
     Space.merge(l, Space.merge(c, r)) |> (squash ? Space.squash : Fun.id)
   | Some(M(c_l, w, c_r)) =>
     let c_l = pad(~l, c_l);
