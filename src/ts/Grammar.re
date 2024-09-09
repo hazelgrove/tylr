@@ -146,10 +146,10 @@ let typ_parameter = typ =>
 let typ_params = typ =>
   seq([brc(L, "<"), comma_sep(typ_parameter(typ)), brc(R, ">")]);
 
-module Filter = {
-  //Whitelisted strings
-  type t = list(string);
-};
+// module Filter = {
+//Whitelisted strings
+// type t = list(string);
+// };
 
 module type SORT = {
   // let atom: (~filter: Filter.t = ?, unit) => Regex.t;

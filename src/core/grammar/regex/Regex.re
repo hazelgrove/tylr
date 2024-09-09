@@ -54,7 +54,7 @@ let star = r => Star(r);
 let seq = rs => Seq(List.concat_map(flatten, rs));
 
 let eps = Seq([]);
-let opt = r => Alt([("", eps), r]);
+let opt = r => Alt([("", eps), ("", r)]);
 
 let aseq = atoms => seq(List.map(atom, atoms));
 
@@ -64,6 +64,9 @@ let push = (~from: Dir.t, r) =>
   | (Atom(_) | Star(_) | Alt(_)) as r' =>
     Seq(from == L ? [r, r'] : [r', r]);
 
+//Generic fold function - starts with the leaves and folds everything together
+//'acc = generic accumulator type
+//Many initial accumulators on the leaves that are moved up through the tree
 let rec fold =
         (
           ~atom: 'a => 'acc,

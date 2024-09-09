@@ -16,8 +16,16 @@ let rec enter =
   | Atom(a) => [Node((a, ctx))]
   | Star(r) => [Root, ...go(~ctx=[Star_, ...ctx], r)]
   | Alt(s) =>
+    //Filtering should be done here before we construct the context; still we want to persist the names; zipper walking should persist the names
+
+    //Framed module elems pairs subject in focus with the context of the list
+    //Converts the list into a zipper structure
     Lists.Framed.elems(s)
-    |> List.concat_map(((r, (ls, rs)))
+    //r = element of list
+    //ls + rs = frame
+    //ls = list left of element
+    //rs = list right of element
+    |> List.concat_map((((_, r), (ls, rs)))
          //if ()
          => go(~ctx=[Alt_(ls, rs), ...ctx], r))
   | Seq(s) =>
@@ -40,13 +48,14 @@ let rec enter =
 let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
   let enter = enter(~from=Dir.toggle(d));
   // step past r into ctx
-  let rec go = (r: Regex.t('a), ctx: RCtx.t(_)) =>
+  let rec go = (~name: string="", r: Regex.t('a), ctx: RCtx.t(_)) =>
     switch (ctx) {
     | [] => [Bound.Root]
     | [f, ...fs] =>
       switch (d, f) {
       | (_, Star_) => go(Star(r), fs) @ enter(r, ~ctx)
-      | (_, Alt_(ls, rs)) => go(Alt(List.rev(ls) @ [r, ...rs]), fs)
+      | (_, Alt_(ls, rs)) =>
+        go(Alt(List.rev(ls) @ [(name, r), ...rs]), fs)
       | (L, Seq_([], rs)) => go(Seq([r, ...rs]), fs)
       | (R, Seq_(ls, [])) => go(Seq(List.rev([r, ...ls])), fs)
       | (L, Seq_([hd, ...tl], rs)) =>
