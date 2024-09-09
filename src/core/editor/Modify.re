@@ -378,19 +378,19 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
 
 let delete = (d: Dir.t, z: Zipper.t) => {
   open Options.Syntax;
-  let/ () =
-    // first try moving over space tokens.
-    // need to refine this re: usr vs sys.
-    switch (Ctx.face(~side=d, z.ctx)) {
-    | Node({mtrl: Space(White(Sys)), text, _})
-        when
-          Cursor.is_point(z.cur)
-          && text
-          |> Dir.pick(d, (Strings.rev, Fun.id))
-          |> String.starts_with(~prefix=" ") =>
-      Move.perform(Step(H(d)), z)
-    | _ => None
-    };
+  // let/ () =
+  //   // first try moving over space tokens.
+  //   // need to refine this re: usr vs sys.
+  //   switch (Ctx.face(~side=d, z.ctx)) {
+  //   | Node({mtrl: Space(White(Sys)), text, _})
+  //       when
+  //         Cursor.is_point(z.cur)
+  //         && text
+  //         |> Dir.pick(d, (Strings.rev, Fun.id))
+  //         |> String.starts_with(~prefix=" ") =>
+  //     Move.perform(Step(H(d)), z)
+  //   | _ => None
+  //   };
   let+ z = Cursor.is_point(z.cur) ? Select.hstep(d, z) : return(z);
   delete_sel(d, z);
 };
