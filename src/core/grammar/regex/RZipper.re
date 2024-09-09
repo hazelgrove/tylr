@@ -4,6 +4,10 @@ open Stds;
 type t('focus, 'atom) = ('focus, RCtx.t('atom));
 
 // Root in output means r is nullable
+/*
+ let rec enter =
+         (~ctx=RCtx.empty, ~from: Dir.t, ~filter: Filter.t=[], r: Regex.t('a))
+    */
 let rec enter =
         (~ctx=RCtx.empty, ~from: Dir.t, r: Regex.t('a))
         : list(Bound.t(t('a, 'a))) => {
@@ -13,9 +17,9 @@ let rec enter =
   | Star(r) => [Root, ...go(~ctx=[Star_, ...ctx], r)]
   | Alt(s) =>
     Lists.Framed.elems(s)
-    |> List.concat_map(((r, (ls, rs))) =>
-         go(~ctx=[Alt_(ls, rs), ...ctx], r)
-       )
+    |> List.concat_map(((r, (ls, rs)))
+         //if ()
+         => go(~ctx=[Alt_(ls, rs), ...ctx], r))
   | Seq(s) =>
     let orient = Dir.pick(from, (Fun.id, List.rev));
     switch (orient(s)) {

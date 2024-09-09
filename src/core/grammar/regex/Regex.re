@@ -6,35 +6,39 @@ type t('a) =
   | Atom('a)
   | Star(t('a))
   | Seq(s('a))
-  // | Alt(list((string, t('a))))
-  | Alt(s('a))
+  | Alt(list((string, t('a))))
+// | Alt(s('a))
 and s('a) = list(t('a));
 
 /*
-//Constructor func that wraps a regex in an alt with its name
-let f = (name: string, r: Regex.t) => alt([(name, r)])
+ //Constructor func that wraps a regex in an alt with its name
+ let f = (name: string, r: Regex.t) => alt([(name, r)])
 
-let args = seq([])
-let func = seq([args, ...])
+ let args = seq([])
+ let func = seq([args, ...])
 
 
-let operands = alt([
-    ("int", t(Int_lit)),
-])
+ let operands = alt([
+     ("int", t(Int_lit)),
+ ])
 
-let tbl = [
-    p(f("func", func))
-]
+ let tbl = [
+     p(f("func", func))
+ ]
 
-*/
+ */
+let untuple_alt = (l: list((string, t('a)))): list(t('a)) =>
+  List.map(rs => snd(rs), l);
 
 let rec pp = (pp_a, out) =>
   fun
   | Atom(a) => Fmt.pf(out, "%a", pp_a, a)
   | Star(r) => Fmt.pf(out, "(%a)*", pp(pp_a), r)
   | Seq(rs) => Fmt.(pf(out, "%a", list(~sep=sp, pp(pp_a)), rs))
-  | Alt(rs) =>
-    Fmt.(pf(out, "(%a)", list(~sep=any("@ |@ "), pp(pp_a)), rs));
+  | Alt(rs) => {
+      let rs: list(t('a)) = untuple_alt(rs);
+      Fmt.(pf(out, "(%a)", list(~sep=any("@ |@ "), pp(pp_a)), rs));
+    };
 let show = pp_a => Fmt.to_to_string(pp(pp_a));
 
 let pp_s = (pp_a, out) => Fmt.(pf(out, "[%a]", list(~sep=semi, pp(pp_a))));
@@ -51,7 +55,7 @@ let seq = rs => Seq(List.concat_map(flatten, rs));
 let alt = rs => Alt(rs);
 
 let eps = Seq([]);
-let opt = r => Alt([eps, r]);
+let opt = r => Alt([("", eps), r]);
 
 let aseq = atoms => seq(List.map(atom, atoms));
 
@@ -61,27 +65,61 @@ let push = (~from: Dir.t, r) =>
   | (Atom(_) | Star(_) | Alt(_)) as r' =>
     Seq(from == L ? [r, r'] : [r', r]);
 
-let rec fold =
-        (
-          ~atom: 'a => 'acc,
-          ~star: 'acc => 'acc,
-          ~seq: list('acc) => 'acc,
-          ~alt: list('acc) => 'acc,
-          r: t('a),
-        ) => {
-  let fold = fold(~atom, ~star, ~seq, ~alt);
-  switch (r) {
-  | Atom(a) => atom(a)
-  | Star(r) => star(fold(r))
-  | Seq(rs) => seq(List.map(fold, rs))
-  | Alt(rs) => alt(List.map(fold, rs))
-  };
-};
-
-let atoms = r =>
-  fold(~atom=a => [a], ~star=Fun.id, ~seq=List.concat, ~alt=List.concat, r);
+// let rec fold =
+//         (
+//           ~atom: 'a => 'acc,
+//           ~star: 'acc => 'acc,
+//           ~seq: list('acc) => 'acc,
+//           ~alt: list((string, 'acc)) => 'acc,
+//           r: t('a),
+//         ) => {
+//   let fold = fold(~atom, ~star, ~seq, ~alt);
+//   switch (r) {
+//   | Atom(a) => atom(a)
+//   | Star(r) => star(fold(r))
+//   | Seq(rs) => seq(List.map(fold, rs))
+//   // | Alt(rs) => alt(rs)
+//   };
+// };
+//
+//
+// let seq_fn = (l: list('acc)): 'acc => List.map;
+//
+// let atoms = r =>
+//   fold(~atom=a => [a], ~star=Fun.id, ~seq=List.concat, ~alt=List.concat, r);
 
 let map = f => fold(~atom=a => atom(f(a)), ~star, ~seq, ~alt);
+
+// let optionalize_alt = (rs: list((string, t('a)))): list((option(string), t('a))) => List.map(r => (Some(fst(r)), snd(r)), rs);
+// let optionalize_seq= (rs: list(t('a))): list((option(string), t('a))) => List.map(r => (None, r), rs);
+//
+//
+// let rec fold =
+//         (
+//           ~atom: (option(string), 'a) => (option(string), 'acc),
+//           ~star: (option(string), 'acc) => (option(string), 'acc),
+//           ~seq: list((option(string), 'acc)) => (option(string), 'acc),
+//           ~alt: list((option(string), 'acc)) => (option(string), 'acc),
+//           r: (option(string), t('a)),
+//         ) => {
+//   let fold = fold(~atom, ~star, ~seq, ~alt);
+//   // let (name, r) = r;
+//   switch (snd(r)) {
+//   | Atom(a) => atom(None, a)
+//   | Star(r) => star(None, r)
+//   | Seq(rs) => seq(List.map(fold, optionalize_seq(rs)))
+//   | Alt(rs) => alt(List.map(fold, optionalize_alt(rs)))
+//   };
+// };
+
+// let atom_fn = (opt, a) => (opt, Atom(a));
+// let star_fn = (opt, r) => (opt, r);
+// let seq_fn = (l: list((option(string), 'acc))) => List.map();
+//
+// let atoms = r =>
+//   fold(~atom=atom_fn, ~star=star_fn, ~seq=List.concat, ~alt=List.concat, r);
+
+// let map = f => fold(~atom=a => atom(f(a)), ~star, ~seq, ~alt);
 
 let is_null = (~atom, r) =>
   r

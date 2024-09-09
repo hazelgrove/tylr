@@ -146,18 +146,16 @@ let typ_parameter = typ =>
 let typ_params = typ =>
   seq([brc(L, "<"), comma_sep(typ_parameter(typ)), brc(R, ">")]);
 
-
 module Filter = {
-    //Whitelisted strings
-    type t = list(string);
-}
+  //Whitelisted strings
+  type t = list(string);
+};
 
 module type SORT = {
   // let atom: (~filter: Filter.t = ?, unit) => Regex.t;
   let atom: unit => Regex.t;
   let sort: unit => Sort.t;
   let tbl: unit => Prec.Table.t(Regex.t);
-
   //Define the form whitelist & blacklisting functions here that construct a filter
   // let whitelist: ()
 };
