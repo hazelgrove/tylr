@@ -52,7 +52,6 @@ let rec flatten =
 let atom = a => Atom(a);
 let star = r => Star(r);
 let seq = rs => Seq(List.concat_map(flatten, rs));
-let alt = rs => Alt(rs);
 
 let eps = Seq([]);
 let opt = r => Alt([("", eps), r]);
@@ -65,28 +64,29 @@ let push = (~from: Dir.t, r) =>
   | (Atom(_) | Star(_) | Alt(_)) as r' =>
     Seq(from == L ? [r, r'] : [r', r]);
 
-// let rec fold =
-//         (
-//           ~atom: 'a => 'acc,
-//           ~star: 'acc => 'acc,
-//           ~seq: list('acc) => 'acc,
-//           ~alt: list((string, 'acc)) => 'acc,
-//           r: t('a),
-//         ) => {
-//   let fold = fold(~atom, ~star, ~seq, ~alt);
-//   switch (r) {
-//   | Atom(a) => atom(a)
-//   | Star(r) => star(fold(r))
-//   | Seq(rs) => seq(List.map(fold, rs))
-//   // | Alt(rs) => alt(rs)
-//   };
-// };
-//
-//
-// let seq_fn = (l: list('acc)): 'acc => List.map;
-//
-// let atoms = r =>
-//   fold(~atom=a => [a], ~star=Fun.id, ~seq=List.concat, ~alt=List.concat, r);
+let rec fold =
+        (
+          ~atom: 'a => 'acc,
+          ~star: 'acc => 'acc,
+          ~seq: list('acc) => 'acc,
+          ~alt: list('acc) => 'acc,
+          r: t('a),
+        ) => {
+  let fold = fold(~atom, ~star, ~seq, ~alt);
+  switch (r) {
+  | Atom(a) => atom(a)
+  | Star(r) => star(fold(r))
+  | Seq(rs) => seq(List.map(fold, rs))
+  | Alt(rs) => alt(List.map(fold, untuple_alt(rs)))
+  };
+};
+
+let retuple_alt = (rs: list('a)): list((string, 'a)) =>
+  List.map(r => ("", r), rs);
+let alt = rs => Alt(retuple_alt(rs));
+
+let atoms = r =>
+  fold(~atom=a => [a], ~star=Fun.id, ~seq=List.concat, ~alt=List.concat, r);
 
 let map = f => fold(~atom=a => atom(f(a)), ~star, ~seq, ~alt);
 
