@@ -4,29 +4,29 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 // specifies preferred whitespace padding around a token
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t = {
-  // whether to pad token with spaces in horizontal layout
-  h: (bool, bool),
-  // whether to pad token with newlines in vertical layout
+  // whether to pad token with space in horizontal layout
   // (generally (true, true) but eg (false, true) for commas)
-  v: (bool, bool),
-  // whether to indent contents of the following cell
+  space: (bool, bool),
+  // whether vertical layout should be preferred on either side
+  break: (bool, bool),
+  // whether to indent contents of the following cell in vertical layout
   indent: bool,
 };
 
-let none = {h: (false, false), v: (false, false), indent: false};
+let none = {space: (false, false), break: (false, false), indent: false};
 
-let kw = (~l=true, ~r=true, ~indent=true, ()) => {
-  h: (l, r),
-  v: (l, r),
+let kw = (~space=(true, true), ~break=(false, false), ~indent=true, ()) => {
+  space,
+  break,
   indent,
 };
-let op = (~l=true, ~r=true, ~indent=true, ()) => {
-  h: (l, r),
-  v: (l, r),
+let op = (~space=(true, true), ~break=(false, false), ~indent=true, ()) => {
+  space,
+  break,
   indent,
 };
 let brc = (side: Dir.t) => {
-  h: (false, false),
-  v: Dir.pick(side, ((false, true), (true, false))),
+  space: (false, false),
+  break: (false, false),
   indent: Dir.pick(side, (true, false)),
 };

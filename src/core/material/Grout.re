@@ -8,7 +8,7 @@ module T = {
   let in_ = s => (s, Tip.(Conc, Conc));
   let padding = ((_, (l, r)): t) => {
     let (l, r) = Tip.(is_conc(l), is_conc(r));
-    Padding.op(~l, ~r, ~indent=r, ());
+    Padding.op(~space=(l, r), ~indent=r, ());
   };
   let all = s => [op(s), pre(s), pos(s), in_(s)];
 };

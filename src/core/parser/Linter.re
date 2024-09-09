@@ -1,5 +1,6 @@
-let pad_wrap = (c: Cell.t) => {
-  let w = Wald.of_tok(Token.mk(~text=" ", Mtrl.Space(White(Sys))));
+let pad_wrap = (~break=false, c: Cell.t) => {
+  let text = break ? "\n" : " ";
+  let w = Wald.of_tok(Token.mk(~text, Mtrl.Space(White(Sys))));
   let m = {
     // this choice only matters when c has caret
     let (l, r) = Meld.(mk(~l=c, w), mk(w, ~r=c));
@@ -11,7 +12,7 @@ let pad_wrap = (c: Cell.t) => {
     | Navigating => l
     };
   };
-  // let m = pad_r ? Meld.mk(~l=c, w) : Meld.mk(w, ~r=c);
+  // let m = spc_r ? Meld.mk(~l=c, w) : Meld.mk(w, ~r=c);
   // let m = Meld.mk(~l=c, w);
   Cell.put(m);
 };
@@ -33,11 +34,15 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
     |> Cell.put;
   | Some(_) when Cell.has_clean_cursor(c) => Cell.mark_clean(c)
   | Some(_) =>
-    let (_, pad_l) = Delim.padding(l).h;
-    let (pad_r, _) = Delim.padding(r).h;
+    let (_, spc_l) = Delim.padding(l).space;
+    let (_, brk_l) = Delim.padding(l).break;
+    let (spc_r, _) = Delim.padding(r).space;
+    let (brk_r, _) = Delim.padding(r).break;
+    let no_pad = !(spc_l || spc_r || brk_l || brk_r);
+    let break = brk_l || brk_r;
     switch (Cell.get(c)) {
-    | None when !pad_l && !pad_r => c
-    | None => pad_wrap(c)
+    | None when no_pad => c
+    | None => pad_wrap(~break, c)
     | Some(m) =>
       let pruned =
         Meld.to_chain(m)
@@ -45,7 +50,7 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
              (c, tok: Token.t, acc) => {
                let found_space = Result.is_ok(Chain.unlink(acc));
                switch (tok.mtrl) {
-               | Space(White(Sys)) when found_space || !pad_l && !pad_r =>
+               | Space(White(Sys)) when found_space || no_pad =>
                  Chain.map_hd(Cell.Space.merge(c, ~fill=Cell.empty), acc)
                | _ => Chain.link(c, tok, acc)
                };
@@ -54,8 +59,8 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
            );
       switch (Chain.unlink(pruned)) {
       | Ok(_) => Cell.put(Meld.of_chain(pruned))
-      | Error(c) when !pad_l && !pad_r => c
-      | Error(c) => pad_wrap(c)
+      | Error(c) when no_pad => c
+      | Error(c) => pad_wrap(~break, c)
       };
     };
   };

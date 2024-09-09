@@ -15,17 +15,18 @@ let t = (lbl: Label.t) => Regex.atom(Sym.t(lbl));
 let nt = (srt: Sort.t) => Regex.atom(Sym.nt(srt));
 
 let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
-let kw = (~l=true, ~r=true, ~indent=true) =>
-  c(~p=Padding.kw(~l, ~r, ~indent, ()));
-let op = (~l=true, ~r=true, ~indent=true) =>
-  c(~p=Padding.op(~l, ~r, ~indent, ()));
+let kw = (~space=(true, true), ~break=(false, false), ~indent=true) =>
+  c(~p=Padding.kw(~space, ~break, ~indent, ()));
+let op = (~space=(true, true), ~break=(false, false), ~indent=true) =>
+  c(~p=Padding.op(~space, ~break, ~indent, ()));
 let brc = (side: Dir.t) => c(~p=Padding.brc(side));
+
+let comma = op(~space=(false, true), ",");
+let comma_sep = atom => seq([atom, Star(seq([comma, atom]))]);
 
 module Typ = {
   let sort = Sort.of_str("Typ");
   let typ = nt(sort);
-
-  let comma_sep = seq([typ, Star(seq([op(~l=false, ","), typ]))]);
 
   let operand =
     alt([
@@ -36,7 +37,7 @@ module Typ = {
       //List type
       seq([c("list"), brc(L, "("), typ, brc(R, ")")]),
       //Tuple type
-      seq([brc(L, "("), comma_sep, brc(R, ")")]),
+      seq([brc(L, "("), comma_sep(typ), brc(R, ")")]),
     ]);
 
   let tbl = [
@@ -53,8 +54,6 @@ module Pat = {
   let sort = Sort.of_str("Pat");
   let pat = nt(sort);
 
-  let comma_sep = seq([pat, Star(seq([op(~l=false, ","), pat]))]);
-
   let bool_lit = alt([c("true"), c("false")]);
   let operand =
     alt([
@@ -64,8 +63,8 @@ module Pat = {
       bool_lit,
       //Constructor
       t(Id_upper),
-      seq([brc(L, "("), comma_sep, brc(R, ")")]),
-      seq([brc(L, "["), comma_sep, brc(R, "]")]),
+      seq([brc(L, "("), comma_sep(pat), brc(R, ")")]),
+      seq([brc(L, "["), comma_sep(pat), brc(R, "]")]),
       //Wild
       c("_"),
     ]);
@@ -85,11 +84,21 @@ module Exp = {
   let sort = Sort.of_str("Exp");
   let exp = nt(sort);
 
-  [@warning "-32"]
-  let comma_sep = seq([exp, Star(seq([op(~l=false, ","), exp]))]);
-
-  let rul = seq([op("|"), nt(Pat.sort), op("=>"), exp]);
   let bool_lit = alt([c("true"), c("false")]);
+
+  let rul =
+    seq([op(~break=(true, false), "|"), nt(Pat.sort), op("=>"), exp]);
+  let case = seq([kw(~space=(false, true), "case"), exp, rul, star(rul)]);
+
+  let let_ =
+    seq([
+      kw("let", ~space=(false, true)),
+      nt(Pat.sort),
+      op("="),
+      exp,
+      kw("in", ~break=(false, true), ~indent=false),
+      exp,
+    ]);
 
   let operand =
     alt([
@@ -97,8 +106,8 @@ module Exp = {
       t(Float_lit),
       t(Id_lower),
       bool_lit,
-      seq([brc(L, "("), comma_sep, brc(R, ")")]),
-      seq([brc(L, "["), comma_sep, brc(R, "]")]),
+      seq([brc(L, "("), comma_sep(exp), brc(R, ")")]),
+      seq([brc(L, "["), comma_sep(exp), brc(R, "]")]),
     ]);
 
   let op_alt = ss => alt(List.map(op, ss));
@@ -108,22 +117,24 @@ module Exp = {
 
   let tbl = [
     //case
-    p(seq([kw(~l=false, "case"), exp, rul, star(rul)])),
+    p(case),
     //let
+    p(let_),
+    //fun
+    p(
+      seq([kw(~space=(false, true), "fun"), nt(Pat.sort), op("->"), exp]),
+    ),
+    //if
     p(
       seq([
-        kw(~l=false, "let"),
-        nt(Pat.sort),
-        op("="),
+        kw(~space=(false, true), "if"),
         exp,
-        kw("in", ~indent=false),
+        kw("then"),
+        exp,
+        kw("else"),
         exp,
       ]),
     ),
-    //fun
-    p(seq([kw(~l=false, "fun"), nt(Pat.sort), op("->"), exp])),
-    //if
-    p(seq([kw(~l=false, "if"), exp, kw("then"), exp, kw("else"), exp])),
     //Math operations
     p(~a=L, seq([exp, add_op, exp])),
     p(~a=L, seq([exp, mult_op, exp])),
