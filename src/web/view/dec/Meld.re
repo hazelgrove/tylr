@@ -51,11 +51,6 @@ module Child = {
 
   let includes_all_but_padding =
       (~side: Dir.t, col: Loc.Col.t, (ind, line): Profile.row_metrics) => {
-    open Stds;
-    P.log("--- includes_all_but_padding ---");
-    P.show("side", Dir.show(side));
-    P.show("col", Loc.Col.show(col));
-    P.show("metrics", Profile.show_row_metrics((ind, line)));
     let (leading, rest) = Base.List.split_while(line, ~f=Token.Space.is);
     let (rest, _) = Base.List.split_while(rest, ~f=t => !Token.Space.is(t));
     switch (side) {
@@ -70,7 +65,6 @@ module Child = {
   };
 
   let mk = (~font, p: Profile.t) => {
-    Stds.P.log("--- Child.mk ---");
     let end_loc: Loc.t = Dims.skip(p.loc, ~over=p.dims, ~ind=p.ind);
     let Dims.{height, widths: (hd, _)} = p.dims;
 
