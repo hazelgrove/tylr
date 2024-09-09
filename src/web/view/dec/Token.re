@@ -37,8 +37,8 @@ module Profile = {
   };
 };
 let tip_width = 0.3;
-let concave_adj = 0.25;
-let convex_adj = (-0.13);
+let concave_adj = 0.2;
+let convex_adj = (-0.1);
 
 // how much to truncate half-height of decorations to leave line height padding
 // and avoid overlapping decorations on adjacent lines
