@@ -37,10 +37,13 @@ let opt_ = Alt_([Regex.eps], []);
 let aseq_ = (ls, rs) =>
   seq_(List.map(Regex.atom, ls), List.map(Regex.atom, rs));
 
+let retuple_alt = (rs: list('a)): list((string, 'a)) =>
+  List.map(r => ("", r), rs);
+
 let zip = (f: t(_), r: Regex.t(_)) =>
   switch (f) {
   | Star_ => Regex.Star(r)
-  | Alt_(ls, rs) => Alt(List.rev(ls) @ [r, ...rs])
+  | Alt_(ls, rs) => Alt(retuple_alt(List.rev(ls) @ [r, ...rs]))
   | Seq_(ls, rs) => Seq(List.rev(ls) @ [r, ...rs])
   };
 
