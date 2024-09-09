@@ -36,22 +36,21 @@ module Profile = {
     style: Style.mk(~null, tok.mtrl),
   };
 };
-let tip_width = 0.32;
+let tip_width = 0.3;
 let concave_adj = 0.25;
 let convex_adj = (-0.13);
 
-let shadow_adj = 0.015;
+// how much to truncate half-height of decorations to leave line height padding
+// and avoid overlapping decorations on adjacent lines
+let v_trunc = 0.05;
 
-let child_border_thickness = 0.05;
-
-let t = child_border_thickness /. 0.5;
-// let short_tip_height = (1. -. t) *. 0.5;
-let short_tip_width = (1. -. t) *. tip_width;
+// how much to shift horizontal strokes to align with the edges of hexgaon decs
+let stroke_shift = 0.03;
 
 let run: Tip.t => float =
   fun
-  | Conv => +. short_tip_width
-  | Conc => -. short_tip_width;
+  | Conv => +. tip_width
+  | Conc => -. tip_width;
 
 let adj: Tip.t => float =
   fun
@@ -60,14 +59,14 @@ let adj: Tip.t => float =
 
 let tip = (t: Tip.t): Path.t => [
   H_({dx: +. adj(t)}),
-  L_({dx: +. run(t), dy: 0.5}),
-  L_({dx: -. run(t), dy: 0.5}),
+  L_({dx: +. run(t), dy: 0.5 -. v_trunc}),
+  L_({dx: -. run(t), dy: 0.5 -. v_trunc}),
   H_({dx: -. adj(t)}),
 ];
 
 let hexagon = (style: Style.t, length: int): Node.t =>
   List.flatten([
-    Path.[m(~x=0, ~y=0), h(~x=length)],
+    Path.[m(~x=0, ~y=0) |> cmdfudge(~y=v_trunc), h(~x=length)],
     tip(snd(style.shape)),
     Path.[h(~x=0)],
     Path.scale(-1., tip(fst(style.shape))),
@@ -82,10 +81,14 @@ let hexagon = (style: Style.t, length: int): Node.t =>
 let top_bar = (style: Style.t, length: int): Node.t => {
   // we draw this bar with rounded linecaps so need to truncate length
   // to get rounded ends to align with the hexagon vertices
-  let roundcap_trunc = 0.1;
+  // todo: need to specialize to tip shape
+  let roundcap_trunc = 0.06;
   Util.Svgs.Path.view(
     Path.[
-      M({y: 0., x: -. adj(fst(style.shape)) +. roundcap_trunc}),
+      M({
+        y: v_trunc +. stroke_shift,
+        x: -. adj(fst(style.shape)) +. roundcap_trunc,
+      }),
       H_({
         dx:
           Float.of_int(length)

@@ -44,7 +44,7 @@ module Child = {
     };
   };
 
-  let h_trunc = 0.3;
+  let h_trunc = 0.2;
   let v_trunc = 0.15;
 
   let v_line_offset = 0.5;
@@ -86,7 +86,8 @@ module Child = {
         ? []
         : Util.Svgs.Path.[
             m(~x=p.loc.col, ~y=p.loc.row + 1)
-            |> cmdfudge(~x=l_closed ? T.concave_adj +. h_trunc : 0.),
+            |> cmdfudge(~x=l_closed ? T.concave_adj +. h_trunc : 0.)
+            |> cmdfudge(~y=-. T.v_trunc -. T.stroke_shift),
             h(~x=p.loc.col + Dims.Width.total(hd))
             |> cmdfudge(
                  ~x=height == 0 && r_closed ? -. T.concave_adj -. h_trunc : 0.,
@@ -98,9 +99,13 @@ module Child = {
         : Util.Svgs.Path.[
             m(~x=p.ind, ~y=p.loc.row)
             |> cmdfudge(~y=l_open_and_covers_row ? 0. : 1.)
-            |> cmdfudge(~x=-. v_line_offset, ~y=v_trunc),
+            |> cmdfudge(~x=-. v_line_offset),
             v(~y=end_loc.row)
-            |> cmdfudge(~y=r_closed && end_loc.col == p.ind ? -. v_trunc : 1.),
+            |> cmdfudge(
+                 ~y=
+                   r_closed && end_loc.col == p.ind
+                     ? 0. : 1. -. T.v_trunc -. T.stroke_shift,
+               ),
           ];
     let ft_line =
       height == 0 || r_closed_by_delim_after_newline || r_open_and_covers_row
