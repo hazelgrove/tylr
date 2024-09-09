@@ -175,9 +175,7 @@ module Profile = {
          let dims = Dims.of_block(Tree.flatten(t_cell));
          let loc = s.loc;
          let ind = s_tok.ind;
-         let r = Child.Profile.{ind, loc, dims, sort, no_delim};
-         Stds.P.show("r", Child.Profile.show(r));
-         r;
+         Child.Profile.{ind, loc, dims, sort, no_delim};
        })
     |> Chain.mapi_link((step, (state: L.State.t, (_, tok))) => {
          let null = (step == 1 && null_l, step == n - 2 && null_r);
