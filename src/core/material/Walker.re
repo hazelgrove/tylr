@@ -216,7 +216,7 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
 };
 
 let is_minimal = (w: Walk.t) =>
-  !(Walk.is_neq(w) && List.exists(Mtrl.is_tile, Chain.links(w)));
+  !(Walk.is_neq(w) && List.exists(Mtrl.is_tile, Walk.stance_sorts(w).mid));
 
 let walk_all =
   Memo.general(((from: Dir.t, src: End.t)) => {

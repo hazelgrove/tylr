@@ -80,7 +80,7 @@ module T = {
 
   let is_eq = w => List.for_all(Swing.is_eq, Chain.loops(w));
   // note: stricter than !is_eq
-  let is_neq = (w: t) => Swing.is_neq(hd(w)) && Swing.is_neq(ft(w));
+  let is_neq = (w: t) => Swing.is_neq(hd(w)); // && Swing.is_neq(ft(w));
   let is_valid = w => is_eq(w) || is_neq(w);
 
   // let has_sort = w => List.exists(Swing.has_sort, strides(w));
@@ -88,21 +88,67 @@ module T = {
   let has_stance = (st: Stance.t, w: t) =>
     List.exists((==)(st), Chain.links(w));
 
+  module Sorted = {
+    // summary sorts of valid walks. each sort describes a prec level of the walk.
+    // the optional sort is the sort of stances eq to the src (top) of the walk.
+    // the list is the sorts of the prec levels between the src (top) and dst (bot).
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t = {
+      bot: option(Mtrl.Sorted.t),
+      // bottom-up order, same as walks
+      mid: list(Mtrl.Sorted.t),
+      top: option(Mtrl.Sorted.t),
+    };
+    let empty = {top: None, mid: [], bot: None};
+    let try_put_top = (s, sorted) =>
+      switch (sorted.top) {
+      | None => {...sorted, top: Some(s)}
+      | Some(_) => sorted
+      };
+    let try_put_bot = (s, sorted) =>
+      switch (sorted.bot) {
+      | None => {...sorted, bot: Some(s)}
+      | Some(_) => sorted
+      };
+    // top-down comparison
+    let compare = (l: t, r: t) => {
+      open Stds.Compare.Syntax;
+      let/ () = Option.compare(Mtrl.Sorted.compare, l.top, r.top);
+      let/ () =
+        List.compare(Mtrl.Sorted.compare, List.rev(l.mid), List.rev(r.mid));
+      Option.compare(Mtrl.Sorted.compare, l.bot, r.bot);
+    };
+  };
+
   // a list of sorted mtrls, each describing the stances of each prec level in
   // top-down order
-  let stance_sorts = (w: t): list(Mtrl.Sorted.t) =>
+  let stance_sorts = (w: t): Sorted.t => {
+    let h = height(w);
     w
-    |> Chain.fold_left(Fun.const([]), (mtrls, st, sw) =>
-         Swing.is_neq(sw) ? mtrls : [Mtrl.T.sort(st), ...mtrls]
-       );
+    |> Chain.fold_right(
+         (sw, st, ((prev_sw, num_neq), sorted)) => {
+           let num_neq = num_neq + (Swing.is_eq(prev_sw) ? 0 : 1);
+           let sorted =
+             if (num_neq == 0) {
+               Sorted.try_put_top(Mtrl.T.sort(st), sorted);
+             } else if (num_neq == h) {
+               Sorted.try_put_bot(Mtrl.T.sort(st), sorted);
+             } else {
+               {...sorted, mid: [Mtrl.T.sort(st), ...sorted.mid]};
+             };
+           ((sw, num_neq), sorted);
+         },
+         sw => ((sw, 0), Sorted.empty),
+       )
+    |> snd;
+  };
 
   let compare = (l: t, r: t) => {
     assert(is_valid(l) && is_valid(r));
     open Stds.Compare.Syntax;
     let/ () = Int.compare(height(l), height(r));
     // top-down lexicographic comparison
-    let/ () =
-      List.compare(Mtrl.Sorted.compare, stance_sorts(l), stance_sorts(r));
+    let/ () = Sorted.compare(stance_sorts(l), stance_sorts(r));
     let/ () = Int.compare(Chain.length(l), Chain.length(r));
     Chain.compare(Swing.compare, Stance.compare, l, r);
   };
