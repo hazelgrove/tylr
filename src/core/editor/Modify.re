@@ -1,15 +1,5 @@
 open Stds;
 
-// common utilities for modification edits eg insert and delete
-
-let meld_or_bust = (ctx: Ctx.t, tok: Token.t): Ctx.t => {
-  assert(tok.text == "");
-  switch (Ctx.push_opt(~onto=L, tok, ctx)) {
-  | Some(ctx) => ctx
-  | None => ctx
-  };
-};
-
 let relabel =
     (s: string, ctx: Ctx.t): (Chain.t(Cell.t, Token.Unmolded.t), Ctx.t) => {
   let (l, rest) =
