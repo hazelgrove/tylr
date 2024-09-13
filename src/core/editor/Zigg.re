@@ -115,14 +115,23 @@ let push =
     : Result.t(t, Slope.t) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
-  switch (
-    Melder.push(~onto=b, t, ~fill, s_d, ~bound=Node(Terr.of_wald(top)))
-  ) {
-  | Some(Eq(top)) => Ok(unorient(d, ([], top.wald, s_b)))
-  | Some(Neq(s_d)) => Ok(unorient(d, (s_d, top, s_b)))
+  let stack = Stack.{slope: s_d, bound: Node(Terr.of_wald(top))};
+  switch (Stack.merge_hd(~onto=b, t, stack)) {
+  | Some(stack) =>
+    (stack.slope, Bound.get_exn(stack.bound).wald, s_b)
+    |> unorient(d)
+    |> Result.ok
   | None =>
-    let fill = Slope.roll(~onto=b, ~fill, s_d);
-    Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)]);
+    switch (Melder.push(~onto=b, t, ~fill, stack)) {
+    | Some((grouted, stack)) =>
+      let stack = Stack.connect(t, grouted, stack);
+      (stack.slope, Bound.get_exn(stack.bound).wald, s_b)
+      |> unorient(d)
+      |> Result.ok;
+    | None =>
+      let fill = Slope.roll(~onto=b, ~fill, s_d);
+      Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)]);
+    }
   };
 };
 // let push = (~side: Dir.t, tok: Token.t) =>

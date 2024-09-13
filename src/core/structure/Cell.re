@@ -41,12 +41,14 @@ let rec mark_degrouted = (~side: Dir.t, c: t) =>
     }
   };
 
-let rec end_path = (~side: Dir.t, c: t) =>
+let rec end_path = (~sans_padding=false, ~side: Dir.t, c: t) =>
   switch (c.meld) {
   | None => Path.empty
+  | Some(m) when sans_padding && Meld.Space.is(m) =>
+    end_path(~side=Dir.toggle(side), c)
   | Some(M(l, _, r) as m) =>
     let hd = Dir.pick(side, (0, Meld.length(m) - 1));
-    let tl = end_path(~side, Dir.pick(side, (l, r)));
+    let tl = end_path(~sans_padding, ~side, Dir.pick(side, (l, r)));
     Path.cons(hd, tl);
   };
 

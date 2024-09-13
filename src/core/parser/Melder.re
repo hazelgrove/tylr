@@ -2,34 +2,6 @@ open Stds;
 
 exception Bug__failed_to_push_space;
 
-// module Stack = {
-//   type t = {
-//     slope: Slope.t,
-//     bound: Bound.t(Wald.t),
-//   };
-//   let mk = (~slope=Slope.empty, bound: Bound.t(_)) => {slope, bound};
-//   let map_hd = (f: Wald.t => Wald.t, {slope, bound}: t) =>
-//     switch (slope) {
-//     | [] => mk(Bound.map(f, bound))
-//     | [hd, ...tl] => {slope: [{...hd, wald: f(hd.wald)}, ...tl], bound}
-//     };
-//   let push = (w: Wald.t, c: Rel.t(Cell.t, Cell.t), {slope, bound}: t): t =>
-//     switch (c) {
-//     | Neq(c) => {
-//         slope: [Terr.{cell: c, wald: Wald.rev(w)}, ...slope],
-//         bound,
-//       }
-//     | Eq(c) => map_hd(Wald.zip_cell(w, c), {slope, bound})
-//     };
-//   let of_baked = (src: Bound.t(Wald.t), baked: Grouted.t, dst: Wald.t): t =>
-//     baked
-//     |> Grouted.fold(
-//          c => push(dst, c),
-//          (t, c) => push(Wald.of_tok(t), c),
-//          mk(src),
-//        );
-// };
-
 let lt = (l: Wald.t, r: Wald.t) =>
   !Lists.is_empty(Walker.lt(Node(Wald.face(l)), Node(Wald.face(r))));
 let gt = (l: Wald.t, r: Wald.t) =>
@@ -94,18 +66,6 @@ let complete_bounded =
   |> Options.get_fail("hmmm");
 };
 
-module Melded = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Rel.t(Terr.t, Slope.t);
-  let eq = terr => Rel.Eq(terr);
-  let neq = slope => Rel.Neq(slope);
-  let face =
-    fun
-    | Rel.Eq(terr) => Terr.face(terr)
-    | Neq(slope) => Delim.unwrap(Slope.face(slope));
-  let extend = tl => Rel.map(~eq=Terr.extend(tl), ~neq=Slope.extend(tl));
-};
-
 let connect_eq =
     (
       ~repair=false,
@@ -114,14 +74,14 @@ let connect_eq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Terr.t) => {
+    : option((Grouted.t, Terr.t)) => {
   open Options.Syntax;
   let rec go = (onto: Terr.t, fill) => {
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     let face = Terr.face(onto).mtrl;
     Walker.walk_eq(~from=d, Node(face), Node(t.mtrl))
     |> Grouter.pick(~repair, ~from=d, List.rev(fill))
-    |> Option.map(baked => Grouted.connect_eq(t, baked, onto));
+    |> Option.map(grouted => (grouted, onto));
   }
   and rm_ghost_and_go = (onto, fill) =>
     switch (Terr.unlink(onto)) {
@@ -139,11 +99,10 @@ let connect_neq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Slope.t) => {
+    : option(Grouted.t) => {
   let face = onto |> Bound.map(t => Terr.face(t).mtrl);
   Walker.walk_neq(~from=d, face, Node(t.mtrl))
-  |> Grouter.pick(~repair, ~from=d, [fill])
-  |> Option.map(baked => Grouted.connect_neq(t, baked));
+  |> Grouter.pick(~repair, ~from=d, [fill]);
 };
 let connect_lt = connect_neq(~onto=L);
 let connect_gt = connect_neq(~onto=R);
@@ -156,13 +115,14 @@ let connect_ineq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Melded.t) => {
+    : option((Grouted.t, Bound.t(Terr.t))) => {
   let eq = () =>
     Bound.to_opt(onto)
     |> Options.bind(~f=onto => connect_eq(~repair, ~onto=d, onto, ~fill, t))
-    |> Option.map(Rel.eq);
+    |> Option.map(((grouted, terr)) => (grouted, Bound.Node(terr)));
   let neq = () =>
-    connect_neq(~repair, ~onto=d, onto, ~fill, t) |> Option.map(Rel.neq);
+    connect_neq(~repair, ~onto=d, onto, ~fill, t)
+    |> Option.map(grouted => (grouted, onto));
   Oblig.Delta.minimize(~to_zero=!repair, f => f(), [eq, neq]);
 };
 
@@ -174,19 +134,19 @@ let connect =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : Result.t(Melded.t, Cell.t) => {
+    : Result.t((Grouted.t, Terr.t), Cell.t) => {
   let b = Dir.toggle(d);
   let eq = () =>
-    connect_eq(~repair, ~onto=d, onto, ~fill, t)
-    |> Option.map(Melded.eq)
-    |> Option.map(Result.ok);
+    connect_eq(~repair, ~onto=d, onto, ~fill, t) |> Option.map(Result.ok);
   let neq_d = () =>
     connect_neq(~repair, ~onto=d, Node(onto), ~fill, t)
-    |> Option.map(Melded.neq)
+    |> Option.map(grouted => {(grouted, onto)})
     |> Option.map(Result.ok);
   let neq_b = () => {
     let (hd, tl) = Wald.uncons(onto.wald);
     connect_neq(~repair, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
+    |> Option.map(grouted => Stack.connect(hd, grouted, Stack.empty))
+    |> Option.map(Stack.to_slope)
     |> Option.map(Slope.extend(tl))
     |> Option.map(complete_slope(~onto=b, ~fill=onto.cell))
     |> Option.map(Result.err);
@@ -198,44 +158,24 @@ let connect =
   |> Option.value(~default=Error(complete_terr(~onto=d, ~fill, onto)));
 };
 
-let rec push_neq =
+let rec push =
         (
           ~repair=false,
-          ~onto: Dir.t,
           t: Token.t,
           ~fill=Cell.empty,
-          slope: Slope.t,
+          stack: Stack.t,
+          ~onto: Dir.t,
         )
-        : Result.t(Slope.t, Cell.t) =>
-  switch (slope) {
-  | [] => Error(fill)
+        : option((Grouted.t, Stack.t)) =>
+  switch (stack.slope) {
+  | [] =>
+    connect_ineq(~repair, ~onto, stack.bound, ~fill, t)
+    |> Option.map(((grouted, bound)) =>
+         (grouted, Stack.{slope: [], bound})
+       )
   | [hd, ...tl] =>
     switch (connect(~repair, ~onto, hd, ~fill, t)) {
-    | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
-    | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
-    | Ok(Eq(hd)) => Ok([hd, ...tl])
-    }
-  };
-
-let push_bound = (~repair=false, t: Token.t, ~fill=Cell.empty, bound, ~onto) => {
-  let ineq = () => connect_ineq(~repair, ~onto, bound, ~fill, t);
-  switch (bound) {
-  | Bound.Root => ineq()
-  | Node(terr) =>
-    switch (Terr.merge_hd(t, terr, ~onto)) {
-    | None => ineq()
-    | Some(terr) => Some(Eq(terr))
-    }
-  };
-};
-let push =
-    (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
-    : option(Melded.t) =>
-  switch (Slope.merge_hd(t, slope, ~onto)) {
-  | Some(slope) => Some(Neq(slope))
-  | None =>
-    switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
-    | Ok(slope) => Some(Neq(slope))
-    | Error(fill) => push_bound(~repair, t, ~fill, bound, ~onto)
+    | Error(fill) => push(~repair, t, ~fill, {...stack, slope: tl}, ~onto)
+    | Ok((grouted, hd)) => Some((grouted, {...stack, slope: [hd, ...tl]}))
     }
   };

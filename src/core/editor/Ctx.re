@@ -11,12 +11,6 @@ let link = (~open_=Frame.Open.empty) => link(open_);
 let fold = Chain.fold_left;
 let fold_root = Chain.fold_right;
 
-// let bound = (~side: Dir.t, ctx) =>
-//   switch (unlink(ctx)) {
-//   | Error(_) => Bound.Root
-//   | Ok((_, closed, _)) => Node()
-//   };
-
 let flatten =
   Chain.fold_right(
     (open_, (l, r), acc) =>
@@ -84,35 +78,49 @@ module Tl = {
   // let hd = b => b |> Bound.map(fst) |> Bound.split;
 };
 
-// let split_bound = (ctx: t): (Frame.Open.t, Bound.t) =>
-//   switch (unlink(ctx)) {
-//   | Error(open_) => (open_, Bound.Root)
-//   | Ok((open_, closed, tl)) => (open_, Node((closed, tl)))
-//   };
-// let merge_bound = (open_: Frame.Open.t, bound: Bound.t) =>
-//   switch (bound) {
-//   | Root => unit(open_)
-//   | Node((closed, ctx)) => link(open_, closed, ctx)
-//   };
-
 let extend = (~side: Dir.t, tl: Chain.Affix.t(Cell.t, Token.t)) =>
   map_hd(Frame.Open.extend(~side, tl));
+
+let unlink_stacks = (ctx: t) =>
+  switch (Chain.unlink(ctx)) {
+  | Error((dn, up)) =>
+    let stacks = Stack.({bound: Root, slope: dn}, {slope: up, bound: Root});
+    (stacks, empty);
+  | Ok(((dn, up), (l, r), rest)) =>
+    let stacks =
+      Stack.({bound: Node(l), slope: dn}, {slope: up, bound: Node(r)});
+    (stacks, rest);
+  };
+let link_stacks = ((stack_l: Stack.t, stack_r: Stack.t), ctx: t) =>
+  switch (stack_l.bound, stack_r.bound) {
+  | (Node(l), Node(r)) =>
+    Chain.link((stack_l.slope, stack_r.slope), (l, r), ctx)
+  | _ =>
+    assert(ctx == empty);
+    assert(stack_l.bound == Root);
+    assert(stack_r.bound == Root);
+    Chain.unit((stack_l.slope, stack_r.slope));
+  };
 
 let push_opt =
     (~onto as d: Dir.t, t: Token.t, ~fill=Cell.empty, ctx: t): option(t) => {
   open Options.Syntax;
-  let (hd, tl) = uncons(ctx);
-  let (s_d, s_b) = Dir.order(d, hd);
-  let (b_d, b_b) = Dir.order(d, Tl.bounds(tl));
-  let+ melded = Melder.push(~onto=d, t, ~fill, s_d, ~bound=b_d);
-  switch (melded) {
-  | Neq(s_d) =>
-    let (dn, up) = Dir.order(d, (s_d, s_b));
-    cons((dn, up), tl);
-  | Eq(b_d) =>
-    let s_b = Slope.cat(s_b, Bound.to_list(b_b));
-    let open_ = Dir.order(d, ([b_d], s_b));
-    map_hd(Frame.Open.cat(open_), Tl.rest(tl));
+  let (stacks, rest) = unlink_stacks(ctx);
+  let (stack_d, stack_b) = Dir.order(d, stacks);
+  let/ () = {
+    // first try merging t with stack hd
+    let+ stack_d = Stack.merge_hd(~onto=d, t, stack_d);
+    link_stacks(Dir.order(d, (stack_d, stack_b)), rest);
+  };
+  let+ (grouted, stack_d) = Melder.push(~onto=d, t, ~fill, stack_d);
+  let connected = Stack.connect(t, grouted, stack_d);
+  if (connected.bound == stack_d.bound) {
+    let stacks = Dir.order(d, (connected, stack_b));
+    link_stacks(stacks, rest);
+  } else {
+    let open_ =
+      Dir.order(d, Stack.(to_slope(connected), to_slope(stack_b)));
+    map_hd(Frame.Open.cat(open_), rest);
   };
 };
 

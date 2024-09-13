@@ -20,11 +20,9 @@ let tokens = List.concat_map(Terr.tokens);
 //     }
 //   };
 
-// todo: need to clean up or rm use of these two functions,
-// as they do not act as the inverses their names suggest
 let link = (tok: Token.t, cell: Cell.t) =>
   fun
-  | [] => [Terr.mk([tok], [cell])]
+  | [] => raise(Invalid_argument("Slope.link"))
   | [hd, ...tl] => [Terr.link(tok, cell, hd), ...tl];
 let unlink =
   fun
@@ -54,7 +52,7 @@ let map_face = f =>
 //   | [hd, ...rest] => Some([Terr.extend(tl, hd), ...rest]);
 let extend = (tl: Chain.Affix.t(Cell.t, Token.t)) =>
   fun
-  | [] => Option.to_list(Terr.mk'(Chain.Affix.rev(tl)))
+  | [] => raise(Invalid_argument("Slope.extend"))
   | [hd, ...rest] => [Terr.extend(tl, hd), ...rest];
 
 let fold: (('acc, Terr.t) => 'acc, 'acc, t) => 'acc = List.fold_left;

@@ -34,70 +34,28 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
     },
   );
 
-module Melded = Melder.Melded;
-
-module Molded = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t =
-    | Molded(Melded.t)
-    | Deferred(Melded.t)
-    // removed redundant empty ghost
-    | Removed;
-};
-
 // returns None if input token is empty
 let mold =
-    (
-      ~bound=Bound.Root,
-      slope: Slope.Dn.t,
-      ~fill=Cell.empty,
-      t: Token.Unmolded.t,
-    )
-    : Molded.t =>
+    (stack: Stack.t, ~fill=Cell.empty, t: Token.Unmolded.t)
+    : option((Token.t, Grouted.t, Stack.t)) =>
   switch (
     candidates(t)
     |> Oblig.Delta.minimize(tok =>
-         Melder.push(~repair=true, tok, ~fill, slope, ~bound, ~onto=L)
+         Melder.push(~repair=true, tok, ~fill, stack, ~onto=L)
+         |> Option.map(((grouted, stack)) => (tok, grouted, stack))
        )
   ) {
   // pushed token was empty ghost connected via neq-relation
-  // (note: Neq constructor name misleading here, indicates neq/eq wrt slope bound)
-  | Some(Neq([{wald: W(([face], [])), _}, ..._]))
-      when Mtrl.is_tile(face.mtrl) && face.text == "" =>
-    Removed
-  | Some(m) => Molded(m)
+  | Some((tok, grouted, _) as molded) =>
+    Mtrl.is_tile(tok.mtrl) && tok.text == "" && Grouted.is_neq(grouted)
+      ? None : Some(molded)
   | None =>
     let deferred = Token.Unmolded.defer(t);
     Token.is_empty(deferred)
-      ? Removed
-      : Deferred(
-          Melder.push(deferred, ~fill, slope, ~bound, ~onto=L)
+      ? None
+      : Some(
+          Melder.push(deferred, ~fill, stack, ~onto=L)
+          |> Option.map(((grouted, stack)) => (deferred, grouted, stack))
           |> Options.get_fail("bug: failed to push space"),
         );
-  //
   };
-
-// returns the result of remolding and melding the terr face onto bounded slope.
-// if the terr face retains its original mold, then the rest of the terr is tacked
-// on and snd elem of returned pair is Ok(terr.cell). otherwise, the rest of the
-// terr is disassembled to an up slope that requires subsequent remolding.
-// note: if returns (o, Ok(cell)), then o must be Some
-// todo: clean this up
-let remold =
-    (~bound=Bound.Root, slope: Slope.Dn.t, ~fill=Cell.empty, terr: Terr.L.t)
-    : (Molded.t, Result.t(Cell.t, Slope.Up.t)) => {
-  let (hd, tl) = Wald.uncons(terr.wald);
-  switch (mold(~bound, slope, ~fill, Token.unmold(hd))) {
-  | Molded(m) when Melded.face(m).mtrl == hd.mtrl =>
-    // fast path for when hd retains original mold
-    (Molded(Melded.extend(tl, m)), Ok(terr.cell))
-  | molded =>
-    let up =
-      Chain.Affix.uncons(tl)
-      |> Option.map(((cell, (ts, cs))) =>
-           Slope.Up.unroll(cell) @ [{...terr, wald: Wald.mk(ts, cs)}]
-         )
-      |> Option.value(~default=Slope.Up.unroll(terr.cell));
-    (molded, Error(up));
-  };
-};
