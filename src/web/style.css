@@ -351,6 +351,10 @@
   stroke: var(--pat-shadow-color);
   /* stroke: var(--pat-bg-color); */
 }
+.child-line.Typ {
+  stroke: var(--typ-shadow-color);
+  /* stroke: var(--typ-bg-color); */
+}
 .child-line.Space {
   display: none;
 }
@@ -485,17 +489,20 @@
 
 .tile-path.Typ {
   /*stroke: var(--typ-shadow-color);*/
-  filter: url(#raised-drop-shadow-Typ);
+  /* filter: url(#raised-drop-shadow-Typ); */
 }
 .tile-path.Typ.indicated {
   fill: var(--typ-bg-color);
 }
 .tile-path.Typ.raised {
-  filter: url(#raised-drop-shadow-Typ);
+  /* filter: url(#raised-drop-shadow-Typ); */
 }
 #drop-shadow-Typ .tile-drop-shadow,
 #raised-drop-shadow-Typ .tile-drop-shadow {
   flood-color: var(--typ-shadow-color);
+}
+.tok-bar.Typ {
+  stroke: var(--typ-shadow-color);
 }
 
 .tile-path.Rul {
