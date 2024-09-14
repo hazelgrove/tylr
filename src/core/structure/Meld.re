@@ -1,10 +1,14 @@
 open Stds;
 
-module Base = Cell.Meld;
+module Base = {
+  include Cell.Meld;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = Cell.Meld.t(Cell.Base.t('tok), 'tok);
+};
 include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = Base.t(Cell.t, Token.t);
+type t = Base.t(Token.t);
 
 let mk = (~l=Cell.empty, ~r=Cell.empty, w) => Base.mk(~l, w, ~r);
 let of_tok = (~l=Cell.empty, ~r=Cell.empty, tok) =>
@@ -66,16 +70,16 @@ let unzip_tok = (step, m) => Chain.unzip_link(step, to_chain(m));
 let unzip = (step, m) => Chain.unzip(step, to_chain(m));
 
 let link = (~cell=Cell.empty, t: Token.t, M(l, W(w), r): t) =>
-  M(cell, W(Chain.link(t, l, w)), r);
+  mk(~l=cell, W(Chain.link(t, l, w)), ~r);
 
 let map_cell = (_, _) => failwith("todo Meld.map_cell");
 
-let rev = (M(l, W(w), r): t) => M(r, W(Chain.rev(w)), l);
+let rev = (M(l, W(w), r): t) => mk(~l=r, W(Chain.rev(w)), ~r=l);
 
-let face = (~side: Dir.t, M(_, w, _)) => Wald.face(~side, w);
+let face = (~side: Dir.t, M(_, w, _): t) => Wald.face(~side, w);
 
-let map_cells = (f, M(l, W((toks, cells)), r)) => {
+let map_cells = (f, M(l, W((toks, cells)), r): t) => {
   let (l, r) = (f(l), f(r));
   let cells = List.map(f, cells);
-  M(l, W((toks, cells)), r);
+  mk(~l, W((toks, cells)), ~r);
 };
