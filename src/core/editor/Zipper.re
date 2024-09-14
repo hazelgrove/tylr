@@ -23,10 +23,10 @@ module Cursor = {
   include Cur;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Cur.t(Caret.t, Selection.t);
-  let flatten: t => _ =
-    fun
-    | Point(_) => []
-    | Select({range, _}) => Zigg.flatten(range);
+  // let flatten: t => _ =
+  //   fun
+  //   | Point(_) => []
+  //   | Select({range, _}) => Zigg.flatten(range);
 };
 
 module Site = {

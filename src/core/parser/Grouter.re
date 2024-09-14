@@ -90,8 +90,8 @@ module Cells = {
   let are_bounded = (cs: t, nt: Mtrl.NT.t, ~from: Dir.t): option(bool) =>
     switch (face(~side=from, cs)) {
     | None => Some(false)
-    | Some(f) =>
-      Walker.enter(~from, nt, Node(f))
+    | Some(t) =>
+      Walker.enter(~from, nt, Node(t.mtrl))
       |> Lists.hd
       |> Option.map(w => Walk.height(w) > 1)
     };

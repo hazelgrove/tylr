@@ -1,13 +1,88 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
-module Marks = Marks.Cell;
-module Wald = Meld.Wald;
+module Wald = {
+  [@deriving (sexp, yojson)]
+  type t('tok, 'cell) =
+    | W(Chain.t('tok, 'cell));
+  let pp = (pp_tok, pp_cell, out, W(w): t(_)) =>
+    Chain.pp(pp_tok, pp_cell, out, w);
+  let show = (pp_tok, pp_cell) => Fmt.to_to_string(pp(pp_tok, pp_cell));
+  let face = (~side=Dir.L, W(w): t(_)) =>
+    Dir.pick(side, (Chain.hd, Chain.ft), w);
+  let of_tok = tok => W(Chain.unit(tok));
+  let append = (W(l): t(_), m, W(r): t(_)) => W(Chain.append(l, m, r));
+};
+module Meld = {
+  [@deriving (sexp, yojson)]
+  type t('cell, 'tok) =
+    | M('cell, Wald.t('tok, 'cell), 'cell);
 
-include Meld.Cell;
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t = Meld.Cell.t(Meld.t);
+  let mk = (~l, w, ~r) => M(l, w, r);
+  let face = (~side: Dir.t, M(_, w, _)) => Wald.face(~side, w);
+  let length = (M(_, W(w), _): t(_)) => Chain.length(w) + 2;
+  let tokens = (M(_, W((toks, _)), _): t(_)) => toks;
+
+  let to_chain = (M(l, W((ts, cs)), r): t(_)) => ([l, ...cs] @ [r], ts);
+  let of_chain = ((cs, ts): Chain.t('cell, 'tok)) => {
+    let get = Options.get_exn(Invalid_argument("Meld.of_chain"));
+    // cs reversed twice
+    let (cs, r) = get(Lists.Framed.ft(cs));
+    let (cs, l) = get(Lists.Framed.ft(cs));
+    M(l, W((ts, cs)), r);
+  };
+
+  let pp = (pp_cell, pp_tok, out, m: t(_)) =>
+    Chain.pp(pp_cell, pp_tok, out, to_chain(m));
+  let show = (pp_cell, pp_tok) => Fmt.to_to_string(pp(pp_cell, pp_tok));
+
+  let get_space = (M(_, W((toks, _)), _): t(_, Token.t)) =>
+    List.for_all(Token.Space.is, toks) ? Some(toks) : None;
+  let is_space = m => Option.is_some(get_space(m));
+};
+
+module Marks = Marks.Cell;
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = {
+    marks: Marks.t,
+    meld: option(Meld.t(t('tok), 'tok)),
+  };
+};
+
+[@deriving (sexp, yojson)]
+type t = Base.t(Token.t);
+
+let mk = (~marks=Marks.empty, ~meld=?, ()) => Base.{marks, meld};
+let empty = mk();
+let dirty = mk(~marks=Marks.dirty, ());
+let rec pp = (out, {marks, meld}: t) => {
+  let pp_meld = Meld.pp(pp, Token.pp);
+  if (Marks.is_empty(marks) && Option.is_none(meld)) {
+    Fmt.pf(out, "{}");
+  } else if (Marks.is_empty(marks)) {
+    Fmt.pf(out, "{@[<hov 2>%a@]}", Fmt.option(pp_meld), meld);
+  } else {
+    Fmt.pf(
+      out,
+      "{@[<hov 2>@[%a@] |@ @[%a@]@]}",
+      Marks.pp,
+      marks,
+      Fmt.option(pp_meld),
+      meld,
+    );
+  };
+};
+let show = Fmt.to_to_string(pp);
+
+// module Wald = Meld.Wald;
+
+// include Meld.Cell;
+// [@deriving (show({with_path: false}), sexp, yojson)]
+// type t = Meld.Cell.t(Meld.t);
 // let empty = mk();
-let is_empty = (~require_unmarked=false, c) =>
+let is_empty = (~require_unmarked=false, c: t) =>
   Option.is_none(c.meld) && (!require_unmarked || Marks.is_empty(c.marks));
 
 let put_cursor = (cur: Path.Cursor.t, cell: t) => {
@@ -17,13 +92,13 @@ let put_cursor = (cur: Path.Cursor.t, cell: t) => {
 
 let face = (~side: Dir.t, c: t) => Option.map(Meld.face(~side), c.meld);
 
-let flatten = (cell: t) =>
-  cell.meld |> Option.map(Meld.flatten) |> Option.to_list |> List.flatten;
+// let flatten = (cell: t) =>
+//   cell.meld |> Option.map(Meld.flatten) |> Option.to_list |> List.flatten;
 
-let map_marks = (f, cell) => {...cell, marks: f(cell.marks)};
+let map_marks = (f, cell: t) => {...cell, marks: f(cell.marks)};
 let add_marks = marks => map_marks(Marks.union(marks));
-let clear_marks = cell => {...cell, marks: Marks.empty};
-let pop_marks = cell => (cell.marks, clear_marks(cell));
+let clear_marks = (cell: t) => {...cell, marks: Marks.empty};
+let pop_marks = (cell: t) => (cell.marks, clear_marks(cell));
 
 let rec mark_degrouted = (~side: Dir.t, c: t) =>
   switch (c.meld) {
@@ -44,7 +119,7 @@ let rec mark_degrouted = (~side: Dir.t, c: t) =>
 let rec end_path = (~sans_padding=false, ~side: Dir.t, c: t) =>
   switch (c.meld) {
   | None => Path.empty
-  | Some(m) when sans_padding && Meld.Space.is(m) =>
+  | Some(m) when sans_padding && Meld.is_space(m) =>
     end_path(~side=Dir.toggle(side), c)
   | Some(M(l, _, r) as m) =>
     let hd = Dir.pick(side, (0, Meld.length(m) - 1));
@@ -111,9 +186,9 @@ let distribute_marks = (c: t) =>
     mk(~meld=Meld.M(l, W((ts, cs)), r), ());
   };
 
-let get = (~distribute=true, c) =>
+let get = (~distribute=true, c: t) =>
   (distribute ? distribute_marks : Fun.id)(c).meld;
-let put = (meld: Meld.t) => aggregate_marks(mk(~meld, ()));
+let put = (meld: Meld.t(_)) => aggregate_marks(mk(~meld, ()));
 
 let caret = (car: Path.Caret.t) =>
   mk(~marks=Marks.mk(~cursor=Point(car), ()), ());
@@ -140,7 +215,7 @@ module Space = {
         when List.for_all(Token.Space.is, toks) =>
       w
       |> Chain.fold_right(
-           (spc, c, acc) => {
+           (spc, c: t, acc) => {
              let caret =
                c.marks.cursor
                |> Options.bind(~f=Cursor.get_point)
@@ -159,7 +234,7 @@ module Space = {
   let get = (c: t) =>
     switch (get(c)) {
     | None => Some([])
-    | Some(m) => Meld.Space.get(m)
+    | Some(m) => Meld.get_space(m)
     };
   let is_space = c => Option.is_some(get(c));
 
@@ -180,14 +255,14 @@ module Space = {
     let* m = g(c);
     let (cs, ts) = Meld.to_chain(m);
     let (cs_l, cs_r) =
-      cs |> Base.List.split_while(~f=(c: t) => !c.marks.degrouted);
+      cs |> Lists.split_while(~f=(c: t) => !c.marks.degrouted);
     switch (cs_l, cs_r) {
     | ([], _) =>
       let cs = List.map(unmark_degrouted, cs);
       Some((empty, put(Meld.of_chain((cs, ts)))));
     | (_, []) => None
     | ([_, ..._], [_, ..._]) =>
-      let (ts_l, ts_r) = Base.List.split_n(ts, List.length(cs_l));
+      let (ts_l, ts_r) = Lists.split_n(ts, List.length(cs_l));
       let cs_l = List.map(unmark_degrouted, cs_l) @ [empty];
       let cs_r = List.map(unmark_degrouted, cs_r);
       Some((mk(cs_l, ts_l), mk(cs_r, ts_r)));
@@ -231,21 +306,21 @@ module Space = {
           Meld.M(l, Wald.append(w_l, m, w_r), r);
         },
       );
-    {marks, meld};
+    Base.{marks, meld};
   };
 };
 
 let get_spc = (c: t) =>
   switch (get(c)) {
   | None => Some([])
-  | Some(m) => Meld.Space.get(m)
+  | Some(m) => Meld.get_space(m)
   };
 
 let rec pad = (~squash=false, ~l=empty, ~r=empty, c: t) =>
   switch (get(c)) {
   | _ when l == empty && r == empty => c
   | None => Space.merge(l, ~fill=c, r) |> (squash ? Space.squash : Fun.id)
-  | Some(m) when Meld.Space.is(m) =>
+  | Some(m) when Meld.is_space(m) =>
     Space.merge(l, Space.merge(c, r)) |> (squash ? Space.squash : Fun.id)
   | Some(M(c_l, w, c_r)) =>
     let c_l = pad(~l, c_l);

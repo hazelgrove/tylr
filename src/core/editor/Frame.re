@@ -37,7 +37,9 @@ module Open = {
     fun
     | (([hd_l, ...tl_l], [hd_r, ...tl_r]): t) =>
       Wald.merge_hds(~save_cursor, ~from=L, hd_l.wald, hd_r.wald)
-      |> Option.map(w => (Meld.M(hd_l.cell, w, hd_r.cell), (tl_l, tl_r)))
+      |> Option.map(w =>
+           (Meld.mk(~l=hd_l.cell, w, ~r=hd_r.cell), (tl_l, tl_r))
+         )
     | _ => None;
 
   let zip_step = (~save_cursor, ~zipped: Cell.t, (dn, up): t) =>

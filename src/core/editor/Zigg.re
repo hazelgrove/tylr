@@ -27,12 +27,12 @@ let tokens = ({up, top, dn}: t) =>
     List.rev(Slope.tokens(dn)),
   ]);
 
-let flatten = ({up, top, dn}: t) =>
-  List.concat([
-    Slope.Up.flatten(up),
-    Wald.flatten(top),
-    Slope.Dn.flatten(dn),
-  ]);
+// let flatten = ({up, top, dn}: t) =>
+//   List.concat([
+//     Slope.Up.flatten(up),
+//     Wald.flatten(top),
+//     Slope.Dn.flatten(dn),
+//   ]);
 
 let face = (~side: Dir.t, zigg: t) => {
   let (s_d, top, _) = orient(side, zigg);
@@ -98,7 +98,7 @@ let of_up = up =>
      );
 
 let roll = ({up, top, dn}: t) =>
-  Meld.M(Slope.Up.roll(up), top, Slope.Dn.roll(dn));
+  Meld.mk(~l=Slope.Up.roll(up), top, ~r=Slope.Dn.roll(dn));
 
 let extend = (~side as d: Dir.t, tl: Chain.Affix.t(_), zigg) => {
   let (s_d, top, s_b) = orient(d, zigg);

@@ -1,11 +1,15 @@
 open Stds;
 
-include Meld.Wald;
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t = Meld.Wald.t(Cell.t);
+module Base = Cell.Wald;
+include Base;
 
-let get = (f, W(w)) => f(w);
-let map = (f, W(w)) => W(f(w));
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t = Base.t(Token.t, Cell.t);
+
+let mk = (toks, cells) => Base.W(Chain.mk(toks, cells));
+
+let get = (f, W(w): t) => f(w);
+let map = (f, W(w): t) => Base.W(f(w));
 
 let uncons: t => _ = get(Chain.uncons);
 let hd: t => Token.t = get(Chain.hd);
@@ -43,8 +47,8 @@ let sort = w =>
 
 let fold = (f, g, W(w)) => Chain.fold_left(f, g, w);
 
-let flatten = (W(w): t) =>
-  w |> Chain.to_list(Lists.single, Cell.flatten) |> List.concat;
+// let flatten = (W(w): t) =>
+//   w |> Chain.to_list(Lists.single, Cell.flatten) |> List.concat;
 
 module Affix = {
   include Chain.Affix;

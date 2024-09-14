@@ -1,7 +1,5 @@
-let is_empty = Base.List.is_empty;
+include Base.List;
 
-let hd = Base.List.hd;
-let hd_exn = Base.List.hd_exn;
 let ft = Base.List.last;
 let ft_exn = Base.List.last_exn;
 
@@ -45,7 +43,7 @@ module Framed = {
   let put_ft = (pre: list('x), ft: 'x) => List.rev([ft, ...pre]);
 
   let nth = (n: int, xs: list('x)): option(t('x, 'x)) => {
-    let (l, r) = Base.List.split_n(xs, n);
+    let (l, r) = split_n(xs, n);
     switch (r) {
     | [] => None
     | [x, ...r] => Some((x, (l, r)))
@@ -61,8 +59,8 @@ module Framed = {
   *         ([], (_, _)) if i >= j
   */
   let sublist = (i: int, j: int, xs: list('x)): t(list('x), 'x) => {
-    let (xs, r) = Base.List.split_n(xs, j);
-    let (l, xs) = Base.List.split_n(xs, i);
+    let (xs, r) = split_n(xs, j);
+    let (l, xs) = split_n(xs, i);
     (xs, (List.rev(l), r));
   };
 
@@ -131,11 +129,6 @@ let split_bins = (num_bins, xs) => {
     };
   go(num_bins, xs);
 };
-
-let fold_left = Base.List.fold_left;
-let fold_right = Base.List.fold_right;
-
-let fold_map = Base.List.fold_map;
 
 let rec neighbors = (xs: list('x)): list(('x, 'x)) =>
   switch (xs) {

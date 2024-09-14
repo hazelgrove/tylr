@@ -79,8 +79,8 @@ let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
   | [hd, ...tl] =>
     let m =
       switch (onto) {
-      | L => Meld.M(hd.cell, hd.wald, fill)
-      | R => M(fill, hd.wald, hd.cell)
+      | L => Meld.mk(~l=hd.cell, hd.wald, ~r=fill)
+      | R => Meld.mk(~l=fill, hd.wald, ~r=hd.cell)
       };
     roll(~onto, ~fill=Cell.put(m), tl);
   };
@@ -120,7 +120,7 @@ let merge_hd = (~onto: Dir.t, t: Token.t, slope: t): option(t) =>
 module Dn = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Terr.R.t);
-  let flatten = List.concat_map(Terr.R.flatten);
+  // let flatten = List.concat_map(Terr.R.flatten);
   let roll = roll(~onto=L);
   let unroll = unroll(~from=L);
   let pull = pull(~from=L);
@@ -128,7 +128,7 @@ module Dn = {
 module Up = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Terr.L.t);
-  let flatten = List.concat_map(Terr.L.flatten);
+  // let flatten = List.concat_map(Terr.L.flatten);
   let roll = roll(~onto=R);
   let unroll = unroll(~from=R);
   let pull = pull(~from=R);

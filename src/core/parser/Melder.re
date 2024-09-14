@@ -3,17 +3,26 @@ open Stds;
 exception Bug__failed_to_push_space;
 
 let lt = (l: Wald.t, r: Wald.t) =>
-  !Lists.is_empty(Walker.lt(Node(Wald.face(l)), Node(Wald.face(r))));
+  !
+    Lists.is_empty(
+      Walker.lt(Node(Wald.face(l).mtrl), Node(Wald.face(r).mtrl)),
+    );
 let gt = (l: Wald.t, r: Wald.t) =>
-  !Lists.is_empty(Walker.gt(Node(Wald.face(l)), Node(Wald.face(r))));
+  !
+    Lists.is_empty(
+      Walker.gt(Node(Wald.face(l).mtrl), Node(Wald.face(r).mtrl)),
+    );
 let eq = (l: Wald.t, r: Wald.t) =>
-  !Lists.is_empty(Walker.eq(Node(Wald.face(l)), Node(Wald.face(r))));
+  !
+    Lists.is_empty(
+      Walker.eq(Node(Wald.face(l).mtrl), Node(Wald.face(r).mtrl)),
+    );
 
 // assumes w is already oriented toward side.
 // used to complete zigg top when it takes precedence over pushed wald.
 let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
   let from = Dir.toggle(side);
-  let exited = Walker.exit(~from, Node(Wald.face(w)));
+  let exited = Walker.exit(~from, Node(Wald.face(w).mtrl));
   let baked = Grouter.pick(~repair=true, ~from, [fill], exited);
   // exited |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
   switch (baked) {

@@ -1,95 +1,37 @@
-open Sexplib.Std;
-open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
-module Marks = Marks.Cell;
-
-module Cell = {
-  [@deriving (sexp, yojson)]
-  type t('meld) = {
-    marks: Marks.t,
-    meld: option('meld),
-  };
-  let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
-  let empty = mk();
-  let dirty = mk(~marks=Marks.dirty, ());
-  let pp = (pp_meld, out, {marks, meld}: t(_)) =>
-    if (Marks.is_empty(marks) && Option.is_none(meld)) {
-      Fmt.pf(out, "{}");
-    } else if (Marks.is_empty(marks)) {
-      Fmt.pf(out, "{@[<hov 2>%a@]}", Fmt.option(pp_meld), meld);
-    } else {
-      Fmt.pf(
-        out,
-        "{@[<hov 2>@[%a@] |@ @[%a@]@]}",
-        Marks.pp,
-        marks,
-        Fmt.option(pp_meld),
-        meld,
-      );
-    };
-  let show = pp_meld => Fmt.to_to_string(pp(pp_meld));
-};
-
-module Wald = {
-  [@deriving (sexp, yojson)]
-  type t('cell) =
-    | W(Chain.t(Token.t, 'cell));
-  let mk = (toks: list(_), cells: list(Cell.t(_))) =>
-    W(Chain.mk(toks, cells));
-  let of_tok = tok => W(Chain.unit(tok));
-  let face = (~side=Dir.L, W(w): t(_)) =>
-    Dir.pick(side, (Chain.hd, Chain.ft), w).mtrl;
-  let pp = (pp_cell, out, W(w): t(_)) =>
-    Chain.pp(Token.pp, pp_cell, out, w);
-  let show = pp_cell => Fmt.to_to_string(pp(pp_cell));
-  let append = (W(l): t(_), m, W(r): t(_)) => W(Chain.append(l, m, r));
-};
-
-module Base = {
-  [@deriving (sexp, yojson)]
-  type t =
-    | M(Cell.t(t), Wald.t(Cell.t(t)), Cell.t(t));
-  let mk = (~l=Cell.empty, ~r=Cell.empty, w) => M(l, w, r);
-  let to_chain = (M(l, W((ts, cs)), r): t) => ([l, ...cs] @ [r], ts);
-  let of_chain = ((cs, ts): Chain.t(Cell.t(_), Token.t)) => {
-    let get = Options.get_exn(Invalid_argument("Meld.of_chain"));
-    // cs reversed twice
-    let (cs, r) = get(Lists.Framed.ft(cs));
-    let (cs, l) = get(Lists.Framed.ft(cs));
-    mk(~l, W((ts, cs)), ~r);
-  };
-  let rec pp = (out, m: t) =>
-    Chain.pp(Cell.pp(pp), Token.pp, out, to_chain(m));
-  let show = Fmt.to_to_string(pp);
-};
+module Base = Cell.Meld;
 include Base;
 
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t = Base.t(Cell.t, Token.t);
+
+let mk = (~l=Cell.empty, ~r=Cell.empty, w) => Base.mk(~l, w, ~r);
 let of_tok = (~l=Cell.empty, ~r=Cell.empty, tok) =>
   mk(~l, Wald.of_tok(tok), ~r);
 
-let is_empty =
-  fun
-  | M({meld: None, _}, W(([tok], [])), {meld: None, _}) =>
-    Token.is_empty(tok)
-  | _ => false;
+// let is_empty =
+//   fun
+//   | M({meld: None, _}, W(([tok], [])), {meld: None, _}) =>
+//     Token.is_empty(tok)
+//   | _ => false;
 
 let tokens = (M(_, W((toks, _)), _): t) => toks;
 
 let fold = (f_hd, f_tl, m: t) => Chain.fold_left(f_hd, f_tl, to_chain(m));
 
-let rec flatten = (m: t): list(Token.t) =>
-  to_chain(m)
-  |> Chain.to_list(
-       (c: Cell.t(t)) =>
-         c.meld |> Option.map(flatten) |> Option.to_list |> List.flatten,
-       Lists.single,
-     )
-  |> List.flatten;
+// let rec flatten = (m: t): list(Token.t) =>
+//   to_chain(m)
+//   |> Chain.to_list(
+//        (c: Cell.t(t)) =>
+//          c.meld |> Option.map(flatten) |> Option.to_list |> List.flatten,
+//        Lists.single,
+//      )
+//   |> List.flatten;
 
 module Affix = {
   include Chain.Affix;
-  type t = Chain.Affix.t(Token.t, Cell.t(Base.t));
+  type t = Chain.Affix.t(Token.t, Cell.t);
 };
 
 module Space = {
@@ -97,11 +39,7 @@ module Space = {
     assert(Mtrl.is_space(tok.mtrl));
     mk(Wald.of_tok(tok));
   };
-  let get =
-    fun
-    | M(_, W((toks, _)), _) when List.for_all(Token.Space.is, toks) =>
-      Some(toks)
-    | _ => None;
+  let get = Base.get_space;
   let is = m => Option.is_some(get(m));
 };
 module Grout = {
