@@ -149,10 +149,10 @@ module Profile = {
     let (state, t) = L.state_of_path(~tree, path);
 
     let M(t_l, w, t_r) =
-      t |> Options.get_exn(invalid) |> Options.get_exn(invalid);
+      Options.get_exn(invalid, t).meld |> Options.get_exn(invalid);
     let (p_l, t_l) = L.Tree.depad(~side=L, t_l);
     let (_, t_r) = L.Tree.depad(~side=R, t_r);
-    let lyt = L.Tree.M(t_l, w, t_r);
+    let lyt = Meld.Base.mk(~l=t_l, w, ~r=t_r);
 
     let s_init = state |> L.State.jump_cell(~over=p_l);
     let s_tok = L.State.jump_cell(s_init, ~over=t_l);
@@ -161,7 +161,7 @@ module Profile = {
     let l_line = L.nth_line(tree, s_init.loc.row);
     let r_line = L.nth_line(tree, s_end.loc.row);
 
-    Chain.combine(L.Tree.to_chain(lyt), Meld.to_chain(m))
+    Chain.combine(Meld.Base.to_chain(lyt), Meld.to_chain(m))
     |> Chain.combine(states)
     |> Chain.mapi_loop((step, (s: L.State.t, (t_cell, cell))) => {
          let no_delim = (

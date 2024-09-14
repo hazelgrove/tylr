@@ -1,21 +1,21 @@
-open Sexplib.Std;
-open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+// open Sexplib.Std;
+// open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
 // todo: unify with existing structure by polymorphizing
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = option(meld)
-and meld =
-  | M(t, wald, t)
-and wald =
-  | W(Chain.t(Block.t, t));
+type t = Cell.Base.t(Block.t);
+[@deriving (show({with_path: false}), sexp, yojson)]
+type meld = Meld.Base.t(Block.t);
+[@deriving (show({with_path: false}), sexp, yojson)]
+type wald = Wald.Base.t(Block.t);
 
-let empty = None;
+let empty = Cell.Base.empty;
 
-let map: (_, t) => t = Option.map;
+let map = (f, t: t) => {...t, meld: Option.map(f, t.meld)};
 
 let rec flatten = (t: t): Block.t =>
-  t |> Option.map(flatten_meld) |> Option.value(~default=Block.nil)
+  t.meld |> Option.map(flatten_meld) |> Option.value(~default=Block.nil)
 and flatten_meld = (M(l, w, r): meld): Block.t =>
   Block.hcats([flatten(l), flatten_wald(w), flatten(r)])
 and flatten_wald = (W(w): wald) =>
@@ -34,24 +34,20 @@ let flatten_affix = (~side: Dir.t, (bs, ts): Chain.Affix.t(Block.t, t)) =>
   |> Dir.pick(side, (List.rev, Fun.id))
   |> Block.hcats;
 
-let to_chain = (M(l, W(w), r): meld) => Chain.consnoc(~hd=l, w, ~ft=r);
-let of_chain = (c: Chain.t(t, Block.t)) => {
-  let (l, w, r) = Result.get_exn(Invalid_argument(""), Chain.unconsnoc(c));
-  M(l, W(w), r);
-};
-
-let is_space =
-  fun
+let is_space = (t: t) =>
+  switch (t.meld) {
   | None => true
-  | Some(M(_, W(w), _)) => List.for_all(Block.is_space, Chain.loops(w));
+  | Some(M(_, W(w), _)) => List.for_all(Block.is_space, Chain.loops(w))
+  };
 
-let rec end_path = (~side: Dir.t) =>
-  fun
+let rec end_path = (~side: Dir.t, t: t) =>
+  switch (t.meld) {
   | None => []
   | Some(M(_, _, r) as m) => [
-      Chain.length(to_chain(m)) - 1,
+      Chain.length(Meld.Base.to_chain(m)) - 1,
       ...end_path(~side, r),
-    ];
+    ]
+  };
 
 let rec nest_tl = (n: int) => map(n == 0 ? Fun.id : nest_tl_meld(n))
 and nest_tl_meld = (n, M(l, W(w), r): meld) =>
@@ -64,9 +60,9 @@ and nest_tl_meld = (n, M(l, W(w), r): meld) =>
 let rec unnest_ft = (n: int, t: t) =>
   n == 0
     ? (t, true)
-    : t
+    : t.meld
       |> Option.map(unnest_ft_meld(n))
-      |> Option.map(Tuples.map_fst(Option.some))
+      |> Option.map(Tuples.map_fst(Cell.Base.wrap))
       |> Option.value(~default=(t, false))
 and unnest_ft_meld = (n, M(l, w, r): meld): (meld, bool) => {
   let (r, done_) = unnest_ft(n, r);
@@ -85,14 +81,14 @@ and unnest_ft_wald = (n, W(w): wald) =>
        },
        Block.unnest_ft(n),
      )
-  |> Tuples.map_fst(w => W(w));
+  |> Tuples.map_fst(Wald.Base.w);
 
 let nest_body = (n: int, t: t) => t |> nest_tl(n) |> unnest_ft(n) |> fst;
 let nest_body_meld = (n: int, m: meld) =>
   m |> nest_tl_meld(n) |> unnest_ft_meld(n) |> fst;
 
 let rec height = (t: t) =>
-  t |> Option.map(height_meld) |> Option.value(~default=0)
+  t.meld |> Option.map(height_meld) |> Option.value(~default=0)
 and height_meld = (M(l, W((toks, _)), r)) =>
   toks
   |> List.map(Block.height)
@@ -105,6 +101,7 @@ let rec of_cell = (~delim=Delim.root, c: Cell.t): t =>
        let indent = Delim.indent(delim) && height(l) > 0 ? 2 : 0;
        nest_body_meld(indent, m);
      })
+  |> (meld => Cell.Base.mk(~meld?, ()))
 and of_meld = (m: Meld.t): meld =>
   Meld.to_chain(m)
   |> Chain.fold_left_map(
@@ -116,10 +113,10 @@ and of_meld = (m: Meld.t): meld =>
        },
      )
   |> snd
-  |> of_chain;
+  |> Meld.Base.of_chain;
 
 let rec depad = (~side: Dir.t, t: t) =>
-  switch (t) {
+  switch (t.meld) {
   | None => (t, empty)
   | Some(M(_, W((bs, _)), _)) when List.for_all(Block.is_space, bs) => (
       t,
@@ -129,9 +126,9 @@ let rec depad = (~side: Dir.t, t: t) =>
     switch (side) {
     | L =>
       let (p_l, l) = depad(~side, l);
-      (p_l, Some(M(l, w, r)));
+      (p_l, Cell.Base.wrap(M(l, w, r)));
     | R =>
       let (p_r, r) = depad(~side, r);
-      (p_r, Some(M(l, w, r)));
+      (p_r, Cell.Base.wrap(M(l, w, r)));
     }
   };

@@ -49,13 +49,15 @@ module Base = {
     marks: Marks.t,
     meld: option(Meld.t(t('tok), 'tok)),
   };
+  let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
+  let empty = mk();
+  let wrap = meld => mk(~meld, ());
 };
+include Base;
 
 [@deriving (sexp, yojson)]
 type t = Base.t(Token.t);
 
-let mk = (~marks=Marks.empty, ~meld=?, ()) => Base.{marks, meld};
-let empty = mk();
 let dirty = mk(~marks=Marks.dirty, ());
 let rec pp = (out, {marks, meld}: t) => {
   let pp_meld = Meld.pp(pp, Token.pp);

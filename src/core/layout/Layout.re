@@ -109,14 +109,14 @@ let path_of_loc =
     } else if (Loc.eq(s_end.loc, target)) {
       Ok(Tree.end_path(t, ~side=R));
     } else {
-      switch (t) {
+      switch (t.meld) {
       | None => Ok([])
       | Some(m) => go_meld(~state, m)
       };
     };
   }
   and go_meld = (~state: State.t, m: Tree.meld) =>
-    Tree.to_chain(m)
+    Meld.Base.to_chain(m)
     |> Chain.mapi_loop((step, t_cell) => (step, t_cell))
     |> Chain.fold_left(
          ((step, t_cell)) =>
@@ -140,9 +140,9 @@ let rec state_of_path =
   // need to handle space separately because indentation is updated differently
   | [hd, ...tl] when Tree.is_space(tree) =>
     switch (
-      tree
+      tree.meld
       |> Options.get_exn(Marks.Invalid)
-      |> Tree.to_chain
+      |> Meld.Base.to_chain
       |> Chain.unzip(hd)
     ) {
     | Loop(((b_toks, _), t_cell, _)) =>
@@ -165,9 +165,9 @@ let rec state_of_path =
     }
   | [hd, ...tl] =>
     switch (
-      tree
+      tree.meld
       |> Options.get_exn(Marks.Invalid)
-      |> Tree.to_chain
+      |> Meld.Base.to_chain
       |> Chain.unzip(hd)
     ) {
     | Loop((pre, t_cell, _)) =>
@@ -211,7 +211,7 @@ let map = (~tree: Tree.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
   };
 
 let states = (~init: State.t, m: Tree.meld) =>
-  Tree.to_chain(m)
+  Meld.Base.to_chain(m)
   |> Chain.fold_left_map(
        t_cell => (State.jump_cell(init, ~over=t_cell), init),
        (state, b_tok, t_cell) => {
