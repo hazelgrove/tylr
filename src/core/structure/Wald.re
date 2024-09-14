@@ -1,15 +1,20 @@
 open Stds;
 
-module Base = Cell.Wald;
+module Base = {
+  include Cell.Wald;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = Cell.Wald.t('tok, Cell.Base.t('tok));
+  let w = (c): t(_) => W(c);
+};
 include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = Base.t(Token.t, Cell.t);
+type t = Base.t(Token.t);
 
-let mk = (toks, cells) => Base.W(Chain.mk(toks, cells));
+let mk = (toks, cells): t => W(Chain.mk(toks, cells));
 
 let get = (f, W(w): t) => f(w);
-let map = (f, W(w): t) => Base.W(f(w));
+let map = (f, W(w): t): t => W(f(w));
 
 let uncons: t => _ = get(Chain.uncons);
 let hd: t => Token.t = get(Chain.hd);
@@ -29,9 +34,9 @@ let length: t => int = get(Chain.length);
 let rev: t => t = map(Chain.rev);
 
 let link = (tok, cell) => map(Chain.link(tok, cell));
-let unlink = (W(w)) =>
+let unlink = (W(w): t) =>
   Chain.unlink(w)
-  |> Result.map(~f=((tok, cell, tl)) => (tok, cell, W(tl)));
+  |> Result.map(~f=((tok, cell, (ts, cs))) => (tok, cell, mk(ts, cs)));
 
 let tokens: t => list(Token.t) = get(Chain.loops);
 let cells: t => list(Cell.t) = get(Chain.links);
@@ -45,7 +50,7 @@ let sort = w =>
   Token.sort(hd(w))
   |> Mtrl.map(~space=Fun.const(), ~grout=Fun.id, ~tile=Fun.id);
 
-let fold = (f, g, W(w)) => Chain.fold_left(f, g, w);
+let fold = (f, g, W(w): t) => Chain.fold_left(f, g, w);
 
 // let flatten = (W(w): t) =>
 //   w |> Chain.to_list(Lists.single, Cell.flatten) |> List.concat;
@@ -55,9 +60,9 @@ module Affix = {
   type t = Chain.Affix.t(Cell.t, Token.t);
 };
 
-let unzip_tok = (n, W(w)) => Chain.unzip_loop(n, w);
+let unzip_tok = (n, W(w): t) => Chain.unzip_loop(n, w);
 let zip_tok = (~pre=Affix.empty, ~suf=Affix.empty, tok) =>
-  W(Chain.zip(~pre, tok, ~suf));
+  w(Chain.zip(~pre, tok, ~suf));
 
 let unzip_cell = (n, W((toks, cells)): t) => {
   let (tok, (toks_l, toks_r)) = Lists.Framed.nth_exn(n, toks);
@@ -78,5 +83,5 @@ let merge_hds = (~save_cursor=false, ~from: Dir.t, src: t, dst: t): option(t) =>
   let (tl_l, tl_r) = Dir.order(from, (tl_src, tl_dst));
   let save_cursor = save_cursor ? Some(Dir.toggle(from)) : None;
   Token.merge(~save_cursor?, hd_l, hd_r)
-  |> Option.map(tok => W(Chain.zip(~pre=tl_l, tok, ~suf=tl_r)));
+  |> Option.map(tok => w(Chain.zip(~pre=tl_l, tok, ~suf=tl_r)));
 };

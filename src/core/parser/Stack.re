@@ -45,7 +45,7 @@ let link = (t: Token.t, (sw: Walk.Swing.t, c: Cell.t), stack: t) =>
         P.show("stack", show(stack));
         failwith("expected neq swing");
       };
-      let terr = Terr.{wald: Wald.of_tok(t), cell: c};
+      let terr = Terr.Base.{wald: Wald.of_tok(t), cell: c};
       {...stack, slope: [terr]};
     }
   | [hd, ...tl] =>
@@ -53,7 +53,7 @@ let link = (t: Token.t, (sw: Walk.Swing.t, c: Cell.t), stack: t) =>
       let hd = Terr.link(t, c, hd);
       {...stack, slope: [hd, ...tl]};
     } else {
-      let terr = Terr.{wald: Wald.of_tok(t), cell: c};
+      let terr = Terr.Base.{wald: Wald.of_tok(t), cell: c};
       {...stack, slope: [terr, hd, ...tl]};
     }
   };

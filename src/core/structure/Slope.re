@@ -1,8 +1,13 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = list(Terr.Base.t('tok));
+};
+
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = list(Terr.t);
+type t = Base.t(Token.t);
 
 let empty = [];
 let singleton = t => [t];
@@ -12,10 +17,10 @@ let cons = List.cons;
 let tokens = List.concat_map(Terr.tokens);
 // let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
 //   switch (c) {
-//   | Neq(c) => [Terr.{cell: c, wald: Wald.rev(w)}, ...slope]
+//   | Neq(c) => [Terr.Base.{cell: c, wald: Wald.rev(w)}, ...slope]
 //   | Eq(c) =>
 //     switch (slope) {
-//     | [] => [Terr.{cell: c, wald: Wald.rev(w)}]
+//     | [] => [Terr.Base.{cell: c, wald: Wald.rev(w)}]
 //     | [hd, ...tl] => [{...hd, wald: Wald.zip_cell(w, c, hd.wald)}, ...tl]
 //     }
 //   };
@@ -66,8 +71,8 @@ let unroll = (~from: Dir.t, cell: Cell.t) => {
     | Some(M(l, w, r)) =>
       let (cell, terr) =
         switch (from) {
-        | L => (r, Terr.{wald: Wald.rev(w), cell: l})
-        | R => (l, Terr.{wald: w, cell: r})
+        | L => (r, Terr.Base.{wald: Wald.rev(w), cell: l})
+        | R => (l, Terr.Base.{wald: w, cell: r})
         };
       go(cell, [terr, ...unrolled]);
     };

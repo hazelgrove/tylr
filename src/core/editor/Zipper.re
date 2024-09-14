@@ -13,16 +13,24 @@ module Caret = {
 };
 module Selection = {
   include Selection;
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = Selection.t(Zigg.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Selection.t(Zigg.t);
+  type t = Base.t(Token.t);
   let split_range = Fun.const(((), ()));
   let carets = carets(~split_range);
 };
 module Cur = Cursor;
 module Cursor = {
   include Cur;
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = Cur.t(Caret.t, Selection.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Cur.t(Caret.t, Selection.t);
+  type t = Base.t(Token.t);
   // let flatten: t => _ =
   //   fun
   //   | Point(_) => []
@@ -38,15 +46,20 @@ module Site = {
   type cursor = Cur.t(t, (t, t));
 };
 
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = {
+    cur: Cursor.Base.t('tok),
+    ctx: Ctx.Base.t('tok),
+  };
+};
+
 // todo: document potential same-id token on either side of caret
 // l|et x = 1 in x + 1
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = {
-  cur: Cursor.t,
-  ctx: Ctx.t,
-};
+type t = Base.t(Token.t);
 
-let mk = (~cur=Cursor.point(Caret.focus()), ctx) => {cur, ctx};
+let mk = (~cur=Cursor.point(Caret.focus()), ctx) => Base.{cur, ctx};
 
 let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =

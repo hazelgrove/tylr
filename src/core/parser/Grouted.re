@@ -35,7 +35,7 @@ let complete_wald = (baked: t, wald: Wald.t): Terr.t =>
        (c, t, (cell, wald)) => (c, Wald.link(t, cell, wald)),
        c => (c, wald),
      )
-  |> (((cell, wald)) => Terr.{cell, wald: Wald.rev(wald)});
+  |> (((cell, wald)) => Terr.Base.{cell, wald: Wald.rev(wald)});
 
 // completes terr to meld in same orientation
 let complete_terr = (baked: t, terr: Terr.t): Meld.t =>

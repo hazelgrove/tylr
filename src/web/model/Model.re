@@ -44,10 +44,10 @@ let cutoff = (==);
 // };
 
 let init_zipper =
-  Zipper.{
-    cur: Point(Caret.focus()),
-    ctx: Ctx.unit(([], [Terr.of_tok(Token.Grout.op_(Sort.root))])),
-  };
+  Zipper.mk(
+    ~cur=Point(Caret.focus()),
+    Ctx.unit(([], [Terr.of_tok(Token.Grout.op_(Sort.root))])),
+  );
 
 let init = {zipper: init_zipper, history: History.empty, font: Font.init};
 

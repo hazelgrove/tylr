@@ -1,8 +1,15 @@
 open Stds;
 
 include Chain;
+
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) =
+    Chain.t(Frame.Open.Base.t('tok), Frame.Closed.Base.t('tok));
+};
+
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = Chain.t(Frame.Open.t, Frame.Closed.t);
+type t = Base.t(Token.t);
 
 let empty = Chain.unit(Frame.Open.empty);
 

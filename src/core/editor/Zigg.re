@@ -1,12 +1,17 @@
-// L2R: up top dn
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t = {
-  up: Slope.Up.t,
-  top: Wald.t,
-  dn: Slope.Dn.t,
+module Base = {
+  // L2R: up top dn
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = {
+    up: Slope.Base.t('tok),
+    top: Wald.Base.t('tok),
+    dn: Slope.Base.t('tok),
+  };
 };
 
-let mk = (~up=Slope.empty, ~dn=Slope.empty, top) => {up, top, dn};
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t = Base.t(Token.t);
+
+let mk = (~up=Slope.empty, ~dn=Slope.empty, top) => Base.{up, top, dn};
 let of_tok = tok => mk(Wald.of_tok(tok));
 
 let orient = (d: Dir.t, {up, top, dn}: t) => {
@@ -63,13 +68,13 @@ let face = (~side: Dir.t, zigg: t) => {
 //   slopes: ([1, +], [+, 3])
 //   bridge: ( "(" , ")" )
 
-let map_top = (f, zigg) => {...zigg, top: f(zigg.top)};
+let map_top = (f, zigg: t) => {...zigg, top: f(zigg.top)};
 // let put_top = (top, zigg) => {...zigg, top: Some(top)};
 
-let map_up = (f, zigg) => {...zigg, up: f(zigg.up)};
+let map_up = (f, zigg: t) => {...zigg, up: f(zigg.up)};
 let put_up = up => map_up(_ => up);
 
-let map_dn = (f, zigg) => {...zigg, dn: f(zigg.dn)};
+let map_dn = (f, zigg: t) => {...zigg, dn: f(zigg.dn)};
 let put_dn = dn => map_dn(_ => dn);
 
 // let unroll = (c: Cell.t) => {
@@ -81,20 +86,12 @@ let put_dn = dn => map_dn(_ => dn);
 let of_dn = dn =>
   Stds.Lists.Framed.ft(dn)
   |> Option.map(((dn, t: Terr.t)) =>
-       {
-         up: Slope.Up.unroll(t.cell),
-         top: Wald.rev(t.wald),
-         dn: List.rev(dn),
-       }
+       mk(~up=Slope.Up.unroll(t.cell), Wald.rev(t.wald), ~dn=List.rev(dn))
      );
 let of_up = up =>
   Stds.Lists.Framed.ft(up)
   |> Option.map(((up, t: Terr.t)) =>
-       {
-         up: List.rev(up),
-         top: Wald.rev(t.wald),
-         dn: Slope.Up.unroll(t.cell),
-       }
+       mk(~up=List.rev(up), Wald.rev(t.wald), ~dn=Slope.Up.unroll(t.cell))
      );
 
 let roll = ({up, top, dn}: t) =>

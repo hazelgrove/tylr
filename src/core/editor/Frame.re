@@ -8,8 +8,12 @@ let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
 };
 
 module Open = {
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = (Slope.Base.t('tok), Slope.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = (Slope.Dn.t, Slope.Up.t);
+  type t = Base.t(Token.t);
   let empty = Slope.(empty, empty);
   let cons = (~onto: Dir.t, terr: Terr.t, (dn, up)) =>
     switch (onto) {
@@ -70,8 +74,12 @@ module Open = {
 };
 
 module Closed = {
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = (Terr.Base.t('tok), Terr.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = (Terr.R.t, Terr.L.t);
+  type t = Base.t(Token.t);
   let zip = (~zipped: Cell.t, (l, r): t) => zip_eq(l, zipped, r);
   let map_face = (~side: Dir.t, f, (l, r): t) =>
     switch (side) {
