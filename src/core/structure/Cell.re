@@ -50,8 +50,112 @@ module Base = {
     meld: option(Meld.t(t('tok), 'tok)),
   };
   let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
-  let empty = mk();
   let wrap = meld => mk(~meld, ());
+  let empty = mk();
+  let is_empty = (~require_unmarked=false, c: t(_)) =>
+    Option.is_none(c.meld) && (!require_unmarked || Marks.is_empty(c.marks));
+
+  let map_marks = (f, cell: t(_)) => {...cell, marks: f(cell.marks)};
+  let add_marks = marks => map_marks(Marks.union(marks));
+  let clear_marks = (cell: t(_)) => {...cell, marks: Marks.empty};
+  let pop_marks = (cell: t(_)) => (cell.marks, clear_marks(cell));
+  let put_cursor = (cur: Path.Cursor.t, cell: t(_)) => {
+    ...cell,
+    marks: Marks.put_cursor(cur, cell.marks),
+  };
+
+  let rec end_path = (~sans_padding=false, ~side: Dir.t, c: t(_)) =>
+    switch (c.meld) {
+    | None => Path.empty
+    | Some(m) when sans_padding && Meld.is_space(m) =>
+      end_path(~side=Dir.toggle(side), c)
+    | Some(M(l, _, r) as m) =>
+      let hd = Dir.pick(side, (0, Meld.length(m) - 1));
+      let tl = end_path(~sans_padding, ~side, Dir.pick(side, (l, r)));
+      Path.cons(hd, tl);
+    };
+
+  let is_clean = (c: t(_)) => Path.Map.is_empty(c.marks.dirty);
+  let mark_clean = (c: t(_)) => {...c, marks: Marks.mark_clean(c.marks)};
+  let mark_ends_dirty = (c: t(_)) => {
+    let (l, r) = (end_path(~side=L, c), end_path(~side=R, c));
+    let dirty = c.marks.dirty |> Path.Map.add(l, ()) |> Path.Map.add(r, ());
+    let marks = {...c.marks, dirty};
+    {...c, marks};
+  };
+  let has_clean_cursor = (c: t(_)) =>
+    switch (c.marks.cursor) {
+    | None => false
+    | Some(Point(car)) => !Path.Map.mem(car.path, c.marks.dirty)
+    | Some(Select(sel)) =>
+      let (l, r) = sel.range;
+      Path.Map.(!mem(l, c.marks.dirty) && !mem(r, c.marks.dirty));
+    };
+
+  // todo: move these out of Base
+  let lift_tok_marks = (tok: Token.t): (Marks.t, Token.t) =>
+    Token.pop_marks(tok)
+    |> Tuples.map_fst(Marks.of_token)
+    |> Tuples.map_fst(
+         Option.is_some(Oblig.of_token(tok))
+           ? Marks.add_oblig(tok.mtrl) : Fun.id,
+       );
+  let lower_tok_marks = (marks: Marks.t, tok: Token.t): Token.t =>
+    Token.put_marks(Marks.to_token(~len=Token.length(tok), marks), tok);
+
+  let aggregate_marks = (c: t(_)) =>
+    switch (c.meld) {
+    | None => c
+    | Some(m) =>
+      let (ics, its) =
+        Meld.to_chain(m)
+        |> Chain.mapi((i, c) => (i, c), (i, t) => (i, t));
+      let (cs_marks, cs) =
+        ics
+        |> List.map(((i, c)) =>
+             Tuples.map_fst(Marks.cons(i), pop_marks(c))
+           )
+        |> List.split;
+      let (ts_marks, ts) =
+        Chain.linked_loops((ics, its))
+        |> List.map((((_, l), (i, t), (_, r))) =>
+             lift_tok_marks(t)
+             |> Tuples.map_fst(
+                  Marks.map_paths(
+                    fun
+                    // normalize cursors at ends of tokens to ends of cells
+                    | [n] when n <= 0 => [i - 1, ...end_path(l, ~side=R)]
+                    | [n] when n >= Token.length(t) => [
+                        i + 1,
+                        ...end_path(~side=L, r),
+                      ]
+                    | p => [i, ...p],
+                  ),
+                )
+           )
+        |> List.split;
+      {
+        marks: Marks.union_all(cs_marks @ ts_marks),
+        meld: Some(Meld.of_chain((cs, ts))),
+      };
+    };
+
+  let distribute_marks = (c: t(_)) =>
+    switch (c.meld) {
+    | None => c
+    | Some(M(l, W((ts, cs)), r) as m) =>
+      let l = l |> add_marks(Marks.peel(0, c.marks));
+      let ts =
+        ts |> List.mapi(i => lower_tok_marks(Marks.peel(1 + 2 * i, c.marks)));
+      let cs =
+        cs |> List.mapi(i => add_marks(Marks.peel(2 * (1 + i), c.marks)));
+      let r = r |> add_marks(Marks.peel(Meld.length(m) - 1, c.marks));
+      mk(~meld=Meld.M(l, W((ts, cs)), r), ());
+    };
+
+  let get = (~distribute=true, c: t(_)) =>
+    (distribute ? distribute_marks : Fun.id)(c).meld;
+  let put = (meld: Meld.t(_)) => aggregate_marks(mk(~meld, ()));
 };
 include Base;
 
@@ -84,23 +188,10 @@ let show = Fmt.to_to_string(pp);
 // [@deriving (show({with_path: false}), sexp, yojson)]
 // type t = Meld.Cell.t(Meld.t);
 // let empty = mk();
-let is_empty = (~require_unmarked=false, c: t) =>
-  Option.is_none(c.meld) && (!require_unmarked || Marks.is_empty(c.marks));
-
-let put_cursor = (cur: Path.Cursor.t, cell: t) => {
-  ...cell,
-  marks: Marks.put_cursor(cur, cell.marks),
-};
-
 let face = (~side: Dir.t, c: t) => Option.map(Meld.face(~side), c.meld);
 
 // let flatten = (cell: t) =>
 //   cell.meld |> Option.map(Meld.flatten) |> Option.to_list |> List.flatten;
-
-let map_marks = (f, cell: t) => {...cell, marks: f(cell.marks)};
-let add_marks = marks => map_marks(Marks.union(marks));
-let clear_marks = (cell: t) => {...cell, marks: Marks.empty};
-let pop_marks = (cell: t) => (cell.marks, clear_marks(cell));
 
 let rec mark_degrouted = (~side: Dir.t, c: t) =>
   switch (c.meld) {
@@ -117,80 +208,6 @@ let rec mark_degrouted = (~side: Dir.t, c: t) =>
       {...c, meld: Some(M(l, w, r))};
     }
   };
-
-let rec end_path = (~sans_padding=false, ~side: Dir.t, c: t) =>
-  switch (c.meld) {
-  | None => Path.empty
-  | Some(m) when sans_padding && Meld.is_space(m) =>
-    end_path(~side=Dir.toggle(side), c)
-  | Some(M(l, _, r) as m) =>
-    let hd = Dir.pick(side, (0, Meld.length(m) - 1));
-    let tl = end_path(~sans_padding, ~side, Dir.pick(side, (l, r)));
-    Path.cons(hd, tl);
-  };
-
-let lift_tok_marks = (tok: Token.t): (Marks.t, Token.t) =>
-  Token.pop_marks(tok)
-  |> Tuples.map_fst(Marks.of_token)
-  |> Tuples.map_fst(
-       Option.is_some(Oblig.of_token(tok))
-         ? Marks.add_oblig(tok.mtrl) : Fun.id,
-     );
-let lower_tok_marks = (marks: Marks.t, tok: Token.t): Token.t =>
-  Token.put_marks(Marks.to_token(~len=Token.length(tok), marks), tok);
-
-let aggregate_marks = (c: t) =>
-  switch (c.meld) {
-  | None => c
-  | Some(m) =>
-    let (ics, its) =
-      Meld.to_chain(m) |> Chain.mapi((i, c) => (i, c), (i, t) => (i, t));
-    let (cs_marks, cs) =
-      ics
-      |> List.map(((i, c)) =>
-           Tuples.map_fst(Marks.cons(i), pop_marks(c))
-         )
-      |> List.split;
-    let (ts_marks, ts) =
-      Chain.linked_loops((ics, its))
-      |> List.map((((_, l), (i, t), (_, r))) =>
-           lift_tok_marks(t)
-           |> Tuples.map_fst(
-                Marks.map_paths(
-                  fun
-                  // normalize cursors at ends of tokens to ends of cells
-                  | [n] when n <= 0 => [i - 1, ...end_path(l, ~side=R)]
-                  | [n] when n >= Token.length(t) => [
-                      i + 1,
-                      ...end_path(~side=L, r),
-                    ]
-                  | p => [i, ...p],
-                ),
-              )
-         )
-      |> List.split;
-    {
-      marks: Marks.union_all(cs_marks @ ts_marks),
-      meld: Some(Meld.of_chain((cs, ts))),
-    };
-  };
-
-let distribute_marks = (c: t) =>
-  switch (c.meld) {
-  | None => c
-  | Some(M(l, W((ts, cs)), r) as m) =>
-    let l = l |> add_marks(Marks.peel(0, c.marks));
-    let ts =
-      ts |> List.mapi(i => lower_tok_marks(Marks.peel(1 + 2 * i, c.marks)));
-    let cs =
-      cs |> List.mapi(i => add_marks(Marks.peel(2 * (1 + i), c.marks)));
-    let r = r |> add_marks(Marks.peel(Meld.length(m) - 1, c.marks));
-    mk(~meld=Meld.M(l, W((ts, cs)), r), ());
-  };
-
-let get = (~distribute=true, c: t) =>
-  (distribute ? distribute_marks : Fun.id)(c).meld;
-let put = (meld: Meld.t(_)) => aggregate_marks(mk(~meld, ()));
 
 let caret = (car: Path.Caret.t) =>
   mk(~marks=Marks.mk(~cursor=Point(car), ()), ());
@@ -350,24 +367,6 @@ let prune_sys = (c: t) =>
     | Error(c) => c
     | Ok(_) => put(Meld.of_chain(pruned))
     };
-  };
-
-let is_clean = (c: t) => Path.Map.is_empty(c.marks.dirty);
-let mark_clean = (c: t) => {...c, marks: Marks.mark_clean(c.marks)};
-let mark_ends_dirty = (c: t) => {
-  let (l, r) = (end_path(~side=L, c), end_path(~side=R, c));
-  let dirty = c.marks.dirty |> Path.Map.add(l, ()) |> Path.Map.add(r, ());
-  let marks = {...c.marks, dirty};
-  {...c, marks};
-};
-
-let has_clean_cursor = (c: t) =>
-  switch (c.marks.cursor) {
-  | None => false
-  | Some(Point(car)) => !Path.Map.mem(car.path, c.marks.dirty)
-  | Some(Select(sel)) =>
-    let (l, r) = sel.range;
-    Path.Map.(!mem(l, c.marks.dirty) && !mem(r, c.marks.dirty));
   };
 
 let to_chain = (c: t) =>

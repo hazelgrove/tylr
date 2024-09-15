@@ -4,7 +4,34 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) = list(Terr.Base.t('tok));
+
+  let unroll = (~from: Dir.t, cell: Cell.Base.t(_)): t(_) => {
+    let rec go = (cell: Cell.t, unrolled) =>
+      switch (Cell.get(cell)) {
+      | None => unrolled
+      | Some(M(l, w, r)) =>
+        let (cell, terr) =
+          switch (from) {
+          | L => (r, Terr.Base.{wald: Wald.rev(w), cell: l})
+          | R => (l, Terr.Base.{wald: w, cell: r})
+          };
+        go(cell, [terr, ...unrolled]);
+      };
+    go(cell, []);
+  };
+  let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
+    switch (slope) {
+    | [] => fill
+    | [hd, ...tl] =>
+      let m =
+        switch (onto) {
+        | L => Meld.mk(~l=hd.cell, hd.wald, ~r=fill)
+        | R => Meld.mk(~l=fill, hd.wald, ~r=hd.cell)
+        };
+      roll(~onto, ~fill=Cell.put(m), tl);
+    };
 };
+include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.t(Token.t);
@@ -63,32 +90,6 @@ let extend = (tl: Chain.Affix.t(Cell.t, Token.t)) =>
 let fold: (('acc, Terr.t) => 'acc, 'acc, t) => 'acc = List.fold_left;
 
 let cat = (@);
-
-let unroll = (~from: Dir.t, cell: Cell.t) => {
-  let rec go = (cell: Cell.t, unrolled) =>
-    switch (Cell.get(cell)) {
-    | None => unrolled
-    | Some(M(l, w, r)) =>
-      let (cell, terr) =
-        switch (from) {
-        | L => (r, Terr.Base.{wald: Wald.rev(w), cell: l})
-        | R => (l, Terr.Base.{wald: w, cell: r})
-        };
-      go(cell, [terr, ...unrolled]);
-    };
-  go(cell, []);
-};
-let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
-  switch (slope) {
-  | [] => fill
-  | [hd, ...tl] =>
-    let m =
-      switch (onto) {
-      | L => Meld.mk(~l=hd.cell, hd.wald, ~r=fill)
-      | R => Meld.mk(~l=fill, hd.wald, ~r=hd.cell)
-      };
-    roll(~onto, ~fill=Cell.put(m), tl);
-  };
 
 let pull_terr = (~from: Dir.t, terr: Terr.t): (Token.t, t) => {
   let (tok, rest) = Wald.uncons(terr.wald);
