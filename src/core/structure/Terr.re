@@ -3,8 +3,8 @@ open Stds;
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    cell: Cell.t,
     wald: Wald.t,
+    cell: Cell.t,
   };
 };
 include Base;
@@ -25,12 +25,21 @@ let unmk = ({wald: W((toks, cells)), cell}: t) => (toks, cells @ [cell]);
 
 let length = (terr: t) => Wald.length(terr.wald) + 1;
 
+// todo: clean up, subsumed by face
 let hd = terr => Wald.hd(terr.wald);
 let put_hd = (hd, terr) => {...terr, wald: Wald.put_hd(hd, terr.wald)};
 let tokens = terr => Wald.tokens(terr.wald);
 
+let hd_cell = terr =>
+  switch (Wald.unlink(terr.wald)) {
+  | Ok((_, cell, _)) => cell
+  | Error(_) => terr.cell
+  };
+
+let face = (terr: t) => Wald.hd(terr.wald);
+let map_face = (f, terr) => {...terr, wald: Wald.map_hd(f, terr.wald)};
+
 let sort = (terr: t) => Wald.sort(terr.wald);
-let face = (terr: t) => Wald.face(terr.wald);
 let cells = (terr: t) => Wald.cells(terr.wald) @ [terr.cell];
 
 let of_wald = wald => {cell: Cell.empty, wald};
@@ -45,6 +54,12 @@ let unlink = (terr: t) =>
   | Error(tok) => (tok, terr.cell, None)
   };
 
+let merge_hd = (~onto: Dir.t, t: Token.t, terr: t) => {
+  open Options.Syntax;
+  let (l, r) = Dir.order(onto, (hd(terr), t));
+  let+ merged = Token.merge(~save_cursor=Dir.toggle(onto), l, r);
+  put_hd(merged, terr);
+};
 // module Tl = {
 //   // a terrace minus its hd token
 //   type t = Chain.t(Cell.t, Token.t);

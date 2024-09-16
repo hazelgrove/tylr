@@ -109,6 +109,11 @@ module App = {
         Js.string("MAC"),
       )
       >= 0;
+    // Async_kernel.Clock_ns.run_after(
+    //   Core.Time_ns.Span.of_ms(100.0),
+    //   Tylr_core.Walker.warmup,
+    //   (),
+    // );
     Async_kernel.Deferred.return();
   };
 

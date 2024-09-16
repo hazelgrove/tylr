@@ -10,3 +10,14 @@
 
 (rule
  (copy ../style.css style.css))
+
+(rule
+ (copy ../fonts/SourceCodePro-Black.otf.woff2 SourceCodePro-Black.otf.woff2))
+
+(rule
+ (copy ../fonts/SourceCodePro-Bold.otf.woff2 SourceCodePro-Bold.otf.woff2))
+
+(rule
+ (copy
+  ../fonts/SourceCodePro-Regular.otf.woff2
+  SourceCodePro-Regular.otf.woff2))

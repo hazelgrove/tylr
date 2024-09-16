@@ -2,35 +2,37 @@ open Stds;
 open Walk;
 
 let mtrlize_tile =
-    (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t)
-    : list(Tile.Sym.t) =>
-  Grammar.v
-  |> Sort.Map.find(snd(s))
-  |> Prec.Table.mapi(((p, a), rgx) => {
-       let is_bounded =
-         Bound.(
-           l |> map(l => Prec.lt(~a, l, p)) |> get(~root=true),
-           r |> map(r => Prec.gt(~a, p, r)) |> get(~root=true),
-         );
-       // need to check for legal bounded entry from both sides
-       let enter_from = (from: Dir.t) =>
-         // currently filtering without assuming single operator form
-         // for each prec level. this may need to change.
-         RZipper.enter(~from, ~filter=fst(s), rgx)
-         |> List.filter_map(
-              fun
-              | Bound.Root => None
-              | Node((sym, _) as z) =>
-                Dir.pick(from, is_bounded) || Sym.is_t(sym)
-                  ? Some(Tile.Sym.mk(snd(s), p, z)) : None,
-            );
-       switch (enter_from(L), enter_from(R)) {
-       | ([], _)
-       | (_, []) => []
-       | ([_, ..._] as l, [_, ..._] as r) => Dir.pick(from, (l, r))
-       };
-     })
-  |> List.concat;
+  Memo.general(((l, r, s, from)) =>
+    Grammar.v
+    |> Sort.Map.find(s)
+    |> Prec.Table.mapi(((p, a), rgx) => {
+         let is_bounded =
+           Bound.(
+             l |> map(l => Prec.lt(~a, l, p)) |> get(~root=true),
+             r |> map(r => Prec.gt(~a, p, r)) |> get(~root=true),
+           );
+         // need to check for legal bounded entry from both sides
+         let enter_from = (from: Dir.t) =>
+           // currently filtering without assuming single operator form
+           // for each prec level. this may need to change.
+           RZipper.enter(~from, rgx)
+           |> List.filter_map(
+                fun
+                | Bound.Root => None
+                | Node((sym, _) as z) =>
+                  Dir.pick(from, is_bounded) || Sym.is_t(sym)
+                    ? Some(Tile.Sym.mk(s, p, z)) : None,
+              );
+         switch (enter_from(L), enter_from(R)) {
+         | ([], _)
+         | (_, []) => []
+         | ([_, ..._] as l, [_, ..._] as r) => Dir.pick(from, (l, r))
+         };
+       })
+    |> List.concat
+  );
+let mtrlize_tile = (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t) =>
+  mtrlize_tile((l, r, s, from));
 
 let mtrlize_grout =
     (~l=Bound.Root, ~r=Bound.Root, s: Sort.t): list(Grout.Sym.t) =>
@@ -48,17 +50,16 @@ let mtrlize_grout =
   |> List.map(Sym.t);
 
 let mtrlize =
-    (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t)
-    : list(Mtrl.Sym.t) =>
-  List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from))
-  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, snd(s), ~r));
+    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Mtrl.Sym.t) =>
+  List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r))
+  @ List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from));
 
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
   switch (Swing.bot(Walk.hd(w))) {
-  | Space(_) => Index.empty // handled elsewhere
+  | Space(_) => Index.empty // handled in arrive
   | Grout(s) =>
     Index.single(Root, w)
-    |> Index.add(Node(Grout((s, Tip.(Conc, Conv)))), w)
+    |> Index.add(Node(Grout((s, Dir.order(from, Tip.(Conc, Conv))))), w)
     |> Index.add(Node(Grout((s, Tip.(Conc, Conc)))), w)
   | Tile((_, Root)) => Index.single(Root, w)
   | Tile((s, Node(mold))) =>
@@ -77,13 +78,17 @@ let arrive = (sym: Mtrl.Sym.t, w: Walk.t, ~from: Dir.t) =>
   | NT(nt) => swing_over(Walk.cons(nt, w), ~from)
   | T(t) =>
     // extra logic encapsulated here to deal with space and grout NTs
-    // not having enough contextual info to swing over
+    // not having enough contextual info to swing over, as well as to
+    // generate placeholder space NT cells to separate adjacent tile Ts
     let over: Mtrl.NT.t =
       switch (t) {
-      | Space () => Space(false)
-      | Grout((s, (Conc, _))) => Grout(s)
-      | Grout((_, (Conv, _)))
-      | Tile(_) => Space(true)
+      | Space(_) => Space(Closed)
+      | Tile(_) => Space(Open)
+      | Grout((s, tips)) =>
+        switch (Dir.pick(from, tips)) {
+        | Conc => Grout(s)
+        | Conv => Space(Open)
+        }
       };
     Index.single(Node(t), Walk.cons(over, w));
   };
@@ -91,15 +96,20 @@ let arrive = (sym: Mtrl.Sym.t, w: Walk.t, ~from: Dir.t) =>
 let swing_into = (w: Walk.t, ~from: Dir.t) => {
   let swing = Chain.hd(w);
   switch (Swing.bot(swing)) {
-  | Space(false) => Index.empty
-  | Space(true) => Index.single(Node(Space()), Walk.cons(Space(false), w))
+  | Space(Closed) => Index.empty
+  | Space(Open) =>
+    Space.T.all
+    |> List.fold_left(
+         (idx, t) =>
+           Index.add(Node(Space(t)), Walk.cons(Space(Closed), w), idx),
+         Index.empty,
+       )
   | Grout(s) =>
     // grout NTs can only be entered from directly preceding grout T.
     // otherwise, potential soundness issues where a tile T can step to
     // any descendant sort T.
     Swing.height(swing) == 0
-      ? Sort.Set.elements(Sorts.deps(s))
-        |> List.map(s => ([], s))
+      ? Sorts.deps(s)
         |> List.concat_map(mtrlize(~from))
         |> List.map(sym => arrive(sym, w, ~from))
         |> Index.union_all
@@ -146,16 +156,28 @@ let step_all =
   Memo.general(((src: End.t, from: Dir.t)) =>
     switch (src) {
     | Root => swing_all(Tile(Tile.NT.root), ~from)
-    // space takes prec over everything. could make it so that space eq space
-    // but this behavior is encoded in token zipping/merging instead of walks.
-    | Node(Space ()) => Index.single(Root, Walk.empty)
+    | Node(Space(_)) =>
+      // space takes prec over everything and matches itself
+      Space.T.all
+      |> List.fold_left(
+           (idx, t) => Index.add(Node(Space(t)), Walk.empty, idx),
+           Index.single(Root, Walk.empty),
+         )
     | Node(Grout((s, tips))) =>
-      let index =
-        switch (Dir.pick(Dir.toggle(from), tips)) {
-        | Conc => swing_all(Grout(s), ~from)
-        | Conv => Index.single(Root, Walk.space)
-        };
-      Index.union(index, swing_into(Walk.space, ~from));
+      switch (Dir.pick(Dir.toggle(from), tips)) {
+      | Conc =>
+        let w = Walk.unit(Walk.Swing.unit(Grout(s)));
+        let un = Mtrl.Grout((s, Dir.order(from, Tip.(Conc, Conv))));
+        let bin = Mtrl.Grout((s, Tip.(Conc, Conc)));
+        swing_all(Grout(s), ~from)
+        |> Index.add(Root, w)
+        |> Index.add(Node(un), w)
+        |> Index.add(Node(bin), w)
+        |> Index.union(swing_into(Walk.space, ~from));
+      | Conv =>
+        Index.single(Root, Walk.space)
+        |> Index.union(swing_into(Walk.space, ~from))
+      }
     | Node(Tile((lbl, mold))) =>
       (Sym.T(lbl), mold.rctx)
       |> RZipper.step(Dir.toggle(from))
@@ -193,11 +215,17 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
   index^;
 };
 
+let is_minimal = (w: Walk.t) =>
+  !(Walk.is_neq(w) && List.exists(Mtrl.is_tile, Chain.links(w)));
+
 let walk_all =
   Memo.general(((from: Dir.t, src: End.t)) => {
     let q = Queue.create();
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
-    bfs(~from, q);
+    bfs(~from, q)
+    |> Index.filter(Walk.is_valid)
+    |> Index.filter(is_minimal)
+    |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t) => walk_all((from, src));
 
@@ -207,7 +235,10 @@ let enter_all =
     swing_all(~from, nt)
     |> Index.filter(is_neq)
     |> Index.iter((dst, w) => Queue.push((dst, w), q));
-    bfs(~from, q);
+    bfs(~from, q)
+    |> Index.filter(Walk.is_valid)
+    |> Index.filter(is_minimal)
+    |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
@@ -215,17 +246,17 @@ let step = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, step_all(~from, src));
 let lt =
   Memo.general(((l: End.t, r: End.t)) =>
-    Set.filter(Walk.is_neq, step(~from=L, l, r))
+    List.filter(Walk.is_neq, step(~from=L, l, r))
   )
   |> Funs.curry;
 let gt =
   Memo.general(((l: End.t, r: End.t)) =>
-    Set.filter(Walk.is_neq, step(~from=R, r, l))
+    List.filter(Walk.is_neq, step(~from=R, r, l))
   )
   |> Funs.curry;
 let eq =
   Memo.general(((l: End.t, r: End.t)) =>
-    Set.filter(Walk.is_eq, step(~from=L, l, r))
+    List.filter(Walk.is_eq, step(~from=L, l, r))
   )
   |> Funs.curry;
 
@@ -233,12 +264,30 @@ let eq =
 let walk = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, walk_all(~from, src));
 let walk_eq = (~from: Dir.t, src: End.t, dst: End.t) =>
-  Walk.Set.filter(Walk.is_eq, walk(~from, src, dst));
+  List.filter(Walk.is_eq, walk(~from, src, dst));
 let walk_neq = (~from: Dir.t, src: End.t, dst: End.t) =>
-  Walk.Set.filter(Walk.is_neq, walk(~from, src, dst));
+  List.filter(Walk.is_neq, walk(~from, src, dst));
 
 let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
   Index.find(dst, enter_all(~from, sort));
 
 let exit = (~from: Dir.t, src: End.t) =>
-  Set.filter(Walk.is_eq, walk(~from, src, Root));
+  List.filter(Walk.is_eq, walk(~from, src, Root));
+
+let warmup = () => {
+  // initialize caches
+  let (ts, nts) =
+    Mtrl.Sym.all |> List.partition_map(Sym.get(Either.left, Either.right));
+  ignore(walk_all(~from=L, Root));
+  ignore(walk_all(~from=R, Root));
+  ts
+  |> List.iter(t => {
+       ignore(walk_all(~from=L, Node(t)));
+       ignore(walk_all(~from=R, Node(t)));
+     });
+  nts
+  |> List.iter(nt => {
+       ignore(enter_all(~from=L, nt));
+       ignore(enter_all(~from=R, nt));
+     });
+};

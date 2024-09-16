@@ -10,6 +10,7 @@ module Token = {
   let add = (p: Step.Caret.t, marks: t): t =>
     switch (marks) {
     | None => Some(Point(p))
+    | Some(Point(q)) when q.hand == p.hand => Some(Point(p))
     | Some(Point(q)) =>
       let (l, r) = Step.compare(p.path, q.path) <= 0 ? (p, q) : (q, p);
       let focus = Dir.(l.hand == Focus ? L : R);
@@ -27,22 +28,49 @@ module Cell = {
   [@deriving (sexp, yojson)]
   type t = {
     cursor: option(Path.Cursor.t),
-    ghosts: Path.Map.t(Tile.T.t),
+    // todo: unify this with Oblig module
+    obligs: Path.Map.t(Mtrl.T.t),
+    dirty: Path.Map.t(unit),
+    // TODO: add degrouted field
+    degrouted: bool,
   };
-  let mk = (~cursor=?, ~ghosts=Path.Map.empty, ()) => {cursor, ghosts};
+  let mk =
+      (
+        ~cursor=?,
+        ~obligs=Path.Map.empty,
+        ~dirty=Path.Map.empty,
+        ~degrouted=false,
+        (),
+      ) => {
+    cursor,
+    obligs,
+    dirty,
+    degrouted,
+  };
   let empty = mk();
   let is_empty = (==)(empty);
-  let pp = (out, marks) =>
+  let pp = (out, {cursor, obligs, dirty, degrouted} as marks) =>
     if (is_empty(marks)) {
       Fmt.nop(out, marks);
-    } else if (Option.is_none(marks.cursor)) {
-      Fmt.pf(out, "ghosts: %a", Path.Map.pp(Tile.T.pp), marks.ghosts);
-    } else if (Path.Map.is_empty(marks.ghosts)) {
-      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
+    } else if (Option.is_none(cursor) && Path.Map.is_empty(dirty)) {
+      Fmt.pf(out, "obligs: %a", Path.Map.pp(Mtrl.T.pp), obligs);
+    } else if (Path.Map.is_empty(obligs) && Path.Map.is_empty(dirty)) {
+      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(cursor));
     } else {
-      Fmt.pf(out, "cursor: %a", Path.Cursor.pp, Option.get(marks.cursor));
+      Fmt.pf(
+        out,
+        "cursor: %a,@ obligs: %a,@ dirty: %a,@ degrouted: %b",
+        Fmt.option(Path.Cursor.pp),
+        cursor,
+        Path.Map.pp(Mtrl.T.pp),
+        obligs,
+        Path.Map.pp(Fmt.sp),
+        dirty,
+        degrouted,
+      );
     };
   let show = Fmt.to_to_string(pp);
+
   let put_cursor = (cur, marks) => {...marks, cursor: Some(cur)};
   let get_focus = (marks: t) =>
     Option.bind(marks.cursor, Path.Cursor.get_focus);
@@ -50,22 +78,44 @@ module Cell = {
     ...marks,
     cursor: Path.Cursor.put_focus(path, marks.cursor),
   };
-  let add_ghost = (~path=Path.empty, t: Tile.T.t, marks: t) => {
+
+  let add_oblig = (~path=Path.empty, t: Mtrl.T.t, marks: t) => {
     ...marks,
-    ghosts: Path.Map.add(path, t, marks.ghosts),
+    obligs: Path.Map.add(path, t, marks.obligs),
   };
-  let map = (f_cursor, f_ghosts, {cursor, ghosts}) => {
+
+  let dirty = mk(~dirty=Path.Map.singleton(Path.empty, ()), ());
+  let mark_clean = marks => {...marks, dirty: Path.Map.empty};
+
+  let map = (f_cursor, f_obligs, f_dirty, {cursor, obligs, dirty, degrouted}) => {
     cursor: f_cursor(cursor),
-    ghosts: f_ghosts(ghosts),
+    obligs: f_obligs(obligs),
+    dirty: f_dirty(dirty),
+    degrouted,
   };
-  let cons = n => map(Option.map(Path.Cursor.cons(n)), Path.Map.cons(n));
+  let cons = n =>
+    map(
+      Option.map(Path.Cursor.cons(n)),
+      Path.Map.cons(n),
+      Path.Map.cons(n),
+    );
   let peel = n =>
-    map(Options.bind(~f=Path.Cursor.peel(n)), Path.Map.peel(n));
+    map(
+      Options.bind(~f=Path.Cursor.peel(n)),
+      Path.Map.peel(n),
+      Path.Map.peel(n),
+    );
   let map_paths = f =>
-    map(Option.map(Path.Cursor.map_paths(f)), Path.Map.map_paths(f));
+    map(
+      Option.map(Path.Cursor.map_paths(f)),
+      Path.Map.map_paths(f),
+      Path.Map.map_paths(f),
+    );
   let union = (l: t, r: t) => {
     cursor: Options.merge(~f=Path.Cursor.union, l.cursor, r.cursor),
-    ghosts: Path.Map.union((_, t, _) => Some(t), l.ghosts, r.ghosts),
+    obligs: Path.Map.union((_, t, _) => Some(t), l.obligs, r.obligs),
+    dirty: Path.Map.union((_, (), ()) => Some(), l.dirty, r.dirty),
+    degrouted: l.degrouted || r.degrouted,
   };
   let union_all = List.fold_left(union, empty);
 

@@ -1,3 +1,4 @@
+[@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   | Insert(Token.t)
   | Remove(Token.t);
@@ -6,7 +7,10 @@ let log = ref([]);
 let reset = () => log := [];
 
 let perform = (eff: t) => log := [eff, ...log^];
-let insert = tok => perform(Insert(tok));
+let insert = tok => {
+  perform(Insert(tok));
+  tok;
+};
 let remove = tok => perform(Remove(tok));
 // let merge = (l, r) => perform(Merge(l, r));
 

@@ -1,5 +1,6 @@
 [@deriving (show({with_path: false}), sexp, yojson, hash)]
 type t('point, 'select) =
+  // todo: rename Caret
   | Point('point)
   | Select('select);
 
@@ -23,3 +24,8 @@ let get_point =
   fun
   | Point(p) => Some(p)
   | Select(_) => None;
+
+let get_select =
+  fun
+  | Select(s) => Some(s)
+  | Point(_) => None;

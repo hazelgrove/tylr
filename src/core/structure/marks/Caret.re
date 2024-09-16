@@ -11,6 +11,8 @@ type t('path) = {
   path: 'path,
 };
 
+let hand = car => car.hand;
+
 let mk = (hand: Hand.t, path) => {hand, path};
 let focus = path => mk(Focus, path);
 let anchor = path => mk(Anchor, path);

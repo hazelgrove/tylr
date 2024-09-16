@@ -13,9 +13,10 @@ type t =
   // | Load
   // | Save
   // | SwitchEditor(int)
+  | Warmup
   | SetFont(Font.t)
   // | SetLogoFont(Font.t)
-  | PerformAction(Edit.Action.t)
+  | PerformAction(Edit.t)
   // | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
   | Redo;
@@ -65,7 +66,9 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
     | (Up, "Backspace") => now_save(Delete(L))
     | (Up, "Delete") => now_save(Delete(R))
     | (Up, "Escape") => now(Select(Un(L)))
+    | (Up, "Tab") => now(Move(Hole(R)))
     // | (Up, "Tab") => now_save(Put_down) //TODO: if empty, move to next hole
+    | (Down, "Tab") => now(Move(Hole(L)))
     | (Down, "ArrowLeft") => now(Select(Move(Step(H(L)))))
     | (Down, "ArrowRight") => now(Select(Move(Step(H(R)))))
     | (Down, "ArrowUp") => now(Select(Move(Step(V(L)))))
@@ -209,6 +212,9 @@ let apply =
     : Result.t(Model.t) => {
   //print_endline("apply");
   switch (update) {
+  | Warmup =>
+    Tylr_core.Walker.warmup();
+    Ok(model);
   | SetFont(font) => Ok({...model, font})
   // | SetLogoFont(logo_font_metrics) =>
   //   Ok({...model, logo_font_metrics})

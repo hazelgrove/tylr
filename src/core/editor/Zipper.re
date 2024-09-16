@@ -2,12 +2,14 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
+exception Bug__lost_cursor;
+
 module Caret = {
   include Caret;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Caret.t(unit);
   let mk = hand => mk(hand, ());
-  let focus = focus();
+  // let focus = focus();
 };
 module Selection = {
   include Selection;
@@ -16,14 +18,24 @@ module Selection = {
   let split_range = Fun.const(((), ()));
   let carets = carets(~split_range);
 };
+module Cur = Cursor;
 module Cursor = {
-  include Cursor;
+  include Cur;
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Cursor.t(Caret.t, Selection.t);
+  type t = Cur.t(Caret.t, Selection.t);
   let flatten: t => _ =
     fun
     | Point(_) => []
     | Select({range, _}) => Zigg.flatten(range);
+};
+
+module Site = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t =
+    | Between
+    | Within(Token.t);
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type cursor = Cur.t(t, (t, t));
 };
 
 // todo: document potential same-id token on either side of caret
@@ -34,7 +46,7 @@ type t = {
   ctx: Ctx.t,
 };
 
-let mk = (~cur=Cursor.point(Caret.focus), ctx) => {cur, ctx};
+let mk = (~cur=Cursor.point(Caret.focus()), ctx) => {cur, ctx};
 
 let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
@@ -44,7 +56,42 @@ let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
 let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
   mk(unroll(side, cell, ~ctx));
 
-// assumes normalized cursor
+let cursor_site = (z: t): (Site.cursor, Ctx.t) =>
+  switch (z.cur) {
+  | Point(_) =>
+    let (l, ctx) = Ctx.pull(~from=L, z.ctx);
+    let (r, ctx) = Ctx.pull(~from=R, ctx);
+    switch (l, r) {
+    | (Node(l), Node(r)) when Token.merges(l, r) => (
+        Cur.Point(Site.Within(l)),
+        ctx,
+      )
+    | _ => (Cur.Point(Between), z.ctx)
+    };
+  | Select(sel) =>
+    let (l, ctx) = {
+      let face = Zigg.face(~side=L, sel.range);
+      switch (Ctx.pull(~from=L, z.ctx)) {
+      | (Node(l), rest) when Token.merges(l, face) => (
+          Site.Within(face),
+          rest,
+        )
+      | _ => (Between, z.ctx)
+      };
+    };
+    let (r, ctx) = {
+      let face = Zigg.face(sel.range, ~side=R);
+      switch (Ctx.pull(~from=R, ctx)) {
+      | (Node(r), rest) when Token.merges(face, r) => (
+          Site.Within(face),
+          rest,
+        )
+      | _ => (Between, ctx)
+      };
+    };
+    (Cur.Select((l, r)), ctx);
+  };
+
 let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
   open Options.Syntax;
   let* hd = Option.map(Path.Cursor.hd, cell.marks.cursor);
@@ -61,34 +108,41 @@ let rec unzip = (~ctx=Ctx.empty, cell: Cell.t) => {
     switch (Meld.unzip(step, m)) {
     | Loop((pre, cell, suf)) => unzip(~ctx=Ctx.add((pre, suf), ctx), cell)
     | Link((pre, tok, suf)) =>
-      let (l, cur, r) = Options.get_exn(Marks.Invalid, Token.unzip(tok));
-      let mk = mk(~cur=Cursor.map(Fun.id, Selection.map(Zigg.of_tok), cur));
-      switch (l, r) {
-      | (None, None) => failwith("todo")
-      | (None, Some(r)) =>
+      let map = Cursor.map(Fun.id, Selection.map(Zigg.of_tok));
+      switch (Token.unzip(tok)) {
+      // | (_, None, _) => go_l(Point(Caret.focus), tok)
+      | (None, _, None) => failwith("todo: handle token paths")
+      | (None, cur, Some(r)) =>
         let (cell, pre) = Chain.uncons(pre);
         let suf = Chain.Affix.cons(r, suf);
         let ctx = Ctx.add((pre, suf), ctx);
-        Some(mk(unroll(R, cell, ~ctx)));
-      | (Some(l), None) =>
+        Some(mk(~cur=map(cur), unroll(R, cell, ~ctx)));
+      | (Some(l), cur, None) =>
         let pre = Chain.Affix.cons(l, pre);
         let (cell, suf) = Chain.uncons(suf);
         let ctx = Ctx.add((pre, suf), ctx);
-        Some(mk(unroll(L, cell, ~ctx)));
-      | (Some(l), Some(r)) =>
+        Some(mk(~cur=map(cur), unroll(L, cell, ~ctx)));
+      | (Some(l), cur, Some(r)) =>
         let pre = Chain.Affix.cons(l, pre);
         let suf = Chain.Affix.cons(r, suf);
-        Some(mk(Ctx.add((pre, suf), ctx)));
+        Some(mk(~cur=map(cur), Ctx.add((pre, suf), ctx)));
       };
     };
   };
 }
+// assumes normalized cursor
 and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   let get = Options.get_exn(Marks.Invalid);
   let (l, r) = sel.range;
   let l = Path.hd(l) |> Path.Head.get(() => 0);
   let r = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
-  let (pre, top, suf) = Meld.split_subwald(l, r, meld);
+  let (pre, top, suf) =
+    try(Meld.split_subwald(l, r, meld)) {
+    | _ =>
+      P.show("paths", Path.Selection.show(sel));
+      P.show("meld", Meld.show(meld));
+      failwith("failed split subwald");
+    };
   let ((pre_dn, pre_up), top) =
     if (l mod 2 == 0) {
       // l points to cell hd_pre
@@ -122,6 +176,9 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
   mk(~cur=Select({focus: sel.focus, range: zigg}), ctx);
 };
 
+let unzip_exn = (~ctx=Ctx.empty, c: Cell.t) =>
+  unzip(~ctx, c) |> Options.get_exn(Invalid_argument("Zipper.unzip_exn"));
+
 let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
   open Options.Syntax;
   let* (rel, zipped, ctx) = Ctx.zip_step(~zipped, ctx);
@@ -138,7 +195,7 @@ let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
 let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
   switch (z.cur) {
   | Point(car) =>
-    switch (Ctx.zip_toks(~caret=?save_cursor ? Some(car.hand) : None, z.ctx)) {
+    switch (Ctx.zip_toks(~save_cursor, z.ctx)) {
     // within token
     | Some((m, ctx)) => (Cell.put(m), ctx)
     | None =>
@@ -181,7 +238,8 @@ let zip = (~save_cursor=false, z: t) => {
       let fill = save_cursor ? Cell.point(Anchor) : Cell.empty;
       Ctx.push_zigg(~onto=Dir.toggle(focus), zigg, ~fill, z.ctx);
     };
-  Ctx.zip(ctx, ~zipped=save_cursor ? Cell.point(Focus) : Cell.empty);
+  let zipped = save_cursor ? Cell.point(Focus) : Cell.empty;
+  Ctx.zip(ctx, ~zipped, ~save_cursor);
 };
 
 let path_of_ctx = (ctx: Ctx.t) => {
@@ -194,7 +252,13 @@ let path_of_ctx = (ctx: Ctx.t) => {
 // tries zipping and unzipping to cursor
 let load_cursor = (z: t) => unzip(zip(z));
 
-let button = (z: t): t => {
-  let (cell, ctx) = zip_init(~save_cursor=true, z);
-  Option.get(unzip(cell, ~ctx));
+let normalize = (~cell: Cell.t, path: Path.t): Path.t => {
+  let cell = Cell.put_cursor(Point(Caret.focus(path)), cell);
+  let zipped =
+    unzip(cell)
+    |> Options.get_exn(Invalid_argument("Cell.normalize"))
+    |> zip(~save_cursor=true);
+  let cur = Option.get(zipped.marks.cursor);
+  let car = Option.get(Cursor.get_point(cur));
+  car.path;
 };

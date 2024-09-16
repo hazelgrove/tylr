@@ -10,6 +10,8 @@ and meld =
 and wald =
   | W(Chain.t(Block.t, t));
 
+let empty = None;
+
 let map: (_, t) => t = Option.map;
 
 let rec flatten = (t: t): Block.t =>
@@ -17,6 +19,8 @@ let rec flatten = (t: t): Block.t =>
 and flatten_meld = (M(l, w, r): meld): Block.t =>
   Block.hcats([flatten(l), flatten_wald(w), flatten(r)])
 and flatten_wald = (W(w): wald) =>
+  // hcatting each block-wrapped cells with interleaved single-line tokens
+  // will lead to a single block-wrapped element for whole wald
   w |> Chain.to_list(Fun.id, t => Block.wrap(flatten(t))) |> Block.hcats;
 let flatten_chain = (c: Chain.t(t, Block.t)) =>
   c
@@ -30,11 +34,16 @@ let flatten_affix = (~side: Dir.t, (bs, ts): Chain.Affix.t(Block.t, t)) =>
   |> Dir.pick(side, (List.rev, Fun.id))
   |> Block.hcats;
 
-let to_chain = (M(l, W(w), r): meld) => Chain.consnoc(l, w, r);
+let to_chain = (M(l, W(w), r): meld) => Chain.consnoc(~hd=l, w, ~ft=r);
 let of_chain = (c: Chain.t(t, Block.t)) => {
   let (l, w, r) = Result.get_exn(Invalid_argument(""), Chain.unconsnoc(c));
   M(l, W(w), r);
 };
+
+let is_space =
+  fun
+  | None => true
+  | Some(M(_, W(w), _)) => List.for_all(Block.is_space, Chain.loops(w));
 
 let rec end_path = (~side: Dir.t) =>
   fun
@@ -108,3 +117,21 @@ and of_meld = (m: Meld.t): meld =>
      )
   |> snd
   |> of_chain;
+
+let rec depad = (~side: Dir.t, t: t) =>
+  switch (t) {
+  | None => (t, empty)
+  | Some(M(_, W((bs, _)), _)) when List.for_all(Block.is_space, bs) => (
+      t,
+      empty,
+    )
+  | Some(M(l, w, r)) =>
+    switch (side) {
+    | L =>
+      let (p_l, l) = depad(~side, l);
+      (p_l, Some(M(l, w, r)));
+    | R =>
+      let (p_r, r) = depad(~side, r);
+      (p_r, Some(M(l, w, r)));
+    }
+  };

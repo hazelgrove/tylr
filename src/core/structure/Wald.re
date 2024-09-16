@@ -9,6 +9,7 @@ let map = (f, W(w)) => W(f(w));
 
 let uncons: t => _ = get(Chain.uncons);
 let hd: t => Token.t = get(Chain.hd);
+let map_hd = f => map(Chain.map_hd(f));
 let put_hd = hd => map(Chain.put_hd(hd));
 
 let ft = _ => failwith("todo Wald.ft");
@@ -31,9 +32,14 @@ let unlink = (W(w)) =>
 let tokens: t => list(Token.t) = get(Chain.loops);
 let cells: t => list(Cell.t) = get(Chain.links);
 
+let is_grout = (w: t): option(list(Token.Grout.t)) =>
+  tokens(w) |> List.map(Token.Grout.is_) |> Options.for_all;
+
 let extend = tl => map(Chain.extend(tl));
 
-let sort = w => Token.sort(hd(w));
+let sort = w =>
+  Token.sort(hd(w))
+  |> Mtrl.map(~space=Fun.const(), ~grout=Fun.id, ~tile=Fun.id);
 
 let fold = (f, g, W(w)) => Chain.fold_left(f, g, w);
 
@@ -61,22 +67,12 @@ let zip_cell = (pre: t, cell: Cell.t, suf: t) =>
        (zipped, cell, tok) => link(tok, cell, zipped),
      );
 
-let zip_hds = (~from: Dir.t, src: t, ~caret=?, dst: t): option(t) => {
-  // add caret mark
-  let (src, dst) =
-    switch (caret) {
-    | None => (src, dst)
-    | Some(caret) =>
-      let p = Step.Caret.mk(caret, 0);
-      switch (from) {
-      | L => (src, map(Chain.map_hd(Token.add_mark(p)), dst))
-      | R => (map(Chain.map_hd(Token.add_mark(p)), src), dst)
-      };
-    };
+let merge_hds = (~save_cursor=false, ~from: Dir.t, src: t, dst: t): option(t) => {
   let (hd_src, tl_src) = uncons(src);
   let (hd_dst, tl_dst) = uncons(dst);
   let (hd_l, hd_r) = Dir.order(from, (hd_src, hd_dst));
   let (tl_l, tl_r) = Dir.order(from, (tl_src, tl_dst));
-  Token.zip(hd_l, hd_r)
+  let save_cursor = save_cursor ? Some(Dir.toggle(from)) : None;
+  Token.merge(~save_cursor?, hd_l, hd_r)
   |> Option.map(tok => W(Chain.zip(~pre=tl_l, tok, ~suf=tl_r)));
 };

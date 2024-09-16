@@ -18,8 +18,14 @@ let get_nt =
   fun
   | NT(nt) => Some(nt)
   | T(_) => None;
+let is_nt = sym => Option.is_some(get_nt(sym));
 
 let map = (f_t, f_nt) =>
   fun
   | T(t) => T(f_t(t))
   | NT(nt) => NT(f_nt(nt));
+
+let get = (f_t, f_nt) =>
+  fun
+  | T(t) => f_t(t)
+  | NT(nt) => f_nt(nt);

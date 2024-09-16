@@ -45,7 +45,7 @@ let cutoff = (==);
 
 let init_zipper =
   Zipper.{
-    cur: Point(Caret.focus),
+    cur: Point(Caret.focus()),
     ctx: Ctx.unit(([], [Terr.of_tok(Token.Grout.op_(Sort.root))])),
   };
 

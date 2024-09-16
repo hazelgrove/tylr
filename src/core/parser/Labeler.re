@@ -39,12 +39,17 @@ let lexeme = Sedlexing.Latin1.lexeme;
 
 let pop = buf => {
   let mk = (text: string, lbl: Label.t) => {
+    // let _ = failwith("review dropping labels");
+    // let lbls =
+    //   switch (Labels.completions(text)) {
+    //   | [] => [lbl];
+    //   // drop labels like id_lower for exact keyword matches
+    //   | [_, ..._] as lbls => Labels.is_const(text) ? lbls : [lbl, ...lbls]
+    //   };
     let lbls =
-      switch (Labels.completions(text)) {
-      | [] => [lbl]
-      // drop labels like id_lower for exact keyword matches
-      | [_, ..._] as lbls => Labels.is_const(text) ? lbls : [lbl, ...lbls]
-      };
+      Labels.completions(text)
+      // avoid duplicating exact match const label
+      |> (Label.is_const(lbl) ? Fun.id : List.cons(lbl));
     Some(Token.Unmolded.mk(~text, Mtrl.Tile(lbls)));
   };
   // I'm guessing buf state is altered by this switch expression?
@@ -52,7 +57,7 @@ let pop = buf => {
   switch%sedlex (buf) {
   | space =>
     let text = lexeme(buf);
-    Some(Token.Unmolded.mk(~text, Mtrl.Space()));
+    Some(Token.Unmolded.mk(~text, Mtrl.Space(White(Usr))));
   | int_lit => mk(lexeme(buf), Int_lit)
   | float_lit => mk(lexeme(buf), Float_lit)
   | id_lower => mk(lexeme(buf), Id_lower)
@@ -82,3 +87,9 @@ let label = (s: string): list(Token.Unmolded.t) => {
   go();
   List.rev(rev^);
 };
+
+let single = (s: string): option(Token.Unmolded.t) =>
+  switch (label(s)) {
+  | [tok] => Some(tok)
+  | _ => None
+  };

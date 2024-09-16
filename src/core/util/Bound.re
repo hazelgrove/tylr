@@ -3,6 +3,8 @@ type t('a) =
   | Root
   | Node('a);
 
+let node = a => Node(a);
+
 let pp = (pp_a, out) =>
   fun
   | Root => Fmt.pf(out, "ROOT")
@@ -12,6 +14,10 @@ let show = pp_a => Fmt.to_to_string(pp(pp_a));
 let get = (~root) =>
   fun
   | Root => root
+  | Node(a) => a;
+let get_exn =
+  fun
+  | Root => raise(Invalid_argument("Bound.get_exn"))
   | Node(a) => a;
 
 let map = f =>

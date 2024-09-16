@@ -20,12 +20,27 @@ let unorient = (d: Dir.t, (s_d, top, s_b)) => {
   mk(~up, top, ~dn);
 };
 
+let tokens = ({up, top, dn}: t) =>
+  List.concat([
+    Slope.tokens(up),
+    Wald.tokens(top),
+    List.rev(Slope.tokens(dn)),
+  ]);
+
 let flatten = ({up, top, dn}: t) =>
   List.concat([
     Slope.Up.flatten(up),
     Wald.flatten(top),
     Slope.Dn.flatten(dn),
   ]);
+
+let face = (~side: Dir.t, zigg: t) => {
+  let (s_d, top, _) = orient(side, zigg);
+  switch (Slope.face(s_d)) {
+  | Node(tok) => tok
+  | Root => Wald.hd(top)
+  };
+};
 
 // let x = (1 + [a + b ? c / d : e * f] + 3) + 4 * 5 in x + 1
 
@@ -100,13 +115,14 @@ let push =
     : Result.t(t, Slope.t) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
-  // let stack = Melder.Stack.mk(~slope=s_d, Node(top));
   switch (
     Melder.push(~onto=b, t, ~fill, s_d, ~bound=Node(Terr.of_wald(top)))
   ) {
   | Some(Eq(top)) => Ok(unorient(d, ([], top.wald, s_b)))
   | Some(Neq(s_d)) => Ok(unorient(d, (s_d, top, s_b)))
-  | None => Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)])
+  | None =>
+    let fill = Slope.roll(~onto=b, ~fill, s_d);
+    Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)]);
   };
 };
 // let push = (~side: Dir.t, tok: Token.t) =>
@@ -122,12 +138,13 @@ let push_wald = (~side: Dir.t, w: Wald.t, ~fill=Cell.empty, zigg: t) => {
 let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
-  switch (Slope.pull(~from=b, s_d)) {
-  | Some((tok, s_d)) => (tok, Some(unorient(d, (s_d, top, s_b))))
-  | None =>
+  let (pulled, s_d) = Slope.pull(~from=b, s_d);
+  switch (pulled) {
+  | Node(tok) => (tok, Some(unorient(d, (s_d, top, s_b))))
+  | Root =>
     let (tok, rest) = Wald.uncons(top);
     switch (rest) {
-    | ([], _) => (tok, Dir.pick(d, (of_up, of_dn), s_b))
+    | ([], _) => (tok, Dir.pick(b, (of_up, of_dn), s_b))
     | ([c, ...cs], ts) =>
       let s_d = Slope.unroll(~from=b, c);
       (tok, Some(unorient(d, (s_d, Wald.mk(ts, cs), s_b))));

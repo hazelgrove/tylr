@@ -168,26 +168,31 @@ let editor_view = (model: Model.t) =>
 //       : [],
 //   );
 
-let on_key = (~inject, ~model) =>
-  Attr.[
-    on_keypress(_ => Effect.Prevent_default),
-    on_keyup(evt =>
+let on_key = (~inject, ~model) => {
+  let prevent_default_tab = evt =>
+    Util.Key.key_tag(evt) == "Tab" ? [Effect.Prevent_default] : [];
+  [
+    Attr.on_keypress(_ => Effect.Prevent_default),
+    Attr.on_keyup(evt =>
       Effect.Many(
-        List.map(
-          inject,
-          Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
-        ),
+        prevent_default_tab(evt)
+        @ List.map(
+            inject,
+            Update.handle_key_event(Util.Key.mk(KeyUp, evt), ~model),
+          ),
       )
     ),
-    on_keydown(evt =>
+    Attr.on_keydown(evt =>
       Effect.Many(
-        List.map(
-          inject,
-          Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
-        ),
+        prevent_default_tab(evt)
+        @ List.map(
+            inject,
+            Update.handle_key_event(Util.Key.mk(KeyDown, evt), ~model),
+          ),
       )
     ),
   ];
+};
 
 let view = (~inject, model: Model.t) => {
   div(
@@ -205,7 +210,7 @@ let view = (~inject, model: Model.t) => {
     [
       FontSpecimen.view("font-specimen"),
       // FontSpecimen.view("logo-font-specimen"),
-      Dec.DecUtil.filters,
+      Dec.Filters.all,
       // top_bar_view(~inject, model),
       // editor_caption_view(model),
       editor_view(model),

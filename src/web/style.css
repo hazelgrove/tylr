@@ -1,45 +1,9 @@
-@font-face {
-  font-family: 'Fira Code';
-  font-style: normal;
-  font-weight: normal;
-  src: url('fonts/FiraCode-Regular.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Fira Code';
-  font-style: normal;
-  font-weight: bold;
-  src: url('fonts/FiraCode-Bold.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Karla';
-  font-style: normal;
-  font-weight: normal;
-  src: url(https://fonts.gstatic.com/s/karla/v14/qkBIXvYC6trAT55ZBi1ueQVIjQTD-JqaE0lK.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Helvetica Neue';
-  font-style: normal;
-  font-weight: normal;
-  src: url('fonts/HelveticaNeue-Regular.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Helvetica Neue';
-  font-style: normal;
-  font-weight: bold;
-  src: url('fonts/HelveticaNeue-Bold.woff2') format('woff2');
-}
-
 @font-face{
   font-family: 'Source Code Pro';
   font-weight: normal;
   font-style: normal;
   font-stretch: normal;
-  src: url('fonts/SourceCodePro-Regular.otf.woff2') format('woff2');
+  src: url('SourceCodePro-Regular.otf.woff2') format('woff2');
 }
 
 @font-face{
@@ -47,7 +11,7 @@
   font-weight: bold;
   font-style: normal;
   font-stretch: normal;
-  src: url('fonts/SourceCodePro-Bold.otf.woff2') format('woff2');
+  src: url('SourceCodePro-Bold.otf.woff2') format('woff2');
 }
 
 @font-face{
@@ -55,7 +19,7 @@
   font-weight: 900;
   font-style: normal;
   font-stretch: normal;
-  src: url('fonts/SourceCodePro-Black.otf.woff2') format('woff2');
+  src: url('SourceCodePro-Black.otf.woff2') format('woff2');
 }
 
 :root {
@@ -74,7 +38,7 @@
   --exp-shadow-color: #c4b599;/*#329f43;*/
   --exp-rail-color: #a7d3ad;
 
-  --pat-bg-color: #f5fbff;
+  --pat-bg-color: #d8e6ef; /* #f5fbff; */
   --pat-shadow-color: #90bdde; /*#268bd2;*/
   --pat-rail-color: #a1c4dd;
 
@@ -130,8 +94,13 @@
 .block, .section, .line, .indent {
   display: inline-block;
 }
-.tile .ghost {
+.tile .ghost,
+.grout {
   opacity: 40%;
+}
+
+.tile.match {
+  font-weight: bold;
 }
 
 #page {
@@ -368,15 +337,22 @@
 }
 
 .child-line {
-  stroke-width: 1;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   fill: none;
   vector-effect: non-scaling-stroke;
 }
 .child-line.Exp {
   stroke: var(--exp-shadow-color);
+  /* stroke: var(--exp-bg-color); */
 }
 .child-line.Pat {
   stroke: var(--pat-shadow-color);
+  /* stroke: var(--pat-bg-color); */
+}
+.child-line.Space {
+  display: none;
 }
 
 
@@ -434,9 +410,18 @@
   filter: url(#raised-drop-shadow-Nul) !important;
 }
 
+.tok-bar {
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .tile-path.Exp {
   /*stroke: var(--exp-shadow-color);*/
-  filter: url(#drop-shadow-Exp);
+  /* filter: url(#raised-drop-shadow-Exp); */
+}
+.tok-bar.Exp {
+  stroke: var(--exp-shadow-color);
 }
 
 .tile-path.Any.indicated {
@@ -476,7 +461,10 @@
 
 .tile-path.Pat {
   /*stroke: var(--pat-shadow-color);*/
-  filter: url(#drop-shadow-Pat);
+  /* filter: url(#raised-drop-shadow-Pat); */
+}
+.tok-bar.Pat {
+  stroke: var(--pat-shadow-color);
 }
 .tile-path.Pat.indicated {
   fill: var(--pat-bg-color);
@@ -488,7 +476,7 @@
   fill: #e4f1fa;
 }
 .tile-path.Pat.raised {
-  filter: url(#raised-drop-shadow-Pat);
+  /* filter: url(#raised-drop-shadow-Pat); */
 }
 #drop-shadow-Pat .tile-drop-shadow,
 #raised-drop-shadow-Pat .tile-drop-shadow {
@@ -497,7 +485,7 @@
 
 .tile-path.Typ {
   /*stroke: var(--typ-shadow-color);*/
-  filter: url(#drop-shadow-Typ);
+  filter: url(#raised-drop-shadow-Typ);
 }
 .tile-path.Typ.indicated {
   fill: var(--typ-bg-color);
@@ -978,10 +966,19 @@ svg {
 #caret.blink {
   animation: 1s blink step-end infinite;
 }
-.caret-path {
-  fill: #f62116;
-  stroke: none;
+.caret {
+  fill: none;
+  stroke: #f62116;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
+.caret-container {
+  position: relative;
+  z-index: var(--caret-z);
+}
+
 @keyframes blink {
   from, to {
     opacity: 100%;

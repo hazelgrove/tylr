@@ -14,6 +14,8 @@ module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = ((Filter.t, Sort.t), Bound.t(Mold.t));
   let root = (([], Sort.root), Bound.Root);
+  let mk = (~mold=Bound.Root, ~filter: Filter.t=[], s) => ((filter, s), mold);
+
   let sort = fst;
   let bounds =
     fun
@@ -24,6 +26,7 @@ module NT = {
 
 module Sym = {
   include Sym;
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Sym.t(T.t, NT.t);
   let mk = (sort, prec, (sym, rctx): RZipper.t(_)): t => {
     let mold = Mold.{sort, prec, rctx};
@@ -32,6 +35,15 @@ module Sym = {
     | NT(s) => NT((s, Node(mold)))
     };
   };
+  let all =
+    Stds.Memo.general((s: Sort.t) =>
+      Grammar.v
+      |> Sort.Map.find(s)
+      |> Prec.Table.mapi(((p, _), rgx) =>
+           RZipper.all(rgx) |> List.map(mk(s, p))
+         )
+      |> List.concat
+    );
 };
 
 // open Stds;

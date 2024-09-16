@@ -31,9 +31,11 @@ type t = {
   alt: held,
 };
 
+let key_tag = evt =>
+  Js.to_string(Js.Optdef.get(evt##.key, () => failwith("Key.key_tag")));
+
 let key_of = (dir: dir, evt): key => {
-  let key =
-    Js.to_string(Js.Optdef.get(evt##.key, () => failwith("Key.key_of")));
+  let key = key_tag(evt);
   switch (dir) {
   | KeyUp => U(key)
   | KeyDown => D(key)

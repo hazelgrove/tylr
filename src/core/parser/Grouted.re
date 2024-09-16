@@ -26,7 +26,7 @@ let is_eq = ((cells, toks): t) =>
 // completes wald to terr in opposite orientation
 let complete_wald = (baked: t, wald: Wald.t): Terr.t =>
   is_eq(baked)
-  |> Options.get_exn(Invalid_argument("Baked.complete_wald"))
+  |> Options.get_exn(Invalid_argument("Grouted.complete_wald"))
   |> Chain.fold_right(
        (c, t, (cell, wald)) => (c, Wald.link(t, cell, wald)),
        c => (c, wald),
@@ -36,7 +36,7 @@ let complete_wald = (baked: t, wald: Wald.t): Terr.t =>
 // completes terr to meld in same orientation
 let complete_terr = (baked: t, terr: Terr.t): Meld.t =>
   is_eq(baked)
-  |> Options.get_exn(Invalid_argument("Baked.complete_terr"))
+  |> Options.get_exn(Invalid_argument("Grouted.complete_terr"))
   |> Chain.fold_right(
        (cell, tok) => Meld.link(~cell, tok),
        cell => M(cell, terr.wald, terr.cell),

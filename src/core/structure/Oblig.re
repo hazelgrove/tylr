@@ -1,19 +1,37 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t =
-  | Missing_meld // convex grout
-  | Missing_tile // ghost tile
-  | Incon_meld // pre/postfix grout
-  | Extra_meld; // infix grout
+module Ord = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t =
+    | Missing_meld // convex grout
+    | Missing_tile // ghost tile
+    | Incon_meld // pre/postfix grout
+    | Extra_meld // infix grout
+    | Unmolded_tok;
 
-// low to high severity
-let all = [Missing_meld, Missing_tile, Incon_meld, Extra_meld];
-let severity = o => Option.get(Lists.find_index((==)(o), all));
+  // low to high severity
+  // (unmolded tile severity doesn't matter in that it is always last resort
+  // after using other oblig severities to compare available mold options)
+  let all = [
+    Missing_meld,
+    Missing_tile,
+    Incon_meld,
+    Extra_meld,
+    Unmolded_tok,
+  ];
+  let severity = o => Option.get(Lists.find_index((==)(o), all));
+  let compare = (l, r) => Int.compare(severity(l), severity(r));
+};
+include Ord;
+
+module Map = Maps.Make(Ord);
 
 let of_token = (tok: Token.t) =>
   switch (tok.mtrl) {
-  | Space () => None
+  | Space(White(_)) => None
+  | Space(Unmolded) => Some(Unmolded_tok)
   | Grout((_, (Conv, Conv))) => Some(Missing_meld)
   | Grout((_, (Conv, Conc) | (Conc, Conv))) => Some(Incon_meld)
   | Grout((_, (Conc, Conc))) => Some(Extra_meld)
@@ -21,14 +39,9 @@ let of_token = (tok: Token.t) =>
     Label.is_complete(tok.text, lbl) ? None : Some(Missing_tile)
   };
 
-module Ord = {
-  type nonrec t = t;
-  let compare = (l, r) => Int.compare(severity(l), severity(r));
-};
-module Map = Map.Make(Ord);
-
 module Delta = {
   include Map;
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Map.t(int);
   let find = (o, map) => Option.value(find_opt(o, map), ~default=0);
 
@@ -37,10 +50,10 @@ module Delta = {
   let incr = (o, map) => add(o, find(o, map) + 1, map);
 
   let compare = (l, r) =>
-    List.fold_right(
-      (o, c) => c != 0 ? c : Int.compare(find(o, l), find(o, r)),
+    Lists.fold_right(
+      ~f=(o, c) => c != 0 ? c : Int.compare(find(o, l), find(o, r)),
       all,
-      0,
+      ~init=0,
     );
 
   let add_effect =

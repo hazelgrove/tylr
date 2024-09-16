@@ -1,3 +1,6 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t('s, 'g, 't) =
@@ -7,6 +10,7 @@ module Base = {
 };
 include Base;
 
+let space = s => Space(s);
 let grout = g => Grout(g);
 let tile = t => Tile(t);
 
@@ -20,6 +24,11 @@ let is_grout =
   | Grout(_) => true
   | Space(_)
   | Tile(_) => false;
+let is_tile =
+  fun
+  | Tile(_) => true
+  | Space(_)
+  | Grout(_) => false;
 
 let map = (~space, ~grout, ~tile) =>
   fun
@@ -28,17 +37,35 @@ let map = (~space, ~grout, ~tile) =>
   | Tile(t) => Tile(tile(t));
 
 module Sorted = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(unit, Sort.t, (Filter.t, Sort.t));
+
+  // currently used specifically for walk comparison based on
+  // stance sorted mtrl at each prec level
+  let compare = (l: t, r: t) =>
+    switch (l, r) {
+    | (Space (), Space ()) => 0
+    | (Space (), _) => (-1)
+    | (_, Space ()) => 1
+    | (Grout(l), Grout(r)) => Sort.compare(l, r)
+    | (Grout(_), _) => (-1)
+    | (_, Grout(_)) => 1
+    //TODO: Properly compare filters
+    | (Tile(l), Tile(r)) => Sort.compare(snd(l), snd(r))
+    };
 };
 
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Base.t(Space.T.t, Grout.T.t, Tile.T.t);
+  // let compare = (l: t, r: t) =>
   module Map =
     Map.Make({
       type nonrec t = t;
       let compare = compare;
     });
+  let sort: t => Sorted.t =
+    map(~space=Fun.const(), ~grout=Grout.T.sort, ~tile=Tile.T.sort);
   let padding =
     fun
     | Space(_) => Padding.none
@@ -51,15 +78,15 @@ module NT = {
   let compare = (l: t, r: t) =>
     switch (l, r) {
     | _ when l == r => 0
-    | (Space(false), _) => (-1)
-    | (_, Space(false)) => 1
-    | (Space(true), _) => (-1)
-    | (_, Space(true)) => 1
+    | (Space(l), Space(r)) => Space.NT.compare(l, r)
+    | (Space(_), _) => (-1)
+    | (_, Space(_)) => 1
     | (Grout(l), Grout(r)) => Grout.NT.compare(l, r)
     | (Grout(_), _) => (-1)
     | (_, Grout(_)) => 1
     | (Tile(l), Tile(r)) => Tile.NT.compare(l, r)
     };
+  let is_open: t => bool = (!=)(Space(Space.NT.Closed));
   let root = Tile(Tile.NT.root);
   let sort: t => Sorted.t = map(~space=Fun.const(), ~grout=Fun.id, ~tile=fst);
   let bounds: t => _ =
@@ -81,6 +108,16 @@ module Sym = {
   type t = Sym.t(T.t, NT.t);
   let of_tile: Tile.Sym.t => t = Sym.map(tile, tile);
   let of_grout: Grout.Sym.t => t = Sym.map(grout, grout);
+  let all =
+    List.concat([
+      Space.Sym.all |> List.map(Sym.map(space, space)),
+      Sort.all
+      |> List.concat_map(Grout.Sym.all)
+      |> List.map(Sym.map(grout, grout)),
+      Sort.all
+      |> List.concat_map(Tile.Sym.all)
+      |> List.map(Sym.map(tile, tile)),
+    ]);
 };
 
 // module T = Molded;

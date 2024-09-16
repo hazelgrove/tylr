@@ -4,9 +4,7 @@
  (name tylr_web)
  (modules :standard \ Main)
  (libraries incr_dom stds tylr_core)
- (js_of_ocaml
-  (flags
-   (:include js-of-ocaml-flags-%{profile})))
+ (js_of_ocaml)
  (preprocess
   (pps
    ppx_yojson_conv
@@ -18,11 +16,13 @@
 (executable
  (name main)
  (modules Main)
+<<<<<<< HEAD
  (libraries tylr_web tylr_ts)
+=======
+ (libraries tylr_web tylr_hazel core)
+>>>>>>> origin/melds
  (modes js)
- (js_of_ocaml
-  (flags
-   (:include js-of-ocaml-flags-%{profile})))
+ (js_of_ocaml)
  (preprocess
   (pps
    ppx_yojson_conv
@@ -31,10 +31,10 @@
    ppx_sexp_conv
    ppx_deriving.show)))
 
-(rule
- (write-file
-  js-of-ocaml-flags-dev
-  "(:standard --debug-info --no-inline --pretty --source-map)"))
-
-(rule
- (write-file js-of-ocaml-flags-release "(:standard)"))
+(env
+ (dev
+  (js_of_ocaml
+   (flags :standard --debuginfo --noinline --dynlink --linkall --sourcemap)))
+ (release
+  (js_of_ocaml
+   (flags :standard))))

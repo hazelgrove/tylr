@@ -4,7 +4,7 @@ open Stds;
 
 module Base = {
   // invariant: List.length(loops) == List.length(links) + 1
-  [@deriving (sexp, yojson, ord)]
+  [@deriving (sexp, yojson)]
   type t('loop, 'link) = (list('loop), list('link));
 };
 include Base;
@@ -19,6 +19,7 @@ let mk = (lps: list('lp), lks: list('lk)): t('lp, 'lk) => {
 let unit = (lp: 'lp): t('lp, _) => ([lp], []);
 let loops: t('lp, _) => list('lp) = fst;
 let links: t(_, 'lk) => list('lk) = snd;
+
 let length = ((lps, _): t(_)) => List.length(lps) * 2 - 1;
 
 let link = (a: 'lp, b: 'lk, (lps, lks): t('lp, 'lk)): t('lp, 'lk) => (
@@ -38,6 +39,7 @@ let combine = ((lps_l, lks_l), (lps_r, lks_r)) => (
 );
 
 module Affix = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t('link, 'loop) = (list('link), list('loop));
   let empty = ([], []);
   let is_empty = ((lks, lps)) => lks == [] && lps == [];
@@ -79,7 +81,7 @@ let cons = (hd: 'lp, (lks, lps): Affix.t('lk, 'lp)): t('lp, 'lk) => (
   lks,
 );
 let snoc = ((lps, lks): Affix.t('lp, 'lk), lp: 'lp) => (lps @ [lp], lks);
-let consnoc = (hd: 'lp, (lks, lps): t('lk, 'lp), ft: 'lp) => (
+let consnoc = (~hd: 'lp, (lks, lps): t('lk, 'lp), ~ft: 'lp) => (
   [hd, ...lps] @ [ft],
   lks,
 );
@@ -99,6 +101,8 @@ let unconsnoc = (c: t('lp, 'lk)): Result.t(('lp, t('lk, 'lp), 'lp), 'lp) => {
   | Some((body, ft)) => Ok((hd, body, ft))
   };
 };
+let unconsnoc_exn = c =>
+  unconsnoc(c) |> Result.get_exn(Invalid_argument("Chain.unconsnoc_exn"));
 
 let rev =
     (~rev_loop=Fun.id, ~rev_link=Fun.id, (lps, lks): t('lp, 'lk))
@@ -204,6 +208,18 @@ let fold_right_map =
        lp1 => f_lp(lp1) |> Tuples.map_fst(unit),
      );
 
+let linked_loops = (c: t('lp, 'lk)): list(('lp, 'lk, 'lp)) =>
+  c
+  |> fold_right(
+       (lp, lk, (hd, lkd_lps)) => (lp, [(lp, lk, hd), ...lkd_lps]),
+       lp => (lp, []),
+     )
+  |> snd;
+
+let map_linked =
+    (f: ('lp, 'lk1, 'lp) => 'lk2, c: t('lp, 'lk1)): t('lp, 'lk2) =>
+  c |> fold_right((lp, lk, c) => link(lp, f(lp, lk, hd(c)), c), unit);
+
 let cat =
     (cat: ('lp, 'lp) => 'lp, l: t('lp, 'lk), r: t('lp, 'lk)): t('lp, 'lk) =>
   l |> fold_right(link, lp => map_hd(cat(lp), r));
@@ -273,6 +289,20 @@ let unzip_links = (c: t('lp, 'lk)): list((t(_), 'lk, t(_))) => {
   go(c);
 };
 
+let compare = (c_lp, c_lk, l, r) =>
+  combine(l, r)
+  |> fold_left(
+       ((lp_l, lp_r)) => c_lp(lp_l, lp_r),
+       (c, (lk_l, lk_r), (lp_l, lp_r)) => {
+         c == 0
+           ? {
+             let c = c_lk(lk_l, lk_r);
+             c == 0 ? c_lp(lp_l, lp_r) : c;
+           }
+           : c
+       },
+     );
+
 module Elem = {
   type t('lp, 'lk) =
     | Loop('lp)
@@ -283,8 +313,15 @@ let unzip = (n: int, c: t('lp, 'lk)) =>
   Elem.(n mod 2 == 0 ? Loop(unzip_loop(n, c)) : Link(unzip_link(n, c)));
 
 let pp = (pp_lp, pp_lk, out, c: t(_)) => {
-  let (lp, (lks, lps)) = uncons(c);
-  let pp_tl = Fmt.(list(~sep=sp, pair(~sep=sp, pp_lk, pp_lp)));
-  Fmt.pf(out, "%a@ %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
+  // let pp_lp = (out, lp) => Fmt.pf(out, "@[%a@,@]", pp_lp, lp);
+  switch (uncons(c)) {
+  | (lp, ([], [])) => Fmt.pf(out, "%a", pp_lp, lp)
+  | (lp, (lks, lps)) =>
+    let pp_tl =
+      Fmt.(
+        list(~sep=sp, pair(~sep=(out, _) => pf(out, "@ "), pp_lk, pp_lp))
+      );
+    Fmt.pf(out, "%a@ %a", pp_lp, lp, pp_tl, List.combine(lks, lps));
+  };
 };
 let show = (pp_lp, pp_lk) => Fmt.to_to_string(pp(pp_lp, pp_lk));

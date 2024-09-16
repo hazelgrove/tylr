@@ -9,6 +9,7 @@ let singleton = t => [t];
 let height = List.length;
 let cons = List.cons;
 
+let tokens = List.concat_map(Terr.tokens);
 // let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
 //   switch (c) {
 //   | Neq(c) => [Terr.{cell: c, wald: Wald.rev(w)}, ...slope]
@@ -40,8 +41,12 @@ let unlink =
 
 let face =
   fun
+  | [] => Delim.root
+  | [hd, ..._] => Delim.tok(Terr.face(hd));
+let map_face = f =>
+  fun
   | [] => None
-  | [hd, ..._] => Some(Terr.face(hd));
+  | [hd, ...tl] => Some([Terr.map_face(f, hd), ...tl]);
 
 // let extend = tl =>
 //   fun
@@ -82,21 +87,33 @@ let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
     roll(~onto, ~fill=Cell.put(m), tl);
   };
 
+let pull_terr = (~from: Dir.t, terr: Terr.t): (Token.t, t) => {
+  let (tok, rest) = Wald.uncons(terr.wald);
+  let slope =
+    switch (rest) {
+    | ([], _) => unroll(~from, terr.cell)
+    | ([cell, ...cells], toks) =>
+      let terr = {...terr, wald: Wald.mk(toks, cells)};
+      cat(unroll(~from, cell), [terr]);
+    };
+  (tok, slope);
+};
+
 // here "from" indicates which side slope is relative to puller
 // eg "pull from dn slope on left"
-let pull = (~from: Dir.t, slope: t): option((Token.t, t)) =>
+let pull = (~from: Dir.t, slope: t): (Delim.t, t) =>
+  switch (slope) {
+  | [] => (Delim.root, slope)
+  | [hd, ...tl] =>
+    let (tok, slope) = pull_terr(~from, hd);
+    (Delim.tok(tok), cat(slope, tl));
+  };
+
+let merge_hd = (~onto: Dir.t, t: Token.t, slope: t): option(t) =>
   switch (slope) {
   | [] => None
   | [hd, ...tl] =>
-    let (tok, rest) = Wald.uncons(hd.wald);
-    let slope =
-      switch (rest) {
-      | ([], _) => cat(unroll(~from, hd.cell), tl)
-      | ([cell, ...cells], toks) =>
-        let hd = {...hd, wald: Wald.mk(toks, cells)};
-        cat(unroll(~from, cell), [hd, ...tl]);
-      };
-    Some((tok, slope));
+    Terr.merge_hd(~onto, t, hd) |> Option.map(hd => [hd, ...tl])
   };
 
 // Dn and Up slopes named based on left-to-right order of terraces

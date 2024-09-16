@@ -1,14 +1,16 @@
 module T = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = (Sort.t, Tip.s);
+  let sort: t => Sort.t = fst;
   let op = s => (s, Tip.(Conv, Conv));
   let pre = s => (s, Tip.(Conv, Conc));
   let pos = s => (s, Tip.(Conc, Conv));
   let in_ = s => (s, Tip.(Conc, Conc));
   let padding = ((_, (l, r)): t) => {
     let (l, r) = Tip.(is_conc(l), is_conc(r));
-    Padding.op(~l, ~r, ~indent=r, ());
+    Padding.op(~space=(l, r), ~indent=r, ());
   };
+  let all = s => [op(s), pre(s), pos(s), in_(s)];
 };
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -19,6 +21,7 @@ module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Sym.t(T.t, NT.t);
+  let all = s => [Sym.nt(s), ...List.map(Sym.t, T.all(s))];
 };
 
 // open Mtrl;

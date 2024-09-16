@@ -26,7 +26,7 @@ jobs:
         run: |
           sudo apt --assume-yes install opam
           export OPAMYES=1
-          opam init --compiler=ocaml-base-compiler.4.13.1
+          opam init --compiler=ocaml-base-compiler.5.0.0
           eval $(opam env)
           make deps
           make release
