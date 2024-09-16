@@ -65,7 +65,9 @@ module T = {
       let compare = compare;
     });
   let sort: t => Sorted.t =
-    map(~space=Fun.const(), ~grout=Grout.T.sort, ~tile=Tile.T.sort);
+    map(~space=Fun.const(), ~grout=Grout.T.sort, ~tile=t =>
+      ([], Tile.T.sort(t))
+    );
   let padding =
     fun
     | Space(_) => Padding.none

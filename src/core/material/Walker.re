@@ -2,7 +2,7 @@ open Stds;
 open Walk;
 
 let mtrlize_tile =
-  Memo.general(((l, r, s, from)) =>
+  Memo.general(((l, r, (filter, s), from)) =>
     Grammar.v
     |> Sort.Map.find(s)
     |> Prec.Table.mapi(((p, a), rgx) => {
@@ -15,7 +15,7 @@ let mtrlize_tile =
          let enter_from = (from: Dir.t) =>
            // currently filtering without assuming single operator form
            // for each prec level. this may need to change.
-           RZipper.enter(~from, rgx)
+           RZipper.enter(~from, ~filter, rgx)
            |> List.filter_map(
                 fun
                 | Bound.Root => None
@@ -31,7 +31,8 @@ let mtrlize_tile =
        })
     |> List.concat
   );
-let mtrlize_tile = (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t) =>
+let mtrlize_tile =
+    (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t) =>
   mtrlize_tile((l, r, s, from));
 
 let mtrlize_grout =
@@ -50,8 +51,9 @@ let mtrlize_grout =
   |> List.map(Sym.t);
 
 let mtrlize =
-    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Mtrl.Sym.t) =>
-  List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r))
+    (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t)
+    : list(Mtrl.Sym.t) =>
+  List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, snd(s), ~r))
   @ List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from));
 
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
@@ -110,6 +112,7 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
     // any descendant sort T.
     Swing.height(swing) == 0
       ? Sorts.deps(s)
+        |> List.map(s => ([], s))
         |> List.concat_map(mtrlize(~from))
         |> List.map(sym => arrive(sym, w, ~from))
         |> Index.union_all

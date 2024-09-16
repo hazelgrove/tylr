@@ -8,9 +8,6 @@
 
 //TODO: Look into writing an extension to the tylr grammar to do more of a ts precedence with a table of named values and each individual form associated with a particular named value - also with the nested arrays for separate precedence levels by form/sort?
 
-open Sexplib.Std;
-open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
-
 module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
@@ -37,12 +34,11 @@ let nt = (filter: Filter.t, srt: Sort.t) =>
   */
 
 let c = (~p=Padding.none, s) => t(Label.const(~padding=p, s));
-let kw = (~l=true, ~r=true, ~indent=true) =>
-  c(~p=Padding.kw(~l, ~r, ~indent, ()));
-let op = (~l=true, ~r=true, ~indent=true) =>
-  c(~p=Padding.op(~l, ~r, ~indent, ()));
+let kw = (~space=(true, true), ~break=(false, false), ~indent=true) =>
+  c(~p=Padding.kw(~space, ~break, ~indent, ()));
+let op = (~space=(true, true), ~break=(false, false), ~indent=true) =>
+  c(~p=Padding.op(~space, ~break, ~indent, ()));
 let brc = (side: Dir.t) => c(~p=Padding.brc(side));
-
 let tokop_alt = ss => alt(List.map(op, ss));
 
 let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
@@ -94,7 +90,7 @@ module rec Pat: SORT = {
       alt([Pat.atom(), assignment_pat(Exp.atom, Pat.atom)]),
     ]);
 
-  let obj_assignmnet_pat =
+  let obj_assignment_pat =
     seq([
       alt([t(Id_lower)]),
       c("="),
@@ -108,13 +104,13 @@ module rec Pat: SORT = {
       comma_sep(
         alt([
           Pat.atom(~filter=["pair_pat", "rest_pat"], ()),
-          obj_assignmnet_pat,
+          obj_assignment_pat,
         ]),
       ),
       brc(R, "}"),
     ]);
 
-  let destruct_pat = alt([Pat.atom(~filter=["obj_pat"], ()), array_pat]);
+  let destruct_pat = alt([obj_pat, array_pat]);
 
   let lhs_exp =
     alt([
@@ -158,13 +154,13 @@ and Exp: SORT = {
 
   let method_def =
     seq([
-      opt(kw(~l=false, ~indent=false, "static")),
-      opt(kw(~l=false, ~indent=false, "async")),
+      opt(kw(~space=(false, true), ~indent=false, "static")),
+      opt(kw(~space=(false, true), ~indent=false, "async")),
       opt(
         alt([
-          kw(~l=false, ~indent=false, "get"),
-          kw(~l=false, ~indent=false, "set"),
-          kw(~l=false, ~indent=false, "*"),
+          kw(~space=(false, true), ~indent=false, "get"),
+          kw(~space=(false, true), ~indent=false, "set"),
+          kw(~space=(false, true), ~indent=false, "*"),
         ]),
       ),
       t(Id_lower),
@@ -197,8 +193,8 @@ and Exp: SORT = {
   let call_signature = params(Exp.atom, Pat.atom);
   let func_exp =
     seq([
-      opt(kw(~l=false, ~indent=false, "async")),
-      kw(~l=false, "function"),
+      opt(kw(~space=(false, true), ~indent=false, "async")),
+      kw(~space=(false, true), "function"),
       opt(t(Id_lower)),
       call_signature,
       stat_block,
@@ -206,7 +202,7 @@ and Exp: SORT = {
 
   let arrow_function =
     seq([
-      opt(kw(~l=false, ~indent=false, "async")),
+      opt(kw(~space=(false, true), ~indent=false, "async")),
       alt([t(Id_lower), call_signature]),
       op("=>"),
       alt([atom(), stat_block]),
@@ -216,9 +212,9 @@ and Exp: SORT = {
 
   let generator_function =
     seq([
-      opt(kw(~l=false, ~indent=false, "async")),
+      opt(kw(~space=(false, true), ~indent=false, "async")),
       c("function"),
-      kw(~l=false, "*"),
+      kw(~space=(false, true), "*"),
       opt(t(Id_lower)),
       call_signature,
       stat_block,
@@ -227,7 +223,11 @@ and Exp: SORT = {
   let _initializer = seq([op("="), atom()]);
 
   let field_def =
-    seq([opt(kw(~l=false, "static")), property_name, opt(_initializer)]);
+    seq([
+      opt(kw(~space=(false, true), "static")),
+      property_name,
+      opt(_initializer),
+    ]);
 
   let class_static_block = seq([kw("static"), c(";"), stat_block]);
 
@@ -248,7 +248,7 @@ and Exp: SORT = {
 
   let _class =
     seq([
-      kw(~l=false, "class"),
+      kw(~space=(false, true), "class"),
       opt(t(Id_lower)),
       opt(class_heritage),
       class_body,
@@ -373,13 +373,13 @@ and Stat: SORT = {
 
   let method_def =
     seq([
-      opt(kw(~l=false, ~indent=false, "static")),
-      opt(kw(~l=false, ~indent=false, "async")),
+      opt(kw(~space=(false, true), ~indent=false, "static")),
+      opt(kw(~space=(false, true), ~indent=false, "async")),
       opt(
         alt([
-          kw(~l=false, ~indent=false, "get"),
-          kw(~l=false, ~indent=false, "set"),
-          kw(~l=false, ~indent=false, "*"),
+          kw(~space=(false, true), ~indent=false, "get"),
+          kw(~space=(false, true), ~indent=false, "set"),
+          kw(~space=(false, true), ~indent=false, "*"),
         ]),
       ),
       t(Id_lower),
@@ -450,8 +450,8 @@ and Stat: SORT = {
 
   let func_declaration =
     seq([
-      opt(kw(~l=false, ~indent=false, "async")),
-      kw(~l=false, "function"),
+      opt(kw(~space=(false, true), ~indent=false, "async")),
+      kw(~space=(false, true), "function"),
       opt(t(Id_lower)),
       call_signature,
       stat_block,
@@ -461,7 +461,11 @@ and Stat: SORT = {
   let property_name = alt([t(Id_lower)]);
   let _initializer = seq([op("="), Exp.atom()]);
   let field_def =
-    seq([opt(kw(~l=false, "static")), property_name, opt(_initializer)]);
+    seq([
+      opt(kw(~space=(false, true), "static")),
+      property_name,
+      opt(_initializer),
+    ]);
 
   let class_static_block = seq([kw("static"), c(";"), stat_block]);
   let class_heritage = seq([kw("extends"), Exp.atom()]);
@@ -481,7 +485,7 @@ and Stat: SORT = {
 
   let class_declaration =
     seq([
-      kw(~l=false, "class"),
+      kw(~space=(false, true), "class"),
       opt(t(Id_lower)),
       opt(class_heritage),
       class_body,

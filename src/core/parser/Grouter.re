@@ -139,7 +139,7 @@ let fill_default =
   | Mtrl.Space(_) => Cell.dirty
   // grout case isn't quite right... but shouldn't arise
   | Grout(s)
-  | Tile((s, _)) =>
+  | Tile(((_, s), _)) =>
     Cell.put(
       Meld.of_tok(
         ~l=Cell.dirty,
@@ -164,7 +164,7 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
         |> Option.some
       : None;
   | Grout(s)
-  | Tile((s, _)) =>
+  | Tile(((_, s), _)) =>
     open Options.Syntax;
     let (nt_l, nt_r) =
       Walk.Swing.is_eq(sw) ? (bot, bot) : Dir.order(from, (top, bot));

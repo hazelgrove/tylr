@@ -85,7 +85,7 @@ module Molded = {
     Mtrl.map(
       ~space=Fun.id,
       ~grout=fst,
-      ~tile=((_, m: Mold.t)) => m.sort,
+      ~tile=((_, m: Mold.t)) => ([], m.sort),
       tok.mtrl,
     );
   let length = (tok: t) =>

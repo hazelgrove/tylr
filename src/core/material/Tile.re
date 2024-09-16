@@ -14,7 +14,10 @@ module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = ((Filter.t, Sort.t), Bound.t(Mold.t));
   let root = (([], Sort.root), Bound.Root);
-  let mk = (~mold=Bound.Root, ~filter: Filter.t=[], s) => ((filter, s), mold);
+  let mk = (~mold=Bound.Root, ~filter: Filter.t=[], s) => (
+    (filter, s),
+    mold,
+  );
 
   let sort = fst;
   let bounds =

@@ -45,9 +45,9 @@ module Deps = {
 let kids = (s: Sort.t): Deps.t =>
   Tile.Sym.all(s)
   |> List.filter_map(Sym.get_nt)
-  |> List.map(snd)
+  // |> List.map(snd)
   |> List.fold_left(
-       (deps, (s, bound)) => Deps.add(s, Dep.mk(bound), deps),
+       (deps, ((_, s), bound)) => Deps.add(s, Dep.mk(bound), deps),
        Deps.empty,
      );
 let kids = Stds.Memo.general(kids);

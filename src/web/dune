@@ -16,11 +16,7 @@
 (executable
  (name main)
  (modules Main)
-<<<<<<< HEAD
- (libraries tylr_web tylr_ts)
-=======
- (libraries tylr_web tylr_hazel core)
->>>>>>> origin/melds
+ (libraries tylr_web tylr_ts core)
  (modes js)
  (js_of_ocaml)
  (preprocess

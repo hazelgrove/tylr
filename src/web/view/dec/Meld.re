@@ -13,7 +13,7 @@ let sort_clss = (s: Mtrl.Sorted.t) =>
   switch (s) {
   | Space(_) => ["Space"]
   | Grout(s) => ["Grout", Sort.to_str(s)]
-  | Tile(s) => ["Tile", Sort.to_str(s)]
+  | Tile(s) => ["Tile", Sort.to_str(snd(s))]
   };
 
 module Child = {
