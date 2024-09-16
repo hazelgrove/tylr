@@ -1,7 +1,7 @@
 open Stds;
 
-module Block = Block;
-module Tree = Tree;
+// module Block = Block;
+// module Tree = Tree;
 
 module State = {
   // layout traversal state
@@ -35,18 +35,39 @@ module State = {
     | Block(b) => jump_block(s, ~over=b)
     };
 
-  let jump_cell = (s: t, ~over: Tree.t) => {
+  let jump_cell = (s: t, ~over: LCell.t) => {
     let ind = s.ind;
-    let jumped = jump_block(s, ~over=Tree.flatten(over));
-    Tree.is_space(over) ? jumped : {...jumped, ind};
+    let jumped = jump_block(s, ~over=LCell.flatten(over));
+    LCell.is_space(over) ? jumped : {...jumped, ind};
   };
   let jump_tok = jump_block;
 };
 
 let max_path = _ => failwith("todo");
 
-let max_loc = (t: Tree.t) =>
-  State.jump_block(State.init, ~over=Tree.flatten(t)).loc;
+let max_loc = (t: LCell.t) =>
+  State.jump_block(State.init, ~over=LCell.flatten(t)).loc;
+
+let rec mk_cell = (~delim=Delim.root, c: Cell.t): LCell.t =>
+  Cell.get(c)
+  |> Option.map(mk_meld)
+  |> Option.map((M(l, _, _) as m: LMeld.t) => {
+       let indent = Delim.indent(delim) && LCell.height(l) > 0 ? 2 : 0;
+       LCell.nest_body_meld(indent, m);
+     })
+  |> (meld => Cell.Base.mk(~meld?, ()))
+and mk_meld = (m: Meld.t): LMeld.t =>
+  Meld.to_chain(m)
+  |> Chain.fold_left_map(
+       l => ((), mk_cell(l)),
+       ((), tok, cell) => {
+         let b_tok = Block.of_tok(tok);
+         let t_cell = mk_cell(~delim=Node(tok), cell);
+         ((), b_tok, t_cell);
+       },
+     )
+  |> snd
+  |> Meld.Base.of_chain;
 
 let step_of_loc =
     (~state: State.t, ~block as B(b): Block.t, target: Loc.t)
@@ -99,15 +120,15 @@ let loc_of_step =
 // returns a valid path into c whose loc is nearest the given target,
 // where nearest is defined by the ordering relation Loc.lt
 let path_of_loc =
-    (~state=State.init, ~tree: Tree.t, target: Loc.t)
+    (~state=State.init, ~tree: LCell.t, target: Loc.t)
     : Result.t(Path.t, State.t) => {
   open Result.Syntax;
-  let rec go = (~state, t: Tree.t) => {
-    let s_end = State.jump_block(state, ~over=Tree.flatten(t));
+  let rec go = (~state, t: LCell.t) => {
+    let s_end = State.jump_block(state, ~over=LCell.flatten(t));
     if (Loc.lt(s_end.loc, target)) {
       Error({...s_end, ind: state.ind});
     } else if (Loc.eq(s_end.loc, target)) {
-      Ok(Tree.end_path(t, ~side=R));
+      Ok(LCell.end_path(t, ~side=R));
     } else {
       switch (t.meld) {
       | None => Ok([])
@@ -115,7 +136,7 @@ let path_of_loc =
       };
     };
   }
-  and go_meld = (~state: State.t, m: Tree.meld) =>
+  and go_meld = (~state: State.t, m: LMeld.t) =>
     Meld.Base.to_chain(m)
     |> Chain.mapi_loop((step, t_cell) => (step, t_cell))
     |> Chain.fold_left(
@@ -133,12 +154,12 @@ let path_of_loc =
 };
 // todo: reorg this as unzipping layout zipper
 let rec state_of_path =
-        (~state=State.init, ~tree: Tree.t, path: Path.t)
-        : (State.t, option(Tree.t)) =>
+        (~state=State.init, ~tree: LCell.t, path: Path.t)
+        : (State.t, option(LCell.t)) =>
   switch (path) {
   | [] => (state, Some(tree))
   // need to handle space separately because indentation is updated differently
-  | [hd, ...tl] when Tree.is_space(tree) =>
+  | [hd, ...tl] when LCell.is_space(tree) =>
     switch (
       tree.meld
       |> Options.get_exn(Marks.Invalid)
@@ -201,16 +222,16 @@ let rec state_of_path =
     }
   };
 // let loc_of_path =
-//     (~side=Dir.L, ~state=State.init, ~tree: Tree.t, path: Path.t) =>
+//     (~side=Dir.L, ~state=State.init, ~tree: LCell.t, path: Path.t) =>
 //   Dir.pick(side, (fst, snd), snd(range_of_path(~state, ~tree, path)));
 
-let map = (~tree: Tree.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
+let map = (~tree: LCell.t, f: Loc.t => Loc.t, path: Path.t): Path.t =>
   switch (path_of_loc(~tree, f(fst(state_of_path(~tree, path)).loc))) {
   | Ok(path) => path
-  | Error(_) => Tree.end_path(tree, ~side=R)
+  | Error(_) => LCell.end_path(tree, ~side=R)
   };
 
-let states = (~init: State.t, m: Tree.meld) =>
+let states = (~init: State.t, m: LMeld.t) =>
   Meld.Base.to_chain(m)
   |> Chain.fold_left_map(
        t_cell => (State.jump_cell(init, ~over=t_cell), init),
@@ -221,7 +242,7 @@ let states = (~init: State.t, m: Tree.meld) =>
        },
      );
 
-// let row_ends = (~tree: Tree.t, row: Loc.Row.t): (Loc.Col.t, Loc.Col.t) => {
+// let row_ends = (~tree: LCell.t, row: Loc.Row.t): (Loc.Col.t, Loc.Col.t) => {
 //   let (l, _) =
 //     Loc.{row, col: 0}
 //     |> path_of_loc(~tree)
@@ -230,9 +251,9 @@ let states = (~init: State.t, m: Tree.meld) =>
 //   let (r, _) =
 //     Loc.{row, col: Int.max_int}
 //     |> path_of_loc(~tree)
-//     |> Stds.Result.value(~default=Fun.const(Tree.end_path(tree, ~side=R)))
+//     |> Stds.Result.value(~default=Fun.const(LCell.end_path(tree, ~side=R)))
 //     |> state_of_path(~tree);
 //   (l.loc.col, r.loc.col);
 // };
-let nth_line = (tree: Tree.t, r: Loc.Row.t) =>
-  Block.nth_line(Tree.flatten(tree), r);
+let nth_line = (tree: LCell.t, r: Loc.Row.t) =>
+  Block.nth_line(LCell.flatten(tree), r);

@@ -55,10 +55,10 @@ let view_tok = (tok: Token.t) => {
   Node.span(~attrs, nodes);
 };
 
-let view_line = (l: Layout.Block.Line.t) =>
+let view_line = (l: Block.Line.t) =>
   l |> List.map(view_tok) |> Node.span(~attrs=[Attr.class_("line")]);
 
-let rec view_block = (B(b): Layout.Block.t) =>
+let rec view_block = (B(b): Block.t) =>
   b
   |> Chain.fold_left_map(
        sec => ((), view_sec(sec)),
@@ -68,7 +68,7 @@ let rec view_block = (B(b): Layout.Block.t) =>
   |> Chain.to_list(Fun.id, Fun.id)
   |> List.concat
   |> Node.div(~attrs=Attr.[classes(["block"])])
-and view_sec = (~indent=0, sec: Layout.Block.Section.t(_)) =>
+and view_sec = (~indent=0, sec: Block.Section.t(_)) =>
   nest(
     indent,
     [

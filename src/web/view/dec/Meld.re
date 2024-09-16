@@ -140,7 +140,7 @@ module Profile = {
     | [hd, ..._] => hd.style |> Option.map((style: T.Style.t) => style.sort)
     };
 
-  let mk = (~tree: L.Tree.t, ~path: Path.t, m: Meld.t) => {
+  let mk = (~tree: LCell.t, ~path: Path.t, m: Meld.t) => {
     let M(l, _, r) = m;
     let (null_l, null_r) = Cell.Space.(is_space(l), is_space(r));
     let n = Meld.length(m);
@@ -150,8 +150,8 @@ module Profile = {
 
     let M(t_l, w, t_r) =
       Options.get_exn(invalid, t).meld |> Options.get_exn(invalid);
-    let (p_l, t_l) = L.Tree.depad(~side=L, t_l);
-    let (_, t_r) = L.Tree.depad(~side=R, t_r);
+    let (p_l, t_l) = LCell.depad(~side=L, t_l);
+    let (_, t_r) = LCell.depad(~side=R, t_r);
     let lyt = Meld.Base.mk(~l=t_l, w, ~r=t_r);
 
     let s_init = state |> L.State.jump_cell(~over=p_l);
@@ -173,7 +173,7 @@ module Profile = {
            | None => Mtrl.Space()
            | Some(M(_, w, _)) => Wald.sort(w)
            };
-         let dims = Dims.of_block(Tree.flatten(t_cell));
+         let dims = Dims.of_block(LCell.flatten(t_cell));
          let loc = s.loc;
          let ind = s_tok.ind;
          Child.Profile.{ind, loc, dims, sort, no_delim};

@@ -18,7 +18,7 @@ let map_focus = (f: Loc.t => Loc.t, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let c = Zipper.zip(~save_cursor=true, z);
   let* init = Option.bind(c.marks.cursor, Path.Cursor.get_focus);
-  let goal = Layout.map(~tree=Tree.of_cell(c), f, init);
+  let goal = Layout.map(~tree=Layout.mk_cell(c), f, init);
   goal == init
     ? None : c |> Cell.map_marks(Cell.Marks.put_focus(goal)) |> Zipper.unzip;
 };
