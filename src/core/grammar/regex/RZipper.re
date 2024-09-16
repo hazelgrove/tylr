@@ -8,8 +8,9 @@ type t('focus, 'atom) = ('focus, RCtx.t('atom));
  let rec enter =
          (~ctx=RCtx.empty, ~from: Dir.t, ~filter: Filter.t=[], r: Regex.t('a))
     */
+
 let rec enter =
-        (~ctx=RCtx.empty, ~from: Dir.t, r: Regex.t('a))
+        (~filter: Filter.t=[], ~ctx=RCtx.empty, ~from: Dir.t, r: Regex.t('a))
         : list(Bound.t(t('a, 'a))) => {
   let go = enter(~from);
   switch (r) {
@@ -20,14 +21,14 @@ let rec enter =
 
     //Framed module elems pairs subject in focus with the context of the list
     //Converts the list into a zipper structure
-    Lists.Framed.elems(s)
+    Lists.Framed.elems(List.filter(((nm, _)) => List.mem(nm, filter), s))
     //r = element of list
     //ls + rs = frame
     //ls = list left of element
     //rs = list right of element
-    |> List.concat_map((((_, r), (ls, rs)))
+    |> List.concat_map((((nm, r), (ls, rs)))
          //if ()
-         => go(~ctx=[Alt_(ls, rs), ...ctx], r))
+         => go(~ctx=[Alt_(ls, nm, rs), ...ctx], r))
   | Seq(s) =>
     let orient = Dir.pick(from, (Fun.id, List.rev));
     switch (orient(s)) {
@@ -48,13 +49,13 @@ let rec enter =
 let step = (d: Dir.t, (a, ctx): t('a, 'a)): list(Bound.t(t('a, 'a))) => {
   let enter = enter(~from=Dir.toggle(d));
   // step past r into ctx
-  let rec go = (~name: string="", r: Regex.t('a), ctx: RCtx.t(_)) =>
+  let rec go = (r: Regex.t('a), ctx: RCtx.t(_)) =>
     switch (ctx) {
     | [] => [Bound.Root]
     | [f, ...fs] =>
       switch (d, f) {
       | (_, Star_) => go(Star(r), fs) @ enter(r, ~ctx)
-      | (_, Alt_(ls, rs)) =>
+      | (_, Alt_(ls, name, rs)) =>
         go(Alt(List.rev(ls) @ [(name, r), ...rs]), fs)
       | (L, Seq_([], rs)) => go(Seq([r, ...rs]), fs)
       | (R, Seq_(ls, [])) => go(Seq(List.rev([r, ...ls])), fs)

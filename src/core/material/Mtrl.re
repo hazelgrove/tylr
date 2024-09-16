@@ -28,7 +28,7 @@ let map = (~space, ~grout, ~tile) =>
   | Tile(t) => Tile(tile(t));
 
 module Sorted = {
-  type t = Base.t(unit, Sort.t, Sort.t);
+  type t = Base.t(unit, Sort.t, (Filter.t, Sort.t));
 };
 
 module T = {

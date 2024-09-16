@@ -12,8 +12,8 @@ module T = {
 
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
-  type t = (Sort.t, Bound.t(Mold.t));
-  let root = (Sort.root, Bound.Root);
+  type t = ((Filter.t, Sort.t), Bound.t(Mold.t));
+  let root = (([], Sort.root), Bound.Root);
   let sort = fst;
   let bounds =
     fun

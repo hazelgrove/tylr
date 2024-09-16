@@ -2,9 +2,10 @@ open Stds;
 open Walk;
 
 let mtrlize_tile =
-    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Tile.Sym.t) =>
+    (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t)
+    : list(Tile.Sym.t) =>
   Grammar.v
-  |> Sort.Map.find(s)
+  |> Sort.Map.find(snd(s))
   |> Prec.Table.mapi(((p, a), rgx) => {
        let is_bounded =
          Bound.(
@@ -15,13 +16,13 @@ let mtrlize_tile =
        let enter_from = (from: Dir.t) =>
          // currently filtering without assuming single operator form
          // for each prec level. this may need to change.
-         RZipper.enter(~from, rgx)
+         RZipper.enter(~from, ~filter=fst(s), rgx)
          |> List.filter_map(
               fun
               | Bound.Root => None
               | Node((sym, _) as z) =>
                 Dir.pick(from, is_bounded) || Sym.is_t(sym)
-                  ? Some(Tile.Sym.mk(s, p, z)) : None,
+                  ? Some(Tile.Sym.mk(snd(s), p, z)) : None,
             );
        switch (enter_from(L), enter_from(R)) {
        | ([], _)
@@ -47,9 +48,10 @@ let mtrlize_grout =
   |> List.map(Sym.t);
 
 let mtrlize =
-    (~l=Bound.Root, ~r=Bound.Root, s: Sort.t, ~from: Dir.t): list(Mtrl.Sym.t) =>
+    (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t)
+    : list(Mtrl.Sym.t) =>
   List.map(Mtrl.Sym.of_tile, mtrlize_tile(~l, s, ~r, ~from))
-  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, s, ~r));
+  @ List.map(Mtrl.Sym.of_grout, mtrlize_grout(~l, snd(s), ~r));
 
 let swing_over = (w: Walk.t, ~from: Dir.t) =>
   switch (Swing.bot(Walk.hd(w))) {
@@ -97,6 +99,7 @@ let swing_into = (w: Walk.t, ~from: Dir.t) => {
     // any descendant sort T.
     Swing.height(swing) == 0
       ? Sort.Set.elements(Sorts.deps(s))
+        |> List.map(s => ([], s))
         |> List.concat_map(mtrlize(~from))
         |> List.map(sym => arrive(sym, w, ~from))
         |> Index.union_all

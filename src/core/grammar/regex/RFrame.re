@@ -5,7 +5,11 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 type t('a) =
   | Star_
   | Seq_(Regex.s('a), Regex.s('a))
-  | Alt_(list((string, Regex.t('a))), list((string, Regex.t('a))));
+  | Alt_(
+      list((string, Regex.t('a))),
+      string,
+      list((string, Regex.t('a))),
+    );
 
 let untuple_alt = (l: list((string, Regex.t('a)))): list(Regex.t('a)) =>
   List.map(rs => snd(rs), l);
@@ -22,7 +26,7 @@ let pp = (pp_a, out, f) =>
     | ([_, ..._], [_, ..._]) =>
       Fmt.pf(out, "%a@ •@ %a", pp_s, List.rev(ls), pp_s, rs)
     };
-  | Alt_(ls, rs) =>
+  | Alt_(ls, _, rs) =>
     let pp_s = Fmt.(list(~sep=any("@ | "), Regex.pp(pp_a)));
     switch (ls, rs) {
     | ([], []) => Fmt.pf(out, "(•)")
@@ -44,18 +48,18 @@ let show = pp_a => Fmt.to_to_string(pp_a);
 
 let star_ = Star_;
 let seq_ = (ls, rs) => Seq_(ls, rs);
-let alt_ = (ls, rs) => Alt_(ls, rs);
+let alt_ = (ls, nm, rs) => Alt_(ls, nm, rs);
 
-let opt_ = Alt_([("", Regex.eps)], []);
+// let opt_ = Alt_([("", Regex.eps)], "", []);
 
 let aseq_ = (ls, rs) =>
   seq_(List.map(Regex.atom, ls), List.map(Regex.atom, rs));
 
 //NOTE: may need to add a name parameter to zip that is used to specify the empty string instead of the filter
-let zip = (~name: string="", f: t(_), r: Regex.t(_)) =>
+let zip = (f: t(_), r: Regex.t(_)) =>
   switch (f) {
   | Star_ => Regex.Star(r)
-  | Alt_(ls, rs) => Alt(List.rev(ls) @ [(name, r), ...rs])
+  | Alt_(ls, nm, rs) => Alt(List.rev(ls) @ [(nm, r), ...rs])
   | Seq_(ls, rs) => Seq(List.rev(ls) @ [r, ...rs])
   };
 

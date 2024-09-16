@@ -3,17 +3,18 @@
 
      Wherever TS defines an opt(automatic_semicolon) we are requiring a semicolon
 
-     The pat sort is just an lhs_exp. To get a true pat you must use the top level pat and pass in a Pat.atom() as the argument. This was done due to recursion conflicts within pat/lhs_exp
-
      "statement_identifier" never seems to be defined in the TreeSitter grammar so we are just ignoring it and assuming it is a normal ident
  */
 
 //TODO: Look into writing an extension to the tylr grammar to do more of a ts precedence with a table of named values and each individual form associated with a particular named value - also with the nested arrays for separate precedence levels by form/sort?
 
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+
 module Sym = {
   include Sym;
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
-  type t = Sym.t(Label.t, Sort.t);
+  type t = Sym.t(Label.t, (Filter.t, Sort.t));
 };
 module Regex = {
   include Regex;
@@ -24,7 +25,8 @@ open Regex;
 let p = (~a: option(Dir.t)=?, r: t) => (a, r);
 
 let t = (lbl: Label.t) => Regex.atom(Sym.t(lbl));
-let nt = (srt: Sort.t) => Regex.atom(Sym.nt(srt));
+let nt = (filter: Filter.t, srt: Sort.t) =>
+  Regex.atom(Sym.nt((filter, srt)));
 
 /*Indent flag is saying "do I indent next token if followed by a new line" ie
       static
@@ -41,381 +43,55 @@ let op = (~l=true, ~r=true, ~indent=true) =>
   c(~p=Padding.op(~l, ~r, ~indent, ()));
 let brc = (side: Dir.t) => c(~p=Padding.brc(side));
 
-//let tokc_alt = ss => alt(List.map(c, ss));
 let tokop_alt = ss => alt(List.map(op, ss));
 
 let comma_sep = (r: Regex.t) => seq([r, star(seq([c(","), r]))]);
 
-let pat = atom => seq([opt(c("...")), atom()]);
-let rest_pat = atom => seq([c("..."), atom()]);
+//Top level generic forms
+let assignment_pat = (exp: unit => Regex.t, pat: unit => Regex.t) =>
+  seq([pat(), op("="), exp()]);
 
 let private_property_ident = seq([c("#"), t(Id_lower)]);
 let import = kw("import");
+let param = (exp, pat) => alt([pat(), assignment_pat(exp, pat)]);
+let params = (exp, pat) =>
+  seq([
+    brc(L, "("),
+    param(exp, pat),
+    star(seq([c(","), param(exp, pat)])),
+    brc(R, ")"),
+  ]);
 
 //TODO
 let property_name = alt([t(Id_lower)]);
 let optional_chain = c("?.");
 
-let member_exp = exp =>
-  seq([
-    alt([exp(), import]),
-    alt([c("."), optional_chain]),
-    alt([private_property_ident, t(Id_lower)]),
-  ]);
-
-let subscript_exp = exp =>
-  seq([
-    alt([exp()]),
-    opt(optional_chain),
-    brc(L, "["),
-    exp(),
-    brc(R, "]"),
-  ]);
-
-let assignment_pat = (exp: unit => Regex.t, pat: unit => Regex.t) =>
-  seq([pat(), op("="), exp()]);
-let array_pat = (exp, pat) =>
-  seq([
-    brc(L, "["),
-    comma_sep(opt(alt([pat(), assignment_pat(pat, exp)]))),
-    brc(R, "]"),
-  ]);
-
-let destruct_pat =
-    (exp: unit => Regex.t, pat: unit => Regex.t, obj_pat: unit => Regex.t) =>
-  alt([obj_pat(), array_pat(exp, pat)]);
-
-//Export statement used both in statement and in the typ object typ
-let module_export_name = alt([t(Id_lower) /* , t(String_lit) */]);
-let export_specifier =
-  seq([module_export_name, opt(seq([kw("as"), module_export_name]))]);
-let export_clause =
-  seq([
-    brc(L, "{"),
-    export_specifier,
-    star(seq([c(","), export_specifier])),
-    opt(c(",")),
-    brc(R, "}"),
-  ]);
-
-//TODO:
-// let from_clause =seq([kw("from"), t(String_lit)])
-let from_clause = seq([kw("from"), t(Id_lower)]);
-let namespace_export = seq([c("*"), kw("as"), module_export_name]);
-
-let export_statement = stat =>
-  alt([
-    seq([
-      kw("export"),
-      alt([
-        seq([c("*"), from_clause]),
-        seq([namespace_export, from_clause]),
-        seq([export_clause, from_clause]),
-        export_clause,
-      ]),
-      c(";"),
-    ]),
-    seq([kw("export"), stat()]),
-  ]);
-
-//Used in exp and typ
-let param = lhs_exp => alt([pat(lhs_exp) /*, assignnment_pat*/]);
-let params = lhs_exp =>
-  seq([
-    brc(L, "("),
-    param(lhs_exp),
-    star(seq([c(","), param(lhs_exp)])),
-    brc(R, ")"),
-  ]);
-
-//This is an example of something that should be of the exp sort but is duplicated
-let _initializer = exp => seq([op("="), exp()]);
-
-let number = alt([t(Int_lit), t(Float_lit)]);
-
-let typ_ident = t(Id_lower);
-let _constraint = typ => seq([alt([kw("extends"), c(":")]), typ()]);
-let default_typ = typ => seq([op("="), typ()]);
-let typ_parameter = typ =>
-  seq([
-    opt(kw("const")),
-    typ_ident,
-    opt(_constraint(typ)),
-    opt(default_typ(typ)),
-  ]);
-let typ_params = typ =>
-  seq([brc(L, "<"), comma_sep(typ_parameter(typ)), brc(R, ">")]);
-
-// module Filter = {
-//Whitelisted strings
-// type t = list(string);
-// };
-
 module type SORT = {
-  // let atom: (~filter: Filter.t = ?, unit) => Regex.t;
-  let atom: unit => Regex.t;
+  let atom: (~filter: Filter.t=?, unit) => Regex.t;
   let sort: unit => Sort.t;
   let tbl: unit => Prec.Table.t(Regex.t);
-  //Define the form whitelist & blacklisting functions here that construct a filter
-  // let whitelist: ()
 };
 
-module rec Typ: SORT = {
-  let sort = () => Sort.of_str("Typ");
-  let atom = () => nt(sort());
+module rec Pat: SORT = {
+  let sort = () => Sort.of_str("Pat");
+  let atom = (~filter=[], ()) => nt(filter, sort());
 
-  let function_typ = seq([typ_params(Typ.atom)]);
+  let rest_pat = seq([c("..."), Pat.atom()]);
 
-  let tbl = () => [
-    p(PrimaryTyp.atom()),
-    p(function_typ),
-    // p(readonly_typ),
-    // p(constructor_typ),
-    // p(infer_typ),
-  ];
-}
-and PrimaryTyp: SORT = {
-  let sort = () => Sort.of_str("PrimaryTyp");
-  let atom = () => nt(sort());
-
-  let paren_type = seq([brc(L, "("), Typ.atom(), brc(R, ")")]);
-  let predefined_type =
-    alt([
-      kw("any"),
-      kw("number"),
-      kw("boolean"),
-      kw("string"),
-      kw("symbol"),
-      kw("void"),
-      kw("unknown"),
-      kw("null"),
-      kw("never"),
-      kw("object"),
-    ]);
-
-  let nested_ident =
+  let array_pat =
     seq([
-      star(seq([member_exp(Exp.atom), c("."), t(Id_lower)])),
-      c("."),
-      t(Id_lower),
-    ]);
-  let nested_typ_ident =
-    seq([alt([t(Id_lower), nested_ident]), c("."), typ_ident]);
-
-  let typ_arguments =
-    seq([brc(L, "<"), comma_sep(Typ.atom()), brc(R, ">")]);
-  let generic_typ = seq([alt([typ_ident, nested_typ_ident]), typ_arguments]);
-
-  let typ_annotation = seq([c(":"), Typ.atom()]);
-  let omitting_typ_annotation = seq([c("-?:"), Typ.atom()]);
-  let adding_typ_annotation = seq([c("+?:"), Typ.atom()]);
-  let opting_typ_annotation = seq([c("?:"), Typ.atom()]);
-
-  let accessibility_modifier =
-    alt([kw("public"), kw("protected"), kw("private")]);
-  let override_modifier = kw("override");
-  let property_signature =
-    seq([
-      opt(accessibility_modifier),
-      opt(kw("static")),
-      opt(override_modifier),
-      opt(kw("readonly")),
-      property_name,
-      opt(c("?")),
-      opt(typ_annotation),
-    ]);
-
-  let this = kw("this");
-  let typ_predicate =
-    seq([alt([t(Id_lower), this]), kw("is"), Typ.atom()]);
-  let typ_predicate_annotation = seq([c(":"), typ_predicate]);
-
-  let asserts_annotation =
-    seq([c(":"), kw("asserts"), alt([typ_predicate, t(Id_lower), this])]);
-  let call_signature =
-    seq([
-      opt(typ_params(Typ.atom)),
-      params(LHSExp.atom),
-      opt(
-        alt([typ_annotation, asserts_annotation, typ_predicate_annotation]),
-      ),
-    ]);
-
-  let construct_signature =
-    seq([
-      opt(kw("abstract")),
-      kw("new"),
-      opt(typ_params(Typ.atom)),
-      params(LHSExp.atom),
-      opt(typ_annotation),
-    ]);
-  let index_signature =
-    seq([
-      opt(seq([opt(alt([c("-"), c("+")])), kw("readonly")])),
       brc(L, "["),
-      alt([seq([t(Id_lower), c(":"), Typ.atom()])]),
-      brc(R, "]"),
-      alt([
-        typ_annotation,
-        omitting_typ_annotation,
-        adding_typ_annotation,
-        opting_typ_annotation,
-      ]),
-    ]);
-
-  let method_signature =
-    seq([
-      opt(accessibility_modifier),
-      opt(kw("static")),
-      opt(override_modifier),
-      opt(kw("readonly")),
-      opt(kw("async")),
-      opt(alt([kw("get"), kw("set"), c("*")])),
-      property_name,
-      opt(c("?")),
-      call_signature,
-    ]);
-
-  let obj_typ =
-    seq([
-      alt([brc(L, "{"), brc(L, "{|")]),
-      opt(
-        seq([
-          c(","),
-          comma_sep(
-            alt([
-              export_statement(Stat.atom),
-              property_signature,
-              call_signature,
-              construct_signature,
-              index_signature,
-              method_signature,
-            ]),
-          ),
-          c(","),
-        ]),
+      comma_sep(
+        opt(alt([Pat.atom(), assignment_pat(Pat.atom, Exp.atom)])),
       ),
-      alt([brc(R, "}"), brc(R, "|}")]),
+      brc(R, "]"),
     ]);
 
-  let arr_typ = seq([PrimaryTyp.atom(), c("[]")]);
-
-  let param_name =
-    seq([
-      opt(accessibility_modifier),
-      opt(override_modifier),
-      opt(kw("readonly")),
-      alt([pat(LHSExp.atom), this]),
-    ]);
-  let required_param =
-    seq([param_name, opt(typ_annotation), opt(_initializer(Exp.atom))]);
-  let optional_param =
-    seq([
-      param_name,
-      c("?"),
-      opt(typ_annotation),
-      opt(_initializer(Exp.atom)),
-    ]);
-  let optional_typ = seq([Typ.atom(), c("?")]);
-  let rest_typ = seq([c("..."), Typ.atom()]);
-
-  let tuple_typ_member =
-    alt([required_param, optional_param, optional_typ, rest_typ, Typ.atom()]);
-  let tuple_typ =
-    seq([brc(L, "("), comma_sep(tuple_typ_member), brc(R, ")")]);
-
-  let flow_maybe_typ = seq([c("?"), PrimaryTyp.atom()]);
-
-  //NOTE: the treesitter grammar for this is weirdly restrictive and (extremely) self-recursive. Due to this, I'm just allowing any exp to go here (as that makes more sense?)
-  let typ_query = seq([kw("typeof"), Exp.atom()]);
-
-  let index_typ_query = seq([kw("keyof"), PrimaryTyp.atom()]);
-
-  let existential_typ = kw("*");
-
-  let literal_typ =
-    alt([
-      number,
-      //TODO:
-      // t(String_lit),
-      kw("true"),
-      kw("false"),
-      kw("null"),
-      kw("undefined"),
-    ]);
-
-  let const = kw("const");
-
-  // let template_chars = t(Template_chars);
-  //NOTE: template chars are: ` | \0 | ${} | \\
-  let template_chars = alt([c("`"), c("\\0"), c("${}"), c("\\\\")]);
-  let infer_typ =
-    seq([kw("infer"), typ_ident, opt(seq([kw("extends"), Typ.atom()]))]);
-  let template_typ =
-    seq([c("${"), alt([PrimaryTyp.atom(), infer_typ]), c("}")]);
-  //TODO: ask david - should this be brc?
-  let template_literal_typ =
-    seq([
-      brc(L, "`"),
-      star(alt([template_chars, template_typ])),
-      brc(R, "`"),
-    ]);
-
-  let operand =
-    alt([
-      paren_type,
-      predefined_type,
-      typ_ident,
-      nested_typ_ident,
-      generic_typ,
-      obj_typ,
-      arr_typ,
-      tuple_typ,
-      this,
-      existential_typ,
-      literal_typ,
-      template_literal_typ,
-      const,
-    ]);
-
-  let lookup_typ =
-    seq([PrimaryTyp.atom(), brc(L, "["), Typ.atom(), brc(R, "]")]);
-  let conditional_typ =
-    seq([
-      Typ.atom(),
-      kw("extends"),
-      Typ.atom(),
-      c("?"),
-      Typ.atom(),
-      c(":"),
-      Typ.atom(),
-    ]);
-  let intersection_typ = seq([opt(Typ.atom()), c("&"), Typ.atom()]);
-  let union_typ = seq([opt(Typ.atom()), c("|"), Typ.atom()]);
-
-  let tbl = () => [
-    p(flow_maybe_typ),
-    p(typ_query),
-    p(index_typ_query),
-    p(lookup_typ),
-    p(conditional_typ),
-    p(intersection_typ),
-    p(union_typ),
-    p(operand),
-  ];
-}
-and ObjectPat: SORT = {
-  let sort = () => Sort.of_str("ObjectPat");
-  let atom = () => nt(sort());
-
-  let pair_pat =
+  let _pair_pat =
     seq([
       property_name,
       c(":"),
-      alt([
-        pat(LHSExp.atom),
-        assignment_pat(Exp.atom, () => pat(LHSExp.atom)),
-      ]),
+      alt([Pat.atom(), assignment_pat(Exp.atom, Pat.atom)]),
     ]);
 
   let obj_assignmnet_pat =
@@ -423,7 +99,7 @@ and ObjectPat: SORT = {
       alt([t(Id_lower)]),
       c("="),
       Exp.atom(),
-      destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
+      Pat.atom(~filter=["destruct_pat"], ()),
     ]);
 
   let obj_pat =
@@ -431,42 +107,40 @@ and ObjectPat: SORT = {
       brc(L, "{"),
       comma_sep(
         alt([
-          pair_pat,
-          rest_pat(() => pat(LHSExp.atom)),
+          Pat.atom(~filter=["pair_pat", "rest_pat"], ()),
           obj_assignmnet_pat,
         ]),
       ),
       brc(R, "}"),
     ]);
 
-  let operand = alt([obj_pat]);
-
-  let tbl = () => [p(operand)];
-}
-and LHSExp: SORT = {
-  let sort = () => Sort.of_str("Pat");
-  let atom = () => nt(sort());
+  let destruct_pat = alt([Pat.atom(~filter=["obj_pat"], ()), array_pat]);
 
   let lhs_exp =
     alt([
       t(Id_lower),
-      member_exp(Exp.atom),
-      subscript_exp(Exp.atom),
-      destruct_pat(Exp.atom, ObjectPat.atom, LHSExp.atom),
+      Exp.atom(~filter=["member_exp", "subscript_exp"], ()),
+      destruct_pat,
     ]);
 
-  let pat = lhs_exp;
-
-  let tbl = () => [p(pat)];
+  let tbl = () => [p(alt([lhs_exp, rest_pat]))];
 }
 and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
-  let atom = () => nt(sort());
-
+  let atom = (~filter=[], ()) => nt(filter, sort());
   let stat_block =
     seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
 
   let num = alt([t(Int_lit), t(Float_lit)]);
+
+  let subscript_exp =
+    seq([
+      alt([Exp.atom()]),
+      opt(optional_chain),
+      brc(L, "["),
+      Exp.atom(),
+      brc(R, "]"),
+    ]);
 
   //NOTE: for now we are making the primary same as exp atom - doing this to test our grammar designs on the assumption that treesitter separates them for precedence but our "global" exp precedence will work
   let primary_exp = atom();
@@ -482,10 +156,6 @@ and Exp: SORT = {
       brc(R, ")"),
     ]);
 
-  let member_exp = member_exp(atom);
-
-  //TODO:assignment_pat
-
   let method_def =
     seq([
       opt(kw(~l=false, ~indent=false, "static")),
@@ -498,7 +168,7 @@ and Exp: SORT = {
         ]),
       ),
       t(Id_lower),
-      params(LHSExp.atom),
+      params(Exp.atom, Pat.atom),
       stat_block,
     ]);
 
@@ -524,20 +194,20 @@ and Exp: SORT = {
       brc(R, "]"),
     ]);
 
-  let call_signature = params;
+  let call_signature = params(Exp.atom, Pat.atom);
   let func_exp =
     seq([
       opt(kw(~l=false, ~indent=false, "async")),
       kw(~l=false, "function"),
       opt(t(Id_lower)),
-      call_signature(LHSExp.atom),
+      call_signature,
       stat_block,
     ]);
 
   let arrow_function =
     seq([
       opt(kw(~l=false, ~indent=false, "async")),
-      alt([t(Id_lower), call_signature(LHSExp.atom)]),
+      alt([t(Id_lower), call_signature]),
       op("=>"),
       alt([atom(), stat_block]),
     ]);
@@ -550,16 +220,14 @@ and Exp: SORT = {
       c("function"),
       kw(~l=false, "*"),
       opt(t(Id_lower)),
-      call_signature(LHSExp.atom),
+      call_signature,
       stat_block,
     ]);
 
+  let _initializer = seq([op("="), atom()]);
+
   let field_def =
-    seq([
-      opt(kw(~l=false, "static")),
-      property_name,
-      opt(_initializer(Exp.atom)),
-    ]);
+    seq([opt(kw(~l=false, "static")), property_name, opt(_initializer)]);
 
   let class_static_block = seq([kw("static"), c(";"), stat_block]);
 
@@ -616,12 +284,22 @@ and Exp: SORT = {
       _class,
       call_exp,
       paren_exp,
-      member_exp,
+      subscript_exp,
     ]);
 
-  //End of "primary" expressions
+  let member_exp =
+    seq([
+      alt([Exp.atom(), import]),
+      alt([c("."), optional_chain]),
+      alt([private_property_ident, t(Id_lower)]),
+    ]);
+
   let assignment_exp =
-    seq([alt([paren_exp, LHSExp.atom()]), op("="), atom()]);
+    seq([
+      alt([paren_exp, Pat.atom(~filter=["lhs_exp"], ())]),
+      op("="),
+      atom(),
+    ]);
   let await_exp = seq([kw("await"), atom()]);
   let unary_exp =
     seq([
@@ -681,21 +359,18 @@ and Exp: SORT = {
       p(update_exp),
       p(new_exp),
       p(yield_exp),
+      p(member_exp),
     ]
     @ [p(operand)];
 }
 and Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
-  let atom = () => nt(sort());
-
+  let atom = (~filter=[], ()) => nt(filter, sort());
   let paren_exp = seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
   let stat_block =
     seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
 
-  let param = alt([pat(LHSExp.atom) /*, assignment_pat*/]);
-  let params =
-    seq([brc(L, "("), param, star(seq([c(","), param])), brc(R, ")")]);
   let method_def =
     seq([
       opt(kw(~l=false, ~indent=false, "static")),
@@ -708,10 +383,42 @@ and Stat: SORT = {
         ]),
       ),
       t(Id_lower),
-      params,
+      params(Exp.atom, Pat.atom),
       stat_block,
     ]);
-  let call_signature = params;
+  let call_signature = params(Exp.atom, Pat.atom);
+
+  let module_export_name = alt([t(Id_lower) /* , t(String_lit) */]);
+  let export_specifier =
+    seq([module_export_name, opt(seq([kw("as"), module_export_name]))]);
+  let export_clause =
+    seq([
+      brc(L, "{"),
+      export_specifier,
+      star(seq([c(","), export_specifier])),
+      opt(c(",")),
+      brc(R, "}"),
+    ]);
+
+  //TODO:
+  // let from_clause =seq([kw("from"), t(String_lit)])
+  let from_clause = seq([kw("from"), t(Id_lower)]);
+  let namespace_export = seq([c("*"), kw("as"), module_export_name]);
+
+  let export_statement =
+    alt([
+      seq([
+        kw("export"),
+        alt([
+          seq([c("*"), from_clause]),
+          seq([namespace_export, from_clause]),
+          seq([export_clause, from_clause]),
+          export_clause,
+        ]),
+        c(";"),
+      ]),
+      seq([kw("export"), atom()]),
+    ]);
 
   let namespace_import = seq([c("*"), kw("as"), t(Id_lower)]);
   let import_specifier =
@@ -746,7 +453,6 @@ and Stat: SORT = {
       opt(kw(~l=false, ~indent=false, "async")),
       kw(~l=false, "function"),
       opt(t(Id_lower)),
-      //TODO: raise call_signature and stat block to the top level
       call_signature,
       stat_block,
       opt(c(";")),
@@ -794,7 +500,6 @@ and Stat: SORT = {
   let var_declaration =
     seq([kw("var"), comma_sep(var_declarator), c(";")]);
 
-  //TODO: generator func decl
   let declaration =
     alt([
       func_declaration,
@@ -825,7 +530,7 @@ and Stat: SORT = {
     alt([
       empty_statement,
       debugger_statement,
-      export_statement(Stat.atom),
+      export_statement,
       import_statement,
       declaration,
       statement_block,
@@ -852,21 +557,15 @@ and Stat: SORT = {
     seq([
       brc(L, "("),
       alt([
-        alt([LHSExp.atom(), paren_exp]),
+        alt([Pat.atom(~filter=["lhs_exp"], ()), paren_exp]),
         seq([
           kw("var"),
-          alt([
-            t(Id_lower),
-            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
-          ]),
+          alt([t(Id_lower), Pat.atom(~filter=["destruct_pat"], ())]),
           opt(init),
         ]),
         seq([
           alt([kw("let"), kw("const")]),
-          alt([
-            t(Id_lower),
-            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
-          ]),
+          alt([t(Id_lower), Pat.atom(~filter=["destruct_pat"], ())]),
         ]),
       ]),
       alt([kw("in"), kw("of")]),
@@ -892,10 +591,7 @@ and Stat: SORT = {
       opt(
         seq([
           brc(L, "("),
-          alt([
-            t(Id_lower),
-            destruct_pat(Exp.atom, ObjectPat.atom, () => pat(LHSExp.atom)),
-          ]),
+          alt([t(Id_lower), Pat.atom(~filter=["destruct_pat"], ())]),
           brc(R, ")"),
         ]),
       ),
@@ -934,24 +630,10 @@ and Stat: SORT = {
     p(label_statement),
     p(operand),
   ];
-}
-and Module: SORT = {
-  let sort = () => Sort.of_str("Module");
-  let atom = () => nt(sort());
-
-  let operand = alt([]);
-
-  let tbl = () => [p(operand)];
 };
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
-  [
-    ObjectPat.(sort(), tbl()),
-    LHSExp.(sort(), tbl()),
-    Stat.(sort(), tbl()),
-    Exp.(sort(), tbl()),
-    Module.(sort(), tbl()),
-  ]
+  [Pat.(sort(), tbl()), Stat.(sort(), tbl()), Exp.(sort(), tbl())]
   |> List.to_seq
   |> Sort.Map.of_seq;
