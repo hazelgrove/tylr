@@ -38,7 +38,7 @@ module Profile = {
         ~null=(true, false),
         lc_l,
       );
-    let state = L.State.jump_cell(s_tok, ~over=lc_l);
+    let state = L.State.jump_cell(s_init, ~over=lc_l);
     let (state, w) = W.Profile.mk(~whole, ~state, ~null, lw);
     let r =
       Child.Profile.mk(
