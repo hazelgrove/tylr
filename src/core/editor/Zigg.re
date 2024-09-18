@@ -6,13 +6,17 @@ module Base = {
     top: Wald.Base.t('tok),
     dn: Slope.Base.t('tok),
   };
+  let mk = (~up=Slope.Base.empty, ~dn=Slope.Base.empty, top) => {
+    up,
+    top,
+    dn,
+  };
+  let of_tok = tok => mk(Wald.of_tok(tok));
 };
+include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.t(Token.t);
-
-let mk = (~up=Slope.empty, ~dn=Slope.empty, top) => Base.{up, top, dn};
-let of_tok = tok => mk(Wald.of_tok(tok));
 
 let orient = (d: Dir.t, {up, top, dn}: t) => {
   let (s_d, s_b) = Dir.order(d, (up, dn));

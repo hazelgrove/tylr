@@ -4,6 +4,24 @@ module Base = {
   include Cell.Meld;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) = Cell.Meld.t(Cell.Base.t('tok), 'tok);
+  let length = m => Chain.length(to_chain(m));
+
+  let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
+  let unzip_tok = (step, m) => Chain.unzip_link(step, to_chain(m));
+  let unzip = (step, m) => Chain.unzip(step, to_chain(m));
+
+  let split_subwald = (i, j, M(l, W((ts, cs)), r): t(_)) => {
+    let i = i / 2;
+    let j = j / 2 - (j mod 2 == 0 ? 1 : 0);
+    // assert(i mod 2 != 0 && j mod 2 != 0);
+    let (ts, (ts_l, ts_r)) = Lists.Framed.sublist(i, j + 1, ts);
+    let (cs, (cs_l, cs_r)) = Lists.Framed.sublist(i, j, cs);
+    (
+      Chain.mk(cs_l @ [l], ts_l),
+      Wald.Base.mk(ts, cs),
+      Chain.mk(cs_r @ [r], ts_r),
+    );
+  };
 };
 include Base;
 
@@ -49,25 +67,6 @@ module Space = {
 module Grout = {
   let op_ = (s: Sort.t) => mk(Wald.of_tok(Token.Grout.op_(s)));
 };
-
-let split_subwald = (i, j, M(l, W((ts, cs)), r): t) => {
-  let i = i / 2;
-  let j = j / 2 - (j mod 2 == 0 ? 1 : 0);
-  // assert(i mod 2 != 0 && j mod 2 != 0);
-  let (ts, (ts_l, ts_r)) = Lists.Framed.sublist(i, j + 1, ts);
-  let (cs, (cs_l, cs_r)) = Lists.Framed.sublist(i, j, cs);
-  (
-    Chain.mk(cs_l @ [l], ts_l),
-    Wald.mk(ts, cs),
-    Chain.mk(cs_r @ [r], ts_r),
-  );
-};
-
-let length = m => Chain.length(to_chain(m));
-
-let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));
-let unzip_tok = (step, m) => Chain.unzip_link(step, to_chain(m));
-let unzip = (step, m) => Chain.unzip(step, to_chain(m));
 
 let link = (~cell=Cell.empty, t: Token.t, M(l, W(w), r): t) =>
   mk(~l=cell, W(Chain.link(t, l, w)), ~r);

@@ -25,19 +25,44 @@ let rec carets = (~font, c: Cell.t) => {
   };
 };
 
-let cursor = (~font, z: Zipper.t) =>
-  switch (z.cur) {
-  | Select(_) => []
-  | Point(_) =>
-    let tree = Layout.mk_cell(Zipper.zip(~save_cursor=true, z));
-    let (cell, ctx) = Zipper.zip_indicated(z);
-    switch (Cell.get(cell)) {
+let cursor = (~font, z: Zipper.t) => {
+  let c = Zipper.zip(~save_cursor=true, z);
+  let lc = Layout.mk_cell(c);
+
+  let (_, ind_ctx) = Zipper.zip_indicated(z);
+  let ind_cur =
+    Option.get(c.marks.cursor)
+    |> Cursor.map(
+         Caret.map(Fun.const(Zipper.path_of_ctx(ind_ctx))),
+         Fun.id,
+       );
+  let ind_lz = Layout.unzip(ind_cur, lc);
+  let state = Layout.state_of_frame(ind_lz.ctx);
+
+  switch (ind_lz.cur) {
+  | Point(ind_lc) =>
+    switch (ind_lc.meld) {
     | None => []
-    | Some(m) =>
-      let path = Zipper.path_of_ctx(ctx);
-      m |> Dec.Meld.Profile.mk(~tree, ~path) |> Dec.Meld.mk(~font);
-    };
+    | Some(lm) =>
+      Dec.Meld.Profile.mk(~whole=lc, ~state, lm) |> Dec.Meld.mk(~font)
+    }
+  | Select(_) => []
   };
+};
+
+// let cursor = (~font, z: Zipper.t) =>
+//   switch (z.cur) {
+//   | Select(_) => []
+//   | Point(_) =>
+//     let tree = Layout.mk_cell(Zipper.zip(~save_cursor=true, z));
+//     let (cell, ctx) = Zipper.zip_indicated(z);
+//     switch (Cell.get(cell)) {
+//     | None => []
+//     | Some(m) =>
+//       let path = Zipper.path_of_ctx(ctx);
+//       m |> Dec.Meld.Profile.mk(~tree, ~path) |> Dec.Meld.mk(~font);
+//     };
+//   };
 
 let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
   // print_endline("--- Code.view ---");

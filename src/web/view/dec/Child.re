@@ -1,10 +1,11 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
-open Stds;
 
 // to keep a reference to token dec
 module T = Token;
 open Tylr_core;
+
+module L = Layout;
 
 let sort_clss = (s: Mtrl.Sorted.t) =>
   switch (s) {
@@ -33,10 +34,16 @@ module Profile = {
     loc: Loc.t,
     dims: Dims.t,
     sort: Mtrl.Sorted.t,
-    // whether or not the child lacks a delimiter on its left and right, in which case
+    // whether the child lacks a delimiter on its left and right, in which case
     // decorations will depend on the metrics of the first/last rows of the child
-    // no_delim: (option(row_metrics), option(row_metrics)),
     no_delim: (option(row_metrics), option(row_metrics)),
+  };
+
+  let mk = (~whole, ~ind, ~loc: Loc.t, ~null as (l, r), lc: LCell.t) => {
+    let dims = Dims.of_block(LCell.flatten(lc));
+    let l = l ? Some(L.nth_line(whole, loc.row)) : None;
+    let r = r ? Some(L.nth_line(whole, loc.row + dims.height)) : None;
+    {ind, loc, dims, sort: LCell.sort(lc), no_delim: (l, r)};
   };
 };
 

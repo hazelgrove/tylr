@@ -83,7 +83,7 @@ module Molded = {
   let indent = (tok: t) => Mtrl.T.padding(tok.mtrl).indent;
   let sort = tok =>
     Mtrl.map(
-      ~space=Fun.id,
+      ~space=Fun.const(),
       ~grout=fst,
       ~tile=((_, m: Mold.t)) => m.sort,
       tok.mtrl,

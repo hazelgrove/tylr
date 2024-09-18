@@ -257,3 +257,81 @@ let states = (~init: State.t, m: LMeld.t) =>
 // };
 let nth_line = (tree: LCell.t, r: Loc.Row.t) =>
   Block.nth_line(LCell.flatten(tree), r);
+
+let rec unzip =
+        (~frame=LFrame.empty, cur: Path.Cursor.t, c: LCell.t): LZipper.t => {
+  let hd = Path.Cursor.hd(cur);
+  switch (hd) {
+  | Error(Point(_)) =>
+    let cur = Cursor.Point(c);
+    LZipper.mk(cur, frame);
+  | Error(Select(range)) =>
+    let m = Options.get_exn(Marks.Invalid, c.meld);
+    unzip_select(range, m, ~frame);
+  | Ok(step) =>
+    let tl = Option.get(Path.Cursor.peel(step, cur));
+    let m = Options.get_exn(Marks.Invalid, c.meld);
+    switch (Meld.Base.unzip(step, m)) {
+    | Loop((pre, cell, suf)) =>
+      let l = Option.to_list(LTerr.mk'(pre));
+      let r = Option.to_list(LTerr.mk'(suf));
+      let frame = LFrame.cat((l, r), frame);
+      unzip(~frame, tl, cell);
+    // | Link((pre, tok, suf)) =>
+    //   // if caret points to token, then take the entire meld as focused cell
+    //   let cur = Cursor.map(Caret.map(Fun.const()), Fun.id, cur);
+    //   (cur, c, frame);
+    | Link((pre, tok, suf)) =>
+      switch (cur) {
+      | Point(_) => LZipper.mk(Cursor.Point(c), frame)
+      | Select(_) =>
+        let (l, pre) = Chain.uncons(pre);
+        let (r, suf) = Chain.uncons(suf);
+        let frame =
+          frame
+          |> LFrame.cat((
+               LSlope.Dn.unroll(l) @ Option.to_list(LTerr.mk'(pre)),
+               LSlope.Up.unroll(r) @ Option.to_list(LTerr.mk'(suf)),
+             ));
+        let cur = Cursor.Select(LZigg.of_tok(tok));
+        LZipper.mk(cur, frame);
+      }
+    };
+  };
+}
+and unzip_select = (~frame, sel: Path.Selection.t, meld: LMeld.t) => {
+  let (l, r) = sel.range;
+  let l_hd = Path.hd(l) |> Path.Head.get(() => 0);
+  let r_hd = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
+  let (pre, top, suf) = LMeld.split_subwald(l_hd, r_hd, meld);
+  let ((pre_dn, pre_up), top) = {
+    // l points to cell hd_pre
+    let (hd_pre, tl_pre) = Chain.uncons(pre);
+    let frame_pre = (Option.to_list(Terr.mk'(tl_pre)), []);
+    let z =
+      unzip(Point(Caret.focus(List.tl(l))), hd_pre, ~frame=frame_pre);
+    (z.ctx, top);
+  };
+  let (top, (suf_dn, suf_up)) = {
+    // r points to cell hd_suf
+    let (hd_suf, tl_suf) = Chain.uncons(suf);
+    let frame_suf = ([], Option.to_list(Terr.mk'(tl_suf)));
+    let z =
+      unzip(Point(Caret.focus(List.tl(r))), hd_suf, ~frame=frame_suf);
+    (top, z.ctx);
+  };
+  let zigg = LZigg.mk(~up=pre_up, top, ~dn=suf_dn);
+  let frame = LFrame.cat((pre_dn, suf_up), frame);
+  LZipper.mk(Select(zigg), frame);
+};
+
+let state_of_frame = ((pre, _): LFrame.t) =>
+  pre
+  |> Lists.fold_right(~init=State.init, ~f=(terr, state) =>
+       LTerr.unmk(terr)
+       |> Chain.Affix.fold_out(~init=state, ~f=(b_tok, t_cell, state) =>
+            state
+            |> State.jump_cell(~over=t_cell)
+            |> State.jump_tok(~over=b_tok)
+          )
+     );

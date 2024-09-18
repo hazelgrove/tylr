@@ -11,16 +11,18 @@ module Open = {
   module Base = {
     [@deriving (show({with_path: false}), sexp, yojson)]
     type t('tok) = (Slope.Base.t('tok), Slope.Base.t('tok));
+    let empty = Slope.(empty, empty);
+    let cat = ((dn', up'), (dn, up)) =>
+      Slope.Base.(cat(dn', dn), cat(up', up));
   };
+  include Base;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(Token.t);
-  let empty = Slope.(empty, empty);
   let cons = (~onto: Dir.t, terr: Terr.t, (dn, up)) =>
     switch (onto) {
     | L => ([terr, ...dn], up)
     | R => (dn, [terr, ...up])
     };
-  let cat = ((dn', up'), (dn, up)) => Slope.(cat(dn', dn), cat(up', up));
   let pull = (~from: Dir.t, (dn, up): t): (Delim.t, t) =>
     switch (from) {
     | L =>

@@ -5,19 +5,20 @@ module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) = Cell.Wald.t('tok, Cell.Base.t('tok));
   let w = (c): t(_) => W(c);
+  let mk = (toks, cells): t(_) => W(Chain.mk(toks, cells));
+  let hd = (W(w): t(_)) => Chain.hd(w);
+  let length = (W(c): t(_)) => Chain.length(c);
+  let rev = (W(c): t(_)) => w(Chain.rev(c));
 };
 include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.t(Token.t);
 
-let mk = (toks, cells): t => W(Chain.mk(toks, cells));
-
 let get = (f, W(w): t) => f(w);
 let map = (f, W(w): t): t => W(f(w));
 
 let uncons: t => _ = get(Chain.uncons);
-let hd: t => Token.t = get(Chain.hd);
 let map_hd = f => map(Chain.map_hd(f));
 let put_hd = hd => map(Chain.put_hd(hd));
 
@@ -29,9 +30,6 @@ let put_ft = (_, _) => failwith("todo Wald.put_ft");
 //   fun
 //   | Dir.L => fst
 //   | R => ft;
-
-let length: t => int = get(Chain.length);
-let rev: t => t = map(Chain.rev);
 
 let link = (tok, cell) => map(Chain.link(tok, cell));
 let unlink = (W(w): t) =>

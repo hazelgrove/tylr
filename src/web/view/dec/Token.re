@@ -30,10 +30,10 @@ module Profile = {
     style: option(Style.t),
   };
 
-  let mk = (~loc: Loc.t, ~null: (bool, bool), tok: Token.t) => {
+  let mk = (~loc: Loc.t, ~null: (bool, bool), b_tok: Block.t) => {
     loc,
-    len: Token.length(tok),
-    style: Style.mk(~null, tok.mtrl),
+    len: Block.len(b_tok),
+    style: Style.mk(~null, Block.mtrl(b_tok)),
   };
 };
 let tip_width = 0.3;

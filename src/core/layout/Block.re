@@ -46,6 +46,19 @@ let cons = (sec: Section.t(t), ~indent=0) => Chain.link(sec, indent);
 
 let height = (B((_, newlines)): t) => List.length(newlines);
 
+let rec sort = (B(b): t): Mtrl.Sorted.t =>
+  switch (Chain.hd(b)) {
+  | Line([]) => Mtrl.Space()
+  | Line([tok, ..._]) => Token.sort(tok)
+  | Block(b) => sort(b)
+  };
+let rec mtrl = (B(b): t): Mtrl.T.t =>
+  switch (Chain.hd(b)) {
+  | Line([]) => Mtrl.Space(White(Sys))
+  | Line([tok, ..._]) => tok.mtrl
+  | Block(b) => mtrl(b)
+  };
+
 let rec len = (B(b): t) =>
   b |> Chain.to_list(len_sec, Fun.const(1)) |> List.fold_left((+), 0)
 and len_sec =

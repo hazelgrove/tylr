@@ -4,15 +4,16 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) = list(Terr.Base.t('tok));
+  let empty = [];
+  let singleton = t => [t];
+  let height = List.length;
+  let cons = List.cons;
+  let cat = (@);
 };
+include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.t(Token.t);
-
-let empty = [];
-let singleton = t => [t];
-let height = List.length;
-let cons = List.cons;
 
 let tokens = List.concat_map(Terr.tokens);
 // let link = (w: Wald.t, c: Rel.t(_), slope: t) =>
@@ -61,8 +62,6 @@ let extend = (tl: Chain.Affix.t(Cell.t, Token.t)) =>
   | [hd, ...rest] => [Terr.extend(tl, hd), ...rest];
 
 let fold: (('acc, Terr.t) => 'acc, 'acc, t) => 'acc = List.fold_left;
-
-let cat = (@);
 
 let unroll = (~from: Dir.t, cell: Cell.t) => {
   let rec go = (cell: Cell.t, unrolled) =>

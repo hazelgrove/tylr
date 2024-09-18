@@ -6,25 +6,26 @@ module Base = {
     wald: Wald.Base.t('tok),
     cell: Cell.Base.t('tok),
   };
+  let mk = (toks, cells) => {
+    let (cells, cell) =
+      Stds.Lists.Framed.ft(cells)
+      |> Options.get_exn(Invalid_argument("Terr.mk"));
+    Base.{wald: Wald.Base.mk(toks, List.rev(cells)), cell};
+  };
+  let mk' = ((toks, cells)) =>
+    switch (mk(toks, cells)) {
+    | terr => Some(terr)
+    | exception (Invalid_argument(_)) => None
+    };
+  let unmk = ({wald: W((toks, cells)), cell}: t(_)) => (
+    toks,
+    cells @ [cell],
+  );
 };
-// include Base;
+include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.t(Token.t);
-
-let mk = (toks, cells) => {
-  let (cells, cell) =
-    Stds.Lists.Framed.ft(cells)
-    |> Options.get_exn(Invalid_argument("Terr.mk"));
-  Base.{wald: Wald.mk(toks, List.rev(cells)), cell};
-};
-let mk' = ((toks, cells)) =>
-  switch (mk(toks, cells)) {
-  | terr => Some(terr)
-  | exception (Invalid_argument(_)) => None
-  };
-
-let unmk = ({wald: W((toks, cells)), cell}: t) => (toks, cells @ [cell]);
 
 let length = (terr: t) => Wald.length(terr.wald) + 1;
 
