@@ -16,7 +16,7 @@
 (executable
  (name main)
  (modules Main)
- (libraries tylr_web tylr_ts core)
+ (libraries tylr_web tylr_js core)
  (modes js)
  (js_of_ocaml)
  (preprocess

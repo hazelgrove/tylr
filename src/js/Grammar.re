@@ -1,7 +1,7 @@
 /*
-     Notes about the typescript grammar
+     Notes about the javascript grammar
 
-     Wherever TS defines an opt(automatic_semicolon) we are requiring a semicolon
+     Wherever js defines an opt(automatic_semicolon) we are requiring a semicolon
 
      "statement_identifier" never seems to be defined in the TreeSitter grammar so we are just ignoring it and assuming it is a normal ident
  */

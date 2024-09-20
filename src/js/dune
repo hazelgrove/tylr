@@ -1,7 +1,7 @@
 (include_subdirs unqualified)
 
 (library
- (name tylr_ts)
+ (name tylr_js)
  (libraries stds re sexplib)
  (implements tylr_core)
  (js_of_ocaml)
