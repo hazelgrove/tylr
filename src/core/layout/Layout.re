@@ -1,3 +1,5 @@
+open Sexplib.Std;
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
 // module Block = Block;
@@ -7,40 +9,71 @@ module State = {
   // layout traversal state
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
+    // committed indentation applied to bidelimited container
     ind: Loc.Col.t,
+    // relative indentation within bidelimited container
+    rel: int,
+    // global location
     loc: Loc.t,
   };
 
-  let init = {ind: 0, loc: Loc.zero};
+  let init = {ind: 0, rel: 0, loc: Loc.zero};
 
   let map = (f, s: t) => {...s, loc: f(s.loc)};
 
-  let indent = (n: int, s: t) => {ind: s.ind + n, loc: Loc.shift(n, s.loc)};
-  let return = (s: t, ~ind: Loc.Col.t) => {
-    ind,
-    loc: Loc.return(s.loc, ~ind),
+  let indent = (n: int, s: t) => {
+    ind: s.ind,
+    rel: s.rel + n,
+    loc: Loc.shift(n, s.loc),
+  };
+  let commit_indent = (s: t) => {ind: s.ind + s.rel, rel: 0, loc: s.loc};
+
+  let return = (s: t, rel: int) => {
+    ind: s.ind,
+    rel,
+    loc: Loc.return(s.loc, ~ind=s.ind + rel),
   };
 
-  let rec jump_block = (s: t, ~over as B(b): Block.t) => {
-    let ind = s.ind;
+  let rec jump_block = (s: t, ~over as B(b): Block.t) =>
     b
     |> Chain.fold_left(
          sec => jump_sec(s, ~over=sec),
-         (s, n, sec) => return(s, ~ind=ind + n) |> jump_sec(~over=sec),
-       );
-  }
+         (s, n, sec) => return(s, n) |> jump_sec(~over=sec),
+       )
   and jump_sec = (s: t, ~over: Block.Section.t(_)) =>
     switch (over) {
     | Line(l) => map(Loc.shift(Block.Line.len(l)), s)
-    | Block(b) => jump_block(s, ~over=b)
+    | Block(b) =>
+      let committed = commit_indent(s);
+      let jumped = jump_block(committed, ~over=b);
+      {...s, loc: jumped.loc};
     };
 
   let jump_cell = (s: t, ~over: LCell.t) => {
-    let ind = s.ind;
+    let rel = s.rel;
     let jumped = jump_block(s, ~over=LCell.flatten(over));
-    LCell.is_space(over) ? jumped : {...jumped, ind};
+    LCell.is_space(over) ? jumped : {...jumped, rel};
   };
   let jump_tok = jump_block;
+
+  // assuming terrace wald faces right
+  let jump_terr = (~closed=false, s: t, ~over: LTerr.t) => {
+    let (ind, rel) = (s.ind, s.rel);
+    let (ts, cs) = LTerr.unmk(over);
+    List.combine(cs, ts)
+    |> List.rev
+    |> List.mapi((i, tc) => (i, tc))
+    |> Lists.fold_left(~init=s, ~f=(s, (i, (cell, b_tok))) =>
+         s
+         |> jump_cell(~over=cell)
+         |> (i == 0 ? commit_indent : Fun.id)
+         |> jump_tok(~over=b_tok)
+       )
+    |> (closed ? Fun.id : (s => {...s, ind, rel}));
+  };
+  // assuming dn slope
+  let jump_slope = (s: t, ~over: LSlope.t) =>
+    List.fold_right((terr, s) => jump_terr(s, ~over=terr), over, s);
 };
 
 let max_path = _ => failwith("todo");
@@ -152,6 +185,7 @@ let path_of_loc =
        );
   go(~state, tree);
 };
+
 // todo: reorg this as unzipping layout zipper
 let rec state_of_path =
         (~state=State.init, ~tree: LCell.t, path: Path.t)
@@ -191,14 +225,19 @@ let rec state_of_path =
       |> Meld.Base.to_chain
       |> Chain.unzip(hd)
     ) {
-    | Loop((pre, t_cell, _)) =>
+    | Loop((pre, t_cell, suf)) =>
+      let (ind, rel) = (state.ind, state.rel);
       let state =
-        pre
-        |> Chain.Affix.fold_out(~init=state, ~f=(b_tok, t_cell, state) =>
+        List.combine(snd(pre), fst(pre))
+        |> List.rev
+        |> List.mapi((i, ct) => (i, ct))
+        |> Lists.fold_left(~init=state, ~f=(state, (i, (t_cell, b_tok))) =>
              state
              |> State.jump_cell(~over=t_cell)
+             |> (i == 0 ? State.commit_indent : Fun.id)
              |> State.jump_tok(~over=b_tok)
            );
+      let state = Chain.Affix.is_empty(suf) ? {...state, ind, rel} : state;
       state_of_path(~state, ~tree=t_cell, tl);
     | Link((pre, b_tok, _)) =>
       let state =
@@ -208,7 +247,8 @@ let rec state_of_path =
                state
                |> State.jump_tok(~over=b_tok)
                |> State.jump_cell(~over=t_cell),
-             t_cell => State.jump_cell(state, ~over=t_cell),
+             t_cell =>
+               State.jump_cell(state, ~over=t_cell) |> State.commit_indent,
            );
       switch (tl) {
       | [] => (state, None)
@@ -258,48 +298,47 @@ let states = (~init: State.t, m: LMeld.t) =>
 let nth_line = (tree: LCell.t, r: Loc.Row.t) =>
   Block.nth_line(LCell.flatten(tree), r);
 
-let rec unzip =
-        (~frame=LFrame.empty, cur: Path.Cursor.t, c: LCell.t): LZipper.t => {
+let rec unzip = (~ctx=LCtx.empty, cur: Path.Cursor.t, c: LCell.t): LZipper.t => {
   let hd = Path.Cursor.hd(cur);
   switch (hd) {
   | Error(Point(_)) =>
     let cur = Cursor.Point(c);
-    LZipper.mk(cur, frame);
+    LZipper.mk(cur, ctx);
   | Error(Select(range)) =>
     let m = Options.get_exn(Marks.Invalid, c.meld);
-    unzip_select(range, m, ~frame);
+    unzip_select(range, m, ~ctx);
   | Ok(step) =>
     let tl = Option.get(Path.Cursor.peel(step, cur));
     let m = Options.get_exn(Marks.Invalid, c.meld);
     switch (Meld.Base.unzip(step, m)) {
     | Loop((pre, cell, suf)) =>
-      let l = Option.to_list(LTerr.mk'(pre));
-      let r = Option.to_list(LTerr.mk'(suf));
-      let frame = LFrame.cat((l, r), frame);
-      unzip(~frame, tl, cell);
+      let ctx = LCtx.add((pre, suf), ctx);
+      unzip(~ctx, tl, cell);
     // | Link((pre, tok, suf)) =>
     //   // if caret points to token, then take the entire meld as focused cell
     //   let cur = Cursor.map(Caret.map(Fun.const()), Fun.id, cur);
     //   (cur, c, frame);
     | Link((pre, tok, suf)) =>
       switch (cur) {
-      | Point(_) => LZipper.mk(Cursor.Point(c), frame)
+      | Point(_) => LZipper.mk(Cursor.Point(c), ctx)
       | Select(_) =>
         let (l, pre) = Chain.uncons(pre);
         let (r, suf) = Chain.uncons(suf);
-        let frame =
-          frame
-          |> LFrame.cat((
-               LSlope.Dn.unroll(l) @ Option.to_list(LTerr.mk'(pre)),
-               LSlope.Up.unroll(r) @ Option.to_list(LTerr.mk'(suf)),
-             ));
+        let ctx =
+          ctx
+          |> Chain.map_hd(
+               LFrame.Open.cat((
+                 LSlope.Dn.unroll(l) @ Option.to_list(LTerr.mk'(pre)),
+                 LSlope.Up.unroll(r) @ Option.to_list(LTerr.mk'(suf)),
+               )),
+             );
         let cur = Cursor.Select(LZigg.of_tok(tok));
-        LZipper.mk(cur, frame);
+        LZipper.mk(cur, ctx);
       }
     };
   };
 }
-and unzip_select = (~frame, sel: Path.Selection.t, meld: LMeld.t) => {
+and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
   let (l, r) = sel.range;
   let l_hd = Path.hd(l) |> Path.Head.get(() => 0);
   let r_hd = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
@@ -307,31 +346,28 @@ and unzip_select = (~frame, sel: Path.Selection.t, meld: LMeld.t) => {
   let ((pre_dn, pre_up), top) = {
     // l points to cell hd_pre
     let (hd_pre, tl_pre) = Chain.uncons(pre);
-    let frame_pre = (Option.to_list(Terr.mk'(tl_pre)), []);
-    let z =
-      unzip(Point(Caret.focus(List.tl(l))), hd_pre, ~frame=frame_pre);
-    (z.ctx, top);
+    let ctx_pre = Chain.unit((Option.to_list(Terr.mk'(tl_pre)), []));
+    let z = unzip(Point(Caret.focus(List.tl(l))), hd_pre, ~ctx=ctx_pre);
+    (LCtx.flatten(z.ctx), top);
   };
   let (top, (suf_dn, suf_up)) = {
     // r points to cell hd_suf
     let (hd_suf, tl_suf) = Chain.uncons(suf);
-    let frame_suf = ([], Option.to_list(Terr.mk'(tl_suf)));
-    let z =
-      unzip(Point(Caret.focus(List.tl(r))), hd_suf, ~frame=frame_suf);
-    (top, z.ctx);
+    let ctx_suf = Chain.unit(([], Option.to_list(Terr.mk'(tl_suf))));
+    let z = unzip(Point(Caret.focus(List.tl(r))), hd_suf, ~ctx=ctx_suf);
+    (top, LCtx.flatten(z.ctx));
   };
   let zigg = LZigg.mk(~up=pre_up, top, ~dn=suf_dn);
-  let frame = LFrame.cat((pre_dn, suf_up), frame);
-  LZipper.mk(Select(zigg), frame);
+  let ctx = Chain.map_hd(LFrame.Open.cat((pre_dn, suf_up)), ctx);
+  LZipper.mk(Select(zigg), ctx);
 };
 
-let state_of_frame = ((pre, _): LFrame.t) =>
-  pre
-  |> Lists.fold_right(~init=State.init, ~f=(terr, state) =>
-       LTerr.unmk(terr)
-       |> Chain.Affix.fold_out(~init=state, ~f=(b_tok, t_cell, state) =>
-            state
-            |> State.jump_cell(~over=t_cell)
-            |> State.jump_tok(~over=b_tok)
-          )
+let state_of_ctx = (ctx: LCtx.t) =>
+  ctx
+  |> Chain.fold_right(
+       ((pre: LSlope.t, _), (l: LTerr.t, _), state) =>
+         state
+         |> State.jump_terr(~over=l, ~closed=true)
+         |> State.jump_slope(~over=pre),
+       ((pre, _)) => State.jump_slope(State.init, ~over=pre),
      );

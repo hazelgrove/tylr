@@ -6,27 +6,27 @@ module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) =
     Chain.t(Frame.Open.Base.t('tok), Frame.Closed.Base.t('tok));
+  let empty = Chain.unit(Frame.Open.Base.empty);
+  let flatten = (ctx: t('tok)): Frame.Open.Base.t('tok) =>
+    Chain.fold_right(
+      (open_, (l, r), acc) =>
+        acc
+        |> Frame.Open.cons(~onto=L, l)
+        |> Frame.Open.cons(~onto=R, r)
+        |> Frame.Open.cat(open_),
+      Fun.id,
+      ctx,
+    );
 };
+include Base;
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t = Base.t(Token.t);
-
-let empty = Chain.unit(Frame.Open.empty);
 
 let link = (~open_=Frame.Open.empty) => link(open_);
 
 let fold = Chain.fold_left;
 let fold_root = Chain.fold_right;
-
-let flatten =
-  Chain.fold_right(
-    (open_, (l, r), acc) =>
-      acc
-      |> Frame.Open.cons(~onto=L, l)
-      |> Frame.Open.cons(~onto=R, r)
-      |> Frame.Open.cat(open_),
-    Fun.id,
-  );
 
 // todo: rename
 let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) =>

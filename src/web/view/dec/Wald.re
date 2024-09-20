@@ -6,7 +6,7 @@ module L = Layout;
 
 module Profile = {
   let mk = (~whole, ~state: L.State.t, ~null: (bool, bool), W(w): LWald.t) => {
-    let ind = state.ind;
+    let ind = state.ind + state.rel;
     let n = Chain.length(w);
     // logic below assumes w won't be space
     w

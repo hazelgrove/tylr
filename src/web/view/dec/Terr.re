@@ -35,8 +35,7 @@ module Profile = {
          },
          state,
        )
-    |> snd
-    |> List.split;
+    |> Stds.Tuples.map_snd(List.split);
   };
 
   let mk_r = (~whole: LCell.t, ~state: L.State.t, ~null, terr: LTerr.t) => {
@@ -65,9 +64,8 @@ module Profile = {
          },
          state,
        )
-    |> snd
-    |> List.rev
-    |> List.split;
+    |> Stds.Tuples.map_snd(List.rev)
+    |> Stds.Tuples.map_snd(List.split);
   };
 };
 

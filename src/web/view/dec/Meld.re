@@ -29,21 +29,32 @@ module Profile = {
 
     let s_init = state |> L.State.jump_cell(~over=p_l);
     let s_tok = L.State.jump_cell(s_init, ~over=lc_l);
+    open Stds;
+    P.log("--- Dec.Meld.Profile.mk ---");
+    P.show("lm", LMeld.show(lm));
+    P.show("state", L.State.show(state));
 
     let l =
       Child.Profile.mk(
         ~whole,
-        ~ind=s_tok.ind,
+        ~ind=s_tok.ind + s_tok.rel,
         ~loc=s_init.loc,
         ~null=(true, false),
         lc_l,
       );
     let state = L.State.jump_cell(s_init, ~over=lc_l);
+    P.show("state post l", L.State.show(state));
+    let (ind, rel) = (state.ind, state.rel);
+    let state = L.State.commit_indent(state);
+    P.show("state committed", L.State.show(state));
     let (state, w) = W.Profile.mk(~whole, ~state, ~null, lw);
+    P.show("state post w", L.State.show(state));
+    let state = {...state, ind, rel};
+    P.show("state uncommitted", L.State.show(state));
     let r =
       Child.Profile.mk(
         ~whole,
-        ~ind=s_tok.ind,
+        ~ind=s_tok.ind + s_tok.rel,
         ~loc=state.loc,
         ~null=(false, true),
         lc_r,

@@ -14,15 +14,15 @@ module Open = {
     let empty = Slope.(empty, empty);
     let cat = ((dn', up'), (dn, up)) =>
       Slope.Base.(cat(dn', dn), cat(up', up));
+    let cons = (~onto: Dir.t, terr: Terr.Base.t(_), (dn, up)) =>
+      switch (onto) {
+      | L => ([terr, ...dn], up)
+      | R => (dn, [terr, ...up])
+      };
   };
   include Base;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(Token.t);
-  let cons = (~onto: Dir.t, terr: Terr.t, (dn, up)) =>
-    switch (onto) {
-    | L => ([terr, ...dn], up)
-    | R => (dn, [terr, ...up])
-    };
   let pull = (~from: Dir.t, (dn, up): t): (Delim.t, t) =>
     switch (from) {
     | L =>

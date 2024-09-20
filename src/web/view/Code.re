@@ -37,7 +37,7 @@ let cursor = (~font, z: Zipper.t) => {
          Fun.id,
        );
   let ind_lz = Layout.unzip(ind_cur, lc);
-  let state = Layout.state_of_frame(ind_lz.ctx);
+  let state = Layout.state_of_ctx(ind_lz.ctx);
 
   switch (ind_lz.cur) {
   | Point(ind_lc) =>

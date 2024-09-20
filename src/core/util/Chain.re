@@ -44,6 +44,7 @@ module Affix = {
   let empty = ([], []);
   let is_empty = ((lks, lps)) => lks == [] && lps == [];
   let cons = (lk, (lps, lks): Base.t(_)) => ([lk, ...lks], lps);
+  // let length = ((lks, _): t(_)) => 2 * List.length(lks);
   let link = (lk, lp, (lks, lps): t(_)) => ([lk, ...lks], [lp, ...lps]);
   let unlink =
     fun
