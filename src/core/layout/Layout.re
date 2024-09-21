@@ -50,9 +50,10 @@ module State = {
     };
 
   let jump_cell = (s: t, ~over: LCell.t) => {
-    let rel = s.rel;
+    // let rel = s.rel;
     let jumped = jump_block(s, ~over=LCell.flatten(over));
-    LCell.is_space(over) ? jumped : {...jumped, rel};
+    // LCell.is_space(over) ? jumped : {...jumped, rel};
+    jumped;
   };
   let jump_tok = jump_block;
 
