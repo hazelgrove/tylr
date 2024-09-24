@@ -54,8 +54,11 @@ module State = {
   let pop_ind = (s: t) => {...s, ind: Indent.pop(s.ind)};
 
   let return = (s: t, rel: int) => {
-    ...s,
     loc: Loc.return(s.loc, ~ind=Indent.peek(s.ind) + rel),
+    ind: {
+      ...s.ind,
+      uni: rel,
+    },
   };
 
   let rec jump_block = (s: t, ~over as B(b): Block.t) =>
