@@ -5,8 +5,23 @@ open Tylr_core;
 module L = Layout;
 
 module Profile = {
-  let mk = (~whole, ~state: L.State.t, ~null: (bool, bool), W(w): LWald.t) => {
-    let ind = state.ind + state.rel;
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = Chain.t(T.Profile.t, Child.Profile.t);
+
+  let tokens = fst;
+  let cells = snd;
+
+  let mk =
+      (
+        ~whole,
+        ~state: L.State.t,
+        ~null: (bool, bool),
+        ~eq: (bool, bool),
+        W(w): LWald.t,
+      ) => {
+    let state = fst(eq) ? state : L.State.push_ind(state);
+    let ind = L.Indent.curr(state.ind);
+    // let ind = state.ind + state.rel;
     let n = Chain.length(w);
     // logic below assumes w won't be space
     w
@@ -32,6 +47,7 @@ module Profile = {
            let state = L.State.jump_tok(state, ~over=b_tok);
            (state, c, t);
          },
-       );
+       )
+    |> Stds.Tuples.map_fst(snd(eq) ? Fun.id : L.State.pop_ind);
   };
 };

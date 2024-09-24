@@ -5,33 +5,57 @@ open Stds;
 // module Block = Block;
 // module Tree = Tree;
 
+module Indent = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t = {
+    // stack of indentation levels (in global coordinates) of bidelimited containers
+    bi: list(int),
+    // local indentation imposed by unidelimited containers
+    // relative to current bidelimited container
+    uni: int,
+  };
+
+  let init = {bi: [], uni: 0};
+
+  let peek = (ind: t) =>
+    switch (ind.bi) {
+    | [] => 0
+    | [n, ..._] => n
+    };
+
+  let curr = (ind: t) => ind.uni + peek(ind);
+
+  let push = (ind: t) => {uni: 0, bi: [curr(ind), ...ind.bi]};
+  let pop = (ind: t) => {
+    uni: 0,
+    bi: Option.value(Lists.tl(ind.bi), ~default=[]),
+  };
+};
+
 module State = {
   // layout traversal state
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    // committed indentation applied to bidelimited container
-    ind: Loc.Col.t,
-    // relative indentation within bidelimited container
-    rel: int,
+    ind: Indent.t,
     // global location
     loc: Loc.t,
   };
 
-  let init = {ind: 0, rel: 0, loc: Loc.zero};
+  let init = {ind: Indent.init, loc: Loc.zero};
 
   let map = (f, s: t) => {...s, loc: f(s.loc)};
 
-  let indent = (n: int, s: t) => {
-    ind: s.ind,
-    rel: s.rel + n,
-    loc: Loc.shift(n, s.loc),
-  };
-  let commit_indent = (s: t) => {ind: s.ind + s.rel, rel: 0, loc: s.loc};
+  // let indent = (n: int, s: t) => {
+  //   ind: s.ind,
+  //   rel: s.rel + n,
+  //   loc: Loc.shift(n, s.loc),
+  // };
+  let push_ind = (s: t) => {...s, ind: Indent.push(s.ind)};
+  let pop_ind = (s: t) => {...s, ind: Indent.pop(s.ind)};
 
   let return = (s: t, rel: int) => {
-    ind: s.ind,
-    rel,
-    loc: Loc.return(s.loc, ~ind=s.ind + rel),
+    ...s,
+    loc: Loc.return(s.loc, ~ind=Indent.peek(s.ind) + rel),
   };
 
   let rec jump_block = (s: t, ~over as B(b): Block.t) =>
@@ -44,7 +68,7 @@ module State = {
     switch (over) {
     | Line(l) => map(Loc.shift(Block.Line.len(l)), s)
     | Block(b) =>
-      let committed = commit_indent(s);
+      let committed = push_ind(s);
       let jumped = jump_block(committed, ~over=b);
       {...s, loc: jumped.loc};
     };
@@ -59,7 +83,7 @@ module State = {
 
   // assuming terrace wald faces right
   let jump_terr = (~closed=false, s: t, ~over: LTerr.t) => {
-    let (ind, rel) = (s.ind, s.rel);
+    // let (ind, rel) = (s.ind, s.rel);
     let (ts, cs) = LTerr.unmk(over);
     List.combine(cs, ts)
     |> List.rev
@@ -67,10 +91,10 @@ module State = {
     |> Lists.fold_left(~init=s, ~f=(s, (i, (cell, b_tok))) =>
          s
          |> jump_cell(~over=cell)
-         |> (i == 0 ? commit_indent : Fun.id)
+         |> (i == 0 ? push_ind : Fun.id)
          |> jump_tok(~over=b_tok)
        )
-    |> (closed ? Fun.id : (s => {...s, ind, rel}));
+    |> (closed ? Fun.id : pop_ind);
   };
   // assuming dn slope
   let jump_slope = (s: t, ~over: LSlope.t) =>
@@ -118,7 +142,8 @@ let step_of_loc =
          open Result.Syntax;
          let/ (len, loc) = found;
          let len_sol = len + 1;
-         let loc_sol = Loc.return(loc, ~ind=state.ind + rel_indent);
+         let loc_sol =
+           Loc.return(loc, ~ind=Indent.peek(state.ind) + rel_indent);
          let len_eol = len_sol + sec_len;
          let loc_eol = Loc.shift(sec_len, loc_sol);
          Loc.lt(loc_eol, target)
@@ -140,7 +165,8 @@ let loc_of_step =
          open Result.Syntax;
          let/ (len, loc) = found;
          let len_sol = len + 1;
-         let loc_sol = Loc.return(loc, ~ind=state.ind + rel_indent);
+         let loc_sol =
+           Loc.return(loc, ~ind=Indent.peek(state.ind) + rel_indent);
          let len_eol = len_sol + sec_len;
          let loc_eol = Loc.shift(sec_len, loc_sol);
          len_eol < step
@@ -227,7 +253,7 @@ let rec state_of_path =
       |> Chain.unzip(hd)
     ) {
     | Loop((pre, t_cell, suf)) =>
-      let (ind, rel) = (state.ind, state.rel);
+      // let (ind, rel) = (state.ind, state.rel);
       let state =
         List.combine(snd(pre), fst(pre))
         |> List.rev
@@ -235,10 +261,10 @@ let rec state_of_path =
         |> Lists.fold_left(~init=state, ~f=(state, (i, (t_cell, b_tok))) =>
              state
              |> State.jump_cell(~over=t_cell)
-             |> (i == 0 ? State.commit_indent : Fun.id)
+             |> (i == 0 ? State.push_ind : Fun.id)
              |> State.jump_tok(~over=b_tok)
            );
-      let state = Chain.Affix.is_empty(suf) ? {...state, ind, rel} : state;
+      let state = Chain.Affix.is_empty(suf) ? State.pop_ind(state) : state;
       state_of_path(~state, ~tree=t_cell, tl);
     | Link((pre, b_tok, _)) =>
       let state =
@@ -248,8 +274,7 @@ let rec state_of_path =
                state
                |> State.jump_tok(~over=b_tok)
                |> State.jump_cell(~over=t_cell),
-             t_cell =>
-               State.jump_cell(state, ~over=t_cell) |> State.commit_indent,
+             t_cell => State.jump_cell(state, ~over=t_cell) |> State.push_ind,
            );
       switch (tl) {
       | [] => (state, None)
@@ -344,23 +369,47 @@ and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
   let l_hd = Path.hd(l) |> Path.Head.get(() => 0);
   let r_hd = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
   let (pre, top, suf) = LMeld.split_subwald(l_hd, r_hd, meld);
-  let ((pre_dn, pre_up), top) = {
+  let (pre_eqs, (pre_dn, pre_up)) = {
     // l points to cell hd_pre
     let (hd_pre, tl_pre) = Chain.uncons(pre);
-    let ctx_pre = Chain.unit((Option.to_list(Terr.mk'(tl_pre)), []));
-    let z = unzip(Point(Caret.focus(List.tl(l))), hd_pre, ~ctx=ctx_pre);
-    (LCtx.flatten(z.ctx), top);
+    // let ctx_pre = Chain.unit((Option.to_list(Terr.mk'(tl_pre)), []));
+    let z = unzip(Point(Caret.focus(List.tl(l))), hd_pre);
+    let (eqs, flat) = LCtx.flatten(z.ctx);
+    let eqs =
+      Chain.Affix.is_empty(tl_pre)
+        ? eqs : [(0, (-1)), ...LEqs.incr(~side=L, 1, eqs)];
+    let flat =
+      switch (LTerr.mk'(tl_pre)) {
+      | None => flat
+      | Some(t) => LFrame.Open.snoc(~side=L, t, flat)
+      };
+    (eqs, flat);
   };
-  let (top, (suf_dn, suf_up)) = {
+  let (suf_eqs, (suf_dn, suf_up)) = {
     // r points to cell hd_suf
     let (hd_suf, tl_suf) = Chain.uncons(suf);
-    let ctx_suf = Chain.unit(([], Option.to_list(Terr.mk'(tl_suf))));
-    let z = unzip(Point(Caret.focus(List.tl(r))), hd_suf, ~ctx=ctx_suf);
-    (top, LCtx.flatten(z.ctx));
+    // let ctx_suf = Chain.unit(([], Option.to_list(Terr.mk'(tl_suf))));
+    let z = unzip(Point(Caret.focus(List.tl(r))), hd_suf);
+    let (eqs, flat) = LCtx.flatten(z.ctx);
+    let eqs =
+      Chain.Affix.is_empty(tl_suf)
+        ? eqs : [((-1), 0), ...LEqs.incr(~side=R, 1, eqs)];
+    let flat =
+      switch (LTerr.mk'(tl_suf)) {
+      | None => flat
+      | Some(t) => LFrame.Open.snoc(~side=R, t, flat)
+      };
+    (eqs, flat);
   };
   let zigg = LZigg.mk(~up=pre_up, top, ~dn=suf_dn);
+  let eqs = {
+    let (dn, up) = Chain.hd(ctx);
+    let pre_eqs = LEqs.incr(~side=L, List.length(dn), pre_eqs);
+    let suf_eqs = LEqs.incr(~side=R, List.length(up), suf_eqs);
+    (pre_eqs, suf_eqs);
+  };
   let ctx = Chain.map_hd(LFrame.Open.cat((pre_dn, suf_up)), ctx);
-  LZipper.mk(Select(zigg), ctx);
+  LZipper.mk(~eqs, Select(zigg), ctx);
 };
 
 let state_of_ctx = (ctx: LCtx.t) =>

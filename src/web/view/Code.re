@@ -46,7 +46,14 @@ let cursor = (~font, z: Zipper.t) => {
     | Some(lm) =>
       Dec.Meld.Profile.mk(~whole=lc, ~state, lm) |> Dec.Meld.mk(~font)
     }
-  | Select(_) => []
+  | Select(ind_zigg) =>
+    let eqs = (
+      snd(List.split(fst(ind_lz.eqs))),
+      fst(List.split(snd(ind_lz.eqs))),
+    );
+    ind_zigg
+    |> Dec.Zigg.Profile.mk(~whole=lc, ~state, ~null=(false, false), ~eqs)
+    |> Dec.Zigg.mk(~font);
   };
 };
 
