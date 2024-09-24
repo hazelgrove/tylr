@@ -8,11 +8,14 @@ open Stds;
 module Indent = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
-    // stack of indentation levels (in global coordinates) of bidelimited containers
-    bi: list(int),
     // local indentation imposed by unidelimited containers
     // relative to current bidelimited container
     uni: int,
+    // indentation levels of bidelimited container stack.
+    // the indentation of each container consists of a global indentation level
+    // of the container's parent container, paired with a local indentation level
+    // induced by unidelimited container within the parent container.
+    bi: list((int, int)),
   };
 
   let init = {bi: [], uni: 0};
@@ -20,14 +23,14 @@ module Indent = {
   let peek = (ind: t) =>
     switch (ind.bi) {
     | [] => 0
-    | [n, ..._] => n
+    | [(glob, loc), ..._] => glob + loc
     };
 
   let curr = (ind: t) => ind.uni + peek(ind);
 
-  let push = (ind: t) => {uni: 0, bi: [curr(ind), ...ind.bi]};
+  let push = (ind: t) => {uni: 0, bi: [(peek(ind), ind.uni), ...ind.bi]};
   let pop = (ind: t) => {
-    uni: 0,
+    uni: snd(List.hd(ind.bi)),
     bi: Option.value(Lists.tl(ind.bi), ~default=[]),
   };
 };
