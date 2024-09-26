@@ -2,23 +2,25 @@
 type t =
   | Exp
   | Stat
+  | Prog
   | Pat;
 
-let root = Exp;
-let all = [Exp, Pat, Stat];
-// let all = [Exp, Pat];
+let root = Prog;
+let all = [Exp, Pat, Stat, Prog];
 
 let to_str =
   fun
   | Pat => "Pat"
   | Stat => "Stat"
-  | Exp => "Exp";
+  | Exp => "Exp"
+  | Prog => "Prog";
 
 let of_str =
   fun
   | "Pat" => Pat
   | "Exp" => Exp
   | "Stat" => Stat
+  | "Prog" => Prog
   | _ => raise(Invalid_argument("Sort.of_string: unrecognized sort"));
 
 module Ord = {

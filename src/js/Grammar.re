@@ -123,12 +123,7 @@ and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
   let atom = (~filter=[], ()) => nt(filter, sort());
 
-  // let _stat_atom = (~filter=[], ()) => nt(filter, Sort.of_str("Stat"));
-
-  let stat_block = () =>
-    seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
-  // seq([brc(L, "{"), Stat.atom(), c(";"), brc(R, "}")]);
-  // seq([brc(L, "{"), c(";"), brc(R, "}")]);
+  let stat_block = () => seq([brc(L, "{"), Prog.atom(), brc(R, "}")]);
 
   let num = () => alt([t(Int_lit), t(Float_lit)]);
 
@@ -372,8 +367,7 @@ and Stat: SORT = {
   let atom = (~filter=[], ()) => nt(filter, sort());
   let paren_exp = () => seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
-  let stat_block = () =>
-    seq([brc(L, "{"), star(atom()), c(";"), brc(R, "}")]);
+  let stat_block = () => seq([brc(L, "{"), star(atom()), brc(R, "}")]);
 
   let method_def = () =>
     seq([
@@ -457,8 +451,6 @@ and Stat: SORT = {
       c(";"),
     ]);
 
-  let exp_statement = () => seq([Exp.atom(), c(";")]);
-
   let func_declaration = () =>
     seq([
       opt(kw(~space=(false, true), ~indent=false, "async")),
@@ -512,8 +504,7 @@ and Stat: SORT = {
       c(";"),
     ]);
 
-  let var_declaration = () =>
-    seq([kw("var"), comma_sep(var_declarator()), c(";")]);
+  let var_declaration = () => seq([kw("var"), comma_sep(var_declarator())]);
 
   let declaration = () =>
     alt([
@@ -538,12 +529,31 @@ and Stat: SORT = {
   let switch_statement = () =>
     seq([kw("switch"), paren_exp(), switch_body()]);
 
-  let debugger_statement = () => seq([kw("debugger"), c(";")]);
+  let debugger_statement = () => seq([kw("debugger")]);
 
   let empty_statement = () => c(";");
 
+  let break_statement = () => seq([kw("break"), opt(t(Id_lower))]);
+
+  let continue_statement = () => seq([kw("continue"), opt(t(Id_lower))]);
+
+  let return_statement = () => seq([kw("return"), opt(Exp.atom())]);
+
+  let throw_statement = () => seq([kw("throw"), Exp.atom()]);
+
+  let exp_statement = () => seq([Exp.atom()]);
+
+  let do_statement = () =>
+    seq([kw("do"), atom(), kw("while"), paren_exp()]);
+
   let operand = () =>
     alt([
+      continue_statement(),
+      do_statement(),
+      exp_statement(),
+      break_statement(),
+      return_statement(),
+      throw_statement(),
       empty_statement(),
       debugger_statement(),
       export_statement(),
@@ -598,9 +608,6 @@ and Stat: SORT = {
 
   let while_statement = () => seq([kw("while"), paren_exp(), atom()]);
 
-  let do_statement = () =>
-    seq([kw("do"), atom(), kw("while"), paren_exp(), c(";")]);
-
   let catch_clause = () =>
     seq([
       kw("catch"),
@@ -624,39 +631,33 @@ and Stat: SORT = {
 
   let with_statement = () => seq([kw("with"), paren_exp(), atom()]);
 
-  let break_statement = () =>
-    seq([kw("break"), opt(t(Id_lower)), c(";")]);
-
-  let continue_statement = () =>
-    seq([kw("continue"), opt(t(Id_lower)), c(";")]);
-
-  let return_statement = () =>
-    seq([kw("return"), opt(Exp.atom()), c(";")]);
-
-  let throw_statement = () => seq([kw("throw"), Exp.atom(), c(";")]);
-
   let label_statement = () => seq([t(Id_lower), c(":"), atom()]);
 
   let tbl = () => [
-    p(exp_statement()),
     p(if_statement()),
     p(for_statement()),
     p(for_in_statement()),
     p(while_statement()),
-    p(do_statement()),
     p(try_statement()),
     p(with_statement()),
-    p(break_statement()),
-    p(continue_statement()),
-    p(return_statement()),
-    p(throw_statement()),
     p(label_statement()),
     p(operand()),
   ];
+}
+and Prog: SORT = {
+  let sort = () => Sort.of_str("Prog");
+  let atom = (~filter=[], ()) => nt(filter, sort());
+
+  let tbl = () => [p(star(seq([Stat.atom(), c(";")])))];
 };
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
 let v =
-  [Pat.(sort(), tbl()), Stat.(sort(), tbl()), Exp.(sort(), tbl())]
+  [
+    Pat.(sort(), tbl()),
+    Stat.(sort(), tbl()),
+    Exp.(sort(), tbl()),
+    Prog.(sort(), tbl()),
+  ]
   |> List.to_seq
   |> Sort.Map.of_seq;
