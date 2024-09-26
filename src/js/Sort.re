@@ -1,12 +1,12 @@
 [@deriving (show({with_path: false}), sexp, yojson, ord)]
 type t =
-  | Exp
-  | Stat
   | Prog
+  | Stat
+  | Exp
   | Pat;
 
 let root = Prog;
-let all = [Exp, Pat, Stat, Prog];
+let all = [Prog, Stat, Exp, Pat];
 
 let to_str =
   fun
