@@ -6,6 +6,7 @@ type t =
 
 let root = Exp;
 let all = [Exp, Pat, Stat];
+// let all = [Exp, Pat];
 
 let to_str =
   fun

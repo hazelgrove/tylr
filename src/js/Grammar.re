@@ -123,8 +123,12 @@ and Exp: SORT = {
   let sort = () => Sort.of_str("Exp");
   let atom = (~filter=[], ()) => nt(filter, sort());
 
+  // let _stat_atom = (~filter=[], ()) => nt(filter, Sort.of_str("Stat"));
+
   let stat_block = () =>
     seq([brc(L, "{"), star(Stat.atom()), c(";"), brc(R, "}")]);
+  // seq([brc(L, "{"), Stat.atom(), c(";"), brc(R, "}")]);
+  // seq([brc(L, "{"), c(";"), brc(R, "}")]);
 
   let num = () => alt([t(Int_lit), t(Float_lit)]);
 
@@ -328,7 +332,7 @@ and Exp: SORT = {
     tokop_alt(["<", ">", "<=", ">=", "instanceof", "in"]);
   let equality_ops = () => tokop_alt(["==", "!=", "===", "!=="]);
 
-  let operand = alt([primary_exp_list()]);
+  let operand = () => alt([primary_exp_list()]);
 
   let binary_exp = () => [
     p(seq([atom(), logical_ops(), atom()])),
@@ -361,7 +365,7 @@ and Exp: SORT = {
       p(yield_exp()),
       p(member_exp()),
     ]
-    @ [p(operand)];
+    @ [p(operand())];
 }
 and Stat: SORT = {
   let sort = () => Sort.of_str("Stat");
