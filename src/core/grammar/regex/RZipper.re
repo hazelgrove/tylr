@@ -21,7 +21,15 @@ let rec enter =
 
     //Framed module elems pairs subject in focus with the context of the list
     //Converts the list into a zipper structure
-    Lists.Framed.elems(List.filter(((nm, _)) => List.mem(nm, filter), s))
+    s
+    |> (
+      switch (filter) {
+      | [] => Fun.id
+      | [_, ..._] => List.filter(((nm, _)) => List.mem(nm, filter))
+      }
+    )
+    |> Lists.Framed.elems
+    // Lists.Framed.elems(List.filter(((nm, _)) => List.mem(nm, filter), s))
     //r = element of list
     //ls + rs = frame
     //ls = list left of element
