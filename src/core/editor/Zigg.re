@@ -179,3 +179,15 @@ let rec take_ineq =
     | Ok(zigg) => take_ineq(~side, zigg, ~fill=hd.cell, tl)
     }
   };
+
+// returns true if zigg face is space
+let is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
+  let f = face(~side, zigg);
+  if (Mtrl.is_space(f.mtrl)) {
+    true;
+  } else {
+    let (zigg', _) = take_ineq(~side, zigg, slope);
+    let f' = face(~side, zigg');
+    f' == f || Mtrl.is_space(f'.mtrl);
+  };
+};

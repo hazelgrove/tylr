@@ -47,12 +47,19 @@ let cursor = (~font, z: Zipper.t) => {
       Dec.Meld.Profile.mk(~whole=lc, ~state, lm) |> Dec.Meld.mk(~font)
     }
   | Select(ind_zigg) =>
+    let null = {
+      let sel = Option.get(Cursor.get_select(z.cur));
+      let (dn, up) = Ctx.hd(z.ctx);
+      let l = Zigg.is_null(~side=L, ~slope=dn, sel.range);
+      let r = Zigg.is_null(sel.range, ~slope=up, ~side=R);
+      (l, r);
+    };
     let eqs = (
       snd(List.split(fst(ind_lz.eqs))),
       fst(List.split(snd(ind_lz.eqs))),
     );
     ind_zigg
-    |> Dec.Zigg.Profile.mk(~whole=lc, ~state, ~null=(false, false), ~eqs)
+    |> Dec.Zigg.Profile.mk(~whole=lc, ~state, ~null, ~eqs)
     |> Dec.Zigg.mk(~font);
   };
 };
