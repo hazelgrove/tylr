@@ -48,6 +48,12 @@
   --rul-bg-color: #f3caf4;
   --rul-shadow-color: #d461d0;
 
+  --stat-bg-color: #f3caf4;
+  --stat-shadow-color: #d461d0;
+
+  --prog-bg-color: var(--stat-bg-color);
+  --prog-shadow-color: var(--stat-shadow-color);
+
   --nul-bg-color: #b6b6b6;
   --nul-shadow-color: #a97804;
 
@@ -351,6 +357,12 @@
   stroke: var(--pat-shadow-color);
   /* stroke: var(--pat-bg-color); */
 }
+.child-line.Stat {
+  stroke: var(--stat-shadow-color);
+}
+.child-line.Prog {
+  stroke: var(--prog-shadow-color);
+}
 .child-line.Space {
   display: none;
 }
@@ -423,6 +435,12 @@
 .tok-bar.Exp {
   stroke: var(--exp-shadow-color);
 }
+.tok-bar.Stat {
+  stroke: var(--stat-shadow-color);
+}
+.tok-bar.Prog {
+  stroke: var(--prog-shadow-color);
+}
 
 .tile-path.Any.indicated {
   fill: #f0dead;
@@ -441,6 +459,12 @@
 .tile-path.Exp.indicated {
   fill: var(--exp-bg-color);
   /*fill:#b9e3be;*/
+}
+.tile-path.Stat.indicated {
+  fill: var(--stat-bg-color);
+}
+.tile-path.Prog.indicated {
+  fill: var(--prog-bg-color);
 }
 .tile-path.Exp.indicated-caret {
   fill: #feddb3;
