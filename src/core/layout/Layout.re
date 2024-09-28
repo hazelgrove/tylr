@@ -30,7 +30,7 @@ module Indent = {
 
   let push = (ind: t) => {uni: 0, bi: [(peek(ind), ind.uni), ...ind.bi]};
   let pop = (ind: t) => {
-    uni: snd(List.hd(ind.bi)),
+    uni: Lists.hd(ind.bi) |> Option.map(snd) |> Option.value(~default=0),
     bi: Option.value(Lists.tl(ind.bi), ~default=[]),
   };
 };
