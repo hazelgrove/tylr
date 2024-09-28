@@ -54,7 +54,7 @@ module Profile = {
         ~state=s_mid,
         ~null=(Mtrl.is_space(LCell.sort(terr.cell)), null),
         ~eq=(false, eq),
-        terr.wald,
+        Wald.rev(terr.wald),
       );
     (state, {cell, wald});
   };
