@@ -192,11 +192,17 @@ let rec is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
     | Some(zigg) => is_null(~side, ~slope, zigg)
     };
   } else {
-    let (_, _, slope') = take_ineq(~side, of_tok(f), slope);
-    switch (slope) {
-    | [t, ..._] when Mtrl.is_space(Terr.sort(t)) =>
-      List.length(slope') == List.length(slope) - 1
-    | _ => List.length(slope) == List.length(slope')
+    let (s_face, s_rest) = Slope.pull(~from=side, slope);
+    switch (s_face) {
+    | Node(tok) when Token.merges(tok, f) =>
+      is_null(~side, ~slope=s_rest, zigg)
+    | _ =>
+      let (_, _, slope') = take_ineq(~side, of_tok(f), slope);
+      switch (slope) {
+      | [t, ..._] when Mtrl.is_space(Terr.sort(t)) =>
+        List.length(slope') == List.length(slope) - 1
+      | _ => List.length(slope) == List.length(slope')
+      };
     };
   };
 };
