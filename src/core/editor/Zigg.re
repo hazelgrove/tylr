@@ -186,7 +186,7 @@ let is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
   if (Mtrl.is_space(f.mtrl)) {
     true;
   } else {
-    let (zigg', _) = take_ineq(~side, zigg, slope);
+    let (zigg', _) = take_ineq(~side, of_tok(f), slope);
     let f' = face(~side, zigg');
     f' == f || Mtrl.is_space(f'.mtrl);
   };
