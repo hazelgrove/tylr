@@ -83,7 +83,7 @@ let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
   | [hd, ...tl] =>
     let m =
       switch (onto) {
-      | L => Meld.mk(~l=hd.cell, hd.wald, ~r=fill)
+      | L => Meld.mk(~l=hd.cell, Wald.rev(hd.wald), ~r=fill)
       | R => Meld.mk(~l=fill, hd.wald, ~r=hd.cell)
       };
     roll(~onto, ~fill=Cell.put(m), tl);
