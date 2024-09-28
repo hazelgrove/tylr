@@ -184,14 +184,19 @@ let rec take_ineq =
     }
   };
 
-// returns true if zigg face is space
-let is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
-  let f = face(~side, zigg);
+let rec is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
+  let (f, rest) = pull(~side, zigg);
   if (Mtrl.is_space(f.mtrl)) {
-    true;
+    switch (rest) {
+    | None => true
+    | Some(zigg) => is_null(~side, ~slope, zigg)
+    };
   } else {
-    let (zigg', _, _) = take_ineq(~side, of_tok(f), slope);
-    let f' = face(~side, zigg');
-    f' == f || Mtrl.is_space(f'.mtrl);
+    let (_, _, slope') = take_ineq(~side, of_tok(f), slope);
+    switch (slope) {
+    | [t, ..._] when Mtrl.is_space(Terr.sort(t)) =>
+      List.length(slope') == List.length(slope) - 1
+    | _ => List.length(slope) == List.length(slope')
+    };
   };
 };

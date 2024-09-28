@@ -26,10 +26,23 @@ module Profile = {
         ~whole: LCell.t,
         ~state: L.State.t,
         ~null: (bool, bool),
+        // indices into the slopes indicating which have delim-matching counterparts
+        // in the surrounding context. indices assume slopes in top-down order. -1
+        // is used to indicate that the top wald matches
         ~eqs as (eqs_l, eqs_r): (list(int), list(int)),
         zigg: LZigg.t,
       ) => {
     let (up_len, dn_len) = List.(length(zigg.up), length(zigg.dn));
+    let l_bound =
+      switch (zigg.up) {
+      | [t, ..._] when Mtrl.is_space(LTerr.sort(t)) => up_len - 2
+      | _ => up_len - 1
+      };
+    let r_bound =
+      switch (zigg.dn) {
+      | [t, ..._] when Mtrl.is_space(LTerr.sort(t)) => dn_len - 2
+      | _ => dn_len - 1
+      };
     let (state, up) =
       // reverse to get top-down index which matches eqs
       List.rev(zigg.up)
@@ -38,7 +51,7 @@ module Profile = {
       |> List.rev
       |> List.fold_left_map(
            (state, (i, terr: LTerr.t)) => {
-             let null = i == up_len - 1 && fst(null);
+             let null = i >= l_bound && fst(null);
              let eq = List.mem(i, eqs_l);
              T.Profile.mk_l(~whole, ~state, ~eq, ~null, terr);
            },
@@ -46,8 +59,10 @@ module Profile = {
          );
     let (state, top) = {
       let null = (
-        zigg.up == [] ? fst(null) : false,
-        zigg.dn == [] ? snd(null) : false,
+        List.for_all(t => Mtrl.is_space(LTerr.sort(t)), zigg.up)
+        && fst(null),
+        List.for_all(t => Mtrl.is_space(LTerr.sort(t)), zigg.dn)
+        && snd(null),
       );
       let eq = List.(mem(-1, eqs_l), mem(-1, eqs_r));
       W.Profile.mk(~whole, ~state, ~null, ~eq, zigg.top);
@@ -58,7 +73,7 @@ module Profile = {
       |> List.mapi((i, t) => (i, t))
       |> List.fold_left_map(
            (state, (i, terr: LTerr.t)) => {
-             let null = i == dn_len - 1 && snd(null);
+             let null = i >= r_bound && snd(null);
              let eq = List.mem(i, eqs_r);
              T.Profile.mk_r(~whole, ~state, ~eq, ~null, terr);
            },
