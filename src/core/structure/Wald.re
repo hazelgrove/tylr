@@ -7,6 +7,7 @@ module Base = {
   let w = (c): t(_) => W(c);
   let mk = (toks, cells): t(_) => W(Chain.mk(toks, cells));
   let hd = (W(w): t(_)) => Chain.hd(w);
+  let ft = (W(w): t(_)) => Chain.ft(w);
   let length = (W(c): t(_)) => Chain.length(c);
   let rev = (W(c): t(_)) => w(Chain.rev(c));
 };
@@ -21,9 +22,7 @@ let map = (f, W(w): t): t => W(f(w));
 let uncons: t => _ = get(Chain.uncons);
 let map_hd = f => map(Chain.map_hd(f));
 let put_hd = hd => map(Chain.put_hd(hd));
-
-let ft = _ => failwith("todo Wald.ft");
-let put_ft = (_, _) => failwith("todo Wald.put_ft");
+let put_ft = ft => map(Chain.put_ft(ft));
 // let fst = (W(w)) => Chain.hd(w);
 // let ft = (W(w)) => Chain.ft(w);
 // let face =
