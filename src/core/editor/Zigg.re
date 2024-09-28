@@ -98,8 +98,12 @@ let of_up = up =>
        mk(~up=List.rev(up), Wald.rev(t.wald), ~dn=Slope.Up.unroll(t.cell))
      );
 
-let roll = ({up, top, dn}: t) =>
-  Meld.mk(~l=Slope.Up.roll(up), top, ~r=Slope.Dn.roll(dn));
+let roll = (~l=Cell.empty, ~r=Cell.empty, {up, top, dn}: t) =>
+  Meld.mk(
+    ~l=Slope.Up.roll(~fill=l, up),
+    top,
+    ~r=Slope.Dn.roll(dn, ~fill=r),
+  );
 
 let extend = (~side as d: Dir.t, tl: Chain.Affix.t(_), zigg) => {
   let (s_d, top, s_b) = orient(d, zigg);
@@ -170,12 +174,12 @@ let grow = (~side: Dir.t, tok: Token.t, zigg: t) =>
 
 let rec take_ineq =
         (~side: Dir.t, zigg: t, ~fill=Cell.empty, slope: Slope.t)
-        : (t, Slope.t) =>
+        : (t, Cell.t, Slope.t) =>
   switch (slope) {
-  | [] => (zigg, slope)
+  | [] => (zigg, fill, slope)
   | [hd, ...tl] =>
     switch (push_wald(~side, hd.wald, ~fill, zigg)) {
-    | Error(_) => (zigg, slope)
+    | Error(_) => (zigg, fill, slope)
     | Ok(zigg) => take_ineq(~side, zigg, ~fill=hd.cell, tl)
     }
   };
@@ -186,7 +190,7 @@ let is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
   if (Mtrl.is_space(f.mtrl)) {
     true;
   } else {
-    let (zigg', _) = take_ineq(~side, of_tok(f), slope);
+    let (zigg', _, _) = take_ineq(~side, of_tok(f), slope);
     let f' = face(~side, zigg');
     f' == f || Mtrl.is_space(f'.mtrl);
   };

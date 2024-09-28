@@ -225,9 +225,11 @@ let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
                Cell.caret(Caret.map(Fun.const(Path.empty), car))
              );
     let ((dn, up), tl) = Ctx.uncons(z.ctx);
-    let (zigg, dn) = Zigg.take_ineq(~side=L, sel.range, ~fill=l, dn);
-    let (zigg, up) = Zigg.take_ineq(~side=R, zigg, ~fill=r, up);
-    (Cell.put(Zigg.roll(zigg)), Ctx.cons((dn, up), tl));
+    let (zigg, rolled_l, dn) =
+      Zigg.take_ineq(~side=L, sel.range, ~fill=l, dn);
+    let (zigg, rolled_r, up) = Zigg.take_ineq(~side=R, zigg, ~fill=r, up);
+    let cell = Cell.put(Zigg.roll(~l=rolled_l, zigg, ~r=rolled_r));
+    (cell, Ctx.cons((dn, up), tl));
   };
 let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
   let (zipped, ctx) as init = zip_init(~save_cursor=true, z);
