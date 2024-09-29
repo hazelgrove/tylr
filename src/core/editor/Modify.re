@@ -144,7 +144,18 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     | Some((t, grouted, rest)) when t.mtrl == hd_w.mtrl =>
       // fast path for when hd_w retains original meld
       let connected = Stack.connect(t, grouted, rest) |> Stack.extend(tl_w);
-      tl |> Ctx.link_stacks((connected, r_tl)) |> remold(~fill=hd_up.cell);
+      if (connected.bound == l.bound) {
+        tl |> Ctx.link_stacks((connected, r_tl)) |> remold(~fill=hd_up.cell);
+      } else {
+        tl
+        |> Ctx.map_hd(
+             Frame.Open.cat((
+               Stack.to_slope(connected),
+               Stack.to_slope(r_tl),
+             )),
+           )
+        |> remold(~fill=hd_up.cell);
+      };
     | Some((t, grouted, rest)) =>
       let connected = Stack.connect(t, grouted, rest);
       if (connected.bound == l.bound) {
