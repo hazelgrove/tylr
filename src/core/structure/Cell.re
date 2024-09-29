@@ -275,26 +275,25 @@ module Space = {
     if (!is_space(l) || !is_space(r)) {
       raise(Invalid_argument("Cell.Space.merge"));
     };
+    let shift_opt =
+      l.meld |> Option.map(m => 2 * List.length(Meld.tokens(m)));
+    let shift = Option.value(shift_opt, ~default=0);
     let marks =
       r.marks
-      |> (
-        switch (l.meld) {
-        | None => Fun.id
-        | Some(m) =>
-          // Marks.map_paths(
-          //   Lists.map_hd((+)(2 * List.length(Meld.tokens(m)))),
-          // )
-          let shift = 2 * List.length(Meld.tokens(m));
-          Marks.map_paths(
-            fun
-            | [] => {
-                assert(r.meld == None);
-                [shift];
-              }
-            | [hd, ...tl] => [hd + shift, ...tl],
-          );
-        }
-      )
+      |> Marks.map_paths(
+           fun
+           | [] => {
+               assert(r.meld == None);
+               [shift];
+             }
+           | [hd, ...tl] => [hd + shift, ...tl],
+         )
+      |> Marks.union(
+           switch (shift_opt) {
+           | Some(n) => Marks.cons(n, fill.marks)
+           | None => fill.marks
+           },
+         )
       |> Marks.union(l.marks);
     let meld =
       Options.merge(
@@ -303,7 +302,14 @@ module Space = {
         ~f=(Meld.M(l, w_l, m_l), Meld.M(m_r, w_r, r)) => {
           let m = {
             ...fill,
-            marks: Marks.union_all([m_l.marks, fill.marks, m_r.marks]),
+            marks:
+              Marks.mk(
+                ~degrouted=
+                  m_l.marks.degrouted
+                  || fill.marks.degrouted
+                  || m_r.marks.degrouted,
+                (),
+              ),
           };
           Meld.M(l, Wald.append(w_l, m, w_r), r);
         },
