@@ -25,7 +25,8 @@ let view_tok = (tok: Token.t) => {
   let mtrl_clss =
     switch (tok.mtrl) {
     // todo: distinguish whitespace from unmolded styling
-    | Space(_) => ["space"]
+    | Space(White(_)) => ["space"]
+    | Space(Unmolded) => ["unmolded"]
     | Grout(_) => ["grout"]
     | Tile((_, mold)) =>
       Mold.(t_nullable(~side=L, mold) && t_nullable(~side=R, mold))

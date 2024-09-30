@@ -33,6 +33,7 @@
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
+  --unmolded-color: #dc322f;
 
   --exp-bg-color: #ebdfc5; /*#dbf6de;*/
   --exp-shadow-color: #c4b599;/*#329f43;*/
@@ -97,6 +98,11 @@
 .tile .ghost,
 .grout {
   opacity: 40%;
+}
+
+.unmolded {
+  opacity: 40%;
+  color: var(--unmolded-color);
 }
 
 .tile.match {
