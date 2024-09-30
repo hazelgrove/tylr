@@ -275,22 +275,28 @@ module Space = {
     if (!is_space(l) || !is_space(r)) {
       raise(Invalid_argument("Cell.Space.merge"));
     };
-    let shift_opt =
-      l.meld |> Option.map(m => 2 * List.length(Meld.tokens(m)));
-    let shift = Option.value(shift_opt, ~default=0);
     let marks =
       r.marks
-      |> Marks.map_paths(
-           fun
-           | [] => {
-               assert(r.meld == None);
-               [shift];
-             }
-           | [hd, ...tl] => [hd + shift, ...tl],
-         )
+      |> (
+        switch (l.meld) {
+        | None => Fun.id
+        | Some(m) =>
+          let shift = 2 * List.length(Meld.tokens(m));
+          Marks.map_paths(
+            fun
+            | [] => {
+                assert(r.meld == None);
+                [shift];
+              }
+            | [hd, ...tl] => [hd + shift, ...tl],
+          );
+        }
+      )
       |> Marks.union(
-           switch (shift_opt) {
-           | Some(n) => Marks.cons(n, fill.marks)
+           switch (l.meld) {
+           | Some(m) =>
+             let n = 2 * List.length(Meld.tokens(m));
+             Marks.cons(n, fill.marks);
            | None => fill.marks
            },
          )
