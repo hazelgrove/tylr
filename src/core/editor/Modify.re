@@ -108,6 +108,7 @@ let mold =
 let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   open Options.Syntax;
   let ((l, r), tl) = Ctx.unlink_stacks(ctx);
+  let bounds = (l.bound, r.bound);
   let- () =
     // first try removing grout and continuing
     switch (Slope.unlink(r.slope)) {
@@ -120,12 +121,22 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     };
   switch (r.slope) {
   | [] =>
-    // let (l, r) = Ctx.Tl.bounds(tl);
-    let bounds = (l.bound, r.bound);
     let cell = Melder.complete_bounded(~bounds, ~onto=L, l.slope, ~fill);
     let ctx = Ctx.link_stacks(({...l, slope: []}, {...r, slope: []}), tl);
     (cell, ctx);
   | [hd_up, ...tl_up] =>
+    // insert any pending ghosts if next terr has newlines
+    let l =
+      Terr.tokens(hd_up)
+      |> List.map(Token.height)
+      |> List.fold_left((+), 0) == 0
+        ? l
+        : {
+          let bounds = (l.bound, r.bound);
+          let cell =
+            Melder.complete_bounded(~bounds, ~onto=L, l.slope, ~fill);
+          {...l, slope: Slope.Dn.unroll(cell)};
+        };
     let r_tl = {...r, slope: tl_up};
     let (hd_w, tl_w) = Wald.uncons(hd_up.wald);
     let unrolled = () =>
