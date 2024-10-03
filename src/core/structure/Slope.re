@@ -66,7 +66,7 @@ let fold: (('acc, Terr.t) => 'acc, 'acc, t) => 'acc = List.fold_left;
 let unroll = (~from: Dir.t, cell: Cell.t) => {
   let rec go = (cell: Cell.t, unrolled) =>
     switch (Cell.get(cell)) {
-    | None => unrolled
+    | None => (cell, unrolled)
     | Some(M(l, w, r)) =>
       let (cell, terr) =
         switch (from) {
@@ -93,10 +93,10 @@ let pull_terr = (~from: Dir.t, terr: Terr.t): (Token.t, t) => {
   let (tok, rest) = Wald.uncons(terr.wald);
   let slope =
     switch (rest) {
-    | ([], _) => unroll(~from, terr.cell)
+    | ([], _) => snd(unroll(~from, terr.cell))
     | ([cell, ...cells], toks) =>
       let terr = {...terr, wald: Wald.mk(toks, cells)};
-      cat(unroll(~from, cell), [terr]);
+      cat(snd(unroll(~from, cell)), [terr]);
     };
   (tok, slope);
 };

@@ -114,7 +114,7 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     switch (Slope.unlink(r.slope)) {
     | Some((tok, cell, up)) when Token.Grout.is(tok) =>
       Effects.remove(tok);
-      let up = Slope.cat(Slope.Up.unroll(cell), up);
+      let up = Slope.cat(snd(Slope.Up.unroll(cell)), up);
       let r = {...r, slope: up};
       Some(remold(~fill, Ctx.link_stacks((l, r), tl)));
     | _ => None
@@ -126,26 +126,27 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     (cell, ctx);
   | [hd_up, ...tl_up] =>
     // insert any pending ghosts if next terr has newlines
-    let l =
+    let (l, fill) =
       Terr.tokens(hd_up)
       |> List.map(Token.height)
       |> List.fold_left((+), 0) == 0
-        ? l
+        ? (l, fill)
         : {
           let bounds = (l.bound, r.bound);
           let cell =
             Melder.complete_bounded(~bounds, ~onto=L, l.slope, ~fill);
-          {...l, slope: Slope.Dn.unroll(cell)};
+          let (fill, slope) = Slope.Dn.unroll(cell);
+          ({...l, slope}, fill);
         };
     let r_tl = {...r, slope: tl_up};
     let (hd_w, tl_w) = Wald.uncons(hd_up.wald);
     let unrolled = () =>
       Chain.Affix.uncons(tl_w)
       |> Option.map(((cell, (ts, cs))) =>
-           Slope.Up.unroll(cell)
+           snd(Slope.Up.unroll(cell))
            @ [{wald: Wald.mk(ts, cs), cell: hd_up.cell}]
          )
-      |> Option.value(~default=Slope.Up.unroll(hd_up.cell));
+      |> Option.value(~default=snd(Slope.Up.unroll(hd_up.cell)));
     switch (Molder.mold(l, ~fill, Token.unmold(hd_w))) {
     | None =>
       tl

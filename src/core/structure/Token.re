@@ -30,6 +30,7 @@ module Base = {
   let put_marks = (marks, tok) => {...tok, marks};
   let clear_marks = tok => put_marks(None, tok);
   let pop_marks = tok => (tok.marks, clear_marks(tok));
+  let height = tok => Strings.count('\n', tok.text);
 };
 
 module Molded = {

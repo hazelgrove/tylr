@@ -90,12 +90,20 @@ let put_dn = dn => map_dn(_ => dn);
 let of_dn = dn =>
   Stds.Lists.Framed.ft(dn)
   |> Option.map(((dn, t: Terr.t)) =>
-       mk(~up=Slope.Up.unroll(t.cell), Wald.rev(t.wald), ~dn=List.rev(dn))
+       mk(
+         ~up=snd(Slope.Up.unroll(t.cell)),
+         Wald.rev(t.wald),
+         ~dn=List.rev(dn),
+       )
      );
 let of_up = up =>
   Stds.Lists.Framed.ft(up)
   |> Option.map(((up, t: Terr.t)) =>
-       mk(~up=List.rev(up), Wald.rev(t.wald), ~dn=Slope.Up.unroll(t.cell))
+       mk(
+         ~up=List.rev(up),
+         Wald.rev(t.wald),
+         ~dn=snd(Slope.Up.unroll(t.cell)),
+       )
      );
 
 let roll = (~l=Cell.empty, ~r=Cell.empty, {up, top, dn}: t) =>
@@ -160,7 +168,7 @@ let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
     switch (rest) {
     | ([], _) => (tok, Dir.pick(b, (of_up, of_dn), s_b))
     | ([c, ...cs], ts) =>
-      let s_d = Slope.unroll(~from=b, c);
+      let (_, s_d) = Slope.unroll(~from=b, c);
       (tok, Some(unorient(d, (s_d, Wald.mk(ts, cs), s_b))));
     };
   };

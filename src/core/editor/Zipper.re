@@ -63,7 +63,9 @@ let mk = (~cur=Cursor.point(Caret.focus()), ctx) => Base.{cur, ctx};
 
 let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
-    side == L ? ([], Slope.Up.unroll(cell)) : (Slope.Dn.unroll(cell), []);
+    side == L
+      ? ([], snd(Slope.Up.unroll(cell)))
+      : (snd(Slope.Dn.unroll(cell)), []);
   Ctx.map_hd(Frame.Open.cat(f_open), ctx);
 };
 let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
