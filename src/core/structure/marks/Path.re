@@ -98,10 +98,16 @@ module Selection = {
   };
   let carets: t => (Caret.t, Caret.t) =
     Selection.carets(~split_range=Fun.id);
-  let of_carets = (c1: Caret.t, c2: Caret.t) =>
-    Base.compare(c1.path, c2.path) <= 0
-      ? mk(~focus=c1.hand == Focus ? L : R, (c1.path, c2.path))
-      : mk(~focus=c2.hand == Focus ? L : R, (c2.path, c1.path));
+  let of_carets = (c1: Caret.t, c2: Caret.t) => {
+    let c = Base.compare(c1.path, c2.path);
+    if (c < 0) {
+      Ok(mk(~focus=c1.hand == Focus ? L : R, (c1.path, c2.path)));
+    } else if (c > 0) {
+      Ok(mk(~focus=c2.hand == Focus ? L : R, (c2.path, c1.path)));
+    } else {
+      Error({...c1, hand: Focus});
+    };
+  };
 };
 
 module Cursor = {
@@ -123,14 +129,22 @@ module Cursor = {
         | (None, None) => None
         | (Some(p), None)
         | (None, Some(p)) => Some(point(p))
-        | (Some(l), Some(r)) => Some(select(Selection.of_carets(l, r)))
+        | (Some(l), Some(r)) =>
+          switch (Selection.of_carets(l, r)) {
+          | Ok(sel) => Some(select(sel))
+          | Error(p) => Some(point(p))
+          }
         };
       };
   let union = (l: t, r: t) =>
     switch (l, r) {
     | (Select(_), _) => l
     | (_, Select(_)) => r
-    | (Point(p), Point(q)) => Select(Selection.of_carets(p, q))
+    | (Point(p), Point(q)) =>
+      switch (Selection.of_carets(p, q)) {
+      | Ok(sel) => Select(sel)
+      | Error(p) => Point(p)
+      }
     };
   let get_focus =
     fun
