@@ -378,7 +378,8 @@ and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
   let (pre_eqs, (pre_dn, pre_up)) = {
     // l points to cell hd_pre
     let (hd_pre, tl_pre) = Chain.uncons(pre);
-    let l_tl = l_hd mod 2 == 0 ? List.tl(l) : [];
+    let l_tl =
+      l_hd mod 2 == 0 ? List.tl(l) : LCell.end_path(hd_pre, ~side=R);
     let z = unzip(Point(Caret.focus(l_tl)), hd_pre);
     let (eqs, flat) = LCtx.flatten(z.ctx);
     let eqs =
@@ -394,7 +395,8 @@ and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
   let (suf_eqs, (suf_dn, suf_up)) = {
     // r points to cell hd_suf
     let (hd_suf, tl_suf) = Chain.uncons(suf);
-    let r_tl = r_hd mod 2 == 0 ? List.tl(r) : [];
+    let r_tl =
+      r_hd mod 2 == 0 ? List.tl(r) : LCell.end_path(~side=L, hd_suf);
     let z = unzip(Point(Caret.focus(r_tl)), hd_suf);
     let (eqs, flat) = LCtx.flatten(z.ctx);
     let eqs =
