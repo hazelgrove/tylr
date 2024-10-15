@@ -105,7 +105,7 @@ module Selection = {
     } else if (c > 0) {
       Ok(mk(~focus=c2.hand == Focus ? L : R, (c2.path, c1.path)));
     } else {
-      Error({...c1, hand: Focus});
+      Error({...c1, hand: Caret.Hand.merge(c1.hand, c2.hand)});
     };
   };
 };

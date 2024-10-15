@@ -3,6 +3,11 @@ module Hand = {
   type t =
     | Focus
     | Anchor;
+  let merge = (l, r) =>
+    switch (l, r) {
+    | (Anchor, Anchor) => Anchor
+    | _ => Focus
+    };
 };
 
 [@deriving (show({with_path: false}), sexp, yojson, hash)]
