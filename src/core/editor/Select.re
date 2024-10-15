@@ -99,8 +99,8 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     let (stepped, exited) = hstep_tok(d, tok);
 
     switch (rest) {
+    // sel spanned more than one token
     | Some(rest) =>
-      // sel spanned more than one token
       let zigg = exited ? rest : Zigg.grow(~side=sel.focus, stepped, rest);
       let cur = Cursor.Select({...sel, range: zigg});
       let ctx =
@@ -108,8 +108,8 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
         |> Ctx.push(~onto=sel.focus, stepped)
         |> push_site(~onto=Dir.toggle(sel.focus), site_anc);
       return(Zipper.mk_button(~cur, ctx));
+    // sel was a single token, need to consider anchor side more carefully
     | None =>
-      // sel was a single token, need to consider anchor side more carefully
       switch (stepped.marks, site_anc) {
       | (None, _) =>
         // must be true bc anchor does not move
