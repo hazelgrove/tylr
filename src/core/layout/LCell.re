@@ -43,10 +43,11 @@ let is_space = (t: t) =>
 let rec end_path = (~side: Dir.t, t: t) =>
   switch (t.meld) {
   | None => []
-  | Some(M(_, _, r) as m) => [
-      Chain.length(Meld.Base.to_chain(m)) - 1,
-      ...end_path(~side, r),
-    ]
+  | Some(M(l, _, r) as m) =>
+    switch (side) {
+    | L => [0, ...end_path(~side, l)]
+    | R => [Chain.length(Meld.Base.to_chain(m)) - 1, ...end_path(~side, r)]
+    }
   };
 
 let rec unnest_ft = (n: int, t: t) =>
