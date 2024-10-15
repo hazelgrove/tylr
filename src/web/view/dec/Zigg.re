@@ -7,19 +7,21 @@ module L = Layout;
 
 module Profile = {
   type t = {
-    up: list(T.Profile.t),
-    top: W.Profile.t,
-    dn: list(T.Profile.t),
+    up: list((T.Profile.t, Silhouette.Profile.t)),
+    top: (W.Profile.t, Silhouette.Profile.t),
+    dn: list((T.Profile.t, Silhouette.Profile.t)),
   };
 
   let tokens = ({up, top, dn}: t) =>
-    List.concat_map(T.Profile.tokens, up)
-    @ fst(top)
-    @ List.concat_map(T.Profile.tokens, dn);
+    List.concat_map(((t, _)) => T.Profile.tokens(t), up)
+    @ fst(fst(top))
+    @ List.concat_map(((t, _)) => T.Profile.tokens(t), dn);
   let cells = ({up, top, dn}: t) =>
-    List.concat_map(T.Profile.cells, up)
-    @ snd(top)
-    @ List.concat_map(T.Profile.cells, dn);
+    List.concat_map(((t, _)) => T.Profile.cells(t), up)
+    @ snd(fst(top))
+    @ List.concat_map(((t, _)) => T.Profile.cells(t), dn);
+  let silhouettes = ({up, top, dn}: t) =>
+    List.map(snd, up) @ [snd(top)] @ List.map(snd, dn);
 
   let mk =
       (
@@ -53,7 +55,11 @@ module Profile = {
            (state, (i, terr: LTerr.t)) => {
              let null = i >= l_bound && fst(null);
              let eq = List.mem(i, eqs_l);
-             T.Profile.mk_l(~whole, ~state, ~eq, ~null, terr);
+             let b = LTerr.flatten(terr);
+             let sil = Silhouette.Profile.mk(~style=Inner, ~state, b);
+             let (state, p) =
+               T.Profile.mk_l(~whole, ~state, ~eq, ~null, terr);
+             (state, (p, sil));
            },
            state,
          );
@@ -65,7 +71,14 @@ module Profile = {
         && snd(null),
       );
       let eq = List.(mem(-1, eqs_l), mem(-1, eqs_r));
-      W.Profile.mk(~whole, ~state, ~null, ~eq, zigg.top);
+      let sil =
+        Silhouette.Profile.mk(
+          ~style=Inner,
+          ~state,
+          LWald.flatten(~flatten=LCell.flatten, zigg.top),
+        );
+      let (state, p) = W.Profile.mk(~whole, ~state, ~null, ~eq, zigg.top);
+      (state, (p, sil));
     };
     let (_, dn) =
       // reverse to get top-down index which matches eqs
@@ -75,7 +88,11 @@ module Profile = {
            (state, (i, terr: LTerr.t)) => {
              let null = i >= r_bound && snd(null);
              let eq = List.mem(i, eqs_r);
-             T.Profile.mk_r(~whole, ~state, ~eq, ~null, terr);
+             let b = LTerr.flatten(terr);
+             let sil = Silhouette.Profile.mk(~style=Inner, ~state, b);
+             let (state, p) =
+               T.Profile.mk_r(~whole, ~state, ~eq, ~null, terr);
+             (state, (p, sil));
            },
            state,
          );
@@ -84,5 +101,6 @@ module Profile = {
 };
 
 let mk = (~font, p: Profile.t) =>
-  List.map(Tok.mk(~font), Profile.tokens(p))
+  List.map(Silhouette.mk(~font), Profile.silhouettes(p))
+  @ List.map(Tok.mk(~font), Profile.tokens(p))
   @ List.map(Child.mk(~font), Profile.cells(p));

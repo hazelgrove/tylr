@@ -15,6 +15,8 @@ let mk = (lps: list('lp), lks: list('lk)): t('lp, 'lk) => {
   };
   (lps, lks);
 };
+let nlist = (lps: list('lp)) =>
+  mk(lps, List.init(List.length(lps) - 1, Fun.const()));
 
 let unit = (lp: 'lp): t('lp, _) => ([lp], []);
 let loops: t('lp, _) => list('lp) = fst;

@@ -126,13 +126,19 @@ and flatten_sec =
   fun
   | Section.Line(l) => sec(Line(l))
   | Block(b) => flatten(b);
+let flatten = (b: t) => {
+  let B(b) = flatten(b);
+  b
+  |> Chain.map_loop(
+       fun
+       | Section.Line(l) => l
+       | _ => failwith("bug in flatten"),
+     );
+};
 
 let nth_line = (b: t, r: Loc.Row.t) => {
-  let B((secs, inds)) = flatten(b);
-  switch (List.nth(secs, r)) {
-  | Section.Block(_) => failwith("bug in flatten")
-  | Line(l) =>
-    let ind = r == 0 ? 0 : List.nth(inds, r - 1);
-    (ind, l);
-  };
+  let (lines, inds) = flatten(b);
+  let l = List.nth(lines, r);
+  let ind = r == 0 ? 0 : List.nth(inds, r - 1);
+  (ind, l);
 };
