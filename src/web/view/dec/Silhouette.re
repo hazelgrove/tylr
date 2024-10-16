@@ -1,5 +1,8 @@
+open Virtual_dom.Vdom;
+
 open Tylr_core;
 module L = Layout;
+
 module Style = {
   type t =
     | Inner
@@ -63,3 +66,18 @@ let mk = (~font, p: Profile.t) => {
     |> Util.Nodes.add_classes(["silhouette", Style.to_str(p.style)]);
   Box.mk(~font, ~loc=Loc.zero, [path]);
 };
+
+let blur_filter =
+  Util.Nodes.filter(
+    ~attrs=[Attr.id("silhouette-blur")],
+    [
+      Node.create_svg(
+        "feGaussianBlur",
+        ~attrs=[
+          Attr.create("in", "SourceGraphic"),
+          Attr.create("stdDeviation", "0.05"),
+        ],
+        [],
+      ),
+    ],
+  );

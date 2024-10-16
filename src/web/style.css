@@ -29,7 +29,8 @@
   --top-bar-text: #a79f89;
   --delim-color: #586e75; /*#aeb5b8;*/ /*#657b83;*/
 
-  --selection-color: #fae294;
+  /* --selection-color: #fae294; */
+  --selection-color: #ffd5be;
   --selection-shadow-color: rosybrown;
 
   --hole-stroke-color: #dc322f;
@@ -109,6 +110,16 @@
 
 .tile.match {
   font-weight: bold;
+}
+
+.silhouette {
+  fill: var(--selection-color);
+  filter: url(#silhouette-blur);
+  /* flood-color: var(--selection-color); */
+}
+#silhouette-blur .silhouette-blur {
+  flood-color: var(--selection-color);
+  opacity: 1;
 }
 
 #page {
