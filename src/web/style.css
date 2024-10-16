@@ -35,6 +35,8 @@
   --hole-stroke-color: #dc322f;
   --unmolded-color: #dc322f;
 
+  --caret-color: #f62116;
+
   --exp-bg-color: #ebdfc5; /*#dbf6de;*/
   --exp-shadow-color: #c4b599;/*#329f43;*/
   --exp-rail-color: #a7d3ad;
@@ -981,7 +983,7 @@ svg {
 }
 .caret {
   fill: none;
-  stroke: #f62116;
+  stroke: var(--caret-color);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
