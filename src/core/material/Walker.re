@@ -69,7 +69,12 @@ let swing_over = (w: Walk.t, ~from: Dir.t) =>
     |> RZipper.step(Dir.toggle(from))
     |> List.map(
          Bound.map(((sym, rctx)) =>
-           Mtrl.Tile((Sym.expect_t(sym), {...mold, rctx}))
+           try(Mtrl.Tile((Sym.expect_t(sym), {...mold, rctx}))) {
+           | _ =>
+             P.show("sym", Grammar.Sym.show(sym));
+             P.show("rctx", RCtx.show(Grammar.Sym.pp, rctx));
+             failwith("");
+           }
          ),
        )
     |> List.fold_left((idx, dst) => Index.add(dst, w, idx), Index.empty)
@@ -230,7 +235,8 @@ let walk_all =
     |> Index.filter(is_minimal)
     |> Index.sort;
   });
-let walk_all = (~from: Dir.t, src: End.t) => walk_all((from, src));
+let walk_all = (~from: Dir.t, src: End.t): End.Map.t(list(T.t)) =>
+  walk_all((from, src));
 
 let enter_all =
   Memo.general(((from: Dir.t, nt: Mtrl.NT.t)) => {
@@ -244,6 +250,46 @@ let enter_all =
     |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
+
+module WalkMap = Maps.Make(End);
+
+module IndexMap = Maps.Make(End);
+
+module EnterMap = Maps.Make(Mtrl.NT);
+
+//: End.Map.t(list(T.t))
+// let walk_all_map = (~from: Dir.t, ~src: End.t, ~map: WalkMap.t(Index.t)) => {
+//   let result = WalkMap.find(src, map);
+//   result;
+// };
+
+// let enter_all_map =
+//     (
+//       ~from: Dir.t,
+//       ~nt: Mtrl.NT.t,
+//       ~map: EnterMap.t(EndMap.t(list(Walk.t))),
+//     ) => {
+//   let result = EnterMap.find(nt, map);
+//   result;
+// };
+
+//NOTE: the above functions are memoized; we need to create an alternative version that reads from the serialized maps
+
+//NOTE: use existing map & other datatypes to implement this
+
+//NOTE: all existing code must still stay so just create NEW versions like walk_all_serialized (but keep walk_all); existing functions (walk_all, enter_all) will be used when warmup is running
+
+//TODO: change functions below to call the new serialized versions of walk_all and enter_all
+
+/*walk_all_map: Map(End.t => Index.t)
+  //Map(End.t => (End.t => List(Walk.t)) where End.t = opt(terminal))
+  //first end = starting position, second end = destination, list of walks from starting to destination
+  */
+
+/*enter_all_map: Map(Mtrl.NT.t => Index.t)
+  //Map(Mtrl.NT.t => (End.t => List(Walk.t)) where End.t = opt(terminal) && Mtrl.NT.t = non-terminal)
+  //first Mtrl.NT.t = non-terminal start (left hand side of a production), second end = destination, list of walks from starting to destination
+  */
 
 let step = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, step_all(~from, src));
@@ -276,21 +322,3 @@ let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
 
 let exit = (~from: Dir.t, src: End.t) =>
   List.filter(Walk.is_eq, walk(~from, src, Root));
-
-let warmup = () => {
-  // initialize caches
-  let (ts, nts) =
-    Mtrl.Sym.all |> List.partition_map(Sym.get(Either.left, Either.right));
-  ignore(walk_all(~from=L, Root));
-  ignore(walk_all(~from=R, Root));
-  ts
-  |> List.iter(t => {
-       ignore(walk_all(~from=L, Node(t)));
-       ignore(walk_all(~from=R, Node(t)));
-     });
-  nts
-  |> List.iter(nt => {
-       ignore(enter_all(~from=L, nt));
-       ignore(enter_all(~from=R, nt));
-     });
-};

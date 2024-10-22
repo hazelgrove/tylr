@@ -2,6 +2,7 @@
 
 (library
  (name tylr_js)
+ (modules :standard \ Precompile)
  (libraries stds re sexplib)
  (implements tylr_core)
  (js_of_ocaml)
@@ -12,6 +13,13 @@
    ppx_deriving.show
    ppx_deriving.ord
    ppx_yojson_conv)))
+
+(executable
+ (name precompile)
+ (modules Precompile)
+ (libraries tylr_js core)
+ (preprocess
+  (pps ppx_yojson_conv ppx_let ppx_sexp_conv ppx_deriving.show)))
 
 (env
  (dev

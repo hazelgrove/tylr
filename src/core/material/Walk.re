@@ -58,6 +58,10 @@ module T = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Chain.t(Swing.t, Stance.t);
 
+  //NOTE:milan
+  //thin walk = Chain.t(int, int);
+  //
+
   let unit: _ => t = Chain.unit;
   let empty = unit(Swing.empty);
   let is_empty = (==)(empty);
@@ -112,9 +116,12 @@ include T;
 module End = {
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t = Bound.t(Stance.t);
+  [@deriving (show({with_path: false}), sexp, yojson, ord)]
+  type t_ = t;
   module Map =
-    Map.Make({
-      type nonrec t = t;
+    Stds.Maps.Make({
+      [@deriving (show({with_path: false}), sexp, yojson, ord)]
+      type t = t_;
       let compare = compare;
     });
 };

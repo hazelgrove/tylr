@@ -1,6 +1,7 @@
 (include_subdirs unqualified)
 
 (library
+ ; (modules :standard \ Warmup)
  (name tylr_core)
  (virtual_modules sort grammar)
  (libraries stds sedlex re sexplib uutf fmt)
@@ -14,6 +15,13 @@
    ppx_deriving.ord
    ppx_deriving_hash
    sedlex.ppx)))
+
+; (executable
+;  (name warmup)
+;  (modules Warmup)
+;  (libraries tylr_core core)
+;  (preprocess
+;   (pps ppx_yojson_conv ppx_let ppx_sexp_conv ppx_deriving.show)))
 
 (env
  (dev

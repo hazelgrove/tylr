@@ -212,9 +212,9 @@ let apply =
     : Result.t(Model.t) => {
   //print_endline("apply");
   switch (update) {
-  | Warmup =>
-    Tylr_core.Walker.warmup();
-    Ok(model);
+  // | Warmup =>
+  //   Tylr_core.Warmup.warmup();
+  //   Ok(model);
   | SetFont(font) => Ok({...model, font})
   // | SetLogoFont(logo_font_metrics) =>
   //   Ok({...model, logo_font_metrics})
@@ -300,5 +300,7 @@ let apply =
   //       });
   //     }
   //   }
+  //TODO: remove when warmup is finalized
+  | _ => Error(FailedToPerform)
   };
 };

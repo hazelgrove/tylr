@@ -77,6 +77,8 @@ module T = {
 module NT = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(Space.NT.t, Grout.NT.t, Tile.NT.t);
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t_ = t;
   let compare = (l: t, r: t) =>
     switch (l, r) {
     | _ when l == r => 0
@@ -97,9 +99,11 @@ module NT = {
     | Grout(_) => (Node(0), Node(0))
     | Tile((_, Root)) => (Root, Root)
     | Tile((_, Node(mold))) => Mold.bounds(mold);
+
   module Map =
-    Map.Make({
-      type nonrec t = t;
+    Stds.Maps.Make({
+      [@deriving (show({with_path: false}), sexp, yojson)]
+      type t = t_;
       let compare = compare;
     });
 };

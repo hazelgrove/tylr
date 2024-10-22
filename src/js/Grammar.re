@@ -90,10 +90,9 @@ module rec Pat: SORT = {
 
   let obj_assignment_pat = () =>
     seq([
-      alt([t(Id_lower)]),
+      alt([t(Id_lower), atom(~filter=["destruct_pat"], ())]),
       c("="),
       Exp.atom(),
-      atom(~filter=["destruct_pat"], ()),
     ]);
 
   let obj_pat = () =>
@@ -367,7 +366,8 @@ and Stat: SORT = {
   let atom = (~filter=[], ()) => nt(filter, sort());
   let paren_exp = () => seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
-  let stat_block = () => seq([brc(L, "{"), star(atom()), brc(R, "}")]);
+  let stat_block = () =>
+    seq([brc(L, "{"), star(seq([atom(), c(";")])), brc(R, "}")]);
 
   let method_def = () =>
     seq([
@@ -498,11 +498,7 @@ and Stat: SORT = {
   let var_declarator = () => seq([t(Id_lower), opt(init())]);
 
   let lexical_declaration = () =>
-    seq([
-      alt([kw("let"), kw("const")]),
-      comma_sep(var_declarator()),
-      c(";"),
-    ]);
+    seq([alt([kw("let"), kw("const")]), comma_sep(var_declarator())]);
 
   let var_declaration = () => seq([kw("var"), comma_sep(var_declarator())]);
 
@@ -514,12 +510,10 @@ and Stat: SORT = {
       var_declaration(),
     ]);
 
-  let statement_block = () =>
-    seq([brc(L, "{"), star(atom()), brc(R, "}"), opt(c(";"))]);
-
   let switch_case = () =>
-    seq([kw("case"), Exp.atom(), c(":"), star(atom())]);
-  let switch_default = () => seq([kw("default"), c(":"), star(atom())]);
+    seq([kw("case"), Exp.atom(), c(":"), star(seq([atom(), c(";")]))]);
+  let switch_default = () =>
+    seq([kw("default"), c(":"), star(seq([atom(), c(";")]))]);
   let switch_body = () =>
     seq([
       brc(L, "{"),
@@ -537,11 +531,12 @@ and Stat: SORT = {
 
   let continue_statement = () => seq([kw("continue"), opt(t(Id_lower))]);
 
-  let return_statement = () => seq([kw("return"), opt(Exp.atom())]);
+  let return_statement = () =>
+    seq([kw("return"), opt(Exp.atom()), c(";")]);
 
-  let throw_statement = () => seq([kw("throw"), Exp.atom()]);
+  let throw_statement = () => seq([kw("throw"), Exp.atom(), c(";")]);
 
-  let exp_statement = () => seq([Exp.atom()]);
+  let exp_statement = () => Exp.atom();
 
   let do_statement = () =>
     seq([kw("do"), atom(), kw("while"), paren_exp()]);
@@ -550,7 +545,6 @@ and Stat: SORT = {
     alt([
       continue_statement(),
       do_statement(),
-      exp_statement(),
       break_statement(),
       return_statement(),
       throw_statement(),
@@ -559,7 +553,7 @@ and Stat: SORT = {
       export_statement(),
       import_statement(),
       declaration(),
-      statement_block(),
+      stat_block(),
       switch_statement(),
     ]);
 
@@ -568,12 +562,13 @@ and Stat: SORT = {
       kw("for"),
       brc(L, "("),
       alt([
-        lexical_declaration(),
-        var_declaration(),
-        exp_statement(),
+        seq([lexical_declaration(), c(";")]),
+        seq([var_declaration(), c(";")]),
+        //NOTE: manually resolve problem with exp statement needing trailing semicolon
+        seq([exp_statement(), c(";")]),
         empty_statement(),
       ]),
-      alt([exp_statement(), empty_statement()]),
+      alt([seq([exp_statement(), c(";")]), empty_statement()]),
       opt(Exp.atom()),
       brc(R, ")"),
       atom(),
@@ -641,6 +636,7 @@ and Stat: SORT = {
     p(try_statement()),
     p(with_statement()),
     p(label_statement()),
+    p(exp_statement()),
     p(operand()),
   ];
 }
