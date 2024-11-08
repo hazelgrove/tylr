@@ -232,7 +232,7 @@ let walk_all =
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
-    |> Index.filter(is_minimal)
+    // |> Index.filter(is_minimal)
     |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t): End.Map.t(list(T.t)) =>
@@ -246,50 +246,113 @@ let enter_all =
     |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
-    |> Index.filter(is_minimal)
+    // |> Index.filter(is_minimal)
     |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
-module WalkMap = Maps.Make(End);
-
-module IndexMap = Maps.Make(End);
-
-module EnterMap = Maps.Make(Mtrl.NT);
-
-//: End.Map.t(list(T.t))
-// let walk_all_map = (~from: Dir.t, ~src: End.t, ~map: WalkMap.t(Index.t)) => {
-//   let result = WalkMap.find(src, map);
-//   result;
-// };
-
-// let enter_all_map =
-//     (
-//       ~from: Dir.t,
-//       ~nt: Mtrl.NT.t,
-//       ~map: EnterMap.t(EndMap.t(list(Walk.t))),
-//     ) => {
-//   let result = EnterMap.find(nt, map);
-//   result;
-// };
-
-//NOTE: the above functions are memoized; we need to create an alternative version that reads from the serialized maps
-
-//NOTE: use existing map & other datatypes to implement this
-
-//NOTE: all existing code must still stay so just create NEW versions like walk_all_serialized (but keep walk_all); existing functions (walk_all, enter_all) will be used when warmup is running
-
 //TODO: change functions below to call the new serialized versions of walk_all and enter_all
 
-/*walk_all_map: Map(End.t => Index.t)
-  //Map(End.t => (End.t => List(Walk.t)) where End.t = opt(terminal))
-  //first end = starting position, second end = destination, list of walks from starting to destination
-  */
+let walk_l_map = ref(End.Map.empty);
+let walk_r_map = ref(End.Map.empty);
+let enter_l_map = ref(Mtrl.NT.Map.empty);
+let enter_r_map = ref(Mtrl.NT.Map.empty);
 
-/*enter_all_map: Map(Mtrl.NT.t => Index.t)
-  //Map(Mtrl.NT.t => (End.t => List(Walk.t)) where End.t = opt(terminal) && Mtrl.NT.t = non-terminal)
-  //first Mtrl.NT.t = non-terminal start (left hand side of a production), second end = destination, list of walks from starting to destination
-  */
+let stances_flipped = ref(Thin.FlippedStanceMap.empty);
+let nts_flipped = ref(Thin.FlippedNTMap.empty);
+
+let read_warmed_stances_nts = () => {
+  let nts_map =
+    Thin.NTMap.t_of_sexp(
+      Sexplib.Std.int_of_sexp,
+      Sexplib.Sexp.load_sexp("nts.txt"),
+    );
+  let stances_map =
+    Thin.StanceMap.t_of_sexp(
+      Sexplib.Std.int_of_sexp,
+      Sexplib.Sexp.load_sexp("stances.txt"),
+    );
+
+  stances_flipped :=
+    stances_map
+    |> Thin.StanceMap.to_seq
+    |> Seq.map(((k, v)) => (v, k))
+    |> Thin.FlippedStanceMap.of_seq;
+
+  nts_flipped :=
+    nts_map
+    |> Thin.NTMap.to_seq
+    |> Seq.map(((k, v)) => (v, k))
+    |> Thin.FlippedNTMap.of_seq;
+};
+
+let read_warmed_walked = () => {
+  let thin_walk_r =
+    Thin.ThinEnd.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.load_sexp("walk_r_map.txt"),
+    );
+  let thin_walk_l =
+    Thin.ThinEnd.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.load_sexp("walk_l_map.txt"),
+    );
+
+  walk_r_map :=
+    Thin.walk_map_of_thin(thin_walk_r, stances_flipped^, nts_flipped^);
+  walk_l_map :=
+    Thin.walk_map_of_thin(thin_walk_l, stances_flipped^, nts_flipped^);
+};
+
+let read_warmed_enter = () => {
+  let thin_enter_r =
+    Thin.ThinNT.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.load_sexp("enter_r_map.txt"),
+    );
+  let thin_enter_l =
+    Thin.ThinNT.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.load_sexp("enter_l_map.txt"),
+    );
+
+  enter_r_map :=
+    Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
+  enter_l_map :=
+    Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+
+  ();
+};
+
+let read_warmed = () => {
+  read_warmed_stances_nts();
+  Gc.full_major();
+  read_warmed_walked();
+  Gc.full_major();
+  read_warmed_enter();
+  Gc.full_major();
+};
+
+let walk_all_precompiled =
+    (~from: Dir.t, source: End.t): End.Map.t(list(T.t)) => {
+  End.Map.find(
+    source,
+    switch (from) {
+    | L => walk_l_map^
+    | R => walk_r_map^
+    },
+  );
+};
+
+let enter_all_precompiled = (~from: Dir.t, sort: Mtrl.NT.t) => {
+  Mtrl.NT.Map.find(
+    sort,
+    switch (from) {
+    | L => enter_l_map^
+    | R => enter_r_map^
+    },
+  );
+};
 
 let step = (~from: Dir.t, src: End.t, dst: End.t) =>
   Index.find(dst, step_all(~from, src));
@@ -311,14 +374,14 @@ let eq =
 
 // todo: combine from and src
 let walk = (~from: Dir.t, src: End.t, dst: End.t) =>
-  Index.find(dst, walk_all(~from, src));
+  Index.find(dst, walk_all_precompiled(~from, src));
 let walk_eq = (~from: Dir.t, src: End.t, dst: End.t) =>
   List.filter(Walk.is_eq, walk(~from, src, dst));
 let walk_neq = (~from: Dir.t, src: End.t, dst: End.t) =>
   List.filter(Walk.is_neq, walk(~from, src, dst));
 
 let enter = (~from: Dir.t, sort: Mtrl.NT.t, dst: End.t) =>
-  Index.find(dst, enter_all(~from, sort));
+  Index.find(dst, enter_all_precompiled(~from, sort));
 
 let exit = (~from: Dir.t, src: End.t) =>
   List.filter(Walk.is_eq, walk(~from, src, Root));

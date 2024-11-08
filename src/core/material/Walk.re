@@ -118,12 +118,13 @@ module End = {
   type t = Bound.t(Stance.t);
   [@deriving (show({with_path: false}), sexp, yojson, ord)]
   type t_ = t;
-  module Map =
-    Stds.Maps.Make({
+  module Map = {
+    include Stds.Maps.Make({
       [@deriving (show({with_path: false}), sexp, yojson, ord)]
       type t = t_;
       let compare = compare;
     });
+  };
 };
 
 // module Set =
