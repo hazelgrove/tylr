@@ -381,3 +381,104 @@ update(init, StampEmoji)
 
 
 |};
+
+let longlong = {|let x = 1 in
+let y = 2 in
+
+let x = 1 + 1 in
+let y = 2 * 1 + 3 < 56 * 3455 - 345442 in
+type Emoji = Smile + Frown + Smirk in
+type Cell = Empty + Stamped(Emoji) in
+type Model = ([[Cell]], Emoji) in
+type Action =
+  StampEmoji(Int, Int)
+  + ClearCell(Int, Int)
+  + SelectEmoji(Emoji)
+in
+let init: Model = (
+  [[None, None, None],
+   [None, None, None],
+   [None, None, None]],
+  Smile)
+in
+let update_grid: (Int, Int, Cell, [[Cell]]) -> [[Cell]] =
+  fun (row, col, cell, grid) ->
+    update_nth(row, update_nth(col, cell, List.nth(row, grid)), grid)
+in
+let update: (Model, Action) -> Model =
+  fun ((cells, selected), action) ->
+    case action
+    | StampEmoji(row, col) =>
+      (update_grid(row, col, Stamped(Smile), cells), selected)
+    | ClearCell(row, col) =>
+      (update_grid(row, col, Empty, cells), selected)
+    | SelectEmoji(new) => (cells, new)
+    end
+in
+
+type Point = (Int, Int) in
+type Rect = (Point, Int, Int) in
+type Circ = (Point, Int) in
+type Shape = R(Rect) + C(Circ) in
+let contains = fun (s: Shape, p: Point) ->
+  let (x, y) = p in
+  case s
+  | R(((x_min, y_min), x_len, y_len)) =>
+ x_min <= x && x <= x_min + x_len
+ && y_min <= y && y <= y_min + y_len
+  | C((center, r)) => dist(center, p) <= r
+  end
+in
+
+type Point = (Int, Int) in
+type Rect = (Point, Int, Int) in
+let contains = fun (r: Rect, p: Point) ->
+  let (x, y) = p in
+  let ((x_min, y_min), x_len, y_len) = r in
+  x_min <= x && x <= x_min + x_len
+  && y_min <= y && y <= y_min + y_len
+in
+
+let blah = shapes
+|> filter(fun shape -> area(shape) < 50)
+|> map(dilate(5))
+|> map(rotate(pi / 4))
+|> map(translate(6, 7)) in
+
+let blah = shapes
+|> map(rotate(pi / 4))
+|> map(translate(6, 7))
+|> filter(fun shape -> area(shape) < 50)
+|> map(dilate(5)) in
+
+let f = fun (square, p1, p2) ->
+let mark =
+fun center ->
+if square then
+let (x, y) = center in
+rect(x - 2, y - 2, 4, 4)
+else
+let r = 4 in
+circle(center, r)
+in
+[mark(p1), line(p1, p2), mark(p2)] in
+
+let f = fun (p1, p2) ->
+let mark =
+fun center ->
+let r = 4 in
+circle(center, r)
+in
+[mark(p1), line(p1, p2), mark(p2)] in
+
+let dist =
+fun (p1, p2) ->
+let (x1, y1) = p1 in
+let (x2, y2) = p2 in
+sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2))
+in
+let f = fun (center, p) ->
+let r = dist(center, p) in
+circle(center, r) in
+
+|};
