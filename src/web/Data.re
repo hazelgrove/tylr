@@ -583,3 +583,15 @@ let r = dist(center, p) in
 circle( , r) in
 
 |};
+
+let base1 = {|let  = 1 in
+|};
+
+let base1' = base1 ++ base1 ++ base1 ++ base1 ++ base1;
+
+let base2 = {|let x = + 2 in
+let x = + 2 * 3 in
+let x = + 2 / 3 + 4 in
+let x = 1 + 2 +  + 4 + 5 in
+let x = 1 + 2 * 3 +  + 5 + 6 in
+|};

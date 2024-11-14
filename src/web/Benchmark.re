@@ -74,7 +74,7 @@ let benchmark_parsing = () => {
   };
 };
 
-let cursor_depth = (z: Zipper.t) => {
+let cursor_depth = (z: Zipper.t): int => {
   let cell = Zipper.zip(~save_cursor=true, z);
   switch (cell.marks.cursor) {
   | Some(Point(cursor)) => cursor.path |> List.length
@@ -82,18 +82,27 @@ let cursor_depth = (z: Zipper.t) => {
   };
 };
 
+let pre_plus_suf_length = (z: Zipper.t): int => {
+  let ((pre, suf), _tl) = Ctx.uncons(z.ctx);
+  List.length(pre) + List.length(suf);
+};
+
 let benchmark_hole_fills = () => {
   let program_str = Data.holey;
+  //let program_str = List.fold_left((++), "", List.init(40, _ => Data.base1));
+  let num_holes = 20; //40
   let reps_per_action = 200;
   let zipper_action = Modify.insert("X");
 
   print_endline("BENCHMARK: filling hole edits at different depths");
-  let a = benchmark(program_str);
-  print_endline("BENCHMARK: warmup parse: " ++ string_of_int(a) ++ "ms");
-  let b = benchmark(program_str);
-  print_endline(
-    "BENCHMARK: same parse after warmup: " ++ string_of_int(b) ++ "ms",
-  );
+  print_endline("init program, parsed and then stringed:");
+  print_endline(program_str |> Store.parse |> Zipper.to_string);
+  // let a = benchmark(program_str);
+  // print_endline("BENCHMARK: warmup parse: " ++ string_of_int(a) ++ "ms");
+  // let b = benchmark(program_str);
+  // print_endline(
+  //   "BENCHMARK: same parse after warmup: " ++ string_of_int(b) ++ "ms",
+  // );
   let z =
     List.fold_left(
       (z_acc, _x) => {
@@ -106,7 +115,9 @@ let benchmark_hole_fills = () => {
             }
           });
         print_endline(
-          "depth: "
+          "presuf: "
+          ++ string_of_int(pre_plus_suf_length(z_acc))
+          ++ ", depth: "
           ++ string_of_int(cursor_depth(z_acc))
           ++ ", "
           ++ "time for "
@@ -124,7 +135,7 @@ let benchmark_hole_fills = () => {
       },
       // starts at bottom of holey program
       Store.parse(program_str),
-      List.init(20, _ => ()),
+      List.init(num_holes, _ => ()),
     );
   ();
   print_endline("program after actions:");
@@ -132,4 +143,3 @@ let benchmark_hole_fills = () => {
 };
 
 //benchmark_parsing();
-benchmark_hole_fills();
