@@ -303,3 +303,10 @@ let selection_str = (cur: Cursor.Base.t('tok)): option(string) =>
     |> String.concat("")
     |> Option.some
   };
+
+let to_string = (z: t): string => {
+  zip(z)
+  |> Cell.flatten
+  |> List.map((x: Token.t) => x.text)
+  |> String.concat("");
+};

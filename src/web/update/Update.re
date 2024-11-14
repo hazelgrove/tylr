@@ -218,7 +218,11 @@ let apply =
   // | SetLogoFont(logo_font_metrics) =>
   //   Ok({...model, logo_font_metrics})
   | PerformAction(a) =>
-    switch (Edit.perform(a, model.zipper)) {
+    switch (
+      Util.TimeUtil.measure_time("Edit.perform", true, () =>
+        Edit.perform(a, model.zipper)
+      )
+    ) {
     | None => Error(FailedToPerform)
     | Some(z) =>
       Ok({...model, zipper: z, history: History.do_(a, z, model.history)})
