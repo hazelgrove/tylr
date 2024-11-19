@@ -318,10 +318,6 @@ let read_warmed_walked = () => {
 };
 
 let read_warmed_enter = () => {
-  print_endline("hahahaha");
-  print_endline(String.sub(PrecompiledFiles._enter_r_map(), 0, 10));
-  print_endline(String.sub(PrecompiledFiles._enter_l_map(), 0, 10));
-
   ();
   // let _warmed_entered_r = [%blob "precompiled/enter_r_map.txt"];
   // let _warmed_entered_l = [%blob "precompiled/enter_l_map.txt"];
