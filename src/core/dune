@@ -9,19 +9,20 @@
  (preprocess
   (pps
    ppx_let
+   ppx_blob
    ppx_sexp_conv
    ppx_yojson_conv
    ppx_deriving.show
    ppx_deriving.ord
    ppx_deriving_hash
-   sedlex.ppx)))
-
-; (executable
-;  (name warmup)
-;  (modules Warmup)
-;  (libraries tylr_core core)
-;  (preprocess
-;   (pps ppx_yojson_conv ppx_let ppx_sexp_conv ppx_deriving.show)))
+   sedlex.ppx))
+ (preprocessor_deps
+  (file material/precompiled/stances.txt)
+  (file material/precompiled/nts.txt)
+  (file material/precompiled/walk_r_map.txt)
+  (file material/precompiled/walk_l_map.txt)
+  (file material/precompiled/enter_r_map.txt)
+  (file material/precompiled/enter_l_map.txt)))
 
 (env
  (dev

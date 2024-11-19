@@ -262,15 +262,19 @@ let stances_flipped = ref(Thin.FlippedStanceMap.empty);
 let nts_flipped = ref(Thin.FlippedNTMap.empty);
 
 let read_warmed_stances_nts = () => {
+  print_endline("got warmed root l");
+
+  print_endline("Reading nts");
   let nts_map =
     Thin.NTMap.t_of_sexp(
-      Sexplib.Std.int_of_sexp,
-      Sexplib.Sexp.load_sexp("nts.txt"),
+      Sexplib.Conv.int_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles.warmed_nts()),
     );
+  print_endline("reading stances");
   let stances_map =
     Thin.StanceMap.t_of_sexp(
-      Sexplib.Std.int_of_sexp,
-      Sexplib.Sexp.load_sexp("stances.txt"),
+      Sexplib.Conv.int_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles.warmed_stances()),
     );
 
   stances_flipped :=
@@ -287,49 +291,69 @@ let read_warmed_stances_nts = () => {
 };
 
 let read_warmed_walked = () => {
-  let thin_walk_r =
-    Thin.ThinEnd.Map.t_of_sexp(
-      Thin.ThinIndex.t_of_sexp,
-      Sexplib.Sexp.load_sexp("walk_r_map.txt"),
-    );
-  let thin_walk_l =
-    Thin.ThinEnd.Map.t_of_sexp(
-      Thin.ThinIndex.t_of_sexp,
-      Sexplib.Sexp.load_sexp("walk_l_map.txt"),
-    );
-
-  walk_r_map :=
-    Thin.walk_map_of_thin(thin_walk_r, stances_flipped^, nts_flipped^);
-  walk_l_map :=
-    Thin.walk_map_of_thin(thin_walk_l, stances_flipped^, nts_flipped^);
+  print_endline("reading warmed walked");
+  print_endline("reading walk r");
+  let _thin_walk_r_sexp =
+    Sexplib.Sexp.of_string(PrecompiledFiles._warmed_walked_r());
+  ();
+  // let _thin_walk_r =
+  //   Thin.ThinEnd.Map.t_of_sexp(
+  //     Thin.ThinIndex.t_of_sexp,
+  //     Sexplib.Sexp.of_string(_warmed_walked_r),
+  //   );
+  // print_endline("doing a gc full major");
+  // Gc.full_major();
+  // print_endline("reading walk l");
+  // let thin_walk_l =
+  //   Thin.ThinEnd.Map.t_of_sexp(
+  //     Thin.ThinIndex.t_of_sexp,
+  //     Sexplib.Sexp.of_string([%blob "precompiled/walk_l_map.txt"]),
+  //     // Sexplib.Sexp.of_string(""),
+  //   );
+  //
+  // walk_r_map :=
+  //   Thin.walk_map_of_thin(thin_walk_r, stances_flipped^, nts_flipped^);
+  // walk_l_map :=
+  //   Thin.walk_map_of_thin(thin_walk_l, stances_flipped^, nts_flipped^);
 };
 
 let read_warmed_enter = () => {
-  let thin_enter_r =
-    Thin.ThinNT.Map.t_of_sexp(
-      Thin.ThinIndex.t_of_sexp,
-      Sexplib.Sexp.load_sexp("enter_r_map.txt"),
-    );
-  let thin_enter_l =
-    Thin.ThinNT.Map.t_of_sexp(
-      Thin.ThinIndex.t_of_sexp,
-      Sexplib.Sexp.load_sexp("enter_l_map.txt"),
-    );
-
-  enter_r_map :=
-    Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
-  enter_l_map :=
-    Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+  print_endline("hahahaha");
+  print_endline(String.sub(PrecompiledFiles._enter_r_map(), 0, 10));
+  print_endline(String.sub(PrecompiledFiles._enter_l_map(), 0, 10));
 
   ();
+  // let _warmed_entered_r = [%blob "precompiled/enter_r_map.txt"];
+  // let _warmed_entered_l = [%blob "precompiled/enter_l_map.txt"];
+  // let thin_enter_r =
+  //   Thin.ThinNT.Map.t_of_sexp(
+  //     Thin.ThinIndex.t_of_sexp,
+  //     // Sexplib.Sexp.of_string(warmed_entered_r),
+  //     Sexplib.Sexp.of_string(""),
+  //   );
+  // let thin_enter_l =
+  //   Thin.ThinNT.Map.t_of_sexp(
+  //     Thin.ThinIndex.t_of_sexp,
+  //     // Sexplib.Sexp.of_string(warmed_entered_l),
+  //     Sexplib.Sexp.of_string(""),
+  //   );
+  //
+  // enter_r_map :=
+  //   Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
+  // enter_l_map :=
+  //   Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+  //
 };
 
 let read_warmed = () => {
   read_warmed_stances_nts();
   Gc.full_major();
+  print_endline("read warmed stances nts");
   read_warmed_walked();
+  print_endline("read warmed walked");
   Gc.full_major();
   read_warmed_enter();
+  print_endline("read warmed entered");
   Gc.full_major();
 };
 

@@ -58,10 +58,6 @@ module T = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Chain.t(Swing.t, Stance.t);
 
-  //NOTE:milan
-  //thin walk = Chain.t(int, int);
-  //
-
   let unit: _ => t = Chain.unit;
   let empty = unit(Swing.empty);
   let is_empty = (==)(empty);

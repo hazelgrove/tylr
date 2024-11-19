@@ -173,6 +173,8 @@ let warmup = () => {
   let root_l_walk: Index.t = walk_all(~from=L, Root);
   let root_r_walk: Index.t = walk_all(~from=R, Root);
 
+  print_endline("got root walks");
+
   process_ts_l_walks(ts, root_l_walk);
   Gc.full_major();
   process_ts_r_walk(ts, root_r_walk);
@@ -182,8 +184,8 @@ let warmup = () => {
   process_nts_r_walk(nts_list);
   Gc.full_major();
 
-  let stances_sexp = StanceMap.sexp_of_t(Sexplib.Std.sexp_of_int, stances^);
-  let nts_sexp = NTMap.sexp_of_t(Sexplib.Std.sexp_of_int, nts^);
+  let stances_sexp = StanceMap.sexp_of_t(Sexplib.Conv.sexp_of_int, stances^);
+  let nts_sexp = NTMap.sexp_of_t(Sexplib.Conv.sexp_of_int, nts^);
 
   let _ = Sexplib.Sexp.save("stances.txt", stances_sexp);
   let _ = Sexplib.Sexp.save("nts.txt", nts_sexp);

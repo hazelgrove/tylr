@@ -13,6 +13,7 @@ module NTMap = {
 
 //TODO: rename to t(terminal) map
 module StanceMap = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
   include Maps.Make({
     [@deriving (show({with_path: false}), sexp, yojson)]
     type t = Stance.t;

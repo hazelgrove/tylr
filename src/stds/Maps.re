@@ -53,7 +53,7 @@ module type S = {
 module MakeShowFor = (O: OrderedShowType, S: Map.S with type key = O.t) => {
   let pp = (pp_v, f, map) =>
     S.iter(
-      (k, v) => Format.fprintf(f, "%a -> %a@\n", O.pp, k, pp_v, v),
+      (k, v) => Format.fprintf(f, "(%a, %a);@\n", O.pp, k, pp_v, v),
       map,
     );
 };
