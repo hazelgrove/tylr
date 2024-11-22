@@ -122,7 +122,8 @@ module Sym = {
       |> List.map(Sym.map(grout, grout)),
       Sort.all
       |> List.concat_map(Tile.Sym.all)
-      |> List.map(Sym.map(tile, tile)),
+      |> List.map(Sym.map(tile, tile))
+      |> List.cons(Sym.NT(Tile(Tile.NT.root))),
     ]);
 };
 
