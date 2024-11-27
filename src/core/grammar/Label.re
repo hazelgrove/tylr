@@ -5,7 +5,7 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 // todo: add operator class
 [@deriving (sexp, yojson, ord)]
 type t =
-  | Const(/* [@sexp.opaque] */ Padding.t, string)
+  | Const(Padding.t, string)
   | Id_lower
   | Id_upper
   | Int_lit
@@ -53,6 +53,14 @@ let is_complete = text =>
     // assuming text is consistent with lbl
     true
   | Const(_, c) => String.equal(c, text);
+
+let complete = text =>
+  fun
+  | Id_lower
+  | Id_upper
+  | Int_lit
+  | Float_lit => None
+  | Const(_, c) => String.equal(c, text) ? None : Some(c);
 
 // beware calling this with the text of partial tokens
 let oblig = text =>

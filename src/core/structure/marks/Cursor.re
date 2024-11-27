@@ -29,3 +29,4 @@ let get_select =
   fun
   | Select(s) => Some(s)
   | Point(_) => None;
+let is_select = c => Option.is_some(get_select(c));

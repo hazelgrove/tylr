@@ -15,6 +15,8 @@ let mk = (lps: list('lp), lks: list('lk)): t('lp, 'lk) => {
   };
   (lps, lks);
 };
+let nlist = (lps: list('lp)) =>
+  mk(lps, List.init(List.length(lps) - 1, Fun.const()));
 
 let unit = (lp: 'lp): t('lp, _) => ([lp], []);
 let loops: t('lp, _) => list('lp) = fst;
@@ -44,6 +46,7 @@ module Affix = {
   let empty = ([], []);
   let is_empty = ((lks, lps)) => lks == [] && lps == [];
   let cons = (lk, (lps, lks): Base.t(_)) => ([lk, ...lks], lps);
+  // let length = ((lks, _): t(_)) => 2 * List.length(lks);
   let link = (lk, lp, (lks, lps): t(_)) => ([lk, ...lks], [lp, ...lps]);
   let unlink =
     fun

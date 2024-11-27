@@ -21,26 +21,34 @@ let view_space = spc =>
   |> List.of_seq
   |> String.concat("");
 
-let view_tok = (tok: Token.t) => {
+let grout = (~font, sort, shape) =>
+  Node.span([
+    Node.text("•"),
+    Dec.Box.mk(
+      ~font,
+      ~loc={row: 0, col: 0},
+      [Dec.Token.hexagon({sort, shape, sil: false}, 1)],
+    ),
+  ]);
+
+let view_tok = (~font, tok: Token.t) => {
   let mtrl_clss =
     switch (tok.mtrl) {
     // todo: distinguish whitespace from unmolded styling
-    | Space(_) => ["space"]
+    | Space(White(_)) => ["space"]
+    | Space(Unmolded) => ["unmolded"]
     | Grout(_) => ["grout"]
     | Tile((_, mold)) =>
       Mold.(t_nullable(~side=L, mold) && t_nullable(~side=R, mold))
         ? ["tile"] : ["tile", "match"]
     };
-  let attrs =
-    Attr.[
-      classes(["token", ...mtrl_clss]),
-      title(Sexplib.Sexp.to_string_hum(Token.sexp_of_t(tok))),
-    ];
+  let attrs = Attr.[classes(["token", ...mtrl_clss])];
+  // title(Sexplib.Sexp.to_string_hum(Token.sexp_of_t(tok))),
   let nodes =
     switch (tok.mtrl) {
     // todo: distinguish whitespace from unmolded styling
     | Space(_) => [Node.text(view_space(tok.text))]
-    | Grout(_) => [Node.text("•")]
+    | Grout((sort, shape)) => [grout(~font, sort, shape)]
     | Tile((lbl, _)) =>
       let text = Node.text(tok.text);
       let oblig = Label.oblig(tok.text, lbl);
@@ -55,26 +63,29 @@ let view_tok = (tok: Token.t) => {
   Node.span(~attrs, nodes);
 };
 
-let view_line = (l: Layout.Block.Line.t) =>
-  l |> List.map(view_tok) |> Node.span(~attrs=[Attr.class_("line")]);
+let view_line = (~font, l: Block.Line.t) =>
+  l
+  |> List.map(view_tok(~font))
+  |> Node.span(~attrs=[Attr.class_("line")]);
 
-let rec view_block = (B(b): Layout.Block.t) =>
+let rec view_block = (~font, B(b): Block.t) =>
   b
   |> Chain.fold_left_map(
-       sec => ((), view_sec(sec)),
-       ((), indent, sec) => ((), [Node.br()], view_sec(~indent, sec)),
+       sec => ((), view_sec(~font, sec)),
+       ((), indent, sec) =>
+         ((), [Node.br()], view_sec(~font, ~indent, sec)),
      )
   |> snd
   |> Chain.to_list(Fun.id, Fun.id)
   |> List.concat
   |> Node.div(~attrs=Attr.[classes(["block"])])
-and view_sec = (~indent=0, sec: Layout.Block.Section.t(_)) =>
+and view_sec = (~font, ~indent=0, sec: Block.Section.t(_)) =>
   nest(
     indent,
     [
       switch (sec) {
-      | Line(l) => view_line(l)
-      | Block(b) => view_block(b)
+      | Line(l) => view_line(~font, l)
+      | Block(b) => view_block(~font, b)
       },
     ],
   );

@@ -5,8 +5,7 @@ let pad_wrap = (~break=false, c: Cell.t) => {
     // this choice only matters when c has caret
     let (l, r) = Meld.(mk(~l=c, w), mk(w, ~r=c));
     switch (Mode.get()) {
-    | Inserting(" ") => r
-    | Inserting(_) => l
+    | Inserting(s) => Labeler.starts_with_space(s) ? r : l
     | Deleting(L) => l
     | Deleting(R) => r
     | Navigating => l
@@ -44,14 +43,23 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
     | None when no_pad => c
     | None => pad_wrap(~break, c)
     | Some(m) =>
+      let height =
+        Meld.to_chain(m)
+        |> Chain.links
+        |> List.map(Token.height)
+        |> List.fold_left((+), 0);
       let pruned =
         Meld.to_chain(m)
         |> Chain.fold_right(
              (c, tok: Token.t, acc) => {
-               let found_space = Result.is_ok(Chain.unlink(acc));
-               switch (tok.mtrl) {
-               | Space(White(Sys)) when found_space || no_pad =>
-                 Chain.map_hd(Cell.Space.merge(c, ~fill=Cell.empty), acc)
+               let drop = () =>
+                 Chain.map_hd(Cell.Space.merge(c, ~fill=Cell.empty), acc);
+               switch (tok) {
+               | {mtrl: Space(_), text: " ", _} when height > 0 => drop()
+               | {mtrl: Space(White(Sys)), _}
+                   when
+                     no_pad || height == 0 && Result.is_ok(Chain.unlink(acc)) =>
+                 drop()
                | _ => Chain.link(c, tok, acc)
                };
              },

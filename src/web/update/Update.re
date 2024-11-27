@@ -4,6 +4,8 @@ open Stds;
 open Tylr_core;
 open Model;
 
+let catch_exns = ref(true);
+
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t =
   // | Set(settings_action)
@@ -19,7 +21,10 @@ type t =
   | PerformAction(Edit.t)
   // | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
-  | Redo;
+  | Redo
+  | Load(int);
+
+let is_f_key = s => Re.Str.(string_match(regexp("^F[0-9][0-9]*$"), s, 0));
 
 let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
   // let zipper = model.zipper;
@@ -39,22 +44,17 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
   //   | "Alt" => [SetShowBackpackTargets(false)]
   //   | _ => [UpdateDoubleTap(None)]
   //   }
-  // | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
-  //     when is_f_key(key) =>
-  //   switch (key) {
-  //   | "F1" => print(Log.get_json_update_log_string())
-  //   | "F2" => print(Zipper.show(zipper))
-  //   | "F3" => toggle(Log.debug_update)
-  //   | "F4" => toggle(Log.debug_keystoke)
-  //   | "F5" => toggle(Log.debug_zipper)
-  //   | "F6" => [Load]
-  //   | "F7" => []
-  //   | "F8" => []
-  //   | "F10" =>
-  //     Log.reset_json_log();
-  //     [];
-  //   | _ => []
-  //   }
+  | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
+      when is_f_key(key) =>
+    if (key == "F12") {
+      print_endline("Catch exceptions: " ++ string_of_bool(! catch_exns^));
+      catch_exns := ! catch_exns^;
+      [];
+    } else {
+      let index = int_of_string(String.sub(key, 1, 1)) - 1;
+      print_endline("F key pressed: index: " ++ string_of_int(index));
+      now_save_u(Load(index));
+    }
   | {key: D(key), sys: _, shift, meta: Up, ctrl: Up, alt: Up} =>
     switch (shift, key) {
     | (Up, "ArrowLeft") => now(Move(Step(H(L))))
@@ -66,9 +66,9 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
     | (Up, "Backspace") => now_save(Delete(L))
     | (Up, "Delete") => now_save(Delete(R))
     | (Up, "Escape") => now(Select(Un(L)))
-    | (Up, "Tab") => now(Move(Hole(R)))
+    | (Up, "Tab") => now(Tab(R))
     // | (Up, "Tab") => now_save(Put_down) //TODO: if empty, move to next hole
-    | (Down, "Tab") => now(Move(Hole(L)))
+    | (Down, "Tab") => now(Tab(L))
     | (Down, "ArrowLeft") => now(Select(Move(Step(H(L)))))
     | (Down, "ArrowRight") => now(Select(Move(Step(H(R)))))
     | (Down, "ArrowUp") => now(Select(Move(Step(V(L)))))
@@ -110,7 +110,6 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
     switch (key) {
     | "z" => now_save_u(Undo)
     // | "x" => now(Pick_up)
-    // | "v" => now(Put_down)
     | "a" => now(Move(Skip(V(L)))) @ now(Select(Move(Skip(V(R)))))
     // | _ when is_digit(key) => [SwitchEditor(int_of_string(key))]
     | "ArrowLeft" => now(Move(Skip(H(L))))
@@ -123,7 +122,6 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
     switch (key) {
     | "z" => now_save_u(Undo)
     // | "x" => now(Pick_up)
-    // | "v" => now(Put_down)
     | "a" => now(Move(Skip(V(L)))) @ now(Select(Move(Skip(V(R)))))
     // | _ when is_digit(key) => [SwitchEditor(int_of_string(key))]
     | "ArrowLeft" => now(Move(Skip(H(L))))
@@ -235,6 +233,12 @@ let apply =
     | None => Error(CantRedo)
     | Some((zipper, history)) => Ok({...model, zipper, history})
     }
+  | Load(n) =>
+    Ok({
+      ...model,
+      zipper: Store.load_default_syntax(n),
+      history: History.empty,
+    })
   // | Set(s_action) =>
   //   Ok({...model, settings: update_settings(s_action, model.settings)})
   // | LoadInit =>

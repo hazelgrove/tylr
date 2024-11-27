@@ -2,30 +2,21 @@ open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
 open Stds;
 
+let dbg = ref(false);
+
 let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
   switch (Cell.get(c)) {
-  | None => Cell.(empty, c, empty)
+  | None => Cell.(empty, c)
   | Some(m) when Option.is_some(Meld.Space.get(m)) =>
-    switch (side) {
-    | L =>
-      switch (Cell.Space.split(c)) {
-      | None => Cell.(c, empty, empty)
-      | Some((l, r)) => (l, r, Cell.empty)
-      }
-    | R =>
-      switch (Cell.Space.split(c)) {
-      | None => Cell.(empty, empty, c)
-      | Some((l, r)) => (Cell.empty, l, r)
-      }
-    }
+    Cell.Space.split(~side, c) |> Option.value(~default=(c, Cell.empty))
   | Some(M(l, w, r)) =>
     switch (side) {
     | L =>
-      let (p_l, l, _) = split_cell_padding(~side=L, l);
-      Cell.(p_l, put(M(l, w, r)), empty);
+      let (p_l, l) = split_cell_padding(~side=L, l);
+      Cell.(p_l, put(M(l, w, r)));
     | R =>
-      let (_, r, p_r) = split_cell_padding(r, ~side=R);
-      Cell.(empty, put(M(l, w, r)), p_r);
+      let (p_r, r) = split_cell_padding(r, ~side=R);
+      Cell.(p_r, put(M(l, w, r)));
     }
   };
 
@@ -43,23 +34,24 @@ module Cells = {
     | [c, ..._] => Cell.face(~side, c)
     };
 
-  // combine adjacent space cells except for those on the ends
-  // if save_padding=true
-  let squash = (~save_padding=false, cs: t) =>
-    switch (cs |> List.mapi((i, c) => (i, c)) |> Lists.Framed.ft) {
+  // combine adjacent space cells
+  let squash = (cs: t) =>
+    switch (cs |> Lists.Framed.ft) {
     | None => []
-    | Some((pre, (_, ft))) =>
+    | Some((pre, ft)) =>
       pre
-      |> List.fold_left(
-           (acc, (i, c)) =>
-             switch (acc) {
-             | _ when !save_padding && Cell.Space.is_space(c) =>
-               Lists.map_hd(Cell.pad(~l=c), acc)
-             | [_, _, ..._] when i != 0 && Cell.Space.is_space(c) =>
-               Lists.map_hd(Cell.pad(~l=c), acc)
-             | _ => [c, ...acc]
-             },
-           [ft],
+      |> Lists.fold_left(~init=[ft], ~f=(acc, c) =>
+           switch (acc) {
+           | [hd, ...tl] when Cell.Space.is_space(hd) => [
+               Cell.pad(c, ~r=hd),
+               ...tl,
+             ]
+           | [hd, ...tl] when Cell.Space.is_space(c) => [
+               Cell.pad(~l=c, hd),
+               ...tl,
+             ]
+           | _ => [c, ...acc]
+           }
          )
     };
 
@@ -72,26 +64,26 @@ module Cells = {
     let (l, cs) =
       switch (cs) {
       | [c, ...cs] =>
-        let (l, c, _) = split_cell_padding(~side=L, c);
+        let (l, c) = split_cell_padding(~side=L, c);
         (l, cons(c, cs));
       | [] => (Cell.empty, cs)
       };
     let (cs, r) =
       switch (Lists.Framed.ft(cs)) {
       | Some((cs, c)) =>
-        let (_, c, r) = split_cell_padding(c, ~side=R);
+        let (r, c) = split_cell_padding(~side=R, c);
         (List.rev(cons(c, cs)), r);
       | None => (cs, Cell.empty)
       };
-    (l, cs, r);
+    (l, squash(cs), r);
   };
 
   // output Some(b) if bounded, where b indicates whether pre/post grout needed
   let are_bounded = (cs: t, nt: Mtrl.NT.t, ~from: Dir.t): option(bool) =>
     switch (face(~side=from, cs)) {
     | None => Some(false)
-    | Some(f) =>
-      Walker.enter(~from, nt, Node(f))
+    | Some(t) =>
+      Walker.enter(~from, nt, Node(t.mtrl))
       |> Lists.hd
       |> Option.map(w => Walk.height(w) > 1)
     };
@@ -121,6 +113,9 @@ let rec degrout = (c: Cell.t): Cells.t =>
       | [hd, ...tl] when Cell.Space.is_space(l) =>
         let l = Cell.mark_degrouted(l, ~side=R);
         [Cell.pad(~squash=false, ~l, hd), ...tl];
+      | [] when Cell.Space.is_space(l) =>
+        let l = Cell.mark_degrouted(l, ~side=R);
+        [l];
       | _ => [l, ...cells]
       };
     let cells_lr =
@@ -128,6 +123,9 @@ let rec degrout = (c: Cell.t): Cells.t =>
       | Some((pre, ft)) when Cell.Space.is_space(r) =>
         let r = Cell.mark_degrouted(~side=L, r);
         Lists.Framed.put_ft(pre, Cell.pad(~squash=false, ft, ~r));
+      | None when Cell.Space.is_space(r) =>
+        let r = Cell.mark_degrouted(~side=L, r);
+        [r];
       | _ => cells_l @ [r]
       };
     List.concat_map(degrout, cells_lr);
@@ -151,6 +149,12 @@ let fill_default =
 // assumes cs already squashed sans padding
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   let cs = Dir.pick(from, (List.rev, Fun.id), cs);
+  // if (dbg^) {
+  //   P.log("--- Grouter.fill_swing");
+  //   P.show("from", Dir.show(from));
+  //   P.show("sw", Walk.Swing.show(sw));
+  //   P.show("cs", Cells.show(cs));
+  // };
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
   | Space(nt) =>
@@ -199,10 +203,16 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
 };
 
 let fill_swings =
-    (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) =>
+    (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) => {
+  // if (dbg^) {
+  //   P.log("--- Grouter.fill_swings");
+  //   P.show("from", Dir.show(from));
+  //   P.show("cells", Cells.show(Dir.pick(from, (List.rev, Fun.id), cells)));
+  // };
   cells
   |> Dir.pick(from, (List.rev, Fun.id))
   |> (repair ? List.concat_map(degrout) : Fun.id)
+  // |> (dbg^ ? P.oshow("degrouted", Cells.show) : Fun.id)
   |> Dir.pick(from, (List.rev, Fun.id))
   |> Lists.split_bins(List.length(swings))
   |> Oblig.Delta.minimize(~to_zero=!repair, c_bins =>
@@ -214,6 +224,7 @@ let fill_swings =
           })
        |> Options.for_all
      );
+};
 
 let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
   open Options.Syntax;
@@ -227,5 +238,16 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
 // obligation delta. the given cells are expected to be oriented the same way as the
 // given walks according to from.
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) => {
-  Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);
+  // if (dbg^) {
+  //   P.log("--- Grouter.pick");
+  //   P.show("from", Dir.show(from));
+  //   P.show("cs", Cells.show(cs));
+  //   P.log("ws");
+  //   ws |> List.iter(w => P.show("w", Walk.show(w)));
+  // };
+  Oblig.Delta.minimize(
+    ~to_zero=!repair,
+    fill(~repair, ~from, cs),
+    ws,
+  );
 };

@@ -2,59 +2,22 @@ open Stds;
 
 exception Bug__failed_to_push_space;
 
-// module Stack = {
-//   type t = {
-//     slope: Slope.t,
-//     bound: Bound.t(Wald.t),
-//   };
-//   let mk = (~slope=Slope.empty, bound: Bound.t(_)) => {slope, bound};
-//   let map_hd = (f: Wald.t => Wald.t, {slope, bound}: t) =>
-//     switch (slope) {
-//     | [] => mk(Bound.map(f, bound))
-//     | [hd, ...tl] => {slope: [{...hd, wald: f(hd.wald)}, ...tl], bound}
-//     };
-//   let push = (w: Wald.t, c: Rel.t(Cell.t, Cell.t), {slope, bound}: t): t =>
-//     switch (c) {
-//     | Neq(c) => {
-//         slope: [Terr.{cell: c, wald: Wald.rev(w)}, ...slope],
-//         bound,
-//       }
-//     | Eq(c) => map_hd(Wald.zip_cell(w, c), {slope, bound})
-//     };
-//   let of_baked = (src: Bound.t(Wald.t), baked: Grouted.t, dst: Wald.t): t =>
-//     baked
-//     |> Grouted.fold(
-//          c => push(dst, c),
-//          (t, c) => push(Wald.of_tok(t), c),
-//          mk(src),
-//        );
-// };
-
-let lt = (l: Wald.t, r: Wald.t) =>
-  !Lists.is_empty(Walker.lt(Node(Wald.face(l)), Node(Wald.face(r))));
-let gt = (l: Wald.t, r: Wald.t) =>
-  !Lists.is_empty(Walker.gt(Node(Wald.face(l)), Node(Wald.face(r))));
-let eq = (l: Wald.t, r: Wald.t) =>
-  !Lists.is_empty(Walker.eq(Node(Wald.face(l)), Node(Wald.face(r))));
+let dbg = ref(true);
 
 // assumes w is already oriented toward side.
 // used to complete zigg top when it takes precedence over pushed wald.
 let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
   let from = Dir.toggle(side);
-  let exited = Walker.exit(~from, Node(Wald.face(w)));
-  let baked = Grouter.pick(~repair=true, ~from, [fill], exited);
-  // exited |> Oblig.Delta.minimize(Baker.bake(~from, ~fill=Fill.unit(fill)));
-  switch (baked) {
-  | Some(baked) => Grouted.complete_wald(baked, w)
+  let exited = Walker.exit(~from, Node(Wald.face(w).mtrl));
+  let grouted = Grouter.pick(~repair=true, ~from, [fill], exited);
+  switch (grouted) {
+  | Some(grouted) => Grouted.complete_wald(grouted, w)
   | None =>
     assert(!Cell.is_empty(fill));
     print_endline("warning: dropping fill " ++ Cell.show(fill));
     let baked =
       Grouter.pick(~repair=true, ~from, [], exited)
-      |> Options.get_fail("bug: expected bake to succeed sans fill");
-    // walker bug if no exits
-    // let exited = List.hd(exited);
-    // let baked = Baker.bake_sans_fill(~from, exited);
+      |> Options.get_fail("bug: expected grouter to succeed sans fill");
     Grouted.complete_wald(baked, w);
   };
 };
@@ -62,20 +25,35 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
 let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr).mtrl));
-  let baked = Grouter.pick(~repair=true, ~from=onto, [fill], exited);
-  // exited
-  // |> Oblig.Delta.minimize(Baker.bake(~from=onto, ~fill=Fill.unit(fill)));
-  switch (baked) {
-  | Some(baked) => Cell.put(orient(Grouted.complete_terr(baked, terr)))
+  let grouted = Grouter.pick(~repair=true, ~from=onto, [fill], exited);
+  // if (dbg^) {
+  //   P.log("--- Melder.complete_terr");
+  //   P.show("onto", Dir.show(onto));
+  //   P.show("fill", Cell.show(fill));
+  //   P.show("terr", Terr.show(terr));
+  // };
+  switch (grouted) {
+  | Some(grouted) =>
+    let m = Grouted.complete_terr(grouted, terr);
+    // if (dbg^) {
+    //   P.log("--- Melder.complete_terr/grouted");
+    //   P.show("grouted", Grouted.show(grouted));
+    //   P.show("completed meld", Meld.show(m));
+    //   P.show("oriented meld", Meld.show(orient(m)));
+    //   Cell.dbg := true;
+    //   P.show("oriented cell", Cell.show(Cell.put(orient(m))));
+    //   Cell.dbg := false;
+    // };
+    Cell.put(orient(m));
   | None =>
     assert(!Cell.is_empty(fill));
     print_endline("warning: dropping fill " ++ Cell.show(fill));
     // walker bug if no exits
     // let exited = List.hd(exited);
-    let baked =
+    let grouted =
       Grouter.pick(~repair=true, ~from=onto, [], exited)
-      |> Options.get_fail("bug: expected bake to succeed sans fill");
-    Cell.put(orient(Grouted.complete_terr(baked, terr)));
+      |> Options.get_fail("bug: expected grouter to succeed sans fill");
+    Cell.put(orient(Grouted.complete_terr(grouted, terr)));
   };
 };
 let complete_slope = (~onto: Dir.t, ~fill=Cell.empty) =>
@@ -88,22 +66,14 @@ let complete_bounded =
   let fill = complete_slope(~onto, ~fill, slope);
   let fc_onto = bd_onto |> Bound.map(t => Terr.face(t).mtrl);
   let fc_from = bd_from |> Bound.map(t => Terr.face(t).mtrl);
+  // if (dbg^) {
+  //   P.log("--- Melder.complete_bounded");
+  //   P.show("completed slope", Cell.show(fill));
+  // };
   Walker.walk_eq(~from=onto, fc_onto, fc_from)
   |> Grouter.pick(~repair=true, [fill], ~from=onto)
   |> Option.map(grouted => snd(Chain.hd(grouted)))
   |> Options.get_fail("hmmm");
-};
-
-module Melded = {
-  [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Rel.t(Terr.t, Slope.t);
-  let eq = terr => Rel.Eq(terr);
-  let neq = slope => Rel.Neq(slope);
-  let face =
-    fun
-    | Rel.Eq(terr) => Terr.face(terr)
-    | Neq(slope) => Delim.unwrap(Slope.face(slope));
-  let extend = tl => Rel.map(~eq=Terr.extend(tl), ~neq=Slope.extend(tl));
 };
 
 let connect_eq =
@@ -114,18 +84,19 @@ let connect_eq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Terr.t) => {
+    : option((Grouted.t, Terr.t)) => {
   open Options.Syntax;
   let rec go = (onto: Terr.t, fill) => {
     let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
     let face = Terr.face(onto).mtrl;
     Walker.walk_eq(~from=d, Node(face), Node(t.mtrl))
     |> Grouter.pick(~repair, ~from=d, List.rev(fill))
-    |> Option.map(baked => Grouted.connect_eq(t, baked, onto));
+    |> Option.map(grouted => (grouted, onto));
   }
   and rm_ghost_and_go = (onto, fill) =>
     switch (Terr.unlink(onto)) {
-    | (hd, cell, Some(tl)) when Option.is_some(Token.Tile.is_ghost(hd)) =>
+    | (hd, cell, Some(tl))
+        when Option.is_some(Token.Tile.is_ghost(~require_empty=true, hd)) =>
       go(tl, [cell, ...fill]) |> Effects.perform_if(Remove(hd))
     | _ => None
     };
@@ -139,11 +110,10 @@ let connect_neq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Slope.t) => {
+    : option(Grouted.t) => {
   let face = onto |> Bound.map(t => Terr.face(t).mtrl);
   Walker.walk_neq(~from=d, face, Node(t.mtrl))
-  |> Grouter.pick(~repair, ~from=d, [fill])
-  |> Option.map(baked => Grouted.connect_neq(t, baked));
+  |> Grouter.pick(~repair, ~from=d, [fill]);
 };
 let connect_lt = connect_neq(~onto=L);
 let connect_gt = connect_neq(~onto=R);
@@ -156,14 +126,25 @@ let connect_ineq =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : option(Melded.t) => {
+    : option((Grouted.t, Bound.t(Terr.t))) => {
   let eq = () =>
     Bound.to_opt(onto)
     |> Options.bind(~f=onto => connect_eq(~repair, ~onto=d, onto, ~fill, t))
-    |> Option.map(Rel.eq);
+    |> Option.map(((grouted, terr)) => (grouted, Bound.Node(terr)));
   let neq = () =>
-    connect_neq(~repair, ~onto=d, onto, ~fill, t) |> Option.map(Rel.neq);
-  Oblig.Delta.minimize(~to_zero=!repair, f => f(), [eq, neq]);
+    connect_neq(~repair, ~onto=d, onto, ~fill, t)
+    |> Option.map(grouted => (grouted, onto));
+  if (repair) {
+    open Options.Syntax;
+    // if repairing, then this means we're molding/remolding and our push of the
+    // current candidate token has reached the top of the local stack ie the nearest
+    // bidelimited container. prioritize maintaining the current bidelimited
+    // container if possible.
+    let/ () = neq();
+    eq();
+  } else {
+    Oblig.Delta.minimize(~to_zero=true, f => f(), [eq, neq]);
+  };
 };
 
 let connect =
@@ -174,68 +155,118 @@ let connect =
       ~fill=Cell.empty,
       t: Token.t,
     )
-    : Result.t(Melded.t, Cell.t) => {
+    : Result.t((Grouted.t, Terr.t), Cell.t) => {
   let b = Dir.toggle(d);
   let eq = () =>
-    connect_eq(~repair, ~onto=d, onto, ~fill, t)
-    |> Option.map(Melded.eq)
-    |> Option.map(Result.ok);
+    connect_eq(~repair, ~onto=d, onto, ~fill, t) |> Option.map(Result.ok);
   let neq_d = () =>
     connect_neq(~repair, ~onto=d, Node(onto), ~fill, t)
-    |> Option.map(Melded.neq)
+    |> Option.map(grouted => {(grouted, onto)})
     |> Option.map(Result.ok);
   let neq_b = () => {
-    let (hd, tl) = Wald.uncons(onto.wald);
+    let (hd, _tl) = Wald.uncons(onto.wald);
+    // we call connect_neq in b direction for the purpose of emitting token effects
+    // for subsequent oblig minimization, but don't need the result
     connect_neq(~repair, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
-    |> Option.map(Slope.extend(tl))
-    |> Option.map(complete_slope(~onto=b, ~fill=onto.cell))
+    |> Option.map(_ => complete_terr(~onto=d, ~fill, onto))
     |> Option.map(Result.err);
   };
   // ensure consistent ordering
   let neqs = Dir.pick(d, ([neq_d, neq_b], [neq_b, neq_d]));
   [eq, ...neqs]
   |> Oblig.Delta.minimize(~to_zero=!repair, f => f())
-  |> Option.value(~default=Error(complete_terr(~onto=d, ~fill, onto)));
+  // use get here instead of value to avoid spurious effects.
+  // default value covers incomparability.
+  |> Options.get(() => Error(complete_terr(~onto=d, ~fill, onto)));
 };
 
-let rec push_neq =
+let rec unzip_tok = (~frame=Frame.Open.empty, path: Path.t, cell: Cell.t) => {
+  let m = Cell.get(cell);
+  switch (path) {
+  | [] => raise(Marks.Invalid)
+  | [hd, ...tl] =>
+    let m = Options.get_exn(Marks.Invalid, m);
+    switch (Meld.unzip(hd, m)) {
+    | Loop((pre, cell, suf)) =>
+      unzip_tok(~frame=Frame.Open.add((pre, suf), frame), tl, cell)
+    | Link((pre, tok, suf)) =>
+      let (cell_pre, pre) = Chain.uncons(pre);
+      let (cell_suf, suf) = Chain.uncons(suf);
+      let (cell_pre, dn) = Slope.Dn.unroll(cell_pre);
+      let (cell_suf, up) = Slope.Up.unroll(cell_suf);
+      let frame =
+        frame |> Frame.Open.add((pre, suf)) |> Frame.Open.cat((dn, up));
+      ((cell_pre, tok, cell_suf), frame);
+    };
+  };
+};
+
+let rec push =
         (
-          ~repair=false,
-          ~onto: Dir.t,
+          ~repair=?,
           t: Token.t,
           ~fill=Cell.empty,
-          slope: Slope.t,
+          stack: Stack.t,
+          ~onto: Dir.t,
         )
-        : Result.t(Slope.t, Cell.t) =>
-  switch (slope) {
-  | [] => Error(fill)
+        : option((Grouted.t, Stack.t)) => {
+  let r = Option.is_some(repair);
+  switch (stack.slope) {
+  | [] =>
+    connect_ineq(~repair=r, ~onto, stack.bound, ~fill, t)
+    |> Option.map(((grouted, bound)) =>
+         (grouted, Stack.{slope: [], bound})
+       )
   | [hd, ...tl] =>
-    switch (connect(~repair, ~onto, hd, ~fill, t)) {
-    | Error(fill) => push_neq(~repair, ~onto, t, ~fill, tl)
-    | Ok(Neq(s)) => Ok(Slope.cat(s, slope))
-    | Ok(Eq(hd)) => Ok([hd, ...tl])
-    }
+    let connect = () =>
+      switch (connect(~repair=r, ~onto, hd, ~fill, t)) {
+      | Error(fill) =>
+        push(~repair?, t, ~fill, {...stack, slope: tl}, ~onto)
+      | Ok((grouted, hd)) =>
+        Some((grouted, {...stack, slope: [hd, ...tl]}))
+      };
+    switch (repair) {
+    | None => connect()
+    | Some(remold) =>
+      let discharge = () => discharge(~remold, stack, ~fill, t);
+      Oblig.Delta.minimize(f => f(), [discharge, connect]);
+    };
   };
-
-let push_bound = (~repair=false, t: Token.t, ~fill=Cell.empty, bound, ~onto) => {
-  let ineq = () => connect_ineq(~repair, ~onto, bound, ~fill, t);
-  switch (bound) {
-  | Bound.Root => ineq()
-  | Node(terr) =>
-    switch (Terr.merge_hd(t, terr, ~onto)) {
-    | None => ineq()
-    | Some(terr) => Some(Eq(terr))
-    }
+}
+and discharge = (~remold, stack: Stack.t, ~fill=Cell.empty, t: Token.t) => {
+  switch (stack.slope) {
+  | [] => None
+  | [hd, ...tl] =>
+    open Options.Syntax;
+    let* (path, _) =
+      hd.cell.marks.obligs
+      |> Path.Map.filter((_, mtrl: Mtrl.T.t) =>
+           switch (mtrl) {
+           | Tile(_) when mtrl == t.mtrl => true
+           | _ => false
+           }
+         )
+      |> Path.Map.max_binding_opt;
+    let ((c_l, tok, c_r), (dn, up)) = unzip_tok(path, hd.cell);
+    Effects.remove(tok);
+    // let l = Stack.cat(dn, {...stack, slope: tl});
+    let l = {
+      let bound =
+        switch (tl) {
+        | [] => stack.bound
+        | [t, ..._] => Node(t)
+        };
+      Stack.mk(bound, ~slope=dn);
+    };
+    let r = {
+      let (c_fill, up_fill) = Slope.Up.unroll(fill);
+      let slope =
+        up @ [Terr.of_wald(Wald.rev(hd.wald), ~cell=c_fill), ...up_fill];
+      Stack.{slope, bound: Node(Terr.of_tok(t))};
+    };
+    let c = Cell.Space.merge(c_l, ~fill=Cell.dirty, c_r);
+    let* (slope, fill) = Result.to_option(remold(~fill=c, (l, r)));
+    let stack = Stack.cat(slope, {...stack, slope: tl});
+    push(~repair=remold, t, ~fill, stack, ~onto=L);
   };
 };
-let push =
-    (~repair=false, t: Token.t, ~fill=Cell.empty, slope, ~bound, ~onto)
-    : option(Melded.t) =>
-  switch (Slope.merge_hd(t, slope, ~onto)) {
-  | Some(slope) => Some(Neq(slope))
-  | None =>
-    switch (push_neq(~repair, t, ~fill, slope, ~onto)) {
-    | Ok(slope) => Some(Neq(slope))
-    | Error(fill) => push_bound(~repair, t, ~fill, bound, ~onto)
-    }
-  };

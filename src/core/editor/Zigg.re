@@ -1,24 +1,32 @@
-// L2R: up top dn
+module Base = {
+  // L2R: up top dn
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = {
+    up: Slope.Base.t('tok),
+    top: Wald.Base.t('tok),
+    dn: Slope.Base.t('tok),
+  };
+  let mk = (~up=Slope.Base.empty, ~dn=Slope.Base.empty, top) => {
+    up,
+    top,
+    dn,
+  };
+  let of_tok = tok => mk(Wald.of_tok(tok));
+  let orient = (d: Dir.t, {up, top, dn}: t(_)) => {
+    let (s_d, s_b) = Dir.order(d, (up, dn));
+    let top = Dir.pick(d, (Fun.id, Wald.rev), top);
+    (s_d, top, s_b);
+  };
+  let unorient = (d: Dir.t, (s_d, top, s_b)) => {
+    let (up, dn) = Dir.order(d, (s_d, s_b));
+    let top = Dir.pick(d, (Fun.id, Wald.rev), top);
+    mk(~up, top, ~dn);
+  };
+};
+include Base;
+
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = {
-  up: Slope.Up.t,
-  top: Wald.t,
-  dn: Slope.Dn.t,
-};
-
-let mk = (~up=Slope.empty, ~dn=Slope.empty, top) => {up, top, dn};
-let of_tok = tok => mk(Wald.of_tok(tok));
-
-let orient = (d: Dir.t, {up, top, dn}: t) => {
-  let (s_d, s_b) = Dir.order(d, (up, dn));
-  let top = Dir.pick(d, (Fun.id, Wald.rev), top);
-  (s_d, top, s_b);
-};
-let unorient = (d: Dir.t, (s_d, top, s_b)) => {
-  let (up, dn) = Dir.order(d, (s_d, s_b));
-  let top = Dir.pick(d, (Fun.id, Wald.rev), top);
-  mk(~up, top, ~dn);
-};
+type t = Base.t(Token.t);
 
 let tokens = ({up, top, dn}: t) =>
   List.concat([
@@ -30,7 +38,7 @@ let tokens = ({up, top, dn}: t) =>
 let flatten = ({up, top, dn}: t) =>
   List.concat([
     Slope.Up.flatten(up),
-    Wald.flatten(top),
+    Cell.flatten_wald(top),
     Slope.Dn.flatten(dn),
   ]);
 
@@ -40,6 +48,15 @@ let face = (~side: Dir.t, zigg: t) => {
   | Node(tok) => tok
   | Root => Wald.hd(top)
   };
+};
+let map_face = (~side: Dir.t, f, zigg: t) => {
+  let (s_d, top, s_b) = orient(side, zigg);
+  let (s_d, top) =
+    switch (Slope.map_face(f, s_d)) {
+    | Some(s_d) => (s_d, top)
+    | None => (s_d, Wald.map_hd(f, top))
+    };
+  unorient(side, (s_d, top, s_b));
 };
 
 // let x = (1 + [a + b ? c / d : e * f] + 3) + 4 * 5 in x + 1
@@ -63,13 +80,13 @@ let face = (~side: Dir.t, zigg: t) => {
 //   slopes: ([1, +], [+, 3])
 //   bridge: ( "(" , ")" )
 
-let map_top = (f, zigg) => {...zigg, top: f(zigg.top)};
+let map_top = (f, zigg: t) => {...zigg, top: f(zigg.top)};
 // let put_top = (top, zigg) => {...zigg, top: Some(top)};
 
-let map_up = (f, zigg) => {...zigg, up: f(zigg.up)};
+let map_up = (f, zigg: t) => {...zigg, up: f(zigg.up)};
 let put_up = up => map_up(_ => up);
 
-let map_dn = (f, zigg) => {...zigg, dn: f(zigg.dn)};
+let map_dn = (f, zigg: t) => {...zigg, dn: f(zigg.dn)};
 let put_dn = dn => map_dn(_ => dn);
 
 // let unroll = (c: Cell.t) => {
@@ -81,24 +98,24 @@ let put_dn = dn => map_dn(_ => dn);
 let of_dn = dn =>
   Stds.Lists.Framed.ft(dn)
   |> Option.map(((dn, t: Terr.t)) =>
-       {
-         up: Slope.Up.unroll(t.cell),
-         top: Wald.rev(t.wald),
-         dn: List.rev(dn),
-       }
+       mk(
+         ~up=snd(Slope.Up.unroll(t.cell)),
+         Wald.rev(t.wald),
+         ~dn=List.rev(dn),
+       )
      );
 let of_up = up =>
   Stds.Lists.Framed.ft(up)
   |> Option.map(((up, t: Terr.t)) =>
-       {
-         up: List.rev(up),
-         top: Wald.rev(t.wald),
-         dn: Slope.Up.unroll(t.cell),
-       }
+       mk(~up=List.rev(up), t.wald, ~dn=snd(Slope.Dn.unroll(t.cell)))
      );
 
-let roll = ({up, top, dn}: t) =>
-  Meld.M(Slope.Up.roll(up), top, Slope.Dn.roll(dn));
+let roll = (~l=Cell.empty, ~r=Cell.empty, {up, top, dn}: t) =>
+  Meld.mk(
+    ~l=Slope.Up.roll(~fill=l, up),
+    top,
+    ~r=Slope.Dn.roll(dn, ~fill=r),
+  );
 
 let extend = (~side as d: Dir.t, tl: Chain.Affix.t(_), zigg) => {
   let (s_d, top, s_b) = orient(d, zigg);
@@ -115,14 +132,23 @@ let push =
     : Result.t(t, Slope.t) => {
   let b = Dir.toggle(d);
   let (s_d, top, s_b) = orient(d, zigg);
-  switch (
-    Melder.push(~onto=b, t, ~fill, s_d, ~bound=Node(Terr.of_wald(top)))
-  ) {
-  | Some(Eq(top)) => Ok(unorient(d, ([], top.wald, s_b)))
-  | Some(Neq(s_d)) => Ok(unorient(d, (s_d, top, s_b)))
+  let stack = Stack.{slope: s_d, bound: Node(Terr.of_wald(top))};
+  switch (Stack.merge_hd(~onto=b, t, stack)) {
+  | Some(stack) =>
+    (stack.slope, Bound.get_exn(stack.bound).wald, s_b)
+    |> unorient(d)
+    |> Result.ok
   | None =>
-    let fill = Slope.roll(~onto=b, ~fill, s_d);
-    Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)]);
+    switch (Melder.push(~onto=b, t, ~fill, stack)) {
+    | Some((grouted, stack)) =>
+      let stack = Stack.connect(t, grouted, stack);
+      (stack.slope, Bound.get_exn(stack.bound).wald, s_b)
+      |> unorient(d)
+      |> Result.ok;
+    | None =>
+      let fill = Slope.roll(~onto=b, ~fill, s_d);
+      Error(s_b @ [Melder.complete_wald(~side=d, ~fill, top)]);
+    }
   };
 };
 // let push = (~side: Dir.t, tok: Token.t) =>
@@ -146,10 +172,62 @@ let pull = (~side as d: Dir.t, zigg: t): (Token.t, option(t)) => {
     switch (rest) {
     | ([], _) => (tok, Dir.pick(b, (of_up, of_dn), s_b))
     | ([c, ...cs], ts) =>
-      let s_d = Slope.unroll(~from=b, c);
+      let (_, s_d) = Slope.unroll(~from=b, c);
       (tok, Some(unorient(d, (s_d, Wald.mk(ts, cs), s_b))));
     };
   };
+};
+
+let unlink = (~side: Dir.t, zigg: t) => {
+  open Stds.Options.Syntax;
+  let (s_d, top, s_b) = orient(side, zigg);
+  let/ () = {
+    let+ (tok, cell, s_d) = Slope.unlink(s_d);
+    (tok, cell, unorient(side, (s_d, top, s_b)));
+  };
+  assert(s_d == []);
+  let+ (tok, cell, top) = Result.to_option(Wald.unlink(top));
+  (tok, (cell, Rel.Eq()), unorient(side, (s_d, top, s_b)));
+};
+
+// count terraces on each side that take precedence over the given bounds
+let roll_bounds = (~l=Delim.root, ~r=Delim.root, zigg: Base.t(_)) => {
+  let l =
+    switch (l) {
+    | Root => (List.length(zigg.up), Rel.Neq(Dir.L))
+    | Node(tok) when Token.merges(tok, face(~side=L, zigg)) => (0, Rel.Eq())
+    | Node(tok) =>
+      switch (push(~side=L, tok, zigg)) {
+      | Error(_) => (List.length(zigg.up), Rel.Neq(L))
+      | Ok(z) =>
+        switch (unlink(~side=L, z)) {
+        // possible when caret in middle of token and delim is duplicated token
+        | None => (0, Rel.Eq())
+        | Some((_, (cell, rel), _)) => (
+            Cell.height(~side=L, cell),
+            Rel.map_neq(Fun.const(Dir.R), rel),
+          )
+        }
+      }
+    };
+  let r =
+    switch (r) {
+    | Root => (List.length(zigg.dn), Rel.Neq(Dir.R))
+    | Node(tok) when Token.merges(tok, face(~side=R, zigg)) => (0, Rel.Eq())
+    | Node(tok) =>
+      switch (push(~side=R, tok, zigg)) {
+      | Error(_) => (List.length(zigg.dn), Rel.Neq(R))
+      | Ok(z) =>
+        switch (unlink(~side=R, z)) {
+        | None => (0, Rel.Eq())
+        | Some((_, (cell, rel), _)) => (
+            Cell.height(~side=R, cell),
+            Rel.map_neq(Fun.const(Dir.L), rel),
+          )
+        }
+      }
+    };
+  (l, r);
 };
 
 let grow = (~side: Dir.t, tok: Token.t, zigg: t) =>
@@ -160,12 +238,35 @@ let grow = (~side: Dir.t, tok: Token.t, zigg: t) =>
 
 let rec take_ineq =
         (~side: Dir.t, zigg: t, ~fill=Cell.empty, slope: Slope.t)
-        : (t, Slope.t) =>
+        : (t, Cell.t, Slope.t) =>
   switch (slope) {
-  | [] => (zigg, slope)
+  | [] => (zigg, fill, slope)
   | [hd, ...tl] =>
     switch (push_wald(~side, hd.wald, ~fill, zigg)) {
-    | Error(_) => (zigg, slope)
+    | Error(_) => (zigg, fill, slope)
     | Ok(zigg) => take_ineq(~side, zigg, ~fill=hd.cell, tl)
     }
   };
+
+let rec is_null = (~side: Dir.t, ~slope: Slope.t, zigg: t) => {
+  let (f, rest) = pull(~side, zigg);
+  if (Mtrl.is_space(f.mtrl)) {
+    switch (rest) {
+    | None => true
+    | Some(zigg) => is_null(~side, ~slope, zigg)
+    };
+  } else {
+    let (s_face, s_rest) = Slope.pull(~from=side, slope);
+    switch (s_face) {
+    | Node(tok) when Token.merges(tok, f) =>
+      is_null(~side, ~slope=s_rest, zigg)
+    | _ =>
+      let (_, _, slope') = take_ineq(~side, of_tok(f), slope);
+      switch (slope) {
+      | [t, ..._] when Mtrl.is_space(Terr.sort(t)) =>
+        List.length(slope') == List.length(slope) - 1
+      | _ => List.length(slope) == List.length(slope')
+      };
+    };
+  };
+};

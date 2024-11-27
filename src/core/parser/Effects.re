@@ -6,6 +6,16 @@ type t =
 let log = ref([]);
 let reset = () => log := [];
 
+let print = () => {
+  open Stds;
+  P.log("effects:");
+  log^ |> List.iter(eff => P.sexp("eff", sexp_of_t(eff)));
+};
+let oprint = x => {
+  print();
+  x;
+};
+
 let perform = (eff: t) => log := [eff, ...log^];
 let insert = tok => {
   perform(Insert(tok));

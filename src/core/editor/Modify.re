@@ -1,15 +1,5 @@
 open Stds;
 
-// common utilities for modification edits eg insert and delete
-
-let meld_or_bust = (ctx: Ctx.t, tok: Token.t): Ctx.t => {
-  assert(tok.text == "");
-  switch (Ctx.push_opt(~onto=L, tok, ctx)) {
-  | Some(ctx) => ctx
-  | None => ctx
-  };
-};
-
 let relabel =
     (s: string, ctx: Ctx.t): (Chain.t(Cell.t, Token.Unmolded.t), Ctx.t) => {
   let (l, rest) =
@@ -36,9 +26,9 @@ let relabel =
     |> Option.value(~default="");
   let labeled = Labeler.label(s_l ++ s ++ s_r);
   // push left face back if its labeling remains unchanged
-  let (labeled, rest, pushed_back_left) =
+  let (labeled, rest, pushed_back_l) =
     switch (labeled) {
-    | [hd, ...tl] when hd.text == s_l && s_l != "" =>
+    | [hd, ...tl] when hd.text == s_l && s_l != "" && !merges =>
       let ctx =
         Delim.is_tok(l)
         |> Option.map(t => Ctx.push(~onto=L, t, rest))
@@ -47,7 +37,7 @@ let relabel =
     | labeled => (labeled, rest, false)
     };
   // push right face back if its labeling remains unchanged
-  let (labeled, rest) =
+  let (labeled, rest, pushed_back_r) =
     switch (Lists.Framed.ft(labeled)) {
     | Some((pre, ft)) when ft.text == s_r && s_r != "" && !merges =>
       let ctx =
@@ -55,14 +45,14 @@ let relabel =
         |> Option.map(t => Ctx.push(~onto=R, t, rest))
         |> Option.value(~default=rest);
       // (List.rev(pre), 0, ctx);
-      (List.rev(pre), ctx);
+      (List.rev(pre), ctx, true);
     | _ =>
       // (labeled, Utf8.length(s_r), rest)
-      (labeled, rest)
+      (labeled, rest, false)
     };
 
   // restore caret position
-  let n = Utf8.length((pushed_back_left ? "" : s_l) ++ s);
+  let n = Utf8.length((pushed_back_l ? "" : s_l) ++ s);
   let (_, marked) =
     labeled
     |> Lists.fold_map(
@@ -97,75 +87,86 @@ let relabel =
          | _ => Chain.link(Cell.dirty, tok, c)
          }
        );
-  (normalized, Ctx.button(rest));
+  // if both faces were pushed back, then use original ctx to preserve any closed
+  // frames broken by pulling faces
+  let ctx = pushed_back_l && pushed_back_r ? ctx : rest;
+  (normalized, ctx);
 };
 
-// returned flag indicates whether the token was removed
+// None means token was removed. Some(ctx) means token was molded (or deferred and
+// tagged as an unmolded space), ctx includes the molded token.
 let mold =
-    (ctx: Ctx.t, ~fill=Cell.dirty, tok: Token.Unmolded.t): (Ctx.t, bool) => {
-  let ((dn, up), tl) = Ctx.uncons(ctx);
-  let (l, r) = Ctx.Tl.bounds(tl);
-  switch (Molder.mold(~bound=l, dn, ~fill, tok)) {
-  | Removed => (ctx, true)
-  | Molded(Neq(dn))
-  | Deferred(Neq(dn)) => (Ctx.cons((dn, up), tl), false)
-  | Molded(Eq(l))
-  | Deferred(Eq(l)) =>
-    let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
-    (Ctx.map_hd(Frame.Open.cat((dn, up)), Ctx.Tl.rest(tl)), false);
-  };
+    (ctx: Ctx.t, ~fill=Cell.dirty, tok: Token.Unmolded.t)
+    : Result.t(Ctx.t, Cell.t) => {
+  open Result.Syntax;
+  let ((l, r), rest) = Ctx.unlink_stacks(ctx);
+  // Grouter.dbg := true;
+  let+ (tok, grouted, l) = Molder.mold(l, ~fill, tok);
+  // Grouter.dbg := false;
+  // P.log("--- Molder.mold/success");
+  // P.show("tok", Token.show(tok));
+  // P.show("grouted", Grouted.show(grouted));
+  // P.show("stack", Stack.show(l));
+  let connected = Stack.connect(tok, grouted, l);
+  // P.show("connected", Stack.show(connected));
+  connected.bound == l.bound
+    ? Ctx.link_stacks((connected, r), rest)
+    : Ctx.map_hd(
+        Frame.Open.cat(Stack.(to_slope(connected), to_slope(r))),
+        rest,
+      );
 };
 
 let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
-  let ((dn, up), tl) = Ctx.uncons(ctx);
-  switch (Slope.unlink(up)) {
-  | Some((tok, cell, up)) when Token.Grout.is(tok) =>
-    Effects.remove(tok);
-    let up = Slope.cat(Slope.Up.unroll(cell), up);
-    remold(~fill, Ctx.cons((dn, up), tl));
-  | _ =>
-    let (l, r) = Ctx.Tl.bounds(tl);
-    switch (up) {
-    | [] =>
-      let ctx = Ctx.cons(Frame.Open.empty, tl);
-      (Melder.complete_bounded(~bounds=(l, r), ~onto=L, dn, ~fill), ctx);
-    | [hd, ...up_tl] =>
-      let (molded, rest) = Molder.remold(~bound=l, dn, ~fill, hd);
-      let (fill, up) =
-        switch (rest) {
-        | Ok(cell) => (cell, up_tl)
-        | Error(up) =>
-          let cell =
-            molded == Removed ? Cell.mark_ends_dirty(fill) : Cell.dirty;
-          (cell, Slope.cat(up, up_tl));
-        };
-      let ctx =
-        switch (molded) {
-        | Removed => Ctx.cons((dn, up), tl)
-        | Molded(Neq(dn))
-        | Deferred(Neq(dn)) => Ctx.cons((dn, up), tl)
-        | Molded(Eq(l))
-        | Deferred(Eq(l)) =>
-          let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
-          Ctx.map_hd(Frame.Open.cat((dn, up)), Ctx.Tl.rest(tl));
-        };
-      remold(~fill, ctx);
-    };
+  // P.log("--- Modify.remold");
+  // P.show("fill", Cell.show(fill));
+  // P.show("ctx", Ctx.show(ctx));
+  let ((l, r), tl) = Ctx.unlink_stacks(ctx);
+  switch (Molder.remold(~fill, (l, r))) {
+  | Error((fill, (l', r'))) =>
+    // remold error means something in r melded onto the bound of l, breaking their
+    // bidelimited container, so we need to add the suffix of the next stack frame
+    // in tl to the remolding queue
+    tl
+    |> Ctx.map_hd(Frame.Open.cat(Stack.(to_slope(l'), to_slope(r'))))
+    |> remold(~fill)
+  | Ok((dn, fill)) =>
+    // P.log("--- Modify.remold/done");
+    // P.show("dn", Slope.Dn.show(dn));
+    // P.show("fill", Cell.show(fill));
+    let bounds = (l.bound, r.bound);
+    // Melder.dbg := true;
+    let cell = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
+    // Melder.dbg := false;
+    // P.show("completed", Cell.show(cell));
+    let hd = ({...l, slope: []}, {...r, slope: []});
+    let ctx = Ctx.link_stacks(hd, tl);
+    (cell, ctx);
   };
 };
 
 let finalize = (~mode=Mode.Navigating, ~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
   Mode.set(mode);
+  // P.log("--- finalize");
   let (remolded, ctx) = remold(~fill, ctx);
+  // P.show("remolded", Cell.show(remolded));
+  // P.show("ctx", Ctx.show(ctx));
   let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
   let repadded = Linter.repad(~l, remolded, ~r);
+  // P.show("repadded", Cell.show(repadded));
+  let c = {...repadded, marks: Cell.Marks.flush(repadded.marks)};
+  // P.show("flushed", Cell.show(c));
   Mode.reset();
-  Zipper.unzip_exn(repadded, ~ctx);
+  Zipper.unzip_exn(c, ~ctx);
 };
 
 let try_move = (s: string, z: Zipper.t) =>
   switch (s, Ctx.face(~side=R, z.ctx)) {
-  | (" ", Node(tok)) when String.starts_with(~prefix=" ", tok.text) =>
+  | (" ", Node(tok))
+      when
+        String.starts_with(~prefix=" ", tok.text) || Mtrl.is_grout(tok.mtrl) =>
+    Move.perform(Step(H(R)), z)
+  | ("\n", Node(tok)) when String.starts_with(~prefix="\n", tok.text) =>
     Move.perform(Step(H(R)), z)
   | _ => None
   };
@@ -241,30 +242,29 @@ let expand = (tok: Token.t) =>
 let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
   let* () = Options.of_bool(String.starts_with(~prefix=" ", s));
+  // todo: check if in middle of token
   let (face, rest) = Ctx.pull(~from=L, z.ctx);
   let* tok = Delim.is_tok(face);
+  // if expandable, consider all expandable const labels
   let* expanded = expand(tok);
-  let ((dn, up), tl) = Ctx.uncons(rest);
-  let (l, r) = Ctx.Tl.bounds(tl);
-  switch (Molder.mold(~bound=l, dn, expanded)) {
-  | Removed
-  | Deferred(_) => None
-  | Molded(m) when Melder.Melded.face(m).mtrl == tok.mtrl =>
-    let ctx = z.ctx |> Ctx.push(~onto=L, Token.space());
-    return(Zipper.mk(ctx));
-  | Molded(Neq(dn)) =>
-    let ctx = Ctx.cons((dn, up), tl) |> Ctx.push(~onto=L, Token.space());
-    return(
-      finalize(
-        ~mode=Inserting(" "),
-        ~fill=Cell.point(~dirty=true, Focus),
-        ctx,
-      ),
-    );
-  | Molded(Eq(l)) =>
-    let (dn, up) = ([l], Slope.cat(up, Bound.to_list(r)));
-    let ctx = Ctx.Tl.rest(tl) |> Ctx.map_hd(Frame.Open.cat((dn, up)));
-    return(Zipper.mk(ctx));
+  let ((l, r), tl) = Ctx.unlink_stacks(rest);
+  let* (t, grouted, rest) = Result.to_option(Molder.mold(l, expanded));
+  if (t.mtrl == Space(Unmolded) || t.mtrl == tok.mtrl) {
+    None;
+  } else {
+    let connected = Stack.connect(t, grouted, rest);
+    tl
+    |> (
+      connected.bound == l.bound
+        ? Ctx.link_stacks((connected, r))
+        : Ctx.map_hd(
+            Frame.Open.cat(Stack.(to_slope(connected), to_slope(r))),
+          )
+    )
+    |> Ctx.push(~onto=L, Token.space())
+    |> Ctx.trim_space(~side=R)
+    |> finalize(~mode=Inserting(" "), ~fill=Cell.point(~dirty=true, Focus))
+    |> return;
   };
 };
 
@@ -291,7 +291,8 @@ let delete_toks =
          // note: affixes empty if token completely selected
          // (assuming edge carets have been temporarily non-normally placed on toks)
          let (l, r) = Token.(affix(~side=L, tok), affix(~side=R, tok));
-         {...tok, text: l ++ r}
+         let text = Token.is_const(tok) ? l : l ++ r;
+         {...tok, text}
          |> Token.put_cursor(Point(Step.Caret.focus(Utf8.length(l))));
        } else if (i == 0) {
          let l = Token.affix(~side=L, tok);
@@ -329,6 +330,49 @@ let delete_toks =
   |> Chain.mapi_link(i => Token.unmold(~relabel=i - 1 / 2 == n - 1));
 };
 
+// mold each token against the ctx, using each preceding cell as its fill, and
+// return the total ctx and the final remaining fill to be used when subsequently
+// remolding
+let insert_toks =
+    (toks: Chain.t(Cell.t, Token.Unmolded.t), ctx: Ctx.t): (Ctx.t, Cell.t) => {
+  toks
+  |> Chain.fold_left(
+       fill => (ctx, fill),
+       ((ctx, fill), tok, next_fill) => {
+         //  P.log("--- insert_toks/tok");
+         //  P.show("ctx", Ctx.show(ctx));
+         //  P.show("fill", Cell.show(fill));
+         //  P.show("tok", Token.Unmolded.show(tok));
+         switch (mold(ctx, ~fill, tok)) {
+         | Ok(ctx) =>
+           //  P.show("molded tok", Ctx.show(ctx));
+           let (face, rest) = Ctx.pull(~from=L, ctx);
+           switch (face, next_fill.marks.cursor) {
+           // if molded token is longer than original, then move cursor out of
+           // next_fill and into molded token at the end of its text
+           | (Node(molded), Some(Point({hand, path: []})))
+               when Token.length(molded) > Token.Unmolded.length(tok) =>
+             let marks = {...next_fill.marks, cursor: None};
+             let next_fill = {...next_fill, marks};
+             let molded =
+               Token.put_cursor(
+                 Point(Caret.mk(hand, Token.Unmolded.length(tok))),
+                 molded,
+               );
+             let ctx = Ctx.push(~onto=L, molded, ~fill=Cell.dirty, rest);
+             (ctx, next_fill);
+           | _ => (ctx, next_fill)
+           };
+         | Error(fill) =>
+           // removed empty token
+           let next_fill =
+             Cell.mark_ends_dirty(Cell.Space.merge(fill, next_fill));
+           (ctx, next_fill);
+         }
+       },
+     );
+};
+
 // delete_sel clears the textual content of the current selection (doing nothing if
 // the selection is empty). this entails dropping all of the zigg's cells and
 // remelding the zigg's tokens as empty ghosts onto (the left side of) the ctx. in
@@ -354,24 +398,17 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
           : Fun.id
       )
       |> delete_toks(d);
-    let (molded, fill) =
-      deleted_toks
-      // remold each token against the ctx, using each preceding cell as its fill,
-      // and return the total ctx and the final remaining fill to be used when
-      // subsequently remolding
-      |> Chain.fold_left(
-           fill => (ctx, fill),
-           ((ctx, fill), tok, next_fill) => {
-             let (molded, removed) = mold(ctx, ~fill, tok);
-             let next_fill =
-               switch (fill.marks.cursor) {
-               | Some(_) when removed => Cell.mark_ends_dirty(fill)
-               | _ => next_fill
-               };
-             (molded, next_fill);
-           },
-         );
-    // Mode.set(Deleting(d));
+    // P.log("--- delete_sel/Select");
+    // P.show("ctx sans sites", Ctx.show(ctx));
+    // P.show("site l", Zipper.Site.show(l));
+    // P.show("site r", Zipper.Site.show(r));
+    // P.show(
+    //   "deleted_toks",
+    //   Chain.show(Cell.pp, Token.Unmolded.pp, deleted_toks),
+    // );
+    let (molded, fill) = insert_toks(deleted_toks, ctx);
+    // P.show("molded", Ctx.show(molded));
+    // P.show("fill", Cell.show(fill));
     finalize(~mode=Deleting(d), ~fill, molded);
   };
 };
@@ -391,7 +428,11 @@ let delete = (d: Dir.t, z: Zipper.t) => {
   //     Move.perform(Step(H(d)), z)
   //   | _ => None
   //   };
-  let+ z = Cursor.is_point(z.cur) ? Select.hstep(d, z) : return(z);
+  // P.log("--- delete");
+  // P.show("z", Zipper.show(z));
+  let+ z =
+    Cursor.is_point(z.cur) ? Select.hstep(~char=true, d, z) : return(z);
+  // P.show("selected", Zipper.show(z));
   delete_sel(d, z);
 };
 
@@ -399,24 +440,18 @@ let insert = (s: string, z: Zipper.t) => {
   open Options.Syntax;
   let z = delete_sel(L, z);
 
+  // P.log("--- Modify.insert");
+  let- () = try_expand(s, z);
   let- () = try_move(s, z);
   let- () = try_extend(s, z);
-  let- () = try_expand(s, z);
 
+  // P.log("--- Modify.insert/molding");
+  // P.show("z.ctx", Ctx.show(z.ctx));
   let (toks, ctx) = relabel(s, z.ctx);
-  let (molded, fill) =
-    toks
-    |> Chain.fold_left(
-         fill => (ctx, fill),
-         ((ctx, fill), tok, next_fill) => {
-           let (molded, removed) = mold(ctx, ~fill, tok);
-           let next_fill =
-             switch (fill.marks.cursor) {
-             | Some(_) when removed => fill
-             | _ => next_fill
-             };
-           (molded, next_fill);
-         },
-       );
+  // P.show("toks", Chain.show(Cell.pp, Token.Unmolded.pp, toks));
+  // P.show("ctx", Ctx.show(ctx));
+  let (molded, fill) = insert_toks(toks, ctx);
+  // P.show("molded", Ctx.show(molded));
+  // P.show("fill", Cell.show(fill));
   finalize(~mode=Inserting(s), ~fill, molded);
 };

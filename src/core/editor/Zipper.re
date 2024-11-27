@@ -13,20 +13,28 @@ module Caret = {
 };
 module Selection = {
   include Selection;
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = Selection.t(Zigg.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Selection.t(Zigg.t);
+  type t = Base.t(Token.t);
   let split_range = Fun.const(((), ()));
   let carets = carets(~split_range);
 };
 module Cur = Cursor;
 module Cursor = {
   include Cur;
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = Cur.t(Caret.t, Selection.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = Cur.t(Caret.t, Selection.t);
-  let flatten: t => _ =
-    fun
-    | Point(_) => []
-    | Select({range, _}) => Zigg.flatten(range);
+  type t = Base.t(Token.t);
+  // let flatten: t => _ =
+  //   fun
+  //   | Point(_) => []
+  //   | Select({range, _}) => Zigg.flatten(range);
 };
 
 module Site = {
@@ -38,19 +46,32 @@ module Site = {
   type cursor = Cur.t(t, (t, t));
 };
 
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) = {
+    cur: Cursor.Base.t('tok),
+    ctx: Ctx.Base.t('tok),
+  };
+};
+
 // todo: document potential same-id token on either side of caret
 // l|et x = 1 in x + 1
 [@deriving (show({with_path: false}), sexp, yojson)]
-type t = {
-  cur: Cursor.t,
-  ctx: Ctx.t,
-};
+type t = Base.t(Token.t);
 
-let mk = (~cur=Cursor.point(Caret.focus()), ctx) => {cur, ctx};
+let mk = (~cur=Cursor.point(Caret.focus()), ctx) => Base.{cur, ctx};
+
+let empty =
+  mk(
+    ~cur=Point(Caret.focus()),
+    Ctx.unit(([], [Terr.of_tok(Token.Grout.op_(Sort.root))])),
+  );
 
 let unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) => {
   let f_open =
-    side == L ? ([], Slope.Up.unroll(cell)) : (Slope.Dn.unroll(cell), []);
+    side == L
+      ? ([], snd(Slope.Up.unroll(cell)))
+      : (snd(Slope.Dn.unroll(cell)), []);
   Ctx.map_hd(Frame.Open.cat(f_open), ctx);
 };
 let mk_unroll = (~ctx=Ctx.empty, side: Dir.t, cell: Cell.t) =>
@@ -177,7 +198,13 @@ and unzip_select = (~ctx=Ctx.empty, sel: Path.Selection.t, meld: Meld.t) => {
 };
 
 let unzip_exn = (~ctx=Ctx.empty, c: Cell.t) =>
-  unzip(~ctx, c) |> Options.get_exn(Invalid_argument("Zipper.unzip_exn"));
+  switch (unzip(~ctx, c)) {
+  | Some(z) => z
+  | None =>
+    P.show("unzip_exn ctx", Ctx.show(ctx));
+    P.show("unzip_exn cell", Cell.show(c));
+    raise(Invalid_argument("Zipper.unzip_exn"));
+  };
 
 let rec zip_neighbor = (~side: Dir.t, ~zipped: Cell.t, ctx: Ctx.t) => {
   open Options.Syntax;
@@ -212,9 +239,11 @@ let zip_init = (~save_cursor=false, z: t): (Cell.t, Ctx.t) =>
                Cell.caret(Caret.map(Fun.const(Path.empty), car))
              );
     let ((dn, up), tl) = Ctx.uncons(z.ctx);
-    let (zigg, dn) = Zigg.take_ineq(~side=L, sel.range, ~fill=l, dn);
-    let (zigg, up) = Zigg.take_ineq(~side=R, zigg, ~fill=r, up);
-    (Cell.put(Zigg.roll(zigg)), Ctx.cons((dn, up), tl));
+    let (zigg, rolled_l, dn) =
+      Zigg.take_ineq(~side=L, sel.range, ~fill=l, dn);
+    let (zigg, rolled_r, up) = Zigg.take_ineq(~side=R, zigg, ~fill=r, up);
+    let cell = Cell.put(Zigg.roll(~l=rolled_l, zigg, ~r=rolled_r));
+    (cell, Ctx.cons((dn, up), tl));
   };
 let zip_indicated = (z: t): (Cell.t, Ctx.t) => {
   let (zipped, ctx) as init = zip_init(~save_cursor=true, z);
@@ -241,6 +270,7 @@ let zip = (~save_cursor=false, z: t) => {
   let zipped = save_cursor ? Cell.point(Focus) : Cell.empty;
   Ctx.zip(ctx, ~zipped, ~save_cursor);
 };
+let rebutton = (z: t) => zip(~save_cursor=true, z) |> unzip_exn;
 
 let path_of_ctx = (ctx: Ctx.t) => {
   let c = zip(~save_cursor=true, mk(ctx));
@@ -262,3 +292,14 @@ let normalize = (~cell: Cell.t, path: Path.t): Path.t => {
   let car = Option.get(Cursor.get_point(cur));
   car.path;
 };
+
+let selection_str = (cur: Cursor.Base.t('tok)): option(string) =>
+  switch (cur) {
+  | Point(_) => None
+  | Select({range, _}) =>
+    range
+    |> Zigg.flatten
+    |> List.map((x: Token.t) => x.text)
+    |> String.concat("")
+    |> Option.some
+  };

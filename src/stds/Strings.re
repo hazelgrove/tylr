@@ -14,3 +14,5 @@ let count = c => Base.String.count(~f=(==)(c));
 let split = Base.String.split;
 
 let rev = Base.String.rev;
+
+let chop_prefix = Base.String.chop_prefix;

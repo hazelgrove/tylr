@@ -3,6 +3,7 @@ type t('a) =
   | Root
   | Node('a);
 
+let root = Root;
 let node = a => Node(a);
 
 let pp = (pp_a, out) =>

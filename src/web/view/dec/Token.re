@@ -10,15 +10,16 @@ module Style = {
   type t = {
     sort: Sort.t,
     shape: Tip.s,
+    sil: bool,
   };
-  let mk = (~null as (l, r), mtrl: Mtrl.T.t): option(t) =>
+  let mk = (~sil=false, ~null as (l, r), mtrl: Mtrl.T.t): option(t) =>
     switch (mtrl) {
     | Space(_) => None
-    | Grout((sort, shape)) => Some({sort, shape})
+    | Grout((sort, shape)) => Some({sort, shape, sil})
     | Tile(t) =>
       let sort = Tile.T.sort(t);
       let shape = Tip.(l ? Conv : Conc, r ? Conv : Conc);
-      Some({sort, shape});
+      Some({sort, shape, sil});
     };
 };
 
@@ -30,19 +31,19 @@ module Profile = {
     style: option(Style.t),
   };
 
-  let mk = (~loc: Loc.t, ~null: (bool, bool), tok: Token.t) => {
+  let mk = (~sil=false, ~loc: Loc.t, ~null: (bool, bool), b_tok: Block.t) => {
     loc,
-    len: Token.length(tok),
-    style: Style.mk(~null, tok.mtrl),
+    len: Block.len(b_tok),
+    style: Style.mk(~sil, ~null, Block.mtrl(b_tok)),
   };
 };
 let tip_width = 0.3;
-let concave_adj = 0.25;
-let convex_adj = (-0.13);
+let concave_adj = 0.2;
+let convex_adj = (-0.1);
 
 // how much to truncate half-height of decorations to leave line height padding
 // and avoid overlapping decorations on adjacent lines
-let v_trunc = 0.05;
+let v_trunc = 0.15;
 
 // how much to shift horizontal strokes to align with the edges of hexgaon decs
 let stroke_shift = 0.03;
@@ -102,10 +103,36 @@ let top_bar = (style: Style.t, length: int): Node.t => {
   |> Util.Nodes.add_classes(["tok-bar", Sort.to_str(style.sort)]);
 };
 
-let mk = (prof: Profile.t) =>
+module Sil = {
+  // magic number used to align with scaling transform applied to e
+  let h_pad = 0.2;
+  let v_trunc = v_trunc -. 0.06;
+
+  let mk = (len, (l, r): Tip.s) => {
+    // magic number used to scale up tip size to align with h_pad and shortened
+    // v_trunc
+    let c = 1.1725;
+    let path =
+      Util.Svgs.[
+        Path.[
+          m(~x=0, ~y=0) |> cmdfudge(~x=-. h_pad, ~y=v_trunc),
+          h(~x=len) |> cmdfudge(~x=h_pad),
+        ],
+        Path.scale(c, tip(r)),
+        Path.[h(~x=0) |> cmdfudge(~x=-. h_pad)],
+        Path.scale(-. c, tip(l)),
+      ]
+      |> List.flatten;
+    Util.Svgs.Path.view(path)
+    |> Util.Nodes.add_classes(["silhouette", "inner"]);
+  };
+};
+
+let view = (prof: Profile.t) =>
   prof.style
-  |> Option.map(style =>
-       [hexagon(style, prof.len), top_bar(style, prof.len)]
+  |> Option.map((style: Style.t) =>
+       (style.sil ? [Sil.mk(prof.len, style.shape)] : [])
+       @ [hexagon(style, prof.len), top_bar(style, prof.len)]
      )
   |> Option.to_list
   |> List.concat

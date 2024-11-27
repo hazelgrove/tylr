@@ -1,3 +1,21 @@
+open Stds;
+
+let lt = (l: Wald.t, r: Wald.t) =>
+  !
+    Lists.is_empty(
+      Walker.lt(Node(Wald.face(l).mtrl), Node(Wald.face(r).mtrl)),
+    );
+let gt = (l: Wald.t, r: Wald.t) =>
+  !
+    Lists.is_empty(
+      Walker.gt(Node(Wald.face(l).mtrl), Node(Wald.face(r).mtrl)),
+    );
+let eq = (l: Wald.t, r: Wald.t) =>
+  !
+    Lists.is_empty(
+      Walker.eq(Node(Wald.face(l).mtrl), Node(Wald.face(r).mtrl)),
+    );
+
 let zip_lt = (zipped: Cell.t, r: Terr.L.t) =>
   Cell.put(M(zipped, r.wald, r.cell));
 let zip_gt = (l: Terr.R.t, zipped: Cell.t) =>
@@ -8,15 +26,21 @@ let zip_eq = (l: Terr.R.t, zipped: Cell.t, r: Terr.L.t) => {
 };
 
 module Open = {
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = (Slope.Base.t('tok), Slope.Base.t('tok));
+    let empty = Slope.(empty, empty);
+    let cat = ((dn', up'), (dn, up)) =>
+      Slope.Base.(cat(dn', dn), cat(up', up));
+    let cons = (~onto: Dir.t, terr: Terr.Base.t(_), (dn, up)) =>
+      switch (onto) {
+      | L => ([terr, ...dn], up)
+      | R => (dn, [terr, ...up])
+      };
+  };
+  include Base;
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = (Slope.Dn.t, Slope.Up.t);
-  let empty = Slope.(empty, empty);
-  let cons = (~onto: Dir.t, terr: Terr.t, (dn, up)) =>
-    switch (onto) {
-    | L => ([terr, ...dn], up)
-    | R => (dn, [terr, ...up])
-    };
-  let cat = ((dn', up'), (dn, up)) => Slope.(cat(dn', dn), cat(up', up));
+  type t = Base.t(Token.t);
   let pull = (~from: Dir.t, (dn, up): t): (Delim.t, t) =>
     switch (from) {
     | L =>
@@ -25,6 +49,15 @@ module Open = {
     | R =>
       let (r, up) = Slope.pull(~from=R, up);
       (r, (dn, up));
+    };
+
+  // todo: rename
+  let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t), f: t) =>
+    switch (Terr.mk'(pre), Terr.mk'(suf)) {
+    | (None, None) => f
+    | (None, Some(r)) => cons(~onto=R, r, f)
+    | (Some(l), None) => cons(~onto=L, l, f)
+    | (Some(l), Some(r)) => f |> cons(~onto=L, l) |> cons(~onto=R, r)
     };
 
   let extend = (~side: Dir.t, tl, (dn, up): t) =>
@@ -37,7 +70,9 @@ module Open = {
     fun
     | (([hd_l, ...tl_l], [hd_r, ...tl_r]): t) =>
       Wald.merge_hds(~save_cursor, ~from=L, hd_l.wald, hd_r.wald)
-      |> Option.map(w => (Meld.M(hd_l.cell, w, hd_r.cell), (tl_l, tl_r)))
+      |> Option.map(w =>
+           (Meld.mk(~l=hd_l.cell, w, ~r=hd_r.cell), (tl_l, tl_r))
+         )
     | _ => None;
 
   let zip_step = (~save_cursor, ~zipped: Cell.t, (dn, up): t) =>
@@ -51,12 +86,17 @@ module Open = {
       let w =
         Option.get(Wald.merge_hds(~save_cursor, ~from=L, l.wald, r.wald));
       Some((Eq(), Cell.put(M(l.cell, w, r.cell)), (dn, up)));
-    | ([l, ..._], [r, ...up]) when Melder.lt(l.wald, r.wald) =>
+    | ([l, ..._], [r, ...up]) when lt(l.wald, r.wald) =>
       Some((Neq(L), zip_lt(zipped, r), (dn, up)))
-    | ([l, ...dn], [r, ..._]) when Melder.gt(l.wald, r.wald) =>
+    | ([l, ...dn], [r, ..._]) when gt(l.wald, r.wald) =>
       Some((Neq(R), zip_gt(l, zipped), (dn, up)))
     | ([l, ...dn], [r, ...up]) =>
-      assert(Melder.eq(l.wald, r.wald));
+      try(assert(eq(l.wald, r.wald))) {
+      | _ =>
+        open Stds;
+        P.show("(dn, up)", show((dn, up)));
+        failwith("");
+      };
       Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
     };
 
@@ -68,8 +108,12 @@ module Open = {
 };
 
 module Closed = {
+  module Base = {
+    [@deriving (show({with_path: false}), sexp, yojson)]
+    type t('tok) = (Terr.Base.t('tok), Terr.Base.t('tok));
+  };
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = (Terr.R.t, Terr.L.t);
+  type t = Base.t(Token.t);
   let zip = (~zipped: Cell.t, (l, r): t) => zip_eq(l, zipped, r);
   let map_face = (~side: Dir.t, f, (l, r): t) =>
     switch (side) {

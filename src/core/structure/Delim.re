@@ -2,6 +2,7 @@
 type t = Bound.t(Token.t);
 let root: t = Bound.Root;
 let tok = t => Bound.Node(t);
+let to_opt = Bound.to_opt;
 let is_tok: t => _ = Bound.to_opt;
 let unwrap = delim => Option.get(is_tok(delim));
 let indent =

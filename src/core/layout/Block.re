@@ -46,6 +46,19 @@ let cons = (sec: Section.t(t), ~indent=0) => Chain.link(sec, indent);
 
 let height = (B((_, newlines)): t) => List.length(newlines);
 
+let rec sort = (B(b): t): Mtrl.Sorted.t =>
+  switch (Chain.hd(b)) {
+  | Line([]) => Mtrl.Space()
+  | Line([tok, ..._]) => Token.sort(tok)
+  | Block(b) => sort(b)
+  };
+let rec mtrl = (B(b): t): Mtrl.T.t =>
+  switch (Chain.hd(b)) {
+  | Line([]) => Mtrl.Space(White(Sys))
+  | Line([tok, ..._]) => tok.mtrl
+  | Block(b) => mtrl(b)
+  };
+
 let rec len = (B(b): t) =>
   b |> Chain.to_list(len_sec, Fun.const(1)) |> List.fold_left((+), 0)
 and len_sec =
@@ -113,13 +126,19 @@ and flatten_sec =
   fun
   | Section.Line(l) => sec(Line(l))
   | Block(b) => flatten(b);
+let flatten = (b: t) => {
+  let B(b) = flatten(b);
+  b
+  |> Chain.map_loop(
+       fun
+       | Section.Line(l) => l
+       | _ => failwith("bug in flatten"),
+     );
+};
 
 let nth_line = (b: t, r: Loc.Row.t) => {
-  let B((secs, inds)) = flatten(b);
-  switch (List.nth(secs, r)) {
-  | Section.Block(_) => failwith("bug in flatten")
-  | Line(l) =>
-    let ind = r == 0 ? 0 : List.nth(inds, r - 1);
-    (ind, l);
-  };
+  let (lines, inds) = flatten(b);
+  let l = List.nth(lines, r);
+  let ind = r == 0 ? 0 : List.nth(inds, r - 1);
+  (ind, l);
 };

@@ -58,18 +58,24 @@ let path = (shape: Shape.t) => {
     | Some(L) => -. T.tip_width
     | Some(R) => T.tip_width
     };
+  let rise = 0.5 -. T.v_trunc;
   List.concat([
     [M({x: run, y: 0.5})],
     // adjust scale of caret to account for rounded linecap/join
-    [L_({dx: -. run, dy: (-0.5)}), L_({dx: run, dy: 0.5})] |> scale(0.825),
-    [L_({dx: -. run, dy: 0.5}), L_({dx: run, dy: (-0.5)})] |> scale(0.825),
+    [L_({dx: -. run, dy: -. rise}), L_({dx: run, dy: rise})] |> scale(0.9),
+    [L_({dx: -. run, dy: rise}), L_({dx: run, dy: -. rise})] |> scale(0.9),
   ])
   |> transpose({dx: adj(shape), dy: 0.});
 };
 
+let hand_cls =
+  fun
+  | Caret.Hand.Anchor => "anchor"
+  | Focus => "focus";
+
 let mk = (~font, p: Profile.t) =>
   Svgs.Path.view(path(p.shape))
-  |> Nodes.add_classes(["caret"])
+  |> Nodes.add_classes(["caret", hand_cls(p.hand)])
   |> Stds.Lists.single
   |> Box.mk(~font, ~loc=p.loc)
   |> Stds.Lists.single

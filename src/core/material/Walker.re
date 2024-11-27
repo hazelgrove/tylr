@@ -1,36 +1,27 @@
 open Stds;
 open Walk;
 
-let mtrlize_tile =
-  Memo.general(((l, r, (filter, s), from)) =>
-    Grammar.v
-    |> Sort.Map.find(s)
-    |> Prec.Table.mapi(((p, a), rgx) => {
-         let is_bounded =
-           Bound.(
-             l |> map(l => Prec.lt(~a, l, p)) |> get(~root=true),
-             r |> map(r => Prec.gt(~a, p, r)) |> get(~root=true),
-           );
-         // need to check for legal bounded entry from both sides
-         let enter_from = (from: Dir.t) =>
-           // currently filtering without assuming single operator form
-           // for each prec level. this may need to change.
-           RZipper.enter(~from, ~filter, rgx)
-           |> List.filter_map(
-                fun
-                | Bound.Root => None
-                | Node((sym, _) as z) =>
-                  Dir.pick(from, is_bounded) || Sym.is_t(sym)
-                    ? Some(Tile.Sym.mk(s, p, z)) : None,
-              );
-         switch (enter_from(L), enter_from(R)) {
-         | ([], _)
-         | (_, []) => []
-         | ([_, ..._] as l, [_, ..._] as r) => Dir.pick(from, (l, r))
-         };
-       })
-    |> List.concat
-  );
+let dbg = ref(false);
+
+let mtrlize_tile = ((l, r, (filter, s), from)) =>
+  Grammar.v
+  |> Sort.Map.find(s)
+  |> Prec.Table.mapi(((p, a), rgx) => {
+       let is_bounded =
+         Bound.(
+           l |> map(l => Prec.lt(~a, l, p)) |> get(~root=true),
+           r |> map(r => Prec.gt(~a, p, r)) |> get(~root=true),
+         );
+       RZipper.enter(~from, ~filter, rgx)
+       |> List.filter_map(
+            fun
+            | Bound.Root => None
+            | Node((sym, _) as z) =>
+              Dir.pick(from, is_bounded) || Sym.is_t(sym)
+                ? Some(Tile.Sym.mk(s, p, z)) : None,
+          );
+     })
+  |> List.concat;
 let mtrlize_tile =
     (~l=Bound.Root, ~r=Bound.Root, s: (Filter.t, Sort.t), ~from: Dir.t) =>
   mtrlize_tile((l, r, s, from));
@@ -238,10 +229,8 @@ type swings_profile = list(swing_profile);
 let is_minimal = (w: Walk.t) =>
   !(
     Walk.is_neq(w)
-    && (
-      List.exists(Mtrl.is_tile, Chain.links(w))
-      || List.length(List.filter(Mtrl.is_grout, Chain.links(w))) > 1
-    )
+    && List.exists(Mtrl.is_tile, Walk.stance_sorts(w).mid)
+    || List.length(List.filter(Mtrl.is_grout, Chain.links(w))) > 1
   );
 
 let walk_all =

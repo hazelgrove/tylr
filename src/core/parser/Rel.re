@@ -19,3 +19,8 @@ let map = (~eq, ~neq) =>
   fun
   | Eq(x) => Eq(eq(x))
   | Neq(x) => Neq(neq(x));
+
+let map_neq = f =>
+  fun
+  | Eq(x) => Eq(x)
+  | Neq(x) => Neq(f(x));

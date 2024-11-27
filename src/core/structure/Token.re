@@ -27,9 +27,16 @@ module Base = {
     ...tok,
     marks: Some(cursor),
   };
-  let put_marks = (marks, tok) => {...tok, marks};
+  let map_marks = (f, tok: t(_)): t(_) => {...tok, marks: f(tok.marks)};
+  let put_marks = marks => map_marks(Fun.const(marks));
   let clear_marks = tok => put_marks(None, tok);
   let pop_marks = tok => (tok.marks, clear_marks(tok));
+  let height = tok => Strings.count('\n', tok.text);
+  let has_anchor = (tok: t(_)) =>
+    switch (tok.marks) {
+    | Some(Point({hand: Anchor, _}) | Select(_)) => true
+    | _ => false
+    };
 };
 
 module Molded = {
@@ -37,6 +44,12 @@ module Molded = {
   [@deriving (sexp, yojson)]
   type t = Base.t(Mtrl.T.t);
 
+  let is_const = (tok: t) =>
+    switch (tok.mtrl) {
+    | Tile((Const(_), _)) => true
+    | _ => false
+    };
+  let focus_point: t => t = map_marks(Marks.focus_point);
   let pp = (out, tok: t) =>
     switch (tok.mtrl) {
     | Space(t) =>
@@ -83,7 +96,7 @@ module Molded = {
   let indent = (tok: t) => Mtrl.T.padding(tok.mtrl).indent;
   let sort = tok =>
     Mtrl.map(
-      ~space=Fun.id,
+      ~space=Fun.const(),
       ~grout=fst,
       ~tile=((_, m: Mold.t)) => ([], m.sort),
       tok.mtrl,
@@ -101,6 +114,13 @@ module Molded = {
     | Space(_)
     | Grout(_) => true
     | Tile((lbl, _)) => Label.is_complete(tok.text, lbl)
+    };
+  let complete = (tok: t) =>
+    switch (tok.mtrl) {
+    | Space(_)
+    | Grout(_) => None
+    | Tile((lbl, _)) =>
+      Label.complete(tok.text, lbl) |> Option.map(text => {...tok, text})
     };
 
   let cat = (l: t, ~caret=?, r: t) => {
@@ -253,8 +273,14 @@ module Unmolded = {
   type t = Base.t(Mtrl.t(Space.T.t, unit, list(Label.t)));
   let mk = (~id=?, ~text="", ~marks=?, mtrl: Mtrl.t(_)): t =>
     Base.mk(~id?, ~text, ~marks?, mtrl);
+  let length = (tok: t) => Utf8.length(tok.text);
   let defer = (tok: t): Molded.t =>
-    Molded.mk(~id=tok.id, ~text=tok.text, Space(Unmolded));
+    Molded.mk(
+      ~id=tok.id,
+      ~marks=?tok.marks,
+      ~text=tok.text,
+      Space(Unmolded),
+    );
   let has_lbl = (lbl: Label.t, tok: t) =>
     switch (tok.mtrl) {
     | Space(_)
@@ -291,7 +317,7 @@ let unmold = (~relabel=true, tok: Molded.t): Unmolded.t => {
       | [] => Space(Unmolded)
       | [_, ..._] as lbls => Tile(lbls)
       }
-    | Grout(_) => raise(Invalid_argument("Token.Unmolded.unmold"))
+    | Grout(_) => Grout()
     | Tile((lbl, _)) =>
       Tile(
         is_empty(tok) || !relabel
@@ -343,11 +369,12 @@ module Grout = {
   let in_ = (~id=?) => mk(~id?, (Conc, Conc));
 };
 module Tile = {
-  let is_ghost = (tok: t) =>
+  let is_ghost = (~require_empty=false, tok: t) =>
     switch (tok.mtrl) {
     | Space(_)
     | Grout(_) => None
     | Tile((lbl, _) as t) =>
-      Label.is_complete(tok.text, lbl) ? None : Some(t)
+      !Label.is_complete(tok.text, lbl) && (!require_empty || tok.text == "")
+        ? Some(t) : None
     };
 };

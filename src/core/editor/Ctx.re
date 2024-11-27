@@ -1,31 +1,32 @@
 open Stds;
 
 include Chain;
-[@deriving (show({with_path: false}), sexp, yojson)]
-type t = Chain.t(Frame.Open.t, Frame.Closed.t);
 
-let empty = Chain.unit(Frame.Open.empty);
+module Base = {
+  [@deriving (show({with_path: false}), sexp, yojson)]
+  type t('tok) =
+    Chain.t(Frame.Open.Base.t('tok), Frame.Closed.Base.t('tok));
+  let empty = Chain.unit(Frame.Open.Base.empty);
+  let flatten = (ctx: t('tok)): Frame.Open.Base.t('tok) =>
+    Chain.fold_right(
+      (open_, (l, r), acc) =>
+        acc
+        |> Frame.Open.cons(~onto=L, l)
+        |> Frame.Open.cons(~onto=R, r)
+        |> Frame.Open.cat(open_),
+      Fun.id,
+      ctx,
+    );
+};
+include Base;
+
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t = Base.t(Token.t);
 
 let link = (~open_=Frame.Open.empty) => link(open_);
 
 let fold = Chain.fold_left;
 let fold_root = Chain.fold_right;
-
-// let bound = (~side: Dir.t, ctx) =>
-//   switch (unlink(ctx)) {
-//   | Error(_) => Bound.Root
-//   | Ok((_, closed, _)) => Node()
-//   };
-
-let flatten =
-  Chain.fold_right(
-    (open_, (l, r), acc) =>
-      acc
-      |> Frame.Open.cons(~onto=L, l)
-      |> Frame.Open.cons(~onto=R, r)
-      |> Frame.Open.cat(open_),
-    Fun.id,
-  );
 
 // todo: rename
 let add = ((pre, suf): (Meld.Affix.t, Meld.Affix.t)) =>
@@ -59,6 +60,12 @@ let pull = (~from: Dir.t, ctx: t): (Delim.t, t) => {
   };
 };
 let face = (~side: Dir.t, ctx) => fst(pull(~from=side, ctx));
+let rec nonspace_face = (~side: Dir.t, ctx: t) =>
+  switch (pull(~from=side, ctx)) {
+  | (Node(tok), ctx) when Mtrl.is_space(tok.mtrl) =>
+    nonspace_face(~side, ctx)
+  | (face, _) => face
+  };
 
 let peel = (~from: Dir.t, tok: Token.t, ctx: t) =>
   switch (pull(~from, ctx)) {
@@ -84,40 +91,54 @@ module Tl = {
   // let hd = b => b |> Bound.map(fst) |> Bound.split;
 };
 
-// let split_bound = (ctx: t): (Frame.Open.t, Bound.t) =>
-//   switch (unlink(ctx)) {
-//   | Error(open_) => (open_, Bound.Root)
-//   | Ok((open_, closed, tl)) => (open_, Node((closed, tl)))
-//   };
-// let merge_bound = (open_: Frame.Open.t, bound: Bound.t) =>
-//   switch (bound) {
-//   | Root => unit(open_)
-//   | Node((closed, ctx)) => link(open_, closed, ctx)
-//   };
-
 let extend = (~side: Dir.t, tl: Chain.Affix.t(Cell.t, Token.t)) =>
   map_hd(Frame.Open.extend(~side, tl));
+
+let unlink_stacks = (ctx: t) =>
+  switch (Chain.unlink(ctx)) {
+  | Error((dn, up)) =>
+    let stacks = Stack.({bound: Root, slope: dn}, {slope: up, bound: Root});
+    (stacks, empty);
+  | Ok(((dn, up), (l, r), rest)) =>
+    let stacks =
+      Stack.({bound: Node(l), slope: dn}, {slope: up, bound: Node(r)});
+    (stacks, rest);
+  };
+let link_stacks = ((stack_l: Stack.t, stack_r: Stack.t), ctx: t) =>
+  switch (stack_l.bound, stack_r.bound) {
+  | (Node(l), Node(r)) =>
+    Chain.link((stack_l.slope, stack_r.slope), (l, r), ctx)
+  | _ =>
+    assert(ctx == empty);
+    assert(stack_l.bound == Root);
+    assert(stack_r.bound == Root);
+    Chain.unit((stack_l.slope, stack_r.slope));
+  };
 
 let push_opt =
     (~onto as d: Dir.t, t: Token.t, ~fill=Cell.empty, ctx: t): option(t) => {
   open Options.Syntax;
-  let (hd, tl) = uncons(ctx);
-  let (s_d, s_b) = Dir.order(d, hd);
-  let (b_d, b_b) = Dir.order(d, Tl.bounds(tl));
-  let+ melded = Melder.push(~onto=d, t, ~fill, s_d, ~bound=b_d);
-  switch (melded) {
-  | Neq(s_d) =>
-    let (dn, up) = Dir.order(d, (s_d, s_b));
-    cons((dn, up), tl);
-  | Eq(b_d) =>
-    let s_b = Slope.cat(s_b, Bound.to_list(b_b));
-    let open_ = Dir.order(d, ([b_d], s_b));
-    map_hd(Frame.Open.cat(open_), Tl.rest(tl));
+  let (stacks, rest) = unlink_stacks(ctx);
+  let (stack_d, stack_b) = Dir.order(d, stacks);
+  let/ () = {
+    // first try merging t with stack hd
+    let+ stack_d = Stack.merge_hd(~onto=d, t, stack_d);
+    link_stacks(Dir.order(d, (stack_d, stack_b)), rest);
+  };
+  let+ (grouted, stack_d) = Melder.push(~onto=d, t, ~fill, stack_d);
+  let connected = Stack.connect(t, grouted, stack_d);
+  if (connected.bound == stack_d.bound) {
+    let stacks = Dir.order(d, (connected, stack_b));
+    link_stacks(stacks, rest);
+  } else {
+    let open_ =
+      Dir.order(d, Stack.(to_slope(connected), to_slope(stack_b)));
+    map_hd(Frame.Open.cat(open_), rest);
   };
 };
 
-let push = (~onto: Dir.t, tok: Token.t, ctx) =>
-  switch (push_opt(~onto, tok, ctx)) {
+let push = (~onto: Dir.t, ~fill=Cell.empty, tok: Token.t, ctx) =>
+  switch (push_opt(~onto, tok, ~fill, ctx)) {
   | Some(ctx) => ctx
   | None => raise(Invalid_argument("Ctx.push"))
   };
@@ -146,6 +167,17 @@ let push_zigg = (~onto as d: Dir.t, zigg: Zigg.t, ~fill=Cell.empty, ctx: t) => {
   map_hd(Frame.Open.cat(rest), ctx);
 };
 
+let trim_space = (~side: Dir.t, ctx: t) =>
+  switch (pull(~from=side, ctx)) {
+  | (Node(tok), ctx) when Mtrl.is_space(tok.mtrl) =>
+    let tok =
+      Strings.chop_prefix(~prefix=" ", tok.text)
+      |> Option.map(text => {...tok, text})
+      |> Option.value(~default=tok);
+    Token.is_empty(tok) ? ctx : push(~onto=side, tok, ctx);
+  | _ => ctx
+  };
+
 let zip_toks = (~save_cursor=false, ctx: t): option((Meld.t, t)) => {
   let (hd, tl) = uncons(ctx);
   Frame.Open.zip_toks(~save_cursor, hd)
@@ -170,42 +202,3 @@ let zip_step =
       Some((rel, zipped, link(~open_, (l, r), ctx)))
     }
   };
-
-// processes open hd of ctx to explicate any latent closed frames. unlike zip,
-// button goes top-down and does not require a syntactically complete cell to start.
-let button = (ctx: t): t => {
-  let ((dn, up), tl) = uncons(ctx);
-  let rec go = (~ctx, (rev_dn, rev_up)) =>
-    switch (rev_dn, rev_up) {
-    | ([], []) => ctx
-    | ([], [hd, ...tl]) =>
-      let ctx = map_hd(Frame.Open.cons(~onto=R, hd), ctx);
-      go(~ctx, (rev_dn, tl));
-    | ([hd, ...tl], []) =>
-      let ctx = map_hd(Frame.Open.cons(~onto=L, hd), ctx);
-      go(~ctx, (tl, rev_up));
-    | ([l, ...tl], [r, ..._]) when Melder.lt(l.wald, r.wald) =>
-      let ctx = map_hd(Frame.Open.cons(~onto=L, l), ctx);
-      go(~ctx, (tl, rev_up));
-    | ([l, ..._], [r, ...tl]) when Melder.gt(l.wald, r.wald) =>
-      let ctx = map_hd(Frame.Open.cons(~onto=R, r), ctx);
-      go(~ctx, (rev_dn, tl));
-    | ([l, ...tl_l], [r, ...tl_r])
-        when
-          Token.merges(Terr.face(l), Terr.face(r))
-          || Mtrl.(
-               is_space(Terr.face(l).mtrl) && is_space(Terr.face(r).mtrl)
-             )
-          || !Melder.eq(l.wald, r.wald) =>
-      let ctx =
-        ctx
-        |> map_hd(Frame.Open.cons(~onto=L, l))
-        |> map_hd(Frame.Open.cons(~onto=R, r));
-      go(~ctx, (tl_l, tl_r));
-    | ([l, ...tl_l], [r, ...tl_r]) =>
-      assert(Melder.eq(l.wald, r.wald));
-      let ctx = link((l, r), ctx);
-      go(~ctx, (tl_l, tl_r));
-    };
-  go(~ctx=cons(Frame.Open.empty, tl), (List.rev(dn), List.rev(up)));
-};

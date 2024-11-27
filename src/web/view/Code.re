@@ -3,10 +3,10 @@ open Node;
 open Tylr_core;
 open Stds;
 
-let view_text = (c: Cell.t) =>
-  Layout.Tree.of_cell(c)
-  |> Layout.Tree.flatten
-  |> Text.view_block
+let view_text = (~font, c: Cell.t) =>
+  Layout.mk_cell(c)
+  |> LCell.flatten
+  |> Text.view_block(~font)
   |> Lists.single
   |> Node.span(~attrs=[Attr.class_("code-text")]);
 
@@ -14,7 +14,7 @@ let rec carets = (~font, c: Cell.t) => {
   switch (c.marks.cursor) {
   | None => []
   | Some(Point({hand, path})) =>
-    let tree = Layout.Tree.of_cell(c);
+    let tree = Layout.mk_cell(c);
     let (state, _) = Layout.state_of_path(~tree, path);
     let z = Option.get(Zipper.unzip(c));
     [Dec.Caret.(mk(~font, Profile.mk(~loc=state.loc, hand, z.ctx)))];
@@ -25,31 +25,64 @@ let rec carets = (~font, c: Cell.t) => {
   };
 };
 
-let cursor = (~font, z: Zipper.t) =>
-  switch (z.cur) {
-  | Select(_) => []
-  | Point(_) =>
-    let tree = Layout.Tree.of_cell(Zipper.zip(~save_cursor=true, z));
-    let (cell, ctx) = Zipper.zip_indicated(z);
-    switch (Cell.get(cell)) {
+let cursor = (~font, z: Zipper.t) => {
+  let c = Zipper.zip(~save_cursor=true, z);
+  let lc = Layout.mk_cell(c);
+
+  let (_, ind_ctx) = Zipper.zip_indicated(z);
+  let ind_cur =
+    Option.get(c.marks.cursor)
+    |> Cursor.map(
+         Caret.map(Fun.const(Zipper.path_of_ctx(ind_ctx))),
+         Fun.id,
+       );
+  let ind_lz = Layout.unzip(ind_cur, lc);
+  let state = Layout.state_of_ctx(ind_lz.ctx);
+
+  switch (ind_lz.cur) {
+  | Point(ind_lc) =>
+    switch (ind_lc.meld) {
     | None => []
-    | Some(m) =>
-      let path = Zipper.path_of_ctx(ctx);
-      m |> Dec.Meld.Profile.mk(~tree, ~path) |> Dec.Meld.mk(~font);
+    | Some(lm) =>
+      Dec.Meld.Profile.mk(~whole=lc, ~state, lm)
+      |> snd
+      |> Dec.Layers.view(~font)
+    }
+  | Select(ind_zigg) =>
+    let sel = Option.get(Cursor.get_select(z.cur));
+    let rolled =
+      Zigg.roll_bounds(
+        ~l=Ctx.nonspace_face(~side=L, z.ctx),
+        sel.range,
+        ~r=Ctx.nonspace_face(~side=R, z.ctx),
+      );
+    let null = {
+      let (dn, up) = Ctx.hd(z.ctx);
+      let l = Zigg.is_null(~side=L, ~slope=dn, sel.range);
+      let r = Zigg.is_null(sel.range, ~slope=up, ~side=R);
+      (l, r);
     };
+    let eqs = (
+      snd(List.split(fst(ind_lz.eqs))),
+      fst(List.split(snd(ind_lz.eqs))),
+    );
+    ind_zigg
+    |> Dec.Zigg.Profile.mk(~whole=lc, ~state, ~null, ~eqs, ~rolled)
+    |> Dec.Layers.view(~font);
   };
+};
 
 let view = (~font: Model.Font.t, ~zipper: Zipper.t): Node.t => {
-  // print_endline("--- Code.view ---");
-  // print_endline("z = " ++ Zipper.show(zipper));
+  // P.log("--- Code.view ---");
+  // P.show("z", Zipper.show(zipper));
   let c = Zipper.zip(~save_cursor=true, zipper);
-  // print_endline("c = " ++ Cell.show(c));
-  // let t = Layout.Tree.of_cell(c);
-  // print_endline("t = " ++ Layout.Tree.show(t));
-  // let b = Layout.Tree.flatten(t);
-  // print_endline("b = " ++ Layout.Block.show(b));
+  // P.show("c", Cell.show(c));
+  // let t = Layout.mk_cell(c);
+  // print_endline("t = " ++ LCell.show(t));
+  // let b = LCell.flatten(t);
+  // print_endline("b = " ++ Block.show(b));
   div(
     ~attrs=[Attr.class_("code"), Attr.id("under-the-rail")],
-    [view_text(c), ...cursor(~font, zipper)] @ carets(~font, c),
+    [view_text(~font, c), ...cursor(~font, zipper)] @ carets(~font, c),
   );
 };

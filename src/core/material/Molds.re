@@ -9,7 +9,7 @@ let add = (lbl, mold) =>
 let index: Label.Map.t(list(Mold.t)) =
   Walker.enter_all(~from=L, Mtrl.NT.root)
   |> Walk.Index.to_list
-  |> List.rev_map(fst)
+  |> List.map(fst)
   |> List.fold_left(
        map =>
          fun
