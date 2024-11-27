@@ -232,7 +232,7 @@ let walk_all =
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
-    // |> Index.filter(is_minimal)
+    |> Index.filter(is_minimal)
     |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t): End.Map.t(list(T.t)) =>
@@ -246,7 +246,7 @@ let enter_all =
     |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
-    // |> Index.filter(is_minimal)
+    |> Index.filter(is_minimal)
     |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
@@ -317,28 +317,29 @@ let read_warmed_walked = () => {
   //   Thin.walk_map_of_thin(thin_walk_l, stances_flipped^, nts_flipped^);
 };
 
-let read_warmed_enter = () => {
-  ()// let _warmed_entered_l = [%blob "precompiled/enter_l_map.txt"];
-    // let thin_enter_r =
-    //   Thin.ThinNT.Map.t_of_sexp(
-    //     Thin.ThinIndex.t_of_sexp,
-    //     // Sexplib.Sexp.of_string(warmed_entered_r),
-    //     Sexplib.Sexp.of_string(""),
-    //   );
-    // let thin_enter_l =
-    //   Thin.ThinNT.Map.t_of_sexp(
-    //     Thin.ThinIndex.t_of_sexp,
-    //     // Sexplib.Sexp.of_string(warmed_entered_l),
-    //     Sexplib.Sexp.of_string(""),
-    //   );
-    //
-    // enter_r_map :=
-    //   Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
-    // enter_l_map :=
-    //   Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
-    ; // let _warmed_entered_r = [%blob "precompiled/enter_r_map.txt"];
-    //
-};
+let read_warmed_enter = () => ();
+// () => {
+//   // let _warmed_entered_r = [%blob "precompiled/enter_r_map.txt"];
+//   // let _warmed_entered_l = [%blob "precompiled/enter_l_map.txt"];
+//   // let thin_enter_r =
+//   //   Thin.ThinNT.Map.t_of_sexp(
+//   //     Thin.ThinIndex.t_of_sexp,
+//   //     // Sexplib.Sexp.of_string(warmed_entered_r),
+//   //     Sexplib.Sexp.of_string(""),
+//   //   );
+//   // let thin_enter_l =
+//   //   Thin.ThinNT.Map.t_of_sexp(
+//   //     Thin.ThinIndex.t_of_sexp,
+//   //     // Sexplib.Sexp.of_string(warmed_entered_l),
+//   //     Sexplib.Sexp.of_string(""),
+//   //   );
+//   //
+//   // enter_r_map :=
+//   //   Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
+//   // enter_l_map :=
+//   //   Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+//   //
+// };
 
 let read_warmed = () => {
   read_warmed_stances_nts();
