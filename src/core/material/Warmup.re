@@ -186,21 +186,21 @@ let warmup = () => {
 
   print_endline("got root walks");
 
-  let walk_count = ref(0);
-  let total_walk_size = ref(0);
-  root_l_walk
-  |> Walk.Index.to_list
-  |> List.rev_map(snd)
-  |> List.concat
-  |> List.iteri((idx, walk) => {
-       walk_count := idx + 1;
-       total_walk_size := total_walk_size^ + Chain.length(walk);
-       ();
-     });
-  print_endline("Walk Count: " ++ string_of_int(walk_count^));
-  print_endline(
-    "Average Walk Size: " ++ string_of_int(total_walk_size^ / walk_count^),
-  );
+  // let walk_count = ref(0);
+  // let total_walk_size = ref(0);
+  // root_l_walk
+  // |> Walk.Index.to_list
+  // |> List.rev_map(snd)
+  // |> List.concat
+  // |> List.iteri((idx, walk) => {
+  //      walk_count := idx + 1;
+  //      total_walk_size := total_walk_size^ + Chain.length(walk);
+  //      ();
+  //    });
+  // print_endline("Walk Count: " ++ string_of_int(walk_count^));
+  // print_endline(
+  //   "Average Walk Size: " ++ string_of_int(total_walk_size^ / walk_count^),
+  // );
 
   process_ts_l_walks(ts, root_l_walk);
   Gc.full_major();

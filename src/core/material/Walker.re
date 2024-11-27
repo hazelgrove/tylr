@@ -223,8 +223,26 @@ let bfs = (~from: Dir.t, q: Queue.t((End.t, Walk.t))): Index.t => {
   index^;
 };
 
+// if bottom (head) of swing is Tile, need to check the top (foot) of swing for
+// whether it's also a Tile of the same sort. if so, combine the prec bounds of top
+// and bottom to produce bounded_sort. otherwise, just use the prec bound of the
+// bottom and have the other side bound be Bound.Root.
+type bounded_sort = (Bound.t(Prec.t), Sort.t, Bound.t(Prec.t));
+type swing_profile = Mtrl.t(Space.NT.t, Grout.NT.t, bounded_sort);
+type swings_profile = list(swing_profile);
+
+// notes:
+// - [DONE] strengthen minimality check to rule out multiple grout levels
+// - apply additional filter that rules outs walks that accommodate the same thing as another existing walk
+
 let is_minimal = (w: Walk.t) =>
-  !(Walk.is_neq(w) && List.exists(Mtrl.is_tile, Chain.links(w)));
+  !(
+    Walk.is_neq(w)
+    && (
+      List.exists(Mtrl.is_tile, Chain.links(w))
+      || List.length(List.filter(Mtrl.is_grout, Chain.links(w))) > 1
+    )
+  );
 
 let walk_all =
   Memo.general(((from: Dir.t, src: End.t)) => {
@@ -233,6 +251,12 @@ let walk_all =
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
     |> Index.filter(is_minimal)
+    |> Index.fil(_ =>
+         fun
+         | [] => false
+         | _ => true
+       )
+    // todo: apply swings_profile filter here
     |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t): End.Map.t(list(T.t)) =>
@@ -247,11 +271,15 @@ let enter_all =
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
     |> Index.filter(is_minimal)
+    |> Index.fil(_ =>
+         fun
+         | [] => false
+         | _ => true
+       )
+    // todo: apply swings_profile filter here
     |> Index.sort;
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
-
-//TODO: change functions below to call the new serialized versions of walk_all and enter_all
 
 let walk_l_map = ref(End.Map.empty);
 let walk_r_map = ref(End.Map.empty);
@@ -338,6 +366,23 @@ let read_warmed = () => {
   print_endline("read warmed stances nts");
   read_warmed_walked();
   print_endline("read warmed walked");
+  End.Map.bindings(walk_l_map^)
+  |> List.iteri((i, (src, index)) =>
+       if (i < 1) {
+         P.show("src", End.show(src));
+         Index.bindings(index)
+         |> List.iteri((_i, (dst, ws)) => {
+              // if (i < 5) {
+              P.show("- dst", End.show(dst));
+              ws
+              |> List.iteri((_i, w)
+                   //  if (i < 3) {
+                   => P.show("--- w", Walk.show(w)));
+              //  }
+              // }
+            });
+       }
+     );
   Gc.full_major();
   // read_warmed_enter();
   // print_endline("read warmed entered");

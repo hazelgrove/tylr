@@ -145,6 +145,7 @@ module Index = {
       | None => Some([w])
       | Some(ws) => Some([w, ...ws]),
     );
+  let fil = filter;
   let filter = f => map(List.filter(f));
   let map = f => map(List.map(f));
   let iter = f => iter((dst, ws) => List.iter(f(dst), ws));
