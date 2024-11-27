@@ -293,53 +293,44 @@ let read_warmed_stances_nts = () => {
 let read_warmed_walked = () => {
   print_endline("reading warmed walked");
   print_endline("reading walk r");
-  let _thin_walk_r_sexp =
-    Sexplib.Sexp.of_string(PrecompiledFiles._warmed_walked_r());
-  ();
-  // let _thin_walk_r =
-  //   Thin.ThinEnd.Map.t_of_sexp(
-  //     Thin.ThinIndex.t_of_sexp,
-  //     Sexplib.Sexp.of_string(_warmed_walked_r),
-  //   );
-  // print_endline("doing a gc full major");
-  // Gc.full_major();
-  // print_endline("reading walk l");
-  // let thin_walk_l =
-  //   Thin.ThinEnd.Map.t_of_sexp(
-  //     Thin.ThinIndex.t_of_sexp,
-  //     Sexplib.Sexp.of_string([%blob "precompiled/walk_l_map.txt"]),
-  //     // Sexplib.Sexp.of_string(""),
-  //   );
-  //
-  // walk_r_map :=
-  //   Thin.walk_map_of_thin(thin_walk_r, stances_flipped^, nts_flipped^);
-  // walk_l_map :=
-  //   Thin.walk_map_of_thin(thin_walk_l, stances_flipped^, nts_flipped^);
+
+  let _thin_walk_r =
+    Thin.ThinEnd.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles._warmed_walked_r()),
+    );
+  print_endline("doing a gc full major");
+  Gc.full_major();
+  print_endline("reading walk l");
+  let thin_walk_l =
+    Thin.ThinEnd.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles._warmed_walked_l()),
+    );
+
+  walk_r_map :=
+    Thin.walk_map_of_thin(_thin_walk_r, stances_flipped^, nts_flipped^);
+  walk_l_map :=
+    Thin.walk_map_of_thin(thin_walk_l, stances_flipped^, nts_flipped^);
 };
 
-let read_warmed_enter = () => ();
-// () => {
-//   // let _warmed_entered_r = [%blob "precompiled/enter_r_map.txt"];
-//   // let _warmed_entered_l = [%blob "precompiled/enter_l_map.txt"];
-//   // let thin_enter_r =
-//   //   Thin.ThinNT.Map.t_of_sexp(
-//   //     Thin.ThinIndex.t_of_sexp,
-//   //     // Sexplib.Sexp.of_string(warmed_entered_r),
-//   //     Sexplib.Sexp.of_string(""),
-//   //   );
-//   // let thin_enter_l =
-//   //   Thin.ThinNT.Map.t_of_sexp(
-//   //     Thin.ThinIndex.t_of_sexp,
-//   //     // Sexplib.Sexp.of_string(warmed_entered_l),
-//   //     Sexplib.Sexp.of_string(""),
-//   //   );
-//   //
-//   // enter_r_map :=
-//   //   Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
-//   // enter_l_map :=
-//   //   Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
-//   //
-// };
+let read_warmed_enter = () => {
+  let thin_enter_r =
+    Thin.ThinNT.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles._enter_r_map()),
+    );
+  let thin_enter_l =
+    Thin.ThinNT.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles._enter_l_map()),
+    );
+
+  enter_r_map :=
+    Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
+  enter_l_map :=
+    Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+};
 
 let read_warmed = () => {
   read_warmed_stances_nts();
@@ -348,9 +339,9 @@ let read_warmed = () => {
   read_warmed_walked();
   print_endline("read warmed walked");
   Gc.full_major();
-  read_warmed_enter();
-  print_endline("read warmed entered");
-  Gc.full_major();
+  // read_warmed_enter();
+  // print_endline("read warmed entered");
+  // Gc.full_major();
 };
 
 let walk_all_precompiled =
