@@ -193,6 +193,7 @@ module Index = {
     );
   let fil = filter;
   let filter = f => map(List.filter(f));
+  let mp = map;
   let map = f => map(List.map(f));
   let iter = f => iter((dst, ws) => List.iter(f(dst), ws));
   let union: (t, t) => t = union((_, l, r) => Some(l @ r));

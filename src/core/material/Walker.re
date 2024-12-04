@@ -222,9 +222,65 @@ type bounded_sort = (Bound.t(Prec.t), Sort.t, Bound.t(Prec.t));
 type swing_profile = Mtrl.t(Space.NT.t, Grout.NT.t, bounded_sort);
 type swings_profile = list(swing_profile);
 
+let build_swing_profile = (from: Dir.t, s: Swing.t): swing_profile => {
+  let btm = Swing.bot(s);
+  let top = Swing.top(s);
+
+  switch (btm) {
+  | Tile(((_, btm_sort), btm_bound)) =>
+    let btm_bound =
+      switch (btm_bound) {
+      | Root => Bound.root
+      | Node(btm_mold) => Dir.pick(Dir.toggle(from), Mold.bounds(btm_mold))
+      };
+    switch (top) {
+    | Tile(((_, top_sort), top_bound)) =>
+      let top_bound =
+        switch (top_bound) {
+        | Node(top_mold) when btm_sort == top_sort =>
+          Dir.pick(from, Mold.bounds(top_mold))
+        | _ => Bound.root
+        };
+
+      let (left_bound, right_bound) =
+        Dir.order(from, (top_bound, btm_bound));
+
+      Mtrl.Tile((left_bound, btm_sort, right_bound));
+    | _ =>
+      let (left_bound, right_bound) =
+        Dir.order(from, (Bound.root, btm_bound));
+      Mtrl.Tile((left_bound, btm_sort, right_bound));
+    };
+  | Space(spc) => Space(spc)
+  | Grout(grt) => Grout(grt)
+  };
+};
+
+let walk_filter_by_swing = (from: Dir.t, walks: list(Walk.t)): list(Walk.t) => {
+  walks
+  |> List.fold_left(
+       (
+         (swings_profiles: list(swings_profile), walks: list(Walk.t)),
+         w: Walk.t,
+       ) => {
+         let swings = Walk.swings(w);
+         let profile = List.map(build_swing_profile(from), swings);
+
+         if (List.mem(profile, swings_profiles)) {
+           (swings_profiles, walks);
+         } else {
+           ([profile, ...swings_profiles], [w, ...walks]);
+         };
+       },
+       ([], []),
+     )
+  |> snd
+  |> List.rev;
+};
+
 // notes:
 // - [DONE] strengthen minimality check to rule out multiple grout levels
-// - apply additional filter that rules outs walks that accommodate the same thing as another existing walk
+// - [DOING} apply additional filter that rules outs walks that accommodate the same thing as another existing walk
 
 let is_minimal = (w: Walk.t) =>
   !(
@@ -245,7 +301,7 @@ let walk_all =
          | [] => false
          | _ => true
        )
-    // todo: apply swings_profile filter here
+    |> Index.mp(walk_filter_by_swing(from))
     |> Index.sort;
   });
 let walk_all = (~from: Dir.t, src: End.t): End.Map.t(list(T.t)) =>
