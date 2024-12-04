@@ -256,6 +256,9 @@ let build_swing_profile = (from: Dir.t, s: Swing.t): swing_profile => {
   };
 };
 
+
+//TODO: instead of doing list.mem (equality) check if the profile has wider (more relaxed) bounds than the pre-existing profile (gte)
+//make the accumulator just a list of walks (the already checked walks) and then recalcuate the profiles for each walk in the accumulator - this will solve the problem of needing to do two-way checks with profiles/walks that were already approved/checked
 let walk_filter_by_swing = (from: Dir.t, walks: list(Walk.t)): list(Walk.t) => {
   walks
   |> List.fold_left(
