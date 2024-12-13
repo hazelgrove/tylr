@@ -103,9 +103,19 @@ let rec mold =
           {
             let (fill, slope) = Slope.Dn.unroll(fill);
             let stack = Stack.cat(slope, stack);
-            Melder.push(deferred, ~fill, stack, ~onto=L)
-            |> Option.map(((grouted, stack)) => (deferred, grouted, stack))
-            |> Options.get_fail("bug: failed to push space");
+            try(
+              Melder.push(deferred, ~fill, stack, ~onto=L)
+              |> Option.map(((grouted, stack)) =>
+                   (deferred, grouted, stack)
+                 )
+              |> Options.get_fail("bug: failed to push space")
+            ) {
+            | _ =>
+              P.log("--- Molder.mold/failed defer");
+              P.show("deferred", Token.show(deferred));
+              P.show("stack", Stack.show(stack));
+              failwith("");
+            };
           },
         );
   }

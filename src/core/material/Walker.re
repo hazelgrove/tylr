@@ -284,11 +284,19 @@ let walk_filter_by_swing = (from: Dir.t, walks: list(Walk.t)): list(Walk.t) => {
 // - [DONE] strengthen minimality check to rule out multiple grout levels
 // - [DOING} apply additional filter that rules outs walks that accommodate the same thing as another existing walk
 
+// WIP: inspecting the diff `git show -m bdc35446 -- src/core/material` to see why
+// there is a difference between precompiled entry from root vs regular entry from
+// root
 let is_minimal = (w: Walk.t) =>
   !(
     Walk.is_neq(w)
-    && List.exists(Mtrl.is_tile, Walk.stance_sorts(w).mid)
-    || List.length(List.filter(Mtrl.is_grout, Chain.links(w))) > 1
+    && (
+      // avoid walks with spurious mid levels like the paren in `# <. ( <. 2`
+      List.exists(Mtrl.is_tile, Walk.stance_sorts(w).mid)
+      // avoid walk withs multiple grout levels eg `# <. << <. << <. Int`
+      || List.length(List.filter(Mtrl.is_grout, Walk.stance_sorts(w).mid))
+      > 1
+    )
   );
 
 let walk_all =

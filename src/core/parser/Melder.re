@@ -70,10 +70,39 @@ let complete_bounded =
   //   P.log("--- Melder.complete_bounded");
   //   P.show("completed slope", Cell.show(fill));
   // };
-  Walker.walk_eq(~from=onto, fc_onto, fc_from)
-  |> Grouter.pick(~repair=true, [fill], ~from=onto)
-  |> Option.map(grouted => snd(Chain.hd(grouted)))
-  |> Options.get_fail("hmmm");
+  try(
+    Walker.walk_eq(~from=onto, fc_onto, fc_from)
+    |> Grouter.pick(~repair=true, [fill], ~from=onto)
+    |> Option.map(grouted => snd(Chain.hd(grouted)))
+    |> Options.get_fail("hmmm")
+  ) {
+  | _ =>
+    P.log("--- Melder.complete_bounded/failed");
+    P.show("onto", Dir.show(onto));
+    P.show("fc_onto", Bound.show(Mtrl.T.pp, fc_onto));
+    P.show("fc_from", Bound.show(Mtrl.T.pp, fc_from));
+    P.show("fill", Cell.show(fill));
+    Walker.walk_eq(~from=onto, fc_onto, fc_from)
+    |> List.iter(w => {
+         P.show("walk", Walk.show(w));
+         let sw = Chain.hd(w);
+         let nt = Chain.hd(sw);
+         P.show("entering precompiled nt", Mtrl.NT.show(nt));
+         Walker.enter_all_precompiled(~from=L, nt)
+         |> Walk.Index.iter((dst, w) => {
+              P.show("dst", Walk.End.show(dst));
+              P.show("walk", Walk.show(w));
+            });
+         P.show("entering nt", Mtrl.NT.show(nt));
+         Walker.enter_all(~from=L, nt)
+         |> Walk.Index.iter((dst, w) => {
+              P.show("dst", Walk.End.show(dst));
+              P.show("walk", Walk.show(w));
+            });
+       });
+    // P.sexp("fill", Cell.sexp_of_t(fill));
+    failwith("");
+  };
 };
 
 let connect_eq =
