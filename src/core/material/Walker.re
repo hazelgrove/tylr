@@ -256,7 +256,6 @@ let build_swing_profile = (from: Dir.t, s: Swing.t): swing_profile => {
   };
 };
 
-
 //TODO: instead of doing list.mem (equality) check if the profile has wider (more relaxed) bounds than the pre-existing profile (gte)
 //make the accumulator just a list of walks (the already checked walks) and then recalcuate the profiles for each walk in the accumulator - this will solve the problem of needing to do two-way checks with profiles/walks that were already approved/checked
 let walk_filter_by_swing = (from: Dir.t, walks: list(Walk.t)): list(Walk.t) => {
@@ -439,23 +438,33 @@ let read_warmed = () => {
 
 let walk_all_precompiled =
     (~from: Dir.t, source: End.t): End.Map.t(list(T.t)) => {
-  End.Map.find(
-    source,
-    switch (from) {
-    | L => walk_l_map^
-    | R => walk_r_map^
-    },
-  );
+  switch (
+    End.Map.find_opt(
+      source,
+      switch (from) {
+      | L => walk_l_map^
+      | R => walk_r_map^
+      },
+    )
+  ) {
+  | Some(walks) => walks
+  | None => End.Map.empty
+  };
 };
 
 let enter_all_precompiled = (~from: Dir.t, sort: Mtrl.NT.t) => {
-  Mtrl.NT.Map.find(
-    sort,
-    switch (from) {
-    | L => enter_l_map^
-    | R => enter_r_map^
-    },
-  );
+  switch (
+    Mtrl.NT.Map.find_opt(
+      sort,
+      switch (from) {
+      | L => enter_l_map^
+      | R => enter_r_map^
+      },
+    )
+  ) {
+  | Some(walks) => walks
+  | None => End.Map.empty
+  };
 };
 
 let step = (~from: Dir.t, src: End.t, dst: End.t) =>
