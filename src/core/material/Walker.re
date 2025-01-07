@@ -64,7 +64,7 @@ let swing_over = (w: Walk.t, ~from: Dir.t) =>
            | _ =>
              P.show("sym", Grammar.Sym.show(sym));
              P.show("rctx", RCtx.show(Grammar.Sym.pp, rctx));
-             failwith("");
+             failwith("failed Walker.swing_over");
            }
          ),
        )
@@ -441,9 +441,9 @@ let read_warmed = () => {
        }
      );
   Gc.full_major();
-  // read_warmed_enter();
-  // print_endline("read warmed entered");
-  // Gc.full_major();
+  read_warmed_enter();
+  print_endline("read warmed entered");
+  Gc.full_major();
 };
 
 let walk_all_precompiled =

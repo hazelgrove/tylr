@@ -97,7 +97,7 @@ module Open = {
       | _ =>
         open Stds;
         P.show("(dn, up)", show((dn, up)));
-        failwith("");
+        failwith("failed Frame.Open.zip_step");
       };
       Some((Eq(), zip_eq(l, zipped, r), (dn, up)));
     };
