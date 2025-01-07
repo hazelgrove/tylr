@@ -44,6 +44,8 @@ module State = {
     loc: Loc.t,
   };
 
+  let debug = ref(false);
+
   let init = {ind: Indent.init, loc: Loc.zero};
 
   let map = (f, s: t) => {...s, loc: f(s.loc)};
@@ -97,7 +99,7 @@ module State = {
     |> Lists.fold_left(~init=s, ~f=(s, (i, (cell, b_tok))) =>
          s
          |> jump_cell(~over=cell)
-         |> (i == 0 ? push_ind : Fun.id)
+         |> (i == 0 && !Mtrl.is_space(LTerr.sort(over)) ? push_ind : Fun.id)
          |> jump_tok(~over=b_tok)
        )
     |> (closed ? Fun.id : pop_ind);
@@ -112,14 +114,24 @@ let max_path = _ => failwith("todo");
 let max_loc = (t: LCell.t) =>
   State.jump_block(State.init, ~over=LCell.flatten(t)).loc;
 
-let rec mk_cell = (~delim=Delim.root, c: Cell.t): LCell.t =>
+let rec mk_cell = (~delim=Delim.root, c: Cell.t): LCell.t => {
   Cell.get(c)
   |> Option.map(mk_meld)
   |> Option.map((M(l, _, _) as m: LMeld.t) => {
        let indent = Delim.indent(delim) && LCell.height(l) > 0 ? 2 : 0;
-       LCell.nest_body_meld(indent, m);
+       let r = LCell.nest_body_meld(indent, m);
+       //  P.log("--- Layout.mk_cell/meld");
+       //  P.show("delim", Delim.show(delim));
+       //  P.show("delim.indent", string_of_bool(Delim.indent(delim)));
+       //  P.show("l height", string_of_int(LCell.height(l)));
+       //  P.show("indent", string_of_int(indent));
+       //  P.show("c", Cell.show(c));
+       //  P.show("lm", LMeld.show(m));
+       //  P.show("lm body nested", LMeld.show(r));
+       r;
      })
-  |> (meld => Cell.Base.mk(~meld?, ()))
+  |> (meld => Cell.Base.mk(~meld?, ()));
+}
 and mk_meld = (m: Meld.t): LMeld.t =>
   Meld.to_chain(m)
   |> Chain.fold_left_map(
@@ -463,6 +475,14 @@ and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
   let l_hd = Path.hd(l) |> Path.Head.get(() => 0);
   let r_hd = Path.hd(r) |> Path.Head.get(() => Meld.length(meld) - 1);
   let (pre, top, suf) = LMeld.split_subwald(l_hd, r_hd, meld);
+  // P.log("--- Layout.unzip_select");
+  // P.show("meld", LMeld.show(meld));
+  // P.show("sel.range", Path.Range.show(sel.range));
+  // P.show("l_hd", Step.show(l_hd));
+  // P.show("r_hd", Step.show(r_hd));
+  // P.show("pre", Chain.show(LCell.pp, Block.pp, pre));
+  // P.show("top", LWald.show(top));
+  // P.show("suf", Chain.show(LCell.pp, Block.pp, suf));
   let (pre_eqs, (pre_dn, pre_up)) = {
     // l points to cell hd_pre
     let (hd_pre, tl_pre) = Chain.uncons(pre);
@@ -497,6 +517,10 @@ and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
       };
     (eqs, flat);
   };
+  // P.show("pre_dn", LSlope.show(pre_dn));
+  // P.show("pre_up", LSlope.show(pre_up));
+  // P.show("suf_dn", LSlope.show(suf_dn));
+  // P.show("suf_up", LSlope.show(suf_up));
   let zigg = LZigg.mk(~up=pre_up, top, ~dn=suf_dn);
   let eqs = {
     let (dn, up) = Chain.hd(ctx);

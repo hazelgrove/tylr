@@ -39,6 +39,12 @@ let cursor = (~font, z: Zipper.t) => {
   let ind_lz = Layout.unzip(ind_cur, lc);
   let state = Layout.state_of_ctx(ind_lz.ctx);
 
+  // P.log("--- Code.cursor");
+  // P.show("c", Cell.show(c));
+  // P.show("lc", LCell.show(lc));
+  // P.show("ind_lz", LZipper.show(ind_lz));
+  // P.show("state", Layout.State.show(state));
+
   switch (ind_lz.cur) {
   | Point(ind_lc) =>
     switch (ind_lc.meld) {

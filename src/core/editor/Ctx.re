@@ -7,6 +7,11 @@ module Base = {
   type t('tok) =
     Chain.t(Frame.Open.Base.t('tok), Frame.Closed.Base.t('tok));
   let empty = Chain.unit(Frame.Open.Base.empty);
+  let is_empty = (~side: Dir.t, ctx: t(_)) =>
+    switch (Chain.unlink(ctx)) {
+    | Error(open_) => Frame.Open.is_empty(~side, open_)
+    | Ok(_) => false
+    };
   let flatten = (ctx: t('tok)): Frame.Open.Base.t('tok) =>
     Chain.fold_right(
       (open_, (l, r), acc) =>

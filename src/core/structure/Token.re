@@ -104,7 +104,7 @@ module Molded = {
   let length = (tok: t) =>
     switch (tok.mtrl) {
     | Grout(_) => 1
-    | Tile((Const(_, c), _)) => Utf8.length(c)
+    | Tile((Const(_, _, c), _)) => Utf8.length(c)
     | Tile(_)
     | Space(_) => Utf8.length(tok.text)
     };
@@ -298,7 +298,7 @@ module Unmolded = {
         |> List.filter(
              fun
              // todo: add expands flag to label
-             | Label.Const(_, text) when text == tok.text => true
+             | Label.Const(_, _, text) when text == tok.text => true
              | _ => false,
            );
       switch (expanding_lbls) {

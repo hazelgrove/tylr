@@ -16,7 +16,7 @@ module Shape = {
     | None
     | Some((Eq (), _, _)) => Straight
     | Some((Neq(side), zipped, ctx)) when Cell.Space.is_space(zipped) =>
-      mk(~side, ctx)
+      Ctx.is_empty(~side, ctx) ? Straight : mk(~side, ctx)
     | Some((Neq(d), _, _)) =>
       side == Some(d) ? Bent(Dir.toggle(d), Conc) : Bent(d, Conv)
     };

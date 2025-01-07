@@ -25,18 +25,12 @@
 :root {
   --light-page-color: #fdf6e3;
   --light-text-color: #586e75;
-  --top_bar_icon_fill: #c7b480;
-  --top-bar-text: #a79f89;
-  --delim-color: #586e75; /*#aeb5b8;*/ /*#657b83;*/
 
-  /* --selection-color: #fae294; */
   --selection-color: #ffd5be;
   --selection-shadow-color: rosybrown;
 
-  --hole-stroke-color: #dc322f;
   --unmolded-color: #dc322f;
 
-  /* --caret-color: #f62116; */
   --caret-focus-color: #ff7200;
   --caret-anchor-color: #ffa760;
 
@@ -44,16 +38,17 @@
   /* --inner-silhouette-color: #fff9d5; */
   --inner-silhouette-color: var(--light-page-color);
 
-  --exp-bg-color: #ebdfc5; /*#dbf6de;*/
-  --exp-shadow-color: #c4b599;/*#329f43;*/
-  --exp-rail-color: #a7d3ad;
+  --exp-bg-color: #ebdfc5;
+  --exp-shadow-color: #c3b292;
+  --exp-text-color: #756e58;
 
-  --pat-bg-color: #d8e6ef; /* #f5fbff; */
-  --pat-shadow-color: #90bdde; /*#268bd2;*/
-  --pat-rail-color: #a1c4dd;
+  --pat-bg-color: #d0e7ec;
+  --pat-shadow-color: #91bcd9;
+  --pat-text-color: #2f85a1;
 
-  --typ-bg-color: #ecdaff;
-  --typ-shadow-color: #c498fc;
+  --typ-bg-color: #e8d9e6;
+  --typ-shadow-color: #c2a1e2;
+  --typ-text-color: #7e5fa4;
 
   --rul-bg-color: #f3caf4;
   --rul-shadow-color: #d461d0;
@@ -64,44 +59,15 @@
   --prog-bg-color: var(--stat-bg-color);
   --prog-shadow-color: var(--stat-shadow-color);
 
-  --nul-bg-color: #b6b6b6;
-  --nul-shadow-color: #a97804;
-
-  --unsorted-bg-color: #ffd0e6;
-  --unsorted-shadow-color: #c2a964;
-  --unsorted-rail-color: #e7bdd0;
-
-  --bar-color: #dfdacc;
-
-  --key-bg-color: var(--light-text-color);
-  --key-text-color: whitesmoke;
-  --action-text-color:  var(--light-text-color);
-
-  --err-flash-duration: 0.4s;
-  --err-msg-duration: 5s;
-
-  --disabled-action-table-opacity: 0.25;
-
   --line-height: 1.45;
 
   --selection-box-z: 1;
-  --genie-z: 1;
   --empty-hole-z: 5;
   --tile-z: 4;
   --code-text-z: 6;
-  --code-text-shards-z: 7;
   --bar-z: 0;
-  --inner-cousin-z: 9;
-  --outer-cousin-caret-position-z: 9;
-  --rail-z: 11;
-  --selection-bar-z: 12;
-  --caret-position-z: 13;
   --anchor-z: 14;
-  --current-caret-pos-z: 15;
   --caret-z: 14;
-  --action-table-z: 15;
-  --caret-bar-z: 16;
-  --error-message-z: 17;
 }
 
 /* .token.space {
@@ -114,10 +80,18 @@
   position: relative;
   opacity: 40%;
 }
+.tile.Exp .ghost {
+  color: var(--exp-text-color);
+}
+.tile.Pat .ghost {
+  color: var(--pat-text-color);
+}
+.tile.Typ .ghost {
+  color: var(--typ-text-color);
+}
 
 .grout {
   position: relative;
-  color: #0000;
 }
 
 .grout svg {
@@ -144,12 +118,22 @@
 }
 
 .unmolded {
+  font-style: italic;
   opacity: 40%;
   color: var(--unmolded-color);
 }
 
 .tile.match {
   font-weight: bold;
+}
+.token.Exp {
+  color: var(--exp-text-color);
+}
+.token.Pat {
+  color: var(--pat-text-color);
+}
+.token.Typ {
+  color: var(--typ-text-color);
 }
 
 .silhouette.outer {
@@ -255,23 +239,6 @@
   }
 }
 
-#bar {
-  z-index: var(--bar-z);
-  position: absolute;
-  left: 0;
-  width: 100%;
-}
-#bar svg {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-}
-#bar rect {
-  fill: var(--bar-color);
-}
-
 #history-button-container {
   display: flex;
   gap: 1em;
@@ -323,30 +290,6 @@
   position: absolute;
   z-index: var(--code-text-z);
   /* white-space: pre; */
-}
-
-/* NOTE(andrew): below 3 styles are part of
-   a hack to display incomplete delims in
-   selections */
-.code-text-shards {
-  position: absolute;
-  z-index: var(--code-text-shards-z);
-}
-.code-text-shards span {
-  color: #0000 !important;
-}
-.code-text-shards span.delim-incomplete {
-  color: #ce9600 !important;
-}
-
-.empty-hole {
-  z-index: var(--empty-hole-z);
-}
-.empty-hole-path {
-  fill: #f1e8cd;
-  stroke: #dbcca7;
-  stroke-width: 0.75px;
-  vector-effect: non-scaling-stroke;
 }
 
 .selection {
@@ -522,28 +465,6 @@
 #drop-shadow-Rul .tile-drop-shadow,
 #raised-drop-shadow-Rul .tile-drop-shadow {
   flood-color: var(--rul-shadow-color);
-}
-
-.sort-label {
-  border-radius: 2px;
-  font-weight: 600;
-}
-.sort-label.typ {
-  background-color: var(--typ-bg-color);
-}
-.sort-label.pat {
-  background-color: var(--pat-bg-color);
-}
-.sort-label.exp {
-  background-color: var(--exp-bg-color);
-}
-.sort-label.Exp {
-  /*color: var(--light-page-color);*/
-  color: var(--exp-shadow-color);
-}
-.sort-label.Pat {
-  /*color: var(--light-page-color);*/
-  color: var(--pat-shadow-color);
 }
 
 #about-button-container {

@@ -1,14 +1,17 @@
 open Sexplib.Std;
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
+open Stds;
 
 module Base = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) = list(Terr.Base.t('tok));
   let empty = [];
+  let is_empty = slope => slope == empty;
   let singleton = t => [t];
   let height = List.length;
   let cons = List.cons;
   let cat = (@);
+  let concat = Lists.fold_right(~f=cat, ~init=empty);
 };
 include Base;
 
@@ -78,6 +81,25 @@ let unroll = (~from: Dir.t, cell: Cell.t) => {
     };
   go(cell, []);
 };
+let unroll_s = (~from: Dir.t, cs: list(Cell.t)) =>
+  cs
+  |> List.map(unroll(~from))
+  |> Lists.fold_right(
+       ~init=(Cell.empty, empty),
+       ~f=((c, unrolled), (c_acc, unrolled_acc)) => {
+         let (c, unrolled) =
+           switch (Lists.Framed.ft(unrolled)) {
+           | None => (Cell.Space.merge(c, c_acc), empty)
+           | Some((pre, ft: Terr.t)) =>
+             let cell =
+               from == L ? Cell.pad(~l=c, ft.cell) : Cell.pad(ft.cell, ~r=c);
+             let ft = {...ft, cell};
+             (c, Lists.Framed.put_ft(pre, ft));
+           };
+         (c, cat(unrolled, unrolled_acc));
+       },
+     );
+
 let rec roll = (~onto: Dir.t, ~fill=Cell.empty, slope: t) =>
   switch (slope) {
   | [] => fill
@@ -127,6 +149,7 @@ module Dn = {
   type t = list(Terr.R.t);
   let roll = roll(~onto=L);
   let unroll = unroll(~from=L);
+  let unroll_s = unroll_s(~from=L);
   let pull = pull(~from=L);
   let flatten = slope => slope |> List.rev |> List.concat_map(Terr.R.flatten);
 };
@@ -136,6 +159,7 @@ module Up = {
 
   let roll = roll(~onto=R);
   let unroll = unroll(~from=R);
+  let unroll_s = unroll_s(~from=R);
   let pull = pull(~from=R);
   let flatten = List.concat_map(Terr.L.flatten);
 };

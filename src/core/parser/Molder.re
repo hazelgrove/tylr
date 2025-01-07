@@ -70,14 +70,20 @@ let complete_pending_ghosts = (~bounds, l: Stack.t, ~fill) => {
     };
 };
 
-// returns None if input token is empty
+// returns Error(fill) if input token is empty
+// re indicates whether token is being remolded
 let rec mold =
-        (stack: Stack.t, ~fill=Cell.empty, t: Token.Unmolded.t)
-        : Result.t((Token.t, Grouted.t, Stack.t), Cell.t) =>
+        (~re=false, stack: Stack.t, ~fill=Cell.empty, t: Token.Unmolded.t)
+        : Result.t((Token.t, Grouted.t, Stack.t), Cell.t) => {
+  // P.log("--- Molder.mold");
+  // P.show("re", string_of_bool(re));
+  // P.show("stack", Stack.show(stack));
+  // P.show("fill", Cell.show(fill));
+  // P.show("t", Token.Unmolded.show(t));
   switch (
     candidates(t)
     |> Oblig.Delta.minimize(tok =>
-         Melder.push(tok, ~fill, stack, ~onto=L, ~repair=remold)
+         Melder.push(~no_eq=re, tok, ~fill, stack, ~onto=L, ~repair=remold)
          |> Option.map(((grouted, stack)) => (tok, grouted, stack))
        )
   ) {
@@ -103,22 +109,16 @@ let rec mold =
           {
             let (fill, slope) = Slope.Dn.unroll(fill);
             let stack = Stack.cat(slope, stack);
-            try(
-              Melder.push(deferred, ~fill, stack, ~onto=L)
-              |> Option.map(((grouted, stack)) =>
-                   (deferred, grouted, stack)
-                 )
-              |> Options.get_fail("bug: failed to push space")
-            ) {
-            | _ =>
-              P.log("--- Molder.mold/failed defer");
-              P.show("deferred", Token.show(deferred));
-              P.show("stack", Stack.show(stack));
-              failwith("");
-            };
+            Melder.push(~no_eq=re, deferred, ~fill, stack, ~onto=L)
+            |> Option.map(((grouted, stack)) => (deferred, grouted, stack))
+            |> Options.get_fail("bug: failed to push space");
           },
         );
-  }
+  };
+}
+// returns Ok if all suffix elements are remolded by the prefix without changing
+// stack bound. returns Error if a suffix element changes stack bound when remolded
+// and returns remaining suffix elements.
 and remold =
     (~fill, (l, r): Stack.Frame.t)
     : Result.t((Slope.Dn.t, Cell.t), (Cell.t, Stack.Frame.t)) => {
@@ -152,21 +152,32 @@ and remold =
            (c, up);
          })
       |> Option.value(~default=Slope.Up.unroll(hd.cell));
-    switch (mold(l, ~fill, Token.unmold(hd_w))) {
+    // P.log("--- Molder.remold/continue/molding");
+    // P.show("l", Stack.show(l));
+    // P.show("fill", Cell.show(fill));
+    // P.show("hd_w", Token.show(hd_w));
+    switch (mold(~re=true, l, ~fill, Token.unmold(hd_w))) {
     | Error(fill) =>
+      Effects.remove(hd_w);
       let (c, up) = unroll_tl_w_hd_cell();
       let fill = fill |> Cell.pad(~r=c) |> Cell.mark_ends_dirty;
       (l, r_tl) |> Stack.Frame.cat(([], up)) |> remold(~fill);
     | Ok((t, grouted, rest)) when t.mtrl == hd_w.mtrl =>
       // fast path for when hd_w retains original meld
+      // P.log("--- Molder.remold/continue/fast path");
+      // P.show("t", Token.show(t));
+      // P.show("grouted", Grouted.show(grouted));
+      // P.show("rest", Stack.show(rest));
       let connected = Stack.connect(t, grouted, rest) |> Stack.extend(tl_w);
+      let fill = Cell.mark_ends_dirty(hd.cell);
       if (connected.bound == l.bound) {
-        remold(~fill=hd.cell, (connected, r_tl));
+        remold(~fill, (connected, r_tl));
       } else {
-        Error((hd.cell, (connected, r_tl)));
+        Error((fill, (connected, r_tl)));
       };
     | Ok((t, grouted, rest)) =>
-      let connected = Stack.connect(t, grouted, rest);
+      Effects.remove(hd_w);
+      let connected = Stack.connect(Effects.insert(t), grouted, rest);
       // check if connection changed the stack bound
       if (connected.bound == l.bound) {
         // if not, then nearest bidelimited container is preserved
@@ -175,7 +186,7 @@ and remold =
         |> Stack.Frame.cat(([], up))
         |> remold(~fill=Cell.mark_ends_dirty(fill));
       } else {
-        Error((hd.cell, (connected, r_tl)));
+        Error((Cell.mark_ends_dirty(hd.cell), (connected, r_tl)));
       };
     };
   };

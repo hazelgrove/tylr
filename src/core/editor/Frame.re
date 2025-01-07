@@ -30,6 +30,8 @@ module Open = {
     [@deriving (show({with_path: false}), sexp, yojson)]
     type t('tok) = (Slope.Base.t('tok), Slope.Base.t('tok));
     let empty = Slope.(empty, empty);
+    let is_empty = (~side: Dir.t, frame: t(_)) =>
+      Slope.is_empty(Dir.pick(side, frame));
     let cat = ((dn', up'), (dn, up)) =>
       Slope.Base.(cat(dn', dn), cat(up', up));
     let cons = (~onto: Dir.t, terr: Terr.Base.t(_), (dn, up)) =>

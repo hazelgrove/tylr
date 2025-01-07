@@ -49,12 +49,13 @@ let pop = buf => {
     let lbls =
       Labels.completions(text)
       // avoid duplicating exact match const label
-      |> (Label.is_const(lbl) ? Fun.id : List.cons(lbl));
+      |> (Label.is_const(lbl) ? Fun.id : Stds.Lists.snoc(lbl));
     Some(Token.Unmolded.mk(~text, Mtrl.Tile(lbls)));
   };
   // I'm guessing buf state is altered by this switch expression?
   // so I can't call lexeme(buf) before it?
   switch%sedlex (buf) {
+  // whitespace chars are kept separate chars
   | white_space =>
     let text = lexeme(buf);
     Some(Token.Unmolded.mk(~text, Mtrl.Space(White(Usr))));

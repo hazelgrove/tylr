@@ -23,7 +23,7 @@ let view_space = spc =>
 
 let grout = (~font, sort, shape) =>
   Node.span([
-    Node.text("•"),
+    Node.text(Util.Unicode.nbsp),
     Dec.Box.mk(
       ~font,
       ~loc={row: 0, col: 0},
@@ -37,10 +37,12 @@ let view_tok = (~font, tok: Token.t) => {
     // todo: distinguish whitespace from unmolded styling
     | Space(White(_)) => ["space"]
     | Space(Unmolded) => ["unmolded"]
-    | Grout(_) => ["grout"]
+    | Grout((s, _)) => ["grout", Sort.to_str(s)]
     | Tile((_, mold)) =>
-      Mold.(t_nullable(~side=L, mold) && t_nullable(~side=R, mold))
-        ? ["tile"] : ["tile", "match"]
+      let match =
+        Mold.(t_nullable(~side=L, mold) && t_nullable(~side=R, mold))
+          ? [] : ["match"];
+      ["tile", Sort.to_str(mold.sort), ...match];
     };
   let attrs = Attr.[classes(["token", ...mtrl_clss])];
   // title(Sexplib.Sexp.to_string_hum(Token.sexp_of_t(tok))),

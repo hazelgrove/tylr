@@ -14,7 +14,7 @@ let is_const = text =>
   const
   |> List.exists(
        fun
-       | Label.Const(_, t) => String.equal(t, text)
+       | Label.Const(_, _, t) => String.equal(t, text)
        | _ => false,
      );
 
@@ -22,6 +22,6 @@ let completions = (prefix: string) =>
   const
   |> List.filter(
        fun
-       | Label.Const(_, t) => String.starts_with(~prefix, t)
+       | Label.Const(_, _, t) => String.starts_with(~prefix, t)
        | _ => false,
      );
