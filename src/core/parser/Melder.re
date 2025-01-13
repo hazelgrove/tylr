@@ -61,9 +61,12 @@ let complete_slope = (~onto: Dir.t, ~fill=Cell.empty) =>
 
 let complete_bounded =
     (~bounds as (l, r), ~onto: Dir.t, ~fill=Cell.empty, slope) => {
+  P.log("--- Melder.complete_bounded");
+  P.show("fill", Cell.show(fill));
   // from/onto terminology here very confusing...
   let (bd_onto, bd_from) = Dir.order(onto, (l, r));
   let fill = complete_slope(~onto, ~fill, slope);
+  P.show("completed fill", Cell.show(fill));
   let fc_onto = bd_onto |> Bound.map(t => Terr.face(t).mtrl);
   let fc_from = bd_from |> Bound.map(t => Terr.face(t).mtrl);
   // if (debug^) {

@@ -423,23 +423,23 @@ let read_warmed = () => {
   print_endline("read warmed stances nts");
   read_warmed_walked();
   print_endline("read warmed walked");
-  End.Map.bindings(walk_l_map^)
-  |> List.iteri((i, (src, index)) =>
-       if (i < 1) {
-         P.show("src", End.show(src));
-         Index.bindings(index)
-         |> List.iteri((_i, (dst, ws)) => {
-              // if (i < 5) {
-              P.show("- dst", End.show(dst));
-              ws
-              |> List.iteri((_i, w)
-                   //  if (i < 3) {
-                   => P.show("--- w", Walk.show(w)));
-              //  }
-              // }
-            });
-       }
-     );
+  // End.Map.bindings(walk_l_map^)
+  // |> List.iteri((i, (src, index)) =>
+  //      if (i < 1) {
+  //        P.show("src", End.show(src));
+  //        Index.bindings(index)
+  //        |> List.iteri((_i, (dst, ws)) => {
+  //             // if (i < 5) {
+  //             P.show("- dst", End.show(dst));
+  //             ws
+  //             |> List.iteri((_i, w)
+  //                  //  if (i < 3) {
+  //                  => P.show("--- w", Walk.show(w)));
+  //             //  }
+  //             // }
+  //           });
+  //      }
+  //    );
   Gc.full_major();
   read_warmed_enter();
   print_endline("read warmed entered");

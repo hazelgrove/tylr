@@ -45,11 +45,20 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
   );
 
 let complete_pending_ghosts = (~bounds, l: Stack.t, ~fill) => {
+  P.log("--- Molder.complete_pending_ghosts");
+  P.show("l", Stack.show(l));
+  P.show("fill", Cell.show(fill));
   let (cell, effs) =
     Effects.dry_run(
-      () => Melder.complete_bounded(~bounds, ~onto=L, l.slope, ~fill),
+      () => {
+        Grouter.dbg := true;
+        let r = Melder.complete_bounded(~bounds, ~onto=L, l.slope, ~fill);
+        Grouter.dbg := false;
+        r;
+      },
       (),
     );
+  P.show("completed cell", Cell.show(cell));
   // hack(?) to avoid completion if no new ghosts are generated. if only
   // grout are generated, then we can generate them later as needed at the
   // end of remolding. better to delay their generation bc there may already
@@ -62,10 +71,16 @@ let complete_pending_ghosts = (~bounds, l: Stack.t, ~fill) => {
          Mtrl.(is_grout(tok.mtrl) || is_space(tok.mtrl))
        | Remove(_) => true,
      )
-    ? (l, fill)
+    ? {
+      P.log("--- Molder.complete_pending_ghosts/not completing");
+      (l, fill);
+    }
     : {
+      P.log("--- Molder.complete_pending_ghosts/completing");
       Effects.commit(effs);
       let (fill, slope) = Slope.Dn.unroll(cell);
+      P.show("unrolled fill", Cell.show(fill));
+      P.show("unrolled slope", Slope.show(slope));
       ({...l, slope}, fill);
     };
 };
@@ -122,19 +137,19 @@ let rec mold =
 and remold =
     (~fill, (l, r): Stack.Frame.t)
     : Result.t((Slope.Dn.t, Cell.t), (Cell.t, Stack.Frame.t)) => {
-  // P.log("--- Molder.remold");
-  // P.show("fill", Cell.show(fill));
-  // P.show("(l, r)", Stack.Frame.show((l, r)));
+  P.log("--- Molder.remold");
+  P.show("fill", Cell.show(fill));
+  P.show("(l, r)", Stack.Frame.show((l, r)));
   let bounds = (l.bound, r.bound);
   switch (r.slope) {
   | [] =>
-    // P.log("--- Molder.remold/done");
-    // P.show("l", Stack.show(l));
-    // P.show("fill", Cell.show(fill));
-    Ok((l.slope, fill))
+    P.log("--- Molder.remold/done");
+    P.show("l", Stack.show(l));
+    P.show("fill", Cell.show(fill));
+    Ok((l.slope, fill));
   | [hd, ...tl] =>
-    // P.log("--- Molder.remold/continue");
-    // P.show("hd", Terr.show(hd));
+    P.log("--- Molder.remold/continue");
+    P.show("hd", Terr.show(hd));
     // insert any pending ghosts if next terr has newlines
     let (l, fill) =
       Terr.tokens(hd)
@@ -152,19 +167,20 @@ and remold =
            (c, up);
          })
       |> Option.value(~default=Slope.Up.unroll(hd.cell));
-    // P.log("--- Molder.remold/continue/molding");
-    // P.show("l", Stack.show(l));
-    // P.show("fill", Cell.show(fill));
+    P.log("--- Molder.remold/continue/molding");
+    P.show("l", Stack.show(l));
+    P.show("fill", Cell.show(fill));
     // P.show("hd_w", Token.show(hd_w));
     switch (mold(~re=true, l, ~fill, Token.unmold(hd_w))) {
     | Error(fill) =>
+      P.log("--- Molder.remold/continue/removed");
       Effects.remove(hd_w);
       let (c, up) = unroll_tl_w_hd_cell();
       let fill = fill |> Cell.pad(~r=c) |> Cell.mark_ends_dirty;
       (l, r_tl) |> Stack.Frame.cat(([], up)) |> remold(~fill);
     | Ok((t, grouted, rest)) when t.mtrl == hd_w.mtrl =>
       // fast path for when hd_w retains original meld
-      // P.log("--- Molder.remold/continue/fast path");
+      P.log("--- Molder.remold/continue/fast path");
       // P.show("t", Token.show(t));
       // P.show("grouted", Grouted.show(grouted));
       // P.show("rest", Stack.show(rest));
@@ -176,6 +192,7 @@ and remold =
         Error((fill, (connected, r_tl)));
       };
     | Ok((t, grouted, rest)) =>
+      P.log("--- Molder.remold/continue/default path");
       Effects.remove(hd_w);
       let connected = Stack.connect(Effects.insert(t), grouted, rest);
       // check if connection changed the stack bound

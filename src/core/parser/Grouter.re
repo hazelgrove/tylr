@@ -149,26 +149,51 @@ let fill_default =
 // assumes cs already squashed sans padding
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   let cs = Dir.pick(from, (List.rev, Fun.id), cs);
-  // if (dbg^) {
-  //   P.log("--- Grouter.fill_swing");
-  //   P.show("from", Dir.show(from));
-  //   P.show("sw", Walk.Swing.show(sw));
-  //   P.show("cs", Cells.show(cs));
-  // };
+  if (dbg^) {
+    P.log("--- Grouter.fill_swing");
+    P.show("from", Dir.show(from));
+    P.show("sw", Walk.Swing.show(sw));
+    P.show("cs", Cells.show(cs));
+  };
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
   | Space(nt) =>
+    if (dbg^) {
+      P.log("--- Grouter.fill_swing/Space");
+      P.show("nt", Space.NT.show(nt));
+      P.show("cs", Cells.show(cs));
+    };
     let squashed = Cells.squash(cs);
+    if (dbg^) {
+      P.show("squashed", Cells.show(squashed));
+    };
     let valid =
       nt == Open
         ? Cell.Space.is_space : Cell.is_empty(~require_unmarked=false);
     List.for_all(valid, squashed)
-      ? Lists.hd(squashed)
-        |> Option.value(~default=Cell.dirty)
-        |> Option.some
-      : None;
+      ? {
+        let r =
+          Lists.hd(squashed)
+          |> Option.value(~default=Cell.dirty)
+          |> Option.some;
+        if (dbg^) {
+          P.show("r", Fmt.to_to_string(Fmt.option(Cell.pp), r));
+        };
+        r;
+      }
+      : {
+        P.show("None", "None");
+        None;
+      };
   | Grout(s)
   | Tile(((_, s), _)) =>
+    if (dbg^) {
+      P.log("--- Grouter.fill_swing/Tile");
+      P.show("s", Sort.show(s));
+      P.show("cs", Cells.show(cs));
+      // P.show("bot", Mtrl.NT.show(bot));
+      // P.show("top", Mtrl.NT.show(top));
+    };
     open Options.Syntax;
     let (nt_l, nt_r) =
       Walk.Swing.is_eq(sw) ? (bot, bot) : Dir.order(from, (top, bot));
@@ -176,16 +201,35 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     and+ has_pos = Cells.are_bounded(cs, nt_r, ~from=R);
     switch (Cells.split_padding(cs)) {
     | (l, cs, r) when List.for_all(Cell.Space.is_space, cs) =>
+      if (dbg^) {
+        P.log("--- Grouter.fill_swing/Tile/all space");
+        P.show("l", Cell.show(l));
+        P.show("cs", Cells.show(cs));
+        P.show("r", Cell.show(r));
+      };
       // prioritize getting any carets in cs over to the left for now.
       // todo: parametrize this based on parsing mode
       let l = List.hd(Cells.squash([l, ...cs]));
       // let r = List.hd(Cells.squash(cs @ [r]));
-      Cell.pad(~l, fill_default(bot), ~r);
+      let r = Cell.pad(~l, fill_default(bot), ~r);
+      if (dbg^) {
+        P.show("padded", Cell.show(r));
+      };
+      r;
     | (l, cs, r) =>
+      if (dbg^) {
+        P.log("--- Grouter.fill_swing/Tile/not all space");
+        P.show("l", Cell.show(l));
+        P.show("cs", Cells.show(cs));
+        P.show("r", Cell.show(r));
+      };
       let cells =
         cs
         |> (has_pre ? List.cons(l) : Lists.map_hd(Cell.pad(~l)))
         |> (has_pos ? Lists.snoc(r) : Lists.map_ft(Cell.pad(~r)));
+      if (dbg^) {
+        P.show("cells", Cells.show(cells));
+      };
       let toks =
         Token.Grout.[
           has_pre ? [Effects.insert(pre(s))] : [],
@@ -195,8 +239,17 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
         |> List.concat;
       let chain = Chain.mk(cells, toks);
       switch (Chain.unlink(chain)) {
-      | Error(c) => c
-      | Ok(_) => Cell.put(Meld.of_chain(chain))
+      | Error(c) =>
+        if (dbg^) {
+          P.show("c", Cell.show(c));
+        };
+        c;
+      | Ok(_) =>
+        let r = Cell.put(Meld.of_chain(chain));
+        if (dbg^) {
+          P.show("r", Cell.show(r));
+        };
+        r;
       };
     };
   };
@@ -204,11 +257,12 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
 
 let fill_swings =
     (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) => {
-  // if (dbg^) {
-  //   P.log("--- Grouter.fill_swings");
-  //   P.show("from", Dir.show(from));
-  //   P.show("cells", Cells.show(Dir.pick(from, (List.rev, Fun.id), cells)));
-  // };
+  if (dbg^) {
+    P.log("--- Grouter.fill_swings");
+    P.show("from", Dir.show(from));
+    P.show("cells", Cells.show(Dir.pick(from, (List.rev, Fun.id), cells)));
+    // P.show("swings", Fmt.to_to_string(Fmt.list(Walk.Swing.pp), swings));
+  };
   cells
   |> Dir.pick(from, (List.rev, Fun.id))
   |> (repair ? List.concat_map(degrout) : Fun.id)

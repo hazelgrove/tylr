@@ -134,11 +134,12 @@ let mold =
 };
 
 let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
-  // P.log("--- Modify.remold");
-  // P.show("fill", Cell.show(fill));
-  // P.show("ctx", Ctx.show(ctx));
+  P.log("--- Modify.remold");
+  P.show("fill", Cell.show(fill));
+  P.show("ctx", Ctx.show(ctx));
   let ((l, r), tl) = Ctx.unlink_stacks(ctx);
   switch (Molder.remold(~fill, (l, r))) {
+  // ( 1 + 2 ) + 3 ) + 4
   | Error((fill, (l', r'))) =>
     // remold error means something in r melded onto the bound of l, breaking their
     // bidelimited container, so we need to add the suffix of the next stack frame
@@ -149,10 +150,11 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     tl
     |> Ctx.map_hd(Frame.Open.cat(Stack.(to_slope(l'), to_slope(r'))))
     |> remold(~fill)
+  // # 1 + ( <> >)> #
   | Ok((dn, fill)) =>
-    // P.log("--- Modify.remold/done");
-    // P.show("dn", Slope.Dn.show(dn));
-    // P.show("fill", Cell.show(fill));
+    P.log("--- Modify.remold/done");
+    P.show("dn", Slope.Dn.show(dn));
+    P.show("fill", Cell.show(fill));
     let bounds = (l.bound, r.bound);
     // Melder.dbg := true;
     let cell = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
@@ -429,6 +431,7 @@ let insert_toks =
 
 let meld_remold =
     (prev, tok: Token.t, next, ctx: Ctx.t): option((Cell.t, Ctx.t)) => {
+  P.log("--- Modify.meld_remold");
   open Options.Syntax;
   let ((l, r), rest) = Ctx.unlink_stacks(ctx);
   let* (grouted, l) =
@@ -441,10 +444,12 @@ let meld_remold =
       && l.slope == []
     );
   if (is_redundant) {
+    P.log("--- Modify.meld_remold/is_redundant");
     Effects.remove(tok);
     let fill = Cell.Space.merge(prev, next);
     Some(remold(~fill, ctx));
   } else {
+    P.log("--- Modify.meld_remold/not_redundant");
     let connected = Stack.connect(Effects.insert(tok), grouted, l);
     let ctx =
       connected.bound == l.bound
@@ -454,6 +459,8 @@ let meld_remold =
             rest,
           );
     let remolded = remold(~fill=next, ctx);
+    P.show("remolded cell", Cell.show(fst(remolded)));
+    P.show("remolded ctx", Ctx.show(snd(remolded)));
     // P.log("--- meld_remold");
     // P.show("tok", Token.show(tok));
     // P.show("ctx", Ctx.show(ctx));
@@ -497,6 +504,9 @@ let insert_remold =
   | Error(cell) => remold(~fill=cell, ctx)
   | Ok((next, tok, toks)) =>
     let (ctx, prev) = insert_toks(Chain.rev(toks), ctx);
+    P.show("ctx", Ctx.show(ctx));
+    P.show("prev", Cell.show(prev));
+    P.show("next", Cell.show(next));
     mold_remold(prev, tok, next, ctx);
   };
 };
@@ -609,18 +619,28 @@ let delete = (d: Dir.t, z: Zipper.t) => {
 
 let insert = (s: string, z: Zipper.t) => {
   open Options.Syntax;
+  P.log("--- Modify.insert");
   let z = delete_sel(L, z);
+  P.show("deleted", Zipper.show(z));
 
   // P.log("--- Modify.insert");
   let- () = try_expand(s, z);
+  P.log("--- Modify.insert/didn't expand");
   let- () = try_move(s, z);
+  P.log("--- Modify.insert/didn't move");
   let- () = try_extend(s, z);
+  P.log("--- Modify.insert/didn't extend");
 
   let (remolded, ctx) =
     relabel(s, z)
-    |> Oblig.Delta.minimize(((toks, ctx)) =>
-         Some(insert_remold(toks, ctx))
-       )
+    |> Oblig.Delta.minimize(((toks, ctx)) => {
+         P.show("toks", Chain.show(Cell.pp, Token.Unmolded.pp, toks));
+         P.show("ctx", Ctx.show(ctx));
+         Some(insert_remold(toks, ctx));
+       })
     |> Option.get;
+  P.show("remolded", Cell.show(remolded));
+  P.show("ctx", Ctx.show(ctx));
+
   finalize_(remolded, ctx);
 };
