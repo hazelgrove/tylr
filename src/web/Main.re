@@ -176,3 +176,5 @@ Incr_dom.Start_app.start(
   ~bind_to_element_with_id="container",
   ~initial_model=Model.init_from_store(),
 );
+
+Benchmark.benchmark_hole_fills();
