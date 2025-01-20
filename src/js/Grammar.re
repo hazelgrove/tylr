@@ -366,8 +366,9 @@ and Stat: SORT = {
   let atom = (~filter=[], ()) => nt(filter, sort());
   let paren_exp = () => seq([brc(L, "("), Exp.atom(), brc(R, ")")]);
 
-  let stat_block = () =>
-    seq([brc(L, "{"), star(seq([atom(), c(";")])), brc(R, "}")]);
+  //let stat_block = () =>
+  // seq([brc(L, "{"), star(seq([atom(), c(";")])), brc(R, "}")]);
+  let stat_block = () => seq([brc(L, "{"), Prog.atom(), brc(R, "}")]);
 
   let method_def = () =>
     seq([
@@ -448,7 +449,6 @@ and Stat: SORT = {
     seq([
       kw("import"),
       alt([seq([import_clause(), from_clause()]) /* , t(String) */]),
-      c(";"),
     ]);
 
   let func_declaration = () =>
@@ -458,7 +458,7 @@ and Stat: SORT = {
       opt(t(Id_lower)),
       call_signature(),
       stat_block(),
-      opt(c(";")),
+      // opt(c(";")),
     ]);
 
   let property_name = () => alt([t(Id_lower)]);
@@ -494,7 +494,7 @@ and Stat: SORT = {
       class_body(),
     ]);
 
-  let init = () => seq([op("="), Exp.atom()]);
+  let init = () => seq([c("="), Exp.atom()]);
   let var_declarator = () => seq([t(Id_lower), opt(init())]);
 
   let lexical_declaration = () =>
@@ -525,16 +525,15 @@ and Stat: SORT = {
 
   let debugger_statement = () => seq([kw("debugger")]);
 
-  let empty_statement = () => c(";");
+  // let empty_statement = () => c(";");
 
   let break_statement = () => seq([kw("break"), opt(t(Id_lower))]);
 
   let continue_statement = () => seq([kw("continue"), opt(t(Id_lower))]);
 
-  let return_statement = () =>
-    seq([kw("return"), opt(Exp.atom()), c(";")]);
+  let return_statement = () => seq([kw("return"), opt(Exp.atom())]);
 
-  let throw_statement = () => seq([kw("throw"), Exp.atom(), c(";")]);
+  let throw_statement = () => seq([kw("throw"), Exp.atom()]);
 
   let exp_statement = () => Exp.atom();
 
@@ -548,7 +547,7 @@ and Stat: SORT = {
       break_statement(),
       return_statement(),
       throw_statement(),
-      empty_statement(),
+      // empty_statement(),
       debugger_statement(),
       export_statement(),
       import_statement(),
@@ -566,9 +565,9 @@ and Stat: SORT = {
         seq([var_declaration(), c(";")]),
         //NOTE: manually resolve problem with exp statement needing trailing semicolon
         seq([exp_statement(), c(";")]),
-        empty_statement(),
+        // empty_statement(),
       ]),
-      alt([seq([exp_statement(), c(";")]), empty_statement()]),
+      alt([seq([exp_statement(), c(";")]) /*empty_statement()*/]),
       opt(Exp.atom()),
       brc(R, ")"),
       atom(),
@@ -645,6 +644,7 @@ and Prog: SORT = {
   let atom = (~filter=[], ()) => nt(filter, sort());
 
   let tbl = () => [p(star(seq([Stat.atom(), c(";")])))];
+  //  let tbl = () => [p(star(alt([seq([Stat.atom(), c(";")]), c(";")])))];
 };
 
 type t = Sort.Map.t(Prec.Table.t(Regex.t));
