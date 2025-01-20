@@ -166,20 +166,6 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
   };
 };
 
-let finalize = (~mode=Mode.Navigating, ~fill=Cell.dirty, ctx: Ctx.t): Zipper.t => {
-  Mode.set(mode);
-  // P.log("--- Modify.finalize");
-  let (remolded, ctx) = remold(~fill, ctx);
-  // P.show("remolded", Cell.show(remolded));
-  // P.show("ctx", Ctx.show(ctx));
-  let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
-  let repadded = Linter.repad(~l, remolded, ~r);
-  // P.show("repadded", Cell.show(repadded));
-  let c = {...repadded, marks: Cell.Marks.flush(repadded.marks)};
-  // P.show("flushed", Cell.show(c));
-  Mode.reset();
-  Zipper.unzip_exn(c, ~ctx);
-};
 let finalize_ = (remolded: Cell.t, ctx: Ctx.t): Zipper.t => {
   // P.log("--- Modify.finalize_");
   // P.show("remolded", Cell.show(remolded));
@@ -268,60 +254,6 @@ let try_extend = (s: string, z: Zipper.t): option(Zipper.t) => {
   |> Ctx.push(~onto=L, extended)
   |> (Option.is_some(extended.marks) ? Ctx.push(~onto=R, extended) : Fun.id)
   |> Zipper.mk;
-};
-
-// maybe rename expandable
-let expand = (tok: Token.t): option(Token.Unmolded.t) =>
-  switch (tok.mtrl) {
-  | Space(White(_))
-  | Grout(_) => None
-  // | Tile((Const(_), _)) => None
-  | Space(Unmolded) =>
-    open Options.Syntax;
-    let* labeled = Labeler.single(tok.text);
-    // P.log("--- Modify.expand");
-    // P.sexp("labeled", Token.Unmolded.sexp_of_t(labeled));
-    switch (labeled.mtrl) {
-    | Space(_)
-    | Grout(_) => None
-    | Tile(_) => Some(labeled)
-    };
-  | Tile(_) =>
-    open Options.Syntax;
-    let* labeled = Labeler.single(tok.text);
-    Token.Unmolded.expands(labeled);
-  };
-let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
-  open Options.Syntax;
-  // P.log("--- Modify.try_expand");
-  let* () = Options.of_bool(String.starts_with(~prefix=" ", s));
-  // todo: check if in middle of token
-  let (face, rest) = Ctx.pull(~from=L, z.ctx);
-  let* tok = Delim.is_tok(face);
-  // if expandable, consider all expandable const labels
-  let* expanded = expand(tok);
-  let ((l, r), tl) = Ctx.unlink_stacks(rest);
-  let* (t, grouted, rest) = Result.to_option(Molder.mold(l, expanded));
-  // P.show("molded", Token.show(t));
-  // P.show("grouted", Grouted.show(grouted));
-  // P.show("stack", Stack.show(rest));
-  if (t.mtrl == Space(Unmolded) || t.mtrl == tok.mtrl) {
-    None;
-  } else {
-    let connected = Stack.connect(t, grouted, rest);
-    tl
-    |> (
-      connected.bound == l.bound
-        ? Ctx.link_stacks((connected, r))
-        : Ctx.map_hd(
-            Frame.Open.cat(Stack.(to_slope(connected), to_slope(r))),
-          )
-    )
-    |> Ctx.push(~onto=L, Token.space())
-    |> Ctx.trim_space(~side=R)
-    |> finalize(~mode=Inserting(" "), ~fill=Cell.point(~dirty=true, Focus))
-    |> return;
-  };
 };
 
 let put_edge = (~hand=Caret.Hand.Focus, side: Dir.t, tok: Token.t) =>
@@ -430,7 +362,8 @@ let insert_toks =
 };
 
 let meld_remold =
-    (prev, tok: Token.t, next, ctx: Ctx.t): option((Cell.t, Ctx.t)) => {
+    (~expanding=false, prev, tok: Token.t, next, ctx: Ctx.t)
+    : option((Cell.t, Ctx.t)) => {
   P.log("--- Modify.meld_remold");
   open Options.Syntax;
   let ((l, r), rest) = Ctx.unlink_stacks(ctx);
@@ -458,6 +391,11 @@ let meld_remold =
             Frame.Open.cat(Stack.(to_slope(connected), to_slope(r))),
             rest,
           );
+    // todo: generalize this to other expansion triggers
+    let ctx =
+      expanding
+        ? ctx |> Ctx.push(~onto=L, Token.space()) |> Ctx.trim_space(~side=R)
+        : ctx;
     let remolded = remold(~fill=next, ctx);
     P.show("remolded cell", Cell.show(fst(remolded)));
     P.show("remolded ctx", Ctx.show(snd(remolded)));
@@ -470,7 +408,8 @@ let meld_remold =
     switch (tok.mtrl) {
     | Tile((lbl, _))
         when
-          !Label.is_instant(lbl)
+          !expanding
+          && !Label.is_instant(lbl)
           && Oblig.Delta.(not_hole(of_effects(Effects.log^))) =>
       None
     | _ => Some(remolded)
@@ -478,21 +417,59 @@ let meld_remold =
   };
 };
 
-let candidates = (t: Token.Unmolded.t): list(Token.t) =>
-  Molder.candidates(t) @ [Token.Unmolded.defer(t)];
+let expand_remold =
+    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+  switch (
+    Molder.candidates(tok)
+    |> Oblig.Delta.minimize(tok =>
+         meld_remold(~expanding=true, Cell.dirty, tok, fill, ctx)
+       )
+  ) {
+  | Some((cell, ctx)) => (cell, ctx)
+  | None =>
+    let tok = Token.Unmolded.defer(tok);
+    meld_remold(~expanding=true, Cell.dirty, tok, fill, ctx)
+    |> Options.get_fail(
+         "bug: at least deferred candidate should have succeeded",
+       );
+  };
+};
+// maybe rename expandable
+let expand = (tok: Token.t): option(Token.Unmolded.t) =>
+  switch (tok.mtrl) {
+  | Space(White(_))
+  | Grout(_) => None
+  | Space(Unmolded) =>
+    open Options.Syntax;
+    let* labeled = Labeler.single(tok.text);
+    switch (labeled.mtrl) {
+    | Space(_)
+    | Grout(_) => None
+    | Tile(_) => Some(labeled)
+    };
+  | Tile(_) =>
+    open Options.Syntax;
+    let* labeled = Labeler.single(tok.text);
+    Token.Unmolded.expands(labeled);
+  };
+let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
+  open Options.Syntax;
+  let* () = Options.of_bool(String.starts_with(~prefix=" ", s));
+  // todo: check if in middle of token
+  let (face, rest) = Ctx.pull(~from=L, z.ctx);
+  let* tok = Delim.is_tok(face);
+  // if expandable, consider all expandable const labels
+  let* expanded = expand(tok);
+  let (remolded, ctx) =
+    expand_remold(expanded, ~fill=Cell.point(~dirty=true, Focus), rest);
+  return(finalize_(remolded, ctx));
+};
 
 let mold_remold =
     (prev, tok: Token.Unmolded.t, next, ctx: Ctx.t): (Cell.t, Ctx.t) => {
-  candidates(tok)
-  |> Oblig.Delta.minimize(
-       //  ~show_y=
-       //    ((cell, ctx)) => {
-       //      P.show("cell", Cell.show(cell));
-       //      P.show("ctx", Ctx.show(ctx));
-       //    },
-       tok =>
-       meld_remold(prev, tok, next, ctx)
-     )
+  Molder.candidates(tok)
+  @ [Token.Unmolded.defer(tok)]
+  |> Oblig.Delta.minimize(tok => meld_remold(prev, tok, next, ctx))
   |> Options.get_fail(
        "bug: at least deferred candidate should have succeeded",
      );

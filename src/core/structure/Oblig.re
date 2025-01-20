@@ -11,7 +11,8 @@ module Ord = {
     | Missing_tile // ghost tile
     | Incon_meld // pre/postfix grout
     | Extra_meld // infix grout
-    | Unmolded_tok;
+    | Unmolded_tok
+    | Reserved_keyword;
 
   // low to high severity
   let all = [
@@ -20,6 +21,7 @@ module Ord = {
     Unmolded_tok,
     Incon_meld,
     Extra_meld,
+    Reserved_keyword,
   ];
   let severity = o => Option.get(Lists.find_index((==)(o), all));
   let compare = (l, r) => Int.compare(severity(l), severity(r));
@@ -36,7 +38,19 @@ let of_token = (tok: Token.t) =>
   | Grout((_, (Conv, Conc) | (Conc, Conv))) => Some(Incon_meld)
   | Grout((_, (Conc, Conc))) => Some(Extra_meld)
   | Tile((lbl, _)) =>
-    Label.is_complete(tok.text, lbl) ? None : Some(Missing_tile)
+    let t = Labeler.single(tok.text);
+    switch (Option.map(Token.mtrl, t)) {
+    | Some(Tile(lbls))
+        when
+          !Label.is_const(lbl)
+          && lbls
+          |> List.exists(lbl =>
+               Label.is_const(lbl) && Label.is_complete(tok.text, lbl)
+             ) =>
+      Some(Reserved_keyword)
+    | _ when !Label.is_complete(tok.text, lbl) => Some(Missing_tile)
+    | _ => None
+    };
   };
 
 module Delta = {

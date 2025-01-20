@@ -19,6 +19,7 @@ module Base = {
   };
   let map = (f, tok) => {...tok, mtrl: f(tok.mtrl)};
   let id = (tok: t(_)) => tok.id;
+  let mtrl = (tok: t(_)) => tok.mtrl;
   let is_empty = (tok: t(_)) => String.equal(tok.text, "");
   let add_mark = (p, tok) => {...tok, marks: Marks.add(p, tok.marks)};
   // let add_mark = (mark, tok) => {...tok, marks: [mark, ...tok.marks]};
