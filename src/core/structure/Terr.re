@@ -21,6 +21,10 @@ module Base = {
     toks,
     cells @ [cell],
   );
+  let map_toks = (f, {wald, cell}: t(_)) => {
+    wald: Wald.map_toks(f, wald),
+    cell: Cell.map_toks(f, cell),
+  };
 };
 include Base;
 

@@ -22,6 +22,11 @@ module Base = {
     let top = Dir.pick(d, (Fun.id, Wald.rev), top);
     mk(~up, top, ~dn);
   };
+  let map_toks = (f, {up, top, dn}: t(_)) => {
+    up: Slope.Base.map_toks(f, up),
+    top: Wald.Base.map_toks(f, top),
+    dn: Slope.Base.map_toks(f, dn),
+  };
 };
 include Base;
 

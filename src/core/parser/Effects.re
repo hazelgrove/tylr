@@ -16,7 +16,17 @@ let oprint = x => {
   x;
 };
 
-let perform = (eff: t) => log := [eff, ...log^];
+let invert = (eff: t): t =>
+  switch (eff) {
+  | Insert(tok) => Remove(tok)
+  | Remove(tok) => Insert(tok)
+  };
+
+let perform = (eff: t) => {
+  log :=
+    List.mem(invert(eff), log^)
+      ? List.filter(eff' => eff' != invert(eff), log^) : [eff, ...log^];
+};
 let insert = tok => {
   perform(Insert(tok));
   tok;

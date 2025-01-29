@@ -156,9 +156,9 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     P.show("dn", Slope.Dn.show(dn));
     P.show("fill", Cell.show(fill));
     let bounds = (l.bound, r.bound);
-    // Melder.dbg := true;
+    // Melder.debug := true;
     let cell = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
-    // Melder.dbg := false;
+    // Melder.debug := false;
     // P.show("completed", Cell.show(cell));
     let hd = ({...l, slope: []}, {...r, slope: []});
     let ctx = Ctx.link_stacks(hd, tl);
@@ -230,9 +230,12 @@ let extend = (~side=Dir.R, s: string, tok: Token.t) =>
   };
 let try_extend = (s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
+  // P.log("--- Modify.try_extend");
   let* () = Options.of_bool(!Strings.is_empty(s));
+  // P.log("not empty");
   let (sites, ctx) = Zipper.cursor_site(z);
   let* site = Cursor.get_point(sites);
+  // P.log("cursor site is point");
   let+ (extended, ctx) =
     switch (site) {
     | Within(tok) =>
@@ -240,14 +243,20 @@ let try_extend = (s: string, z: Zipper.t): option(Zipper.t) => {
       (extended, ctx);
     | Between =>
       let/ () = {
+        // P.log("--- Modify.try_extend/Between/trying left");
         let (face, ctx) = Ctx.pull(~from=L, ctx);
         let* tok = Delim.is_tok(face);
+        // P.log("is tok");
         let+ extended = extend(~side=R, s, tok);
+        // P.log("extended");
         (extended, ctx);
       };
+      // P.log("--- Modify.try_extend/Between/trying right");
       let (face, ctx) = Ctx.pull(~from=R, ctx);
       let* tok = Delim.is_tok(face);
+      // P.log("is tok");
       let+ extended = extend(~side=L, s, tok);
+      // P.log("extended");
       (extended, ctx);
     };
   ctx
@@ -327,13 +336,13 @@ let insert_toks =
   |> Chain.fold_left(
        fill => (ctx, fill),
        ((ctx, fill), tok, next_fill) => {
-         //  P.log("--- insert_toks/tok");
-         //  P.show("ctx", Ctx.show(ctx));
-         //  P.show("fill", Cell.show(fill));
+         //  P.log("--- Modify.insert_toks/tok");
          //  P.show("tok", Token.Unmolded.show(tok));
+         //  P.show("fill", Cell.show(fill));
+         //  P.show("ctx", Ctx.show(ctx));
          switch (mold(ctx, ~fill, tok)) {
          | Ok(ctx) =>
-           //  P.show("molded tok", Ctx.show(ctx));
+           //  P.show("-- Modify.insert_toks/tok/Ok ctx", Ctx.show(ctx));
            let (face, rest) = Ctx.pull(~from=L, ctx);
            switch (face, next_fill.marks.cursor) {
            // if molded token is longer than original, then move cursor out of
@@ -352,6 +361,7 @@ let insert_toks =
            | _ => (ctx, next_fill)
            };
          | Error(fill) =>
+           //  P.log("--- Modify.insert_toks/tok/Error removed");
            // removed empty token
            let next_fill =
              Cell.mark_ends_dirty(Cell.Space.merge(fill, next_fill));
@@ -366,20 +376,29 @@ let meld_remold =
     : option((Cell.t, Ctx.t)) => {
   P.log("--- Modify.meld_remold");
   open Options.Syntax;
+  // P.log("--- Modify.meld_remold");
+  // P.show("prev", Cell.show(prev));
+  // P.sexp("tok", Token.sexp_of_t(tok));
+  // P.show("next", Cell.show(next));
+  // P.show("ctx", Ctx.show(ctx));
   let ((l, r), rest) = Ctx.unlink_stacks(ctx);
   let* (grouted, l) =
     Melder.push(tok, ~fill=prev, l, ~onto=L, ~repair=Molder.remold);
+  // P.log("--- Modify.meld_remold/pushed");
+  // P.show("grouted", Grouted.show(grouted));
+  // P.show("l", Stack.show(l));
   let is_redundant =
-    Token.is_empty(tok)
+    tok.text == ""
     && (
-      Grouted.is_neq(grouted)
+      Token.is_complete(tok)
+      || Grouted.is_neq(grouted)
       || Option.is_some(Grouted.is_eq(grouted))
       && l.slope == []
     );
   if (is_redundant) {
     P.log("--- Modify.meld_remold/is_redundant");
     Effects.remove(tok);
-    let fill = Cell.Space.merge(prev, next);
+    let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
     Some(remold(~fill, ctx));
   } else {
     P.log("--- Modify.meld_remold/not_redundant");
@@ -407,10 +426,13 @@ let meld_remold =
     // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
     switch (tok.mtrl) {
     | Tile((lbl, _))
+        // delay expansion if obligations more severe than holes
         when
           !expanding
           && !Label.is_instant(lbl)
-          && Oblig.Delta.(not_hole(of_effects(Effects.log^))) =>
+          && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
+          // this is necessary when deleting delims to empty ghosts
+          && !Token.is_empty(tok) =>
       None
     | _ => Some(remolded)
     };
@@ -418,20 +440,23 @@ let meld_remold =
 };
 
 let expand_remold =
-    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t): (Token.t, (Cell.t, Ctx.t)) => {
   switch (
     Molder.candidates(tok)
     |> Oblig.Delta.minimize(tok =>
          meld_remold(~expanding=true, Cell.dirty, tok, fill, ctx)
+         |> Option.map(r => (tok, r))
        )
   ) {
-  | Some((cell, ctx)) => (cell, ctx)
+  | Some(r) => r
   | None =>
     let tok = Token.Unmolded.defer(tok);
-    meld_remold(~expanding=true, Cell.dirty, tok, fill, ctx)
-    |> Options.get_fail(
-         "bug: at least deferred candidate should have succeeded",
-       );
+    let r =
+      meld_remold(~expanding=true, Cell.dirty, tok, fill, ctx)
+      |> Options.get_fail(
+           "bug: at least deferred candidate should have succeeded",
+         );
+    (tok, r);
   };
 };
 // maybe rename expandable
@@ -449,7 +474,7 @@ let expand = (tok: Token.t): option(Token.Unmolded.t) =>
     };
   | Tile(_) =>
     open Options.Syntax;
-    let* labeled = Labeler.single(tok.text);
+    let* labeled = Labeler.single(~id=tok.id, tok.text);
     Token.Unmolded.expands(labeled);
   };
 let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
@@ -460,30 +485,42 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   let* tok = Delim.is_tok(face);
   // if expandable, consider all expandable const labels
   let* expanded = expand(tok);
-  let (remolded, ctx) =
+  let (molded, (remolded, ctx)) =
     expand_remold(expanded, ~fill=Cell.point(~dirty=true, Focus), rest);
-  return(finalize_(remolded, ctx));
+  molded == tok ? None : return(finalize_(remolded, ctx));
 };
 
 let mold_remold =
     (prev, tok: Token.Unmolded.t, next, ctx: Ctx.t): (Cell.t, Ctx.t) => {
-  Molder.candidates(tok)
-  @ [Token.Unmolded.defer(tok)]
-  |> Oblig.Delta.minimize(tok => meld_remold(prev, tok, next, ctx))
-  |> Options.get_fail(
-       "bug: at least deferred candidate should have succeeded",
-     );
+  open Options.Syntax;
+  // P.log("--- Modify.mold_remold");
+  // P.show("prev", Cell.show(prev));
+  // P.show("tok", Token.Unmolded.show(tok));
+  // P.show("next", Cell.show(next));
+  // P.show("ctx", Ctx.show(ctx));
+  let- () =
+    Molder.candidates(tok)
+    @ (tok.text == "" ? [] : [Token.Unmolded.defer(tok)])
+    |> Oblig.Delta.minimize(tok => meld_remold(prev, tok, next, ctx));
+  assert(tok.text == "");
+  let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
+  remold(~fill, ctx);
 };
 
 let insert_remold =
     (toks: Chain.t(Cell.t, Token.Unmolded.t), ctx: Ctx.t): (Cell.t, Ctx.t) => {
+  // P.log("--- Modify.insert_remold");
+  // P.show("ctx", Ctx.show(ctx));
   switch (Chain.(unlink(rev(toks)))) {
   | Error(cell) => remold(~fill=cell, ctx)
   | Ok((next, tok, toks)) =>
+    // P.log("--- Modify.insert_remold/Ok");
+    // P.show("next", Cell.show(next));
+    // P.show("tok", Token.Unmolded.show(tok));
+    // P.show("toks", Chain.show(Cell.pp, Token.Unmolded.pp, toks));
     let (ctx, prev) = insert_toks(Chain.rev(toks), ctx);
-    P.show("ctx", Ctx.show(ctx));
-    P.show("prev", Cell.show(prev));
-    P.show("next", Cell.show(next));
+    // P.show("inserted toks ctx", Ctx.show(ctx));
+    // P.show("prev", Cell.show(prev));
     mold_remold(prev, tok, next, ctx);
   };
 };
@@ -513,7 +550,7 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
           : Fun.id
       )
       |> delete_toks(d);
-    // P.log("--- delete_sel/Select");
+    // P.log("--- Modify.delete_sel/Select");
     // P.show("ctx sans sites", Ctx.show(ctx));
     // P.show("site l", Zipper.Site.show(l));
     // P.show("site r", Zipper.Site.show(r));
@@ -532,6 +569,7 @@ let try_truncate = (z: Zipper.t) => {
   switch (z.cur) {
   | Point(_) => None
   | Select(sel) =>
+    // P.log("--- Modify.try_truncate");
     // prune ctx of any duplicated tokens
     let (sites, ctx) = Zipper.cursor_site(z);
     let (l, r) = Option.get(Cursor.get_select(sites));
@@ -552,6 +590,7 @@ let try_truncate = (z: Zipper.t) => {
     | [tok] =>
       switch (Token.split_text(tok)) {
       | Some((l, _, "")) when !Strings.is_empty(l) =>
+        // P.log("--- Modify.try_truncate/success");
         let tok = {
           ...tok,
           text: l,
@@ -585,7 +624,7 @@ let delete = (d: Dir.t, z: Zipper.t) => {
   //     Move.perform(Step(H(d)), z)
   //   | _ => None
   //   };
-  // P.log("--- delete");
+  // P.log("--- Modify.delete");
   // P.show("z", Zipper.show(z));
   let+ z =
     Cursor.is_point(z.cur) ? Select.hstep(~char=true, d, z) : return(z);

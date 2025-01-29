@@ -1,6 +1,8 @@
 HTML_DIR=_build/default/src/web/www
 HTML_FILE=$(HTML_DIR)/index.html
 
+.PHONY: all deps release clean open watch test test-watch
+
 all:
 	dune build @src/fmt --auto-promote || true
 	dune build src --profile dev
@@ -42,3 +44,11 @@ open:
 
 watch:
 	dune build @src/fmt --auto-promote src --profile dev --watch
+
+test:
+	dune build @fmt --auto-promote || true
+	dune runtest --force
+
+test-watch:
+	dune build @fmt --auto-promote || true
+	dune runtest --watch

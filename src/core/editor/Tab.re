@@ -23,6 +23,7 @@ let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) =>
   | (Select(_), _) => Move.hstep(d, z)
   | (Point(site), ctx) =>
     open Options.Syntax;
+    // P.log("--- Tab.perform/Point");
     // first try completing or expanding a neighbor
     let/ () =
       switch (d) {
@@ -33,6 +34,7 @@ let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) =>
       };
     // otherwise jump to next obligation
     let c = Zipper.zip(~save_cursor=true, z);
+    // P.show("c", Cell.show(c));
     let normal = Zipper.normalize(~cell=c);
     let car =
       c.marks.cursor
@@ -51,6 +53,7 @@ let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) =>
          )
       |> Option.map(fst)
       |> Options.get(() => Cell.end_path(~side=d, c));
+    // P.show("path", Path.show(path));
     c
     |> Cell.put_cursor(Point(Caret.focus(path)))
     |> Zipper.unzip_exn

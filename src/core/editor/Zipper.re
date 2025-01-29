@@ -21,6 +21,7 @@ module Selection = {
   type t = Base.t(Token.t);
   let split_range = Fun.const(((), ()));
   let carets = carets(~split_range);
+  let map_toks = (f, sel) => Selection.map(Zigg.map_toks(f), sel);
 };
 module Cur = Cursor;
 module Cursor = {
@@ -31,6 +32,7 @@ module Cursor = {
   };
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Base.t(Token.t);
+  let map_toks = (f, cur) => Cur.map(Fun.id, Selection.map_toks(f), cur);
   // let flatten: t => _ =
   //   fun
   //   | Point(_) => []
@@ -60,6 +62,9 @@ module Base = {
 type t = Base.t(Token.t);
 
 let mk = (~cur=Cursor.point(Caret.focus()), ctx) => Base.{cur, ctx};
+
+let map_toks = (f, {cur, ctx}: t) =>
+  Base.{cur: Cursor.map_toks(f, cur), ctx: Ctx.map_toks(f, ctx)};
 
 let empty =
   mk(

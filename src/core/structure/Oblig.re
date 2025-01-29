@@ -11,6 +11,7 @@ module Ord = {
     | Missing_tile // ghost tile
     | Incon_meld // pre/postfix grout
     | Extra_meld // infix grout
+    | Incomplete_tile
     | Unmolded_tok
     | Reserved_keyword;
 
@@ -18,6 +19,7 @@ module Ord = {
   let all = [
     Missing_meld,
     Missing_tile,
+    Incomplete_tile,
     Unmolded_tok,
     Incon_meld,
     Extra_meld,
@@ -48,7 +50,8 @@ let of_token = (tok: Token.t) =>
                Label.is_const(lbl) && Label.is_complete(tok.text, lbl)
              ) =>
       Some(Reserved_keyword)
-    | _ when !Label.is_complete(tok.text, lbl) => Some(Missing_tile)
+    | _ when !Label.is_complete(tok.text, lbl) =>
+      Some(tok.text == "" ? Missing_tile : Incomplete_tile)
     | _ => None
     };
   };
@@ -68,6 +71,7 @@ module Delta = {
 
   let not_hole = (map: t) =>
     snd(find(Missing_tile, map)) > 0
+    || snd(find(Incomplete_tile, map)) > 0
     || snd(find(Incon_meld, map)) > 0
     || snd(find(Extra_meld, map)) > 0;
 

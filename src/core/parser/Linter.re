@@ -33,6 +33,9 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
     |> Cell.put;
   | Some(_) when Cell.has_clean_cursor(c) => Cell.mark_clean(c)
   | Some(_) =>
+    // open Stds;
+    // P.log("--- Linter.repad/Some/dirty or cursor");
+    // P.show("c", Cell.show(c));
     let (_, spc_l) = Delim.padding(l).space;
     let (_, brk_l) = Delim.padding(l).break;
     let (spc_r, _) = Delim.padding(r).space;
@@ -41,8 +44,11 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
     let break = brk_l || brk_r;
     switch (Cell.get(c)) {
     | None when no_pad => c
-    | None => pad_wrap(~break, c)
+    | None =>
+      // P.log("--- Linter.repad/Some/dirty or cursor/None pad_wrap");
+      pad_wrap(~break, c)
     | Some(m) =>
+      // P.log("--- Linter.repad/Some/dirty or cursor/Some");
       let height =
         Meld.to_chain(m)
         |> Chain.links

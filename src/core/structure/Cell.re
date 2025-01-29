@@ -15,6 +15,8 @@ module Wald = {
     Dir.pick(side, (Chain.hd, Chain.ft), w);
   let of_tok = tok => W(Chain.unit(tok));
   let append = (W(l): t(_), m, W(r): t(_)) => W(Chain.append(l, m, r));
+  let map_toks = (f_cell, f_tok, W(w): t(_)) =>
+    W(Chain.map(f_tok, f_cell, w));
 };
 module Meld = {
   [@deriving (sexp, yojson)]
@@ -25,6 +27,8 @@ module Meld = {
   let face = (~side: Dir.t, M(_, w, _)) => Wald.face(~side, w);
   let length = (M(_, W(w), _): t(_)) => Chain.length(w) + 2;
   let tokens = (M(_, W((toks, _)), _): t(_)) => toks;
+  let map_toks = (f_cell, f_tok, M(l, w, r)) =>
+    M(f_cell(l), Wald.map_toks(f_cell, f_tok, w), f_cell(r));
 
   let rev = (M(l, W(w), r): t(_)) => mk(~l=r, W(Chain.rev(w)), ~r=l);
 
@@ -56,6 +60,10 @@ module Base = {
   let mk = (~marks=Marks.empty, ~meld=?, ()) => {marks, meld};
   let empty = mk();
   let wrap = meld => mk(~meld, ());
+  let rec map_toks = (f, c: t(_)) => {
+    ...c,
+    meld: Option.map(Meld.map_toks(map_toks(f), f), c.meld),
+  };
 };
 include Base;
 
@@ -119,6 +127,10 @@ let add_marks = marks => map_marks(Marks.union(marks));
 let clear_marks = (cell: t) => {...cell, marks: Marks.empty};
 let pop_marks = (cell: t) => (cell.marks, clear_marks(cell));
 
+let degrouted = {
+  let marks = Marks.mk(~degrouted=Path.Map.singleton(Path.empty, ()), ());
+  {...empty, marks};
+};
 let rec mark_degrouted = (~side: Dir.t, c: t) =>
   switch (c.meld) {
   | None =>

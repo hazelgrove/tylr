@@ -12,6 +12,7 @@ module Base = {
   let cons = List.cons;
   let cat = (@);
   let concat = Lists.fold_right(~f=cat, ~init=empty);
+  let map_toks = (f, s) => List.map(Terr.map_toks(f), s);
 };
 include Base;
 

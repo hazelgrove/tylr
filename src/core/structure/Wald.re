@@ -10,6 +10,7 @@ module Base = {
   let ft = (W(w): t(_)) => Chain.ft(w);
   let length = (W(c): t(_)) => Chain.length(c);
   let rev = (W(c): t(_)) => w(Chain.rev(c));
+  let map_toks = (f, w) => Cell.Wald.map_toks(Cell.map_toks(f), f, w);
 };
 include Base;
 

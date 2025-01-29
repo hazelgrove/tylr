@@ -115,12 +115,14 @@ let rec mold =
     Mtrl.is_tile(tok.mtrl)
     && Token.is_empty(tok)
     && (
-      Grouted.is_neq(grouted)
+      Token.is_complete(tok)
+      || Grouted.is_neq(grouted)
       || Option.is_some(Grouted.is_eq(grouted))
       && stack.slope == []
     )
       ? Error(Cell.mark_degrouted(fill, ~side=R)) : Ok(molded)
   | None =>
+    // P.log("--- Molder.mold/deferring");
     let deferred = Token.Unmolded.defer(t);
     Token.is_empty(deferred)
       ? Error(Cell.mark_degrouted(fill, ~side=R))
@@ -177,14 +179,15 @@ and remold =
     // P.show("hd_w", Token.show(hd_w));
     switch (mold(~re=true, l, ~fill, Token.unmold(hd_w))) {
     | Error(fill) =>
-      P.log("--- Molder.remold/continue/removed");
+      // P.log("--- Molder.remold/continue/molding/error");
+      // P.show("fill", Cell.show(fill));
       Effects.remove(hd_w);
       let (c, up) = unroll_tl_w_hd_cell();
       let fill = fill |> Cell.pad(~r=c) |> Cell.mark_ends_dirty;
       (l, r_tl) |> Stack.Frame.cat(([], up)) |> remold(~fill);
     | Ok((t, grouted, rest)) when t.mtrl == hd_w.mtrl =>
       // fast path for when hd_w retains original meld
-      P.log("--- Molder.remold/continue/fast path");
+      // P.log("--- Molder.remold/continue/molding/fast path");
       // P.show("t", Token.show(t));
       // P.show("grouted", Grouted.show(grouted));
       // P.show("rest", Stack.show(rest));
@@ -211,7 +214,10 @@ and remold =
         Error((fill, (connected, r_tl)));
       };
     | Ok((t, grouted, rest)) =>
-      P.log("--- Molder.remold/continue/default path");
+      // P.log("--- Molder.remold/continue/molding/default path");
+      // P.show("t", Token.show(t));
+      // P.show("grouted", Grouted.show(grouted));
+      // P.show("rest", Stack.show(rest));
       Effects.remove(hd_w);
       let connected = Stack.connect(Effects.insert(t), grouted, rest);
       // check if connection changed the stack bound

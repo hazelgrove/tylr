@@ -89,9 +89,15 @@ let label = (s: string): list(Token.Unmolded.t) => {
   List.rev(rev^);
 };
 
-let single = (s: string): option(Token.Unmolded.t) =>
+let single = (~id=?, s: string): option(Token.Unmolded.t) =>
   switch (label(s)) {
-  | [tok] => Some(tok)
+  | [tok] =>
+    Some(
+      switch (id) {
+      | None => tok
+      | Some(id) => {...tok, id}
+      },
+    )
   | _ => None
   };
 

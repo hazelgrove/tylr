@@ -64,13 +64,20 @@ let complete_bounded =
   P.log("--- Melder.complete_bounded");
   P.show("fill", Cell.show(fill));
   // from/onto terminology here very confusing...
+  // if (debug^) {
+  //   P.log("--- Melder.complete_bounded");
+  //   P.show("l", Bound.show(Terr.pp, l));
+  //   P.show("r", Bound.show(Terr.pp, r));
+  //   P.show("onto", Dir.show(onto));
+  //   P.show("fill", Cell.show(fill));
+  //   P.show("slope", Slope.show(slope));
+  // };
   let (bd_onto, bd_from) = Dir.order(onto, (l, r));
   let fill = complete_slope(~onto, ~fill, slope);
   P.show("completed fill", Cell.show(fill));
   let fc_onto = bd_onto |> Bound.map(t => Terr.face(t).mtrl);
   let fc_from = bd_from |> Bound.map(t => Terr.face(t).mtrl);
   // if (debug^) {
-  //   P.log("--- Melder.complete_bounded");
   //   P.show("completed slope", Cell.show(fill));
   // };
   Walker.walk_eq(~from=onto, fc_onto, fc_from)
@@ -79,22 +86,50 @@ let complete_bounded =
   |> Options.get_fail("hmmm");
 };
 
+// assumes cs have been oriented left to right
+let combine_cells =
+    (~remold, l: Bound.t(Terr.t), cs: list(Cell.t), r: Bound.t(Terr.t)) => {
+  switch (cs) {
+  | [] => Some(Cell.empty)
+  | [c] => Some(c)
+  | [hd, ...tl] =>
+    let (c_l, pre) = Slope.Dn.unroll(hd);
+    let (c_r, suf) = Slope.Up.unroll_s(tl);
+    let c = Cell.Space.merge(c_l, c_r);
+    let l = Stack.{bound: l, slope: pre};
+    let r = Stack.{bound: r, slope: suf};
+    switch (remold(~fill=c, (l, r))) {
+    | Error(_) => None
+    | Ok((dn, fill)) => Some(complete_slope(~onto=L, dn, ~fill))
+    };
+  };
+};
+
 let connect_eq =
-    (
-      ~repair=false,
-      ~onto as d: Dir.t,
-      onto: Terr.t,
-      ~fill=Cell.empty,
-      t: Token.t,
-    )
+    (~repair=?, ~onto as d: Dir.t, onto: Terr.t, ~fill=Cell.empty, t: Token.t)
     : option((Grouted.t, Terr.t)) => {
   open Options.Syntax;
+  let r = Option.is_some(repair);
   let rec go = (onto: Terr.t, fill) => {
-    let/ () = repair ? rm_ghost_and_go(onto, fill) : None;
-    let face = Terr.face(onto).mtrl;
-    Walker.walk_eq(~from=d, Node(face), Node(t.mtrl))
-    |> Grouter.pick(~repair, ~from=d, List.rev(fill))
-    |> Option.map(grouted => (grouted, onto));
+    let connect = () => {
+      let face = Terr.face(onto).mtrl;
+      let ws = Walker.walk_eq(~from=d, Node(face), Node(t.mtrl));
+      let* fill =
+        switch (ws, repair) {
+        | ([], _) => None
+        | (_, None) => Some(fill)
+        | ([_, ..._], Some(remold)) =>
+          let+ fill =
+            combine_cells(~remold, Node(onto), fill, Node(Terr.of_tok(t)));
+          [fill];
+        };
+      ws
+      |> Grouter.pick(~repair=r, ~from=d, fill)
+      |> Option.map(grouted => (grouted, onto));
+    };
+    let rm_then_connect = () =>
+      r && Token.is_complete(t) ? rm_ghost_and_go(onto, fill) : None;
+    Oblig.Delta.minimize(f => f(), [connect, rm_then_connect]);
   }
   and rm_ghost_and_go = (onto, fill) =>
     switch (Terr.unlink(onto)) {
@@ -125,27 +160,28 @@ let connect_gt = connect_neq(~onto=R);
 let connect_ineq =
     (
       ~no_eq=false,
-      ~repair=false,
+      ~repair=?,
       ~onto as d: Dir.t,
       onto: Bound.t(Terr.t),
       ~fill=Cell.empty,
       t: Token.t,
     )
     : option((Grouted.t, Bound.t(Terr.t))) => {
+  let r = Option.is_some(repair);
   let eq = () =>
     no_eq
       ? None
       : Bound.to_opt(onto)
         |> Options.bind(~f=onto =>
-             connect_eq(~repair, ~onto=d, onto, ~fill, t)
+             connect_eq(~repair?, ~onto=d, onto, ~fill, t)
            )
         |> Option.map(((grouted, terr)) => (grouted, Bound.Node(terr)));
   let neq = () =>
     // require strict neq when we reach the stack bound to avoid breaking
     // bidelimited containers
-    connect_neq(~strict=true, ~repair, ~onto=d, onto, ~fill, t)
+    connect_neq(~strict=true, ~repair=r, ~onto=d, onto, ~fill, t)
     |> Option.map(grouted => (grouted, onto));
-  if (repair) {
+  if (r) {
     open Options.Syntax;
     // if repairing, then this means we're molding/remolding and our push of the
     // current candidate token has reached the top of the local stack ie the nearest
@@ -159,19 +195,14 @@ let connect_ineq =
 };
 
 let connect =
-    (
-      ~repair=false,
-      ~onto as d: Dir.t,
-      onto: Terr.t,
-      ~fill=Cell.empty,
-      t: Token.t,
-    )
+    (~repair=?, ~onto as d: Dir.t, onto: Terr.t, ~fill=Cell.empty, t: Token.t)
     : Result.t((Grouted.t, Terr.t), Cell.t) => {
+  let r = Option.is_some(repair);
   let b = Dir.toggle(d);
   let eq = () =>
-    connect_eq(~repair, ~onto=d, onto, ~fill, t) |> Option.map(Result.ok);
+    connect_eq(~repair?, ~onto=d, onto, ~fill, t) |> Option.map(Result.ok);
   let neq_d = () =>
-    connect_neq(~repair, ~onto=d, Node(onto), ~fill, t)
+    connect_neq(~repair=r, ~onto=d, Node(onto), ~fill, t)
     |> Option.map(grouted => {(grouted, onto)})
     |> Option.map(Result.ok);
   let neq_b = () => {
@@ -180,14 +211,14 @@ let connect =
     // for subsequent oblig minimization, but don't need the result.
     // todo: fix what's probably a rare bug here where neq_b wins and its effects
     // are committed but the connection result with those effected tokens are not.
-    connect_neq(~repair, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
+    connect_neq(~repair=r, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
     |> Option.map(_ => complete_terr(~onto=d, ~fill, onto))
     |> Option.map(Result.err);
   };
   // ensure consistent ordering
   let neqs = Dir.pick(d, ([neq_d, neq_b], [neq_b, neq_d]));
   [eq, ...neqs]
-  |> Oblig.Delta.minimize(~to_zero=!repair, f => f())
+  |> Oblig.Delta.minimize(~to_zero=!r, f => f())
   // use get here instead of value to avoid spurious effects.
   // default value covers incomparability.
   |> Options.get(() => Error(complete_terr(~onto=d, ~fill, onto)));
@@ -219,16 +250,15 @@ let rec push =
           ~onto: Dir.t,
         )
         : option((Grouted.t, Stack.t)) => {
-  let r = Option.is_some(repair);
   switch (stack.slope) {
   | [] =>
-    connect_ineq(~no_eq, ~repair=r, ~onto, stack.bound, ~fill, t)
+    connect_ineq(~no_eq, ~repair?, ~onto, stack.bound, ~fill, t)
     |> Option.map(((grouted, bound)) =>
          (grouted, Stack.{slope: [], bound})
        )
   | [hd, ...tl] =>
     let connect = () =>
-      switch (connect(~repair=r, ~onto, hd, ~fill, t)) {
+      switch (connect(~repair?, ~onto, hd, ~fill, t)) {
       | Error(fill) =>
         push(~no_eq, ~repair?, t, ~fill, {...stack, slope: tl}, ~onto)
       | Ok((grouted, hd)) =>
@@ -237,7 +267,9 @@ let rec push =
     switch (repair) {
     | None => connect()
     | Some(remold) =>
-      let discharge = () => discharge(~no_eq, ~remold, stack, ~fill, t);
+      let discharge = () =>
+        Token.is_complete(t)
+          ? discharge(~no_eq, ~remold, stack, ~fill, t) : None;
       Oblig.Delta.minimize(f => f(), [discharge, connect]);
     };
   };

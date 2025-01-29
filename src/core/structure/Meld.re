@@ -4,6 +4,7 @@ module Base = {
   include Cell.Meld;
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t('tok) = Cell.Meld.t(Cell.Base.t('tok), 'tok);
+  let map_toks = (f, m) => Cell.Meld.map_toks(Cell.map_toks, f, m);
   let length = m => Chain.length(to_chain(m));
 
   let unzip_cell = (step, m) => Chain.unzip_loop(step, to_chain(m));

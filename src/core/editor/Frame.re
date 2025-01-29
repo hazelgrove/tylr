@@ -39,6 +39,8 @@ module Open = {
       | L => ([terr, ...dn], up)
       | R => (dn, [terr, ...up])
       };
+    let map_toks = (f, (dn, up)) =>
+      Slope.Base.(map_toks(f, dn), map_toks(f, up));
   };
   include Base;
   [@deriving (show({with_path: false}), sexp, yojson)]
@@ -131,4 +133,6 @@ module Closed = {
       let (r, up) = Slope.pull_terr(~from=R, r);
       (r, ([l], up));
     };
+  let map_toks = (f, (l, r)) =>
+    Terr.Base.(map_toks(f, l), map_toks(f, r));
 };

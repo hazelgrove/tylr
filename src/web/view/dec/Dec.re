@@ -1,5 +1,3 @@
-module DecUtil = DecUtil;
-
 module Layers = Layers;
 
 module Token = Token;

@@ -22,6 +22,8 @@ module Base = {
       Fun.id,
       ctx,
     );
+  let map_toks = (f, ctx) =>
+    Chain.map(Frame.Open.map_toks(f), Frame.Closed.map_toks(f), ctx);
 };
 include Base;
 
