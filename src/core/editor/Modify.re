@@ -134,9 +134,9 @@ let mold =
 };
 
 let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
-  P.log("--- Modify.remold");
-  P.show("fill", Cell.show(fill));
-  P.show("ctx", Ctx.show(ctx));
+  // P.log("--- Modify.remold");
+  // P.show("fill", Cell.show(fill));
+  // P.show("ctx", Ctx.show(ctx));
   let ((l, r), tl) = Ctx.unlink_stacks(ctx);
   switch (Molder.remold(~fill, (l, r))) {
   // ( 1 + 2 ) + 3 ) + 4
@@ -152,9 +152,9 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     |> remold(~fill)
   // # 1 + ( <> >)> #
   | Ok((dn, fill)) =>
-    P.log("--- Modify.remold/done");
-    P.show("dn", Slope.Dn.show(dn));
-    P.show("fill", Cell.show(fill));
+    // P.log("--- Modify.remold/done");
+    // P.show("dn", Slope.Dn.show(dn));
+    // P.show("fill", Cell.show(fill));
     let bounds = (l.bound, r.bound);
     // Melder.debug := true;
     let cell = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
@@ -374,8 +374,8 @@ let insert_toks =
 let meld_remold =
     (~expanding=false, prev, tok: Token.t, next, ctx: Ctx.t)
     : option((Cell.t, Ctx.t)) => {
-  P.log("--- Modify.meld_remold");
-  open Options.Syntax;
+  open Options.Syntax; // P.log("--- Modify.meld_remold");
+
   // P.log("--- Modify.meld_remold");
   // P.show("prev", Cell.show(prev));
   // P.sexp("tok", Token.sexp_of_t(tok));
@@ -396,12 +396,12 @@ let meld_remold =
       && l.slope == []
     );
   if (is_redundant) {
-    P.log("--- Modify.meld_remold/is_redundant");
+    // P.log("--- Modify.meld_remold/is_redundant");
     Effects.remove(tok);
     let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
     Some(remold(~fill, ctx));
   } else {
-    P.log("--- Modify.meld_remold/not_redundant");
+    // P.log("--- Modify.meld_remold/not_redundant");
     let connected = Stack.connect(Effects.insert(tok), grouted, l);
     let ctx =
       connected.bound == l.bound
@@ -416,8 +416,6 @@ let meld_remold =
         ? ctx |> Ctx.push(~onto=L, Token.space()) |> Ctx.trim_space(~side=R)
         : ctx;
     let remolded = remold(~fill=next, ctx);
-    P.show("remolded cell", Cell.show(fst(remolded)));
-    P.show("remolded ctx", Ctx.show(snd(remolded)));
     // P.log("--- meld_remold");
     // P.show("tok", Token.show(tok));
     // P.show("ctx", Ctx.show(ctx));

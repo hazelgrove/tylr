@@ -182,8 +182,8 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
         r;
       }
       : {
-        P.show("None", "None");
         None;
+            // P.show("None", "None");
       };
   | Grout(s)
   | Tile(((_, s), _)) =>
