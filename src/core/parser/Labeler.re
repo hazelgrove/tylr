@@ -106,3 +106,24 @@ let starts_with_space = s =>
   | [] => false
   | [tok, ..._] => Mtrl.is_space(tok.mtrl)
   };
+
+let unmold = (~relabel=true, tok: Token.t): Token.Unmolded.t => {
+  let mtrl =
+    switch (tok.mtrl) {
+    | Space(White(a)) => Mtrl.Space(Space.T.White(a))
+    | Space(Unmolded) =>
+      switch (single(~id=tok.id, tok.text)) {
+      | Some(tok) when relabel => tok.mtrl
+      | _ => Space(Unmolded)
+      }
+    | Grout(_) => Grout()
+    | Tile((lbl, _)) =>
+      Tile(
+        Token.is_empty(tok) || !relabel
+          ? [lbl] : [lbl, ...Labels.completions(tok.text)],
+      )
+    };
+  // todo: may need to fix token marks if marks happen to have caret at right end
+  // of incomplete tile
+  Token.Unmolded.mk(~id=tok.id, ~marks=?tok.marks, ~text=tok.text, mtrl);
+};

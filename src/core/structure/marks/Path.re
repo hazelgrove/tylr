@@ -92,6 +92,7 @@ module Selection = {
   //   Range.peel(n, sel.range) |> Option.map(range => {...sel, range});
   let hd = sel => Range.hd(sel.range) |> Head.map_err(mk(~focus=sel.focus));
   let get_focus = (sel: t) => Dir.pick(sel.focus, sel.range);
+  let get_anchor = (sel: t) => Dir.(pick(toggle(sel.focus), sel.range));
   let put_focus = (foc, sel: t) => {
     let (_foc, anc) = Dir.order(sel.focus, sel.range);
     {...sel, range: Dir.order(sel.focus, (foc, anc))};

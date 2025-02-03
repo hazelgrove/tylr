@@ -10,10 +10,18 @@ type t =
   // jump to absolute loc
   | Jump(Loc.t);
 
+let unselect = (~toward=?, z: Zipper.t) =>
+  switch (z.cur) {
+  | Point(_) => z
+  | Select({focus: d, range: zigg}) =>
+    let onto = Dir.toggle(Option.value(toward, ~default=d));
+    Zipper.mk(Ctx.push_zigg(~onto, zigg, z.ctx));
+  };
+
 // bounds goal pos to within start/end pos of program.
 // returns none if the resulting goal pos is same as start pos.
 let map_focus =
-    (~round_tok=?, ~drop_anchor=false, f: Loc.t => Loc.t, z: Zipper.t)
+    (~round_tok=?, ~save_anchor=false, f: Loc.t => Loc.t, z: Zipper.t)
     : option(Zipper.t) => {
   open Options.Syntax;
   let c = Zipper.zip(~save_cursor=true, z);
@@ -25,7 +33,7 @@ let map_focus =
   goal == init
     ? None
     : c
-      |> Cell.map_marks(Cell.Marks.put_focus(~drop_anchor, goal))
+      |> Cell.map_marks(Cell.Marks.put_focus(~save_anchor, goal))
       |> Zipper.unzip;
 };
 
@@ -77,17 +85,9 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
   let b = Dir.toggle(d);
   // P.log("--- Move.hstep");
   let (cur_site, ctx_sans_sites) = Zipper.cursor_site(z);
-  let+ ctx =
+  let+ z =
     switch (cur_site) {
-    | Select(_) =>
-      let sel = Option.get(Cursor.get_select(z.cur));
-      // move to d end of selection, taking care to update any token marks
-      // let (_, ctx_sans_sites) = Zipper.cursor_site(z);
-      let zigg =
-        sel.range
-        |> Zigg.map_face(~side=d, Token.focus_point)
-        |> Zigg.map_face(~side=b, Token.clear_marks);
-      return(Ctx.push_zigg(~onto=b, zigg, ctx_sans_sites));
+    | Select(_) => return(unselect(~toward=d, z))
     | Point(site) =>
       // P.log("--- Move.hstep/Point");
       let (face, ctx) =
@@ -103,9 +103,10 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       // P.show("exited", string_of_bool(exited));
       ctx
       |> Ctx.push(~onto=b, stepped)
-      |> (exited ? Fun.id : Ctx.push(~onto=d, stepped));
+      |> (exited ? Fun.id : Ctx.push(~onto=d, stepped))
+      |> Zipper.mk;
     };
-  Zipper.(rebutton(mk(ctx)));
+  Zipper.rebutton(z);
 };
 let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
   let step = (d, z) =>
@@ -117,13 +118,18 @@ let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
   };
 };
 
-let vstep = (~round_tok=?, ~drop_anchor=false, d: Dir.t) =>
-  map_focus(~round_tok?, ~drop_anchor, loc =>
-    {...loc, row: loc.row + Dir.pick(d, ((-1), 1))}
-  );
+let vstep = (~round_tok=?, ~save_anchor=false, d: Dir.t, z: Zipper.t) =>
+  switch (z.cur) {
+  | Select(_) => Some(unselect(~toward=d, z))
+  | Point(_) =>
+    z
+    |> map_focus(~round_tok?, ~save_anchor, loc =>
+         {...loc, row: loc.row + Dir.pick(d, ((-1), 1))}
+       )
+  };
 
-let skip = (~round_tok=?, ~drop_anchor=false, d2: Dir2.t) =>
-  map_focus(~round_tok?, ~drop_anchor, loc =>
+let skip = (~round_tok=?, ~save_anchor=false, d2: Dir2.t) =>
+  map_focus(~round_tok?, ~save_anchor, loc =>
     switch (d2) {
     | H(L) => {...loc, col: 0}
     | H(R) => {...loc, col: Int.max_int}
@@ -132,8 +138,8 @@ let skip = (~round_tok=?, ~drop_anchor=false, d2: Dir2.t) =>
     }
   );
 
-let jump = (~round_tok=?, ~drop_anchor=false, loc) =>
-  map_focus(~round_tok?, ~drop_anchor, Fun.const(loc));
+let jump = (~round_tok=?, ~save_anchor=false, loc) =>
+  map_focus(~round_tok?, ~save_anchor, Fun.const(loc));
 
 // todo: need to return none in some more cases when no visible movement occurs
 let perform =

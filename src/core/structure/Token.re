@@ -309,27 +309,6 @@ module Unmolded = {
     };
 };
 
-let unmold = (~relabel=true, tok: Molded.t): Unmolded.t => {
-  let mtrl =
-    switch (tok.mtrl) {
-    | Space(White(a)) => Mtrl.Space(Space.T.White(a))
-    | Space(Unmolded) =>
-      switch (Labels.completions(tok.text)) {
-      | [] => Space(Unmolded)
-      | [_, ..._] as lbls => Tile(lbls)
-      }
-    | Grout(_) => Grout()
-    | Tile((lbl, _)) =>
-      Tile(
-        is_empty(tok) || !relabel
-          ? [lbl] : [lbl, ...Labels.completions(tok.text)],
-      )
-    };
-  // todo: may need to fix token marks if marks happen to have caret at right end
-  // of incomplete tile
-  Unmolded.mk(~id=tok.id, ~marks=?tok.marks, ~text=tok.text, mtrl);
-};
-
 module Space = {
   let is = (tok: Molded.t) => Mtrl.is_space(tok.mtrl);
   let mk = (~id=?, ~text="", ~marks=?, t: Space.T.t) =>

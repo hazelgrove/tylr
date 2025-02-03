@@ -180,7 +180,7 @@ and remold =
     // P.show("l", Stack.show(l));
     // P.show("fill", Cell.show(fill));
     // P.show("hd_w", Token.show(hd_w));
-    switch (mold(~re=true, l, ~fill, Token.unmold(hd_w))) {
+    switch (mold(~re=true, l, ~fill, Labeler.unmold(hd_w))) {
     | Error(fill) =>
       // P.log("--- Molder.remold/continue/molding/error");
       // P.show("fill", Cell.show(fill));

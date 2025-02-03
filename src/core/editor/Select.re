@@ -8,15 +8,6 @@ type t =
   | Meld
   | Move(Move.t);
 
-let unselect = (~toward=?, ~save_anchor=false, z: Zipper.t) =>
-  switch (z.cur) {
-  | Point(_) => z
-  | Select({focus: d, range: zigg}) =>
-    let onto = Dir.toggle(Option.value(toward, ~default=d));
-    let fill = save_anchor ? Cell.point(Anchor) : Cell.empty;
-    Zipper.mk(Ctx.push_zigg(~onto, zigg, ~fill, z.ctx));
-  };
-
 // returns token with updated carets after movement, where carets that reach the
 // token edges are removed. returned token is accompanied by flag indicating whether
 // the moved caret reached the token edge.
@@ -162,16 +153,21 @@ let hstep = (~char=false, d: Dir.t, z: Zipper.t): option(Zipper.t) => {
 
 let perform = (a: t, z: Zipper.t): option(Zipper.t) =>
   switch (a) {
-  | Un(d) => Some(unselect(~toward=d, z))
+  | Un(d) => Some(Move.unselect(~toward=d, z))
   | All
   | Wald
   | Meld => failwith("todo Select.perform")
   | Move(a) =>
     switch (a) {
     | Step(H(d)) => hstep(d, z)
-    | Step(V(d)) => Move.vstep(~round_tok=d, ~drop_anchor=true, d, z)
+    | Step(V(d)) =>
+      // avoid calling Move.vstep here bc it will clear selection
+      z
+      |> Move.map_focus(~round_tok=d, ~save_anchor=true, loc =>
+           {...loc, row: loc.row + Dir.pick(d, ((-1), 1))}
+         )
     | Skip((H(d) | V(d)) as d2) =>
-      Move.skip(~round_tok=d, ~drop_anchor=true, d2, z)
-    | Jump(pos) => Move.jump(~drop_anchor=true, pos, z)
+      Move.skip(~round_tok=d, ~save_anchor=true, d2, z)
+    | Jump(pos) => Move.jump(~save_anchor=true, pos, z)
     }
   };
