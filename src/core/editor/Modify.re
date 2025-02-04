@@ -408,6 +408,7 @@ let meld_remold =
     // P.log("--- Modify.meld_remold/is_redundant");
     Effects.remove(tok);
     let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
+    P.log("--- Modify.meld_remold/redundant/remolding");
     Some(remold(~fill, ctx));
   } else {
     // P.log("--- Modify.meld_remold/not_redundant");
@@ -424,6 +425,7 @@ let meld_remold =
       expanding
         ? ctx |> Ctx.push(~onto=L, Token.space()) |> Ctx.trim_space(~side=R)
         : ctx;
+    P.log("--- Modify.meld_remold/not_redundant/remolding");
     let remolded = remold(~fill=next, ctx);
     // P.log("--- meld_remold");
     // P.show("tok", Token.show(tok));
@@ -508,7 +510,24 @@ let mold_remold =
   let- () =
     Molder.candidates(tok)
     @ (tok.text == "" ? [] : [Token.Unmolded.defer(tok)])
-    |> Oblig.Delta.minimize(tok => meld_remold(prev, tok, next, ctx));
+    |> Oblig.Delta.minimize(tok => {
+         P.log("--- Modify.mold_remold/candidate");
+         P.sexp("candidate", Token.sexp_of_t(tok));
+         let r = meld_remold(prev, tok, next, ctx);
+         switch (r) {
+         | None => P.show("r", "None")
+         | Some(_) => P.show("r", "Some")
+         };
+         P.show(
+           "effects",
+           Fmt.(to_to_string(list(Effects.pp), Effects.log^)),
+         );
+         P.show(
+           "delta",
+           Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)),
+         );
+         r;
+       });
   assert(tok.text == "");
   let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
   remold(~fill, ctx);

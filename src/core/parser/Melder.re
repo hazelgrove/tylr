@@ -27,10 +27,10 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr).mtrl));
   let grouted = Grouter.pick(~repair=true, ~from=onto, [fill], exited);
   // if (debug^) {
-  //   P.log("--- Melder.complete_terr");
-  //   P.show("onto", Dir.show(onto));
-  //   P.show("fill", Cell.show(fill));
-  //   P.show("terr", Terr.show(terr));
+  P.log("--- Melder.complete_terr");
+  P.show("onto", Dir.show(onto));
+  P.show("fill", Cell.show(fill));
+  P.show("terr", Terr.show(terr));
   // };
   switch (grouted) {
   | Some(grouted) =>
@@ -47,12 +47,12 @@ let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
     Cell.put(orient(m));
   | None =>
     assert(!Cell.is_empty(fill));
-    print_endline("warning: dropping fill " ++ Cell.show(fill));
     P.log("--- Melder.complete_terr/None");
+    print_endline("warning: dropping fill " ++ Cell.show(fill));
     P.sexp("fill", Cell.sexp_of_t(fill));
     P.sexp("terr", Terr.sexp_of_t(terr));
     P.log("exited =");
-    exited |> List.iter(w => P.show("w", Walk.show(w)));
+    exited |> List.iter(w => P.sexp("w", Walk.sexp_of_t(w)));
     // walker bug if no exits
     // let exited = List.hd(exited);
     let grouted =
@@ -217,7 +217,13 @@ let connect =
     // todo: fix what's probably a rare bug here where neq_b wins and its effects
     // are committed but the connection result with those effected tokens are not.
     connect_neq(~repair=r, ~onto=b, Node(Terr.of_tok(t)), ~fill, hd)
-    |> Option.map(_ => complete_terr(~onto=d, ~fill, onto))
+    |> Option.map(_ => {
+         P.log("--- Melder.connect/neq_b");
+         P.show("onto", Terr.show(onto));
+         P.show("fill", Cell.show(fill));
+         P.show("t", Token.show(t));
+         complete_terr(~onto=d, ~fill, onto);
+       })
     |> Option.map(Result.err);
   };
   // ensure consistent ordering
@@ -226,7 +232,10 @@ let connect =
   |> Oblig.Delta.minimize(~to_zero=!r, f => f())
   // use get here instead of value to avoid spurious effects.
   // default value covers incomparability.
-  |> Options.get(() => Error(complete_terr(~onto=d, ~fill, onto)));
+  |> Options.get(() => {
+       P.log("--- Melder.connect/default");
+       Error(complete_terr(~onto=d, ~fill, onto));
+     });
 };
 
 let rec unzip_tok = (~frame=Frame.Open.empty, path: Path.t, cell: Cell.t) => {
