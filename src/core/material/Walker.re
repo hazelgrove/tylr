@@ -338,6 +338,23 @@ let enter_all =
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
+let enter_all_ = ((from: Dir.t, nt: Mtrl.NT.t)) => {
+  let q = Queue.create();
+  swing_all(~from, nt)
+  |> Index.filter(is_neq)
+  |> Index.iter((dst, w) => Queue.push((dst, w), q));
+  bfs(~from, q)
+  |> Index.filter(Walk.is_valid)
+  |> Index.fil(_ =>
+       fun
+       | [] => false
+       | _ => true
+     )
+  // todo: apply swings_profile filter here
+  |> Index.sort;
+};
+let enter_ = (~from, src, dst) => Index.find(dst, enter_all_((from, src)));
+
 let walk_l_map = ref(End.Map.empty);
 let walk_r_map = ref(End.Map.empty);
 let enter_l_map = ref(Mtrl.NT.Map.empty);

@@ -83,7 +83,7 @@ module Cells = {
     switch (face(~side=from, cs)) {
     | None => Some(false)
     | Some(t) =>
-      Walker.enter(~from, nt, Node(t.mtrl))
+      Walker.enter_(~from, nt, Node(t.mtrl))
       |> Lists.hd
       |> Option.map(w => Walk.height(w) > 1)
     };
