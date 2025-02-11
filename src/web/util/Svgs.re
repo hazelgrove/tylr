@@ -9,6 +9,7 @@ module Point = {
     x: float,
     y: float,
   };
+  let mk_ = (~x, ~y) => {x: Float.of_int(x), y: Float.of_int(y)};
   let move = (~x=0., ~y=0., p: t) => {x: p.x +. x, y: p.y +. y};
 };
 
@@ -26,6 +27,11 @@ module Rect = {
     min: Point.t,
     width: float,
     height: float,
+  };
+  let mk_ = (~min, ~width, ~height) => {
+    min,
+    width: Float.of_int(width),
+    height: Float.of_int(height),
   };
 
   let pad = (~x=0., ~y=0., {min, width, height}: t): t => {
@@ -435,6 +441,8 @@ module OrthogonalPolygon = {
 
     path
     |> round_corners(corner_radii)
+    // start in middle of first edge bc round_corners cuts each edge in the middle
+    // and rotates the path by a single half-edge while processing
     |> List.cons(
          Path.M({
            x: (start.src.x +. start.dst.x) *. 0.5,

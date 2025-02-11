@@ -41,12 +41,34 @@ module Profile = {
     sil: bool,
   };
 
+  // ind is the indentation of delimiting token
+  // sil indicates whether the child border itself should be silhouetted
   let mk =
-      (~sil=false, ~whole, ~ind, ~loc: Loc.t, ~null as (l, r), lc: LCell.t) => {
+      (
+        ~sil=false,
+        ~whole,
+        ~ind,
+        ~state: L.State.t,
+        ~null as (l, r),
+        lc: LCell.t,
+      ) => {
+    // todo: fix awkward conceptual overlap between state logging and dims
+    // calculation
     let dims = Dims.of_block(LCell.flatten(lc));
-    let l = l ? Some(L.nth_line(whole, loc.row)) : None;
-    let r = r ? Some(L.nth_line(whole, loc.row + dims.height)) : None;
-    {ind, loc, dims, sort: LCell.sort(lc), no_delim: (l, r), sil};
+    let l = l ? Some(L.nth_line(whole, state.loc.row)) : None;
+    let r = r ? Some(L.nth_line(whole, state.loc.row + dims.height)) : None;
+    let p = {
+      ind,
+      loc: state.loc,
+      dims,
+      sort: LCell.sort(lc),
+      no_delim: (l, r),
+      sil,
+    };
+    L.State.clear_log();
+    let final = state |> L.State.jump_cell(~over=lc);
+    let ns = L.State.get_log();
+    ((final, ns), p);
   };
 };
 

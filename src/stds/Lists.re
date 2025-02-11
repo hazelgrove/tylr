@@ -149,3 +149,10 @@ let rec disjoint_pairs = (xs: list('x)): list(('x, 'x)) =>
   | [_] => []
   | [x1, x2, ...xs] => [(x1, x2), ...disjoint_pairs(xs)]
   };
+
+let rec consnoc_pairs =
+        (init: 'x, xxs: list(('x, 'x)), final: 'x): list(('x, 'x)) =>
+  switch (xxs) {
+  | [] => [(init, final)]
+  | [(x1, x2), ...xxs] => [(init, x1), ...consnoc_pairs(x2, xxs, final)]
+  };

@@ -15,54 +15,56 @@ module Profile = {
       (
         ~sil=false,
         ~whole,
-        ~state: L.State.t,
+        ~state as init: L.State.t,
         ~null: (bool, bool),
         ~eq: (bool, bool),
         W(w) as lw: LWald.t,
       ) => {
-    let state = fst(eq) ? L.State.pop_ind(state) : L.State.push_ind(state);
+    L.State.clear_log();
+    let is_space = Mtrl.is_space(LWald.sort(lw));
+    let state = (fst(eq) || is_space ? Fun.id : L.State.push_ind)(init);
     let ind = L.Indent.curr(state.ind);
-    // let ind = state.ind + state.rel;
     let n = Chain.length(w);
-    let inner =
-      sil
-        ? [
-          Silhouette.Inner.Profile.mk(
-            ~is_space=Mtrl.is_space(LWald.sort(lw)),
-            ~state,
-            LWald.flatten(~flatten=LCell.flatten, lw),
-          ),
-        ]
-        : [];
-    // logic below assumes w won't be space
     let (state, (tokens, cells)) =
       w
       |> Chain.mapi_loop((i, b) => (i, b))
       |> Chain.fold_left_map(
            ((_, b_tok)) => {
              let null = (fst(null), n == 1 && snd(null));
-             let t = T.Profile.mk(~sil, ~loc=state.loc, ~null, b_tok);
-             let state = L.State.jump_tok(state, ~over=b_tok);
-             (state, t);
+             let ((state, tok_log), t) =
+               T.Profile.mk(~sil, ~state, ~null, b_tok);
+             (state, (t, tok_log));
            },
            (state, cell, (i, b_tok)) => {
-             let c =
+             let ((state, cell_ns), c) =
                Child.Profile.mk(
                  ~sil,
                  ~whole,
                  ~ind,
-                 ~loc=state.loc,
+                 ~state,
                  ~null=(false, false),
                  cell,
                );
-             let state = L.State.jump_cell(state, ~over=cell);
              let null = (false, i == n - 1 && snd(null));
-             let t = T.Profile.mk(~sil, ~loc=state.loc, ~null, b_tok);
-             let state = L.State.jump_tok(state, ~over=b_tok);
-             (state, c, t);
+             let ((state, tok_ns), t) =
+               T.Profile.mk(~sil, ~state, ~null, b_tok);
+             (state, (c, cell_ns), (t, tok_ns));
            },
          )
-      |> Stds.Tuples.map_fst(snd(eq) ? Fun.id : L.State.pop_ind);
-    (state, Layers.mk(~inner, ~cells, ~tokens, ()));
+      |> Stds.Tuples.map_fst(snd(eq) || is_space ? Fun.id : L.State.pop_ind);
+    let (ts, ts_ns) = List.split(tokens);
+    let (cs, cs_ns) = List.split(cells);
+    let ns =
+      Chain.mk(ts_ns, cs_ns) |> Chain.to_list(Fun.id, Fun.id) |> List.concat;
+    let inner =
+      sil
+        ? [
+          Silhouette.Inner.Profile.mk(
+            ~is_space=Mtrl.is_space(LWald.sort(lw)),
+            Stds.Lists.consnoc_pairs(init, ns, state),
+          ),
+        ]
+        : [];
+    ((state, ns), Layers.mk(~inner, ~cells=cs, ~tokens=ts, ()));
   };
 };

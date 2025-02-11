@@ -1,6 +1,3 @@
-open Sexplib.Std;
-open Ppx_yojson_conv_lib.Yojson_conv.Primitives;
-
 // to keep a reference to token dec
 module T = Token;
 module W = Wald;
@@ -11,20 +8,7 @@ module L = Layout;
 
 module Profile = {
   [@deriving (show({with_path: false}), sexp, yojson)]
-  type t = {
-    chain: Chain.t(Child.Profile.t, T.Profile.t),
-    sil: option(Silhouette.Inner.Profile.t),
-  };
-  exception No_tokens;
-
-  let cells = p => Chain.loops(p.chain);
-  let tokens = p => Chain.links(p.chain);
-
-  let sort = (p: t) =>
-    switch (tokens(p)) {
-    | [] => raise(No_tokens)
-    | [hd, ..._] => hd.style |> Option.map((style: T.Style.t) => style.sort)
-    };
+  type t = Layers.t;
 
   let mk = (~sil=false, ~whole: LCell.t, ~state: L.State.t, lm: LMeld.t) => {
     let M(lc_l, lw, lc_r) = lm;
@@ -34,45 +18,53 @@ module Profile = {
     let null =
       Mtrl.(is_space(LCell.sort(lc_l)), is_space(LCell.sort(lc_r)));
 
+    L.State.clear_log();
     let s_init = state |> L.State.jump_cell(~over=p_l);
+    let p_l_ns = L.State.get_log();
+
     let s_tok = L.State.jump_cell(s_init, ~over=lc_l);
 
+    let ((state, l_ns), l) =
+      Child.Profile.mk(
+        ~sil,
+        ~whole,
+        ~ind=L.Indent.curr(s_tok.ind),
+        ~state=s_init,
+        ~null=(true, false),
+        lc_l,
+      );
+    let ((state, w_ns), w) =
+      W.Profile.mk(~sil, ~whole, ~state, ~null, ~eq=(false, false), lw);
+    let ((state, r_ns), r) =
+      Child.Profile.mk(
+        ~sil,
+        ~whole,
+        ~ind=L.Indent.curr(state.ind),
+        ~state,
+        ~null=(false, true),
+        lc_r,
+      );
     let inner =
       sil
         ? [
           Silhouette.Inner.Profile.mk(
             ~is_space=Mtrl.is_space(LMeld.sort(lm)),
-            ~state=s_init,
-            LMeld.flatten(~flatten=LCell.flatten, lm),
+            Stds.Lists.consnoc_pairs(
+              s_init,
+              List.concat([l_ns, w_ns, r_ns]),
+              state,
+            ),
           ),
         ]
         : [];
 
-    let l =
-      Child.Profile.mk(
-        ~sil,
-        ~whole,
-        ~ind=L.Indent.curr(s_tok.ind),
-        ~loc=s_init.loc,
-        ~null=(true, false),
-        lc_l,
-      );
-    let state = L.State.jump_cell(s_init, ~over=lc_l);
-    let (state, w) =
-      W.Profile.mk(~sil, ~whole, ~state, ~null, ~eq=(false, false), lw);
-    let r =
-      Child.Profile.mk(
-        ~sil,
-        ~whole,
-        ~ind=L.Indent.curr(state.ind),
-        ~loc=state.loc,
-        ~null=(false, true),
-        lc_r,
-      );
-    let state =
-      state |> L.State.jump_cell(~over=lc_r) |> L.State.jump_cell(~over=p_r);
+    L.State.clear_log();
+    let final = state |> L.State.jump_cell(~over=p_r);
+    let p_r_ns = L.State.get_log();
+
+    let ns = List.concat([p_l_ns, l_ns, w_ns, r_ns, p_r_ns]);
+
     let p = {...w, inner, cells: [l] @ w.cells @ [r]};
-    // let p = {chain: Chain.consnoc(~hd=l, w, ~ft=r), sil: silhouette};
-    (state, p);
+    ((final, ns), p);
   };
 };

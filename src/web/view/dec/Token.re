@@ -5,6 +5,8 @@ open Virtual_dom.Vdom;
 open Tylr_core;
 open Util.Svgs;
 
+module L = Tylr_core.Layout;
+
 module Style = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = {
@@ -31,10 +33,16 @@ module Profile = {
     style: option(Style.t),
   };
 
-  let mk = (~sil=false, ~loc: Loc.t, ~null: (bool, bool), b_tok: Block.t) => {
-    loc,
-    len: Block.len(b_tok),
-    style: Style.mk(~sil, ~null, Block.mtrl(b_tok)),
+  let mk =
+      (~sil=false, ~state: L.State.t, ~null: (bool, bool), b_tok: Block.t) => {
+    let p = {
+      loc: state.loc,
+      len: Block.len(b_tok),
+      style: Style.mk(~sil, ~null, Block.mtrl(b_tok)),
+    };
+    L.State.clear_log();
+    let final = L.State.jump_tok(state, ~over=b_tok);
+    ((final, L.State.get_log()), p);
   };
 };
 let tip_width = 0.3;

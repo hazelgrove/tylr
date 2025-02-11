@@ -11,37 +11,67 @@ module L = Layout;
 module Profile = {
   type t = Layers.t;
 
-  let mk_rolled =
-      (~side: Dir.t, ~whole, ~state, ~rel: Either.t(_), rolled: LCell.t) => {
+  let mk_rolled_l = (~whole, ~state as s_init, ~merge=?, rolled: LCell.t) => {
     switch (rolled.meld) {
-    | None => (state, Layers.empty)
+    | None => ((s_init, []), Layers.empty)
     | Some(m) =>
-      switch (rel) {
-      | Left () => M.Profile.mk(~sil=true, ~whole, ~state, m)
-      | Right((s_neighbor, neighbor)) =>
-        let s_post = L.State.jump_cell(state, ~over=rolled);
-        let s_tok = Dir.pick(side, (s_post, state));
-        let sil =
-          Silhouette.Inner.Profile.mk(
-            ~is_space=Mtrl.is_space(LMeld.sort(m)),
-            ~state=Dir.pick(side, (state, s_neighbor)),
-            // merge this silhouette with the neighbor silhouette in rest of
-            // unrolled zigg
-            (LMeld.flatten(~flatten=LCell.flatten, m), neighbor)
-            |> Dir.order(side)
-            |> Funs.uncurry(Block.hcat),
-          );
-        let cell =
+      switch (merge) {
+      | None => M.Profile.mk(~sil=true, ~whole, ~state=s_init, m)
+      | Some(hd_terr) =>
+        let s_tok = L.State.jump_cell(s_init, ~over=rolled);
+        let ((s_post_cell, rolled_ns), rolled) =
           Child.Profile.mk(
             ~sil=true,
             ~whole,
             ~ind=L.Indent.curr(s_tok.ind),
-            ~loc=state.loc,
-            ~null=Dir.pick(side, ((true, false), (false, true))),
+            ~state=s_init,
+            ~null=(true, false),
             rolled,
           );
-        let p = Layers.mk(~inner=[sil], ~cells=[cell], ());
-        (s_post, p);
+        L.State.clear_log();
+        let s_post_hd = L.State.jump_terr_l(s_post_cell, ~over=hd_terr);
+        let hd_ns = L.State.get_log();
+        let sil =
+          Silhouette.Inner.Profile.mk(
+            ~is_space=Mtrl.is_space(LMeld.sort(m)),
+            Lists.consnoc_pairs(s_init, rolled_ns @ hd_ns, s_post_hd),
+          );
+        let p = Layers.mk(~inner=[sil], ~cells=[rolled], ());
+        ((s_post_cell, rolled_ns), p);
+      }
+    };
+  };
+
+  let mk_rolled_r = (~whole, ~state, ~merge=?, rolled: LCell.t) => {
+    switch (rolled.meld) {
+    | None => ((state, []), Layers.empty)
+    | Some(m) =>
+      switch (merge) {
+      | None => M.Profile.mk(~sil=true, ~whole, ~state, m)
+      | Some((s_before_hd, hd_terr)) =>
+        L.State.clear_log();
+        let s_post_hd = L.State.jump_terr(s_before_hd, ~over=hd_terr);
+        let hd_ns = L.State.get_log();
+        let ((s_post_rolled, rolled_ns), rolled) =
+          Child.Profile.mk(
+            ~sil=true,
+            ~whole,
+            ~ind=L.Indent.curr(s_post_hd.ind),
+            ~state,
+            ~null=(false, true),
+            rolled,
+          );
+        let sil =
+          Silhouette.Inner.Profile.mk(
+            ~is_space=Mtrl.is_space(LMeld.sort(m)),
+            Lists.consnoc_pairs(
+              s_before_hd,
+              hd_ns @ rolled_ns,
+              s_post_rolled,
+            ),
+          );
+        let p = Layers.mk(~inner=[sil], ~cells=[rolled], ());
+        ((s_post_rolled, rolled_ns), p);
       }
     };
   };
@@ -53,31 +83,28 @@ module Profile = {
         LSlope.height(unrolled) - 2
       | _ => LSlope.height(unrolled) - 1
       };
-    // reverse to get top-down index which matches eqs
-    List.rev(up)
-    |> List.mapi((i, t) => (i, t))
-    // drop rolled terraces
-    // |> Lists.take_while(~f=((i, _)) => i < up_len - fst(rolled))
-    // reverse back to go left to right
-    |> List.rev
-    |> List.fold_left_map(
-         (state, (i, terr: LTerr.t)) => {
-           let null = i >= l_bound && null;
-           let eq = List.mem(i, eqs);
-
-           let (p_r, cell) = LCell.depad(terr.cell, ~side=R);
-           let terr = {...terr, cell};
-
-           let (state, p) =
-             T.Profile.mk_l(~sil=true, ~whole, ~state, ~eq, ~null, terr);
-
-           let state = L.State.jump_cell(state, ~over=p_r);
-
-           (state, p);
-         },
-         state,
-       )
-    |> Tuples.map_snd(Layers.concat);
+    let (state, nss_terrs) =
+      // reverse to get top-down index which matches eqs
+      List.rev(up)
+      |> List.mapi((i, t) => (i, t))
+      // drop rolled terraces
+      // |> Lists.take_while(~f=((i, _)) => i < up_len - fst(rolled))
+      // reverse back to go left to right
+      |> List.rev
+      |> Lists.fold_map(
+           ~init=state,
+           ~f=(state, (i, terr: LTerr.t)) => {
+             let null = i >= l_bound && null;
+             let eq = List.mem(i, eqs);
+             let ((state, terr_ns), p) =
+               T.Profile.mk_l(~sil=true, ~whole, ~state, ~eq, ~null, terr);
+             (state, (terr_ns, p));
+           },
+         );
+    let (nss, terrs) = List.split(nss_terrs);
+    let ns = List.concat(nss);
+    let p = Layers.concat(terrs);
+    ((state, ns), p);
   };
 
   let mk_dn =
@@ -89,38 +116,35 @@ module Profile = {
       | _ => LSlope.height(unrolled) - 1
       };
     let len = List.length(dn);
-    // reverse to get top-down index which matches eqs
-    List.rev(dn)
-    |> List.mapi((i, t) => (i, t))
-    // drop rolled terraces
-    // |> Lists.take_while(~f=((i, _)) => i < dn_len - snd(rolled))
-    |> List.fold_left_map(
-         (state, (i, terr: LTerr.t)) => {
-           if (i == len - 1) {
-             state_before_right_hd := state;
-           };
-
-           let null = i >= r_bound && null;
-           let eq = List.mem(i, eqs);
-
-           let (p_l, cell) = LCell.depad(~side=L, terr.cell);
-           let terr = {...terr, cell};
-
-           let state = L.State.jump_cell(state, ~over=p_l);
-           let (state, p) =
-             T.Profile.mk_r(~sil=true, ~whole, ~state, ~eq, ~null, terr);
-
-           (state, p);
-         },
-         state,
-       )
-    |> Tuples.map_snd(Layers.concat);
+    let (state, nss_terrs) =
+      // reverse to get top-down index which matches eqs
+      List.rev(dn)
+      |> List.mapi((i, t) => (i, t))
+      // drop rolled terraces
+      // |> Lists.take_while(~f=((i, _)) => i < dn_len - snd(rolled))
+      |> Lists.fold_map(
+           ~init=state,
+           ~f=(state, (i, terr: LTerr.t)) => {
+             if (i == len - 1) {
+               state_before_right_hd := state;
+             };
+             let null = i >= r_bound && null;
+             let eq = List.mem(i, eqs);
+             let ((state, terr_ns), p) =
+               T.Profile.mk_r(~sil=true, ~whole, ~state, ~eq, ~null, terr);
+             (state, (terr_ns, p));
+           },
+         );
+    let (nss, terrs) = List.split(nss_terrs);
+    let ns = List.concat(nss);
+    let p = Layers.concat(terrs);
+    ((state, ns), p);
   };
 
   let mk =
       (
         ~whole: LCell.t,
-        ~state: L.State.t,
+        ~state as s_init: L.State.t,
         ~null as (null_l, null_r): (bool, bool),
         // indices into the slopes indicating which have delim-matching counterparts
         // in the surrounding context. indices assume slopes in top-down order. -1
@@ -130,23 +154,25 @@ module Profile = {
         ~rolled: ((int, Rel.t(_)), (int, Rel.t(_))),
         zigg: LZigg.t,
       ) => {
-    let outer_sil = Silhouette.Outer.Profile.mk(~state, LZigg.flatten(zigg));
-
     let (r_l, r_r) = rolled;
     let (rolled_l, rolled_z, rolled_r) =
       LZigg.roll(~l=fst(r_l), ~r=fst(r_r), zigg);
 
-    let rel_l =
+    let merge_l =
       switch (snd(r_l)) {
       | Eq ()
-      | Neq(Dir.R) => Either.Left()
+      | Neq(Dir.R) => None
       | Neq(L) =>
-        // this state doesn't matter, just to satisfy types
-        Right((state, LZigg.hd_block(~side=L, rolled_z)))
+        let hd =
+          switch (rolled_z.up) {
+          | [] => Terr.Base.{wald: rolled_z.top, cell: LCell.empty}
+          | [hd, ..._] => hd
+          };
+        Some(hd);
       };
-    let (state, m_l) =
-      mk_rolled(~side=L, ~whole, ~state, ~rel=rel_l, rolled_l);
-    let (state, up) =
+    let ((state, m_l_ns), m_l) =
+      mk_rolled_l(~whole, ~state=s_init, ~merge=?merge_l, rolled_l);
+    let ((state, up_ns), up) =
       mk_up(
         ~whole,
         ~state,
@@ -156,12 +182,9 @@ module Profile = {
         rolled_z.up,
       );
 
-    let state_before_right_hd = ref(L.State.init);
-    if (List.length(rolled_z.dn) == 0) {
-      state_before_right_hd := state;
-    };
+    let state_before_right_hd = ref(state);
 
-    let (state, top) = {
+    let ((state, top_ns), top) = {
       let null = (
         List.for_all(t => Mtrl.is_space(LTerr.sort(t)), zigg.up) && null_l,
         List.for_all(t => Mtrl.is_space(LTerr.sort(t)), zigg.dn) && null_r,
@@ -170,25 +193,36 @@ module Profile = {
       W.Profile.mk(~sil=true, ~whole, ~state, ~null, ~eq, rolled_z.top);
     };
 
-    let (state, dn) =
+    let ((state, dn_ns), dn) =
       mk_dn(
         ~whole,
         ~state,
         ~null=null_r,
         ~eqs=eqs_r,
         ~unrolled=zigg.dn,
+        // let dn traversal update this if there are any terraces
         ~state_before_right_hd,
         rolled_z.dn,
       );
-    let rel_r =
+    let merge_r =
       switch (snd(r_r)) {
       | Eq ()
-      | Neq(Dir.L) => Either.Left()
+      | Neq(Dir.L) => None
       | Neq(R) =>
-        Right((state_before_right_hd^, LZigg.hd_block(~side=R, rolled_z)))
+        let hd =
+          switch (rolled_z.dn) {
+          | [] => Terr.Base.{wald: rolled_z.top, cell: LCell.empty}
+          | [hd, ..._] => hd
+          };
+        Some((state_before_right_hd^, hd));
       };
-    let (_state, m_r) =
-      mk_rolled(~side=R, ~whole, ~state, ~rel=rel_r, rolled_r);
+    let ((state, m_r_ns), m_r) =
+      mk_rolled_r(~whole, ~state, ~merge=?merge_r, rolled_r);
+
+    let ns = List.concat([m_l_ns, up_ns, top_ns, dn_ns, m_r_ns]);
+    let outer_sil =
+      Silhouette.Outer.Profile.mk(Lists.consnoc_pairs(s_init, ns, state));
+
     {...Layers.concat([m_l, up, top, dn, m_r]), outer: [outer_sil]};
   };
 };

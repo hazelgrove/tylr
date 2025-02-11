@@ -50,20 +50,25 @@ module State = {
 
   let map = (f, s: t) => {...s, loc: f(s.loc)};
 
-  // let indent = (n: int, s: t) => {
-  //   ind: s.ind,
-  //   rel: s.rel + n,
-  //   loc: Loc.shift(n, s.loc),
-  // };
   let push_ind = (s: t) => {...s, ind: Indent.push(s.ind)};
   let pop_ind = (s: t) => {...s, ind: Indent.pop(s.ind)};
 
+  // pairs of states recorded immediately before and after newlines.
+  // used to calculate selection silhouettes.
+  let newline_log: ref(list((t, t))) = ref([]);
+  let clear_log = () => newline_log := [];
+  let get_log = () => List.rev(newline_log^);
+
   let return = (s: t, rel: int) => {
-    loc: Loc.return(s.loc, ~ind=Indent.peek(s.ind) + rel),
-    ind: {
-      ...s.ind,
-      uni: rel,
-    },
+    let end_state = {
+      loc: Loc.return(s.loc, ~ind=Indent.peek(s.ind) + rel),
+      ind: {
+        ...s.ind,
+        uni: rel,
+      },
+    };
+    newline_log := [(s, end_state), ...newline_log^];
+    end_state;
   };
 
   let rec jump_block = (s: t, ~over as B(b): Block.t) =>
@@ -89,24 +94,44 @@ module State = {
   };
   let jump_tok = jump_block;
 
+  let jump_terr_l = (~closed=false, s: t, ~over: LTerr.t) => {
+    let is_space = Mtrl.is_space(LTerr.sort(over));
+    let (ts, cs) = LTerr.unmk(over);
+    let n = List.length(ts);
+    List.combine(ts, cs)
+    |> List.mapi((i, tc) => (i, tc))
+    |> Lists.fold_left(~init=s, ~f=(s, (i, (b_tok, cell))) =>
+         s
+         |> (i == 0 && !is_space ? push_ind : Fun.id)
+         |> jump_tok(~over=b_tok)
+         |> (i == n - 1 && closed && !is_space ? Fun.id : pop_ind)
+         |> jump_cell(~over=cell)
+       );
+  };
+
   // assuming terrace wald faces right
   let jump_terr = (~closed=false, s: t, ~over: LTerr.t) => {
+    let is_space = Mtrl.is_space(LTerr.sort(over));
     // let (ind, rel) = (s.ind, s.rel);
     let (ts, cs) = LTerr.unmk(over);
     List.combine(cs, ts)
     |> List.rev
-    |> List.mapi((i, tc) => (i, tc))
+    |> List.mapi((i, ct) => (i, ct))
     |> Lists.fold_left(~init=s, ~f=(s, (i, (cell, b_tok))) =>
          s
          |> jump_cell(~over=cell)
-         |> (i == 0 && !Mtrl.is_space(LTerr.sort(over)) ? push_ind : Fun.id)
+         |> (i == 0 && !is_space ? push_ind : Fun.id)
          |> jump_tok(~over=b_tok)
        )
-    |> (closed ? Fun.id : pop_ind);
+    |> (closed || is_space ? Fun.id : pop_ind);
   };
   // assuming dn slope
-  let jump_slope = (s: t, ~over: LSlope.t) =>
-    List.fold_right((terr, s) => jump_terr(s, ~over=terr), over, s);
+  let jump_slope = (~eqs=[], s: t, ~over: LSlope.t) =>
+    List.rev(over)
+    |> List.mapi((i, terr) => (i, terr))
+    |> Lists.fold_left(~init=s, ~f=(s, (i, terr)) =>
+         jump_terr(s, ~over=terr, ~closed=List.mem(i, eqs))
+       );
 };
 
 let max_path = _ => failwith("todo");
@@ -149,9 +174,6 @@ let step_of_loc =
     (~state: State.t, ~block as B(b): Block.t, target: Loc.t)
     : Result.t(Step.t, State.t) =>
   {
-    // Block.show(B(b)) |> print_endline;
-    // print_endline("target: " ++ Loc.show(target));
-    // print_endline("state: " ++ State.show(state));
     b
     |> Chain.map_loop(sec => {Block.len(Block.sec(sec))})
     // accumulate result where Ok encodes found step and Error encodes number of chars
@@ -162,36 +184,22 @@ let step_of_loc =
            let loc_sol = state.loc;
            let len_eol = len_sol + sec_len;
            let loc_eol = Loc.shift(sec_len, loc_sol);
-           //  print_endline(
-           //    "a: loc_eol.row < target.row:"
-           //    ++ string_of_bool(loc_eol.row < target.row),
-           //  );
-           //  print_endline(
-           //    "Loc.lt(loc_eol, target)"
-           //    ++ (Loc.lt(loc_eol, target) |> string_of_bool),
-           //  );
            Loc.lt(loc_eol, target)
              ? Error((len_eol, loc_eol))
              : Ok(min(len_sol + max(0, target.col - loc_sol.col), len_eol));
          },
          (found, rel_indent, sec_len) => {
            open Result.Syntax;
-           //  print_endline("yo");
            let/ (len, loc) = found;
-           //  print_endline("dawg");
            // count newline
            let len_sol = len + 1;
            let loc_sol =
              Loc.return(loc, ~ind=Indent.peek(state.ind) + rel_indent);
            if (Loc.lt(target, loc_sol)) {
-             Ok(len);
+             Ok(target.row < loc_sol.row ? len : len_sol);
            } else {
              let len_eol = len_sol + sec_len;
              let loc_eol = Loc.shift(sec_len, loc_sol);
-             //  print_endline(
-             //    "b: loc_eol.row < target.row:"
-             //    ++ string_of_bool(loc_eol.row < target.row),
-             //  );
              Loc.lt(loc_eol, target)
                ? Error((len_eol, loc_eol))
                : Ok(
@@ -532,12 +540,15 @@ and unzip_select = (~ctx, sel: Path.Selection.t, meld: LMeld.t) => {
   LZipper.mk(~eqs, Select(zigg), ctx);
 };
 
-let state_of_ctx = (ctx: LCtx.t) =>
+let state_of_ctx = (~eqs=[], ctx: LCtx.t) => {
   ctx
+  |> Chain.mapi_loop((i, frame) => (i, frame))
   |> Chain.fold_right(
-       ((pre: LSlope.t, _), (l: LTerr.t, _), state) =>
+       ((i, (pre: LSlope.t, _)), (l: LTerr.t, _), state) =>
          state
          |> State.jump_terr(~over=l, ~closed=true)
-         |> State.jump_slope(~over=pre),
-       ((pre, _)) => State.jump_slope(State.init, ~over=pre),
+         |> State.jump_slope(~eqs=i == 0 ? eqs : [], ~over=pre),
+       ((i, (pre, _))) =>
+         State.jump_slope(~eqs=i == 0 ? eqs : [], State.init, ~over=pre),
      );
+};

@@ -15,86 +15,99 @@ module Profile = {
       (
         ~sil=false,
         ~whole: LCell.t,
-        ~state: L.State.t,
+        ~state as s_init: L.State.t,
         ~eq,
         ~null,
         terr: LTerr.t,
       ) => {
-    let ind = L.Indent.curr(state.ind);
-    // let (null_l, null_r) = ;
-    // let state = eq ? state : L.State.push_ind(state);
+    let ((state, wald_ns), wald) =
+      W.Profile.mk(
+        ~sil,
+        ~whole,
+        ~state=s_init,
+        ~null=(null, Mtrl.is_space(LCell.sort(terr.cell))),
+        ~eq=(eq, false),
+        terr.wald,
+      );
+
+    let (p_r, cell) = LCell.depad(terr.cell, ~side=R);
+    let ((state, cell_ns), cell) =
+      Child.Profile.mk(
+        ~sil,
+        ~whole,
+        ~ind=L.Indent.curr(s_init.ind),
+        ~state,
+        ~null=(false, true),
+        cell,
+      );
+
     let inner =
       sil
         ? [
           Silhouette.Inner.Profile.mk(
             ~is_space=Mtrl.is_space(LTerr.sort(terr)),
-            ~state,
-            LTerr.L.flatten(terr),
+            Stds.Lists.consnoc_pairs(s_init, wald_ns @ cell_ns, state),
           ),
         ]
         : [];
-    let (state, wald) =
-      W.Profile.mk(
-        ~sil,
-        ~whole,
-        ~state,
-        ~null=(null, Mtrl.is_space(LCell.sort(terr.cell))),
-        ~eq=(eq, false),
-        terr.wald,
-      );
-    let cell =
-      Child.Profile.mk(
-        ~whole,
-        ~ind,
-        ~loc=state.loc,
-        ~null=(false, true),
-        terr.cell,
-      );
-    let state = L.State.jump_cell(state, ~over=terr.cell);
     let p = {...wald, inner, cells: wald.cells @ [cell]};
-    (state, p);
+
+    L.State.clear_log();
+    let state = L.State.jump_cell(state, ~over=p_r);
+    let p_r_ns = L.State.get_log();
+    let ns = List.concat([wald_ns, cell_ns, p_r_ns]);
+
+    ((state, ns), p);
   };
 
   let mk_r =
       (
         ~sil=false,
         ~whole: LCell.t,
-        ~state: L.State.t,
+        ~state as s_init: L.State.t,
         ~null,
         ~eq,
         terr: LTerr.t,
       ) => {
+    let (p_l, cell) = LCell.depad(~side=L, terr.cell);
+    L.State.clear_log();
+    let s_post_p_l = L.State.jump_cell(s_init, ~over=p_l);
+    let p_l_ns = L.State.get_log();
+
+    // extraneous state calc to get token indentation for child profile
+    let s_tok = L.State.jump_cell(s_post_p_l, ~over=cell);
+    let ((state, cell_ns), cell) =
+      Child.Profile.mk(
+        ~sil,
+        ~whole,
+        ~ind=L.Indent.curr(s_tok.ind),
+        ~state=s_post_p_l,
+        ~null=(false, true),
+        cell,
+      );
+
+    let ((state, wald_ns), wald) =
+      W.Profile.mk(
+        ~sil,
+        ~whole,
+        ~state,
+        ~null=(Mtrl.is_space(LCell.sort(terr.cell)), null),
+        ~eq=(false, eq),
+        Wald.rev(terr.wald),
+      );
+
     let inner =
       sil
         ? [
           Silhouette.Inner.Profile.mk(
             ~is_space=Mtrl.is_space(LTerr.sort(terr)),
-            ~state,
-            LTerr.R.flatten(terr),
+            Stds.Lists.consnoc_pairs(s_post_p_l, cell_ns @ wald_ns, state),
           ),
         ]
         : [];
 
-    let s_mid = L.State.jump_cell(state, ~over=terr.cell);
-    let cell =
-      Child.Profile.mk(
-        ~sil,
-        ~whole,
-        ~ind=L.Indent.curr(s_mid.ind),
-        ~loc=state.loc,
-        ~null=(false, true),
-        terr.cell,
-      );
-    let (state, wald) =
-      W.Profile.mk(
-        ~sil,
-        ~whole,
-        ~state=s_mid,
-        ~null=(Mtrl.is_space(LCell.sort(terr.cell)), null),
-        ~eq=(false, eq),
-        Wald.rev(terr.wald),
-      );
+    let ns = List.concat([p_l_ns, cell_ns, wald_ns]);
     let p = {...wald, inner, cells: [cell] @ wald.cells};
-    (state, p);
+    ((state, ns), p);
   };
 };

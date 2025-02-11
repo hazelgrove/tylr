@@ -37,7 +37,8 @@ let cursor = (~font, z: Zipper.t) => {
          Fun.id,
        );
   let ind_lz = Layout.unzip(ind_cur, lc);
-  let state = Layout.state_of_ctx(ind_lz.ctx);
+  let state =
+    Layout.state_of_ctx(~eqs=fst(List.split(fst(ind_lz.eqs))), ind_lz.ctx);
 
   // P.log("--- Code.cursor");
   // P.show("c", Cell.show(c));
