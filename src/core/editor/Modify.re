@@ -288,6 +288,7 @@ let add_edge = (~hand=Caret.Hand.Focus, side: Dir.t, tok: Token.t) =>
 let delete_toks =
     (d: Dir.t, toks: list(Token.t)): Chain.t(Cell.t, Token.Unmolded.t) => {
   let n = List.length(toks);
+  let car = Cell.point(~dirty=true, Focus);
   toks
   // first, clear text of selected tokens within selection bounds and mark
   // either the first or last token with the final cursor position
@@ -321,13 +322,19 @@ let delete_toks =
        ~f=(tok, c) => {
          let (l, tok, r) = Token.pop_end_carets(tok);
          c
-         |> Chain.map_hd(r == None ? Fun.id : Fun.const(Cell.point(Focus)))
+         |> Chain.map_hd(r == None ? Fun.id : Fun.const(car))
          |> (
            switch (tok.mtrl) {
            | Space(_)
            | Grout(_) when tok.text == "" =>
-             Chain.map_hd(l == None ? Fun.id : Fun.const(Cell.point(Focus)))
-           | _ => Chain.link(l == None ? Cell.dirty : Cell.point(Focus), tok)
+             Chain.map_hd(
+               l == None
+                 ? Fun.id
+                 : car
+                   |> Cell.map_marks(Cell.Marks.mark_degrouted([]))
+                   |> Fun.const,
+             )
+           | _ => Chain.link(l == None ? Cell.dirty : car, tok)
            }
          );
        },
@@ -373,7 +380,8 @@ let insert_toks =
            //  P.log("--- Modify.insert_toks/tok/Error removed");
            // removed empty token
            let next_fill =
-             Cell.mark_ends_dirty(Cell.Space.merge(fill, next_fill));
+             Cell.mark_ends_dirty(Cell.Space.merge(fill, next_fill))
+             |> Cell.mark_end_ungrouted(~side=R);
            (ctx, next_fill);
          }
        },
@@ -563,6 +571,8 @@ let insert_remold =
 // the case of tokens at the ends of the selection that are split by the selection
 // boundaries, the selection-external affixes of those tokens are preserved.
 let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
+  // P.log("--- Modify.delete_sel");
+  Mode.set(Deleting(d));
   switch (z.cur) {
   | Point(_) => z
   | Select(sel) =>
@@ -643,21 +653,9 @@ let try_truncate = (z: Zipper.t) => {
 
 let delete = (d: Dir.t, z: Zipper.t) => {
   open Options.Syntax;
-  // let/ () =
-  //   // first try moving over space tokens.
-  //   // need to refine this re: usr vs sys.
-  //   switch (Ctx.face(~side=d, z.ctx)) {
-  //   | Node({mtrl: Space(White(Sys)), text, _})
-  //       when
-  //         Cursor.is_point(z.cur)
-  //         && text
-  //         |> Dir.pick(d, (Strings.rev, Fun.id))
-  //         |> String.starts_with(~prefix=" ") =>
-  //     Move.perform(Step(H(d)), z)
-  //   | _ => None
-  //   };
   // P.log("--- Modify.delete");
   // P.show("z", Zipper.show(z));
+  Mode.set(Deleting(d));
   let+ z =
     Cursor.is_point(z.cur) ? Select.hstep(~char=true, d, z) : return(z);
   let- () = try_truncate(z);
@@ -671,6 +669,7 @@ let insert = (s: string, z: Zipper.t) => {
   let z = delete_sel(L, z);
   P.show("deleted", Zipper.show(z));
 
+  Mode.set(Inserting(s));
   // P.log("--- Modify.insert");
   let- () = try_expand(s, z);
   P.log("--- Modify.insert/didn't expand");

@@ -34,6 +34,11 @@ let insert = tok => {
 let remove = tok => perform(Remove(tok));
 // let merge = (l, r) => perform(Merge(l, r));
 
+let is_fresh_tile = (tok: Token.t) =>
+  Mtrl.is_tile(tok.mtrl)
+  && !Token.is_empty(tok)
+  && List.mem(Insert(tok), log^);
+
 let perform_if = (eff: t, opt: option(_)) => {
   if (Option.is_some(opt)) {
     perform(eff);

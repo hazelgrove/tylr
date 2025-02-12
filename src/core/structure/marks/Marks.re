@@ -112,7 +112,16 @@ module Cell = {
   };
 
   let dirty = mk(~dirty=Path.Map.singleton(Path.empty, ()), ());
+  let mark_dirty = (path, marks) => {
+    ...marks,
+    dirty: Path.Map.add(path, (), marks.dirty),
+  };
   let mark_clean = marks => {...marks, dirty: Path.Map.empty};
+
+  let mark_degrouted = (path, marks) => {
+    ...marks,
+    degrouted: Path.Map.add(path, (), marks.degrouted),
+  };
 
   // clear all temporary marks used by grouter/linter
   let flush = marks => {
