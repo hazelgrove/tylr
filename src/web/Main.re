@@ -56,7 +56,7 @@ let act_str = (action: Update.t) =>
 
 let apply = (old_model, action, state, ~schedule_action): Model.t => {
   restart_caret_animation();
-  print_endline("Apply:" ++ Update.show(action));
+  // print_endline("Apply:" ++ Update.show(action));
   switch (Update.apply(old_model, action, state, ~schedule_action)) {
   | exception exn when Update.catch_exns^ =>
     prerr_endline(Printexc.to_string(exn));
