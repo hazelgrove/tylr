@@ -69,7 +69,7 @@ let rec repad = (~l=Delim.root, ~r=Delim.root, c: Cell.t) => {
                  Chain.map_hd(Cell.Space.merge(c, ~fill=Cell.empty), acc);
                switch (tok) {
                | {mtrl: Space(_), text: " ", _} when height > 0 => drop()
-               | {mtrl: Space(White(_)), _}
+               | {mtrl: Space(White(_)), text: " ", _}
                    when
                      no_pad || height == 0 && Result.is_ok(Chain.unlink(acc)) =>
                  drop()
