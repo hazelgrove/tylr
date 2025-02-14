@@ -81,7 +81,7 @@
   opacity: 40%;
   font-style: italic;
   position: relative;
-  left: -2px;
+  left: -1px;
 }
 .tile.Exp .ghost {
   color: var(--exp-text-color);
