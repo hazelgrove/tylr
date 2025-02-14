@@ -254,12 +254,12 @@ let view = (~inject, model: Model.t) => {
           Util.Dom.focus_clipboard_shim();
           let loc =
             get_goal(~font=model.font, ~target_id="code-container", evt);
-          print_endline(
-            "jumping to: "
-            ++ string_of_int(loc.row)
-            ++ ", "
-            ++ string_of_int(loc.col),
-          );
+          // print_endline(
+          //   "jumping to: "
+          //   ++ string_of_int(loc.row)
+          //   ++ ", "
+          //   ++ string_of_int(loc.col),
+          // );
           inject(PerformAction(Move(Jump(loc))));
         }),
         ...on_key(~inject, ~model),
