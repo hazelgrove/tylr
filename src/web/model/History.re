@@ -8,7 +8,8 @@ open Tylr_core;
 //   // to trigger view redraw? review blame
 //   last_attempt: option(float),
 // };
-type t = (Chain.Affix.t(Edit.t, Zipper.t) as 'affix, 'affix);
+[@deriving (show({with_path: false}), sexp, yojson)]
+type t = (Chain.Affix.t(Edit.t, Zipper.t), Chain.Affix.t(Edit.t, Zipper.t));
 
 // let empty = {succeeded: ([], []), just_failed: None, last_attempt: None};
 let empty = Chain.Affix.(empty, empty);

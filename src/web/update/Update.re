@@ -220,7 +220,11 @@ let apply =
     switch (Edit.perform(a, model.zipper)) {
     | None => Error(FailedToPerform)
     | Some(z) =>
-      Ok({...model, zipper: z, history: History.do_(a, z, model.history)})
+      Ok({
+        ...model,
+        zipper: z,
+        history: History.do_(a, model.zipper, model.history),
+      })
     }
   // | FailedInput(reason) => Error(UnrecognizedInput(reason))
   | Undo =>
