@@ -38,7 +38,7 @@ let padding =
 let is_instant =
   fun
   | Const(_, instant, _) => instant
-  | _ => true;
+  | _ => false;
 
 let is_empty =
   fun

@@ -58,7 +58,7 @@ let link = (t: Token.t, (sw: Walk.Swing.t, c: Cell.t), stack: t) =>
         P.show("sw", Walk.Swing.show(sw));
         P.show("c", Cell.show(c));
         P.show("stack", show(stack));
-        failwith("expected neq swing");
+        failwith("expected neq swing to link to root bound");
       };
       let terr = Terr.Base.{wald: Wald.of_tok(t), cell: c};
       {...stack, slope: [terr]};
@@ -73,10 +73,22 @@ let link = (t: Token.t, (sw: Walk.Swing.t, c: Cell.t), stack: t) =>
     }
   };
 
-let connect = (t: Token.t, grouted: Grouted.t, stack: t) =>
-  Chain.Affix.cons(t, grouted)
+let connect_affix =
+    (affix: Chain.Affix.t(Token.t, (Walk.Swing.t, Cell.t)), stack: t) =>
+  affix
   |> Chain.Affix.fold_out(~init=stack, ~f=(tok, (swing, cell)) =>
        link(tok, (swing, cell))
+     );
+
+let connect = (t: Token.t, grouted: Grouted.t, stack: t) =>
+  connect_affix(Chain.Affix.cons(t, grouted), stack);
+
+let connect_ = (grouted: Grouted.t, stack: t): ((Walk.Swing.t, Cell.t), t) =>
+  grouted
+  |> Chain.fold_right(
+       (sw_c, t, (sw_c_acc, stack_acc)) =>
+         (sw_c, link(t, sw_c_acc, stack_acc)),
+       sw_c => (sw_c, stack),
      );
 
 module Frame = {

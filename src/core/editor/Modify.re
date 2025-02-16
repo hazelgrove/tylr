@@ -135,7 +135,7 @@ let mold =
       );
 };
 
-let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Grouted.t, Ctx.t) => {
   // P.log("--- Modify.remold");
   // P.show("fill", Cell.show(fill));
   // P.show("ctx", Ctx.show(ctx));
@@ -159,25 +159,47 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     // P.show("fill", Cell.show(fill));
     let bounds = (l.bound, r.bound);
     // Melder.debug := true;
-    let cell = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
+    let grouted = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
     // Melder.debug := false;
     // P.show("completed", Cell.show(cell));
     let hd = ({...l, slope: []}, {...r, slope: []});
     let ctx = Ctx.link_stacks(hd, tl);
-    (cell, ctx);
+    (grouted, ctx);
   };
 };
 
-let finalize_ = (remolded: Cell.t, ctx: Ctx.t): Zipper.t => {
+let finalize_ = (remolded: Grouted.t, ctx: Ctx.t): Zipper.t => {
   // P.log("--- Modify.finalize_");
-  // P.show("remolded", Cell.show(remolded));
+  // P.show("remolded", Grouted.show(remolded));
   // P.show("ctx", Ctx.show(ctx));
-  let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
-  let repadded = Linter.repad(~l, remolded, ~r);
-  // P.show("repadded", Cell.show(repadded));
-  let c = {...repadded, marks: Cell.Marks.flush(repadded.marks)};
+  let repadded =
+    remolded
+    |> Chain.rev
+    |> Chain.map_link(Delim.tok)
+    |> Chain.consnoc(
+         ~hd=Ctx.face(~side=L, ctx),
+         ~ft=Ctx.face(~side=R, ctx),
+       )
+    |> Chain.map_linked((l, (sw, c), r) => {
+         let repadded = Linter.repad(~l, c, ~r);
+         (sw, {...repadded, marks: Cell.Marks.flush(repadded.marks)});
+       })
+    |> Chain.unconsnoc_exn
+    |> (((_, c, _)) => c)
+    |> Chain.map_link(Delim.unwrap);
+  // P.show("repadded", Grouted.show(repadded));
+  let (pre, (_, cur), suf) =
+    repadded
+    |> Chain.find_unzip_loop(((_, c: Cell.t)) =>
+         Option.is_some(c.marks.cursor)
+       )
+    |> Options.get_fail("bug: lost cursor");
+  let ((l, r), rest) = Ctx.unlink_stacks(ctx);
+  let l = Stack.connect_affix(pre, l);
+  let r = Stack.connect_affix(suf, r);
+  let ctx = Ctx.link_stacks((l, r), rest);
   // P.show("flushed", Cell.show(c));
-  Zipper.unzip_exn(c, ~ctx);
+  Zipper.unzip_exn(cur, ~ctx);
 };
 
 let try_move = (s: string, z: Zipper.t) => {
@@ -390,9 +412,8 @@ let insert_toks =
 
 let meld_remold =
     (~expanding=false, prev, tok: Token.t, next, ctx: Ctx.t)
-    : option((Cell.t, Ctx.t)) => {
-  open Options.Syntax; // P.log("--- Modify.meld_remold");
-
+    : option((Grouted.t, Ctx.t)) => {
+  open Options.Syntax;
   // P.log("--- Modify.meld_remold");
   // P.show("prev", Cell.show(prev));
   // P.sexp("tok", Token.sexp_of_t(tok));
@@ -435,10 +456,10 @@ let meld_remold =
         : ctx;
     P.log("--- Modify.meld_remold/not_redundant/remolding");
     let remolded = remold(~fill=next, ctx);
-    // P.log("--- meld_remold");
+    // P.log("--- meld_remold/not redundant");
     // P.show("tok", Token.show(tok));
     // P.show("ctx", Ctx.show(ctx));
-    // P.show("remolded", Cell.show(fst(remolded)));
+    // P.show("remolded", Grouted.show(fst(remolded)));
     // P.show("remolded ctx", Ctx.show(snd(remolded)));
     // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
     switch (tok.mtrl) {
@@ -457,7 +478,8 @@ let meld_remold =
 };
 
 let expand_remold =
-    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t): (Token.t, (Cell.t, Ctx.t)) => {
+    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t)
+    : (Token.t, (Grouted.t, Ctx.t)) => {
   switch (
     Molder.candidates(tok)
     |> Oblig.Delta.minimize(tok =>
@@ -514,7 +536,7 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
 };
 
 let mold_remold =
-    (prev, tok: Token.Unmolded.t, next, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+    (prev, tok: Token.Unmolded.t, next, ctx: Ctx.t): (Grouted.t, Ctx.t) => {
   open Options.Syntax;
   // P.log("--- Modify.mold_remold");
   // P.show("prev", Cell.show(prev));
@@ -548,7 +570,8 @@ let mold_remold =
 };
 
 let insert_remold =
-    (toks: Chain.t(Cell.t, Token.Unmolded.t), ctx: Ctx.t): (Cell.t, Ctx.t) => {
+    (toks: Chain.t(Cell.t, Token.Unmolded.t), ctx: Ctx.t)
+    : (Grouted.t, Ctx.t) => {
   // P.log("--- Modify.insert_remold");
   // P.show("ctx", Ctx.show(ctx));
   switch (Chain.(unlink(rev(toks)))) {
@@ -686,7 +709,7 @@ let insert = (s: string, z: Zipper.t) => {
          Some(insert_remold(toks, ctx));
        })
     |> Option.get;
-  P.show("remolded", Cell.show(remolded));
+  P.show("remolded", Grouted.show(remolded));
   P.show("ctx", Ctx.show(ctx));
 
   finalize_(remolded, ctx);

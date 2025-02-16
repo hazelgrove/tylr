@@ -265,6 +265,13 @@ let unzip_loops = (c: t('lp, 'lk)): list((Affix.t(_), 'lp, Affix.t(_))) => {
     };
   go(c);
 };
+let find_unzip_loop =
+    (p: 'lp => bool, c: t('lp, 'lk))
+    : option((Affix.t(_), 'lp, Affix.t(_))) => {
+  open Options.Syntax;
+  let+ (n, _) = loops(c) |> Lists.findi(~f=(_, lp) => p(lp));
+  unzip_loop(2 * n, c);
+};
 
 let unzip_link = (n: int, c: t('lp, 'lk)): (t(_), 'lk, t(_)) => {
   let invalid = Invalid_argument("Chain.unzip_link");
