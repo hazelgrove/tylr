@@ -624,8 +624,6 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
     //   Chain.show(Cell.pp, Token.Unmolded.pp, deleted_toks),
     // );
     let (remolded, ctx) = insert_remold(deleted_toks, ctx);
-    // P.show("molded", Ctx.show(molded));
-    // P.show("fill", Cell.show(fill));
     finalize_(remolded, ctx);
   };
 };
@@ -682,6 +680,7 @@ let delete = (d: Dir.t, z: Zipper.t) => {
   let+ z =
     Cursor.is_point(z.cur) ? Select.hstep(~char=true, d, z) : return(z);
   let- () = try_truncate(z);
+  // P.log("didn't truncate");
   // P.show("selected", Zipper.show(z));
   delete_sel(d, z);
 };

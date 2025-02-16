@@ -114,8 +114,8 @@ let connect_eq =
   open Options.Syntax;
   let r = Option.is_some(repair);
   let rec go = (onto: Terr.t, fill) => {
+    let face = Terr.face(onto).mtrl;
     let connect = () => {
-      let face = Terr.face(onto).mtrl;
       let ws = Walker.walk_eq(~from=d, Node(face), Node(t.mtrl));
       let* fill =
         switch (ws, repair) {
@@ -131,7 +131,17 @@ let connect_eq =
       |> Option.map(grouted => (grouted, onto));
     };
     let rm_then_connect = () =>
-      r && Token.is_complete(t) ? rm_ghost_and_go(onto, fill) : None;
+      // if we are repairing and thus considering replacing ghosts with the pushed
+      // token t, we want to avoid replacing a ghost with another ghost of the same
+      // form bc this would amount to a ghost suddenly changing position (cf
+      // https://github.com/hazelgrove/tylr/issues/102 (though this is not the best
+      // example bc this bug would not be apparent with robust whitespace linting
+      // that has since been implemented)). however, we do want to consider removing
+      // a ghost when pushing a ghost of a different form in case the removed ghost
+      // is simply redundant, eg a redundant ghost tuple comma (cf
+      // https://github.com/hazelgrove/tylr/issues/125)
+      r && (Token.is_complete(t) || t.mtrl != face)
+        ? rm_ghost_and_go(onto, fill) : None;
     Oblig.Delta.minimize(f => f(), [connect, rm_then_connect]);
   }
   and rm_ghost_and_go = (onto, fill) =>
