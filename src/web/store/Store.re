@@ -38,6 +38,7 @@ let _tasks = [
   Data.t2_transcribe,
   Data.t3_transcribe,
   Data.t4_transcribe,
+  Data.uncurry_modify,
   // Data.emoji_paint,
   // Data.t0_modify,
   // Data.t1_modify,

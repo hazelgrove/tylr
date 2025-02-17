@@ -77,6 +77,10 @@ let contains = fun (s: Shape, p: Point) ->
   | C((center, r)) => dist(center, p) <= r
 in|};
 
+let uncurry_modify = {|let fold_right:
+(A -> Acc -> Acc) -> List(A) -> Acc -> Acc = in
+fold_right(fun n -> fun sum -> n + sum)(ns)(0)|};
+
 let emoji_paint = {|type Emoji = None + Smile + Laugh in
 let Row = Int in
 let Col = Int in
