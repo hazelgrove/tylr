@@ -87,7 +87,7 @@ module Framed = {
 module Syntax = {
   let (let+) = (xs, f) => List.map(f, xs);
   let (and+) = Base.List.cartesian_product;
-  let ( let* ) = (xs, f) => List.concat(List.map(f, xs));
+  let ( let* ) = (xs, f) => List.concat_map(f, xs);
   let return = single;
 };
 

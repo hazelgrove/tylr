@@ -189,16 +189,15 @@ module OrthogonalPolygon = {
     };
 
     path
-    |> List.map(
+    |> List.concat_map(
          fun
          | Path.H_({dx}) => Path.[H_({dx: dx *. 0.5}), H_({dx: dx *. 0.5})]
          | V_({dy}) => [V_({dy: dy *. 0.5}), V_({dy: dy *. 0.5})]
          | cmd => [cmd],
        )
-    |> List.flatten
     |> Lists.rotate
     |> Lists.disjoint_pairs
-    |> List.map(((cmd1: Path.cmd, cmd2: Path.cmd)) => {
+    |> List.concat_map(((cmd1: Path.cmd, cmd2: Path.cmd)) => {
          switch (cmd1, cmd2) {
          | (H_({dx}), V_({dy})) =>
            let (rx, ry) = max_radii((rx, ry), (dx, dy));
@@ -234,8 +233,7 @@ module OrthogonalPolygon = {
            ];
          | _ => [cmd1, cmd2]
          }
-       })
-    |> List.flatten;
+       });
   };
 
   let is_left_side = (edge: linked_edge): bool => {
@@ -308,7 +306,7 @@ module OrthogonalPolygon = {
   let vertical_contour_edges = (rects: list(Rect.t)): list(linked_edge) => {
     let sorted_vertical_sides: list(linked_edge) =
       rects
-      |> List.map((Rect.{min, width, height}) => {
+      |> List.concat_map((Rect.{min, width, height}) => {
            let max_x = min.x +. width;
            let max_y = min.y +. height;
            let max = Point.{x: max_x, y: max_y};
@@ -321,7 +319,6 @@ module OrthogonalPolygon = {
              {src: max_min, dst: max, next: None},
            ];
          })
-      |> List.flatten
       |> List.sort((v1, v2) =>
            if (v1.src.x < v2.src.x) {
              (-1);
@@ -344,8 +341,9 @@ module OrthogonalPolygon = {
 
     let segment_tree =
       rects
-      |> List.map((Rect.{min, height, _}) => [min.y, min.y +. height])
-      |> List.flatten
+      |> List.concat_map((Rect.{min, height, _}) =>
+           [min.y, min.y +. height]
+         )
       |> SegmentTree.mk;
 
     sorted_vertical_sides
@@ -395,8 +393,7 @@ module OrthogonalPolygon = {
 
     // join vertical contour edges via horizontal edges
     vertical_contour_edges
-    |> List.map(v => [(false, v), (true, v)])
-    |> List.flatten
+    |> List.concat_map(v => [(false, v), (true, v)])
     // sort endpoints by y coordinate, then x coordinate
     |> List.sort(((is_src1, v1), (is_src2, v2)) => {
          let pt1 = is_src1 ? v1.src : v1.dst;
