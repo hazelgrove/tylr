@@ -470,7 +470,9 @@ let meld_remold =
           && !Label.is_instant(lbl)
           && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
           // this is necessary when deleting delims to empty ghosts
-          && !Token.is_empty(tok) =>
+          && !Token.is_empty(tok)
+          // only delay expansion for tokens followed by caret (#126)
+          && Option.(is_some(tok.marks) || is_some(next.marks.cursor)) =>
       None
     | _ => Some(remolded)
     };
