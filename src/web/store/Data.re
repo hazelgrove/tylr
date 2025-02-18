@@ -81,6 +81,15 @@ let uncurry_modify = {|let fold_right:
 (A -> Acc -> Acc) -> List(A) -> Acc -> Acc = in
 fold_right(fun n -> fun sum -> n + sum)(ns)(0)|};
 
+let fuse_modify = {|shapes
+|> List.filter(fun s -> area(s) < 100)
+|> List.map(fun s ->
+let stdDev = if area(s) < 50 then 2 else 4 in
+let blurred = blur(stdDev, s) in
+blend(blurred, greenRect)
+)
+|> List.map(skew(4))|};
+
 let emoji_paint = {|type Emoji = None + Smile + Laugh in
 let Row = Int in
 let Col = Int in
