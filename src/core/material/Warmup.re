@@ -173,6 +173,58 @@ let process_nts_r_walk = nts => {
   ();
 };
 
+let process_unfiltered_walks_r = ts => {
+  print_endline("getting no filter right root");
+  let root_r_walk: Index.t = walk_all_no_filter(~from=R, Root);
+
+  print_endline("building no filter right walks");
+  let ts_r_walks =
+    List.map(
+      t => {
+        let walk_r: Index.t = walk_all_no_filter(~from=R, Node(t));
+        (Bound.Node(t), walk_r);
+      },
+      ts,
+    )
+    |> List.to_seq
+    |> End.Map.of_seq
+    |> End.Map.add(Bound.Root, root_r_walk);
+
+  let thin_no_filter_map =
+    ThinEnd.Map.sexp_of_t(
+      ThinWalkInt.sexp_of_t,
+      ThinEnd.Map.make(ThinIndex.walk_len_t_of_index, ts_r_walks),
+    );
+
+  let _ = Sexplib.Sexp.save("walk_r_no_filter_map.txt", thin_no_filter_map);
+  ();
+};
+
+let process_unfiltered_walks_l = ts => {
+  let root_l_walk: Index.t = walk_all_no_filter(~from=L, Root);
+
+  let ts_l_walks =
+    List.map(
+      t => {
+        let walk_l: Index.t = walk_all_no_filter(~from=L, Node(t));
+        (Bound.Node(t), walk_l);
+      },
+      ts,
+    )
+    |> List.to_seq
+    |> End.Map.of_seq
+    |> End.Map.add(Bound.Root, root_l_walk);
+
+  let thin_no_filter_map =
+    ThinEnd.Map.sexp_of_t(
+      ThinWalkInt.sexp_of_t,
+      ThinEnd.Map.make(ThinIndex.walk_len_t_of_index, ts_l_walks),
+    );
+  let _ = Sexplib.Sexp.save("walk_l_no_filter_map.txt", thin_no_filter_map);
+
+  ();
+};
+
 let warmup = () => {
   print_endline("Warmup function called");
 
@@ -209,6 +261,12 @@ let warmup = () => {
   process_nts_l_walk(nts_list);
   Gc.full_major();
   process_nts_r_walk(nts_list);
+  Gc.full_major();
+
+  //TODO: process the no filter walks & store them to a map with exclusively the length of the head walk
+  process_unfiltered_walks_r(ts);
+  Gc.full_major();
+  process_unfiltered_walks_l(ts);
   Gc.full_major();
 
   let stances_sexp = StanceMap.sexp_of_t(Sexplib.Conv.sexp_of_int, stances^);

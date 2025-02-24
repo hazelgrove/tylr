@@ -24,6 +24,8 @@ init:
 	mv stances.txt src/core/material/precompiled
 	mv walk_l_map.txt src/core/material/precompiled
 	mv walk_r_map.txt src/core/material/precompiled
+	mv walk_l_no_filter_map.txt src/core/material/precompiled
+	mv walk_r_no_filter_map.txt src/core/material/precompiled
 	dune build @src/fmt --auto-promote || true
 	dune build src --profile dev
 

@@ -300,6 +300,25 @@ let is_minimal = (w: Walk.t) =>
     )
   );
 
+let walk_all_no_filter =
+  Memo.general(((from: Dir.t, src: End.t)) => {
+    let q = Queue.create();
+    step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
+    bfs(~from, q)
+    |> Index.filter(Walk.is_valid)
+    // |> Index.filter(is_minimal)
+    // |> Index.fil(_ =>
+    //      fun
+    //      | [] => false
+    //      | _ => true
+    //    )
+    // |> Index.mp(walk_filter_by_swing(from))
+    |> Index.sort;
+  });
+let walk_all_no_filter_memo = Memo.general(walk_all_no_filter);
+let walk_all_no_filter = (~from: Dir.t, src: End.t): End.Map.t(list(T.t)) =>
+  (debug^ ? walk_all_no_filter : walk_all_no_filter_memo)((from, src));
+
 let walk_all =
   Memo.general(((from: Dir.t, src: End.t)) => {
     let q = Queue.create();

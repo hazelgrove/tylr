@@ -86,6 +86,11 @@ module ThinEnd = {
   };
 };
 
+module ThinWalkInt = {
+  [@deriving (show({with_path: false}), sexp)]
+  type t = ThinEnd.Map.t(int);
+};
+
 module ThinIndex = {
   [@deriving (show({with_path: false}), sexp)]
   type t = ThinEnd.Map.t(list(ThinWalk.t));
@@ -95,6 +100,22 @@ module ThinIndex = {
     |> Index.to_list
     |> List.map(((end_, walks)) => {
          (ThinEnd.t_of_end(end_), List.map(ThinWalk.t_of_walk, walks))
+       })
+    |> List.to_seq
+    |> ThinEnd.Map.of_seq;
+  };
+
+  let walk_len_t_of_index = (index: Index.t) => {
+    index
+    |> Index.to_list
+    |> List.map(((end_, walks)) => {
+         let list_head_length =
+           if (List.length(walks) > 0) {
+             walks |> List.hd |> Chain.length;
+           } else {
+             0;
+           };
+         (ThinEnd.t_of_end(end_), list_head_length);
        })
     |> List.to_seq
     |> ThinEnd.Map.of_seq;
