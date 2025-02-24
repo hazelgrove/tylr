@@ -22,7 +22,10 @@
   (file material/precompiled/walk_r_map.txt)
   (file material/precompiled/walk_l_map.txt)
   (file material/precompiled/enter_r_map.txt)
-  (file material/precompiled/enter_l_map.txt)))
+  (file material/precompiled/enter_l_map.txt)
+  (file material/precompiled/walk_r_no_filter_map.txt)
+  (file material/precompiled/walk_l_no_filter_map.txt)
+  ))
 
 (env
  (dev

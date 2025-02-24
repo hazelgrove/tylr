@@ -5,6 +5,13 @@ let _warmed_walked_r = () => [%blob "precompiled/walk_r_map.txt"];
 let _warmed_walked_l = () => [%blob "precompiled/walk_l_map.txt"];
 let _enter_r_map = () => [%blob "precompiled/enter_r_map.txt"];
 let _enter_l_map = () => [%blob "precompiled/enter_l_map.txt"];
+
+let _enter_r_no_filter_map = () => [%blob
+  "precompiled/walk_r_no_filter_map.txt"
+];
+let _enter_l_no_filter_map = () => [%blob
+  "precompiled/walk_l_no_filter_map.txt"
+];
 // let warmed_nts = () => "";
 // let warmed_stances = () => "";
 

@@ -173,52 +173,45 @@ let process_nts_r_walk = nts => {
   ();
 };
 
-let process_unfiltered_walks_r = ts => {
-  print_endline("getting no filter right root");
-  let root_r_walk: Index.t = walk_all_no_filter(~from=R, Root);
-
+let process_unfiltered_walks_r = nts => {
   print_endline("building no filter right walks");
-  let ts_r_walks =
+  let nts_r_walks =
     List.map(
-      t => {
-        let walk_r: Index.t = walk_all_no_filter(~from=R, Node(t));
-        (Bound.Node(t), walk_r);
+      nt => {
+        let walk_r: Index.t = enter_all(~from=R, nt);
+        (nt, walk_r);
       },
-      ts,
+      nts,
     )
     |> List.to_seq
-    |> End.Map.of_seq
-    |> End.Map.add(Bound.Root, root_r_walk);
+    |> Mtrl.NT.Map.of_seq;
 
   let thin_no_filter_map =
-    ThinEnd.Map.sexp_of_t(
+    ThinNT.Map.sexp_of_t(
       ThinWalkInt.sexp_of_t,
-      ThinEnd.Map.make(ThinIndex.walk_len_t_of_index, ts_r_walks),
+      ThinNT.Map.make(ThinIndex.walk_len_t_of_index, nts_r_walks),
     );
 
   let _ = Sexplib.Sexp.save("walk_r_no_filter_map.txt", thin_no_filter_map);
   ();
 };
 
-let process_unfiltered_walks_l = ts => {
-  let root_l_walk: Index.t = walk_all_no_filter(~from=L, Root);
-
-  let ts_l_walks =
+let process_unfiltered_walks_l = nts => {
+  let nts_l_walks =
     List.map(
-      t => {
-        let walk_l: Index.t = walk_all_no_filter(~from=L, Node(t));
-        (Bound.Node(t), walk_l);
+      nt => {
+        let walk_l: Index.t = enter_all(~from=L, nt);
+        (nt, walk_l);
       },
-      ts,
+      nts,
     )
     |> List.to_seq
-    |> End.Map.of_seq
-    |> End.Map.add(Bound.Root, root_l_walk);
+    |> Mtrl.NT.Map.of_seq;
 
   let thin_no_filter_map =
-    ThinEnd.Map.sexp_of_t(
+    ThinNT.Map.sexp_of_t(
       ThinWalkInt.sexp_of_t,
-      ThinEnd.Map.make(ThinIndex.walk_len_t_of_index, ts_l_walks),
+      ThinNT.Map.make(ThinIndex.walk_len_t_of_index, nts_l_walks),
     );
   let _ = Sexplib.Sexp.save("walk_l_no_filter_map.txt", thin_no_filter_map);
 
@@ -264,9 +257,9 @@ let warmup = () => {
   Gc.full_major();
 
   //TODO: process the no filter walks & store them to a map with exclusively the length of the head walk
-  process_unfiltered_walks_r(ts);
+  process_unfiltered_walks_r(nts_list);
   Gc.full_major();
-  process_unfiltered_walks_l(ts);
+  process_unfiltered_walks_l(nts_list);
   Gc.full_major();
 
   let stances_sexp = StanceMap.sexp_of_t(Sexplib.Conv.sexp_of_int, stances^);

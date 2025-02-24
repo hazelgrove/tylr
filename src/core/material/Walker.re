@@ -379,6 +379,9 @@ let walk_r_map = ref(End.Map.empty);
 let enter_l_map = ref(Mtrl.NT.Map.empty);
 let enter_r_map = ref(Mtrl.NT.Map.empty);
 
+let enter_r_no_filter_map = ref(Mtrl.NT.Map.empty);
+let enter_l_no_filter_map = ref(Mtrl.NT.Map.empty);
+
 let stances_flipped = ref(Thin.FlippedStanceMap.empty);
 let nts_flipped = ref(Thin.FlippedNTMap.empty);
 
@@ -453,6 +456,24 @@ let read_warmed_enter = () => {
     Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
 };
 
+let read_warmed_enter_nofilter = () => {
+  let thin_enter_r =
+    Thin.ThinNT.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles._enter_r_no_filter_map()),
+    );
+  let thin_enter_l =
+    Thin.ThinNT.Map.t_of_sexp(
+      Thin.ThinIndex.t_of_sexp,
+      Sexplib.Sexp.of_string(PrecompiledFiles._enter_l_no_filter_map()),
+    );
+
+  enter_r_no_filter_map :=
+    Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
+  enter_l_no_filter_map :=
+    Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+};
+
 let read_warmed = () => {
   read_warmed_stances_nts();
   Gc.full_major();
@@ -480,6 +501,8 @@ let read_warmed = () => {
   read_warmed_enter();
   print_endline("read warmed entered");
   Gc.full_major();
+  read_warmed_enter_nofilter();
+  Gc.full_major();
 };
 
 let walk_all_precompiled =
@@ -497,6 +520,24 @@ let walk_all_precompiled =
   | None => End.Map.empty
   };
 };
+
+let enter_all_no_filter_precompiled = (~from: Dir.t, sort: Mtrl.NT.t) => {
+  switch (
+    Mtrl.NT.Map.find_opt(
+      sort,
+      switch (from) {
+      | L => enter_l_no_filter_map^
+      | R => enter_r_no_filter_map^
+      },
+    )
+  ) {
+  | Some(walks) => walks
+  | None => End.Map.empty
+  };
+};
+
+let enter_no_filter_precompiled = (~from, src, dst) =>
+  Index.find(dst, enter_all_no_filter_precompiled(~from, src));
 
 let enter_all_precompiled = (~from: Dir.t, sort: Mtrl.NT.t) => {
   switch (
