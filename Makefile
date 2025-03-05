@@ -15,6 +15,8 @@ init:
 	@echo "" > src/core/material/precompiled/stances.txt
 	@echo "" > src/core/material/precompiled/walk_l_map.txt
 	@echo "" > src/core/material/precompiled/walk_r_map.txt
+	@echo "" > src/core/material/precompiled/walk_l_no_filter_map.txt
+	@echo "" > src/core/material/precompiled/walk_r_no_filter_map.txt
 	dune build @src/fmt --auto-promote || true
 	dune build src --profile dev
 	./_build/default/src/minijs/precompile.exe
@@ -39,6 +41,7 @@ echo-html:
 	@echo "$(shell pwd)/_build/default/src/web/www/index.html"
 
 clean:
+	rm -rf src/core/material/precompiled/
 	dune clean
 
 open:
