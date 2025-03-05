@@ -178,7 +178,7 @@ let process_unfiltered_walks_r = nts => {
   let nts_r_walks =
     List.map(
       nt => {
-        let walk_r: Index.t = enter_all(~from=R, nt);
+        let walk_r: Index.t = enter_all_no_filter((R, nt));
         (nt, walk_r);
       },
       nts,
@@ -200,7 +200,7 @@ let process_unfiltered_walks_l = nts => {
   let nts_l_walks =
     List.map(
       nt => {
-        let walk_l: Index.t = enter_all(~from=L, nt);
+        let walk_l: Index.t = enter_all_no_filter((L, nt));
         (nt, walk_l);
       },
       nts,

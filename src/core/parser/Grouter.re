@@ -83,9 +83,21 @@ module Cells = {
     switch (face(~side=from, cs)) {
     | None => Some(false)
     | Some(t) =>
+      // P.show("are_bounded t: ", Walk.End.show(Node(t.mtrl)));
+
+      // switch (
+      //   Walker.enter_(~from, nt, Node(t.mtrl))
+      //   |> Lists.hd
+      //   |> Option.map(w => Walk.height(w) > 1)
+      // ) {
+      // | Some(b) => P.log("original are_bounded some: " ++ string_of_bool(b))
+      // | None => P.log("original are_bounded none: ")
+      // };
+
       Walker.enter_no_filter_precompiled(~from, nt, Node(t.mtrl))
-      |> Lists.hd
-      |> Option.map(w => Walk.height(w) > 1)
+      |> Option.map(v => v > 1)
+    // |> Lists.hd
+    // |> Option.map(w => Walk.height(w) > 1)
     };
 };
 

@@ -357,7 +357,7 @@ let enter_all =
   });
 let enter_all = (~from: Dir.t, nt) => enter_all((from, nt));
 
-let enter_all_ = ((from: Dir.t, nt: Mtrl.NT.t)) => {
+let enter_all_no_filter = ((from: Dir.t, nt: Mtrl.NT.t)) => {
   let q = Queue.create();
   swing_all(~from, nt)
   |> Index.filter(is_neq)
@@ -372,7 +372,8 @@ let enter_all_ = ((from: Dir.t, nt: Mtrl.NT.t)) => {
   // todo: apply swings_profile filter here
   |> Index.sort;
 };
-let enter_ = (~from, src, dst) => Index.find(dst, enter_all_((from, src)));
+let enter_ = (~from, src, dst) =>
+  Index.find(dst, enter_all_no_filter((from, src)));
 
 let walk_l_map = ref(End.Map.empty);
 let walk_r_map = ref(End.Map.empty);
@@ -459,19 +460,27 @@ let read_warmed_enter = () => {
 let read_warmed_enter_nofilter = () => {
   let thin_enter_r =
     Thin.ThinNT.Map.t_of_sexp(
-      Thin.ThinIndex.t_of_sexp,
+      Thin.ThinWalkInt.t_of_sexp,
       Sexplib.Sexp.of_string(PrecompiledFiles._enter_r_no_filter_map()),
     );
   let thin_enter_l =
     Thin.ThinNT.Map.t_of_sexp(
-      Thin.ThinIndex.t_of_sexp,
+      Thin.ThinWalkInt.t_of_sexp,
       Sexplib.Sexp.of_string(PrecompiledFiles._enter_l_no_filter_map()),
     );
 
   enter_r_no_filter_map :=
-    Thin.enter_map_of_thin(thin_enter_r, stances_flipped^, nts_flipped^);
+    Thin.enter_map_of_thin_no_filter(
+      thin_enter_r,
+      stances_flipped^,
+      nts_flipped^,
+    );
   enter_l_no_filter_map :=
-    Thin.enter_map_of_thin(thin_enter_l, stances_flipped^, nts_flipped^);
+    Thin.enter_map_of_thin_no_filter(
+      thin_enter_l,
+      stances_flipped^,
+      nts_flipped^,
+    );
 };
 
 let read_warmed = () => {
@@ -531,13 +540,29 @@ let enter_all_no_filter_precompiled = (~from: Dir.t, sort: Mtrl.NT.t) => {
       },
     )
   ) {
-  | Some(walks) => walks
-  | None => End.Map.empty
+  | Some(walks) =>
+    // P.log("enter_all_no_filter_precompiled found some: ");
+    // walks
+    // |> End.Map.to_seq
+    // |> Seq.iter(((key, _val)) => P.show("src", End.show(key)));
+    walks
+  | None =>
+    // P.log("enter_all_no_filter_precompiled found none");
+    End.Map.empty
   };
 };
 
-let enter_no_filter_precompiled = (~from, src, dst) =>
-  Index.find(dst, enter_all_no_filter_precompiled(~from, src));
+let enter_no_filter_precompiled = (~from, src, dst) => {
+  // P.show("enter_no_filter_precompiled with dst: ", End.show(dst));
+  switch (End.Map.find_opt(dst, enter_all_no_filter_precompiled(~from, src))) {
+  | Some(n) =>
+    // P.log("enter_no_filter_precompiled found some");
+    Some(n)
+  | None =>
+    // P.log("enter_no_filter_precompiled found none");
+    None
+  };
+};
 
 let enter_all_precompiled = (~from: Dir.t, sort: Mtrl.NT.t) => {
   switch (

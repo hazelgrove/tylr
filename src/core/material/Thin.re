@@ -108,13 +108,9 @@ module ThinIndex = {
   let walk_len_t_of_index = (index: Index.t) => {
     index
     |> Index.to_list
+    |> List.filter(((_, walks)) => List.length(walks) > 0)
     |> List.map(((end_, walks)) => {
-         let list_head_length =
-           if (List.length(walks) > 0) {
-             walks |> List.hd |> Chain.length;
-           } else {
-             0;
-           };
+         let list_head_length = walks |> List.hd |> Walk.height;
          (ThinEnd.t_of_end(end_), list_head_length);
        })
     |> List.to_seq
@@ -163,6 +159,71 @@ module FlippedNTMap = {
     let compare = Int.compare;
   });
 };
+
+let enter_map_of_thin_no_filter =
+    (thin: ThinNT.Map.t(ThinWalkInt.t), stances_flipped, nts_flipped)
+    : Mtrl.NT.Map.t(End.Map.t(int)) => {
+  let end_of_thin = (end_: ThinEnd.t) => {
+    switch (end_) {
+    | Bound.Root => Bound.Root
+    | Node(stance) => Node(FlippedStanceMap.find(stance, stances_flipped))
+    };
+  };
+
+  let nt_of_thin = (thin: ThinNT.t) => {
+    FlippedNTMap.find(thin, nts_flipped);
+  };
+
+  let index_of_thin = (thin: ThinWalkInt.t): End.Map.t(int) => {
+    thin
+    |> ThinEnd.Map.to_seq
+    |> Seq.map(((end_, v)) => (end_of_thin(end_), v))
+    |> Index.of_seq;
+  };
+
+  thin
+  |> ThinNT.Map.to_seq
+  |> Seq.map(((nt, v)) => (nt_of_thin(nt), index_of_thin(v)))
+  |> Mtrl.NT.Map.of_seq;
+};
+
+// let enter_map_of_thin =
+//     (thin: ThinNT.Map.t(ThinIndex.t), stances_flipped, nts_flipped)
+//     : Mtrl.NT.Map.t(Index.t) => {
+//   let end_of_thin = (end_: ThinEnd.t) => {
+//     switch (end_) {
+//     | Bound.Root => Bound.Root
+//     | Node(stance) => Node(FlippedStanceMap.find(stance, stances_flipped))
+//     };
+//   };
+//   let swing_of_thin = (thin: ThinSwing.t) => {
+//     Chain.map_loop(nt => FlippedNTMap.find(nt, nts_flipped), thin);
+//   };
+//   let walk_of_thinwalk = (thin: Chain.t(ThinSwing.t, int)) => {
+//     Chain.map(
+//       swing => swing_of_thin(swing),
+//       stance => FlippedStanceMap.find(stance, stances_flipped),
+//       thin,
+//     );
+//   };
+//   let index_of_thin = (thin: ThinIndex.t): Index.t => {
+//     thin
+//     |> ThinEnd.Map.to_seq
+//     |> Seq.map(((end_, walks)) =>
+//          (end_of_thin(end_), List.map(walk_of_thinwalk, walks))
+//        )
+//     |> Index.of_seq;
+//   };
+//
+//   let nt_of_thin = (thin: ThinNT.t) => {
+//     FlippedNTMap.find(thin, nts_flipped);
+//   };
+//
+//   thin
+//   |> ThinNT.Map.to_seq
+//   |> Seq.map(((nt, v)) => (nt_of_thin(nt), index_of_thin(v)))
+//   |> Mtrl.NT.Map.of_seq;
+// };
 
 let walk_map_of_thin =
     (thin: ThinEnd.Map.t(ThinIndex.t), stances_flipped, nts_flipped)

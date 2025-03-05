@@ -408,7 +408,7 @@ let meld_remold =
     // P.log("--- Modify.meld_remold/is_redundant");
     Effects.remove(tok);
     let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
-    P.log("--- Modify.meld_remold/redundant/remolding");
+    // P.log("--- Modify.meld_remold/redundant/remolding");
     Some(remold(~fill, ctx));
   } else {
     // P.log("--- Modify.meld_remold/not_redundant");
@@ -425,7 +425,7 @@ let meld_remold =
       expanding
         ? ctx |> Ctx.push(~onto=L, Token.space()) |> Ctx.trim_space(~side=R)
         : ctx;
-    P.log("--- Modify.meld_remold/not_redundant/remolding");
+    // P.log("--- Modify.meld_remold/not_redundant/remolding");
     let remolded = remold(~fill=next, ctx);
     // P.log("--- meld_remold");
     // P.show("tok", Token.show(tok));
@@ -510,24 +510,7 @@ let mold_remold =
   let- () =
     Molder.candidates(tok)
     @ (tok.text == "" ? [] : [Token.Unmolded.defer(tok)])
-    |> Oblig.Delta.minimize(tok => {
-         P.log("--- Modify.mold_remold/candidate");
-         P.sexp("candidate", Token.sexp_of_t(tok));
-         let r = meld_remold(prev, tok, next, ctx);
-         switch (r) {
-         | None => P.show("r", "None")
-         | Some(_) => P.show("r", "Some")
-         };
-         P.show(
-           "effects",
-           Fmt.(to_to_string(list(Effects.pp), Effects.log^)),
-         );
-         P.show(
-           "delta",
-           Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)),
-         );
-         r;
-       });
+    |> Oblig.Delta.minimize(tok => {meld_remold(prev, tok, next, ctx)});
   assert(tok.text == "");
   let fill = Cell.Space.merge(prev, ~fill=Cell.degrouted, next);
   remold(~fill, ctx);
@@ -661,28 +644,30 @@ let delete = (d: Dir.t, z: Zipper.t) => {
 
 let insert = (s: string, z: Zipper.t) => {
   open Options.Syntax;
-  P.log("--- Modify.insert");
+  // P.log("--- Modify.insert");
   let z = delete_sel(L, z);
-  P.show("deleted", Zipper.show(z));
+  // P.show("deleted", Zipper.show(z));
 
   // P.log("--- Modify.insert");
   let- () = try_expand(s, z);
-  P.log("--- Modify.insert/didn't expand");
+  // P.log("--- Modify.insert/didn't expand");
   let- () = try_move(s, z);
-  P.log("--- Modify.insert/didn't move");
+  // P.log("--- Modify.insert/didn't move");
   let- () = try_extend(s, z);
-  P.log("--- Modify.insert/didn't extend");
+  // P.log("--- Modify.insert/didn't extend");
 
   let (remolded, ctx) =
     relabel(s, z)
     |> Oblig.Delta.minimize(((toks, ctx)) => {
-         P.show("toks", Chain.show(Cell.pp, Token.Unmolded.pp, toks));
-         P.show("ctx", Ctx.show(ctx));
-         Some(insert_remold(toks, ctx));
+         // P.show("toks", Chain.show(Cell.pp, Token.Unmolded.pp, toks));
+         // P.show("ctx", Ctx.show(ctx));
+         Some(
+           insert_remold(toks, ctx),
+         )
        })
     |> Option.get;
-  P.show("remolded", Cell.show(remolded));
-  P.show("ctx", Ctx.show(ctx));
+  // P.show("remolded", Cell.show(remolded));
+  // P.show("ctx", Ctx.show(ctx));
 
   finalize_(remolded, ctx);
 };
