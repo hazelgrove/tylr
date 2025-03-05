@@ -77,4 +77,11 @@ let oblig = text =>
   | Float_lit =>
     // assuming text is consistent with lbl
     ""
-  | Const(_, _, c) => Base.String.chop_prefix_exn(~prefix=text, c);
+  | Const(_, _, c) =>
+    try(Base.String.chop_prefix_exn(~prefix=text, c)) {
+    | Invalid_argument(_) =>
+      open Stds;
+      P.show("prefix", text);
+      P.show("c", c);
+      failwith("");
+    };

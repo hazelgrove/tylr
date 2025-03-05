@@ -58,4 +58,13 @@ let dry_run = (f, x): (_, list(t)) => {
   (y, recorded);
 };
 
+let dry_run_lazy = (x: Lazy.t(_)): (_, list(t)) => {
+  let saved = log^;
+  log := [];
+  let y = Lazy.force(x);
+  let recorded = log^;
+  log := saved;
+  (y, recorded);
+};
+
 let commit = (effs: list(t)) => List.iter(perform, effs);

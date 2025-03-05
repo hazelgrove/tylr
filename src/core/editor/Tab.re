@@ -33,9 +33,8 @@ let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
     let/ () =
       switch (d) {
       | L => None
-      | R =>
-        let/ () = Option.map(Zipper.mk, complete_face(site, ctx));
-        Modify.try_expand(" ", z);
+      | R => Option.map(Zipper.mk, complete_face(site, ctx))
+      // Modify.try_expand(" ", z);
       };
     // otherwise jump to next obligation
     modified := false;

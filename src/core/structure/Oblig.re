@@ -119,4 +119,36 @@ module Delta = {
       Some(y);
     };
   };
+
+  let min_choice =
+      (~to_zero=false, cs: Choice.t(Options.Thunk.t('x))): option('x) => {
+    open Options.Syntax;
+    let rec minimize = (c: Choice.t(_)) =>
+      switch (c) {
+      | Choice.Nil => None
+      | One(thunk) =>
+        let (y_opt, effs) = Effects.dry_run(f => f(), thunk);
+        y_opt |> Option.map(y => (y, effs, of_effects(effs)));
+      | Either(l, r) =>
+        let (min_l, min_r) = (minimize(l), minimize(r));
+        switch (min_l, min_r) {
+        | (None, _) => min_r
+        | (Some(_), None) => min_l
+        | (Some((_, _, delta_l)), Some((_, _, delta_r))) =>
+          compare(delta_l, delta_r) <= 0 ? min_l : min_r
+        };
+      | Prefer(l, r) =>
+        switch (minimize(l)) {
+        | Some(_) as min_l => min_l
+        | None => minimize(r)
+        }
+      };
+    let* (y, effs, delta) = minimize(cs);
+    if (to_zero && compare(delta, zero) > 0) {
+      None;
+    } else {
+      Effects.commit(effs);
+      Some(y);
+    };
+  };
 };

@@ -40,3 +40,11 @@ module Syntax = {
     | None => f()
     };
 };
+
+module Thunk = {
+  type t('a) = unit => option('a);
+  let none = () => None;
+  let some = (a, ()) => Some(a);
+  let map = (f, t, ()) => Option.map(f, t());
+  let bind = (f, t, ()) => Option.bind(f, t());
+};

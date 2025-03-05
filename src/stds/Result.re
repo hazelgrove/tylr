@@ -28,3 +28,10 @@ module Syntax = {
     | Error(err) => f(err)
     };
 };
+
+module Thunk = {
+  type t('ok, 'err) = unit => Base.Result.t('ok, 'err);
+  let ok = (ok, ()) => Ok(ok);
+  let err = (err, ()) => Error(err);
+  let to_option = (r, ()) => to_option(r());
+};
