@@ -26,6 +26,7 @@ let map_focus =
   open Options.Syntax;
   let c = Zipper.zip(~save_cursor=true, z);
   let* init = Option.bind(c.marks.cursor, Path.Cursor.get_focus);
+  let c = Cell.map_marks(Cell.Marks.mark_dirty(init), c);
   let goal =
     init
     |> Layout.map(~round_tok?, ~tree=Layout.mk_cell(c), f)
@@ -34,6 +35,8 @@ let map_focus =
     ? None
     : c
       |> Cell.map_marks(Cell.Marks.put_focus(~save_anchor, goal))
+      |> Linter.repad
+      |> Cell.map_marks(Cell.Marks.flush)
       |> Zipper.unzip;
 };
 
@@ -102,21 +105,25 @@ let hstep = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
       // P.show("stepped", Token.show(stepped));
       // P.show("exited", string_of_bool(exited));
       ctx
-      |> Ctx.push(~onto=b, stepped)
+      |> Ctx.push(~onto=b, ~fill=Cell.dirty, stepped)
       |> (exited ? Fun.id : Ctx.push(~onto=d, stepped))
       |> Zipper.mk;
     };
-  Zipper.rebutton(z);
+  Zipper.rebutton(z)
+  |> Zipper.zip(~save_cursor=true)
+  |> Linter.repad
+  |> Cell.map_marks(Cell.Marks.flush)
+  |> Zipper.unzip_exn;
 };
-let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
-  let step = (d, z) =>
-    hstep(d, z) |> Options.get_exn(Invalid_argument("Move.hstep_n"));
-  switch (n) {
-  | _ when n < 0 => z |> step(L) |> hstep_n(n + 1)
-  | _ when n > 0 => z |> step(R) |> hstep_n(n - 1)
-  | _zero => z
-  };
-};
+// let rec hstep_n = (n: int, z: Zipper.t): Zipper.t => {
+//   let step = (d, z) =>
+//     hstep(d, z) |> Options.get_exn(Invalid_argument("Move.hstep_n"));
+//   switch (n) {
+//   | _ when n < 0 => z |> step(L) |> hstep_n(n + 1)
+//   | _ when n > 0 => z |> step(R) |> hstep_n(n - 1)
+//   | _zero => z
+//   };
+// };
 
 let vstep = (~round_tok=?, ~save_anchor=false, d: Dir.t, z: Zipper.t) =>
   switch (z.cur) {

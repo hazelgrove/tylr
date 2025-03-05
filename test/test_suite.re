@@ -97,6 +97,15 @@ let modify_tests = (
         (Path.Cursor.point(Caret.focus([2, 2, 0])), "let (a,b)"),
       ),
     ),
+    test_case(
+      "redundant tuple comma gets removed even when right paren is ghost (#125)",
+      `Quick,
+      check_edit(
+        (Path.Cursor.point(Caret.focus([3, 1])), "(,"),
+        [Edit.Delete(L)],
+        (Path.Cursor.point(Caret.focus([2, 0])), "("),
+      ),
+    ),
   ],
 );
 

@@ -108,12 +108,6 @@ module Inner = {
        )
     |> snd
     |> Chain.to_list(Fun.id, Fun.id)
-    |> (
-      rects => {
-        rects |> List.iter(rect => P.show("rect", Rect.show(rect)));
-        rects;
-      }
-    )
     |> OrthogonalPolygon.mk(~corner_radii=(0.2, 0.075))
     |> Util.Svgs.Path.view
     |> Util.Nodes.add_classes(["silhouette", "inner"]);

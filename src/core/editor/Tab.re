@@ -18,9 +18,14 @@ let complete_face = (site: Zipper.Site.t, ctx: Ctx.t) =>
     complete(R);
   };
 
-let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) =>
+let modified = ref(false);
+
+let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) => {
+  modified := true;
   switch (Zipper.cursor_site(z)) {
-  | (Select(_), _) => Move.hstep(d, z)
+  | (Select(_), _) =>
+    modified := false;
+    Some(Move.unselect(~toward=d, z));
   | (Point(site), ctx) =>
     open Options.Syntax;
     // P.log("--- Tab.perform/Point");
@@ -33,6 +38,7 @@ let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) =>
         Modify.try_expand(" ", z);
       };
     // otherwise jump to next obligation
+    modified := false;
     let c = Zipper.zip(~save_cursor=true, z);
     // P.show("c", Cell.show(c));
     let normal = Zipper.normalize(~cell=c);
@@ -59,3 +65,4 @@ let perform = (d: Dir.t, z: Zipper.t): option(Zipper.t) =>
     |> Zipper.unzip_exn
     |> Option.some;
   };
+};

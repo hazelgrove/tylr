@@ -135,7 +135,7 @@ let mold =
       );
 };
 
-let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Grouted.t, Ctx.t) => {
   // P.log("--- Modify.remold");
   // P.show("fill", Cell.show(fill));
   // P.show("ctx", Ctx.show(ctx));
@@ -159,25 +159,47 @@ let rec remold = (~fill=Cell.dirty, ctx: Ctx.t): (Cell.t, Ctx.t) => {
     // P.show("fill", Cell.show(fill));
     let bounds = (l.bound, r.bound);
     // Melder.debug := true;
-    let cell = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
+    let grouted = Melder.complete_bounded(~bounds, ~onto=L, dn, ~fill);
     // Melder.debug := false;
     // P.show("completed", Cell.show(cell));
     let hd = ({...l, slope: []}, {...r, slope: []});
     let ctx = Ctx.link_stacks(hd, tl);
-    (cell, ctx);
+    (grouted, ctx);
   };
 };
 
-let finalize_ = (remolded: Cell.t, ctx: Ctx.t): Zipper.t => {
+let finalize_ = (remolded: Grouted.t, ctx: Ctx.t): Zipper.t => {
   // P.log("--- Modify.finalize_");
-  // P.show("remolded", Cell.show(remolded));
+  // P.show("remolded", Grouted.show(remolded));
   // P.show("ctx", Ctx.show(ctx));
-  let (l, r) = Ctx.(face(~side=L, ctx), face(~side=R, ctx));
-  let repadded = Linter.repad(~l, remolded, ~r);
-  // P.show("repadded", Cell.show(repadded));
-  let c = {...repadded, marks: Cell.Marks.flush(repadded.marks)};
+  let repadded =
+    remolded
+    |> Chain.rev
+    |> Chain.map_link(Delim.tok)
+    |> Chain.consnoc(
+         ~hd=Ctx.face(~side=L, ctx),
+         ~ft=Ctx.face(~side=R, ctx),
+       )
+    |> Chain.map_linked((l, (sw, c), r) => {
+         let repadded = Linter.repad(~l, c, ~r);
+         (sw, {...repadded, marks: Cell.Marks.flush(repadded.marks)});
+       })
+    |> Chain.unconsnoc_exn
+    |> (((_, c, _)) => c)
+    |> Chain.map_link(Delim.unwrap);
+  // P.show("repadded", Grouted.show(repadded));
+  let (pre, (_, cur), suf) =
+    repadded
+    |> Chain.find_unzip_loop(((_, c: Cell.t)) =>
+         Option.is_some(c.marks.cursor)
+       )
+    |> Options.get_fail("bug: lost cursor");
+  let ((l, r), rest) = Ctx.unlink_stacks(ctx);
+  let l = Stack.connect_affix(pre, l);
+  let r = Stack.connect_affix(suf, r);
+  let ctx = Ctx.link_stacks((l, r), rest);
   // P.show("flushed", Cell.show(c));
-  Zipper.unzip_exn(c, ~ctx);
+  Zipper.unzip_exn(cur, ~ctx);
 };
 
 let try_move = (s: string, z: Zipper.t) => {
@@ -288,6 +310,7 @@ let add_edge = (~hand=Caret.Hand.Focus, side: Dir.t, tok: Token.t) =>
 let delete_toks =
     (d: Dir.t, toks: list(Token.t)): Chain.t(Cell.t, Token.Unmolded.t) => {
   let n = List.length(toks);
+  let car = Cell.point(~dirty=true, Focus);
   toks
   // first, clear text of selected tokens within selection bounds and mark
   // either the first or last token with the final cursor position
@@ -321,13 +344,19 @@ let delete_toks =
        ~f=(tok, c) => {
          let (l, tok, r) = Token.pop_end_carets(tok);
          c
-         |> Chain.map_hd(r == None ? Fun.id : Fun.const(Cell.point(Focus)))
+         |> Chain.map_hd(r == None ? Fun.id : Fun.const(car))
          |> (
            switch (tok.mtrl) {
            | Space(_)
            | Grout(_) when tok.text == "" =>
-             Chain.map_hd(l == None ? Fun.id : Fun.const(Cell.point(Focus)))
-           | _ => Chain.link(l == None ? Cell.dirty : Cell.point(Focus), tok)
+             Chain.map_hd(
+               l == None
+                 ? Fun.id
+                 : car
+                   |> Cell.map_marks(Cell.Marks.mark_degrouted([]))
+                   |> Fun.const,
+             )
+           | _ => Chain.link(l == None ? Cell.dirty : car, tok)
            }
          );
        },
@@ -373,7 +402,8 @@ let insert_toks =
            //  P.log("--- Modify.insert_toks/tok/Error removed");
            // removed empty token
            let next_fill =
-             Cell.mark_ends_dirty(Cell.Space.merge(fill, next_fill));
+             Cell.mark_ends_dirty(Cell.Space.merge(fill, next_fill))
+             |> Cell.mark_end_ungrouted(~side=R);
            (ctx, next_fill);
          }
        },
@@ -382,9 +412,8 @@ let insert_toks =
 
 let meld_remold =
     (~expanding=false, prev, tok: Token.t, next, ctx: Ctx.t)
-    : option((Cell.t, Ctx.t)) => {
-  open Options.Syntax; // P.log("--- Modify.meld_remold");
-
+    : option((Grouted.t, Ctx.t)) => {
+  open Options.Syntax;
   // P.log("--- Modify.meld_remold");
   // P.show("prev", Cell.show(prev));
   // P.sexp("tok", Token.sexp_of_t(tok));
@@ -427,10 +456,10 @@ let meld_remold =
         : ctx;
     // P.log("--- Modify.meld_remold/not_redundant/remolding");
     let remolded = remold(~fill=next, ctx);
-    // P.log("--- meld_remold");
+    // P.log("--- meld_remold/not redundant");
     // P.show("tok", Token.show(tok));
     // P.show("ctx", Ctx.show(ctx));
-    // P.show("remolded", Cell.show(fst(remolded)));
+    // P.show("remolded", Grouted.show(fst(remolded)));
     // P.show("remolded ctx", Ctx.show(snd(remolded)));
     // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
     switch (tok.mtrl) {
@@ -441,7 +470,9 @@ let meld_remold =
           && !Label.is_instant(lbl)
           && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
           // this is necessary when deleting delims to empty ghosts
-          && !Token.is_empty(tok) =>
+          && !Token.is_empty(tok)
+          // only delay expansion for tokens followed by caret (#126)
+          && Option.(is_some(tok.marks) || is_some(next.marks.cursor)) =>
       None
     | _ => Some(remolded)
     };
@@ -449,7 +480,8 @@ let meld_remold =
 };
 
 let expand_remold =
-    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t): (Token.t, (Cell.t, Ctx.t)) => {
+    (tok: Token.Unmolded.t, ~fill, ctx: Ctx.t)
+    : (Token.t, (Grouted.t, Ctx.t)) => {
   switch (
     Molder.candidates(tok)
     |> Oblig.Delta.minimize(tok =>
@@ -488,6 +520,7 @@ let expand = (tok: Token.t): option(Token.Unmolded.t) =>
   };
 let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   open Options.Syntax;
+  let effects = Effects.log^;
   let* () = Options.of_bool(String.starts_with(~prefix=" ", s));
   // todo: check if in middle of token
   let (face, rest) = Ctx.pull(~from=L, z.ctx);
@@ -496,11 +529,16 @@ let try_expand = (s: string, z: Zipper.t): option(Zipper.t) => {
   let* expanded = expand(tok);
   let (molded, (remolded, ctx)) =
     expand_remold(expanded, ~fill=Cell.point(~dirty=true, Focus), rest);
-  molded == tok ? None : return(finalize_(remolded, ctx));
+  molded == tok
+    ? {
+      Effects.log := effects;
+      None;
+    }
+    : return(finalize_(remolded, ctx));
 };
 
 let mold_remold =
-    (prev, tok: Token.Unmolded.t, next, ctx: Ctx.t): (Cell.t, Ctx.t) => {
+    (prev, tok: Token.Unmolded.t, next, ctx: Ctx.t): (Grouted.t, Ctx.t) => {
   open Options.Syntax;
   // P.log("--- Modify.mold_remold");
   // P.show("prev", Cell.show(prev));
@@ -517,7 +555,8 @@ let mold_remold =
 };
 
 let insert_remold =
-    (toks: Chain.t(Cell.t, Token.Unmolded.t), ctx: Ctx.t): (Cell.t, Ctx.t) => {
+    (toks: Chain.t(Cell.t, Token.Unmolded.t), ctx: Ctx.t)
+    : (Grouted.t, Ctx.t) => {
   // P.log("--- Modify.insert_remold");
   // P.show("ctx", Ctx.show(ctx));
   switch (Chain.(unlink(rev(toks)))) {
@@ -540,6 +579,8 @@ let insert_remold =
 // the case of tokens at the ends of the selection that are split by the selection
 // boundaries, the selection-external affixes of those tokens are preserved.
 let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
+  // P.log("--- Modify.delete_sel");
+  Mode.set(Deleting(d));
   switch (z.cur) {
   | Point(_) => z
   | Select(sel) =>
@@ -568,8 +609,6 @@ let delete_sel = (d: Dir.t, z: Zipper.t): Zipper.t => {
     //   Chain.show(Cell.pp, Token.Unmolded.pp, deleted_toks),
     // );
     let (remolded, ctx) = insert_remold(deleted_toks, ctx);
-    // P.show("molded", Ctx.show(molded));
-    // P.show("fill", Cell.show(fill));
     finalize_(remolded, ctx);
   };
 };
@@ -620,24 +659,13 @@ let try_truncate = (z: Zipper.t) => {
 
 let delete = (d: Dir.t, z: Zipper.t) => {
   open Options.Syntax;
-  // let/ () =
-  //   // first try moving over space tokens.
-  //   // need to refine this re: usr vs sys.
-  //   switch (Ctx.face(~side=d, z.ctx)) {
-  //   | Node({mtrl: Space(White(Sys)), text, _})
-  //       when
-  //         Cursor.is_point(z.cur)
-  //         && text
-  //         |> Dir.pick(d, (Strings.rev, Fun.id))
-  //         |> String.starts_with(~prefix=" ") =>
-  //     Move.perform(Step(H(d)), z)
-  //   | _ => None
-  //   };
   // P.log("--- Modify.delete");
   // P.show("z", Zipper.show(z));
+  Mode.set(Deleting(d));
   let+ z =
     Cursor.is_point(z.cur) ? Select.hstep(~char=true, d, z) : return(z);
   let- () = try_truncate(z);
+  // P.log("didn't truncate");
   // P.show("selected", Zipper.show(z));
   delete_sel(d, z);
 };
@@ -648,6 +676,7 @@ let insert = (s: string, z: Zipper.t) => {
   let z = delete_sel(L, z);
   // P.show("deleted", Zipper.show(z));
 
+  Mode.set(Inserting(s));
   // P.log("--- Modify.insert");
   let- () = try_expand(s, z);
   // P.log("--- Modify.insert/didn't expand");

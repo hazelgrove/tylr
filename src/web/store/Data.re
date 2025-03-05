@@ -29,6 +29,22 @@ circle(center, r)
 in
 [mark(p1), line(p1, p2), mark(p2)]|};
 
+let t2_modify_start = {|fun (square, p1, p2) ->
+if square then
+let mark =
+fun center ->
+let (x, y) = center in
+rect(x - 2, y - 2, 4, 4)
+in
+[mark(p1), line(p1, p2), mark(p2)]
+else
+let mark =
+fun center ->
+let r = 4 in
+circle(center, r)
+in
+[mark(p1), line(p1, p2), mark(p2)]|};
+
 let t2_modify = {|fun (square, p1, p2) ->
 let mark =
 fun center ->
@@ -76,6 +92,19 @@ let contains = fun (s: Shape, p: Point) ->
  && y_min <= y && y <= y_min + y_len
   | C((center, r)) => dist(center, p) <= r
 in|};
+
+let uncurry_modify = {|let fold_right:
+(A -> Acc -> Acc) -> List(A) -> Acc -> Acc = in
+fold_right(fun n -> fun sum -> n + sum)(ns)(0)|};
+
+let fuse_modify = {|shapes
+|> List.filter(fun s -> area(s) < 100)
+|> List.map(fun s ->
+let stdDev = if area(s) < 50 then 2 else 4 in
+let blurred = blur(stdDev, s) in
+blend(blurred, greenRect)
+)
+|> List.map(skew(4))|};
 
 let emoji_paint = {|type Emoji = None + Smile + Laugh in
 let Row = Int in

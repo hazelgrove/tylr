@@ -47,10 +47,7 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
   );
 
 let complete_pending_ghosts = (~bounds, l: Stack.t, ~fill) => {
-  // P.log("--- Molder.complete_pending_ghosts");
-  // P.show("l", Stack.show(l));
-  // P.show("fill", Cell.show(fill));
-  let (cell, effs) =
+  let (grouted, effs) =
     Effects.dry_run(
       () => {
         // Grouter.dbg := true;
@@ -83,10 +80,9 @@ let complete_pending_ghosts = (~bounds, l: Stack.t, ~fill) => {
     // P.log("--- Molder.complete_pending_ghosts/completing");
     : {
       Effects.commit(effs);
+      let ((_, cell), stack) = Stack.connect_(grouted, {...l, slope: []});
       let (fill, slope) = Slope.Dn.unroll(cell);
-      // P.show("unrolled fill", Cell.show(fill));
-      // P.show("unrolled slope", Slope.show(slope));
-      ({...l, slope}, fill);
+      (Stack.cat(slope, stack), fill);
     };
 };
 

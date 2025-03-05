@@ -408,14 +408,26 @@ let mark_ends_dirty = (c: t) => {
   let marks = {...c.marks, dirty};
   {...c, marks};
 };
+let mark_end_ungrouted = (~side: Dir.t, c: t) => {
+  let p = end_path(~side, c);
+  let degrouted = c.marks.degrouted |> Path.Map.add(p, ());
+  {
+    ...c,
+    marks: {
+      ...c.marks,
+      degrouted,
+    },
+  };
+};
 
-let has_clean_cursor = (c: t) =>
+let has_ungrouted_cursor = (c: t) =>
   switch (c.marks.cursor) {
   | None => false
-  | Some(Point(car)) => !Path.Map.mem(car.path, c.marks.dirty)
+  | Some(Point(car)) => !Path.Map.mem(car.path, c.marks.degrouted)
+
   | Some(Select(sel)) =>
     let (l, r) = sel.range;
-    Path.Map.(!mem(l, c.marks.dirty) && !mem(r, c.marks.dirty));
+    Path.Map.(!mem(l, c.marks.degrouted) && !mem(r, c.marks.degrouted));
   };
 
 let to_chain = (c: t) =>
