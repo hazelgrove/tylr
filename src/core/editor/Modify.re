@@ -601,21 +601,22 @@ let apply_remold = (changes, ctx) => {
   () => {
     open Options.Syntax;
     let* ((ctx, fill), expanded, restrict_obligs) = changed();
-    // P.log("--- Modify.apply_remold/changed");
-    // P.show("ctx", Ctx.show(ctx));
-    // P.show("fill", Cell.show(fill));
-    // P.show("expanded", string_of_bool(expanded));
-    // P.show("restrict_obligs", string_of_bool(restrict_obligs));
+    P.log("--- Modify.apply_remold/changed");
+    P.sexp("ctx", Ctx.sexp_of_t(ctx));
+    P.show("fill", Cell.show(fill));
+    P.show("expanded", string_of_bool(expanded));
+    P.show("restrict_obligs", string_of_bool(restrict_obligs));
     let (remolded, ctx) = remold(~fill, ctx);
     // P.log("--- Modify.apply_remold/remolded");
     // P.show("remolded", Grouted.show(remolded));
     // P.show("ctx", Ctx.show(ctx));
-    // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
-    // P.show("delta", Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)));
-    !expanded
-    && restrict_obligs
-    && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
-      ? None : Some((remolded, ctx));
+    P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
+    P.show("delta", Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)));
+    // !expanded
+    // && restrict_obligs
+    // && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
+    // ? None : Some((remolded, ctx));
+    Some((remolded, ctx));
   };
 };
 
@@ -722,8 +723,15 @@ let insert = (s: string, z: Zipper.t) => {
   let z = delete_sel(L, z);
   // let- () = try_move(s, z);
   Mode.set(Inserting(s));
+  // let relabel_res
+
   let (remolded, ctx) =
     relabel(s, z)
+    |> Choice.map(((changes, ctx)) => {
+         P.show("changes", Changes.show(changes));
+         P.show("ctx", Ctx.show(ctx));
+         (changes, ctx);
+       })
     |> Choice.bind(Funs.uncurry(apply_remold))
     |> Oblig.Delta.min_choice
     |> Options.get_fail("bug: failed to apply insert changes");
