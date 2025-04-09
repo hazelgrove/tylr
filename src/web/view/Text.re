@@ -31,7 +31,7 @@ let grout = (~font, sort, shape) =>
     ),
   ]);
 
-let view_tok = (~font, tok: Token.t) => {
+let view_tok = ((font, tok: Token.t)) => {
   let mtrl_clss =
     switch (tok.mtrl) {
     // todo: distinguish whitespace from unmolded styling
@@ -64,6 +64,7 @@ let view_tok = (~font, tok: Token.t) => {
     };
   Node.span(~attrs, nodes);
 };
+let view_tok = (~font, tok) => Stds.Memo.general(view_tok, (font, tok));
 
 let view_line = (~font, l: Block.Line.t) =>
   l
@@ -91,37 +92,3 @@ and view_sec = (~font, ~indent=0, sec: Block.Section.t(_)) =>
       },
     ],
   );
-
-// module Chunk = {
-//   type t('block) =
-//     | Line(list(Node.t))
-//     | Indented(int, block);
-// };
-// module Block = {
-//   include Chain;
-//   type t = Chain.t(Chunk.t(t), unit);
-//   let chunks = Chain.loops;
-// };
-
-// let view_str =
-//   Stds.Memo.general(
-//     fun
-//     | "" => []
-//     | str => Node.[span([text(str)])],
-//   );
-// let view_indent =
-//   Stds.Memo.general(n => view_str(Strings.repeat(n, Util.Unicode.nbsp)));
-
-// let rec view = (block: Block.t) =>
-//   Block.chunks(block)
-//   |> List.map(
-//        fun
-//        | Chunk.Line(nodes) =>
-//          Node.div(~attrs=Attr.[classes(["chunk", "line"])], nodes)
-//        | Indented(indent, block) =>
-//          Node.div(
-//            ~attrs=Attr.[classes(["chunk", "indented"])],
-//            view_indent(indent) @ [view(block)],
-//          ),
-//      )
-//   |> Node.div(~attrs=Attr.[classes(["block"])]);

@@ -26,34 +26,30 @@ let save_syntax = (save_idx: int, z: Zipper.t) =>
   LocalStorage.set(save_syntax_key(save_idx), z |> serialize);
 
 let tasks = [];
-let _tasks = [
-  //Data.epzz,
-  // Data.epz0,
-  // Data.epz1,
-  // Data.epz2,
-  // Data.epz3,
-  // Data.epz4,
-  //Data.t0_transcribe,
-  Data.t1_transcribe,
-  Data.t2_modify_start,
-  Data.t3_transcribe,
-  Data.t4_transcribe,
-  Data.uncurry_modify,
-  Data.fuse_modify,
-  // Data.emoji_paint,
-  // Data.t0_modify,
-  // Data.t1_modify,
-  // Data.t2_modify,
-  // Data.t3_modify,
-  // (("case 7\n| x => 7")),
-  // (("let (a, b) =\n(8*9<6, 17==6) in\n(a,(a, b))")),
-  // (("let f = fun z -> 9 in f(9)")),
-];
+let _tasks =
+  Data.[
+    safe_div,
+    t3_transcribe,
+    t1_transcribe,
+    circle_point_q,
+    t2_modify_start,
+    line_segment_q,
+    t4_transcribe,
+    contains_q,
+    uncurry_modify,
+    uncurry_q,
+    fuse_modify,
+    fuse_q,
+  ];
+let size = List.length(tasks);
 
 let editor_defaults =
   [serialize(Zipper.empty)]
   @ List.map(
-      task => serialize(parse(Util.Dom.trim_leading_whitespace(task))),
+      fun
+      | Data.Sexp(sexp) => sexp
+      | Text(task) =>
+        serialize(parse(Util.Dom.trim_leading_whitespace(task))),
       tasks,
     );
 

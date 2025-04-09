@@ -32,7 +32,11 @@ init:
 	dune build src --profile dev
 
 deps:
+	opam update
 	opam switch import opam.export
+
+change-deps:
+	opam switch export opam.export
 
 release:
 	dune build src --profile release

@@ -36,8 +36,7 @@ let view = ({hist, _}: Model.t) =>
             [Node.div([Node.text(act)]), Node.div([Node.text(sym)])],
           );
         },
-        List.length(hist) > max_items
-          ? Stds.Lists.split_n(hist, max_items) |> fst : hist,
+        Stds.Lists.take(hist, max_items),
       ),
     ),
   ]);

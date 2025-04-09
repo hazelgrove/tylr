@@ -2,7 +2,7 @@ opam-version: "2.0"
 compiler: ["ocaml-base-compiler.5.0.0"]
 roots: [
   "alcotest.1.7.0"
-  "dune.3.15.0"
+  "dune.3.17.2"
   "fmt.0.9.0"
   "incr_dom.v0.16.0"
   "js_of_ocaml.5.7.2"
@@ -51,7 +51,7 @@ installed: [
   "cppo.1.6.9"
   "csexp.1.5.2"
   "diffable.v0.16.0"
-  "dune.3.15.0"
+  "dune.3.17.2"
   "dune-build-info.3.15.0"
   "dune-configurator.3.15.0"
   "dune-rpc.3.15.0"

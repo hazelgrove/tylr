@@ -16,12 +16,7 @@ let perform = (a: t, z: Zipper.t): option(Zipper.t) => {
   | Tab(d) => Tab.perform(d, z)
   | Move(a) => Move.perform(a, z)
   | Select(a) => Select.perform(a, z)
-  | Insert(s) =>
-    s
-    |> Labeler.label
-    |> List.map((x: Token.Unmolded.t) => x.text)
-    |> List.fold_left((x, y) => Modify.insert(y, x), z)
-    |> Option.some
+  | Insert(s) => Some(Modify.insert(s, z))
   | Delete(d) => Modify.delete(d, z)
   };
 };

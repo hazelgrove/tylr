@@ -23,6 +23,7 @@ module Change = {
 
 module Changes = {
   // a list of changes along with interleaved cells for holding normalized cursors
+  [@deriving (show({with_path: false}), sexp, yojson)]
   type t = Chain.t(Cell.t, Change.t);
 };
 
@@ -92,45 +93,66 @@ let relabel = (s: string, z: Zipper.t): Choice.t((Changes.t, Ctx.t)) => {
       switch (l) {
       | Root
       | Node({mtrl: Space(White(_)) | Grout(_), _}) => Choice.nil
-      | Node({id, mtrl, text: l, _}) =>
+      | Node({id, mtrl: Tile((lbl, _)) as mtrl, text: l, _} as tok)
+          when !Token.is_complete(tok) =>
         switch (Labeler.single(~id, l ++ s)) {
-        | None => Choice.nil
-        | Some(tok) =>
+        | Some({mtrl: Tile(lbls), _} as tok) when List.mem(lbl, lbls) =>
           let cs =
             Change.[mk(~src=Src.ins(~l=mtrl, ()), tok)]
             |> restore_and_normalize_cursor(Utf8.length(l ++ s));
           Choice.one((cs, ctx_sans_l));
+        | _ => Choice.nil
+        }
+      | Node({id, mtrl, text: l, _}) =>
+        switch (Labeler.single(~id, l ++ s)) {
+        | Some({mtrl: Tile(_) | Space(Unmolded), _} as tok) =>
+          let cs =
+            Change.[mk(~src=Src.ins(~l=mtrl, ()), tok)]
+            |> restore_and_normalize_cursor(Utf8.length(l ++ s));
+          Choice.one((cs, ctx_sans_l));
+        | _ => Choice.nil
         }
       };
     let merged_r =
       switch (r) {
       | Root
       | Node({mtrl: Space(White(_)) | Grout(_), _}) => Choice.nil
-      | Node({id, mtrl, text: r, _}) =>
+      | Node({id, mtrl: Tile((lbl, _)) as mtrl, text: r, _} as tok)
+          when !Token.is_complete(tok) =>
         switch (Labeler.single(~id, s ++ r)) {
-        | None => Choice.nil
-        | Some(tok) =>
+        | Some({mtrl: Tile(lbls), _} as tok) when List.mem(lbl, lbls) =>
           let cs =
             Change.[mk(~src=Src.ins(~r=mtrl, ()), tok)]
             |> restore_and_normalize_cursor(Utf8.length(s));
           Choice.one((cs, ctx_sans_r));
+        | _ => Choice.nil
+        }
+      | Node({id, mtrl, text: r, _}) =>
+        switch (Labeler.single(~id, s ++ r)) {
+        | Some({mtrl: Tile(_) | Space(Unmolded), _} as tok) =>
+          let cs =
+            Change.[mk(~src=Src.ins(~r=mtrl, ()), tok)]
+            |> restore_and_normalize_cursor(Utf8.length(s));
+          Choice.one((cs, ctx_sans_r));
+        | _ => Choice.nil
         }
       };
     let merged_lr =
       switch (l, r) {
       | (Root | Node({mtrl: Space(White(_)) | Grout(_), _}), _)
       | (_, Root | Node({mtrl: Space(White(_)) | Grout(_), _})) => Choice.nil
+      | (Node({text: l, _}), Node({text: r, _})) when l == "" || r == "" => Choice.nil
       | (
           Node({mtrl: mtrl_l, text: l, id, _}),
           Node({mtrl: mtrl_r, text: r, _}),
         ) =>
         switch (Labeler.single(~id, l ++ s ++ r)) {
-        | None => Choice.nil
-        | Some(tok) =>
+        | Some({mtrl: Tile(_) | Space(Unmolded), _} as tok) =>
           let cs =
             Change.[mk(~src=Src.ins(~l=mtrl_l, ~r=mtrl_r, ()), tok)]
             |> restore_and_normalize_cursor(Utf8.length(l ++ s));
           Choice.one((cs, ctx_sans_lr));
+        | _ => Choice.nil
         }
       };
     Choice.prefers([merged_lr, merged_l, merged_r, no_merge]);
@@ -276,6 +298,43 @@ let delete_toks = (d: Dir.t, toks: list(Token.t)): Changes.t => {
      );
 };
 
+// whether a token is redundant and can be removed given the result of melding
+let is_redundant = (tok: Token.t, grouted: Grouted.t, stack: Stack.t) => {
+  tok.text == ""
+  && (
+    Token.is_complete(tok)
+    || Grouted.is_neq(grouted)
+    || Option.is_some(Grouted.is_eq(grouted))
+    && (
+      stack.slope == []
+      || (
+        // hack to clean up ghosts with starred ctxs in hazel
+        switch (
+          stack |> Stack.face(~from=L) |> Bound.map(Token.mtrl),
+          tok.mtrl,
+        ) {
+        | (
+            Node(Tile((Const(_, _, ","), _))),
+            Tile((Const(_, _, ","), _)),
+          ) =>
+          true
+        | (
+            Node(Tile((Const(_, _, "=>"), m_l))),
+            Tile((Const(_, _, "|"), m_r)),
+          ) =>
+          m_l.prec == m_r.prec
+        | (
+            Node(Tile((Const(_, _, "=>"), m_l))),
+            Tile((Const(_, _, "=>"), m_r)),
+          ) =>
+          m_l.prec == m_r.prec && m_l.prec == 2
+        | _ => false
+        }
+      )
+    )
+  );
+};
+
 let meld =
     (tok: Token.t, ~fill=Cell.dirty, ctx: Ctx.t)
     : option(Result.t(Ctx.t, Cell.t)) => {
@@ -283,15 +342,7 @@ let meld =
   let ((l, r), rest) = Ctx.unlink_stacks(ctx);
   let+ (grouted, l) =
     Melder.push(tok, ~fill, l, ~onto=L, ~repair=Molder.remold);
-  let is_redundant =
-    tok.text == ""
-    && (
-      Token.is_complete(tok)
-      || Grouted.is_neq(grouted)
-      || Option.is_some(Grouted.is_eq(grouted))
-      && l.slope == []
-    );
-  if (is_redundant) {
+  if (is_redundant(tok, grouted, l)) {
     // todo: maybe need to return result here and emit the fill?
     // probably dropping otherwise. this is akin to molder error case.
     // tho molder only does this for the final melded result, does that matter?
@@ -543,6 +594,9 @@ let apply_changes =
 
 let apply_remold = (changes, ctx) => {
   open Choice.Syntax;
+  // P.log("--- Modify.apply_remold");
+  // P.show("changes", Changes.show(changes));
+  // P.show("ctx", Ctx.show(ctx));
   let+ changed = apply_changes(changes, ctx);
   () => {
     open Options.Syntax;
@@ -553,6 +607,9 @@ let apply_remold = (changes, ctx) => {
     // P.show("expanded", string_of_bool(expanded));
     // P.show("restrict_obligs", string_of_bool(restrict_obligs));
     let (remolded, ctx) = remold(~fill, ctx);
+    // P.log("--- Modify.apply_remold/remolded");
+    // P.show("remolded", Grouted.show(remolded));
+    // P.show("ctx", Ctx.show(ctx));
     // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
     // P.show("delta", Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)));
     !expanded
@@ -631,12 +688,10 @@ let try_truncate = (z: Zipper.t) => {
       switch (Token.split_text(tok)) {
       | Some((l, _, "")) when !Strings.is_empty(l) =>
         // P.log("--- Modify.try_truncate/success");
-        let tok = {
-          ...tok,
-          text: l,
-          // renormalize cursor
-          marks: Some(Point(Caret.focus(Utf8.length(l)))),
-        };
+        let n = Utf8.length(l);
+        let tok = {...tok, text: l, marks: Some(Point(Caret.focus(n)))};
+        // renormalize cursor
+        let tok = n < Token.length(tok) ? tok : {...tok, marks: None};
         ctx
         |> Ctx.push(~onto=L, tok)
         |> (Token.is_complete(tok) ? Fun.id : Ctx.push(~onto=R, tok))

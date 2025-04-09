@@ -22,7 +22,8 @@ open Stds;
 
 let debug = ref(false);
 
-let candidates = (t: Token.Unmolded.t): list(Token.t) =>
+let candidates =
+    (~re: option(Mtrl.T.t)=?, t: Token.Unmolded.t): list(Token.t) =>
   List.map(
     Token.mk(~id=t.id, ~marks=?t.marks, ~text=t.text),
     switch (t.mtrl) {
@@ -33,8 +34,15 @@ let candidates = (t: Token.Unmolded.t): list(Token.t) =>
       |> List.concat_map(lbl =>
            Molds.with_label(lbl) |> List.map(mold => (lbl, mold))
          )
-      |> List.stable_sort(((lbl_l, m_l: Mold.t), (lbl_r, m_r: Mold.t)) => {
+      |> List.stable_sort(
+           ((lbl_l, m_l: Mold.t) as l, (lbl_r, m_r: Mold.t) as r) => {
            open Compare.Syntax;
+           let/ () =
+             switch (re) {
+             | Some(Tile(t)) when t == l => (-1)
+             | Some(Tile(t)) when t == r => 1
+             | _ => 0
+             };
            let/ () = Sort.compare(m_l.sort, m_r.sort);
            (-1)
            * Bool.compare(
@@ -86,10 +94,48 @@ let complete_pending_ghosts = (~bounds, l: Stack.t, ~fill) => {
     };
 };
 
+// whether a token is redundant and can be removed given the result of melding
+let is_redundant = (tok: Token.t, grouted: Grouted.t, stack: Stack.t) => {
+  Mtrl.is_tile(tok.mtrl)
+  && Token.is_empty(tok)
+  && (
+    Token.is_complete(tok)
+    || Grouted.is_neq(grouted)
+    || Option.is_some(Grouted.is_eq(grouted))
+    && (
+      stack.slope == []
+      || (
+        // hack to clean up ghosts with starred ctxs in hazel
+        switch (
+          stack |> Stack.face(~from=L) |> Bound.map(Token.mtrl),
+          tok.mtrl,
+        ) {
+        | (
+            Node(Tile((Const(_, _, ","), _))),
+            Tile((Const(_, _, ","), _)),
+          ) =>
+          true
+        | (
+            Node(Tile((Const(_, _, "=>"), m_l))),
+            Tile((Const(_, _, "|"), m_r)),
+          ) =>
+          m_l.prec == m_r.prec
+        | (
+            Node(Tile((Const(_, _, "=>"), m_l))),
+            Tile((Const(_, _, "=>"), m_r)),
+          ) =>
+          m_l.prec == m_r.prec && m_l.prec == 2
+        | _ => false
+        }
+      )
+    )
+  );
+};
+
 // returns Error(fill) if input token is empty
 // re indicates whether token is being remolded
 let rec mold =
-        (~re=false, stack: Stack.t, ~fill=Cell.empty, t: Token.Unmolded.t)
+        (~re=?, stack: Stack.t, ~fill=Cell.empty, t: Token.Unmolded.t)
         : Result.t((Token.t, Grouted.t, Stack.t), Cell.t) => {
   // if (debug^) {
   //   P.log("--- Molder.mold");
@@ -99,9 +145,16 @@ let rec mold =
   //   P.show("t", Token.Unmolded.show(t));
   // };
   switch (
-    candidates(t)
+    candidates(~re?, t)
     |> Oblig.Delta.minimize(tok => {
-         Melder.push(~no_eq=re, tok, ~fill, stack, ~onto=L, ~repair=remold)
+         Melder.push(
+           ~no_eq=Option.is_some(re),
+           tok,
+           ~fill,
+           stack,
+           ~onto=L,
+           ~repair=remold,
+         )
          |> Option.map(((grouted, stack)) => (tok, grouted, stack))
        })
   ) {
@@ -111,14 +164,7 @@ let rec mold =
     // P.show("tok", Token.show(tok));
     // P.show("grouted", Grouted.show(grouted));
     // P.show("stack", Stack.show(stack));
-    Mtrl.is_tile(tok.mtrl)
-    && Token.is_empty(tok)
-    && (
-      Token.is_complete(tok)
-      || Grouted.is_neq(grouted)
-      || Option.is_some(Grouted.is_eq(grouted))
-      && stack.slope == []
-    )
+    is_redundant(tok, grouted, stack)
       ? Error(Cell.mark_degrouted(fill, ~side=R)) : Ok(molded)
   | None =>
     // P.log("--- Molder.mold/deferring");
@@ -129,7 +175,13 @@ let rec mold =
           {
             let (fill, slope) = Slope.Dn.unroll(fill);
             let stack = Stack.cat(slope, stack);
-            Melder.push(~no_eq=re, deferred, ~fill, stack, ~onto=L)
+            Melder.push(
+              ~no_eq=Option.is_some(re),
+              deferred,
+              ~fill,
+              stack,
+              ~onto=L,
+            )
             |> Option.map(((grouted, stack)) => (deferred, grouted, stack))
             |> Options.get_fail("bug: failed to push space");
           },
@@ -176,14 +228,18 @@ and remold =
     // P.show("l", Stack.show(l));
     // P.show("fill", Cell.show(fill));
     // P.show("hd_w", Token.show(hd_w));
-    switch (mold(~re=true, l, ~fill, Labeler.unmold(hd_w))) {
+    switch (mold(~re=hd_w.mtrl, l, ~fill, Labeler.unmold(hd_w))) {
     | Error(fill) =>
       // P.log("--- Molder.remold/continue/molding/error");
       // P.show("fill", Cell.show(fill));
       Effects.remove(hd_w);
-      let (c, up) = unroll_tl_w_hd_cell();
-      let fill = fill |> Cell.pad(~r=c) |> Cell.mark_ends_dirty;
-      (l, r_tl) |> Stack.Frame.cat(([], up)) |> remold(~fill);
+      // if we remove hd_w, then it's no longer guaranteed that the next token
+      // can be molded to yield precedence to current fill, so we need to unroll
+      let (c_l, dn) = Slope.Dn.unroll(fill);
+      let (c_r, up) = unroll_tl_w_hd_cell();
+      let fill =
+        Cell.degrouted |> Cell.pad(~l=c_l, ~r=c_r) |> Cell.mark_ends_dirty;
+      (l, r_tl) |> Stack.Frame.cat((dn, up)) |> remold(~fill);
     | Ok((t, grouted, rest)) when t.mtrl == hd_w.mtrl =>
       // fast path for when hd_w retains original meld
       // P.log("--- Molder.remold/continue/molding/fast path");

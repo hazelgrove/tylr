@@ -1,2 +1,2 @@
-(lang dune 3.15)
+(lang dune 3.17)
 (formatting (enabled_for reason))

@@ -88,20 +88,22 @@ let tab_tests = (
 let modify_tests = (
   "Modify",
   [
+    // originally written when tuples required parens, no longer relevant
+    // test_case(
+    //   "consecutive unmolded tokens get molded once the proper left hand context is inserted",
+    //   `Quick,
+    //   check_edit(
+    //     (Path.Cursor.point(Caret.focus([2, 0, 2])), "let a,b)"),
+    //     [Edit.Insert("(")],
+    //     (Path.Cursor.point(Caret.focus([2, 2, 0])), "let (a,b)"),
+    //   ),
+    // ),
     test_case(
-      "consecutive unmolded tokens get molded once the proper left hand context is inserted",
-      `Quick,
-      check_edit(
-        (Path.Cursor.point(Caret.focus([2, 0, 2])), "let a,b)"),
-        [Edit.Insert("(")],
-        (Path.Cursor.point(Caret.focus([2, 2, 0])), "let (a,b)"),
-      ),
-    ),
-    test_case(
+      // originally written when tuples required parens
       "redundant tuple comma gets removed even when right paren is ghost (#125)",
       `Quick,
       check_edit(
-        (Path.Cursor.point(Caret.focus([3, 1])), "(,"),
+        (Path.Cursor.point(Caret.focus([2, 1, 1])), "(,"),
         [Edit.Delete(L)],
         (Path.Cursor.point(Caret.focus([2, 0])), "("),
       ),

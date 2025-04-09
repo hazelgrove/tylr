@@ -222,7 +222,50 @@ let get_goal = (~font: Model.Font.t, ~target_id, e): Tylr_core.Loc.t => {
   };
 };
 
-let view = (~inject, model: Model.t) => {
+let modulo = (x, y) => {
+  let result = x mod y;
+  result >= 0 ? result : result + y;
+};
+
+let center_panel_view = (~inject, cur_idx, stored) => {
+  let next_ed = (cur_idx + 1) mod stored;
+  let prev_ed = modulo(cur_idx - 1, stored);
+  let incr_ed = _ => inject(Update.Load(next_ed));
+  let decr_ed = _ => inject(Update.Load(prev_ed));
+  let s = Printf.sprintf("%d / %d", cur_idx + 1, stored);
+  div(
+    ~attrs=[Attr.id("editor-id")],
+    [
+      div(
+        ~attrs=[Attr.class_("topbar-icon"), Attr.on_mousedown(decr_ed)],
+        [Icons.back],
+      ),
+      div([text(s)]),
+      div(
+        ~attrs=[Attr.class_("topbar-icon"), Attr.on_mousedown(incr_ed)],
+        [Icons.forward],
+      ),
+    ],
+  );
+};
+
+let load_button = (~inject, idx) => {
+  div(
+    ~attrs=[
+      Attr.id("editor-id"),
+      Attr.class_("topbar-icon"),
+      Attr.on_mousedown(_ =>
+        Effect.sequence_as_sibling(
+          inject(Update.Load(idx)), ~unless_stopped=() =>
+          Effect.Stop_propagation
+        )
+      ),
+    ],
+    [Node.text(string_of_int(idx + 1))],
+  );
+};
+
+let view = (~inject, ~stored, model: Model.t) => {
   div(
     ~attrs=
       Attr.[
@@ -271,6 +314,10 @@ let view = (~inject, model: Model.t) => {
       Dec.Filters.all,
       // top_bar_view(~inject, model),
       // editor_caption_view(model),
+      div(
+        ~attrs=[Attr.id("top-bar")],
+        List.init(1 + stored, load_button(~inject)),
+      ),
       editor_view(model),
       History.view(model),
     ],

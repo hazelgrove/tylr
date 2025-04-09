@@ -1,3 +1,4 @@
+module B = Bound;
 module Bound = {
   include Bound;
   [@deriving (show({with_path: false}), sexp, yojson)]
@@ -20,6 +21,15 @@ let empty = {slope: Slope.empty, bound: Bound.root};
 let cat = (slope: Slope.t, stack: t) => {
   ...stack,
   slope: Slope.cat(slope, stack.slope),
+};
+
+let face = (~from: Dir.t, stack: t) => {
+  let (face, _) = Slope.pull(~from, stack.slope);
+  switch (face) {
+  | Node(tok) => B.Node(tok)
+  | Root =>
+    stack.bound |> Bound.map(terr => fst(Slope.pull_terr(~from, terr)))
+  };
 };
 
 let merge_hd = (~onto: Dir.t, t: Token.t, stack: t) =>

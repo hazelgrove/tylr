@@ -8,25 +8,16 @@ let catch_exns = ref(true);
 
 [@deriving (show({with_path: false}), sexp, yojson)]
 type t =
-  // | Set(settings_action)
-  // | UpdateDoubleTap(option(float))
-  // | LoadInit
-  // | LoadDefault
-  // | Load
-  // | Save
-  // | SwitchEditor(int)
   | Warmup
   | SetFont(Font.t)
-  // | SetLogoFont(Font.t)
   | PerformAction(Edit.t)
-  // | FailedInput(FailedInput.reason) //TODO(andrew): refactor as failure?
   | Undo
   | Redo
   | Load(int);
 
 let is_f_key = s => Re.Str.(string_match(regexp("^F[0-9][0-9]*$"), s, 0));
 
-let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
+let handle_key_event = (k: Util.Key.t, ~model: Model.t): list(t) => {
   // let zipper = model.zipper;
   // let restricted = Backpack.restricted(zipper.backpack);
   // let now = a => [PerformAction(a), UpdateDoubleTap(None)];
@@ -44,17 +35,18 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
   //   | "Alt" => [SetShowBackpackTargets(false)]
   //   | _ => [UpdateDoubleTap(None)]
   //   }
-  | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
-      when is_f_key(key) =>
-    if (key == "F12") {
-      print_endline("Catch exceptions: " ++ string_of_bool(! catch_exns^));
-      catch_exns := ! catch_exns^;
-      [];
-    } else {
-      let index = int_of_string(String.sub(key, 1, 1)) - 1;
-      print_endline("F key pressed: index: " ++ string_of_int(index));
-      now_save_u(Load(index));
-    }
+  // | {key: D(key), sys: _, shift: Down, meta: Up, ctrl: Up, alt: Up}
+  //     when is_f_key(key) =>
+  //   if (key == "F12") {
+  //     print_endline("Catch exceptions: " ++ string_of_bool(! catch_exns^));
+  //     catch_exns := ! catch_exns^;
+  //     [];
+  //   } else {
+  //     let index =
+  //       int_of_string(Base.String.chop_prefix_exn(~prefix="F", key)) - 1;
+  //     print_endline("F key pressed: index = " ++ string_of_int(index));
+  //     now_save_u(Load(index));
+  //   }
   | {key: D(key), sys: _, shift, meta: Up, ctrl: Up, alt: Up} =>
     switch (shift, key) {
     | (Up, "ArrowLeft") => now(Move(Step(H(L))))
@@ -134,6 +126,9 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
     switch (key) {
     | "a" => now(Move(Skip(H(L))))
     | "e" => now(Move(Skip(H(R))))
+    | "s" =>
+      print_endline(Store.serialize(model.zipper));
+      [];
     | _ => []
     }
   // | {key: D(key), sys, shift: Up, meta: Up, ctrl: Up, alt: Down} =>
@@ -153,19 +148,11 @@ let handle_key_event = (k: Util.Key.t, ~model as _: Model.t): list(t) => {
   };
 };
 
-// [@deriving (show, sexp, yojson)]
-// type settings_action =
-//   | Captions
-//   | WhitespaceIcons;
-
 module Failure = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t =
     | CantUndo
     | CantRedo
-    // | FailedToLoad
-    // | FailedToSwitch
-    // | UnrecognizedInput(FailedInput.reason)
     | FailedToPerform
     | Exception(string);
 };
@@ -175,47 +162,12 @@ module Result = {
   type t('success) = Result.t('success, Failure.t);
 };
 
-// let save = (model: Model.t): unit =>
-//   switch (model.editor_model) {
-//   | Simple(z) => LocalStorage.save_syntax(0, z)
-//   | Study(n, zs) =>
-//     assert(n < List.length(zs));
-//     LocalStorage.save_syntax(n, List.nth(zs, n));
-//   };
-
-// let update_settings =
-//     (a: settings_action, settings: Model.settings): Model.settings => {
-//   let settings =
-//     switch (a) {
-//     | Captions => {...settings, captions: !settings.captions}
-//     | WhitespaceIcons => {
-//         ...settings,
-//         whitespace_icons: !settings.whitespace_icons,
-//       }
-//     };
-//   LocalStorage.save_settings(settings);
-//   settings;
-// };
-
-// let move_to_start = z =>
-//   switch (
-//     Zipper.do_extreme(Zipper.move(ByToken, Zipper.from_plane(Up)), Up, z)
-//   ) {
-//   | Some(z) => Zipper.update_target(z)
-//   | None => z
-//   };
-
 let apply =
     (model: Model.t, update: t, _: State.t, ~schedule_action as _)
     : Result.t(Model.t) => {
-  //print_endline("apply");
+  // print_endline("apply");
   switch (update) {
-  // | Warmup =>
-  //   Tylr_core.Warmup.warmup();
-  //   Ok(model);
   | SetFont(font) => Ok({...model, font})
-  // | SetLogoFont(logo_font_metrics) =>
-  //   Ok({...model, logo_font_metrics})
   | PerformAction(a) =>
     switch (Edit.perform(a, model.zipper)) {
     | None => Error(FailedToPerform)
@@ -240,75 +192,15 @@ let apply =
   | Load(n) =>
     Ok({
       ...model,
+      editor: n,
       zipper: Store.load_default_syntax(n),
       history: History.empty,
+      hist: [],
     })
-  // | Set(s_action) =>
-  //   Ok({...model, settings: update_settings(s_action, model.settings)})
-  // | LoadInit =>
-  //   let (zs, id_gen) =
-  //     List.fold_left(
-  //       ((z_acc, id_gen: IdGen.state), n) =>
-  //         switch (LocalStorage.load_syntax(n, id_gen)) {
-  //         | Some((z, id_gen)) => (z_acc @ [z], id_gen)
-  //         | None => (z_acc @ [Model.empty_zipper], id_gen)
-  //         },
-  //       ([], model.id_gen),
-  //       List.init(LocalStorage.num_editors, n => n),
-  //     );
-  //   let zs = List.map(move_to_start, zs);
-  //   Ok({
-  //     ...model,
-  //     history: History.empty,
-  //     id_gen,
-  //     settings: LocalStorage.load_settings(),
-  //     editor_model: Study(LocalStorage.load_editor_idx(), zs),
-  //   });
-  // | LoadDefault =>
-  //   let n = Model.current_editor(model);
-  //   switch (LocalStorage.load_default_syntax(n, model.id_gen)) {
-  //   | Some((z, id_gen)) =>
-  //     Ok({
-  //       ...model,
-  //       history: History.empty,
-  //       editor_model: Model.put_zipper(model, move_to_start(z)),
-  //       id_gen,
-  //     })
-  //   | None => Error(FailedToLoad)
-  //   };
-  // | Load =>
-  //   let n = Model.current_editor(model);
-  //   switch (LocalStorage.load_syntax(n, model.id_gen)) {
-  //   | Some((z, id_gen)) =>
-  //     Ok({
-  //       ...model,
-  //       history: History.empty,
-  //       editor_model: Model.put_zipper(model, move_to_start(z)),
-  //       id_gen,
-  //     })
-  //   | None => Error(FailedToLoad)
-  //   };
-  // | Save =>
-  //   save(model);
-  //   Ok(model);
-  // | SwitchEditor(n) =>
-  //   switch (model.editor_model) {
-  //   | Simple(_) => Error(FailedToSwitch)
-  //   | Study(m, _) when m == n => Error(FailedToSwitch)
-  //   | Study(_, zs) =>
-  //     switch (n < List.length(zs)) {
-  //     | false => Error(FailedToSwitch)
-  //     | true =>
-  //       assert(n < List.length(zs));
-  //       LocalStorage.save_editor_idx(n);
-  //       Ok({
-  //         ...model,
-  //         history: History.empty,
-  //         editor_model: Study(n, zs),
-  //       });
-  //     }
-  //   }
   //TODO: remove when warmup is finalized
-  | _ => Error(FailedToPerform)
+  // | Warmup =>
+  //   Tylr_core.Warmup.warmup();
+  //   Ok(model);
+  | Warmup => Error(FailedToPerform)
   };
 };

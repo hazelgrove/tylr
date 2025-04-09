@@ -98,6 +98,7 @@ module NT = {
     | Space(_) => Bound.(Root, Root)
     | Grout(_) => (Node(0), Node(0))
     | Tile((_, Root)) => (Root, Root)
+    | Tile((s, Node(mold))) when s != mold.sort => (Root, Root)
     | Tile((_, Node(mold))) => Mold.bounds(mold);
 
   module Map =

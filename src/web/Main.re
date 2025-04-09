@@ -35,18 +35,6 @@ let observe_font_specimen = (id, update) =>
     (),
   );
 
-let restart_caret_animation = () =>
-  // necessary to trigger reflow
-  // <https://css-tricks.com/restart-css-animation/>
-  try({
-    let caret_elem = Util.Dom.get_elem_by_id("caret");
-    caret_elem##.classList##remove(Js.string("blink"));
-    let _ = caret_elem##getBoundingClientRect;
-    caret_elem##.classList##add(Js.string("blink"));
-  }) {
-  | _ => ()
-  };
-
 let act_str = (action: Update.t) =>
   switch (action) {
   | SetFont(_) => "SetFont"
@@ -55,7 +43,6 @@ let act_str = (action: Update.t) =>
   };
 
 let apply = (old_model, action, state, ~schedule_action): Model.t => {
-  restart_caret_animation();
   // print_endline("Apply:" ++ Update.show(action));
   switch (Update.apply(old_model, action, state, ~schedule_action)) {
   | exception exn when Update.catch_exns^ =>
@@ -166,7 +153,7 @@ module App = {
       ~apply_action=apply(model),
       // ~on_display= (_, ~schedule_action as _) => {print_endline("on_display")},
       model,
-      View.Page.view(~inject, model),
+      View.Page.view(~inject, ~stored=Store.size, model),
     );
   };
 };
