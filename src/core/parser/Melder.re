@@ -272,8 +272,21 @@ let rec push =
         (
           ~no_eq=false,
           ~repair=?,
+          // ghost paren >)>
           t: Token.t,
+          // iter 1: cell empty
+          // iter 2: cell consisting of \n
+          // iter 3: cell consisting of 1 + \n<>
           ~fill=Cell.empty,
+          // iter 1:
+          // (
+          // 1 +
+          // \n
+          // iter 2:
+          // (
+          // 1 +
+          // iter 3:
+          // (
           stack: Stack.t,
           ~onto: Dir.t,
         )
@@ -285,10 +298,25 @@ let rec push =
          (grouted, Stack.{slope: [], bound})
        )
   | [hd, ...tl] =>
+    // iter 2:
+    // hd == 1 +
+    // tl == [(]
+    // iter 3:
+    // hd == (
+    // tl == []
     let connect = () =>
       switch (connect(~repair?, ~onto, hd, ~fill, t)) {
+      // iter 1:
+      // Error(\n)
+      // iter 2:
+      // Error(1 + \n<>)
       | Error(fill) =>
         push(~no_eq, ~repair?, t, ~fill, {...stack, slope: tl}, ~onto)
+      // iter 3:
+      // Ok(
+      //   grouted: [paren body]
+      //   hd: (
+      // )
       | Ok((grouted, hd)) =>
         Some((grouted, {...stack, slope: [hd, ...tl]}))
       };
