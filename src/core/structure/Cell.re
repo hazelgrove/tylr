@@ -280,17 +280,22 @@ module Space = {
     };
 
   // returns split-off cell first (regardless of side), rest of cell second
+  // if i find a degrout mark within the space cell, split the cell into two at that point
   let split = (~side as d: Dir.t, c: t) => {
     open Options.Syntax;
     assert(is_space(c));
+    //g = general get
+    //calling get on a space cell (spaces separated by empty cells with potential metadata ie degrout)
     let* m = g(c);
     let (cs, ts) = m |> Dir.pick(d, (Fun.id, Meld.rev)) |> Meld.to_chain;
+    //traverses cells and searches for 1st cell with degrout mark
     let (cs_d, cs_b) =
       cs
       |> Lists.split_while(~f=(c: t) => Path.Map.is_empty(c.marks.degrouted));
     switch (cs_d, cs_b) {
     | (_, []) => None
     | ([], [b_hd, ...b_tl]) =>
+      //ensuring no cursor duplication in cells with degrouted mark
       let b_hd_dup = {
         ...b_hd,
         marks: {

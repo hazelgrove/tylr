@@ -108,6 +108,21 @@ let combine_cells =
   };
 };
 
+//let x = 2 + _ >in< 1
+//insert an "in" after 1
+/*
+ onto: let x = 2 + _ >in<
+ fill: 1
+ t: in
+
+
+ onto: let x =
+ fill: combine_cells(2 + _, 1) -> 2 + 1
+ t: in
+
+ ret: (Grouted(Chain((2 + 1, grammar swing over let definition))), onto: let x = )
+ */
+
 let connect_eq =
     (~repair=?, ~onto as d: Dir.t, onto: Terr.t, ~fill=Cell.empty, t: Token.t)
     : option((Grouted.t, Terr.t)) => {

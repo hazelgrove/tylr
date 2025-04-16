@@ -600,18 +600,18 @@ let apply_remold = (changes, ctx) => {
   let+ changed = apply_changes(changes, ctx);
   () => {
     open Options.Syntax;
-    let* ((ctx, fill), expanded, restrict_obligs) = changed();
-    P.log("--- Modify.apply_remold/changed");
-    P.sexp("ctx", Ctx.sexp_of_t(ctx));
-    P.show("fill", Cell.show(fill));
-    P.show("expanded", string_of_bool(expanded));
-    P.show("restrict_obligs", string_of_bool(restrict_obligs));
+    let* ((ctx, fill), _expanded, _restrict_obligs) = changed();
+    // P.log("--- Modify.apply_remold/changed");
+    // P.sexp("ctx", Ctx.sexp_of_t(ctx));
+    // P.show("fill", Cell.show(fill));
+    // P.show("expanded", string_of_bool(expanded));
+    // P.show("restrict_obligs", string_of_bool(restrict_obligs));
     let (remolded, ctx) = remold(~fill, ctx);
     // P.log("--- Modify.apply_remold/remolded");
     // P.show("remolded", Grouted.show(remolded));
     // P.show("ctx", Ctx.show(ctx));
-    P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
-    P.show("delta", Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)));
+    // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
+    // P.show("delta", Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)));
     // !expanded
     // && restrict_obligs
     // && Oblig.Delta.(not_hole(of_effects(Effects.log^)))

@@ -110,8 +110,14 @@ let bake_stances = stances => stances |> List.map(bake_stance) |> Option.some;
 
 let rec degrout = (c: Cell.t): Cells.t =>
   switch (Cell.get(c)) {
+  //open the cell
   | Some(M(l, w, r)) when Option.is_some(Wald.is_grout(w)) =>
+    P.log("degrout hit some case");
+    //pull the inner cells out ("base")
     let W((toks, cells)) = w;
+    P.show("l: ", Cell.show(l));
+    P.show("w: ", Wald.show(w));
+    P.show("r: ", Cell.show(r));
     List.iter(Effects.remove, toks);
     // we wish to maximally stabilize grout positioning, ie grout that is removed
     // in this pass, if reinserted, should be reinserted in the same position.
@@ -123,9 +129,12 @@ let rec degrout = (c: Cell.t): Cells.t =>
     let cells_l =
       switch (cells) {
       | [hd, ...tl] when Cell.Space.is_space(l) =>
+        //mark_degrouted says "a grout once was here"
         let l = Cell.mark_degrouted(l, ~side=R);
+        P.show("degrout cells_l & pad without squash", Cell.show(l));
         [Cell.pad(~squash=false, ~l, hd), ...tl];
       | [] when Cell.Space.is_space(l) =>
+        P.show("degrout cells_l", Cell.show(l));
         let l = Cell.mark_degrouted(l, ~side=R);
         [l];
       | _ => [l, ...cells]
@@ -134,9 +143,11 @@ let rec degrout = (c: Cell.t): Cells.t =>
       switch (Lists.Framed.ft(cells_l)) {
       | Some((pre, ft)) when Cell.Space.is_space(r) =>
         let r = Cell.mark_degrouted(~side=L, r);
+        P.show("degrout cells_r & pad without squash", Cell.show(l));
         Lists.Framed.put_ft(pre, Cell.pad(~squash=false, ft, ~r));
       | None when Cell.Space.is_space(r) =>
         let r = Cell.mark_degrouted(~side=L, r);
+        P.show("degrout cells_r", Cell.show(l));
         [r];
       | _ => cells_l @ [r]
       };
@@ -158,23 +169,40 @@ let fill_default =
       ),
     );
 
+/*
+    slot = swing = "tower" of nonterminals (modeled via chain) - tower is a partial (left spine) "derivation" through non-terminal symbols to other non terminals
+    bot is the most important nt as it is the fill target; everything above is context
+   swing example:
+     _ + n * _
+     walk (+ -> *) L->R
+     swing b/w: R(+), L(*)
+     filling in the swing would be filling the left arg of times L(*)
+
+   top and bot essentially provide L/R bounds on the fill of interest
+
+
+    takes in a particular bin of fills (if 4 fills, 3 slots, 4 fills will be partitioned into 3 bins)
+ */
+
 // assumes cs already squashed sans padding
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   let cs = Dir.pick(from, (List.rev, Fun.id), cs);
-  if (dbg^) {
-    P.log("--- Grouter.fill_swing");
-    P.show("from", Dir.show(from));
-    P.show("sw", Walk.Swing.show(sw));
-    P.show("cs", Cells.show(cs));
-  };
+  // if (dbg^) {
+  // P.log("--- Grouter.fill_swing");
+  // P.show("from", Dir.show(from));
+  // P.show("sw", Walk.Swing.show(sw));
+  // P.show("cs", Cells.show(cs));
+  // };
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
   | Space(nt) =>
-    if (dbg^) {
-      P.log("--- Grouter.fill_swing/Space");
-      P.show("nt", Space.NT.show(nt));
-      P.show("cs", Cells.show(cs));
-    };
+    // if (dbg^) {
+    // P.log("--- Grouter.fill_swing/Space");
+    // P.show("from", Dir.show(from));
+    // P.show("sw", Walk.Swing.show(sw));
+    // P.show("nt", Space.NT.show(nt));
+    // P.show("cs", Cells.show(cs));
+    // };
     let squashed = Cells.squash(cs);
     if (dbg^) {
       P.show("squashed", Cells.show(squashed));
@@ -209,8 +237,11 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     open Options.Syntax;
     let (nt_l, nt_r) =
       Walk.Swing.is_eq(sw) ? (bot, bot) : Dir.order(from, (top, bot));
+    //check that fills are properly precedence bounded by swing nts
     let+ has_pre = Cells.are_bounded(cs, nt_l, ~from=L)
     and+ has_pos = Cells.are_bounded(cs, nt_r, ~from=R);
+    //handles breadcrumbs from degrouting to retain grout positioning
+    //NOTE: split padding is a possible candidate for newline bug fix
     switch (Cells.split_padding(cs)) {
     | (l, cs, r) when List.for_all(Cell.Space.is_space, cs) =>
       if (dbg^) {
@@ -235,6 +266,8 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
         P.show("cs", Cells.show(cs));
         P.show("r", Cell.show(r));
       };
+      //cells is list of children cells for target grout form
+      //cons/scnoc here effectively add l/r as children of prefix/postfix grout
       let cells =
         cs
         |> (has_pre ? List.cons(l) : Lists.map_hd(Cell.pad(~l)))
@@ -249,6 +282,8 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
           has_pos ? [Effects.insert(pos(s))] : [],
         ]
         |> List.concat;
+      //chain is the content of the cell that we will be returning
+      //essentially a meld represented with Chain.t
       let chain = Chain.mk(cells, toks);
       switch (Chain.unlink(chain)) {
       | Error(c) =>
@@ -267,6 +302,20 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   };
 };
 
+/*degrout explain:
+      if fill: 1 > < 2
+      then degrout would separate this into two separate fills
+      [1, 2] with no infix grout
+
+      if fill: \n <> (newline is left child of hole - whitespace has max prec)
+          then degrout produces \n (single newline cell)
+
+
+      degrout functionally strips away top level grout to re-create from a clean(ish) slate to verify minimality
+
+      if same grout is reinserted to fill, it must be in the same pos
+  */
+
 let fill_swings =
     (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) => {
   if (dbg^) {
@@ -278,7 +327,7 @@ let fill_swings =
   cells
   |> Dir.pick(from, (List.rev, Fun.id))
   |> (repair ? List.concat_map(degrout) : Fun.id)
-  // |> (dbg^ ? P.oshow("degrouted", Cells.show) : Fun.id)
+  |> (true ? P.oshow("degrouted", Cells.show) : Fun.id)
   |> Dir.pick(from, (List.rev, Fun.id))
   |> Lists.split_bins(List.length(swings))
   |> Oblig.Delta.minimize(~to_zero=!repair, c_bins =>
@@ -303,13 +352,14 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
 // pick a walk from ws that best accommodates the cells in cs, ie minimizes
 // obligation delta. the given cells are expected to be oriented the same way as the
 // given walks according to from.
+//cs should be a singleton cell
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) => {
   // if (dbg^) {
-  //   P.log("--- Grouter.pick");
-  //   P.show("from", Dir.show(from));
-  //   P.show("cs", Cells.show(cs));
-  //   P.log("ws");
-  //   ws |> List.iter(w => P.show("w", Walk.show(w)));
+  // P.log("--- Grouter.pick");
+  // P.show("from", Dir.show(from));
+  // P.show("cs", Cells.show(cs));
+  // P.log("ws");
+  // ws |> List.iter(w => P.show("w", Walk.show(w)));
   // };
   Oblig.Delta.minimize(
     ~to_zero=!repair,
