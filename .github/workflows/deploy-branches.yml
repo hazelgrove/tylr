@@ -56,3 +56,19 @@ jobs:
           git status
           git diff-index --quiet HEAD || (git commit -m "github-deploy-action-${BRANCH_NAME}"; git push)
         working-directory: ./server
+      - name: Run Tests
+        id: test
+        run: |
+          eval $(opam env)
+          make test
+        working-directory: ./source
+        timeout-minutes: 10
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Report
+          path: ./_build/default/test/junit_tests*.xml
+          reporter: java-junit
+          fail-on-error: true
+          fail-on-empty: true # Use an empty test report to detect when something failed with the test runner
+          working-directory: ./source

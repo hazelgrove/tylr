@@ -1,6 +1,7 @@
 open Alcotest;
 open Stds;
 open Tylr_core;
+open Junit_alcotest;
 
 module State = {
   type t = (Path.Cursor.t, string);
@@ -111,6 +112,8 @@ let modify_tests = (
   ],
 );
 
-let () = {
-  run("tylr", [move_tests, tab_tests, modify_tests]);
+let (suite, _) = {
+  run_and_report("tylr", [move_tests, tab_tests, modify_tests]);
 };
+
+Junit.to_file(Junit.make([suite]), "junit_tests.xml");

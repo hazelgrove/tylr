@@ -3,6 +3,7 @@
  (modules test_suite)
  (libraries
    alcotest
+   junit_alcotest
    stds
    tylr_core
    tylr_hazel))
