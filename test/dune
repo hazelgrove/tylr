@@ -6,4 +6,6 @@
    junit_alcotest
    stds
    tylr_core
-   tylr_hazel))
+   tylr_hazel
+   qcheck
+   qcheck-alcotest))

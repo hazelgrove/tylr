@@ -26,6 +26,11 @@ module State = {
 
 let clear_ids = Zipper.map_toks((tok: Token.t) => {...tok, id: 0});
 
+let testable_zipper =
+  Alcotest.testable(Fmt.using(Zipper.show, Fmt.string), (a, b) =>
+    clear_ids(a) == clear_ids(b)
+  );
+
 let check_edit = (init: State.t, edits: list(Edit.t), expected: State.t, ()) => {
   let edited =
     edits
@@ -86,6 +91,71 @@ let tab_tests = (
   ],
 );
 
+let insert_tests = (
+  "Insert",
+  {
+    let parse = str => Modify.insert(str, Zipper.empty);
+    let parse_by_character = str => {
+      print_endline("Str: " ++ str);
+      str
+      |> String.to_seq
+      |> Seq.fold_left(
+           (z, c) => {
+             print_endline(
+               "\nInserting: " ++ String.of_seq(List.to_seq([c])),
+             );
+             Modify.insert(String.of_seq(List.to_seq([c])), z);
+           },
+           Zipper.empty,
+           _,
+         );
+    };
+    let arb_nonempty_printable_string =
+      QCheck.(
+        QCheck.add_shrink_invariant(
+          s => String.length(s) > 0,
+          string_printable_of_size(Gen.int_range(1, 3)),
+        )
+      );
+
+    [
+      QCheck_alcotest.to_alcotest(
+        QCheck.Test.make(
+          ~name="Insert does not crash",
+          ~count=1000,
+          arb_nonempty_printable_string,
+          str => {
+            ignore(parse_by_character(str));
+            true;
+          },
+        ),
+      ),
+      QCheck_alcotest.to_alcotest(
+        QCheck.Test.make(
+          ~name="Insert is deterministic",
+          ~count=1000,
+          arb_nonempty_printable_string,
+          str => {
+          Alcotest.equal(testable_zipper, parse(str), parse(str))
+        }),
+      ),
+      QCheck_alcotest.to_alcotest(
+        QCheck.Test.make(
+          ~name="Insert by character is equivalent to Insert",
+          ~count=1000,
+          arb_nonempty_printable_string,
+          str => {
+            let parsed = parse(str);
+            let parsed_by_character = parse_by_character(str);
+            ignore(check(testable_zipper, str, parsed, parsed_by_character));
+            true;
+          },
+        ),
+      ),
+    ];
+  },
+);
+
 let modify_tests = (
   "Modify",
   [
@@ -113,7 +183,10 @@ let modify_tests = (
 );
 
 let (suite, _) = {
-  run_and_report("tylr", [move_tests, tab_tests, modify_tests]);
+  run_and_report(
+    "tylr",
+    [move_tests, tab_tests, modify_tests, insert_tests],
+  );
 };
 
 Junit.to_file(Junit.make([suite]), "junit_tests.xml");
