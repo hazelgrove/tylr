@@ -23,14 +23,15 @@ let complete_wald = (~side: Dir.t, ~fill=Cell.empty, w: Wald.t): Terr.t => {
 };
 // onto confusing here when considered alone, same onto piped from push(~onto)
 let complete_terr = (~onto: Dir.t, ~fill=Cell.empty, terr: Terr.t): Cell.t => {
+  P.log("--- Melder.complete_terr");
+  P.show("onto", Dir.show(onto));
+  P.show("fill", Cell.show(fill));
+  P.show("terr", Terr.show(terr));
+
   let orient = Dir.pick(onto, (Meld.rev, Fun.id));
   let exited = Walker.exit(~from=onto, Node(Terr.face(terr).mtrl));
   let grouted = Grouter.pick(~repair=true, ~from=onto, [fill], exited);
   // if (debug^) {
-  // P.log("--- Melder.complete_terr");
-  // P.show("onto", Dir.show(onto));
-  // P.show("fill", Cell.show(fill));
-  // P.show("terr", Terr.show(terr));
   // };
   switch (grouted) {
   | Some(grouted) =>
