@@ -225,6 +225,23 @@ let get = (~distribute=true, c: t) =>
   (distribute ? distribute_marks : Fun.id)(c).meld;
 let put = (meld: Meld.t(_)) => aggregate_marks(mk(~meld, ()));
 
+let rec split_edge = (~side: Dir.t, c: t) =>
+  switch (get(c)) {
+  | None => (c, {
+                  ...c,
+                  marks: {
+                    ...c.marks,
+                    cursor: None,
+                  },
+                })
+  | Some(M(l, w, r)) =>
+    let (d, b) = Dir.order(side, (l, r));
+    let (c, d) = split_edge(~side, d);
+    let (l, r) = Dir.order(side, (d, b));
+    let rest = put(M(l, w, r));
+    (c, rest);
+  };
+
 let caret = (car: Path.Caret.t) =>
   mk(~marks=Marks.mk(~cursor=Point(car), ()), ());
 
@@ -280,17 +297,24 @@ module Space = {
     };
 
   // returns split-off cell first (regardless of side), rest of cell second
+  // if i find a degrout mark within the space cell, split the cell into two at that point
   let split = (~side as d: Dir.t, c: t) => {
     open Options.Syntax;
     assert(is_space(c));
+    //g = general get
+    //calling get on a space cell (spaces separated by empty cells with potential metadata ie degrout)
     let* m = g(c);
     let (cs, ts) = m |> Dir.pick(d, (Fun.id, Meld.rev)) |> Meld.to_chain;
+    //traverses cells and searches for 1st cell with degrout mark
     let (cs_d, cs_b) =
       cs
       |> Lists.split_while(~f=(c: t) => Path.Map.is_empty(c.marks.degrouted));
     switch (cs_d, cs_b) {
+    //we failed to find a degrouted mark
     | (_, []) => None
+    //immediately encounter degrout on the "d" side
     | ([], [b_hd, ...b_tl]) =>
+      //ensuring no cursor duplication in cells with degrouted mark
       let b_hd_dup = {
         ...b_hd,
         marks: {
@@ -298,6 +322,10 @@ module Space = {
           cursor: None,
         },
       };
+
+      //logic to handle the cursor jumping when coming from the left
+      let (b_hd, b_hd_dup) = Dir.order(d, (b_hd, b_hd_dup));
+
       let rest =
         Meld.of_chain(([b_hd_dup, ...b_tl], ts))
         |> Dir.pick(d, (Fun.id, Meld.rev))
@@ -305,7 +333,6 @@ module Space = {
       Some((b_hd, rest));
     | ([_, ..._], [b_hd, ...b_tl]) =>
       let (ts_d, ts_b) = Lists.split_n(ts, List.length(cs_d));
-      let cs_d = cs_d @ [b_hd];
       let b_hd_dup = {
         ...b_hd,
         marks: {
@@ -313,6 +340,10 @@ module Space = {
           cursor: None,
         },
       };
+      //logic to handle the cursor jumping when coming from the left
+      let (b_hd, b_hd_dup) = Dir.order(d, (b_hd, b_hd_dup));
+
+      let cs_d = cs_d @ [b_hd];
       let cs_b = [b_hd_dup, ...b_tl];
       let split =
         (cs_d, ts_d)

@@ -597,7 +597,7 @@ let apply_remold = (changes, ctx) => {
   let+ changed = apply_changes(changes, ctx);
   () => {
     open Options.Syntax;
-    let* ((ctx, fill), expanded, restrict_obligs) = changed();
+    let* ((ctx, fill), _expanded, _restrict_obligs) = changed();
     // P.log("--- Modify.apply_remold/changed");
     // P.show("ctx", Ctx.show(ctx));
     // P.show("fill", Cell.show(fill));
@@ -609,10 +609,11 @@ let apply_remold = (changes, ctx) => {
     // P.show("ctx", Ctx.show(ctx));
     // P.show("effects", Fmt.(to_to_string(list(Effects.pp), Effects.log^)));
     // P.show("delta", Oblig.Delta.show(Oblig.Delta.of_effects(Effects.log^)));
-    !expanded
-    && restrict_obligs
-    && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
-      ? None : Some((remolded, ctx));
+    // !expanded
+    // && restrict_obligs
+    // && Oblig.Delta.(not_hole(of_effects(Effects.log^)))
+    // ? None : Some((remolded, ctx));
+    Some((remolded, ctx));
   };
 };
 

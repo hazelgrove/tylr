@@ -8,7 +8,16 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
   switch (Cell.get(c)) {
   | None => Cell.(empty, c)
   | Some(m) when Option.is_some(Meld.Space.get(m)) =>
-    Cell.Space.split(~side, c) |> Option.value(~default=(c, Cell.empty))
+    switch (Cell.Space.split(~side, c)) {
+    | Some(s) => s
+    | None =>
+      switch (side) {
+      | L => (c, Cell.empty)
+      | R =>
+        let (c, rest) = Cell.split_edge(~side=L, c);
+        (rest, c);
+      }
+    }
   | Some(M(l, w, r)) =>
     switch (side) {
     | L =>
@@ -61,21 +70,40 @@ module Cells = {
     // where c holds the meld {} " " {|} " " {}, the caret | will be pulled
     // left side of any grout inserted between the spaces, which is afaict always
     // what we want after any modification (except maybe forward delete)
-    let (l, cs) =
-      switch (cs) {
-      | [c, ...cs] =>
-        let (l, c) = split_cell_padding(~side=L, c);
-        (l, cons(c, cs));
-      | [] => (Cell.empty, cs)
-      };
-    let (cs, r) =
-      switch (Lists.Framed.ft(cs)) {
-      | Some((cs, c)) =>
-        let (r, c) = split_cell_padding(~side=R, c);
-        (List.rev(cons(c, cs)), r);
-      | None => (cs, Cell.empty)
-      };
-    (l, squash(cs), r);
+    switch (cs) {
+    | [c] when Cell.Space.is_space(c) =>
+      let (cs, r) =
+        switch (Lists.Framed.ft(cs)) {
+        | Some((cs, c)) =>
+          let (r, c) = split_cell_padding(~side=R, c);
+          (List.rev(cons(c, cs)), r);
+        | None => (cs, Cell.empty)
+        };
+      let (l, cs) =
+        switch (cs) {
+        | [c, ...cs] =>
+          let (l, c) = split_cell_padding(~side=L, c);
+          (l, cons(c, cs));
+        | [] => (Cell.empty, cs)
+        };
+      (l, squash(cs), r);
+    | _ =>
+      let (l, cs) =
+        switch (cs) {
+        | [c, ...cs] =>
+          let (l, c) = split_cell_padding(~side=L, c);
+          (l, cons(c, cs));
+        | [] => (Cell.empty, cs)
+        };
+      let (cs, r) =
+        switch (Lists.Framed.ft(cs)) {
+        | Some((cs, c)) =>
+          let (r, c) = split_cell_padding(~side=R, c);
+          (List.rev(cons(c, cs)), r);
+        | None => (cs, Cell.empty)
+        };
+      (l, squash(cs), r);
+    };
   };
 
   // output Some(b) if bounded, where b indicates whether pre/post grout needed
