@@ -296,6 +296,63 @@ module Space = {
     | _ => put(Meld.of_chain((cs, ts)))
     };
 
+  let split_cursor = (c: t) => {
+    open Options.Syntax;
+    assert(is_space(c));
+    //g = general get
+    //calling get on a space cell (spaces separated by empty cells with potential metadata ie degrout)
+    let* m = g(c);
+    //cd is now reversed to be from the right
+    let (cs, ts) = m |> Meld.rev |> Meld.to_chain;
+    cs |> List.iter(c => P.show("split_cursor_rev cs", show(c)));
+    ts |> List.iter(t => P.show("split_cursor_rev ts", Token.show(t)));
+    //traverses cells and searches for 1st cell with cursor mark
+    let (cs_r, cs_l) =
+      cs |> Lists.split_while(~f=(c: t) => Option.is_none(c.marks.cursor));
+
+    cs_r |> List.iter(c => P.show("split_cursor_cursor cs_r", show(c)));
+    cs_l |> List.iter(c => P.show("split_cursor_cursor cs_l", show(c)));
+
+    switch (cs_r, cs_l) {
+    //we failed to find a cursor mark
+    | (_, []) => None
+    //immediately encounter cursor on the "d" side
+    | ([], [l_hd, ...l_tl]) =>
+      //ensuring no cursor duplication in cells with cursor mark
+      let l_hd_dup = {
+        ...l_hd,
+        marks: {
+          ...l_hd.marks,
+          cursor: None,
+        },
+      };
+
+      P.show("l_hd_dup", show(l_hd_dup));
+
+      let rest = Meld.of_chain(([l_hd, ...l_tl], ts)) |> Meld.rev |> put;
+      Some((l_hd_dup, rest));
+    | ([_, ..._], [l_hd, ...l_tl]) =>
+      let (ts_r, ts_l) = Lists.split_n(ts, List.length(cs_r));
+      let l_hd_dup = {
+        ...l_hd,
+        marks: {
+          ...l_hd.marks,
+          cursor: None,
+        },
+      };
+
+      let cs_r = cs_r @ [l_hd_dup];
+      let cs_l = [l_hd, ...l_tl];
+      cs_r |> List.iter(c => P.show("cs_r", show(c)));
+      cs_l |> List.iter(c => P.show("cs_l", show(c)));
+      let split = (cs_r, ts_r) |> (c => Chain.rev(c)) |> Funs.uncurry(mk);
+      let rest = (cs_l, ts_l) |> (c => Chain.rev(c)) |> Funs.uncurry(mk);
+      ts_r |> List.iter(t => P.show("ts_r", Token.show(t)));
+      ts_l |> List.iter(t => P.show("ts_l", Token.show(t)));
+      Some((split, rest));
+    };
+  };
+
   // returns split-off cell first (regardless of side), rest of cell second
   // if i find a degrout mark within the space cell, split the cell into two at that point
   let split = (~side as d: Dir.t, c: t) => {

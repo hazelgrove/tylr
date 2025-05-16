@@ -29,6 +29,32 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
     }
   };
 
+let rec extract_cell_padding = (~side: Dir.t, c: Cell.t) =>
+  switch (Cell.get(c)) {
+  | None => (Cell.empty, c)
+  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
+    P.show("hit extract_cell_padding.space", Cell.show(c));
+    switch (Cell.Space.split_cursor(c)) {
+    | Some(s) =>
+      P.show(
+        "hit extract_cell_padding.split_cursor some fst: ",
+        Cell.show(fst(s)),
+      );
+      P.show("snd: ", Cell.show(snd(s)));
+      s;
+    | None => (c, Cell.empty)
+    };
+  | Some(M(l, w, r)) =>
+    switch (side) {
+    | L =>
+      let (p_l, l) = extract_cell_padding(~side=L, l);
+      Cell.(p_l, put(M(l, w, r)));
+    | R =>
+      let (p_r, r) = extract_cell_padding(r, ~side=R);
+      Cell.(p_r, put(M(l, w, r)));
+    }
+  };
+
 module Cells = {
   [@deriving (show({with_path: false}), sexp, yojson)]
   type t = list(Cell.t);
@@ -160,6 +186,26 @@ let rec degrout = (c: Cell.t): Cells.t =>
   | _ => [c]
   };
 
+let extract_newline = (~from: Dir.t, cs: Cells.t) => {
+  switch (cs) {
+  | [c] =>
+    switch (from) {
+    | L =>
+      let (pad, c) = extract_cell_padding(~side=R, c);
+      ([c], pad);
+    | R => (cs, Cell.empty)
+    }
+  | _ => (cs, Cell.empty)
+  };
+};
+
+let reinsert_newline = (~from: Dir.t, grouted: Grouted.t, nl: Cell.t) => {
+  switch (from) {
+  | L => Chain.map_hd(Tuples.map_snd(Cell.pad(~r=nl)), grouted)
+  | R => grouted
+  };
+};
+
 let fill_default =
   fun
   | Mtrl.Space(_) => Cell.dirty
@@ -266,16 +312,26 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
 // obligation delta. the given cells are expected to be oriented the same way as the
 // given walks according to from.
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) => {
+  open Options.Syntax;
   // if (dbg^) {
-  //   P.log("--- Grouter.pick");
-  //   P.show("from", Dir.show(from));
-  //   P.show("cs", Cells.show(cs));
+  P.log("--- Grouter.pick");
+  P.show("from", Dir.show(from));
+  P.show("cs", Cells.show(cs));
   //   P.log("ws");
   //   ws |> List.iter(w => P.show("w", Walk.show(w)));
   // };
-  Oblig.Delta.minimize(
-    ~to_zero=!repair,
-    fill(~repair, ~from, cs),
-    ws,
-  );
+
+  let (cs, nl) = extract_newline(~from, cs);
+
+  P.show("cs post newline extract", Cells.show(cs));
+  P.show("nl", Cell.show(nl));
+
+  let+ grouted =
+    Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);
+
+  P.show("grouted no nl", Grouted.show(grouted));
+
+  let reinsert = reinsert_newline(~from, grouted, nl);
+  P.show("grouted with nl ", Grouted.show(reinsert));
+  reinsert;
 };
