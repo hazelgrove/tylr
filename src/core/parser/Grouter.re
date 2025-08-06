@@ -11,15 +11,10 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
     switch (Cell.Space.split(~side, c)) {
     | Some(s) => s
     | None =>
-      // P.show("Cell.space.split results in none with c:", Cell.show(c));
       switch (side) {
-      | L =>
-        // P.show("split_cell_padding edge left c", Cell.show(c));
-        (c, Cell.empty) /*  |> Option.value(~default=) */
+      | L => (c, Cell.empty)
       | R =>
         let (c, rest) = Cell.split_edge(~side=L, c);
-        // P.show("split_cell_padding split_edge right c", Cell.show(c));
-        // P.show("rest", Cell.show(rest));
         (rest, c);
       }
     }
@@ -30,6 +25,32 @@ let rec split_cell_padding = (~side: Dir.t, c: Cell.t) =>
       Cell.(p_l, put(M(l, w, r)));
     | R =>
       let (p_r, r) = split_cell_padding(r, ~side=R);
+      Cell.(p_r, put(M(l, w, r)));
+    }
+  };
+
+let rec extract_cell_padding = (~side: Dir.t, c: Cell.t) =>
+  switch (Cell.get(c)) {
+  | None => (Cell.empty, c)
+  | Some(m) when Option.is_some(Meld.Space.get(m)) =>
+    P.show("hit extract_cell_padding.space", Cell.show(c));
+    switch (Cell.Space.split_cursor(c)) {
+    | Some(s) =>
+      P.show(
+        "hit extract_cell_padding.split_cursor some fst: ",
+        Cell.show(fst(s)),
+      );
+      P.show("snd: ", Cell.show(snd(s)));
+      s;
+    | None => (c, Cell.empty)
+    };
+  | Some(M(l, w, r)) =>
+    switch (side) {
+    | L =>
+      let (p_l, l) = extract_cell_padding(~side=L, l);
+      Cell.(p_l, put(M(l, w, r)));
+    | R =>
+      let (p_r, r) = extract_cell_padding(r, ~side=R);
       Cell.(p_r, put(M(l, w, r)));
     }
   };
@@ -77,10 +98,6 @@ module Cells = {
     // what we want after any modification (except maybe forward delete)
     switch (cs) {
     | [c] when Cell.Space.is_space(c) =>
-      // P.log("Special split_padding case");
-      // P.show("r: ", Cell.show(r));
-      // P.show("c: ", Cell.show(c));
-
       let (cs, r) =
         switch (Lists.Framed.ft(cs)) {
         | Some((cs, c)) =>
@@ -88,8 +105,6 @@ module Cells = {
           (List.rev(cons(c, cs)), r);
         | None => (cs, Cell.empty)
         };
-      // P.show("cs: ", show(cs));
-      // P.show("r: ", Cell.show(r));
       let (l, cs) =
         switch (cs) {
         | [c, ...cs] =>
@@ -97,8 +112,6 @@ module Cells = {
           (l, cons(c, cs));
         | [] => (Cell.empty, cs)
         };
-      // P.show("l: ", Cell.show(l));
-      // P.show("final cs: ", show(cs));
       (l, squash(cs), r);
     | _ =>
       let (l, cs) =
@@ -199,6 +212,26 @@ let rec degrout = (c: Cell.t): Cells.t =>
     List.concat_map(degrout, cells_lr);
   | _ => [c]
   };
+
+let extract_newline = (~from: Dir.t, cs: Cells.t) => {
+  switch (cs) {
+  | [c] =>
+    switch (from) {
+    | L =>
+      let (pad, c) = extract_cell_padding(~side=R, c);
+      ([c], pad);
+    | R => (cs, Cell.empty)
+    }
+  | _ => (cs, Cell.empty)
+  };
+};
+
+let reinsert_newline = (~from: Dir.t, grouted: Grouted.t, nl: Cell.t) => {
+  switch (from) {
+  | L => Chain.map_hd(Tuples.map_snd(Cell.pad(~r=nl)), grouted)
+  | R => grouted
+  };
+};
 
 let fill_default =
   fun
@@ -400,15 +433,26 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
 // given walks according to from.
 //cs should be a singleton cell
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) => {
+  open Options.Syntax;
   // if (dbg^) {
   P.log("--- Grouter.pick");
-  // P.show("from", Dir.show(from));
-  // P.show("cs", Cells.show(cs));
-  // P.log("ws");
-  // ws |> List.iter(w => P.show("w", Walk.show(w)));
+  P.show("from", Dir.show(from));
+  P.show("cs", Cells.show(cs));
+  //   P.log("ws");
+  //   ws |> List.iter(w => P.show("w", Walk.show(w)));
   // };
-  let r =
+
+  let (cs, nl) = extract_newline(~from, cs);
+
+  P.show("cs post newline extract", Cells.show(cs));
+  P.show("nl", Cell.show(nl));
+
+  let+ grouted =
     Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);
-  P.log("Grouter.pick done");
-  r;
+
+  P.show("grouted no nl", Grouted.show(grouted));
+
+  let reinsert = reinsert_newline(~from, grouted, nl);
+  P.show("grouted with nl ", Grouted.show(reinsert));
+  reinsert;
 };

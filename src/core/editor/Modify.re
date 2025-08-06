@@ -594,9 +594,9 @@ let apply_changes =
 
 let apply_remold = (changes, ctx) => {
   open Choice.Syntax;
-  // P.log("--- Modify.apply_remold");
-  // P.show("changes", Changes.show(changes));
-  // P.show("ctx", Ctx.show(ctx));
+  P.log("--- Modify.apply_remold");
+  P.show("changes", Changes.show(changes));
+  P.show("ctx", Ctx.show(ctx));
   let+ changed = apply_changes(changes, ctx);
   () => {
     open Options.Syntax;
