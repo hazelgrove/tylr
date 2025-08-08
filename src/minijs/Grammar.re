@@ -483,7 +483,13 @@ and Stat: SORT = {
   let var_declarator = () => seq([t(Id_lower), _initializer()]);
 
   let lexical_declaration = () =>
-    seq([alt([kw("let"), kw("const")]), var_declarator()]);
+    seq([
+      alt([
+        kw(~space=(false, true), "let"),
+        kw(~space=(false, true), "const"),
+      ]),
+      var_declarator(),
+    ]);
 
   let var_declaration = () => seq([kw("var"), var_declarator()]);
 
