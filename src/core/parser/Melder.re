@@ -87,7 +87,44 @@ let complete_bounded =
   Walker.walk_eq(~from=onto, fc_onto, fc_from)
   |> Grouter.pick(~repair=true, [fill], ~from=onto)
   // |> Option.map(grouted => snd(Chain.hd(grouted)))
-  |> Options.get_fail("hmmm");
+  // |> Options.get_fail("hmmm");
+  |> (
+    fun
+    | Some(r) => {
+        P.log("--- hmm succeeded");
+        P.show("onto", Dir.show(onto));
+        P.show("fc_onto", Bound.show(Mtrl.T.pp, fc_onto));
+        P.show("fc_from", Bound.show(Mtrl.T.pp, fc_from));
+        P.log("walks = ");
+        Walker.walk_eq(~from=onto, fc_onto, fc_from)
+        |> List.iter(w => P.sexp("w", Walk.sexp_of_t(w)));
+        P.log("filtered walks = ");
+        Walker.walk_eq(~from=onto, fc_onto, fc_from)
+        |> Walker.walk_filter_by_swing(onto)
+        |> List.iter(w => P.sexp("w", Walk.sexp_of_t(w)));
+        r;
+      }
+    | None => {
+        P.log("--- hmmmmmmmmmmmmmmm");
+        P.show("onto", Dir.show(onto));
+        P.show("fc_onto", Bound.show(Mtrl.T.pp, fc_onto));
+        P.show("fc_from", Bound.show(Mtrl.T.pp, fc_from));
+        P.log("walks = ");
+        Walker.walk_all_no_filter(~from=onto, fc_onto)
+        |> Walk.Index.find(fc_from)
+        |> List.filter(Walk.is_eq)
+        |> List.iter(w => P.sexp("w", Walk.sexp_of_t(w)));
+        P.log("filtered walks = ");
+        Walker.walk_all(~from=onto, fc_onto)
+        |> Walk.Index.find(fc_from)
+        |> List.filter(Walk.is_eq)
+        |> List.iter(w => P.sexp("w", Walk.sexp_of_t(w)));
+        // Walker.walk_eq(~from=onto, fc_onto, fc_from)
+        // |> Walker.walk_filter_by_swing(onto)
+        // |> List.iter(w => P.sexp("w", Walk.sexp_of_t(w)));
+        failwith("");
+      }
+  );
 };
 
 // assumes cs have been oriented left to right

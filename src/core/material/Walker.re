@@ -257,8 +257,8 @@ let build_swing_profile = (from: Dir.t, s: Swing.t): swing_profile => {
   };
 };
 
-//TODO: instead of doing list.mem (equality) check if the profile has wider (more relaxed) bounds than the pre-existing profile (gte)
-//make the accumulator just a list of walks (the already checked walks) and then recalcuate the profiles for each walk in the accumulator - this will solve the problem of needing to do two-way checks with profiles/walks that were already approved/checked
+// note: instead of doing list.mem (equality) check if the profile has wider (more relaxed) bounds than the pre-existing profile (gte)
+// make the accumulator just a list of walks (the already checked walks) and then recalcuate the profiles for each walk in the accumulator - this will solve the problem of needing to do two-way checks with profiles/walks that were already approved/checked
 let walk_filter_by_swing = (from: Dir.t, walks: list(Walk.t)): list(Walk.t) => {
   walks
   |> List.fold_left(
@@ -283,7 +283,7 @@ let walk_filter_by_swing = (from: Dir.t, walks: list(Walk.t)): list(Walk.t) => {
 
 // notes:
 // - [DONE] strengthen minimality check to rule out multiple grout levels
-// - [DOING} apply additional filter that rules outs walks that accommodate the same thing as another existing walk
+// - [DONE] apply additional filter that rules outs walks that accommodate the same thing as another existing walk
 
 // WIP: inspecting the diff `git show -m bdc35446 -- src/core/material` to see why
 // there is a difference between precompiled entry from root vs regular entry from
@@ -306,12 +306,12 @@ let walk_all_no_filter =
     step_all(~from, src) |> Index.iter((dst, w) => Queue.push((dst, w), q));
     bfs(~from, q)
     |> Index.filter(Walk.is_valid)
-    // |> Index.filter(is_minimal)
-    // |> Index.fil(_ =>
-    //      fun
-    //      | [] => false
-    //      | _ => true
-    //    )
+    |> Index.filter(is_minimal)
+    |> Index.fil(_ =>
+         fun
+         | [] => false
+         | _ => true
+       )
     // |> Index.mp(walk_filter_by_swing(from))
     |> Index.sort;
   });
