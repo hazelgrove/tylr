@@ -110,6 +110,14 @@
   transform: scale(0.4,0.375) translate(0, 5%);
 }
 
+.grout path.tile-path.Prog {
+  fill: var(--prog-shadow-color);
+  /* opacity: 0.5; */
+}
+.grout path.tile-path.Stat {
+  fill: var(--stat-shadow-color);
+  /* opacity: 0.5; */
+}
 .grout path.tile-path.Exp {
   fill: var(--exp-shadow-color);
   /* opacity: 0.5; */
