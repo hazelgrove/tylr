@@ -182,7 +182,7 @@ and Exp: SORT = {
     seq([
       opt(kw(~space=(false, true), ~indent=false, "async")),
       kw(~space=(false, true), "function"),
-      opt(t(Id_lower)),
+      opt(Pat.atom()),
       call_signature(),
       stat_block(),
     ]);
@@ -190,7 +190,7 @@ and Exp: SORT = {
   let arrow_function = () =>
     seq([
       opt(kw(~space=(false, true), ~indent=false, "async")),
-      alt([t(Id_lower), call_signature()]),
+      alt([Pat.atom(), call_signature()]),
       op("=>"),
       alt([atom(), stat_block()]),
     ]);
@@ -274,8 +274,7 @@ and Exp: SORT = {
       // subscript_exp(),
     ]);
 
-  let member_exp = () =>
-    seq([atom() /* , import() */, c("."), t(Id_lower)]);
+  let member_exp = () => seq([atom() /* , import() */, c("."), Pat.atom()]);
 
   let assignment_exp = () => seq([Pat.atom(), op("="), atom()]);
   let await_exp = () => seq([kw("await"), atom()]);
@@ -436,7 +435,7 @@ and Stat: SORT = {
     seq([
       opt(kw(~space=(false, true), ~indent=false, "async")),
       kw(~space=(false, true), "function"),
-      opt(t(Id_lower)),
+      opt(Pat.atom()),
       call_signature(),
       stat_block(),
       // opt(c(";")),
@@ -480,7 +479,7 @@ and Stat: SORT = {
   //TODO: re-add for minijs (8/6/25)
   // let var_declarator = () => seq([t(Id_lower), opt(_initializer())]);
 
-  let var_declarator = () => seq([t(Id_lower), _initializer()]);
+  let var_declarator = () => seq([Pat.atom(), _initializer()]);
 
   let lexical_declaration = () =>
     seq([
@@ -518,9 +517,9 @@ and Stat: SORT = {
 
   // let empty_statement = () => c(";");
 
-  let break_statement = () => seq([kw("break"), opt(t(Id_lower))]);
+  let break_statement = () => seq([kw("break"), opt(Pat.atom())]);
 
-  let continue_statement = () => seq([kw("continue"), opt(t(Id_lower))]);
+  let continue_statement = () => seq([kw("continue"), opt(Pat.atom())]);
 
   let return_statement = () => seq([kw("return"), opt(Exp.atom())]);
 
