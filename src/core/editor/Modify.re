@@ -594,9 +594,9 @@ let apply_changes =
 
 let apply_remold = (changes, ctx) => {
   open Choice.Syntax;
-  P.log("--- Modify.apply_remold");
-  P.show("changes", Changes.show(changes));
-  P.show("ctx", Ctx.show(ctx));
+  // P.log("--- Modify.apply_remold");
+  // P.show("changes", Changes.show(changes));
+  // P.show("ctx", Ctx.show(ctx));
   let+ changed = apply_changes(changes, ctx);
   () => {
     open Options.Syntax;
@@ -727,11 +727,14 @@ let insert = (s: string, z: Zipper.t) => {
 
   let (remolded, ctx) =
     relabel(s, z)
-    |> Choice.map(((changes, ctx)) => {
-         P.show("changes", Changes.show(changes));
-         P.show("ctx", Ctx.show(ctx));
-         (changes, ctx);
-       })
+    // |> Choice.map(((changes, ctx)) => {
+    //      (
+    //        // P.show("changes", Changes.show(changes));
+    //        // P.show("ctx", Ctx.show(ctx));
+    //        changes,
+    //        ctx,
+    //      )
+    //    })
     |> Choice.bind(Funs.uncurry(apply_remold))
     |> Oblig.Delta.min_choice
     |> Options.get_fail("bug: failed to apply insert changes");

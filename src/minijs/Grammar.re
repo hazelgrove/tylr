@@ -476,7 +476,11 @@ and Stat: SORT = {
   //   ]);
 
   // let init = () => seq([c("="), Exp.atom()]);
-  let var_declarator = () => seq([t(Id_lower), opt(_initializer())]);
+
+  //TODO: re-add for minijs (8/6/25)
+  // let var_declarator = () => seq([t(Id_lower), opt(_initializer())]);
+
+  let var_declarator = () => seq([t(Id_lower), _initializer()]);
 
   let lexical_declaration = () =>
     seq([alt([kw("let"), kw("const")]), var_declarator()]);

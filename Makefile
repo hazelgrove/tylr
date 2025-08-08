@@ -19,7 +19,7 @@ init:
 	@echo "" > src/core/material/precompiled/walk_r_no_filter_map.txt
 	dune build @src/fmt --auto-promote || true
 	dune build src --profile dev
-	./_build/default/src/hazel/precompile.exe
+	./_build/default/src/minijs/precompile.exe
 	mv enter_l_map.txt src/core/material/precompiled
 	mv enter_r_map.txt src/core/material/precompiled
 	mv nts.txt src/core/material/precompiled

@@ -33,17 +33,17 @@ let rec extract_cell_padding = (~side: Dir.t, c: Cell.t) =>
   switch (Cell.get(c)) {
   | None => (Cell.empty, c)
   | Some(m) when Option.is_some(Meld.Space.get(m)) =>
-    P.show("hit extract_cell_padding.space", Cell.show(c));
+    // P.show("hit extract_cell_padding.space", Cell.show(c));
     switch (Cell.Space.split_cursor(c)) {
     | Some(s) =>
-      P.show(
-        "hit extract_cell_padding.split_cursor some fst: ",
-        Cell.show(fst(s)),
-      );
-      P.show("snd: ", Cell.show(snd(s)));
-      s;
+      // P.show(
+      //   "hit extract_cell_padding.split_cursor some fst: ",
+      //   Cell.show(fst(s)),
+      // );
+      // P.show("snd: ", Cell.show(snd(s)));
+      s
     | None => (c, Cell.empty)
-    };
+    }
   | Some(M(l, w, r)) =>
     switch (side) {
     | L =>
@@ -185,10 +185,10 @@ let rec degrout = (c: Cell.t): Cells.t =>
       | [hd, ...tl] when Cell.Space.is_space(l) =>
         //mark_degrouted says "a grout once was here"
         let l = Cell.mark_degrouted(l, ~side=R);
-        P.show("degrout cells_l & pad without squash", Cell.show(l));
+        // P.show("degrout cells_l & pad without squash", Cell.show(l));
         [Cell.pad(~squash=false, ~l, hd), ...tl];
       | [] when Cell.Space.is_space(l) =>
-        P.show("degrout cells_l", Cell.show(l));
+        // P.show("degrout cells_l", Cell.show(l));
         let l = Cell.mark_degrouted(l, ~side=R);
         [l];
       | _ =>
@@ -199,11 +199,11 @@ let rec degrout = (c: Cell.t): Cells.t =>
       switch (Lists.Framed.ft(cells_l)) {
       | Some((pre, ft)) when Cell.Space.is_space(r) =>
         let r = Cell.mark_degrouted(~side=L, r);
-        P.show("degrout cells_r & pad without squash", Cell.show(l));
+        // P.show("degrout cells_r & pad without squash", Cell.show(l));
         Lists.Framed.put_ft(pre, Cell.pad(~squash=false, ft, ~r));
       | None when Cell.Space.is_space(r) =>
         let r = Cell.mark_degrouted(~side=L, r);
-        P.show("degrout cells_r", Cell.show(l));
+        // P.show("degrout cells_r", Cell.show(l));
         [r];
       | _ =>
         let r = Cell.mark_degrouted(r, ~side=L);
@@ -266,10 +266,10 @@ let fill_default =
 let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
   let cs = Dir.pick(from, (List.rev, Fun.id), cs);
   // if (dbg^) {
-  P.log("--- Grouter.fill_swing");
-  P.show("from", Dir.show(from));
-  P.show("sw", Walk.Swing.show(sw));
-  P.show("cs", Cells.show(cs));
+  // P.log("--- Grouter.fill_swing");
+  // P.show("from", Dir.show(from));
+  // P.show("sw", Walk.Swing.show(sw));
+  // P.show("cs", Cells.show(cs));
   // };
   let (bot, top) = Walk.Swing.(bot(sw), top(sw));
   switch (bot) {
@@ -282,9 +282,9 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     // P.show("cs", Cells.show(cs));
     // };
     let squashed = Cells.squash(cs);
-    if (dbg^) {
-      P.show("squashed", Cells.show(squashed));
-    };
+    // if (dbg^) {
+    // P.show("squashed", Cells.show(squashed));
+    // };
     let valid =
       nt == Open
         ? Cell.Space.is_space : Cell.is_empty(~require_unmarked=false);
@@ -323,27 +323,27 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
     switch (Cells.split_padding(cs)) {
     | (l, cs, r) when List.for_all(Cell.Space.is_space, cs) =>
       // if (dbg^) {
-      P.log("--- Grouter.fill_swing/Tile/all space");
-      P.show("l", Cell.show(l));
-      P.show("cs", Cells.show(cs));
-      P.show("r", Cell.show(r));
+      // P.log("--- Grouter.fill_swing/Tile/all space");
+      // P.show("l", Cell.show(l));
+      // P.show("cs", Cells.show(cs));
+      // P.show("r", Cell.show(r));
       // };
       // prioritize getting any carets in cs over to the left for now.
       // todo: parametrize this based on parsing mode
       let l = List.hd(Cells.squash([l, ...cs]));
-      P.show("squashed l", Cell.show(l));
+      // P.show("squashed l", Cell.show(l));
       // let r = List.hd(Cells.squash(cs @ [r]));
       let ret = Cell.pad(~l, fill_default(bot), ~r);
       // if (dbg^) {
-      P.show("padded", Cell.show(ret));
+      // P.show("padded", Cell.show(ret));
       // };
       ret;
     | (l, cs, r) =>
       // if (dbg^) {
-      P.log("--- Grouter.fill_swing/Tile/not all space");
-      P.show("l", Cell.show(l));
-      P.show("cs", Cells.show(cs));
-      P.show("r", Cell.show(r));
+      // P.log("--- Grouter.fill_swing/Tile/not all space");
+      // P.show("l", Cell.show(l));
+      // P.show("cs", Cells.show(cs));
+      // P.show("r", Cell.show(r));
       // };
       //cells is list of children cells for target grout form
       //cons/scnoc here effectively add l/r as children of prefix/postfix grout
@@ -398,7 +398,7 @@ let fill_swing = (cs: Cells.t, sw: Walk.Swing.t, ~from: Dir.t) => {
 let fill_swings =
     (~repair, ~from, cells: list(Cell.t), swings: list(Walk.Swing.t)) => {
   // if (dbg^) {
-  P.log("--- Grouter.fill_swings");
+  // P.log("--- Grouter.fill_swings");
   // P.show("from", Dir.show(from));
   // P.show("cells", Cells.show(Dir.pick(from, (List.rev, Fun.id), cells)));
   // P.show("swings", Fmt.to_to_string(Fmt.list(Walk.Swing.pp), swings));
@@ -406,7 +406,7 @@ let fill_swings =
   cells
   |> Dir.pick(from, (List.rev, Fun.id))
   |> (repair ? List.concat_map(degrout) : Fun.id)
-  |> (true ? P.oshow("degrouted", Cells.show) : Fun.id)
+  // |> (true ? P.oshow("degrouted", Cells.show) : Fun.id)
   |> Dir.pick(from, (List.rev, Fun.id))
   |> Lists.split_bins(List.length(swings))
   |> Oblig.Delta.minimize(~to_zero=!repair, c_bins =>
@@ -435,24 +435,24 @@ let fill = (~repair, ~from, cs, (swings, stances): Walk.t) => {
 let pick = (~repair=false, ~from: Dir.t, cs: list(Cell.t), ws: list(Walk.t)) => {
   open Options.Syntax;
   // if (dbg^) {
-  P.log("--- Grouter.pick");
-  P.show("from", Dir.show(from));
-  P.show("cs", Cells.show(cs));
+  // P.log("--- Grouter.pick");
+  // P.show("from", Dir.show(from));
+  // P.show("cs", Cells.show(cs));
   //   P.log("ws");
   //   ws |> List.iter(w => P.show("w", Walk.show(w)));
   // };
 
   let (cs, nl) = extract_newline(~from, cs);
 
-  P.show("cs post newline extract", Cells.show(cs));
-  P.show("nl", Cell.show(nl));
+  // P.show("cs post newline extract", Cells.show(cs));
+  // P.show("nl", Cell.show(nl));
 
   let+ grouted =
     Oblig.Delta.minimize(~to_zero=!repair, fill(~repair, ~from, cs), ws);
 
-  P.show("grouted no nl", Grouted.show(grouted));
+  // P.show("grouted no nl", Grouted.show(grouted));
 
   let reinsert = reinsert_newline(~from, grouted, nl);
-  P.show("grouted with nl ", Grouted.show(reinsert));
+  // P.show("grouted with nl ", Grouted.show(reinsert));
   reinsert;
 };
